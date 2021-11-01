@@ -1,0 +1,15 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: check-json
+    -   id: check-merge-conflict
+    -   id: check-symlinks
+    -   id: flake8
+    -   id: mixed-line-ending
+    -   id: pretty-format-json
+        args: [--autofix]
+-   repo: https://github.com/pre-commit/mirrors-pylint
+    rev: v2.3.1
+    hooks:
+    -   id: pylint
