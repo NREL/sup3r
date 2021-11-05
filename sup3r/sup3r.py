@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 """SUP3R"""
-
+import time
+import logging
+import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.metrics import mean_squared_error
 from phygnn import CustomNetwork, GradientUtils
+
+
+logger = logging.getLogger(__name__)
 
 
 class SpatioTemporalSup3r(GradientUtils):
@@ -27,9 +32,12 @@ class SpatioTemporalSup3r(GradientUtils):
             config file containing the input layers argument.
         """
 
-        self._gen = CustomNetwork(hidden_layers=gen_layers, name='Gen')
-        self._disc_t = CustomNetwork(hidden_layers=disc_t_layers, name='DiscT')
-        self._disc_s = CustomNetwork(hidden_layers=disc_s_layers, name='DiscS')
+        self._history = None
+        self._gen = CustomNetwork(hidden_layers=gen_layers, name='Generator')
+        self._disc_t = CustomNetwork(hidden_layers=disc_t_layers,
+                                     name='TemporalDiscriminator')
+        self._disc_s = CustomNetwork(hidden_layers=disc_s_layers,
+                                     name='SpatialDiscriminator')
 
     @property
     def generator(self):
@@ -60,6 +68,17 @@ class SpatioTemporalSup3r(GradientUtils):
         phygnn.base.CustomNetwork
         """
         return self._disc_t
+
+    @property
+    def history(self):
+        """
+        Model training history DataFrame (None if not yet trained)
+
+        Returns
+        -------
+        pandas.DataFrame | None
+        """
+        return self._history
 
     def calc_loss_gen(self, y_true, y_generated, y_disc_s, y_disc_t):
         """Calculate the loss term for the generator model.
@@ -198,3 +217,77 @@ class SpatioTemporalSup3r(GradientUtils):
                 + weight_disc_t * loss_disc_t)
 
         return loss
+
+    def train(self, x, y, n_batch=16, n_epoch=100, shuffle=True,
+              validation_split=0.1, return_diagnostics=False):
+        """Train the GAN model on real low res data x and real high res data y
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Real low-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        y : np.ndarray
+            Real high-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        n_batch : int
+            Number of times to update the weights per epoch (number of
+            mini-batches). The training data will be split into this many
+            mini-batches and the NN will train on each mini-batch, update
+            weights, then move onto the next mini-batch.
+        n_epoch : int
+            Number of times to iterate on the training data.
+        shuffle : bool
+            Flag to randomly subset the validation data and batch selection
+            from x, y, and p.
+        validation_split : float
+            Fraction of x, y, and p to use for validation.
+        return_diagnostics : bool
+            Flag to return training diagnostics dictionary.
+
+        Returns
+        -------
+        diagnostics : dict
+            Namespace of training parameters that can be used for diagnostics.
+        """
+        epochs = list(range(n_epoch))
+
+        if self._history is None:
+            self._history = pd.DataFrame(
+                columns=['elapsed_time',
+                         'training_loss',
+                         'validation_loss',
+                         ])
+            self._history.index.name = 'epoch'
+        else:
+            epochs += self._history.index.values[-1] + 1
+
+        x, y, x_val, y_val = self.get_val_split(
+            x, y, shuffle=shuffle, validation_split=validation_split)
+
+        tr_loss = None
+        t0 = time.time()
+        for epoch in epochs:
+
+            batch_iter = self.make_batches(x, y, n_batch=n_batch,
+                                           shuffle=shuffle)
+
+            for x_batch, y_batch in batch_iter:
+                tr_loss = self.run_gradient_descent(x_batch, y_batch)
+
+            y_val_gen = self.generator.predict(x_val, to_numpy=False)
+            val_loss = self.calc_loss(y_val, y_val_gen)
+            logger.info('Epoch {} train loss: {:.2e} '
+                        'val loss: {:.2e} for "{}"'
+                        .format(epoch, tr_loss, val_loss, self.name))
+
+            self._history.at[epoch, 'elapsed_time'] = time.time() - t0
+            self._history.at[epoch, 'training_loss'] = tr_loss.numpy()
+            self._history.at[epoch, 'validation_loss'] = val_loss.numpy()
+
+        diagnostics = {'x': x, 'y': y, 'x_val': x_val, 'y_val': y_val,
+                       'history': self.history,
+                       }
+
+        if return_diagnostics:
+            return diagnostics
