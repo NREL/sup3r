@@ -5,13 +5,13 @@ import logging
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.metrics import mean_squared_error
-from phygnn import CustomNetwork, GradientUtils
+from phygnn import CustomNetwork
 
 
 logger = logging.getLogger(__name__)
 
 
-class SpatioTemporalSup3r(GradientUtils):
+class SpatioTemporalSup3r:
     """Spatio Temporal Super Resolution GAN model."""
 
     def __init__(self, gen_layers, disc_t_layers, disc_s_layers):
@@ -50,6 +50,38 @@ class SpatioTemporalSup3r(GradientUtils):
         return self._gen
 
     @property
+    def generator_weights(self):
+        """Get a list of layer weights and bias terms for the generator model.
+
+        Returns
+        -------
+        list
+        """
+        return self.generator.weights
+
+    def generate(self, x, to_numpy=True, training=False):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Real low-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        to_numpy : bool
+            Flag to convert output from tensor to numpy array
+        training : bool
+            Flag for predict() used in the training routine. This is used
+            to freeze the BatchNormalization and Dropout layers.
+
+        Returns
+        -------
+        y : np.ndarray
+            Synthetically generated high-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        """
+        return self.generator.predict(x, to_numpy=to_numpy, training=training)
+
+    @property
     def disc_spatial(self):
         """Get the spatial discriminator model.
 
@@ -58,6 +90,17 @@ class SpatioTemporalSup3r(GradientUtils):
         phygnn.base.CustomNetwork
         """
         return self._disc_s
+
+    @property
+    def disc_spatial_weights(self):
+        """Get a list of layer weights and bias terms for the spatial
+        discriminator model.
+
+        Returns
+        -------
+        list
+        """
+        return self.disc_spatial.weights
 
     @property
     def disc_temporal(self):
@@ -70,6 +113,25 @@ class SpatioTemporalSup3r(GradientUtils):
         return self._disc_t
 
     @property
+    def disc_temporal_weights(self):
+        """Get a list of layer weights and bias terms for the temporal
+        discriminator model.
+
+        Returns
+        -------
+        list
+        """
+        return self.disc_temporal.weights
+
+    @property
+    def weights(self):
+        """Get a list of all the layer weights and bias terms for the
+        generator, spatial discriminator, and temporal discriminator.
+        """
+        return (self.generator_weights + self.disc_spatial_weights
+                + self.disc_temporal_weights)
+
+    @property
     def history(self):
         """
         Model training history DataFrame (None if not yet trained)
@@ -79,6 +141,67 @@ class SpatioTemporalSup3r(GradientUtils):
         pandas.DataFrame | None
         """
         return self._history
+
+    def run_gradient_descent(self, x, y_true, weight_gen=1.0,
+                             weight_disc_s=1.0, weight_disc_t=1.0):
+        """Run gradient descent for one mini-batch of (x, y_true)
+        and adjust NN weights
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Real low-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        y_true : np.ndarray
+            Real high-resolution data in a 5D array:
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        weight_gen : bool
+            Weight factor for the generative loss term in the loss function.
+            This includes the generative content loss and the generative
+            portion of the discriminator losses (both space and time).
+        weight_disc_s : bool
+            Weight factor for the spatial discriminator loss term in the loss
+            function.
+        weight_disc_t : bool
+            Weight factor for the temporal discriminator loss term in the loss
+            function.
+
+        Returns
+        -------
+        loss : tf.Tensor
+            0D tensor representing the full GAN loss term. This can be a
+            weighted summation of up to four individual loss terms from the
+            generative / discriminative models and their respective spatial /
+            temporal components or models.
+        loss_diagnostics : dict
+            Namespace of the breakdown of loss components
+        """
+
+        with tf.GradientTape() as tape:
+            for layer in self._layers:
+                tape.watch(layer.variables)
+
+            y_predicted = self.generate(x, to_numpy=False, training=True)
+            loss_out = self.calc_loss(y_true, y_predicted,
+                                      weight_gen=weight_gen,
+                                      weight_disc_s=weight_disc_s,
+                                      weight_disc_t=weight_disc_t)
+            loss, loss_diagnostics = loss_out
+
+            # do you even lift bro?
+            training_weights = []
+            if weight_gen > 0:
+                training_weights += self.generator_weights
+            if weight_disc_s > 0:
+                training_weights += self.disc_spatial_weights
+            if weight_disc_t > 0:
+                training_weights += self.disc_temporal_weights
+
+            grad = tape.gradient(loss, training_weights)
+
+        self._optimizer.apply_gradients(zip(grad, self.weights))
+
+        return loss, loss_diagnostics
 
     def calc_loss_gen(self, y_true, y_generated, y_disc_s, y_disc_t):
         """Calculate the loss term for the generator model.
@@ -184,11 +307,13 @@ class SpatioTemporalSup3r(GradientUtils):
 
         Returns
         -------
-        loss_disc : tf.Tensor
+        loss : tf.Tensor
             0D tensor representing the full GAN loss term. This can be a
-            summation of up to four individual loss terms from the generative /
-            discriminative models and for their respective spatial / temporal
-            components or models.
+            weighted summation of up to four individual loss terms from the
+            generative / discriminative models and their respective spatial /
+            temporal components or models.
+        loss_diagnostics : dict
+            Namespace of the breakdown of loss components
         """
 
         loss_gen_s = tf.constant(0.0, dtype=tf.float32)
@@ -216,10 +341,16 @@ class SpatioTemporalSup3r(GradientUtils):
                 + weight_disc_s * loss_disc_s
                 + weight_disc_t * loss_disc_t)
 
-        return loss
+        loss_diagnostics = {'loss_gen_s': loss_gen_s,
+                            'loss_gen_t': loss_gen_t,
+                            'loss_disc_s': loss_disc_s,
+                            'loss_disc_t': loss_disc_t,
+                            }
 
-    def train(self, x, y, n_batch=16, n_epoch=100, shuffle=True,
-              validation_split=0.1, return_diagnostics=False):
+        return loss, loss_diagnostics
+
+    def train(self, x, y, n_batch=None, batch_size=128, n_epoch=100,
+              shuffle=True, validation_split=0.1, return_diagnostics=False):
         """Train the GAN model on real low res data x and real high res data y
 
         Parameters
@@ -262,21 +393,23 @@ class SpatioTemporalSup3r(GradientUtils):
         else:
             epochs += self._history.index.values[-1] + 1
 
-        x, y, x_val, y_val = self.get_val_split(
-            x, y, shuffle=shuffle, validation_split=validation_split)
+        val_splits = self.get_val_split(x, y, shuffle=shuffle,
+                                        validation_split=validation_split)
+        x, x_val = val_splits[0]
+        y, y_val = val_splits[1]
 
         tr_loss = None
         t0 = time.time()
         for epoch in epochs:
-
             batch_iter = self.make_batches(x, y, n_batch=n_batch,
+                                           batch_size=batch_size,
                                            shuffle=shuffle)
 
             for x_batch, y_batch in batch_iter:
                 tr_loss = self.run_gradient_descent(x_batch, y_batch)
 
-            y_val_gen = self.generator.predict(x_val, to_numpy=False)
-            val_loss = self.calc_loss(y_val, y_val_gen)
+            y_val_gen = self.generate(x_val, to_numpy=False)
+            val_loss, _ = self.calc_loss(y_val, y_val_gen)
             logger.info('Epoch {} train loss: {:.2e} '
                         'val loss: {:.2e} for "{}"'
                         .format(epoch, tr_loss, val_loss, self.name))
