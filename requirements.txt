@@ -1,4 +1,6 @@
 matplotlib>=3.1
 NREL-rex
 NREL-phygnn
+NREL-rev
+xarray
 pytest>=5.2
