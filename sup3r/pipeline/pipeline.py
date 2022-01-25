@@ -9,6 +9,7 @@ import numpy as np
 from reV.pipeline.pipeline import Pipeline
 from rex.utilities.loggers import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
+from rex.multi_year_resource import MultiYearResource
 
 from sup3r.pipeline.config import Sup3rPipelineConfig
 
@@ -38,12 +39,35 @@ class Sup3rPipeline(Pipeline):
         self._config = Sup3rPipelineConfig(pipeline)
         self._run_list = self._config.pipeline
         self.resource = None
+        self.multiResource = None
+        self.h5_files = None
+        self.h5_file = None
         self._init_status()
 
         # init logger for pipeline module if requested in input config
         if 'logging' in self._config:
             init_logger('sup3r.pipeline', **self._config.logging)
             init_logger('reV.pipeline', **self._config.logging)
+
+    def initialize_h5(self, res_h5_path):
+        """Use MultiYearResource to handle
+        multiple h5 files
+
+        Parameters
+        ----------
+        res_h5_path : str
+            Directory containing h5 files
+            or single file path
+
+        Returns
+        -------
+        h5_files : str list
+            List of file names
+        """
+
+        self.multiResource = MultiYearResource(res_h5_path)
+        self.h5_files = self.multiResource.h5_files
+        return self.h5_files
 
     def load_h5_data(self, res_h5):
         """Use ResourceX class to
@@ -60,14 +84,17 @@ class Sup3rPipeline(Pipeline):
         """
 
         self.resource = ResourceX(res_h5)
-        return self.resource.h5
+        self.h5_file = self.resource.h5
+        return self.h5_file
 
-    def get_h5_data(self, target, shape, features):
+    def get_h5_data(self, h5_data, target, shape, features):
         """Get chunk of h5 data based on raster_indices
         and features
 
         Parameters
         ----------
+        h5_file : h5py.File | h5py.Group
+            returned from load_h5_data method
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -83,8 +110,7 @@ class Sup3rPipeline(Pipeline):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        h5_data = self.resource.h5
-        raster_index = self.get_raster_index(target, shape)
+        raster_index = self.resource.get_raster_index(target, shape)
         data = np.zeros((raster_index.shape[0],
                          raster_index.shape[1],
                          h5_data['time_index'].shape[0],
@@ -110,36 +136,6 @@ class Sup3rPipeline(Pipeline):
         """
 
         return xarray.open_dataset(res_nc)
-
-    def get_raster_index(self, target, shape, meta=None, max_delta=50):
-        """Get meta data index values that correspond to a 2D rectangular grid
-        of the requested shape starting with the target coordinate in the
-        bottom left hand corner. Note that this can break down if a target is
-        requested outside of the main grid area.
-        Parameters
-        ----------
-        target : tuple
-            Starting coordinate (latitude, longitude) in decimal degrees for
-            the bottom left hand corner of the raster grid.
-        shape : tuple
-            Desired raster shape in format (number_rows, number_cols)
-        meta : pd.DataFrame | None
-            Optional meta data input with latitude, longitude fields. Default
-            is None which extracts self.meta from the resource data.
-        max_delta : int
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raseter will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances.
-        Returns
-        -------
-        raster_index : np.ndarray
-            2D array of meta data index values that form a 2D rectangular grid
-            with latitudes descending from top to bottom and longitudes
-            ascending from left to right.
-        """
-
-        return self.resource.get_raster_index(target, shape, meta, max_delta)
 
     def get_coarse_data(self, data, spatial_res=None, temporal_res=None):
         """"Coarsen data according to spatial_res resolution
@@ -170,9 +166,11 @@ class Sup3rPipeline(Pipeline):
             tmp = data
 
         if spatial_res is not None:
-            coarse_data = tmp.reshape(-1, spatial_res, 
+            coarse_data = tmp.reshape(-1, spatial_res,
                                       data.shape[1] // spatial_res,
-                                      spatial_res).sum((1, 3)) \
-                                          (spatial_res * spatial_res)
+                                      spatial_res,
+                                      tmp.shape[2],
+                                      tmp.shape[3]).sum((1, 3)) \
+                / (spatial_res * spatial_res)
 
         return coarse_data
