@@ -83,7 +83,7 @@ class Sup3rPipeline(Pipeline):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        h5_data = self.resource
+        h5_data = self.resource.h5
         raster_index = self.get_raster_index(target, shape)
         data = np.zeros((raster_index.shape[0],
                          raster_index.shape[1],
@@ -151,15 +151,11 @@ class Sup3rPipeline(Pipeline):
             4D array with dimensions
             (spatial_1, spatial_2, temporal, features)
 
-        spatial_res : (int, int)
-            tuple with first element the spatial resolution
-            of input data and second element the spatial
-            resolution of coarse data
+        spatial_res : int
+            factor by which to coarsen spatial dimensions
 
         temporal_res : (int, int)
-            tuple with first element the temporal resolution
-            of input data and second element the temporal
-            resolution of coarse data
+            factor by which to coarsen temporal dimension
 
         Returns
         -------
@@ -169,22 +165,14 @@ class Sup3rPipeline(Pipeline):
         """
 
         if temporal_res is not None:
-            n = temporal_res[1] // temporal_res[0]
-            tmp = data[:, :, ::n, :]
+            tmp = data[:, :, ::temporal_res, :]
         else:
             tmp = data
 
         if spatial_res is not None:
-            n = spatial_res[1] // spatial_res[0]
-            coarse_data = np.zeros((data.shape[0] // n,
-                                    data.shape[1] // n,
-                                    tmp.shape[2],
-                                    tmp.shape[3]))
-            for t in range(tmp.shape[2]):
-                for f in range(tmp.shape[3]):
-                    coarse_data[:, :, t, f] = \
-                        tmp[:, :, t, f].reshape(-1, n,
-                                                tmp.shape[1],
-                                                n).sum((-1, -3)) / n
+            coarse_data = tmp.reshape(-1, spatial_res, 
+                                      data.shape[1] // spatial_res,
+                                      spatial_res).sum((1, 3)) \
+                                          (spatial_res * spatial_res)
 
         return coarse_data
