@@ -4,6 +4,7 @@ Sup3r data pipeline architecture.
 """
 import logging
 import xarray
+import numpy as np
 
 from reV.pipeline.pipeline import Pipeline
 from rex.utilities.loggers import init_logger
@@ -44,7 +45,7 @@ class Sup3rPipeline(Pipeline):
             init_logger('sup3r.pipeline', **self._config.logging)
             init_logger('reV.pipeline', **self._config.logging)
 
-    def get_h5_data(self, res_h5):
+    def load_h5_data(self, res_h5):
         """Use ResourceX class to
         open h5 file
 
@@ -60,6 +61,39 @@ class Sup3rPipeline(Pipeline):
 
         self.resource = ResourceX(res_h5)
         return self.resource.h5
+
+    def get_h5_data(self, target, shape, features):
+        """Get chunk of h5 data based on raster_indices
+        and features
+
+        Parameters
+        ----------
+        target : tuple
+            Starting coordinate (latitude, longitude) in decimal degrees for
+            the bottom left hand corner of the raster grid.
+        shape : tuple
+            Desired raster shape in format (number_rows, number_cols)
+        features : str list
+            List of fields to extract from dataset
+
+        Returns
+        -------
+        data : np.ndarray
+            Real high-resolution data in a 4D array:
+            (spatial_1, spatial_2, temporal, features)
+        """
+
+        h5_data = self.resource
+        raster_index = self.get_raster_index(target, shape)
+        data = np.zeros((raster_index.shape[0],
+                         raster_index.shape[1],
+                         h5_data['time_index'].shape[0],
+                         len(features)))
+        for i in range(data.shape[0]):
+            for j, f in enumerate(features):
+                data[i, :, :, j] = h5_data[f][:, raster_index[i]].transpose()
+
+        return data
 
     def get_nc_data(self, res_nc):
         """
@@ -114,7 +148,8 @@ class Sup3rPipeline(Pipeline):
         Parameters
         ----------
         data : np.ndarray
-            3D array with dimensions (time, lat, lon)
+            4D array with dimensions
+            (spatial_1, spatial_2, temporal, features)
 
         spatial_res : (int, int)
             tuple with first element the spatial resolution
@@ -129,20 +164,27 @@ class Sup3rPipeline(Pipeline):
         Returns
         -------
         coarse_data : np.ndarray
-            3D array with same dimensions as data
+            4D array with same dimensions as data
             with new coarse resolution
         """
 
         if temporal_res is not None:
             n = temporal_res[1] // temporal_res[0]
-            coarse_data = data[::n, :, :]
+            tmp = data[:, :, ::n, :]
         else:
-            coarse_data = data
+            tmp = data
 
         if spatial_res is not None:
             n = spatial_res[1] // spatial_res[0]
-            coarse_data = coarse_data.reshape(-1, n,
-                                              coarse_data.shape[1] // n,
-                                              n).sum((-1, -3)) / n
+            coarse_data = np.zeros((data.shape[0] // n,
+                                    data.shape[1] // n,
+                                    tmp.shape[2],
+                                    tmp.shape[3]))
+            for t in range(tmp.shape[2]):
+                for f in range(tmp.shape[3]):
+                    coarse_data[:, :, t, f] = \
+                        tmp[:, :, t, f].reshape(-1, n,
+                                                tmp.shape[1],
+                                                n).sum((-1, -3)) / n
 
         return coarse_data
