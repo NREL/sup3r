@@ -137,6 +137,46 @@ class Sup3rPipeline(Pipeline):
 
         return xarray.open_dataset(res_nc)
 
+    def get_u_v(self, data, lats, lons):
+        """Maps windspeed and direction to u v
+        and aligns u v with grid
+
+        Parameters
+        ----------
+        data : np.ndarray
+            4D array (spatial_1, spatial_2, temporal, 2)
+            2 channels are windspeed and direction
+            in that order
+
+        Returns
+        -------
+        data : np.ndarray
+            Same dimensions as input but new channels
+            are u and v in that order
+        """
+
+        u = data[:, :, :, 0] * np.cos(np.radians(data[:, :, :, 1] - 180.0))
+        v = data[:, :, :, 0] * np.sin(np.radians(data[:, :, :, 1] - 180.0))
+
+        # get the dy/dx to the nearest vertical neighbor
+        dy = lats - np.roll(lats, 1, axis=0)
+        dx = lons - np.roll(lons, 1, axis=0)
+
+        # calculate the angle from the vertical
+        theta = (np.pi / 2) - np.arctan2(dy, dx)
+        theta[0] = theta[1]  # fix the roll row
+
+        sin2 = np.sin(theta)
+        cos2 = np.cos(theta)
+
+        u_rot = v * sin2 + u * cos2
+        v_rot = v * cos2 - u * sin2
+
+        data[:, :, :, 0] = u_rot
+        data[:, :, :, 1] = v_rot
+
+        return data
+
     def get_coarse_data(self, data, spatial_res=None, temporal_res=None):
         """"Coarsen data according to spatial_res resolution
         and temporal_res temporal sample frequency
