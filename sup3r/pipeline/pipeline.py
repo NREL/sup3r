@@ -5,14 +5,17 @@ Sup3r data pipeline architecture.
 import logging
 import xarray
 import numpy as np
+import os
 
 from reV.pipeline.pipeline import Pipeline
-from rex.utilities.loggers import init_logger
+# from rex.utilities.loggers import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
 from rex import WindX
+from wtk.utilities import get_wrf_files
+from phygnn import CustomNetwork
 
-from sup3r.pipeline.config import Sup3rPipelineConfig
+# from sup3r.pipeline.config import Sup3rPipelineConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,23 +23,31 @@ logger = logging.getLogger(__name__)
 class Sup3rPipeline(Pipeline):
     """Sup3r pipeline execution framework."""
 
-    def __init__(self, h5_path=None, nc_path=None):
+    def __init__(self, h5_path=None,
+                 nc_path=None):
         """
         Parameters
         ----------
         h5_path : str
             path to h5 files
         nc_path : str
-            path to netcdf files
+            path to netcdf files with
+            wildcard filename prefix
         """
-        self.resource = None 
+
+        self.resource = None
         self.multiResource = None
         self.h5_files = None
         self.h5_file = None
+        self.nc_files = None
         self.nc_file = None
 
         if h5_path is not None:
             self.initialize_h5_multiresource(h5_path)
+
+        if nc_path is not None:
+            self.nc_files = get_wrf_files(os.path.dirname(nc_path),
+                                          os.path.basename(nc_path))
 
     def initialize_h5_multiresource(self, h5_path):
         """Use MultiYearResource to handle
@@ -54,7 +65,7 @@ class Sup3rPipeline(Pipeline):
             List of file names
         """
 
-        self.multiResource = MultiYearResource(res_h5_path)
+        self.multiResource = MultiYearResource(h5_path)
         self.h5_files = self.multiResource.h5_files
         return self.h5_files
 
@@ -83,7 +94,7 @@ class Sup3rPipeline(Pipeline):
         Parameters
         ----------
         h5_file : str
-            h5 file path. 
+            h5 file path.
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -105,7 +116,7 @@ class Sup3rPipeline(Pipeline):
 
         if h5_file is None:
             h5_file = self.multiResource.h5_files[0]
-        
+
         with WindX(h5_file, hsds=False) as handle:
             self.initialize_h5_resource(h5_file)
             raster_index = self.resource.get_raster_index(target, shape)
@@ -142,16 +153,18 @@ class Sup3rPipeline(Pipeline):
 
         return xarray.open_dataset(res_nc)
 
-    def get_u_v(self, data, lat_lon):
+    @staticmethod
+    def get_u_v(windspeed, direction, lat_lon):
         """Maps windspeed and direction to u v
         and aligns u v with grid
 
         Parameters
         ----------
-        data : np.ndarray
-            4D array (spatial_1, spatial_2, temporal, 2)
-            2 channels are windspeed and direction
-            in that order
+        windspeed : np.ndarray
+            3D array (spatial_1, spatial_2, temporal)
+
+        direction : np.ndarray
+            3D array (spatial_1, spatial_2, temporal)
 
         lat_lon : np.ndarray
             3D array (spatial_1, spatial_2, 2)
@@ -160,17 +173,19 @@ class Sup3rPipeline(Pipeline):
 
         Returns
         -------
-        data : np.ndarray
-            Same dimensions as input but new channels
-            are u and v in that order
+        u_rot : np.ndarray
+            3D array of zonal wind components
+
+        v_rot : np.ndarray
+            3D array of meridional wind components
         """
 
         lats = lat_lon[:, :, 0]
         lons = lat_lon[:, :, 1]
 
         # convert from windspeed and direction to u v
-        u = data[:, :, :, 0] * np.cos(np.radians(data[:, :, :, 1] - 180.0))
-        v = data[:, :, :, 0] * np.sin(np.radians(data[:, :, :, 1] - 180.0))
+        u = windspeed * np.cos(np.radians(direction - 180.0))
+        v = windspeed * np.sin(np.radians(direction - 180.0))
 
         # get the dy/dx to the nearest vertical neighbor
         dy = lats - np.roll(lats, 1, axis=0)
@@ -184,16 +199,16 @@ class Sup3rPipeline(Pipeline):
         cos2 = np.cos(theta)
 
         u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
-              + np.einsum('ij,ijk->ijk', cos2, u)
+            + np.einsum('ij,ijk->ijk', cos2, u)
         v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
-              - np.einsum('ij,ijk->ijk', sin2, u)
+            - np.einsum('ij,ijk->ijk', sin2, u)
 
-        data[:, :, :, 0] = u_rot
-        data[:, :, :, 1] = v_rot
+        return u_rot, v_rot
 
-        return data
-
-    def get_coarse_data(self, data, lat_lon, spatial_res=None, temporal_res=None):
+    @staticmethod
+    def get_coarse_data(data, lat_lon,
+                        spatial_res=None,
+                        temporal_res=None):
         """"Coarsen data according to spatial_res resolution
         and temporal_res temporal sample frequency
 
@@ -218,7 +233,7 @@ class Sup3rPipeline(Pipeline):
         coarse_data : np.ndarray
             4D array with same dimensions as data
             with new coarse resolution
-        
+
         coarse_lat_lon : np.ndarray
             3D array (spatial_1, spatial_2, 2) with
             lat and lon as the 2 channels in that order
@@ -241,6 +256,87 @@ class Sup3rPipeline(Pipeline):
             coarse_lat_lon = lat_lon.reshape(-1, spatial_res,
                                              data.shape[1] // spatial_res,
                                              spatial_res, 2).sum((3, 1)) \
-                / (spatial_res * spatial_res)                                     
+                / (spatial_res * spatial_res)
 
         return coarse_data, coarse_lat_lon
+
+    def get_training_data(self, target, shape, features,
+                          n_batch=16, batch_size=None,
+                          shuffle=True,
+                          n_observations=1,
+                          spatial_res=None,
+                          temporal_res=None):
+        """Build full arrays for training
+
+        Parameters
+        ----------
+        target : tuple
+            Starting coordinate (latitude, longitude) in decimal degrees for
+            the bottom left hand corner of the raster grid.
+        shape : tuple
+            Desired raster shape in format (number_rows, number_cols)
+        features : str list
+            List of fields to extract from dataset
+
+        Returns
+        -------
+        x : np.ndarray
+            5D array of low res data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        y : np.ndarray
+            5D array of high res data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        """
+
+        y, lat_lon = self.get_h5_data(target, shape,
+                                      features, self.h5_files[0])
+        for f in self.h5_files[1:]:
+            tmp, _ = self.get_h5_data(target, shape, features, f)
+            y = np.concatenate(y, tmp, axis=2)
+
+        for i, f in enumerate(features):
+            if f.split('_')[0] == 'windspeed':
+                height = f.split('_')[1]
+                j = features.index(f'winddirection_{height}')
+                features[i] = f'u_{height}'
+                features[j] = f'v_{height}'
+                y[:, :, :, i], y[:, :, :, j] = self.get_u_v(y[:, :, :, i],
+                                                            y[:, :, :, j],
+                                                            lat_lon)
+
+        x, _ = self.get_coarse_data(y, lat_lon,
+                                    spatial_res,
+                                    temporal_res)
+
+        y = y.reshape((n_observations,
+                       y.shape[0],
+                       y.shape[1],
+                       -1, len(features)))
+
+        x = x.reshape((n_observations,
+                       x.shape[0],
+                       x.shape[1],
+                       -1, len(features)))
+
+        yield self.batch_data(x, y, n_batch, batch_size, shuffle)
+
+    def batch_data(self, x, y, n_batch=16, batch_size=None, shuffle=True):
+        """Make lists of unique data batches for training
+
+        Parameters
+        ----------
+        x : np.ndarray
+            5D array of low resolution training data
+            (n_observation, spatial_1, spatial_2, temporal, features)
+        y : np.ndarray
+            5D array of high resolution target for training
+
+        Returns
+        -------
+        batches : GeneratorType
+        """
+
+        yield CustomNetwork.make_batches(x, y,
+                                         n_batch,
+                                         batch_size,
+                                         shuffle)
