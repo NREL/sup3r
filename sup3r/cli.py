@@ -148,6 +148,7 @@ class ConfigRunners:
                    features=features)
         ctx.invoke(eagle, **eagle_args)
 
+
 @main.group()
 @click.option('--name', '-n', default='Sup3r', type=str,
               help='Job and node name.')
@@ -221,7 +222,7 @@ def data_model(ctx, file_path, n_observations,
         factory_kwargs = factory_kwargs.replace('null', 'None')
 
     log_file = 'data_model/data_model.log'
-    fun_str = 'run_data_model'
+    fun_str = 'preprocessing.run_data_model'
     arg_str = (f'h5_path={file_path}, '
                f'n_observations={n_observations}, '
                f'temporal_res={temporal_res}, '
@@ -230,10 +231,11 @@ def data_model(ctx, file_path, n_observations,
                f'shape={shape}, '
                f'features={features}, ')
 
-    ctx.obj['IMPORT_STR'] = 'from sup3r.data_model.preprocessing import run_data_model '
+    ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import preprocessing '
     ctx.obj['FUN_STR'] = fun_str
     ctx.obj['ARG_STR'] = arg_str
     ctx.obj['COMMAND'] = 'data-model'
+
 
 @click.pass_context
 def eagle(ctx, alloc, memory, walltime, feature, stdout_path):
@@ -290,6 +292,7 @@ def eagle(ctx, alloc, memory, walltime, feature, stdout_path):
 
     click.echo(msg)
     logger.info(msg)
+
 
 if __name__ == '__main__':
     try:
