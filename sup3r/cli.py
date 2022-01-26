@@ -139,13 +139,15 @@ class ConfigRunners:
         shape = cmd_args['shape']
         features = cmd_args['features']
         n_observations = cmd_args['n_observations']
+        factory_kwargs = cmd_args.get('factory_kwargs', None)
         ctx.invoke(data_model, file_path=file_path,
                    n_observations=n_observations,
                    temporal_res=temporal_res,
                    spatial_res=spatial_res,
                    target=(target_lat, target_lon),
                    shape=(shape, shape),
-                   features=features)
+                   features=features,
+                   factory_kwargs=factory_kwargs)
         ctx.invoke(eagle, **eagle_args)
 
 
@@ -171,38 +173,10 @@ def direct(ctx, name, year, out_dir, verbose):
     else:
         ctx.obj['LOG_LEVEL'] = 'INFO'
 
-
 @direct.group()
-@click.option('--doy', '-d', type=int, required=True,
-              help='Integer day-of-year to run data model for.')
-@click.option('--var_list', '-vl', type=STRLIST, required=False, default=None,
-              help='Variables to process with the data model. None will '
-              'default to all NSRDB variables.')
-@click.option('--dist_lim', '-dl', type=FLOAT, required=True, default=1.0,
-              help='Return only neighbors within this distance during cloud '
-              'regrid. The distance is in decimal degrees (more efficient '
-              'than real distance). NSRDB sites further than this value from '
-              'GOES data pixels will be warned and given missing cloud types '
-              'and properties resulting in a full clearsky timeseries.')
 @click.option('--factory_kwargs', '-kw', type=DICT,
-              required=False, default=None,
-              help='Optional namespace of kwargs to use to initialize '
-              'variable data handlers from the data models variable factory. '
-              'Keyed by variable name. Values can be "source_dir", "handler", '
-              'etc... source_dir for cloud variables can be a normal '
-              'directory path or /directory/prefix*suffix where /directory/ '
-              'can have more sub dirs.')
-@click.option('--max_workers', '-w', type=INT, default=None,
-              help='Number of workers to use in parallel.')
-@click.option('--max_workers_regrid', '-mwr', type=INT, default=None,
-              help='Number of workers to use in parallel for the '
-                   'cloud regrid algorithm.')
-@click.option('--max_workers_cloud_io', '-mwc', type=INT, default=None,
-              help='Number of workers to use in parallel for the '
-                   'cloud data io.')
-@click.option('-ml', '--mlclouds', is_flag=True,
-              help='Flag to process additional variables if mlclouds gap fill'
-              'is going to be run after the data_model step.')
+        required=False, default=None,
+        help='Optional namespace of kwargs')
 @click.pass_context
 def data_model(ctx, file_path, n_observations,
                temporal_res, spatial_res,
@@ -236,7 +210,18 @@ def data_model(ctx, file_path, n_observations,
     ctx.obj['ARG_STR'] = arg_str
     ctx.obj['COMMAND'] = 'data-model'
 
-
+@data_model.command()
+@click.option('--alloc', '-a', required=True, type=STR,
+        help='Eagle allocation account name.')
+@click.option('--memory', '-mem', default=None, type=INT,
+        help='Eagle node memory request in GB. Default is None')
+@click.option('--walltime', '-wt', default=1.0, type=float,
+        help='Eagle walltime request in hours. Default is 1.0')
+@click.option('--feature', '-l', default=None, type=STR,
+        help=('Additional flags for SLURM job. Format is "--qos=high" '
+              'or "--depend=[state:job_id]". Default is None.'))
+@click.option('--stdout_path', '-sout', default=None, type=STR,
+        help='Subprocess standard output path. Default is in out_dir.')
 @click.pass_context
 def eagle(ctx, alloc, memory, walltime, feature, stdout_path):
     """Eagle submission tool for the Sup3r cli."""

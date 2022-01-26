@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Sup3rPipeline(Pipeline):
     """NSRDB pipeline execution framework."""
 
-    CMD_BASE = 'python -m nsrdb.cli config -c {fp_config} -cmd {command}'
+    CMD_BASE = 'python -m sup3r.cli config -c {fp_config} -cmd {command}'
 
     COMMANDS = ('data-model')
 

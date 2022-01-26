@@ -17,6 +17,7 @@
       "target_lat": 40,
       "target_lon": -100,
       "shape": 10,
+      "n_observations": 10,
       "features": [
           "windspeed_100m",
           "winddirection_100m"
