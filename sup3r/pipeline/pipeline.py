@@ -14,6 +14,7 @@ from rex.multi_year_resource import MultiYearResource
 from rex import WindX
 from wtk.utilities import get_wrf_files
 from phygnn import CustomNetwork
+from sup3r.utilities import utilities
 
 # from sup3r.pipeline.config import Sup3rPipelineConfig
 
@@ -153,113 +154,6 @@ class Sup3rPipeline(Pipeline):
 
         return xarray.open_dataset(res_nc)
 
-    @staticmethod
-    def get_u_v(windspeed, direction, lat_lon):
-        """Maps windspeed and direction to u v
-        and aligns u v with grid
-
-        Parameters
-        ----------
-        windspeed : np.ndarray
-            3D array (spatial_1, spatial_2, temporal)
-
-        direction : np.ndarray
-            3D array (spatial_1, spatial_2, temporal)
-
-        lat_lon : np.ndarray
-            3D array (spatial_1, spatial_2, 2)
-            2 channels are lat and lon in that
-            order
-
-        Returns
-        -------
-        u_rot : np.ndarray
-            3D array of zonal wind components
-
-        v_rot : np.ndarray
-            3D array of meridional wind components
-        """
-
-        lats = lat_lon[:, :, 0]
-        lons = lat_lon[:, :, 1]
-
-        # convert from windspeed and direction to u v
-        u = windspeed * np.cos(np.radians(direction - 180.0))
-        v = windspeed * np.sin(np.radians(direction - 180.0))
-
-        # get the dy/dx to the nearest vertical neighbor
-        dy = lats - np.roll(lats, 1, axis=0)
-        dx = lons - np.roll(lons, 1, axis=0)
-
-        # calculate the angle from the vertical
-        theta = (np.pi / 2) - np.arctan2(dy, dx)
-        theta[0] = theta[1]  # fix the roll row
-
-        sin2 = np.sin(theta)
-        cos2 = np.cos(theta)
-
-        u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
-            + np.einsum('ij,ijk->ijk', cos2, u)
-        v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
-            - np.einsum('ij,ijk->ijk', sin2, u)
-
-        return u_rot, v_rot
-
-    @staticmethod
-    def get_coarse_data(data, lat_lon,
-                        spatial_res=None,
-                        temporal_res=None):
-        """"Coarsen data according to spatial_res resolution
-        and temporal_res temporal sample frequency
-
-        Parameters
-        ----------
-        data : np.ndarray
-            4D array with dimensions
-            (spatial_1, spatial_2, temporal, features)
-
-        lat_lon : np.ndarray
-            2D array with dimensions
-            (spatial_1, spatial_2)
-
-        spatial_res : int
-            factor by which to coarsen spatial dimensions
-
-        temporal_res : (int, int)
-            factor by which to coarsen temporal dimension
-
-        Returns
-        -------
-        coarse_data : np.ndarray
-            4D array with same dimensions as data
-            with new coarse resolution
-
-        coarse_lat_lon : np.ndarray
-            3D array (spatial_1, spatial_2, 2) with
-            lat and lon as the 2 channels in that order
-            with same resolution as coarse_data
-        """
-
-        if temporal_res is not None:
-            tmp = data[:, :, ::temporal_res, :]
-        else:
-            tmp = data
-
-        if spatial_res is not None:
-            coarse_data = tmp.reshape(-1, spatial_res,
-                                      data.shape[1] // spatial_res,
-                                      spatial_res,
-                                      tmp.shape[2],
-                                      tmp.shape[3]).sum((1, 3)) \
-                / (spatial_res * spatial_res)
-
-            coarse_lat_lon = lat_lon.reshape(-1, spatial_res,
-                                             data.shape[1] // spatial_res,
-                                             spatial_res, 2).sum((3, 1)) \
-                / (spatial_res * spatial_res)
-
-        return coarse_data, coarse_lat_lon
-
     def get_training_data(self, target, shape, features,
                           n_batch=16, batch_size=None,
                           shuffle=True,
@@ -292,21 +186,21 @@ class Sup3rPipeline(Pipeline):
                                       features, self.h5_files[0])
         for f in self.h5_files[1:]:
             tmp, _ = self.get_h5_data(target, shape, features, f)
-            y = np.concatenate(y, tmp, axis=2)
+            y = np.concatenate((y, tmp), axis=2)
 
         for i, f in enumerate(features):
             if f.split('_')[0] == 'windspeed':
                 height = f.split('_')[1]
                 j = features.index(f'winddirection_{height}')
-                features[i] = f'u_{height}'
-                features[j] = f'v_{height}'
-                y[:, :, :, i], y[:, :, :, j] = self.get_u_v(y[:, :, :, i],
-                                                            y[:, :, :, j],
-                                                            lat_lon)
+                # features[i] = f'u_{height}'
+                # features[j] = f'v_{height}'
+                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
+                                                                 y[:, :, :, j],
+                                                                 lat_lon)
 
-        x, _ = self.get_coarse_data(y, lat_lon,
-                                    spatial_res,
-                                    temporal_res)
+        x, _ = utilities.get_coarse_data(y, lat_lon,
+                                         spatial_res,
+                                         temporal_res)
 
         y = y.reshape((n_observations,
                        y.shape[0],
