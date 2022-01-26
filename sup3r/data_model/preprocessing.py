@@ -7,8 +7,6 @@ import xarray
 import numpy as np
 import os
 
-from reV.pipeline.pipeline import Pipeline
-# from rex.utilities.loggers import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
 from rex import WindX
@@ -16,7 +14,6 @@ from wtk.utilities import get_wrf_files
 from phygnn import CustomNetwork
 from sup3r.utilities import utilities
 
-# from sup3r.pipeline.config import Sup3rPipelineConfig
 
 logger = logging.getLogger(__name__)
 
