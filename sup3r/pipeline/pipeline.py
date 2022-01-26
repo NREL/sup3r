@@ -20,43 +20,31 @@ logger = logging.getLogger(__name__)
 class Sup3rPipeline(Pipeline):
     """Sup3r pipeline execution framework."""
 
-    CMD_BASE = 'python -m nsrdb.cli config -c {fp_config} -cmd {command}'
-
-    COMMANDS = ()
-
-    def __init__(self, pipeline, monitor=True, verbose=False):
+    def __init__(self, h5_path=None, nc_path=None):
         """
         Parameters
         ----------
-        pipeline : str | dict
-            Pipeline config file path or dictionary.
-        monitor : bool
-            Flag to perform continuous monitoring of the pipeline.
-        verbose : bool
-            Flag to submit pipeline steps with -v flag for debug logging
+        h5_path : str
+            path to h5 files
+        nc_path : str
+            path to netcdf files
         """
-        self.monitor = monitor
-        self.verbose = verbose
-        self._config = Sup3rPipelineConfig(pipeline)
-        self._run_list = self._config.pipeline
-        self.resource = None
+        self.resource = None 
         self.multiResource = None
         self.h5_files = None
         self.h5_file = None
-        self._init_status()
+        self.nc_file = None
 
-        # init logger for pipeline module if requested in input config
-        if 'logging' in self._config:
-            init_logger('sup3r.pipeline', **self._config.logging)
-            init_logger('reV.pipeline', **self._config.logging)
+        if h5_path is not None:
+            self.initialize_h5_multiresource(h5_path)
 
-    def initialize_h5_multiresource(self, res_h5_path):
+    def initialize_h5_multiresource(self, h5_path):
         """Use MultiYearResource to handle
         multiple h5 files
 
         Parameters
         ----------
-        res_h5_path : str
+        h5_path : str
             Directory containing h5 files
             or single file path
 
@@ -95,8 +83,7 @@ class Sup3rPipeline(Pipeline):
         Parameters
         ----------
         h5_file : str
-            h5 file path. Uses first file from multiResource
-            file list if not specified.
+            h5 file path. 
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -110,16 +97,20 @@ class Sup3rPipeline(Pipeline):
         data : np.ndarray
             Real high-resolution data in a 4D array:
             (spatial_1, spatial_2, temporal, features)
+
+        lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2) with
+            lat and lon as the 2 channels in that order
         """
 
         if h5_file is None:
             h5_file = self.multiResource.h5_files[0]
-
+        
         with WindX(h5_file, hsds=False) as handle:
             self.initialize_h5_resource(h5_file)
             raster_index = self.resource.get_raster_index(target, shape)
             lat_lon = np.zeros((raster_index.shape[0],
-                                raster_index.shape[1]))
+                                raster_index.shape[1], 2))
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
@@ -131,7 +122,7 @@ class Sup3rPipeline(Pipeline):
                                               raster_index[i]].transpose()
 
             for i in range(data.shape[0]):
-                lat_lon[i, :] = handle.lat_lon[raster_index[i]]
+                lat_lon[i, :, :] = handle.lat_lon[raster_index[i]]
 
         return data, lat_lon
 
@@ -151,7 +142,7 @@ class Sup3rPipeline(Pipeline):
 
         return xarray.open_dataset(res_nc)
 
-    def get_u_v(self, data, lats, lons):
+    def get_u_v(self, data, lat_lon):
         """Maps windspeed and direction to u v
         and aligns u v with grid
 
@@ -162,12 +153,20 @@ class Sup3rPipeline(Pipeline):
             2 channels are windspeed and direction
             in that order
 
+        lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2)
+            2 channels are lat and lon in that
+            order
+
         Returns
         -------
         data : np.ndarray
             Same dimensions as input but new channels
             are u and v in that order
         """
+
+        lats = lat_lon[:, :, 0]
+        lons = lat_lon[:, :, 1]
 
         # convert from windspeed and direction to u v
         u = data[:, :, :, 0] * np.cos(np.radians(data[:, :, :, 1] - 180.0))
@@ -184,15 +183,17 @@ class Sup3rPipeline(Pipeline):
         sin2 = np.sin(theta)
         cos2 = np.cos(theta)
 
-        u_rot = v * sin2 + u * cos2
-        v_rot = v * cos2 - u * sin2
+        u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
+              + np.einsum('ij,ijk->ijk', cos2, u)
+        v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
+              - np.einsum('ij,ijk->ijk', sin2, u)
 
         data[:, :, :, 0] = u_rot
         data[:, :, :, 1] = v_rot
 
         return data
 
-    def get_coarse_data(self, data, spatial_res=None, temporal_res=None):
+    def get_coarse_data(self, data, lat_lon, spatial_res=None, temporal_res=None):
         """"Coarsen data according to spatial_res resolution
         and temporal_res temporal sample frequency
 
@@ -201,6 +202,10 @@ class Sup3rPipeline(Pipeline):
         data : np.ndarray
             4D array with dimensions
             (spatial_1, spatial_2, temporal, features)
+
+        lat_lon : np.ndarray
+            2D array with dimensions
+            (spatial_1, spatial_2)
 
         spatial_res : int
             factor by which to coarsen spatial dimensions
@@ -213,6 +218,11 @@ class Sup3rPipeline(Pipeline):
         coarse_data : np.ndarray
             4D array with same dimensions as data
             with new coarse resolution
+        
+        coarse_lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2) with
+            lat and lon as the 2 channels in that order
+            with same resolution as coarse_data
         """
 
         if temporal_res is not None:
@@ -228,4 +238,9 @@ class Sup3rPipeline(Pipeline):
                                       tmp.shape[3]).sum((1, 3)) \
                 / (spatial_res * spatial_res)
 
-        return coarse_data
+            coarse_lat_lon = lat_lon.reshape(-1, spatial_res,
+                                             data.shape[1] // spatial_res,
+                                             spatial_res, 2).sum((3, 1)) \
+                / (spatial_res * spatial_res)                                     
+
+        return coarse_data, coarse_lat_lon
