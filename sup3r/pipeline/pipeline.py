@@ -10,6 +10,7 @@ from reV.pipeline.pipeline import Pipeline
 from rex.utilities.loggers import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
+from rex import WindX
 
 from sup3r.pipeline.config import Sup3rPipelineConfig
 
@@ -49,7 +50,7 @@ class Sup3rPipeline(Pipeline):
             init_logger('sup3r.pipeline', **self._config.logging)
             init_logger('reV.pipeline', **self._config.logging)
 
-    def initialize_h5(self, res_h5_path):
+    def initialize_h5_multiresource(self, res_h5_path):
         """Use MultiYearResource to handle
         multiple h5 files
 
@@ -69,7 +70,7 @@ class Sup3rPipeline(Pipeline):
         self.h5_files = self.multiResource.h5_files
         return self.h5_files
 
-    def load_h5_data(self, res_h5):
+    def initialize_h5_resource(self, res_h5):
         """Use ResourceX class to
         open h5 file
 
@@ -87,14 +88,14 @@ class Sup3rPipeline(Pipeline):
         self.h5_file = self.resource.h5
         return self.h5_file
 
-    def get_h5_data(self, h5_data, target, shape, features):
+    def get_h5_data(self, h5_file, target, shape, features):
         """Get chunk of h5 data based on raster_indices
         and features
 
         Parameters
         ----------
-        h5_file : h5py.File | h5py.Group
-            returned from load_h5_data method
+        h5_file : str
+            h5 file path
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -110,14 +111,18 @@ class Sup3rPipeline(Pipeline):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        raster_index = self.resource.get_raster_index(target, shape)
-        data = np.zeros((raster_index.shape[0],
-                         raster_index.shape[1],
-                         h5_data['time_index'].shape[0],
-                         len(features)))
-        for i in range(data.shape[0]):
+        with WindX(h5_file, hsds=False) as handle:
+            self.initialize_h5_resource(h5_file)
+            raster_index = self.resource.get_raster_index(target, shape)
+            data = np.zeros((raster_index.shape[0],
+                             raster_index.shape[1],
+                             len(handle.time_index),
+                             len(features)), dtype=np.float32)
+
             for j, f in enumerate(features):
-                data[i, :, :, j] = h5_data[f][:, raster_index[i]].transpose()
+                for i in range(data.shape[0]):
+                    data[i, :, :, j] = handle[f, :,
+                                              raster_index[i]].transpose()
 
         return data
 
@@ -155,6 +160,7 @@ class Sup3rPipeline(Pipeline):
             are u and v in that order
         """
 
+        # convert from windspeed and direction to u v
         u = data[:, :, :, 0] * np.cos(np.radians(data[:, :, :, 1] - 180.0))
         v = data[:, :, :, 0] * np.sin(np.radians(data[:, :, :, 1] - 180.0))
 
