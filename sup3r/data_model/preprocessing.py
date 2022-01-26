@@ -18,6 +18,22 @@ from sup3r.utilities import utilities
 logger = logging.getLogger(__name__)
 
 
+def run_data_model(h5_path,temporal_res,
+                   n_observations,
+                   spatial_res,
+                   target,shape,
+                   features):
+    """Run data model for preprocessing
+    
+    Parameters
+    ----------
+
+    """                   
+    sup3rData = Sup3rData(h5_path)
+    sup3rData.get_training_data(target, shape, features,
+                                n_observations=n_observations,
+                                temporal_res=temporal_res,
+                                spatial_res=spatial_res)
 class Sup3rData():
     """Sup3r data handling framework."""
 

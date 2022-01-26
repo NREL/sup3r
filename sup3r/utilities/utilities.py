@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Utilities module for preparing
 trraining data"""
 
