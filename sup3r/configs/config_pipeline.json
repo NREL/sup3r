@@ -1,0 +1,26 @@
+{
+    "logging": {
+        "log_file": null,
+        "log_level": "INFO"
+    },
+    "name": "sup3r_wind_2007",
+    "dirout": "./",
+    "pipeline": [
+        {
+            "data-model": {
+                "input_files": [
+                    "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5"
+                ],
+                "spatial_res": 2,
+                "temporal_res": null,
+                "target_lat": 40,
+                "target_lon": -100,
+                "shape": 10,
+                "features": [
+                    "windspeed_100m",
+                    "winddirection_100m"
+                ]
+            }
+        }
+    ]
+}      
