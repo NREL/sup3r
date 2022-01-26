@@ -88,14 +88,15 @@ class Sup3rPipeline(Pipeline):
         self.h5_file = self.resource.h5
         return self.h5_file
 
-    def get_h5_data(self, h5_file, target, shape, features):
+    def get_h5_data(self, target, shape, features, h5_file=None):
         """Get chunk of h5 data based on raster_indices
         and features
 
         Parameters
         ----------
         h5_file : str
-            h5 file path
+            h5 file path. Uses first file from multiResource
+            file list if not specified.
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -111,9 +112,14 @@ class Sup3rPipeline(Pipeline):
             (spatial_1, spatial_2, temporal, features)
         """
 
+        if h5_file is None:
+            h5_file = self.multiResource.h5_files[0]
+
         with WindX(h5_file, hsds=False) as handle:
             self.initialize_h5_resource(h5_file)
             raster_index = self.resource.get_raster_index(target, shape)
+            lat_lon = np.zeros((raster_index.shape[0],
+                                raster_index.shape[1]))
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
@@ -124,7 +130,10 @@ class Sup3rPipeline(Pipeline):
                     data[i, :, :, j] = handle[f, :,
                                               raster_index[i]].transpose()
 
-        return data
+            for i in range(data.shape[0]):
+                lat_lon[i, :] = handle.lat_lon[raster_index[i]]
+
+        return data, lat_lon
 
     def get_nc_data(self, res_nc):
         """
