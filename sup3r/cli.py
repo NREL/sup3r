@@ -184,7 +184,7 @@ def data_model(ctx, var_kwargs, factory_kwargs):
         factory_kwargs = factory_kwargs.replace('null', 'None')
 
     log_file = 'data_model/data_model.log'
-    fun_str = 'preprocessing.run_data_model'
+    fun_str = 'data_model.run_data_model'
     arg_str = (f'factory_kwargs={factory_kwargs}, '
                f'var_kwargs={json.dumps(var_kwargs)}, '
                f'year={year}, '
@@ -193,7 +193,7 @@ def data_model(ctx, var_kwargs, factory_kwargs):
                f'out_dir="{out_dir}", '
                f'log_level="{log_level}" ')
 
-    ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import preprocessing '
+    ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import data_model '
     ctx.obj['FUN_STR'] = fun_str
     ctx.obj['ARG_STR'] = arg_str
     ctx.obj['COMMAND'] = 'data-model'

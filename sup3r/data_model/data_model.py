@@ -59,6 +59,11 @@ def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
                             log_dir=os.path.join(out_dir, 'logs/'),
                             log_file=log_file,
                             log_level=log_level)
+    msg = 'Getting training data. '
+    msg += f'target={var_kwargs["target"]}, '
+    msg += f'target={var_kwargs["shape"]}, '
+    msg += f'target={var_kwargs["features"]}, '
+    logger.info(msg)
     sup3rData.get_training_data(var_kwargs['target'],
                                 var_kwargs['shape'],
                                 var_kwargs['features'],
@@ -323,7 +328,7 @@ class Sup3rData():
             List of logger names to initialize. None defaults to all Sup3r
             loggers.
         log_file : str
-            Log file name. Will be placed in the nsrdb out dir.
+            Log file name. Will be placed in the sup3r out dir.
         log_level : str | None
             Logging level (DEBUG, INFO). If None, no logging will be
             initialized.
