@@ -136,6 +136,49 @@ class Sup3rData:
         return y
 
     @classmethod
+    def reshape_data(cls, x, y, n_observations):
+        """Reshape high and low resolution
+        data so the first dimension of x and y
+        are the same - a requirement for batching
+
+        Parameters
+        ----------
+        x : np.ndarray
+            4D array of low resolution data
+            (spatial_1, spatial_2, temporal, features)
+        y : np.ndarray
+            4D array of high resolution data
+            (spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        x : np.ndarray
+            5D array of low resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        y : np.ndarray
+            5D array of high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        """
+
+        y = y.reshape((n_observations,
+                       y.shape[0],
+                       y.shape[1],
+                       -1, y.shape[3]))
+
+        msg = f'Reshaping high resolution data: {y.shape}'
+        logger.info(msg)
+
+        x = x.reshape((n_observations,
+                       x.shape[0],
+                       x.shape[1],
+                       -1, x.shape[3]))
+
+        msg = f'Reshaping low resolution data: {x.shape}'
+        logger.info(msg)
+
+        return x, y
+
+    @classmethod
     def run_data_model(cls, out_dir, year, var_kwargs,
                        factory_kwargs=None, log_level='DEBUG',
                        log_file='data_model.log',
@@ -212,27 +255,7 @@ class Sup3rData:
                                          spatial_res,
                                          temporal_res)
 
-        y = y.reshape((n_observations,
-                       y.shape[0],
-                       y.shape[1],
-                       -1, len(features)))
-
-        msg = f'Reshaping high resolution data: {y.shape}'
-        logger.info(msg)
-
-        x = x.reshape((n_observations,
-                       x.shape[0],
-                       x.shape[1],
-                       -1, len(features)))
-
-        msg = f'Reshaping low resolution data: {x.shape}'
-        logger.info(msg)
-
-        msg = 'Batching training data. '
-        msg += f'n_batch={n_batch}, '
-        msg += f'batch_size={batch_size}, '
-        msg += f'shuffle={shuffle}'
-        logger.info(msg)
+        x, y = sup3r.reshape_data(x, y, n_observations)
 
         yield sup3r.batch_data(x, y, n_batch, batch_size, shuffle)
 
@@ -319,82 +342,6 @@ class Sup3rData:
         return xarray.open_dataset(res_nc)
 
     @classmethod
-    def get_training_data(cls, file_path,
-                          target, shape, features,
-                          n_batch=16, batch_size=None,
-                          shuffle=True,
-                          n_observations=1,
-                          spatial_res=None,
-                          temporal_res=None):
-        """Build full arrays for training
-
-        Parameters
-        ----------
-        file_path : str
-            Path to file(s)
-        target : tuple
-            Starting coordinate (latitude, longitude) in decimal degrees for
-            the bottom left hand corner of the raster grid.
-        shape : tuple
-            Desired raster shape in format (number_rows, number_cols)
-        features : str list
-            List of fields to extract from dataset
-
-        Returns
-        -------
-        x : np.ndarray
-            5D array of low res data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        y : np.ndarray
-            5D array of high res data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        """
-
-        multiResource = MultiYearResource(file_path)
-
-        y, lat_lon = cls.get_h5_data(multiResource.h5_files[0],
-                                     target, shape, features)
-        for f in multiResource.h5_files[1:]:
-            tmp, _ = cls.get_h5_data(f, target, shape, features)
-            y = np.concatenate((y, tmp), axis=2)
-
-        for i, f in enumerate(features):
-            if f.split('_')[0] == 'windspeed':
-                height = f.split('_')[1]
-                j = features.index(f'winddirection_{height}')
-                # features[i] = f'u_{height}'
-                # features[j] = f'v_{height}'
-                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
-                                                                 y[:, :, :, j],
-                                                                 lat_lon)
-        msg = 'Coarsening high resolution data'
-        msg += f'Spatial coarsening factor: {spatial_res}'
-        msg += f'Temporal coarsening factor: {temporal_res}'
-        logger.info(msg)
-
-        x, _ = utilities.get_coarse_data(y, lat_lon,
-                                         spatial_res,
-                                         temporal_res)
-
-        y = y.reshape((n_observations,
-                       y.shape[0],
-                       y.shape[1],
-                       -1, len(features)))
-
-        x = x.reshape((n_observations,
-                       x.shape[0],
-                       x.shape[1],
-                       -1, len(features)))
-
-        msg = 'Batching training data. '
-        msg += f'n_batch={n_batch}, '
-        msg += f'batch_size={batch_size}, '
-        msg += f'shuffle={shuffle}'
-        logger.info(msg)
-
-        yield cls.batch_data(x, y, n_batch, batch_size, shuffle)
-
-    @classmethod
     def batch_data(cls, x, y, n_batch=16, batch_size=None, shuffle=True):
         """Make lists of unique data batches for training
 
@@ -410,6 +357,12 @@ class Sup3rData:
         -------
         batches : GeneratorType
         """
+
+        msg = 'Batching training data. '
+        msg += f'n_batch={n_batch}, '
+        msg += f'batch_size={batch_size}, '
+        msg += f'shuffle={shuffle}'
+        logger.info(msg)
 
         yield CustomNetwork.make_batches(x, y,
                                          n_batch,
