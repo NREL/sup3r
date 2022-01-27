@@ -56,7 +56,7 @@ def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
 
     sup3rData = Sup3rData(var_kwargs['file_path'])
     sup3rData._init_loggers(year=year,
-                            log_dir=out_dir,
+                            log_dir=os.path.join(out_dir, 'logs/'),
                             log_file=log_file,
                             log_level=log_level)
     sup3rData.get_training_data(var_kwargs['target'],
@@ -120,6 +120,8 @@ class Sup3rData():
             List of file names
         """
 
+        logger.info('Initializing MultiYearResource')
+
         self.multiResource = MultiYearResource(h5_path)
         self.h5_files = self.multiResource.h5_files
         return self.h5_files
@@ -137,6 +139,8 @@ class Sup3rData():
         -------
         h5 : h5py.File | h5py.Group
         """
+
+        logger.info('Initializing ResourceX')
 
         self.resource = ResourceX(res_h5)
         self.h5_file = self.resource.h5
@@ -172,6 +176,8 @@ class Sup3rData():
         if h5_file is None:
             h5_file = self.multiResource.h5_files[0]
 
+        logger.info(f'Opening data file: {h5_file}')
+
         with WindX(h5_file, hsds=False) as handle:
             self.initialize_h5_resource(h5_file)
             raster_index = self.resource.get_raster_index(target, shape)
@@ -183,6 +189,9 @@ class Sup3rData():
                              len(features)), dtype=np.float32)
 
             for j, f in enumerate(features):
+
+                logger.info(f'Extracting {f} from file')
+
                 for i in range(data.shape[0]):
                     data[i, :, :, j] = handle[f, :,
                                               raster_index[i]].transpose()
@@ -205,6 +214,8 @@ class Sup3rData():
         -------
         nc : xarray.Dataset
         """
+
+        logger.info(f'Opening data file: {res_nc}')
 
         return xarray.open_dataset(res_nc)
 
@@ -251,6 +262,10 @@ class Sup3rData():
                 y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
                                                                  y[:, :, :, j],
                                                                  lat_lon)
+        msg = 'Coarsening high resolution data'
+        msg += f'Spatial coarsening factor: {spatial_res}'
+        msg += f'Temporal coarsening factor: {temporal_res}'
+        logger.info(msg)
 
         x, _ = utilities.get_coarse_data(y, lat_lon,
                                          spatial_res,
@@ -265,6 +280,12 @@ class Sup3rData():
                        x.shape[0],
                        x.shape[1],
                        -1, len(features)))
+
+        msg = 'Batching training data. '
+        msg += f'n_batch={n_batch}, '
+        msg += f'batch_size={batch_size}, '
+        msg += f'shuffle={shuffle}'
+        logger.info(msg)
 
         yield self.batch_data(x, y, n_batch, batch_size, shuffle)
 

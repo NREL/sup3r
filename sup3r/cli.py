@@ -188,7 +188,7 @@ def data_model(ctx, var_kwargs, factory_kwargs):
     arg_str = (f'factory_kwargs={factory_kwargs}, '
                f'var_kwargs={json.dumps(var_kwargs)}, '
                f'year={year}, '
-               f'name="{name}", '
+               f'job_name="{name}", '
                f'log_file="{log_file}", '
                f'out_dir="{out_dir}", '
                f'log_level="{log_level}" ')
