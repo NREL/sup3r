@@ -13,9 +13,9 @@
     "data-model": {
       "var_kwargs": {
           "file_path": "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5",
-          "spatial_res": 2,
-          "target": [40, -100],
-          "shape": [10, 10],
+          "spatial_res": 3,
+          "target": [25, -120],
+          "shape": [500, 500],
           "n_observations": 10,
           "features": [
               "windspeed_100m",

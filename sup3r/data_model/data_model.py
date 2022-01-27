@@ -15,8 +15,8 @@ from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
 from rex.utilities.loggers import create_dirs
 from rex import WindX
+from reV.utilities.exceptions import ConfigError
 from wtk.utilities import get_wrf_files
-from phygnn import CustomNetwork
 from sup3r.utilities import utilities
 from sup3r.pipeline import Status
 from sup3r import __version__
@@ -91,12 +91,12 @@ class Sup3rData:
             lat (lon) first channel (second channel)
         """
 
-        y, lat_lon = cls.get_h5_data(data_files[0],
-                                     target, shape,
-                                     features)
+        y, lat_lon = cls.get_file_data(data_files[0],
+                                       target, shape,
+                                       features)
         for f in data_files[1:]:
 
-            tmp, _ = cls.get_h5_data(f, target, shape, features)
+            tmp, _ = cls.get_file_data(f, target, shape, features)
             y = np.concatenate((y, tmp), axis=2)
 
         return y, lat_lon
@@ -266,6 +266,46 @@ class Sup3rData:
 
         return x, y
 
+    @classmethod
+    def get_file_data(cls, file_path, target, shape, features):
+        """Extract fields from file for region
+        given by target and shape
+
+
+        Parameters
+        ----------
+        file_path : str
+            File path
+        target : tuple
+            (lat, lon) for lower left corner of region
+        shape : tuple
+            (n_lat, n_lon) grid size for region
+        features : list
+            list of fields to extract from file
+
+        Returns
+        -------
+        y : np.ndarray
+            4D array of extracted data
+            (spatial_1, spatial_2, temporal, features)
+        lat_lon : np.ndarray
+            3D array of (spatial_1, spatial_2, 2)
+            with 2 channels as lat/lon in that order
+        """
+
+        _, file_ext = os.path.splitext(file_path)
+        if file_ext == '.h5':
+            y, lat_lon = cls.get_h5_data(file_path, target,
+                                         shape, features)
+        elif file_ext == '.nc':
+            y, lat_lon = cls.get_nc_data(file_path, target,
+                                         shape, features)
+        else:
+            raise ConfigError('Data must be either h5 or netcdf '
+                              f'but received file extension: {file_ext}')
+
+        return y, lat_lon
+
     @staticmethod
     def get_h5_data(file_path, target, shape, features):
         """Get chunk of h5 data based on raster_indices
@@ -320,23 +360,36 @@ class Sup3rData:
         return data, lat_lon
 
     @staticmethod
-    def get_nc_data(res_nc):
-        """
-        Open nc File instance
+    def get_nc_data(file_path, target, shape, features):
+        """Get chunk of netcdf data based on raster_indices
+        and features
 
         Parameters
         ----------
-        res_nc : str
-            Path to source .nc file of interest
+        file_path : str
+            netcdf file path.
+        target : tuple
+            Starting coordinate (latitude, longitude) in decimal degrees for
+            the bottom left hand corner of the raster grid.
+        shape : tuple
+            Desired raster shape in format (number_rows, number_cols)
+        features : str list
+            List of fields to extract from dataset
 
         Returns
         -------
-        nc : xarray.Dataset
+        data : np.ndarray
+            Real high-resolution data in a 4D array:
+            (spatial_1, spatial_2, temporal, features)
+
+        lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2) with
+            lat and lon as the 2 channels in that order
         """
 
-        logger.info(f'Opening data file: {res_nc}')
+        logger.info(f'Opening data file: {file_path}')
 
-        return xarray.open_dataset(res_nc)
+        return xarray.open_dataset(file_path)
 
     def _init_loggers(self, loggers=None,
                       year=None,
