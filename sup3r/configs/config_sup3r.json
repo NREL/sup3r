@@ -3,7 +3,7 @@
       "name": "sup3r_2007",
       "year": 2007,
       "out_dir": "/scratch/bbenton/sup3r",
-      "log_level": "INFO"
+      "log_level": "DEBUG"
     },
     "eagle": {
       "alloc": "pxs",

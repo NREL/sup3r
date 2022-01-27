@@ -1,13 +1,13 @@
 {
     "logging": {
         "log_file": null,
-        "log_level": "INFO"
+        "log_level": "DEBUG"
     },
-    "name": "sup3r_wind_2007",
+    "name": "sup3r_2007",
     "dirout": "/scratch/bbenton/sup3r",
     "pipeline": [
         {
             "data-model": "./config_sup3r.json"
         }
     ]
-}      
+}

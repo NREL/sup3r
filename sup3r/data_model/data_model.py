@@ -8,6 +8,7 @@ import numpy as np
 import os
 import json
 import time
+import sys
 
 from rex import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
@@ -18,146 +19,120 @@ from wtk.utilities import get_wrf_files
 from phygnn import CustomNetwork
 from sup3r.utilities import utilities
 from sup3r.pipeline import Status
+from sup3r import __version__
 
 
 logger = logging.getLogger(__name__)
 
 
-def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
-                   log_level='DEBUG', log_file='data_model.log',
-                   job_name=None):
-    """Run data model for preprocessing
+class Sup3rData:
+    """Sup3r data handling framework."""
 
-    Parameters
-    ----------
-    out_dir : str
-        Project directory.
-    year : int
-        data year
-    var_kwargs : dict
-        Namespace of kwargs
-    factory_kwargs : dict | None
-        Optional namespace of kwargs
-    log_level : str | None
-        Logging level (DEBUG, INFO). If None,
-        no logging will be initialized.
-    log_file : str
-        File to log to. Will be put in output directory.
-    job_name : str
-        Optional name for pipeline and status identification.
-    """
+    def __init__(self, out_dir, year,
+                 make_out_dirs=True):
+        """
+        Parameters
+        ----------
+        out_dir : str
+            Project directory.
+        year : int | str
+            Processing year.
+        make_out_dirs : bool
+            Flag to make output directories for logs
+        """
 
-    t0 = time.time()
+        self._out_dir = out_dir
+        self._log_dir = os.path.join(out_dir, 'logs/')
+        self._year = int(year)
 
-    if isinstance(factory_kwargs, str):
-        factory_kwargs = json.loads(factory_kwargs)
-    if isinstance(var_kwargs, str):
-        var_kwargs = json.loads(var_kwargs)
+        if make_out_dirs:
+            for d in [self._out_dir, self._log_dir]:
+                create_dirs(d)
 
-    sup3rData = Sup3rData(var_kwargs['file_path'])
-    sup3rData._init_loggers(year=year,
-                            log_dir=os.path.join(out_dir, 'logs/'),
-                            log_file=log_file,
+    @staticmethod
+    def _log_version():
+        """Check Sup3r and python version"""
+
+        logger.info(f'Running Sup3r version: {__version__}')
+        logger.info(f'Running python version: {sys.version_info}')
+
+        is_64bits = sys.maxsize > 2 ** 32
+        if is_64bits:
+            msg = f'Running on 64-bit python, sys.maxsize: {sys.maxsize}'
+            logger.info(msg)
+        else:
+            msg = f'Running on 32-bit python, sys.maxsize: {sys.maxsize}'
+            logger.warning(msg)
+
+    @classmethod
+    def run_data_model(cls, out_dir, year, var_kwargs,
+                       factory_kwargs=None, log_level='DEBUG',
+                       log_file='data_model.log',
+                       job_name=None):
+        """Run data model for preprocessing
+
+        Parameters
+        ----------
+        out_dir : str
+            Project directory.
+        year : int
+            data year
+        var_kwargs : dict
+            Namespace of kwargs
+        factory_kwargs : dict | None
+            Optional namespace of kwargs
+        log_level : str | None
+            Logging level (DEBUG, INFO). If None,
+            no logging will be initialized.
+        log_file : str
+            File to log to. Will be put in output directory.
+        job_name : str
+            Optional name for pipeline and status identification.
+        """
+
+        t0 = time.time()
+
+        sup3r = cls(out_dir, year)
+        sup3r._init_loggers(year=year, log_file=log_file,
                             log_level=log_level)
-    msg = 'Getting training data. '
-    msg += f'target={var_kwargs["target"]}, '
-    msg += f'target={var_kwargs["shape"]}, '
-    msg += f'target={var_kwargs["features"]}, '
-    logger.info(msg)
-    sup3rData.get_training_data(var_kwargs['target'],
+
+        if isinstance(factory_kwargs, str):
+            factory_kwargs = json.loads(factory_kwargs)
+        if isinstance(var_kwargs, str):
+            var_kwargs = json.loads(var_kwargs)
+
+        msg = 'Getting training data. '
+        msg += f'target={var_kwargs["target"]}, '
+        msg += f'target={var_kwargs["shape"]}, '
+        msg += f'target={var_kwargs["features"]}, '
+        logger.info(msg)
+
+        sup3r.get_training_data(var_kwargs['file_path'],
+                                var_kwargs['target'],
                                 var_kwargs['shape'],
                                 var_kwargs['features'],
                                 var_kwargs.get('n_observations', 1),
                                 var_kwargs.get('temporal_res', None),
                                 var_kwargs.get('spatial_res', None))
 
-    if job_name is not None:
-        runtime = (time.time() - t0) / 60
-        status = {'out_dir': out_dir,
-                  'job_status': 'successful',
-                  'runtime': runtime}
-        Status.make_job_file(out_dir, 'data-model',
-                             job_name, status)
+        logger.info('Finished getting training data')
 
+        if job_name is not None:
+            runtime = (time.time() - t0) / 60
+            status = {'out_dir': out_dir,
+                      'job_status': 'successful',
+                      'runtime': runtime}
+            Status.make_job_file(out_dir, 'data-model',
+                                 job_name, status)
 
-class Sup3rData():
-    """Sup3r data handling framework."""
-
-    def __init__(self, h5_path=None,
-                 nc_path=None):
-        """
-        Parameters
-        ----------
-        h5_path : str
-            path to h5 files
-        nc_path : str
-            path to netcdf files with
-            wildcard filename prefix
-        """
-
-        self.resource = None
-        self.multiResource = None
-        self.h5_files = None
-        self.h5_file = None
-        self.nc_files = None
-        self.nc_file = None
-
-        if h5_path is not None:
-            self.initialize_h5_multiresource(h5_path)
-
-        if nc_path is not None:
-            self.nc_files = get_wrf_files(os.path.dirname(nc_path),
-                                          os.path.basename(nc_path))
-
-    def initialize_h5_multiresource(self, h5_path):
-        """Use MultiYearResource to handle
-        multiple h5 files
-
-        Parameters
-        ----------
-        h5_path : str
-            Directory containing h5 files
-            or single file path
-
-        Returns
-        -------
-        h5_files : str list
-            List of file names
-        """
-
-        logger.info('Initializing MultiYearResource')
-
-        self.multiResource = MultiYearResource(h5_path)
-        self.h5_files = self.multiResource.h5_files
-        return self.h5_files
-
-    def initialize_h5_resource(self, res_h5):
-        """Use ResourceX class to
-        open h5 file
-
-        Parameters
-        ----------
-        res_h5 : str
-            Path to resource .h5 file of interest
-
-        Returns
-        -------
-        h5 : h5py.File | h5py.Group
-        """
-
-        logger.info('Initializing ResourceX')
-
-        self.resource = ResourceX(res_h5)
-        self.h5_file = self.resource.h5
-        return self.h5_file
-
-    def get_h5_data(self, target, shape, features, h5_file=None):
+    @staticmethod
+    def get_h5_data(file_path, target, shape, features):
         """Get chunk of h5 data based on raster_indices
         and features
 
         Parameters
         ----------
-        h5_file : str
+        file_path : str
             h5 file path.
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
@@ -178,14 +153,11 @@ class Sup3rData():
             lat and lon as the 2 channels in that order
         """
 
-        if h5_file is None:
-            h5_file = self.multiResource.h5_files[0]
+        logger.info(f'Opening data file: {file_path}')
 
-        logger.info(f'Opening data file: {h5_file}')
-
-        with WindX(h5_file, hsds=False) as handle:
-            self.initialize_h5_resource(h5_file)
-            raster_index = self.resource.get_raster_index(target, shape)
+        with WindX(file_path, hsds=False) as handle:
+            resourceX = ResourceX(file_path)
+            raster_index = resourceX.get_raster_index(target, shape)
             lat_lon = np.zeros((raster_index.shape[0],
                                 raster_index.shape[1], 2))
             data = np.zeros((raster_index.shape[0],
@@ -206,7 +178,8 @@ class Sup3rData():
 
         return data, lat_lon
 
-    def get_nc_data(self, res_nc):
+    @staticmethod
+    def get_nc_data(res_nc):
         """
         Open nc File instance
 
@@ -224,7 +197,9 @@ class Sup3rData():
 
         return xarray.open_dataset(res_nc)
 
-    def get_training_data(self, target, shape, features,
+    @classmethod
+    def get_training_data(cls, file_path,
+                          target, shape, features,
                           n_batch=16, batch_size=None,
                           shuffle=True,
                           n_observations=1,
@@ -234,6 +209,8 @@ class Sup3rData():
 
         Parameters
         ----------
+        file_path : str
+            Path to file(s)
         target : tuple
             Starting coordinate (latitude, longitude) in decimal degrees for
             the bottom left hand corner of the raster grid.
@@ -252,10 +229,12 @@ class Sup3rData():
             (n_observations, spatial_1, spatial_2, temporal, features)
         """
 
-        y, lat_lon = self.get_h5_data(target, shape,
-                                      features, self.h5_files[0])
-        for f in self.h5_files[1:]:
-            tmp, _ = self.get_h5_data(target, shape, features, f)
+        multiResource = MultiYearResource(file_path)
+
+        y, lat_lon = cls.get_h5_data(multiResource.h5_files[0],
+                                     target, shape, features)
+        for f in multiResource.h5_files[1:]:
+            tmp, _ = cls.get_h5_data(f, target, shape, features)
             y = np.concatenate((y, tmp), axis=2)
 
         for i, f in enumerate(features):
@@ -292,9 +271,10 @@ class Sup3rData():
         msg += f'shuffle={shuffle}'
         logger.info(msg)
 
-        yield self.batch_data(x, y, n_batch, batch_size, shuffle)
+        yield cls.batch_data(x, y, n_batch, batch_size, shuffle)
 
-    def batch_data(self, x, y, n_batch=16, batch_size=None, shuffle=True):
+    @classmethod
+    def batch_data(cls, x, y, n_batch=16, batch_size=None, shuffle=True):
         """Make lists of unique data batches for training
 
         Parameters
@@ -320,6 +300,7 @@ class Sup3rData():
                       log_dir='./logs',
                       log_file='sup3r.log',
                       log_level='DEBUG',
+                      log_version=True,
                       use_log_dir=True):
         """Initialize sup3r loggers.
         Parameters
@@ -353,3 +334,5 @@ class Sup3rData():
             for name in loggers:
                 init_logger(name, log_level=log_level,
                             log_file=log_file)
+        if log_version:
+            self._log_version()
