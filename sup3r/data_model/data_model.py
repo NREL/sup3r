@@ -224,13 +224,10 @@ class Sup3rData:
         n_observations = var_kwargs.get('n_observations', 1)
         spatial_res = var_kwargs.get('spatial_res', None)
         temporal_res = var_kwargs.get('temporal_res', None)
-        n_batch = var_kwargs.get('n_batch', 16)
-        batch_size = var_kwargs.get('batch_size', None)
-        shuffle = var_kwargs.get('shuffle', True)
 
         msg = 'Getting training data. '
         msg += f'target={target}, '
-        msg += f'target={shape}, '
+        msg += f'shape={shape}, '
         msg += f'target={features}'
 
         logger.info(msg)
@@ -246,8 +243,8 @@ class Sup3rData:
 
         y = sup3r.transform_wind(y, lat_lon, features)
 
-        msg = 'Coarsening high resolution data'
-        msg += f'Spatial coarsening factor: {spatial_res}'
+        msg = 'Coarsening high resolution data '
+        msg += f'Spatial coarsening factor: {spatial_res}, '
         msg += f'Temporal coarsening factor: {temporal_res}'
         logger.info(msg)
 
@@ -256,8 +253,6 @@ class Sup3rData:
                                          temporal_res)
 
         x, y = sup3r.reshape_data(x, y, n_observations)
-
-        yield sup3r.batch_data(x, y, n_batch, batch_size, shuffle)
 
         logger.info('Finished getting training data')
 
@@ -268,6 +263,8 @@ class Sup3rData:
                       'runtime': runtime}
             Status.make_job_file(out_dir, 'data-model',
                                  job_name, status)
+
+        return x, y
 
     @staticmethod
     def get_h5_data(file_path, target, shape, features):
@@ -340,34 +337,6 @@ class Sup3rData:
         logger.info(f'Opening data file: {res_nc}')
 
         return xarray.open_dataset(res_nc)
-
-    @classmethod
-    def batch_data(cls, x, y, n_batch=16, batch_size=None, shuffle=True):
-        """Make lists of unique data batches for training
-
-        Parameters
-        ----------
-        x : np.ndarray
-            5D array of low resolution training data
-            (n_observation, spatial_1, spatial_2, temporal, features)
-        y : np.ndarray
-            5D array of high resolution target for training
-
-        Returns
-        -------
-        batches : GeneratorType
-        """
-
-        msg = 'Batching training data. '
-        msg += f'n_batch={n_batch}, '
-        msg += f'batch_size={batch_size}, '
-        msg += f'shuffle={shuffle}'
-        logger.info(msg)
-
-        yield CustomNetwork.make_batches(x, y,
-                                         n_batch,
-                                         batch_size,
-                                         shuffle)
 
     def _init_loggers(self, loggers=None,
                       year=None,
