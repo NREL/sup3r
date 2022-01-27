@@ -101,19 +101,68 @@ class Sup3rData:
         if isinstance(var_kwargs, str):
             var_kwargs = json.loads(var_kwargs)
 
+        logger.info('Initializing variables')
+
+        file_path = var_kwargs['file_path']
+        target = var_kwargs['target']
+        shape = var_kwargs['shape']
+        features = var_kwargs['features']
+        n_observations = var_kwargs.get('n_observations', 1)
+        spatial_res = var_kwargs.get('spatial_res', None)
+        temporal_res = var_kwargs.get('temporal_res', None)
+        n_batch = var_kwargs.get('n_batch', 16)
+        batch_size = var_kwargs.get('batch_size', None)
+        shuffle = var_kwargs.get('shuffle', True)
+
         msg = 'Getting training data. '
-        msg += f'target={var_kwargs["target"]}, '
-        msg += f'target={var_kwargs["shape"]}, '
-        msg += f'target={var_kwargs["features"]}, '
+        msg += f'target={target}, '
+        msg += f'target={shape}, '
+        msg += f'target={features}'
+
         logger.info(msg)
 
-        sup3r.get_training_data(var_kwargs['file_path'],
-                                var_kwargs['target'],
-                                var_kwargs['shape'],
-                                var_kwargs['features'],
-                                var_kwargs.get('n_observations', 1),
-                                var_kwargs.get('temporal_res', None),
-                                var_kwargs.get('spatial_res', None))
+        multiResource = MultiYearResource(file_path)
+
+        y, lat_lon = cls.get_h5_data(multiResource.h5_files[0],
+                                     target, shape, features)
+        for f in multiResource.h5_files[1:]:
+            tmp, _ = cls.get_h5_data(f, target, shape, features)
+            y = np.concatenate((y, tmp), axis=2)
+
+        for i, f in enumerate(features):
+            if f.split('_')[0] == 'windspeed':
+                height = f.split('_')[1]
+                j = features.index(f'winddirection_{height}')
+                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
+                                                                 y[:, :, :, j],
+                                                                 lat_lon)
+
+        msg = 'Coarsening high resolution data'
+        msg += f'Spatial coarsening factor: {spatial_res}'
+        msg += f'Temporal coarsening factor: {temporal_res}'
+        logger.info(msg)
+
+        x, _ = utilities.get_coarse_data(y, lat_lon,
+                                         spatial_res,
+                                         temporal_res)
+
+        y = y.reshape((n_observations,
+                       y.shape[0],
+                       y.shape[1],
+                       -1, len(features)))
+
+        x = x.reshape((n_observations,
+                       x.shape[0],
+                       x.shape[1],
+                       -1, len(features)))
+
+        msg = 'Batching training data. '
+        msg += f'n_batch={n_batch}, '
+        msg += f'batch_size={batch_size}, '
+        msg += f'shuffle={shuffle}'
+        logger.info(msg)
+
+        yield cls.batch_data(x, y, n_batch, batch_size, shuffle)
 
         logger.info('Finished getting training data')
 
