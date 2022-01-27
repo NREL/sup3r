@@ -173,10 +173,11 @@ def direct(ctx, name, year, out_dir, verbose):
     else:
         ctx.obj['LOG_LEVEL'] = 'INFO'
 
+
 @direct.group()
 @click.option('--factory_kwargs', '-kw', type=DICT,
-        required=False, default=None,
-        help='Optional namespace of kwargs')
+              required=False, default=None,
+              help='Optional namespace of kwargs')
 @click.pass_context
 def data_model(ctx, file_path, n_observations,
                temporal_res, spatial_res,
@@ -197,31 +198,32 @@ def data_model(ctx, file_path, n_observations,
 
     log_file = 'data_model/data_model.log'
     fun_str = 'preprocessing.run_data_model'
-    arg_str = (f'h5_path={file_path}, '
+    arg_str = (f'file_path="{file_path}", '
                f'n_observations={n_observations}, '
                f'temporal_res={temporal_res}, '
                f'spatial_res={spatial_res}, '
                f'target={target}, '
                f'shape={shape}, '
-               f'features={features}, ')
+               f'features={["{f}" for f in features]}, ')
 
     ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import preprocessing '
     ctx.obj['FUN_STR'] = fun_str
     ctx.obj['ARG_STR'] = arg_str
     ctx.obj['COMMAND'] = 'data-model'
 
+
 @data_model.command()
 @click.option('--alloc', '-a', required=True, type=STR,
-        help='Eagle allocation account name.')
+              help='Eagle allocation account name.')
 @click.option('--memory', '-mem', default=None, type=INT,
-        help='Eagle node memory request in GB. Default is None')
+              help='Eagle node memory request in GB. Default is None')
 @click.option('--walltime', '-wt', default=1.0, type=float,
-        help='Eagle walltime request in hours. Default is 1.0')
+              help='Eagle walltime request in hours. Default is 1.0')
 @click.option('--feature', '-l', default=None, type=STR,
-        help=('Additional flags for SLURM job. Format is "--qos=high" '
-              'or "--depend=[state:job_id]". Default is None.'))
+              help=('Additional flags for SLURM job. Format is "--qos=high" '
+                    'or "--depend=[state:job_id]". Default is None.'))
 @click.option('--stdout_path', '-sout', default=None, type=STR,
-        help='Subprocess standard output path. Default is in out_dir.')
+              help='Subprocess standard output path. Default is in out_dir.')
 @click.pass_context
 def eagle(ctx, alloc, memory, walltime, feature, stdout_path):
     """Eagle submission tool for the Sup3r cli."""
