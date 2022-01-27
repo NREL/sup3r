@@ -131,22 +131,12 @@ class ConfigRunners:
         eagle_args : dict
             Dictionary of kwargs from the nsrdb config to make eagle submission
         """
-        file_path = cmd_args['file_path']
-        temporal_res = cmd_args['temporal_res']
-        spatial_res = cmd_args['spatial_res']
-        target_lat = cmd_args['target_lat']
-        target_lon = cmd_args['target_lon']
-        shape = cmd_args['shape']
-        features = cmd_args['features']
-        n_observations = cmd_args['n_observations']
+
         factory_kwargs = cmd_args.get('factory_kwargs', None)
-        ctx.invoke(data_model, file_path=file_path,
-                   n_observations=n_observations,
-                   temporal_res=temporal_res,
-                   spatial_res=spatial_res,
-                   target=(target_lat, target_lon),
-                   shape=(shape, shape),
-                   features=features,
+        var_kwargs = cmd_args['var_kwargs']
+
+        ctx.obj['NAME'] = name
+        ctx.invoke(data_model, var_kwargs=var_kwargs,
                    factory_kwargs=factory_kwargs)
         ctx.invoke(eagle, **eagle_args)
 
@@ -179,10 +169,7 @@ def direct(ctx, name, year, out_dir, verbose):
               required=False, default=None,
               help='Optional namespace of kwargs')
 @click.pass_context
-def data_model(ctx, file_path, n_observations,
-               temporal_res, spatial_res,
-               target, shape, features,
-               factory_kwargs):
+def data_model(ctx, var_kwargs, factory_kwargs):
     """Run the preprocessing routine"""
 
     name = ctx.obj['NAME']
@@ -198,13 +185,13 @@ def data_model(ctx, file_path, n_observations,
 
     log_file = 'data_model/data_model.log'
     fun_str = 'preprocessing.run_data_model'
-    arg_str = (f'file_path="{file_path}", '
-               f'n_observations={n_observations}, '
-               f'temporal_res={temporal_res}, '
-               f'spatial_res={spatial_res}, '
-               f'target={target}, '
-               f'shape={shape}, '
-               f'features={["{f}" for f in features]}, ')
+    arg_str = (f'factory_kwargs={factory_kwargs}, '
+               f'var_kwargs={var_kwargs}, '
+               f'log_file={log_file}, '
+               f'name={name}, '
+               f'year={year}, '
+               f'out_dir={out_dir}, '
+               f'log_level={log_level} ')
 
     ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import preprocessing '
     ctx.obj['FUN_STR'] = fun_str

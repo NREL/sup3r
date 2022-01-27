@@ -18,34 +18,37 @@ from sup3r.utilities import utilities
 logger = logging.getLogger(__name__)
 
 
-def run_data_model(file_path, temporal_res,
-                   n_observations,
-                   spatial_res,
-                   target, shape,
-                   features):
+def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
+                   log_level='DEBUG', log_file='data_model.log',
+                   job_name=None):
     """Run data model for preprocessing
 
     Parameters
     ----------
-    file_path : str
-        str for data path
-    temporal_res : int | None
-        factor by which to upscale time dimension
-    spatial_res : int | None
-        factor by which to upscale spatial dimensions
-    target : tuple
-        lat lon tuple for lower left corner of raster
-    shape : tuple
-        integer tuple for grid size
-    features : list
-        str list of fields to extract from data                    
+    out_dir : str
+        Project directory.
+    year : int
+        data year
+    var_kwargs : dict
+        Namespace of kwargs
+    factory_kwargs : dict | None
+        Optional namespace of kwargs
+    log_level : str | None
+        Logging level (DEBUG, INFO). If None,
+        no logging will be initialized.
+    log_file : str
+        File to log to. Will be put in output directory.
+    job_name : str
+        Optional name for pipeline and status identification.
     """
 
-    sup3rData = Sup3rData(file_path)
-    sup3rData.get_training_data(target, shape, features,
-                                n_observations=n_observations,
-                                temporal_res=temporal_res,
-                                spatial_res=spatial_res)
+    sup3rData = Sup3rData(var_kwargs['file_path'])
+    sup3rData.get_training_data(var_kwargs['target'],
+                                var_kwargs['shape'],
+                                var_kwargs['features'],
+                                var_kwargs.get('n_observations', 1),
+                                var_kwargs.get('temporal_res', None),
+                                var_kwargs.get('spatial_res', None))
 
 
 class Sup3rData():
