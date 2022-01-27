@@ -65,6 +65,77 @@ class Sup3rData:
             logger.warning(msg)
 
     @classmethod
+    def get_high_res_data(cls, data_files, target, shape, features):
+        """Concatenate files along time dimension
+
+        Parameters
+        ----------
+        data_files : list
+            list of strings of file paths
+        target : tuple
+            lat lon tuple for lower left coordinate of raster
+        shape : tuple
+            grid size of raster
+        features : list
+            list of fields to extract from data
+
+        Returns
+        -------
+        y : np.ndarray
+            4D array of high res data
+            (spatial_1, spatial_2, temporal, features)
+
+        lat_lon : np.ndarray
+            3D array of lat lon
+            (spatial_1, spatial_2, 2)
+            lat (lon) first channel (second channel)
+        """
+
+        y, lat_lon = cls.get_h5_data(data_files[0],
+                                     target, shape,
+                                     features)
+        for f in data_files[1:]:
+
+            tmp, _ = cls.get_h5_data(f, target, shape, features)
+            y = np.concatenate((y, tmp), axis=2)
+
+        return y, lat_lon
+
+    @classmethod
+    def transform_wind(cls, y, lat_lon, features):
+        """Transform windspeed/direction to
+        u and v and align u and v with grid
+
+        Parameters
+        ----------
+        y : np.ndarray
+            4D array of high res data
+        lat_lon : np.ndarray
+            3D array of lat lon
+        features : list
+            list of extracted features
+
+        Returns
+        -------
+        y : np.ndarray
+            4D array of high res data with
+            (windspeed, direction) -> (u, v)
+        """
+
+        for i, f in enumerate(features):
+            if f.split('_')[0] == 'windspeed':
+                height = f.split('_')[1]
+
+                msg = f'Converting windspeed/direction to u/v ({height})'
+                logger.info(msg)
+
+                j = features.index(f'winddirection_{height}')
+                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
+                                                                 y[:, :, :, j],
+                                                                 lat_lon)
+        return y
+
+    @classmethod
     def run_data_model(cls, out_dir, year, var_kwargs,
                        factory_kwargs=None, log_level='DEBUG',
                        log_file='data_model.log',
@@ -123,19 +194,14 @@ class Sup3rData:
 
         multiResource = MultiYearResource(file_path)
 
-        y, lat_lon = cls.get_h5_data(multiResource.h5_files[0],
-                                     target, shape, features)
-        for f in multiResource.h5_files[1:]:
-            tmp, _ = cls.get_h5_data(f, target, shape, features)
-            y = np.concatenate((y, tmp), axis=2)
+        logger.info('Concatenating along time dimension')
 
-        for i, f in enumerate(features):
-            if f.split('_')[0] == 'windspeed':
-                height = f.split('_')[1]
-                j = features.index(f'winddirection_{height}')
-                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
-                                                                 y[:, :, :, j],
-                                                                 lat_lon)
+        y, lat_lon = sup3r.get_high_res_data(multiResource.h5_files,
+                                             target, shape, features)
+
+        logger.info('Checking features for wind and transforming')
+
+        y = sup3r.transform_wind(y, lat_lon, features)
 
         msg = 'Coarsening high resolution data'
         msg += f'Spatial coarsening factor: {spatial_res}'
@@ -151,10 +217,16 @@ class Sup3rData:
                        y.shape[1],
                        -1, len(features)))
 
+        msg = f'Reshaping high resolution data: {y.shape}'
+        logger.info(msg)
+
         x = x.reshape((n_observations,
                        x.shape[0],
                        x.shape[1],
                        -1, len(features)))
+
+        msg = f'Reshaping low resolution data: {x.shape}'
+        logger.info(msg)
 
         msg = 'Batching training data. '
         msg += f'n_batch={n_batch}, '
@@ -162,7 +234,7 @@ class Sup3rData:
         msg += f'shuffle={shuffle}'
         logger.info(msg)
 
-        yield cls.batch_data(x, y, n_batch, batch_size, shuffle)
+        yield sup3r.batch_data(x, y, n_batch, batch_size, shuffle)
 
         logger.info('Finished getting training data')
 

@@ -185,12 +185,12 @@ def data_model(ctx, var_kwargs, factory_kwargs):
 
     log_file = 'data_model/data_model.log'
     fun_str = 'Sup3rData.run_data_model'
-    arg_str = (f'factory_kwargs={factory_kwargs}, '
-               f'var_kwargs={json.dumps(var_kwargs)}, '
+    arg_str = (f'out_dir="{out_dir}", '
                f'year={year}, '
+               f'var_kwargs={json.dumps(var_kwargs)}, '
+               f'factory_kwargs={factory_kwargs}, '
                f'job_name="{name}", '
                f'log_file="{log_file}", '
-               f'out_dir="{out_dir}", '
                f'log_level="{log_level}" ')
 
     ctx.obj['IMPORT_STR'] = 'from sup3r.data_model.data_model import Sup3rData'
