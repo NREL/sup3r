@@ -18,18 +18,30 @@ from sup3r.utilities import utilities
 logger = logging.getLogger(__name__)
 
 
-def run_data_model(h5_path, temporal_res,
+def run_data_model(file_path, temporal_res,
                    n_observations,
                    spatial_res,
                    target, shape,
                    features):
     """Run data model for preprocessing
-    
+
     Parameters
     ----------
+    file_path : str
+        str for data path
+    temporal_res : int | None
+        factor by which to upscale time dimension
+    spatial_res : int | None
+        factor by which to upscale spatial dimensions
+    target : tuple
+        lat lon tuple for lower left corner of raster
+    shape : tuple
+        integer tuple for grid size
+    features : list
+        str list of fields to extract from data                    
+    """
 
-    """                   
-    sup3rData = Sup3rData(h5_path)
+    sup3rData = Sup3rData(file_path)
     sup3rData.get_training_data(target, shape, features,
                                 n_observations=n_observations,
                                 temporal_res=temporal_res,
