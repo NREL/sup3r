@@ -136,6 +136,34 @@ class Sup3rData:
         return y
 
     @classmethod
+    def get_all_files(cls, file_path, file_type='h5'):
+        """Get set of files given by path
+
+        Parameters
+        ----------
+        file_path : str
+            path pointing to file(s)
+
+        Returns
+        -------
+        files : list
+            list of file paths
+        """
+
+        if file_type == 'h5':
+            multiResource = MultiYearResource(file_path)
+            files = multiResource.h5_files
+        elif file_type == 'netcdf':
+            wrf_dir = os.path.dirname(file_path)
+            file_prefix = os.path.basename(file_path)
+            files = get_wrf_files(wrf_dir, file_prefix)
+        else:
+            raise ConfigError('Data must be either h5 or netcdf '
+                              f'but received file type: {file_type}')
+
+        return files
+
+    @classmethod
     def reshape_data(cls, x, y, n_observations):
         """Reshape high and low resolution
         data so the first dimension of x and y
@@ -224,6 +252,7 @@ class Sup3rData:
         n_observations = var_kwargs.get('n_observations', 1)
         spatial_res = var_kwargs.get('spatial_res', None)
         temporal_res = var_kwargs.get('temporal_res', None)
+        file_type = var_kwargs.get('file_type', 'h5')
 
         msg = 'Getting training data. '
         msg += f'target={target}, '
@@ -232,12 +261,13 @@ class Sup3rData:
 
         logger.info(msg)
 
-        multiResource = MultiYearResource(file_path)
+        files = sup3r.get_all_files(file_path,
+                                    file_type=file_type)
 
-        logger.info('Concatenating along time dimension')
+        logger.info(f'Getting data files: {files}')
 
-        y, lat_lon = sup3r.get_high_res_data(multiResource.h5_files,
-                                             target, shape, features)
+        y, lat_lon = sup3r.get_high_res_data(files, target,
+                                             shape, features)
 
         logger.info('Checking features for wind and transforming')
 
@@ -270,7 +300,6 @@ class Sup3rData:
     def get_file_data(cls, file_path, target, shape, features):
         """Extract fields from file for region
         given by target and shape
-
 
         Parameters
         ----------

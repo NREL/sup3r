@@ -12,9 +12,10 @@
     },
     "data-model": {
       "var_kwargs": {
+          "file_type": "h5",
           "file_path": "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5",
           "spatial_res": 3,
-          "target": [25, -120],
+          "target": [25, -125],
           "shape": [500, 500],
           "n_observations": 10,
           "features": [
