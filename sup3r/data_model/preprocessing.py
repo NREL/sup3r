@@ -9,8 +9,10 @@ import os
 import json
 import time
 
+from rex import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
+from rex.utilities.loggers import create_dirs
 from rex import WindX
 from wtk.utilities import get_wrf_files
 from phygnn import CustomNetwork
@@ -53,6 +55,10 @@ def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
         var_kwargs = json.loads(var_kwargs)
 
     sup3rData = Sup3rData(var_kwargs['file_path'])
+    sup3rData._init_loggers(year=year,
+                            log_dir=out_dir,
+                            log_file=log_file,
+                            log_level=log_level)
     sup3rData.get_training_data(var_kwargs['target'],
                                 var_kwargs['shape'],
                                 var_kwargs['features'],
@@ -282,3 +288,42 @@ class Sup3rData():
                                          n_batch,
                                          batch_size,
                                          shuffle)
+
+    def _init_loggers(self, loggers=None,
+                      year=None,
+                      log_dir='./logs',
+                      log_file='sup3r.log',
+                      log_level='DEBUG',
+                      use_log_dir=True):
+        """Initialize sup3r loggers.
+        Parameters
+        ----------
+        loggers : None | list | tuple
+            List of logger names to initialize. None defaults to all Sup3r
+            loggers.
+        log_file : str
+            Log file name. Will be placed in the nsrdb out dir.
+        log_level : str | None
+            Logging level (DEBUG, INFO). If None, no logging will be
+            initialized.
+        date : None | datetime
+            Optional date to put in the log file name.
+        use_log_dir : bool
+            Flag to use the class log directory (self._log_dir = ./logs/)
+        """
+
+        if log_level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+
+            if loggers is None:
+                loggers = ('sup3r.sup3r', 'sup3r.data_model')
+
+            if log_file is not None and use_log_dir:
+                log_file = os.path.join(log_dir, log_file)
+                create_dirs(os.path.dirname(log_file))
+
+            if year is not None:
+                log_file = log_file.replace('.log', f'_{year}.log')
+
+            for name in loggers:
+                init_logger(name, log_level=log_level,
+                            log_file=log_file)
