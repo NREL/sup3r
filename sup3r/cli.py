@@ -126,10 +126,10 @@ class ConfigRunners:
         name : str
             Base jobname.
         cmd_args : dict
-            Dictionary of kwargs from the nsrdb config file specifically for
+            Dictionary of kwargs from the sup3r config file specifically for
             this command block.
         eagle_args : dict
-            Dictionary of kwargs from the nsrdb config to make eagle submission
+            Dictionary of kwargs from the sup3r config to make eagle submission
         """
 
         factory_kwargs = cmd_args.get('factory_kwargs', None)
@@ -186,12 +186,12 @@ def data_model(ctx, var_kwargs, factory_kwargs):
     log_file = 'data_model/data_model.log'
     fun_str = 'preprocessing.run_data_model'
     arg_str = (f'factory_kwargs={factory_kwargs}, '
-               f'var_kwargs={var_kwargs}, '
-               f'log_file={log_file}, '
+               f'var_kwargs={json.dumps(var_kwargs)}, '
                f'name={name}, '
                f'year={year}, '
-               f'out_dir={out_dir}, '
-               f'log_level={log_level} ')
+               f'log_file="{log_file}", '
+               f'out_dir="{out_dir}", '
+               f'log_level="{log_level}" ')
 
     ctx.obj['IMPORT_STR'] = 'from sup3r.data_model import preprocessing '
     ctx.obj['FUN_STR'] = fun_str
@@ -234,7 +234,7 @@ def eagle(ctx, alloc, memory, walltime, feature, stdout_path):
                                         hardware='eagle',
                                         subprocess_manager=slurm_manager)
 
-    msg = 'NSRDB CLI failed to submit jobs!'
+    msg = 'Sup3r CLI failed to submit jobs!'
     if status == 'successful':
         msg = ('Job "{}" is successful in status json found in "{}", '
                'not re-running.'.format(name, out_dir))

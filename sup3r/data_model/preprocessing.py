@@ -6,6 +6,8 @@ import logging
 import xarray
 import numpy as np
 import os
+import json
+import time
 
 from rex.resource_extraction.resource_extraction import ResourceX
 from rex.multi_year_resource import MultiYearResource
@@ -13,6 +15,7 @@ from rex import WindX
 from wtk.utilities import get_wrf_files
 from phygnn import CustomNetwork
 from sup3r.utilities import utilities
+from sup3r.pipeline import Status
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +45,13 @@ def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
         Optional name for pipeline and status identification.
     """
 
+    t0 = time.time()
+
+    if isinstance(factory_kwargs, str):
+        factory_kwargs = json.loads(factory_kwargs)
+    if isinstance(var_kwargs, str):
+        var_kwargs = json.loads(var_kwargs)
+
     sup3rData = Sup3rData(var_kwargs['file_path'])
     sup3rData.get_training_data(var_kwargs['target'],
                                 var_kwargs['shape'],
@@ -49,6 +59,14 @@ def run_data_model(out_dir, year, var_kwargs, factory_kwargs=None,
                                 var_kwargs.get('n_observations', 1),
                                 var_kwargs.get('temporal_res', None),
                                 var_kwargs.get('spatial_res', None))
+
+    if job_name is not None:
+        runtime = (time.time() - t0) / 60
+        status = {'out_dir': out_dir,
+                  'job_status': 'successful',
+                  'runtime': runtime}
+        Status.make_job_file(out_dir, 'data-model',
+                             job_name, status)
 
 
 class Sup3rData():
