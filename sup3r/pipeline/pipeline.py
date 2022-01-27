@@ -33,6 +33,7 @@ class Sup3rPipeline(Pipeline):
         self.monitor = monitor
         self.verbose = verbose
         self._config = Sup3rPipelineConfig(pipeline)
+        self._config.dirout = self._config['dirout']
         self._run_list = self._config.pipeline
         self._init_status()
 
