@@ -3,6 +3,43 @@
 trraining data"""
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def transform_wind(y, lat_lon, features):
+    """Transform windspeed/direction to
+    u and v and align u and v with grid
+
+    Parameters
+    ----------
+    y : np.ndarray
+        4D array of high res data
+    lat_lon : np.ndarray
+        3D array of lat lon
+    features : list
+        list of extracted features
+
+    Returns
+    -------
+    y : np.ndarray
+        4D array of high res data with
+        (windspeed, direction) -> (u, v)
+    """
+
+    for i, f in enumerate(features):
+        if f.split('_')[0] == 'windspeed':
+            height = f.split('_')[1]
+
+            msg = f'Converting windspeed/direction to u/v ({height})'
+            logger.info(msg)
+
+            j = features.index(f'winddirection_{height}')
+            y[:, :, :, i], y[:, :, :, j] = get_u_v(y[:, :, :, i],
+                                                   y[:, :, :, j],
+                                                   lat_lon)
+    return y
 
 
 def get_u_v(windspeed, direction, lat_lon):

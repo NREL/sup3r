@@ -12,7 +12,6 @@ import sys
 
 from rex import init_logger
 from rex.resource_extraction.resource_extraction import ResourceX
-from rex.multi_year_resource import MultiYearResource
 from rex.utilities.loggers import create_dirs
 from rex import WindX
 from reV.utilities.exceptions import ConfigError
@@ -28,22 +27,19 @@ logger = logging.getLogger(__name__)
 class Sup3rData:
     """Sup3r data handling framework."""
 
-    def __init__(self, out_dir, year,
+    def __init__(self, out_dir,
                  make_out_dirs=True):
         """
         Parameters
         ----------
         out_dir : str
             Project directory.
-        year : int | str
-            Processing year.
         make_out_dirs : bool
             Flag to make output directories for logs
         """
 
         self._out_dir = out_dir
         self._log_dir = os.path.join(out_dir, 'logs/')
-        self._year = int(year)
 
         if make_out_dirs:
             for d in [self._out_dir, self._log_dir]:
@@ -65,7 +61,7 @@ class Sup3rData:
             logger.warning(msg)
 
     @classmethod
-    def get_high_res_data(cls, data_files, target, shape, features):
+    def _get_high_res_data(cls, data_files, target, shape, features):
         """Concatenate files along time dimension
 
         Parameters
@@ -91,12 +87,12 @@ class Sup3rData:
             lat (lon) first channel (second channel)
         """
 
-        y, lat_lon = cls.get_file_data(data_files[0],
-                                       target, shape,
-                                       features)
+        y, lat_lon = cls._get_file_data(data_files[0],
+                                        target, shape,
+                                        features)
         for f in data_files[1:]:
 
-            tmp, _ = cls.get_file_data(f, target, shape, features)
+            tmp, _ = cls._get_file_data(f, target, shape, features)
             y = np.concatenate((y, tmp), axis=2)
 
         return y, lat_lon
@@ -130,38 +126,10 @@ class Sup3rData:
                 logger.info(msg)
 
                 j = features.index(f'winddirection_{height}')
-                y[:, :, :, i], y[:, :, :, j] = utilities.get_u_v(y[:, :, :, i],
-                                                                 y[:, :, :, j],
-                                                                 lat_lon)
+                y[:, :, :, i], y[:, :, :, j] = cls.get_u_v(y[:, :, :, i],
+                                                           y[:, :, :, j],
+                                                           lat_lon)
         return y
-
-    @classmethod
-    def get_all_files(cls, file_path, file_type='h5'):
-        """Get set of files given by path
-
-        Parameters
-        ----------
-        file_path : str
-            path pointing to file(s)
-
-        Returns
-        -------
-        files : list
-            list of file paths
-        """
-
-        if file_type == 'h5':
-            multiResource = MultiYearResource(file_path)
-            files = multiResource.h5_files
-        elif file_type == 'netcdf':
-            wrf_dir = os.path.dirname(file_path)
-            file_prefix = os.path.basename(file_path)
-            files = get_wrf_files(wrf_dir, file_prefix)
-        else:
-            raise ConfigError('Data must be either h5 or netcdf '
-                              f'but received file type: {file_type}')
-
-        return files
 
     @classmethod
     def reshape_data(cls, x, y, n_observations):
@@ -207,7 +175,7 @@ class Sup3rData:
         return x, y
 
     @classmethod
-    def run_data_model(cls, out_dir, year, var_kwargs,
+    def run_data_model(cls, out_dir, var_kwargs,
                        factory_kwargs=None, log_level='DEBUG',
                        log_file='data_model.log',
                        job_name=None):
@@ -217,8 +185,6 @@ class Sup3rData:
         ----------
         out_dir : str
             Project directory.
-        year : int
-            data year
         var_kwargs : dict
             Namespace of kwargs
         factory_kwargs : dict | None
@@ -234,8 +200,8 @@ class Sup3rData:
 
         t0 = time.time()
 
-        sup3r = cls(out_dir, year)
-        sup3r._init_loggers(year=year, log_file=log_file,
+        sup3r = cls(out_dir)
+        sup3r._init_loggers(log_file=log_file,
                             log_level=log_level)
 
         if isinstance(factory_kwargs, str):
@@ -245,14 +211,13 @@ class Sup3rData:
 
         logger.info('Initializing variables')
 
-        file_path = var_kwargs['file_path']
+        data_files = var_kwargs['data_files']
         target = var_kwargs['target']
         shape = var_kwargs['shape']
         features = var_kwargs['features']
         n_observations = var_kwargs.get('n_observations', 1)
         spatial_res = var_kwargs.get('spatial_res', None)
         temporal_res = var_kwargs.get('temporal_res', None)
-        file_type = var_kwargs.get('file_type', 'h5')
 
         msg = 'Getting training data. '
         msg += f'target={target}, '
@@ -261,13 +226,8 @@ class Sup3rData:
 
         logger.info(msg)
 
-        files = sup3r.get_all_files(file_path,
-                                    file_type=file_type)
-
-        logger.info(f'Getting data files: {files}')
-
-        y, lat_lon = sup3r.get_high_res_data(files, target,
-                                             shape, features)
+        y, lat_lon = sup3r._get_high_res_data(data_files, target,
+                                              shape, features)
 
         logger.info('Checking features for wind and transforming')
 
@@ -278,9 +238,9 @@ class Sup3rData:
         msg += f'Temporal coarsening factor: {temporal_res}'
         logger.info(msg)
 
-        x, _ = utilities.get_coarse_data(y, lat_lon,
-                                         spatial_res,
-                                         temporal_res)
+        x, _ = sup3r.get_coarse_data(y, lat_lon,
+                                     spatial_res,
+                                     temporal_res)
 
         x, y = sup3r.reshape_data(x, y, n_observations)
 
@@ -297,7 +257,7 @@ class Sup3rData:
         return x, y
 
     @classmethod
-    def get_file_data(cls, file_path, target, shape, features):
+    def _get_file_data(cls, file_path, target, shape, features):
         """Extract fields from file for region
         given by target and shape
 
@@ -324,11 +284,11 @@ class Sup3rData:
 
         _, file_ext = os.path.splitext(file_path)
         if file_ext == '.h5':
-            y, lat_lon = cls.get_h5_data(file_path, target,
-                                         shape, features)
+            y, lat_lon = cls._get_h5_data(file_path, target,
+                                          shape, features)
         elif file_ext == '.nc':
-            y, lat_lon = cls.get_nc_data(file_path, target,
-                                         shape, features)
+            y, lat_lon = cls._get_nc_data(file_path, target,
+                                          shape, features)
         else:
             raise ConfigError('Data must be either h5 or netcdf '
                               f'but received file extension: {file_ext}')
@@ -336,7 +296,7 @@ class Sup3rData:
         return y, lat_lon
 
     @staticmethod
-    def get_h5_data(file_path, target, shape, features):
+    def _get_h5_data(file_path, target, shape, features):
         """Get chunk of h5 data based on raster_indices
         and features
 
@@ -367,7 +327,8 @@ class Sup3rData:
 
         with WindX(file_path, hsds=False) as handle:
             resourceX = ResourceX(file_path)
-            raster_index = resourceX.get_raster_index(target, shape)
+            raster_index = resourceX.get_raster_index(target, shape,
+                                                      max_delta=20)
             lat_lon = np.zeros((raster_index.shape[0],
                                 raster_index.shape[1], 2))
             data = np.zeros((raster_index.shape[0],
@@ -389,7 +350,7 @@ class Sup3rData:
         return data, lat_lon
 
     @staticmethod
-    def get_nc_data(file_path, target, shape, features):
+    def _get_nc_data(file_path, target, shape, features):
         """Get chunk of netcdf data based on raster_indices
         and features
 
@@ -421,7 +382,6 @@ class Sup3rData:
         return xarray.open_dataset(file_path)
 
     def _init_loggers(self, loggers=None,
-                      year=None,
                       log_dir='./logs',
                       log_file='sup3r.log',
                       log_level='DEBUG',
@@ -453,11 +413,118 @@ class Sup3rData:
                 log_file = os.path.join(log_dir, log_file)
                 create_dirs(os.path.dirname(log_file))
 
-            if year is not None:
-                log_file = log_file.replace('.log', f'_{year}.log')
-
             for name in loggers:
                 init_logger(name, log_level=log_level,
                             log_file=log_file)
         if log_version:
             self._log_version()
+
+    @classmethod
+    def get_u_v(cls, windspeed, direction, lat_lon):
+        """Maps windspeed and direction to u v
+        and aligns u v with grid
+
+        Parameters
+        ----------
+        windspeed : np.ndarray
+            3D array (spatial_1, spatial_2, temporal)
+
+        direction : np.ndarray
+            3D array (spatial_1, spatial_2, temporal)
+
+        lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2)
+            2 channels are lat and lon in that
+            order
+
+        Returns
+        -------
+        u_rot : np.ndarray
+            3D array of zonal wind components
+
+        v_rot : np.ndarray
+            3D array of meridional wind components
+        """
+
+        lats = lat_lon[:, :, 0]
+        lons = lat_lon[:, :, 1]
+
+        # convert from windspeed and direction to u v
+        u = windspeed * np.cos(np.radians(direction - 180.0))
+        v = windspeed * np.sin(np.radians(direction - 180.0))
+
+        # get the dy/dx to the nearest vertical neighbor
+        dy = lats - np.roll(lats, 1, axis=0)
+        dx = lons - np.roll(lons, 1, axis=0)
+
+        # calculate the angle from the vertical
+        theta = (np.pi / 2) - np.arctan2(dy, dx)
+        theta[0] = theta[1]  # fix the roll row
+
+        sin2 = np.sin(theta)
+        cos2 = np.cos(theta)
+
+        u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
+            + np.einsum('ij,ijk->ijk', cos2, u)
+        v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
+            - np.einsum('ij,ijk->ijk', sin2, u)
+
+        return u_rot, v_rot
+
+    @classmethod
+    def get_coarse_data(cls, data, lat_lon,
+                        spatial_res=2,
+                        temporal_res=None):
+        """"Coarsen data according to spatial_res resolution
+        and temporal_res temporal sample frequency
+
+        Parameters
+        ----------
+        data : np.ndarray
+            4D array with dimensions
+            (spatial_1, spatial_2, temporal, features)
+
+        lat_lon : np.ndarray
+            2D array with dimensions
+            (spatial_1, spatial_2)
+
+        spatial_res : int
+            factor by which to coarsen spatial dimensions
+
+        temporal_res : (int, int)
+            factor by which to coarsen temporal dimension
+
+        Returns
+        -------
+        coarse_data : np.ndarray
+            4D array with same dimensions as data
+            with new coarse resolution
+
+        coarse_lat_lon : np.ndarray
+            3D array (spatial_1, spatial_2, 2) with
+            lat and lon as the 2 channels in that order
+            with same resolution as coarse_data
+        """
+
+        if temporal_res is not None:
+            tmp = data[:, :, ::temporal_res, :]
+        else:
+            tmp = data
+
+        if spatial_res is not None:
+            coarse_data = tmp.reshape(-1, spatial_res,
+                                      data.shape[1] // spatial_res,
+                                      spatial_res,
+                                      tmp.shape[2],
+                                      tmp.shape[3]).sum((1, 3)) \
+                / (spatial_res * spatial_res)
+
+            coarse_lat_lon = lat_lon.reshape(-1, spatial_res,
+                                             data.shape[1] // spatial_res,
+                                             spatial_res, 2).sum((3, 1)) \
+                / (spatial_res * spatial_res)
+        else:
+            coarse_data = data.copy()
+            coarse_lat_lon = lat_lon.copy()
+
+        return coarse_data, coarse_lat_lon

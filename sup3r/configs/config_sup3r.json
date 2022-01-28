@@ -1,7 +1,6 @@
 {
     "direct": {
-      "name": "sup3r_2007",
-      "year": 2007,
+      "name": "sup3r_2007_2011",
       "out_dir": "/scratch/bbenton/sup3r",
       "log_level": "DEBUG"
     },
@@ -13,9 +12,15 @@
     "data-model": {
       "var_kwargs": {
           "file_type": "h5",
-          "file_path": "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5",
+          "data_files": [
+            "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5",
+            "/datasets/WIND/conus/v1.0.0/wtk_conus_2008.h5",
+            "/datasets/WIND/conus/v1.0.0/wtk_conus_2009.h5",
+            "/datasets/WIND/conus/v1.0.0/wtk_conus_2010.h5",
+            "/datasets/WIND/conus/v1.0.0/wtk_conus_2011.h5"
+          ],
           "spatial_res": 3,
-          "target": [25, -125],
+          "target": [35, -115],
           "shape": [500, 500],
           "n_observations": 10,
           "features": [
