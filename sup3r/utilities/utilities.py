@@ -8,52 +8,47 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def transform_wind(y, lat_lon, features):
-    """Transform windspeed/direction to
-    u and v and align u and v with grid
+def transform_wind(y, i, j):
+    """Maps windspeed and direction to u v
 
     Parameters
     ----------
     y : np.ndarray
-        4D array of high res data
-    lat_lon : np.ndarray
-        3D array of lat lon
-    features : list
-        list of extracted features
+        4D array (spatial_1, spatial_2, temporal, features)
+    i : int
+        index of windspeed feature
+    j : int
+        index of winddirection feature
 
     Returns
     -------
-    y : np.ndarray
-        4D array of high res data with
-        (windspeed, direction) -> (u, v)
+    u : np.ndarray
+        3D array of zonal wind components
+
+    v : np.ndarray
+        3D array of meridional wind components
     """
+    # convert from windspeed and direction to u v
+    windspeed = y[:, :, :, i]
+    direction = y[:, :, :, j]
 
-    for i, f in enumerate(features):
-        if f.split('_')[0] == 'windspeed':
-            height = f.split('_')[1]
+    u = windspeed * np.cos(np.radians(direction - 180.0))
+    v = windspeed * np.sin(np.radians(direction - 180.0))
 
-            msg = f'Converting windspeed/direction to u/v ({height})'
-            logger.info(msg)
-
-            j = features.index(f'winddirection_{height}')
-            y[:, :, :, i], y[:, :, :, j] = get_u_v(y[:, :, :, i],
-                                                   y[:, :, :, j],
-                                                   lat_lon)
-    return y
+    return u, v
 
 
-def get_u_v(windspeed, direction, lat_lon):
-    """Maps windspeed and direction to u v
-    and aligns u v with grid
+def rotate_u_v(y, i, j, lat_lon):
+    """aligns u v with grid
 
     Parameters
     ----------
-    windspeed : np.ndarray
-        3D array (spatial_1, spatial_2, temporal)
-
-    direction : np.ndarray
-        3D array (spatial_1, spatial_2, temporal)
-
+    y : np.ndarray
+        4D array (spatial_1, spatial_2, temporal, features)
+    i : int
+        index of u feature
+    j : int
+        index of v feature
     lat_lon : np.ndarray
         3D array (spatial_1, spatial_2, 2)
         2 channels are lat and lon in that
@@ -68,12 +63,10 @@ def get_u_v(windspeed, direction, lat_lon):
         3D array of meridional wind components
     """
 
+    u = y[:, :, :, i]
+    v = y[:, :, :, j]
     lats = lat_lon[:, :, 0]
     lons = lat_lon[:, :, 1]
-
-    # convert from windspeed and direction to u v
-    u = windspeed * np.cos(np.radians(direction - 180.0))
-    v = windspeed * np.sin(np.radians(direction - 180.0))
 
     # get the dy/dx to the nearest vertical neighbor
     dy = lats - np.roll(lats, 1, axis=0)
@@ -150,3 +143,58 @@ def get_coarse_data(data, lat_lon,
         coarse_lat_lon = lat_lon.copy()
 
     return coarse_data, coarse_lat_lon
+
+
+def transform_rotate_wind(y, lat_lon, features):
+    """Transform windspeed/direction to
+    u and v and align u and v with grid
+
+    Parameters
+    ----------
+    y : np.ndarray
+        4D array of high res data
+    lat_lon : np.ndarray
+        3D array of lat lon
+    features : list
+        list of extracted features
+
+    Returns
+    -------
+    y : np.ndarray
+        4D array of high res data with
+        (windspeed, direction) -> (u, v)
+    """
+
+    for i, f in enumerate(features):
+        if f.split('_')[0] == 'windspeed':
+            if len(f.split('_')) > 1:
+                height = f.split('_')[1]
+                msg = f'Converting windspeed/direction to u/v ({height})'
+                j = features.index(f'winddirection_{height}')
+                features[i] = f'u_{height}'
+                features[j] = f'v_{height}'
+            else:
+                msg = 'Converting windspeed/direction to u/v'
+                j = features.index('winddirection')
+                features[i] = 'u'
+                features[j] = 'v'
+
+            logger.info(msg)
+
+            y[:, :, :, i], y[:, :, :, j] = transform_wind(y, i, j)
+
+        if features[i].split('_')[0] == 'u':
+            if len(features[i].split('_')) > 1:
+                height = features[i].split('_')[1]
+                j = features.index(f'v_{height}')
+                msg = f'Aligning u/v to grid ({height})'
+            else:
+                j = features.index('v')
+                msg = 'Aligning u/v to grid'
+
+            logger.info(msg)
+
+            y[:, :, :, i], y[:, :, :, j] = rotate_u_v(y, i, j,
+                                                      lat_lon)
+
+    return y
