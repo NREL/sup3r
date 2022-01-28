@@ -6,7 +6,7 @@
     },
     "eagle": {
       "alloc": "pxs",
-      "memory": 80,
+      "memory": 100,
       "walltime": 1,
       "feature": "--qos=high"
     },
@@ -22,7 +22,7 @@
           ],
           "spatial_res": 3,
           "target": [35, -115],
-          "shape": [500, 500],
+          "shape": [300, 300],
           "n_observations": 10,
           "features": [
               "windspeed_100m",
