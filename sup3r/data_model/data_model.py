@@ -365,13 +365,11 @@ class Sup3rData:
 
                 logger.info(f'Extracting {f} from file')
 
-                for i in range(data.shape[0]):
-                    data[i, :, :, j] = handle[f, :,
-                                              raster_index[i]].transpose()
+                data[:, :, :, j] = np.transpose(handle[f, :, raster_index],
+                                                (1, 2, 0))
 
             logger.info('Populating lat_lon array')
-            for i in range(data.shape[0]):
-                lat_lon[i, :, :] = handle.lat_lon[raster_index[i]]
+            lat_lon = handle.lat_lon[raster_index]
 
         return data, lat_lon
 
