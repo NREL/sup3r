@@ -98,7 +98,6 @@ def config(ctx, config_file, command):
 
     name = direct_args['name']
     ctx.obj['NAME'] = name
-    ctx.obj['YEAR'] = direct_args['year']
     ctx.obj['OUT_DIR'] = direct_args['out_dir']
     ctx.obj['LOG_LEVEL'] = direct_args['log_level']
     ctx.obj['SLURM_MANAGER'] = SLURM()
@@ -144,18 +143,15 @@ class ConfigRunners:
 @main.group()
 @click.option('--name', '-n', default='Sup3r', type=str,
               help='Job and node name.')
-@click.option('--year', '-y', default=None, type=INT,
-              help='Year of analysis.')
 @click.option('--out_dir', '-od', type=STR, required=True,
               help='Output directory.')
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def direct(ctx, name, year, out_dir, verbose):
+def direct(ctx, name, out_dir, verbose):
     """Sup3r direct processing CLI (no config file)."""
 
     ctx.obj['NAME'] = name
-    ctx.obj['YEAR'] = year
     ctx.obj['OUT_DIR'] = out_dir
 
     if verbose:
@@ -173,7 +169,6 @@ def data_model(ctx, var_kwargs, factory_kwargs):
     """Run the preprocessing routine"""
 
     name = ctx.obj['NAME']
-    year = ctx.obj['YEAR']
     out_dir = ctx.obj['OUT_DIR']
     log_level = ctx.obj['LOG_LEVEL']
 
@@ -186,7 +181,6 @@ def data_model(ctx, var_kwargs, factory_kwargs):
     log_file = 'data_model/data_model.log'
     fun_str = 'Sup3rData.run_data_model'
     arg_str = (f'out_dir="{out_dir}", '
-               f'year={year}, '
                f'var_kwargs={json.dumps(var_kwargs)}, '
                f'factory_kwargs={factory_kwargs}, '
                f'job_name="{name}", '
