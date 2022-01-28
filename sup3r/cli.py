@@ -10,7 +10,7 @@ import json
 import logging
 import os
 
-from rex.utilities.cli_dtypes import STR, INT, FLOAT, STRLIST
+from rex.utilities.cli_dtypes import STR, INT
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_logger
 from rex.utilities.utilities import safe_json_load
