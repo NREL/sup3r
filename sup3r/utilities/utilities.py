@@ -3,9 +3,6 @@
 trraining data"""
 
 import numpy as np
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 def transform_wind(y, i, j):
@@ -150,57 +147,3 @@ def get_coarse_data(data, lat_lon,
         coarse_lat_lon = lat_lon.copy()
 
     return coarse_data, coarse_lat_lon
-
-
-def transform_rotate_wind(y, lat_lon, features):
-    """Transform windspeed/direction to
-    u and v and align u and v with grid
-
-    Parameters
-    ----------
-    y : np.ndarray
-        4D array of high res data
-    lat_lon : np.ndarray
-        3D array of lat lon
-    features : list
-        list of extracted features
-
-    Returns
-    -------
-    y : np.ndarray
-        4D array of high res data with
-        (windspeed, direction) -> (u, v)
-    """
-
-    for i, f in enumerate(features):
-        if f.split('_')[0] == 'windspeed':
-            if len(f.split('_')) > 1:
-                height = f.split('_')[1]
-                msg = f'Converting windspeed/direction to u/v ({height})'
-                j = features.index(f'winddirection_{height}')
-                features[i] = f'u_{height}'
-                features[j] = f'v_{height}'
-            else:
-                msg = 'Converting windspeed/direction to u/v'
-                j = features.index('winddirection')
-                features[i] = 'u'
-                features[j] = 'v'
-
-            logger.info(msg)
-
-            y = transform_wind(y, i, j)
-
-        if features[i].split('_')[0] == 'u':
-            if len(features[i].split('_')) > 1:
-                height = features[i].split('_')[1]
-                j = features.index(f'v_{height}')
-                msg = f'Aligning u/v to grid ({height})'
-            else:
-                j = features.index('v')
-                msg = 'Aligning u/v to grid'
-
-            logger.info(msg)
-
-            y = rotate_u_v(y, i, j, lat_lon)
-
-    return y
