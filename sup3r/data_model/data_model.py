@@ -3,7 +3,7 @@
 Sup3r data handling module.
 """
 import logging
-import xarray
+import xarray as xr
 import numpy as np
 import os
 import json
@@ -15,7 +15,6 @@ from rex.resource_extraction.resource_extraction import ResourceX
 from rex.utilities.loggers import create_dirs
 from rex import WindX
 from reV.utilities.exceptions import ConfigError
-from wtk.utilities import get_wrf_files
 from sup3r.utilities import utilities
 from sup3r.pipeline import Status
 from sup3r import __version__
@@ -175,7 +174,13 @@ class Sup3rData:
                                                       max_delta=20)
 
         elif file_ext == '.nc':
-            pass
+            nc_file = xr.open_dataset(file_path)
+            lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
+            lat_idx = np.argmin(np.abs(lat_diff))
+            lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
+            lon_idx = np.argmin(np.abs(lon_diff))
+            raster_index = [[lat_idx, lat_idx + shape[0]],
+                            [lon_idx, lon_idx + shape[1]]]
         else:
             raise ConfigError('Data must be either h5 or netcdf '
                               f'but received file extension: {file_ext}')
@@ -377,7 +382,8 @@ class Sup3rData:
 
     @staticmethod
     def _get_nc_data(file_path, raster_index,
-                     features, get_coords=True):
+                     features, get_coords=True,
+                     level_index=None):
         """Get chunk of netcdf data based on raster_indices
         and features
 
@@ -406,7 +412,49 @@ class Sup3rData:
 
         logger.info(f'Opening data file: {file_path}')
 
-        return xarray.open_dataset(file_path)
+        handle = xr.open_dataset(file_path)
+
+        data = np.zeros((raster_index[0][1] - raster_index[0][0],
+                         raster_index[1][1] - raster_index[1][0],
+                         handle['Times'].shape[0],
+                         len(features)), dtype=np.float32)
+
+        logger.info('Populating data array')
+        for j, f in enumerate(features):
+
+            logger.info(f'Extracting {f} from file')
+
+            if len(handle[f].shape) > 3:
+                if level_index is None:
+                    level_index = 0
+                data[:, :, :, j] = \
+                    np.transpose(
+                        handle[f][:, level_index,
+                                  raster_index[0][0]:raster_index[0][1],
+                                  raster_index[1][0]:raster_index[1][1]],
+                        (1, 2, 0))
+            else:
+                data[:, :, :, j] = \
+                    np.transpose(
+                        handle[f][:, level_index,
+                                  raster_index[0][0]:raster_index[0][1],
+                                  raster_index[1][0]:raster_index[1][1]],
+                        (1, 2, 0))
+
+            if get_coords:
+                lat_lon = np.zeros((raster_index.shape[0],
+                                    raster_index.shape[1], 2))
+                logger.info('Populating lat_lon array')
+                lat_lon[:, :, 0] = \
+                    handle['XLAT'][0, raster_index[0][0]:raster_index[0][1], 0]
+                lat_lon[:, :, 1] = \
+                    handle['XLONG'][0, :,
+                                    raster_index[1][0]:raster_index[1][1]]
+
+        if get_coords:
+            return data, lat_lon
+        else:
+            return data
 
     def _init_loggers(self, loggers=None,
                       log_dir='./logs',
@@ -473,25 +521,25 @@ class Sup3rData:
                     height = f.split('_')[1]
                     msg = f'Converting windspeed/direction to u/v ({height})'
                     j = features.index(f'winddirection_{height}')
-                    features[i] = f'u_{height}'
-                    features[j] = f'v_{height}'
+                    features[i] = f'U_{height}'
+                    features[j] = f'V_{height}'
                 else:
                     msg = 'Converting windspeed/direction to u/v'
                     j = features.index('winddirection')
-                    features[i] = 'u'
-                    features[j] = 'v'
+                    features[i] = 'U'
+                    features[j] = 'V'
 
                 logger.info(msg)
 
                 y = utilities.transform_wind(y, i, j)
 
-            if features[i].split('_')[0] == 'u':
+            if features[i].split('_')[0] == 'U':
                 if len(features[i].split('_')) > 1:
                     height = features[i].split('_')[1]
-                    j = features.index(f'v_{height}')
+                    j = features.index(f'V_{height}')
                     msg = f'Aligning u/v to grid ({height})'
                 else:
-                    j = features.index('v')
+                    j = features.index('V')
                     msg = 'Aligning u/v to grid'
 
                 logger.info(msg)
