@@ -188,7 +188,7 @@ class Sup3rData:
         msg = 'Getting training data. '
         msg += f'target={target}, '
         msg += f'shape={shape}, '
-        msg += f'target={features}'
+        msg += f'features={features}'
 
         logger.info(msg)
 

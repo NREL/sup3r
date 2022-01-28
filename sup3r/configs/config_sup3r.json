@@ -6,6 +6,7 @@
     },
     "eagle": {
       "alloc": "pxs",
+      "memory": 80,
       "walltime": 1,
       "feature": "--qos=high"
     },

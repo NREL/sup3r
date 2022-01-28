@@ -32,10 +32,10 @@ def transform_wind(y, i, j):
     windspeed = y[:, :, :, i]
     direction = y[:, :, :, j]
 
-    u = windspeed * np.cos(np.radians(direction - 180.0))
-    v = windspeed * np.sin(np.radians(direction - 180.0))
+    y[:, :, :, i] = windspeed * np.cos(np.radians(direction - 180.0))
+    y[:, :, :, j] = windspeed * np.sin(np.radians(direction - 180.0))
 
-    return u, v
+    return y
 
 
 def rotate_u_v(y, i, j, lat_lon):
@@ -79,12 +79,12 @@ def rotate_u_v(y, i, j, lat_lon):
     sin2 = np.sin(theta)
     cos2 = np.cos(theta)
 
-    u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
-        + np.einsum('ij,ijk->ijk', cos2, u)
-    v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
-        - np.einsum('ij,ijk->ijk', sin2, u)
+    y[:, :, :, i] = np.einsum('ij,ijk->ijk', sin2, v) \
+                  + np.einsum('ij,ijk->ijk', cos2, u)
+    y[:, :, :, j] = np.einsum('ij,ijk->ijk', cos2, v) \
+                  - np.einsum('ij,ijk->ijk', sin2, u)
 
-    return u_rot, v_rot
+    return y
 
 
 def get_coarse_data(data, lat_lon,
@@ -181,7 +181,7 @@ def transform_rotate_wind(y, lat_lon, features):
 
             logger.info(msg)
 
-            y[:, :, :, i], y[:, :, :, j] = transform_wind(y, i, j)
+            y = transform_wind(y, i, j)
 
         if features[i].split('_')[0] == 'u':
             if len(features[i].split('_')) > 1:
@@ -194,7 +194,6 @@ def transform_rotate_wind(y, lat_lon, features):
 
             logger.info(msg)
 
-            y[:, :, :, i], y[:, :, :, j] = rotate_u_v(y, i, j,
-                                                      lat_lon)
+            y = rotate_u_v(y, i, j, lat_lon)
 
     return y
