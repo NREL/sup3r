@@ -98,7 +98,7 @@ class Sup3rData:
         return y, lat_lon
 
     @classmethod
-    def transform_wind(cls, y, lat_lon, features):
+    def transform_rotate_wind(cls, y, lat_lon, features):
         """Transform windspeed/direction to
         u and v and align u and v with grid
 
@@ -120,15 +120,36 @@ class Sup3rData:
 
         for i, f in enumerate(features):
             if f.split('_')[0] == 'windspeed':
-                height = f.split('_')[1]
+                if len(f.split('_')) > 1:
+                    height = f.split('_')[1]
+                    msg = f'Converting windspeed/direction to u/v ({height})'
+                    j = features.index(f'winddirection_{height}')
+                    features[i] = f'u_{height}'
+                    features[j] = f'v_{height}'
+                else:
+                    msg = 'Converting windspeed/direction to u/v'
+                    j = features.index('winddirection')
+                    features[i] = 'u'
+                    features[j] = 'v'
 
-                msg = f'Converting windspeed/direction to u/v ({height})'
                 logger.info(msg)
 
-                j = features.index(f'winddirection_{height}')
-                y[:, :, :, i], y[:, :, :, j] = cls.get_u_v(y[:, :, :, i],
-                                                           y[:, :, :, j],
-                                                           lat_lon)
+                y[:, :, :, i], y[:, :, :, j] = cls.transform_wind(y, i, j)
+
+            if features[i].split('_')[0] == 'u':
+                if len(features[i].split('_')) > 1:
+                    height = features[i].split('_')[1]
+                    j = features.index(f'v_{height}')
+                    msg = f'Aligning u/v to grid ({height})'
+                else:
+                    j = features.index('v')
+                    msg = 'Aligning u/v to grid'
+
+                logger.info(msg)
+
+                y[:, :, :, i], y[:, :, :, j] = cls.rotate_u_v(y, i, j,
+                                                              lat_lon)
+
         return y
 
     @classmethod
@@ -231,7 +252,7 @@ class Sup3rData:
 
         logger.info('Checking features for wind and transforming')
 
-        y = sup3r.transform_wind(y, lat_lon, features)
+        y = sup3r.transform_rotate_wind(y, lat_lon, features)
 
         msg = 'Coarsening high resolution data '
         msg += f'Spatial coarsening factor: {spatial_res}, '
@@ -327,6 +348,9 @@ class Sup3rData:
 
         with WindX(file_path, hsds=False) as handle:
             resourceX = ResourceX(file_path)
+
+            logger.info('Getting raster index. '
+                        f'target={target}, shape={shape}')
             raster_index = resourceX.get_raster_index(target, shape,
                                                       max_delta=20)
             lat_lon = np.zeros((raster_index.shape[0],
@@ -336,6 +360,7 @@ class Sup3rData:
                              len(handle.time_index),
                              len(features)), dtype=np.float32)
 
+            logger.info('Populating data array')
             for j, f in enumerate(features):
 
                 logger.info(f'Extracting {f} from file')
@@ -344,6 +369,7 @@ class Sup3rData:
                     data[i, :, :, j] = handle[f, :,
                                               raster_index[i]].transpose()
 
+            logger.info('Populating lat_lon array')
             for i in range(data.shape[0]):
                 lat_lon[i, :, :] = handle.lat_lon[raster_index[i]]
 
@@ -420,18 +446,47 @@ class Sup3rData:
             self._log_version()
 
     @classmethod
-    def get_u_v(cls, windspeed, direction, lat_lon):
+    def transform_wind(cls, y, i, j):
         """Maps windspeed and direction to u v
-        and aligns u v with grid
 
         Parameters
         ----------
-        windspeed : np.ndarray
-            3D array (spatial_1, spatial_2, temporal)
+        y : np.ndarray
+            4D array (spatial_1, spatial_2, temporal, features)
+        i : int
+            index of windspeed feature
+        j : int
+            index of winddirection feature
 
-        direction : np.ndarray
-            3D array (spatial_1, spatial_2, temporal)
+        Returns
+        -------
+        u : np.ndarray
+            3D array of zonal wind components
 
+        v : np.ndarray
+            3D array of meridional wind components
+        """
+        # convert from windspeed and direction to u v
+        windspeed = y[:, :, :, i]
+        direction = y[:, :, :, j]
+
+        u = windspeed * np.cos(np.radians(direction - 180.0))
+        v = windspeed * np.sin(np.radians(direction - 180.0))
+
+        return u, v
+
+    @classmethod
+    def rotate_u_v(cls, y, i, j, lat_lon):
+        """aligns u v with grid
+
+        Parameters
+        ----------
+        y : np.ndarray
+            4D array (spatial_1, spatial_2, temporal, features)
+        i : int
+            index of u feature
+        j : int
+            index of v feature
         lat_lon : np.ndarray
             3D array (spatial_1, spatial_2, 2)
             2 channels are lat and lon in that
@@ -446,12 +501,10 @@ class Sup3rData:
             3D array of meridional wind components
         """
 
+        u = y[:, :, :, i]
+        v = y[:, :, :, j]
         lats = lat_lon[:, :, 0]
         lons = lat_lon[:, :, 1]
-
-        # convert from windspeed and direction to u v
-        u = windspeed * np.cos(np.radians(direction - 180.0))
-        v = windspeed * np.sin(np.radians(direction - 180.0))
 
         # get the dy/dx to the nearest vertical neighbor
         dy = lats - np.roll(lats, 1, axis=0)
