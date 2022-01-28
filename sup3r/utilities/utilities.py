@@ -127,6 +127,13 @@ def get_coarse_data(data, lat_lon,
         tmp = data
 
     if spatial_res is not None:
+        if data.shape[1] % spatial_res != 0:
+            msg = 'spatial_res must evenly divide grid size. '
+            msg += f'Received spatial_res: {spatial_res} '
+            msg += f'with grid size: ({data.shape[0]}, '
+            msg += f'{data.shape[1]})'
+            raise ValueError(msg)
+
         coarse_data = tmp.reshape(-1, spatial_res,
                                   data.shape[1] // spatial_res,
                                   spatial_res,

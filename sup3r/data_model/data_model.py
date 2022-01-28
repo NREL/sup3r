@@ -226,6 +226,12 @@ class Sup3rData:
         spatial_res = var_kwargs.get('spatial_res', None)
         temporal_res = var_kwargs.get('temporal_res', None)
 
+        if shape[0] % spatial_res != 0:
+            msg = 'spatial_res must evenly divide grid size. '
+            msg += f'Received spatial_res: {spatial_res} '
+            msg += f'with grid size: ({shape})'
+            raise ValueError(msg)
+
         msg = 'Getting training data. '
         msg += f'target={target}, '
         msg += f'shape={shape}, '
@@ -241,8 +247,8 @@ class Sup3rData:
         y = utilities.transform_rotate_wind(y, lat_lon, features)
 
         msg = 'Coarsening high resolution data '
-        msg += f'Spatial coarsening factor: {spatial_res}, '
-        msg += f'Temporal coarsening factor: {temporal_res}'
+        msg += f'spatial_res={spatial_res}, '
+        msg += f'temporal_res={temporal_res}'
         logger.info(msg)
 
         x, _ = utilities.get_coarse_data(y, lat_lon,
