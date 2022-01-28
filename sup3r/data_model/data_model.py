@@ -87,15 +87,19 @@ class Sup3rData:
             lat (lon) first channel (second channel)
         """
 
-        y, lat_lon = cls._get_file_data(data_files[0],
-                                        target, shape,
-                                        features)
-        for f in data_files[1:]:
+        raster_index = cls.get_raster_index(data_files[0],
+                                            target,
+                                            shape)
 
-            tmp = cls._get_file_data(f, target,
-                                     shape, features,
-                                     get_coords=False)
-            y = np.concatenate((y, tmp), axis=2)
+        y, lat_lon = cls._get_file_data(data_files[0],
+                                        raster_index,
+                                        features)
+        if len(data_files) > 1:
+            for f in data_files[1:]:
+                tmp = cls._get_file_data(f, raster_index,
+                                         features,
+                                         get_coords=False)
+                y = np.concatenate((y, tmp), axis=2)
 
         return y, lat_lon
 
@@ -141,6 +145,41 @@ class Sup3rData:
         logger.info(msg)
 
         return x, y
+
+    @classmethod
+    def get_raster_index(cls, file_path, target, shape):
+        """Get raster index for file data
+
+        Parameters
+        ----------
+        file_path : str
+            path to data file
+        target : tuple
+            (lat, lon) for lower left corner
+        shape : tuple
+            (n_rows, n_cols) grid size
+
+        Returns
+        -------
+        raster_index : np.ndarray
+            2D array of grid indices
+
+        """
+
+        _, file_ext = os.path.splitext(file_path)
+        if file_ext == '.h5':
+            resourceX = ResourceX(file_path)
+            logger.info('Getting raster index. '
+                        f'target={target}, shape={shape}')
+            raster_index = resourceX.get_raster_index(target, shape,
+                                                      max_delta=20)
+
+        elif file_ext == '.nc':
+            pass
+        else:
+            raise ConfigError('Data must be either h5 or netcdf '
+                              f'but received file extension: {file_ext}')
+        return raster_index
 
     @classmethod
     def run_data_model(cls, out_dir, var_kwargs,
@@ -225,8 +264,9 @@ class Sup3rData:
         return x, y
 
     @classmethod
-    def _get_file_data(cls, file_path, target,
-                       shape, features,
+    def _get_file_data(cls, file_path,
+                       raster_index,
+                       features,
                        get_coords=True):
         """Extract fields from file for region
         given by target and shape
@@ -257,19 +297,19 @@ class Sup3rData:
 
         _, file_ext = os.path.splitext(file_path)
         if file_ext == '.h5':
-            return cls._get_h5_data(file_path, target,
-                                    shape, features,
+            return cls._get_h5_data(file_path, raster_index,
+                                    features,
                                     get_coords=get_coords)
         elif file_ext == '.nc':
-            return cls._get_nc_data(file_path, target,
-                                    shape, features,
+            return cls._get_nc_data(file_path, raster_index,
+                                    features,
                                     get_coords=get_coords)
         else:
             raise ConfigError('Data must be either h5 or netcdf '
                               f'but received file extension: {file_ext}')
 
     @staticmethod
-    def _get_h5_data(file_path, target, shape,
+    def _get_h5_data(file_path, raster_index,
                      features, get_coords=True):
         """Get chunk of h5 data based on raster_indices
         and features
@@ -278,11 +318,8 @@ class Sup3rData:
         ----------
         file_path : str
             h5 file path.
-        target : tuple
-            Starting coordinate (latitude, longitude) in decimal degrees for
-            the bottom left hand corner of the raster grid.
-        shape : tuple
-            Desired raster shape in format (number_rows, number_cols)
+        raster_index : np.ndarray
+            2D array of grid indices
         features : str list
             List of fields to extract from dataset
         get_coords : bool
@@ -302,12 +339,7 @@ class Sup3rData:
         logger.info(f'Opening data file: {file_path}')
 
         with WindX(file_path, hsds=False) as handle:
-            resourceX = ResourceX(file_path)
 
-            logger.info('Getting raster index. '
-                        f'target={target}, shape={shape}')
-            raster_index = resourceX.get_raster_index(target, shape,
-                                                      max_delta=20)
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
@@ -332,7 +364,7 @@ class Sup3rData:
             return data
 
     @staticmethod
-    def _get_nc_data(file_path, target, shape,
+    def _get_nc_data(file_path, raster_index,
                      features, get_coords=True):
         """Get chunk of netcdf data based on raster_indices
         and features
@@ -341,11 +373,8 @@ class Sup3rData:
         ----------
         file_path : str
             netcdf file path.
-        target : tuple
-            Starting coordinate (latitude, longitude) in decimal degrees for
-            the bottom left hand corner of the raster grid.
-        shape : tuple
-            Desired raster shape in format (number_rows, number_cols)
+        raster_index : np.ndarray
+            2D array of grid indices
         features : str list
             List of fields to extract from dataset
         get_coords : bool
