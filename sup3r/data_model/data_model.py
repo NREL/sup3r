@@ -92,7 +92,9 @@ class Sup3rData:
                                         features)
         for f in data_files[1:]:
 
-            tmp, _ = cls._get_file_data(f, target, shape, features)
+            tmp = cls._get_file_data(f, target,
+                                     shape, features,
+                                     get_coords=False)
             y = np.concatenate((y, tmp), axis=2)
 
         return y, lat_lon
@@ -223,7 +225,9 @@ class Sup3rData:
         return x, y
 
     @classmethod
-    def _get_file_data(cls, file_path, target, shape, features):
+    def _get_file_data(cls, file_path, target,
+                       shape, features,
+                       get_coords=True):
         """Extract fields from file for region
         given by target and shape
 
@@ -237,6 +241,8 @@ class Sup3rData:
             (n_lat, n_lon) grid size for region
         features : list
             list of fields to extract from file
+        get_coords : bool
+            get coordinates
 
         Returns
         -------
@@ -245,24 +251,26 @@ class Sup3rData:
             (spatial_1, spatial_2, temporal, features)
         lat_lon : np.ndarray
             3D array of (spatial_1, spatial_2, 2)
-            with 2 channels as lat/lon in that order
+            with 2 channels as lat/lon in that order.
+            Only returned if get_coords=True
         """
 
         _, file_ext = os.path.splitext(file_path)
         if file_ext == '.h5':
-            y, lat_lon = cls._get_h5_data(file_path, target,
-                                          shape, features)
+            return cls._get_h5_data(file_path, target,
+                                    shape, features,
+                                    get_coords=get_coords)
         elif file_ext == '.nc':
-            y, lat_lon = cls._get_nc_data(file_path, target,
-                                          shape, features)
+            return cls._get_nc_data(file_path, target,
+                                    shape, features,
+                                    get_coords=get_coords)
         else:
             raise ConfigError('Data must be either h5 or netcdf '
                               f'but received file extension: {file_ext}')
 
-        return y, lat_lon
-
     @staticmethod
-    def _get_h5_data(file_path, target, shape, features):
+    def _get_h5_data(file_path, target, shape,
+                     features, get_coords=True):
         """Get chunk of h5 data based on raster_indices
         and features
 
@@ -277,16 +285,18 @@ class Sup3rData:
             Desired raster shape in format (number_rows, number_cols)
         features : str list
             List of fields to extract from dataset
+        get_coords : bool
+            get coordinates
 
         Returns
         -------
         data : np.ndarray
             Real high-resolution data in a 4D array:
             (spatial_1, spatial_2, temporal, features)
-
         lat_lon : np.ndarray
-            3D array (spatial_1, spatial_2, 2) with
-            lat and lon as the 2 channels in that order
+            3D array of (spatial_1, spatial_2, 2)
+            with 2 channels as lat/lon in that order.
+            Only returned if get_coords=True
         """
 
         logger.info(f'Opening data file: {file_path}')
@@ -298,8 +308,6 @@ class Sup3rData:
                         f'target={target}, shape={shape}')
             raster_index = resourceX.get_raster_index(target, shape,
                                                       max_delta=20)
-            lat_lon = np.zeros((raster_index.shape[0],
-                                raster_index.shape[1], 2))
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
@@ -312,14 +320,20 @@ class Sup3rData:
 
                 data[:, :, :, j] = np.transpose(handle[f, :, raster_index],
                                                 (1, 2, 0))
+            if get_coords:
+                lat_lon = np.zeros((raster_index.shape[0],
+                                    raster_index.shape[1], 2))
+                logger.info('Populating lat_lon array')
+                lat_lon = handle.lat_lon[raster_index]
 
-            logger.info('Populating lat_lon array')
-            lat_lon = handle.lat_lon[raster_index]
-
-        return data, lat_lon
+        if get_coords:
+            return data, lat_lon
+        else:
+            return data
 
     @staticmethod
-    def _get_nc_data(file_path, target, shape, features):
+    def _get_nc_data(file_path, target, shape,
+                     features, get_coords=True):
         """Get chunk of netcdf data based on raster_indices
         and features
 
@@ -334,6 +348,8 @@ class Sup3rData:
             Desired raster shape in format (number_rows, number_cols)
         features : str list
             List of fields to extract from dataset
+        get_coords : bool
+            get coordinates
 
         Returns
         -------
@@ -342,8 +358,9 @@ class Sup3rData:
             (spatial_1, spatial_2, temporal, features)
 
         lat_lon : np.ndarray
-            3D array (spatial_1, spatial_2, 2) with
-            lat and lon as the 2 channels in that order
+            3D array of (spatial_1, spatial_2, 2)
+            with 2 channels as lat/lon in that order.
+            Only returned if get_coords=True
         """
 
         logger.info(f'Opening data file: {file_path}')

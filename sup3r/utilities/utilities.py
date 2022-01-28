@@ -80,9 +80,9 @@ def rotate_u_v(y, i, j, lat_lon):
     cos2 = np.cos(theta)
 
     y[:, :, :, i] = np.einsum('ij,ijk->ijk', sin2, v) \
-                  + np.einsum('ij,ijk->ijk', cos2, u)
+        + np.einsum('ij,ijk->ijk', cos2, u)
     y[:, :, :, j] = np.einsum('ij,ijk->ijk', cos2, v) \
-                  - np.einsum('ij,ijk->ijk', sin2, u)
+        - np.einsum('ij,ijk->ijk', sin2, u)
 
     return y
 

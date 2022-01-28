@@ -134,6 +134,8 @@ class ConfigRunners:
         factory_kwargs = cmd_args.get('factory_kwargs', None)
         var_kwargs = cmd_args['var_kwargs']
 
+        logger.debug(f'Submitting to eagle: {eagle_args}')
+
         ctx.obj['NAME'] = name
         ctx.invoke(data_model, var_kwargs=var_kwargs,
                    factory_kwargs=factory_kwargs)
