@@ -7,7 +7,7 @@
     "dirout": "/scratch/bbenton/sup3r",
     "pipeline": [
         {
-            "data-model": "./config_sup3r.json"
+            "preprocessing": "./config_sup3r.json"
         }
     ]
 }

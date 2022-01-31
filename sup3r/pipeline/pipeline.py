@@ -17,7 +17,7 @@ class Sup3rPipeline(Pipeline):
 
     CMD_BASE = 'python -m sup3r.cli config -c {fp_config} -cmd {command}'
 
-    COMMANDS = ('data-model')
+    COMMANDS = ('preprocessing')
 
     def __init__(self, pipeline, monitor=True, verbose=False):
         """

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Sup3r data handling module.
+Sup3r preprocessing module.
 """
 import logging
 import xarray as xr
@@ -187,11 +187,11 @@ class Sup3rData:
         return raster_index
 
     @classmethod
-    def run_data_model(cls, out_dir, var_kwargs,
+    def run_preprocessing(cls, out_dir, var_kwargs,
                        factory_kwargs=None, log_level='DEBUG',
-                       log_file='data_model.log',
+                       log_file='preprocessing.log',
                        job_name=None):
-        """Run data model for preprocessing
+        """Run preprocessing for preprocessing
 
         Parameters
         ----------
@@ -275,7 +275,7 @@ class Sup3rData:
             status = {'out_dir': out_dir,
                       'job_status': 'successful',
                       'runtime': runtime}
-            Status.make_job_file(out_dir, 'data-model',
+            Status.make_job_file(out_dir, 'preprocessing',
                                  job_name, status)
 
         return x, y
@@ -482,7 +482,7 @@ class Sup3rData:
         if log_level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
 
             if loggers is None:
-                loggers = ('sup3r.sup3r', 'sup3r.data_model')
+                loggers = ('sup3r.sup3r', 'sup3r.preprocessing')
 
             if log_file is not None and use_log_dir:
                 log_file = os.path.join(log_dir, log_file)

@@ -10,7 +10,7 @@
       "walltime": 1,
       "feature": "--qos=high"
     },
-    "data-model": {
+    "preprocessing": {
       "var_kwargs": {
           "file_type": "h5",
           "data_files": [

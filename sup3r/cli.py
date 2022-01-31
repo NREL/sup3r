@@ -104,8 +104,8 @@ def config(ctx, config_file, command):
 
     init_logger('sup3r.cli', log_level=direct_args['log_level'], log_file=None)
 
-    if command == 'data-model':
-        ConfigRunners.run_data_model_config(ctx, name, cmd_args, eagle_args)
+    if command == 'preprocessing':
+        ConfigRunners.run_preprocessing_config(ctx, name, cmd_args, eagle_args)
     else:
         raise KeyError('Command not recognized: "{}"'.format(command))
 
@@ -115,8 +115,8 @@ class ConfigRunners:
     sup3r config objects"""
 
     @staticmethod
-    def run_data_model_config(ctx, name, cmd_args, eagle_args):
-        """Run the data model processing code.
+    def run_preprocessing_config(ctx, name, cmd_args, eagle_args):
+        """Run the preprocessing processing code.
 
         Parameters
         ----------
@@ -137,7 +137,7 @@ class ConfigRunners:
         logger.debug(f'Submitting to eagle: {eagle_args}')
 
         ctx.obj['NAME'] = name
-        ctx.invoke(data_model, var_kwargs=var_kwargs,
+        ctx.invoke(preprocessing, var_kwargs=var_kwargs,
                    factory_kwargs=factory_kwargs)
         ctx.invoke(eagle, **eagle_args)
 
@@ -167,7 +167,7 @@ def direct(ctx, name, out_dir, verbose):
               required=False, default=None,
               help='Optional namespace of kwargs')
 @click.pass_context
-def data_model(ctx, var_kwargs, factory_kwargs):
+def preprocessing(ctx, var_kwargs, factory_kwargs):
     """Run the preprocessing routine"""
 
     name = ctx.obj['NAME']
@@ -180,8 +180,8 @@ def data_model(ctx, var_kwargs, factory_kwargs):
         factory_kwargs = factory_kwargs.replace('false', 'False')
         factory_kwargs = factory_kwargs.replace('null', 'None')
 
-    log_file = 'data_model/data_model.log'
-    fun_str = 'Sup3rData.run_data_model'
+    log_file = 'preprocessing/preprocessing.log'
+    fun_str = 'Sup3rData.run_preprocessing'
     arg_str = (f'out_dir="{out_dir}", '
                f'var_kwargs={json.dumps(var_kwargs)}, '
                f'factory_kwargs={factory_kwargs}, '
@@ -189,13 +189,14 @@ def data_model(ctx, var_kwargs, factory_kwargs):
                f'log_file="{log_file}", '
                f'log_level="{log_level}" ')
 
-    ctx.obj['IMPORT_STR'] = 'from sup3r.data_model.data_model import Sup3rData'
+    ctx.obj['IMPORT_STR'] = \
+        'from sup3r.data_handling.preprocessing import Sup3rData'
     ctx.obj['FUN_STR'] = fun_str
     ctx.obj['ARG_STR'] = arg_str
-    ctx.obj['COMMAND'] = 'data-model'
+    ctx.obj['COMMAND'] = 'preprocessing'
 
 
-@data_model.command()
+@preprocessing.command()
 @click.option('--alloc', '-a', required=True, type=STR,
               help='Eagle allocation account name.')
 @click.option('--memory', '-mem', default=None, type=INT,
