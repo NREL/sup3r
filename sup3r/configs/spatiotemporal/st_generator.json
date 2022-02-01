@@ -1,30 +1,38 @@
 {
   "hidden_layers": [
-    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+    {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"alpha": 0.2, "class": "LeakyReLU"},
     {"class": "SkipConnection", "name": "a"},
     {"n": 16, "repeat": [
         { "class": "SkipConnection", "name": "b"},
-        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+        {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
         { "alpha": 0.2, "class": "LeakyReLU"},
-        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+        {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
         { "class": "SkipConnection", "name": "b"}
       ]
     },
-    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+    {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"class": "SkipConnection", "name": "a"},
     {"n": 3, "repeat": [
-        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+        {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+        { "class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
         { "alpha": 0.2, "class": "LeakyReLU"},
         { "class": "SpatioTemporalExpansion", "temporal_mult": 2}
       ]
     },
-    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+    {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"alpha": 0.2, "class": "LeakyReLU"},
     {"class": "SpatioTemporalExpansion", "temporal_mult": 3},
-    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "padding": "same", "strides": 1},
+    {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+    {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
     {"alpha": 0.2, "class": "LeakyReLU"},
-    {"class": "Conv3D", "filters": 2, "kernel_size": 3, "padding": "same", "strides": 1}
+    {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+    {"class": "Conv3D", "filters": 2, "kernel_size": 3, "strides": 1}
   ]
 }
