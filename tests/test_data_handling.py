@@ -31,7 +31,6 @@ def test_data_extraction():
     """Test data extraction class"""
 
     handler = DataHandler([input_file], target, shape, features, max_delta)
-    print(features)
 
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))

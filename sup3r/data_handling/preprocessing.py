@@ -44,18 +44,27 @@ class DataHandler:
         self.max_delta = max_delta
         self.data, self.lat_lon = self.extract_data()
 
-    def normalize_data(self, feature, mean, std):
+    def normalize_data(self, feature_index, mean, std):
         """Normalize data with initialized
         mean and standard deviation for
         a specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
 
         Returns
         -------
         data : np.ndarray
             normalized data array
         """
-        self.data[:, :, :, self.features.index(feature)] = \
-            (self.data[:, :, :, self.features.index(feature)] - mean) / std
+        self.data[:, :, :, feature_index] = \
+            (self.data[:, :, :, feature_index] - mean) / std
         return self.data
 
     def extract_data(self):
@@ -436,11 +445,14 @@ class SpatialBatchHandler:
         return batch_handler
 
     def _get_batch_indices(self):
-        """Get batches of data along temporal dimension
+        """Get set of indices for data batches
+
+        Returns
+        -------
+        batch_indices : np.ndarray
+            array of indices for data batches
         """
 
-        print(f"n_training_obs: {len(self.training_indices)}")
-        print(f"batch_size: {self.batch_size}")
         n_batches = int(np.ceil(len(self.training_indices) / self.batch_size))
         self.batch_indices = np.array_split(self.training_indices, n_batches)
 
