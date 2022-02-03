@@ -321,7 +321,7 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data, batch_size, val_split=0.2,
+    def __init__(self, data, batch_size=8, val_split=0.2,
                  spatial_res=2):
         """
         Parameters
@@ -335,7 +335,8 @@ class SpatialBatchHandler:
         """
 
         self.data = data
-        self.training_indices, self.val_indices = self._split_data(val_split)
+        self.val_split = val_split
+        self.training_indices, self.val_indices = self._split_data()
         self.batch_size = batch_size
         self.spatial_res = spatial_res
         self.batch_indices = self._get_batch_indices()
@@ -347,7 +348,7 @@ class SpatialBatchHandler:
         self.mean = None
         self.std = None
 
-    def _split_data(self, val_split=0.2):
+    def _split_data(self):
         """Splits time dimension into set of training indices
         and validation indices
 
@@ -366,9 +367,12 @@ class SpatialBatchHandler:
         """
 
         n_observations = self.data.shape[2]
-        n_training_obs = int(val_split * n_observations)
-        self.training_indices = np.arange(n_training_obs)
-        self.val_indices = np.arange(n_training_obs, n_observations)
+        all_indices = np.arange(n_observations)
+        shuffled = all_indices.copy()
+        np.random.shuffle(shuffled)
+        n_val_obs = int(self.val_split * n_observations)
+        self.val_indices = shuffled[:n_val_obs]
+        self.training_indices = shuffled[n_val_obs:]
         return self.training_indices, self.val_indices
 
     @property
@@ -381,7 +385,8 @@ class SpatialBatchHandler:
             validation data batch. includes
             batch.low_res and batch.high_res
         """
-        low_res, high_res = self._reshape_data(self.data[self.val_indices])
+        low_res, high_res = \
+            self._reshape_data(self.data[:, :, self.val_indices, :])
         batch = Batch(low_res, high_res)
         return batch
 
@@ -424,19 +429,20 @@ class SpatialBatchHandler:
                                    shape, features,
                                    max_delta=max_delta)
         batch_handler = SpatialBatchHandler(data_handler.data,
-                                            batch_size,
-                                            val_split,
-                                            spatial_res)
+                                            batch_size=batch_size,
+                                            val_split=val_split,
+                                            spatial_res=spatial_res)
         batch_handler.data_handler = data_handler
         return batch_handler
 
     def _get_batch_indices(self):
         """Get batches of data along temporal dimension
         """
-        shuffled = self.training_indices.copy()
-        np.random.shuffle(shuffled)
-        n_batches = int(np.ceil(len(shuffled) / self.batch_size))
-        self.batch_indices = np.array_split(shuffled, n_batches)
+
+        print(f"n_training_obs: {len(self.training_indices)}")
+        print(f"batch_size: {self.batch_size}")
+        n_batches = int(np.ceil(len(self.training_indices) / self.batch_size))
+        self.batch_indices = np.array_split(self.training_indices, n_batches)
 
         return self.batch_indices
 
