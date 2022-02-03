@@ -502,11 +502,10 @@ class SpatialGan(BaseModel):
                              .format(i + 1, len(batch_handler.batch_indices),
                                      tr_loss))
 
-            val_loss = tf.constant(0.0, dtype=tf.float32)
-#            hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
-#                                           to_numpy=False)
-#            val_loss, _ = self.calc_loss(batch_handler.val_data.high_res,
-#                                         hi_res_val_gen)
+            hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
+                                           to_numpy=False)
+            val_loss, _ = self.calc_loss(batch_handler.val_data.high_res,
+                                         hi_res_val_gen)
 
             logger.info('Epoch {} train loss: {:.2e} '
                         'val loss: {:.2e} for "{}"'
