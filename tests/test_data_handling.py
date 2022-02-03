@@ -14,20 +14,23 @@ input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 target = (39.01, -105.15)
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
-batch_size = 8
+batch_size = 14
 spatial_res = 5
 max_delta = 20
+val_split = 0.2
 
-batchHandler = SpatialBatchHandler.make([input_file], target,
-                                        shape, features, batch_size,
-                                        spatial_res, max_delta)
+batch_handler = SpatialBatchHandler.make([input_file], target,
+                                         shape, features,
+                                         batch_size=batch_size,
+                                         spatial_res=spatial_res,
+                                         max_delta=max_delta,
+                                         val_split=val_split)
 
 
 def test_data_extraction():
     """Test data extraction class"""
 
     handler = DataHandler([input_file], target, shape, features, max_delta)
-    print(features)
 
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
@@ -36,7 +39,7 @@ def test_data_extraction():
 def test_batch_handling():
     """Test spatial batch handling class"""
 
-    for batch in batchHandler:
+    for batch in batch_handler:
         assert batch.low_res.shape == (batch_size, shape[0] // spatial_res,
                                        shape[1] // spatial_res, len(features))
         assert batch.high_res.shape == (batch_size, shape[0],

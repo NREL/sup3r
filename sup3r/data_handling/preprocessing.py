@@ -35,6 +35,7 @@ class DataHandler:
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
         """
+
         self.data_files = data_files
         self.features = features
         self.shape = shape
@@ -42,6 +43,29 @@ class DataHandler:
         self.raster_index = None
         self.max_delta = max_delta
         self.data, self.lat_lon = self.extract_data()
+
+    def normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized
+        mean and standard deviation for
+        a specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+
+        Returns
+        -------
+        data : np.ndarray
+            normalized data array
+        """
+        self.data[:, :, :, feature_index] = \
+            (self.data[:, :, :, feature_index] - mean) / std
+        return self.data
 
     def extract_data(self):
         """Building base 4D data array
@@ -306,7 +330,8 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data, batch_size, spatial_res=2):
+    def __init__(self, data, batch_size=8, val_split=0.2,
+                 spatial_res=2):
         """
         Parameters
         ----------
@@ -319,6 +344,8 @@ class SpatialBatchHandler:
         """
 
         self.data = data
+        self.val_split = val_split
+        self.training_indices, self.val_indices = self._split_data()
         self.batch_size = batch_size
         self.spatial_res = spatial_res
         self.batch_indices = self._get_batch_indices()
@@ -326,12 +353,57 @@ class SpatialBatchHandler:
         self._i = 0
         self.low_res = None
         self.high_res = None
-        self.dataHandler = None
+        self.data_handler = None
+        self.mean = None
+        self.std = None
+
+    def _split_data(self):
+        """Splits time dimension into set of training indices
+        and validation indices
+
+        Parameters
+        ----------
+        val_split : float32, optional
+            Fraction of full data array to
+            reserve for validation, by default 0.2
+
+        Returns
+        -------
+        training_indices : np.ndarray
+            array of indices for training data slice
+        val_indices : np.ndarray
+            array of indices for validation data slice
+        """
+
+        n_observations = self.data.shape[2]
+        all_indices = np.arange(n_observations)
+        shuffled = all_indices.copy()
+        np.random.shuffle(shuffled)
+        n_val_obs = int(self.val_split * n_observations)
+        self.val_indices = shuffled[:n_val_obs]
+        self.training_indices = shuffled[n_val_obs:]
+        return self.training_indices, self.val_indices
+
+    @property
+    def val_data(self):
+        """Validation data property
+
+        Returns
+        -------
+        batch : Batch
+            validation data batch. includes
+            batch.low_res and batch.high_res
+        """
+        low_res, high_res = \
+            self._reshape_data(self.data[:, :, self.val_indices, :])
+        batch = Batch(low_res, high_res)
+        return batch
 
     @classmethod
     def make(cls, data_files, target,
-             shape, features, batch_size=8,
-             spatial_res=3, max_delta=20):
+             shape, features, val_split=0.2,
+             batch_size=8, spatial_res=3,
+             max_delta=20):
         """Method to initialize both
         data and batch handlers
 
@@ -345,6 +417,8 @@ class SpatialBatchHandler:
             (rows, cols) grid size
         features : list
             list of features to extract
+        val_split : float32
+            fraction of data to reserve for validation
         batch_size : int
             size of batches along temporal dimension
         spatial_res: int
@@ -360,25 +434,52 @@ class SpatialBatchHandler:
         batchHandler : SpatialBatchHandler
             batchHandler with dataHandler attribute
         """
-        dataHandler = DataHandler(data_files, target,
-                                  shape, features,
-                                  max_delta=max_delta)
-        batchHandler = SpatialBatchHandler(dataHandler.data,
-                                           batch_size,
-                                           spatial_res)
-        batchHandler.dataHandler = dataHandler
-        return batchHandler
+        data_handler = DataHandler(data_files, target,
+                                   shape, features,
+                                   max_delta=max_delta)
+        batch_handler = SpatialBatchHandler(data_handler.data,
+                                            batch_size=batch_size,
+                                            val_split=val_split,
+                                            spatial_res=spatial_res)
+        batch_handler.data_handler = data_handler
+        return batch_handler
 
     def _get_batch_indices(self):
-        """Get batches of data along temporal dimension
+        """Get set of indices for data batches
+
+        Returns
+        -------
+        batch_indices : np.ndarray
+            array of indices for data batches
         """
-        all_indices = np.arange(self.data.shape[2])
-        shuffled = all_indices.copy()
-        np.random.shuffle(shuffled)
-        n_batches = int(np.ceil(len(shuffled) / self.batch_size))
-        self.batch_indices = np.array_split(shuffled, n_batches)
+
+        n_batches = int(np.ceil(len(self.training_indices) / self.batch_size))
+        self.batch_indices = np.array_split(self.training_indices, n_batches)
 
         return self.batch_indices
+
+    def _reshape_data(self, high_res):
+        """Coarsens high res data and reshapes data arrays
+        to use time slices as observations
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D array (spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        low_res : np.ndarray
+            4D array (temporal, spatial_1, spatial_2, features)
+        high_res : np.ndarray
+            4D array (temporal, spatial_1, spatial_2, features)
+        """
+
+        low_res = utilities.spatial_coarsening(high_res,
+                                               self.spatial_res)
+        low_res = low_res.transpose((2, 0, 1, 3))
+        high_res = high_res.transpose((2, 0, 1, 3))
+        return low_res, high_res
 
     def __iter__(self):
         self._i = 0
@@ -389,10 +490,8 @@ class SpatialBatchHandler:
             self.high_res = \
                 self.data[:, :,
                           self.batch_indices[self._i], :]
-            self.low_res = utilities.spatial_coarsening(self.high_res,
-                                                        self.spatial_res)
-            self.high_res = self.high_res.transpose((2, 0, 1, 3))
-            self.low_res = self.low_res.transpose((2, 0, 1, 3))
+            self.low_res, self.high_res = \
+                self._reshape_data(self.high_res)
             batch = Batch(self.low_res, self.high_res)
             self._i += 1
             return batch
