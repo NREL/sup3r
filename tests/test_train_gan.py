@@ -46,6 +46,7 @@ def test_train_spatial(log=False):
     model.train(batch_handler, n_epoch=4)
     assert len(model.history) == 4
     assert (np.diff(model.history['training_loss'].values) < 0).all()
+    assert (np.diff(model.history['validation_loss'].values) < 0).all()
 
     # make an un-trained dummy model
     dummy = SpatialGan(fp_gen, fp_disc,
