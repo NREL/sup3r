@@ -5,7 +5,9 @@ import time
 import logging
 import pandas as pd
 import tensorflow as tf
+from tensorflow.keras import optimizers
 from tensorflow.keras.metrics import mean_squared_error
+from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 
 
@@ -15,11 +17,67 @@ logger = logging.getLogger(__name__)
 class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
-    def __init__(self):
+    def __init__(self, optimizer=None, learning_rate=1e-4):
+        """
+        Parameters
+        ----------
+        optimizer : tensorflow.keras.optimizers | dict | None
+            Instantiated tf.keras.optimizers object or a dict optimizer config
+            from tf.keras.optimizers.get_config(). None defaults to Adam.
+        learning_rate : float, optional
+            Optimizer learning rate. Not used if optimizer input arg is a
+            pre-initialized object or if optimizer input arg is a config dict.
+        """
         self.name = None
         self._history = None
         self._gen = None
-        self._optimizer = None
+
+        self._optimizer = optimizer
+        if isinstance(optimizer, dict):
+            class_name = optimizer['name']
+            OptimizerClass = getattr(optimizers, class_name)
+            self._optimizer = OptimizerClass.from_config(optimizer)
+        elif optimizer is None:
+            self._optimizer = optimizers.Adam(learning_rate=learning_rate)
+
+    @staticmethod
+    def load_network(model, name):
+        """Load a CustomNetwork object from hidden layers config or json file.
+
+        Parameters
+        ----------
+        model : str | dict
+            Model hidden layers config or a str pointing to a json with
+            "hidden_layers" key
+        name : str
+            Name of the model to be loaded
+
+        Returns
+        -------
+        model : phygnn.CustomNetwork
+            CustomNetwork object initialized from the model input.
+        """
+
+        if isinstance(model, str):
+            model = safe_json_load(model)
+            if 'hidden_layers' in model:
+                model = model['hidden_layers']
+            else:
+                msg = ('Could not load model from json config, need '
+                       '"hidden_layers" key at top level but only found: {}'
+                       .format(model.keys()))
+                logger.error(msg)
+                raise KeyError(msg)
+
+        if isinstance(model, list):
+            model = CustomNetwork(hidden_layers=model, name=name)
+
+        if not isinstance(model, CustomNetwork):
+            msg = ('Something went wrong. Tried to load a custom network '
+                   'but ended up with a model of type "{}"'
+                   .format(type(model)))
+
+        return model
 
     @property
     def generator(self):
@@ -228,92 +286,13 @@ class BaseModel(ABC):
             Namespace of the breakdown of loss components
         """
 
-    def train(self, low_res, hi_res, n_batch=None, batch_size=128, n_epoch=100,
-              shuffle=True, validation_split=0.1, return_diagnostics=False):
-        """Train the GAN model on real low res data and real high res data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data
-        hi_res : np.ndarray
-            Real high-resolution data
-        n_batch : int
-            Number of times to update the weights per epoch (number of
-            mini-batches). The training data will be split into this many
-            mini-batches and the NN will train on each mini-batch, update
-            weights, then move onto the next mini-batch.
-        n_epoch : int
-            Number of times to iterate on the training data.
-        shuffle : bool
-            Flag to randomly subset the validation data and batch selection
-            from low_res, hi_res
-        validation_split : float
-            Fraction of low_res and hi_res to use for validation.
-        return_diagnostics : bool
-            Flag to return training diagnostics dictionary.
-
-        Returns
-        -------
-        diagnostics : dict
-            Namespace of training parameters that can be used for diagnostics.
-        """
-        epochs = list(range(n_epoch))
-
-        if self._history is None:
-            self._history = pd.DataFrame(
-                columns=['elapsed_time',
-                         'training_loss',
-                         'validation_loss',
-                         ])
-            self._history.index.name = 'epoch'
-        else:
-            epochs += self._history.index.values[-1] + 1
-
-        val_splits = self.generator.get_val_split(
-            low_res, hi_res, shuffle=shuffle,
-            validation_split=validation_split)
-        low_res, low_res_val = val_splits[0]
-        hi_res, hi_res_val = val_splits[1]
-
-        tr_loss = None
-        t0 = time.time()
-        for epoch in epochs:
-            batch_iter = self.generator.make_batches(low_res, hi_res,
-                                                     n_batch=n_batch,
-                                                     batch_size=batch_size,
-                                                     shuffle=shuffle)
-
-            for low_res_batch, hi_res_batch in batch_iter:
-                tr_loss, tr_diag = self.run_gradient_descent(low_res_batch,
-                                                             hi_res_batch)
-
-            hi_res_val_gen = self.generate(low_res_val, to_numpy=False)
-            val_loss, _ = self.calc_loss(hi_res_val, hi_res_val_gen)
-            logger.info('Epoch {} train loss: {:.2e} '
-                        'val loss: {:.2e} for "{}"'
-                        .format(epoch, tr_loss, val_loss, self.name))
-
-            self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-            self._history.at[epoch, 'training_loss'] = tr_loss.numpy()
-            self._history.at[epoch, 'validation_loss'] = val_loss.numpy()
-
-        diagnostics = {'low_res': low_res,
-                       'hi_res': hi_res,
-                       'low_res_val': low_res_val,
-                       'hi_res_val': hi_res_val,
-                       'history': self.history,
-                       }
-
-        if return_diagnostics:
-            return diagnostics
-
 
 class SpatialGan(BaseModel):
     """Spatial super resolution GAN model"""
 
     def __init__(self, gen_layers, disc_layers, weight_gen_content=1.0,
-                 weight_gen_advers=1.0, weight_disc=1.0):
+                 weight_gen_advers=1.0, weight_disc=1.0,
+                 optimizer=None, learning_rate=1e-4):
         """
         Parameters
         ----------
@@ -334,17 +313,22 @@ class SpatialGan(BaseModel):
         weight_disc : float
             Weight factor for the spatial discriminator loss term in the loss
             function.
+        optimizer : tensorflow.keras.optimizers | dict | None
+            Instantiated tf.keras.optimizers object or a dict optimizer config
+            from tf.keras.optimizers.get_config(). None defaults to Adam.
+        learning_rate : float, optional
+            Optimizer learning rate. Not used if optimizer input arg is a
+            pre-initialized object or if optimizer input arg is a config dict.
         """
 
-        super().__init__()
+        super().__init__(optimizer=optimizer, learning_rate=learning_rate)
 
         self.weight_gen_content = weight_gen_content
         self.weight_gen_advers = weight_gen_advers
         self.weight_disc = weight_disc
 
-        self._gen = CustomNetwork(hidden_layers=gen_layers, name='Generator')
-        self._disc = CustomNetwork(hidden_layers=disc_layers,
-                                   name='Discriminator')
+        self._gen = self.load_network(gen_layers, 'Generator')
+        self._disc = self.load_network(disc_layers, 'Discriminator')
 
     @property
     def disc(self):
@@ -438,6 +422,51 @@ class SpatialGan(BaseModel):
 
         return loss, loss_diagnostics
 
+    def train(self, batch_handler, n_epoch):
+        """Train the GAN model on real low res data and real high res data
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.SpatialBatchHandler
+            SpatialBatchHandler object to iterate through
+        """
+        epochs = list(range(n_epoch))
+
+        if self._history is None:
+            self._history = pd.DataFrame(
+                columns=['elapsed_time',
+                         'training_loss',
+                         'validation_loss',
+                         ])
+            self._history.index.name = 'epoch'
+        else:
+            epochs += self._history.index.values[-1] + 1
+
+        tr_loss = None
+        t0 = time.time()
+        logger.info('Starting model training with {} epochs.'.format(n_epoch))
+        for epoch in epochs:
+            for i, batch in enumerate(batch_handler):
+                tr_loss, _ = self.run_gradient_descent(batch.low_res,
+                                                       batch.high_res)
+                logger.debug('\t - Batch {} of {} has training loss of {:.2e}'
+                             .format(i + 1, len(batch_handler.batch_indices),
+                                     tr_loss))
+
+            val_loss = tf.constant(0.0, dtype=tf.float32)
+#            hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
+#                                           to_numpy=False)
+#            val_loss, _ = self.calc_loss(batch_handler.val_data.high_res,
+#                                         hi_res_val_gen)
+
+            logger.info('Epoch {} train loss: {:.2e} '
+                        'val loss: {:.2e} for "{}"'
+                        .format(epoch, tr_loss, val_loss, self.name))
+
+            self._history.at[epoch, 'elapsed_time'] = time.time() - t0
+            self._history.at[epoch, 'training_loss'] = tr_loss.numpy()
+            self._history.at[epoch, 'validation_loss'] = val_loss.numpy()
+
 
 class SpatioTemporalGan(BaseModel):
     """Spatio temporal super resolution GAN model."""
@@ -445,7 +474,7 @@ class SpatioTemporalGan(BaseModel):
     def __init__(self, gen_layers, disc_t_layers, disc_s_layers,
                  weight_gen_content=1.0, weight_gen_advers_s=1.0,
                  weight_gen_advers_t=1.0, weight_disc_s=1.0,
-                 weight_disc_t=1.0):
+                 weight_disc_t=1.0, optimizer=None, learning_rate=1e-4):
         """
         Parameters
         ----------
@@ -476,9 +505,15 @@ class SpatioTemporalGan(BaseModel):
         weight_disc_t : float
             Weight factor for the temporal discriminator loss term in the loss
             function.
+        optimizer : tensorflow.keras.optimizers | dict | None
+            Instantiated tf.keras.optimizers object or a dict optimizer config
+            from tf.keras.optimizers.get_config(). None defaults to Adam.
+        learning_rate : float, optional
+            Optimizer learning rate. Not used if optimizer input arg is a
+            pre-initialized object or if optimizer input arg is a config dict.
         """
 
-        super().__init__()
+        super().__init__(optimizer=optimizer, learning_rate=learning_rate)
 
         self.weight_gen_content = weight_gen_content
         self.weight_gen_advers_s = weight_gen_advers_s
@@ -486,11 +521,9 @@ class SpatioTemporalGan(BaseModel):
         self.weight_disc_t = weight_disc_t
         self.weight_disc_s = weight_disc_s
 
-        self._gen = CustomNetwork(hidden_layers=gen_layers, name='Generator')
-        self._disc_t = CustomNetwork(hidden_layers=disc_t_layers,
-                                     name='TemporalDiscriminator')
-        self._disc_s = CustomNetwork(hidden_layers=disc_s_layers,
-                                     name='SpatialDiscriminator')
+        self._gen = self.load_network(gen_layers, 'Generator')
+        self._disc_t = self.load_network(disc_t_layers, 'TemporalDisc')
+        self._disc_s = self.load_network(disc_s_layers, 'SpatialDisc')
 
     @property
     def disc_spatial(self):
