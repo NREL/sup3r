@@ -2,6 +2,10 @@
 """Test the basic training of super resolution GAN"""
 import os
 import numpy as np
+import pytest
+import tempfile
+import tensorflow as tf
+from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from rex import init_logger
 
@@ -38,6 +42,35 @@ def test_train_spatial(log=False):
     batch_handler = SpatialBatchHandler(reduced_data, batch_size=32,
                                         spatial_res=2)
 
+    # test that training works and reduces loss
     model.train(batch_handler, n_epoch=4)
     assert len(model.history) == 4
     assert (np.diff(model.history['training_loss'].values) < 0).all()
+
+    # make an un-trained dummy model
+    dummy = SpatialGan(fp_gen, fp_disc,
+                       weight_gen_content=1.0,
+                       weight_gen_advers=0.0,
+                       weight_disc=0.0,
+                       learning_rate=1e-4)
+
+    # test save/load functionality
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'spatial_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+        for batch in batch_handler:
+            out_og = model.generate(batch.low_res)
+            out_dummy = dummy.generate(batch.low_res)
+            out_loaded = loaded.generate(batch.low_res)
+
+            # make sure the loaded model generates the same data as the saved
+            # model but different than the dummy
+            tf.assert_equal(out_og, out_loaded)
+            with pytest.raises(InvalidArgumentError):
+                tf.assert_equal(out_og, out_dummy)
+
+            # make sure the trained model has less loss than dummy
+            loss_og = model.calc_loss(batch.high_res, out_og)[0]
+            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
+            assert loss_og.numpy() < loss_dummy.numpy()

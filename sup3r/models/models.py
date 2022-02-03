@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
 from abc import ABC, abstractmethod
+import os
 import time
 import logging
 import pandas as pd
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
-    def __init__(self, optimizer=None, learning_rate=1e-4):
+    def __init__(self, optimizer=None, learning_rate=1e-4, name=None):
         """
         Parameters
         ----------
@@ -27,8 +28,10 @@ class BaseModel(ABC):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        name : str | None
+            Optional name for the GAN.
         """
-        self.name = None
+        self.name = name
         self._history = None
         self._gen = None
 
@@ -42,13 +45,14 @@ class BaseModel(ABC):
 
     @staticmethod
     def load_network(model, name):
-        """Load a CustomNetwork object from hidden layers config or json file.
+        """Load a CustomNetwork object from hidden layers config, .json file
+        config, or .pkl file saved pre=trained model.
 
         Parameters
         ----------
         model : str | dict
-            Model hidden layers config or a str pointing to a json with
-            "hidden_layers" key
+            Model hidden layers config, a .json with "hidden_layers" key, or a
+            .pkl for a saved pre-trained model.
         name : str
             Name of the model to be loaded
 
@@ -58,7 +62,7 @@ class BaseModel(ABC):
             CustomNetwork object initialized from the model input.
         """
 
-        if isinstance(model, str):
+        if isinstance(model, str) and model.endswith('.json'):
             model = safe_json_load(model)
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
@@ -69,6 +73,9 @@ class BaseModel(ABC):
                 logger.error(msg)
                 raise KeyError(msg)
 
+        elif isinstance(model, str) and model.endswith('.pkl'):
+            model = CustomNetwork.load(model)
+
         if isinstance(model, list):
             model = CustomNetwork(hidden_layers=model, name=name)
 
@@ -76,6 +83,8 @@ class BaseModel(ABC):
             msg = ('Something went wrong. Tried to load a custom network '
                    'but ended up with a model of type "{}"'
                    .format(type(model)))
+            logger.error(msg)
+            raise TypeError(msg)
 
         return model
 
@@ -292,18 +301,20 @@ class SpatialGan(BaseModel):
 
     def __init__(self, gen_layers, disc_layers, weight_gen_content=1.0,
                  weight_gen_advers=1.0, weight_disc=1.0,
-                 optimizer=None, learning_rate=1e-4):
+                 optimizer=None, learning_rate=1e-4, name=None):
         """
         Parameters
         ----------
         gen_layers : list | str
             Hidden layers input argument to phygnn.base.CustomNetwork for the
             generative super resolving model. Can also be a str filepath to a
-            json config file containing the input layers argument.
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
         disc_layers : list | str
             Hidden layers input argument to phygnn.base.CustomNetwork for the
-            discriminative model. Can also be a str filepath to a json
-            config file containing the input layers argument.
+            discriminative model. Can also be a str filepath to a
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
         weight_gen_content : float
             Weight factor for the generative content loss term in the loss
             function.
@@ -319,9 +330,12 @@ class SpatialGan(BaseModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        name : str | None
+            Optional name for the GAN.
         """
 
-        super().__init__(optimizer=optimizer, learning_rate=learning_rate)
+        super().__init__(optimizer=optimizer, learning_rate=learning_rate,
+                         name=name)
 
         self.weight_gen_content = weight_gen_content
         self.weight_gen_advers = weight_gen_advers
@@ -329,6 +343,41 @@ class SpatialGan(BaseModel):
 
         self._gen = self.load_network(gen_layers, 'Generator')
         self._disc = self.load_network(disc_layers, 'Discriminator')
+
+    def save(self, out_dir):
+        """Save the GAN with its sub-networks to a directory.
+
+        Parameters
+        ----------
+        out_dir : str
+            Directory to save GAN model files. This directory will be created
+            if it does not already exist.
+        """
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+        fp_gen = os.path.join(out_dir, 'model_gen.pkl')
+        fp_disc = os.path.join(out_dir, 'model_disc.pkl')
+
+        self.generator.save(fp_gen)
+        self.disc.save(fp_disc)
+
+    @classmethod
+    def load(cls, out_dir):
+        """Load the GAN with its sub-networks from a previously saved-to output
+        directory.
+
+        Parameters
+        ----------
+        out_dir : str
+            Directory to load GAN model files from.
+        """
+
+        fp_gen = os.path.join(out_dir, 'model_gen.pkl')
+        fp_disc = os.path.join(out_dir, 'model_disc.pkl')
+        gan = cls(fp_gen, fp_disc)
+        return gan
 
     @property
     def disc(self):
@@ -474,22 +523,26 @@ class SpatioTemporalGan(BaseModel):
     def __init__(self, gen_layers, disc_t_layers, disc_s_layers,
                  weight_gen_content=1.0, weight_gen_advers_s=1.0,
                  weight_gen_advers_t=1.0, weight_disc_s=1.0,
-                 weight_disc_t=1.0, optimizer=None, learning_rate=1e-4):
+                 weight_disc_t=1.0, optimizer=None, learning_rate=1e-4,
+                 name=None):
         """
         Parameters
         ----------
         gen_layers : list | str
             Hidden layers input argument to phygnn.base.CustomNetwork for the
             generative super resolving model. Can also be a str filepath to a
-            json config file containing the input layers argument.
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
         disc_t_layers : list | str
             Hidden layers input argument to phygnn.base.CustomNetwork for the
-            discriminative temporal model. Can also be a str filepath to a json
-            config file containing the input layers argument.
+            discriminative temporal model. Can also be a str filepath to a
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
         disc_s_layers : list | str
             Hidden layers input argument to phygnn.base.CustomNetwork for the
-            discriminative spatial model. Can also be a str filepath to a json
-            config file containing the input layers argument.
+            discriminative spatial model. Can also be a str filepath to a
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
         weight_gen_content : float
             Weight factor for the generative content loss term in the loss
             function.
@@ -511,9 +564,12 @@ class SpatioTemporalGan(BaseModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        name : str | None
+            Optional name for the GAN.
         """
 
-        super().__init__(optimizer=optimizer, learning_rate=learning_rate)
+        super().__init__(optimizer=optimizer, learning_rate=learning_rate,
+                         name=name)
 
         self.weight_gen_content = weight_gen_content
         self.weight_gen_advers_s = weight_gen_advers_s
