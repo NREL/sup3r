@@ -9,7 +9,7 @@ from sup3r import CONFIG_DIR
 from sup3r.models.models import SpatialGan, SpatioTemporalGan
 
 
-def test_load_spatial_gan():
+def test_load_spatial():
     """Test the loading of a sample the spatial gan model."""
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -47,7 +47,7 @@ def test_load_spatial_gan():
     assert disc_out.shape[1] == 1
 
 
-def test_load_spatiotemporal_gan():
+def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_2x_24x.json')
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
