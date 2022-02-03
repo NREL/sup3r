@@ -16,8 +16,7 @@ class DataHandler:
     """Sup3r data handling and extraction"""
 
     def __init__(self, data_files, target,
-                 shape, features, max_delta=20,
-                 mean=None, std=None):
+                 shape, features, max_delta=20):
         """Data handling and extraction
 
         Parameters
@@ -37,8 +36,6 @@ class DataHandler:
             non-regular grids that curve over large distances, by default 20
         """
 
-        self.mean = mean
-        self.std = std
         self.data_files = data_files
         self.features = features
         self.shape = shape
@@ -47,16 +44,18 @@ class DataHandler:
         self.max_delta = max_delta
         self.data, self.lat_lon = self.extract_data()
 
-    def normalize_data(self):
+    def normalize_data(self, feature, mean, std):
         """Normalize data with initialized
-        mean and standard deviation
+        mean and standard deviation for
+        a specific feature
 
         Returns
         -------
         data : np.ndarray
             normalized data array
         """
-        self.data = (self.data - self.mean) / self.std
+        self.data[:, :, :, self.features.index(feature)] = \
+            (self.data[:, :, :, self.features.index(feature)] - mean) / std
         return self.data
 
     def extract_data(self):
@@ -322,7 +321,8 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data, batch_size, val_split=0.2, spatial_res=2):
+    def __init__(self, data, batch_size, val_split=0.2,
+                 spatial_res=2):
         """
         Parameters
         ----------
@@ -344,6 +344,8 @@ class SpatialBatchHandler:
         self.low_res = None
         self.high_res = None
         self.data_handler = None
+        self.mean = None
+        self.std = None
 
     def _split_data(self, val_split=0.2):
         """Splits time dimension into set of training indices
@@ -387,7 +389,7 @@ class SpatialBatchHandler:
     def make(cls, data_files, target,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20):
+             max_delta=20, norm=False):
         """Method to initialize both
         data and batch handlers
 
