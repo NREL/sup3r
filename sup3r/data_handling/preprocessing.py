@@ -389,7 +389,7 @@ class SpatialBatchHandler:
     def make(cls, data_files, target,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20, norm=False):
+             max_delta=20):
         """Method to initialize both
         data and batch handlers
 
