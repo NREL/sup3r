@@ -44,29 +44,6 @@ class DataHandler:
         self.max_delta = max_delta
         self.data, self.lat_lon = self.extract_data()
 
-    def normalize_data(self, feature_index, mean, std):
-        """Normalize data with initialized
-        mean and standard deviation for
-        a specific feature
-
-        Parameters
-        ----------
-        feature_index : int
-            index of feature to be normalized
-        mean : float32
-            specified mean of associated feature
-        std : float32
-            specificed standard deviation for associated feature
-
-        Returns
-        -------
-        data : np.ndarray
-            normalized data array
-        """
-        self.data[:, :, :, feature_index] = \
-            (self.data[:, :, :, feature_index] - mean) / std
-        return self.data
-
     def extract_data(self):
         """Building base 4D data array
 
@@ -331,7 +308,7 @@ class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
     def __init__(self, data, batch_size=8, val_split=0.2,
-                 spatial_res=2):
+                 spatial_res=2, norm=True):
         """
         Parameters
         ----------
@@ -354,8 +331,81 @@ class SpatialBatchHandler:
         self.low_res = None
         self.high_res = None
         self.data_handler = None
-        self.mean = None
-        self.std = None
+        self.norm = norm
+
+        if self.norm:
+            self.means, self.stds = self._get_stats()
+            self.data = \
+                self._normalize_data_all(self.means, self.stds)
+
+    def _normalize_data_all(self, means, stds):
+        """Normalize all data features
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+
+        Returns
+        -------
+        data : np.ndarray
+            Normalized data array
+            (spatial_1, spatial_2, temporal, features)
+        """
+
+        for i in range(len(self.data.shape[3])):
+            self.data = self._normalize_data(i, means[i], stds[i])
+        return self.data
+
+    def _normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized
+        mean and standard deviation for
+        a specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+
+        Returns
+        -------
+        data : np.ndarray
+            normalized data array
+        """
+        self.data[:, :, :, feature_index] = \
+            (self.data[:, :, :, feature_index] - mean) / std
+        return self.data
+
+    def _get_stats(self):
+        """Get standard deviations and means
+        for all data features
+
+        Returns
+        -------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        """
+
+        for i in range(self.data.shape[3]):
+            self.means[i] = np.mean(self.data[:, :, :, i])
+            self.stds[i] = np.std(self.data[:, :, :, i])
+        return self.means, self.stds
 
     def _split_data(self):
         """Splits time dimension into set of training indices
