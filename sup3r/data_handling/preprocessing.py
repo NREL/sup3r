@@ -18,7 +18,7 @@ class MultiDataHandler:
     """
 
     def __init__(self, file_paths, targets, shape,
-                 features, max_delta=20):
+                 features, max_delta=20, raster_file=None):
         """
         Parameters
         ----------
@@ -45,7 +45,8 @@ class MultiDataHandler:
         for i, f in enumerate(file_paths):
             data_handlers.append(DataHandler(f, targets[i],
                                              shape, features,
-                                             max_delta=max_delta))
+                                             max_delta=max_delta,
+                                             raster_file=raster_file))
         self.data_handlers = data_handlers
         self.current_handler = None
         self.max = len(data_handlers)
@@ -645,7 +646,7 @@ class SpatialBatchHandler:
     def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20, norm=True):
+             max_delta=20, norm=True, raster_file=None):
         """Method to initialize both
         data and batch handlers
 
@@ -678,7 +679,8 @@ class SpatialBatchHandler:
         """
         multi_data_handler = MultiDataHandler(file_paths, targets,
                                               shape, features,
-                                              max_delta=max_delta)
+                                              max_delta=max_delta,
+                                              raster_file=raster_file)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             batch_size=batch_size,
                                             val_split=val_split,
