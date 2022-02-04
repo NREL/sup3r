@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pytest
 import matplotlib.pyplot as plt
+import tempfile
 
 from sup3r import TEST_DATA_DIR
 from sup3r.data_handling.preprocessing import (DataHandler,
@@ -22,6 +23,7 @@ batch_size = 14
 spatial_res = 5
 max_delta = 20
 val_split = 0.2
+raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
 
 batch_handler = SpatialBatchHandler.make(input_files, targets,
                                          shape, features,
@@ -30,6 +32,18 @@ batch_handler = SpatialBatchHandler.make(input_files, targets,
                                          max_delta=max_delta,
                                          val_split=val_split)
 
+def test_raster_index_caching():
+    """Test raster index caching by saving file and then loading"""
+
+    # saving raster file
+    handler = DataHandler(input_file, target, shape, features, max_delta, raster_file=raster_file)
+    handler.get_raster_index(input_file, target, shape)
+
+    # loading raster file
+    handler = DataHandler(input_file, target, shape, features, max_delta, raster_file=raster_file)
+
+    assert handler.data.shape == (shape[0], shape[1],
+                                  handler.data.shape[2], len(features))
 
 def test_multi_data_handler():
     """Test MultiDataHandler class
@@ -46,9 +60,14 @@ def test_multi_data_handler():
 def test_normalization():
     """Test correct normalization"""
 
+    stacked_data = \
+        np.concatenate(
+            [d.data for d in batch_handler.multi_data_handler.data_handlers],
+            axis=2)
+
     for i in range(len(features)):
-        std = np.std(batch_handler.stacked_data[:, :, :, i])
-        mean = np.mean(batch_handler.stacked_data[:, :, :, i])
+        std = np.std(stacked_data[:, :, :, i])
+        mean = np.mean(stacked_data[:, :, :, i])
         assert 0.99999 <= std <= 1.0
         assert -0.00001 <= mean <= 0.00001
 

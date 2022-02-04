@@ -50,7 +50,7 @@ class MultiDataHandler:
             targets = [targets] * len(file_paths)
         if not isinstance(file_paths, list):
             file_paths = [file_paths]
-        if not isinstance(raster_files, list) and raster_files is not None:
+        if not isinstance(raster_files, list):
             raster_files = [raster_files] * len(file_paths)
 
         data_handlers = []
@@ -65,6 +65,77 @@ class MultiDataHandler:
         self.grid_shape = shape
         self.features = features
         self._i = 0
+        self.time_index_map = self.get_time_index_map()
+        self.means = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+
+    def normalize(self):
+        """Compute means and stds for each feature
+        across all datasets and normalize each data handler dataset
+        """
+
+        self._get_stats()
+        for d in self.data_handlers:
+            d.normalize(self.means, self.stds)
+
+    def _get_stats(self):
+        """Get standard deviations and means
+        for all data features
+
+        Returns
+        -------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        """
+
+        for i in range(self.shape[-1]):
+            n_elems = 0
+            for data_handler in self.data_handlers:
+                self.means[i] += np.sum(data_handler.data[:, :, :, i])
+                n_elems += \
+                    data_handler.shape[0] \
+                    * data_handler.shape[1] \
+                    * data_handler.shape[2]
+            self.means[i] = self.means[i] / n_elems
+            for data_handler in self.data_handlers:
+                self.stds[i] += \
+                    np.sum((data_handler.data[:, :, :, i] - self.means[i])**2)
+            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
+
+        return self.means, self.stds
+
+    def get_time_index_map(self):
+        """Get map of stacked time index to handler index, and
+        hander specific time index
+
+        Returns
+        -------
+        time_index_map : np.ndarray
+            array of pairs for each time index across
+            all data handlers. e.g. if there are two data
+            handlers both with 2 time steps we would have
+            [[0, 0], [0, 1], [1, 0], [1, 1]]
+        """
+        handler_times = np.zeros((self.__len__()), np.int32)
+        time_index_map = np.zeros((self.shape[2], 2), np.int32)
+        for i, d in enumerate(self.data_handlers):
+            handler_times[i] = sum(handler_times[:i]) + d.data.shape[2]
+
+        for i, _ in enumerate(time_index_map):
+            for j, _ in enumerate(handler_times):
+                if j < len(handler_times) - 1:
+                    if handler_times[j] <= i < handler_times[j + 1]:
+                        time_index_map[i] = [j, i - handler_times[j]]
+                else:
+                    if handler_times[j] <= i:
+                        time_index_map[i] = [j, i - handler_times[j]]
+        return time_index_map
 
     @property
     def shape(self):
@@ -100,50 +171,10 @@ class MultiDataHandler:
         else:
             raise StopIteration
 
-    def handler_and_time_index(self, stacked_time_index):
-        """Gets handler_index and time_index of that
-        handler from a stacked time index. e.g. If stacked_time_index
-        is 50 and self.data_handler[0].shape[2] = 45 then this will
-        return handler_index = 1, time_index = 5
-
-        Parameters
-        ----------
-        stacked_time_index : int
-            time_index which treats the data handlers as having
-            a stacked time dimension
-
-        Returns
-        -------
-        handler_index : int
-            index of the data handler associated with the given
-            stacked_time_index
-        time_index : int
-            time_index associated with the stacked_time_index
-            and the corresponding data handler
-        """
-
-        handler_index = 0
-        time_index = stacked_time_index
-        while time_index >= self.data_handlers[handler_index].shape[2]:
-            time_index -= self.data_handlers[handler_index].shape[2]
-            handler_index += 1
-        return handler_index, time_index
-
-    @property
-    def stacked_data(self):
-        """Stack data along time dimension
-
-        Returns
-        -------
-        data : np.ndarray
-            4D data array with time dimension concatenated
-            from all data handler data
-            (spatial_1, spatial_2, temporal, features)
-        """
-        return np.concatenate([d.data for d in self.data_handlers], axis=2)
-
     def data(self, time_steps):
-        """Data method
+        """Data property. Used in batching to select
+        3D arrays of (spatial_1, spatial_2, features)
+        for each of the indices in time_steps.
 
         Parameters
         ----------
@@ -161,7 +192,7 @@ class MultiDataHandler:
                          len(time_steps), self.shape[3]),
                         dtype=np.float32)
         for i, t in enumerate(time_steps):
-            handler_index, time_index = self.handler_and_time_index(t)
+            [handler_index, time_index] = self.time_index_map[t]
             data[:, :, i, :] = \
                 self.data_handlers[handler_index].data[:, :, time_index, :]
         return data
@@ -190,6 +221,11 @@ class DataHandler:
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        raster_file : str | None
+            File for raster_index array for the corresponding target and
+            shape. If specified the raster_index will be loaded from the file
+            if it exists or written to the file if it does not yet exist.
+            If None raster_index will be calculated directly.
         """
 
         self.file_path = file_path
@@ -200,6 +236,48 @@ class DataHandler:
         self.max_delta = max_delta
         self.raster_file = raster_file
         self.data, self.lat_lon = self.extract_data()
+
+    def normalize(self, means, stds):
+        """Normalize all data features
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        """
+
+        for i in range(self.shape[-1]):
+            self._normalize_data(i, means[i], stds[i])
+
+    def _normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized
+        mean and standard deviation for
+        a specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+
+        Returns
+        -------
+        data : np.ndarray
+            normalized data array
+        """
+
+        self.data[:, :, :, feature_index] = \
+            (self.data[:, :, :, feature_index] - mean) / std
+        return self.data
 
     @property
     def shape(self):
@@ -269,7 +347,7 @@ class DataHandler:
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            raster_index = np.loadtxt(self.raster_file)
+            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             _, file_ext = os.path.splitext(file_path)
             if file_ext == '.h5':
@@ -483,12 +561,17 @@ class SpatialBatchHandler:
         """
         Parameters
         ----------
-        data : np.ndarray
-            4D array (spatial_1, spatial_2, temporal, features)
+        multi_data_handler : MultiDataHandler
+            Instance of MultiDataHandler. Includes set of
+            DataHandler instances
         batch_size : int
             size of batches along temporal dimension
         spatial_res: int
             factor by which to coarsen spatial dimensions
+        val_split : float
+            fraction of data to reserve for validation
+        norm : bool
+            Whether to normalize the data or not
         """
 
         self.multi_data_handler = multi_data_handler
@@ -502,12 +585,9 @@ class SpatialBatchHandler:
         self.low_res = None
         self.high_res = None
         self.data_handler = None
-        self.means = np.zeros((multi_data_handler.shape[3]), dtype=np.float32)
-        self.stds = np.zeros((multi_data_handler.shape[3]), dtype=np.float32)
 
         if norm:
-            self.means, self.stds = self._get_stats()
-            self._normalize_data_all(self.means, self.stds)
+            self.multi_data_handler.normalize()
 
     def data(self, time_steps):
         """Returns MultiDataHandler data method
@@ -526,19 +606,6 @@ class SpatialBatchHandler:
         """
         return self.multi_data_handler.data(time_steps)
 
-    @property
-    def stacked_data(self):
-        """MultiDataHandler stacked_data method
-
-        Returns
-        -------
-        data : np.ndarray
-            4D data array with time dimension concatenated
-            from all data handler data
-            (spatial_1, spatial_2, temporal, features)
-        """
-        return self.multi_data_handler.stacked_data
-
     def __len__(self):
         """Length method
 
@@ -548,69 +615,6 @@ class SpatialBatchHandler:
             Number of batches in handler instance
         """
         return len(self.batch_indices)
-
-    def _normalize_data_all(self, means, stds):
-        """Normalize all data features
-
-        Parameters
-        ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        """
-
-        for i in range(self.multi_data_handler.shape[3]):
-            self._normalize_data(i, means[i], stds[i])
-
-    def _normalize_data(self, feature_index, mean, std):
-        """Normalize data with initialized
-        mean and standard deviation for
-        a specific feature
-
-        Parameters
-        ----------
-        feature_index : int
-            index of feature to be normalized
-        mean : float32
-            specified mean of associated feature
-        std : float32
-            specificed standard deviation for associated feature
-
-        Returns
-        -------
-        data : np.ndarray
-            normalized data array
-        """
-
-        for d in self.multi_data_handler:
-            d.data[:, :, :, feature_index] = \
-                (d.data[:, :, :, feature_index] - mean) / std
-
-    def _get_stats(self):
-        """Get standard deviations and means
-        for all data features
-
-        Returns
-        -------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        """
-
-        for i in range(self.multi_data_handler.shape[3]):
-            self.means[i] = np.mean(self.stacked_data[:, :, :, i])
-            self.stds[i] = np.std(self.stacked_data[:, :, :, i])
-        return self.means, self.stds
 
     def _split_data(self):
         """Splits time dimension into set of training indices
