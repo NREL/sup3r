@@ -18,7 +18,7 @@ class MultiDataHandler:
     """
 
     def __init__(self, file_paths, targets, shape,
-                 features, max_delta=20, raster_file=None):
+                 features, max_delta=20, raster_files=None):
         """
         Parameters
         ----------
@@ -34,19 +34,31 @@ class MultiDataHandler:
         features : list
             list of features to extract from each
             data file
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
+        raster_files : list | str | None
+            Files for raster_index array for the corresponding targets and
+            shape. If a list these can be different files for different
+            targets. If a string the same file will be used for all
+            targets. If None raster_index will be calculated directly.
         """
 
         if not isinstance(targets, list):
             targets = [targets] * len(file_paths)
         if not isinstance(file_paths, list):
             file_paths = [file_paths]
+        if not isinstance(raster_files, list) and raster_files is not None:
+            raster_files = [raster_files] * len(file_paths)
 
         data_handlers = []
         for i, f in enumerate(file_paths):
             data_handlers.append(DataHandler(f, targets[i],
                                              shape, features,
                                              max_delta=max_delta,
-                                             raster_file=raster_file))
+                                             raster_file=raster_files[i]))
         self.data_handlers = data_handlers
         self.current_handler = None
         self.max = len(data_handlers)
@@ -646,7 +658,7 @@ class SpatialBatchHandler:
     def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20, norm=True, raster_file=None):
+             max_delta=20, norm=True, raster_files=None):
         """Method to initialize both
         data and batch handlers
 
@@ -668,9 +680,14 @@ class SpatialBatchHandler:
             factor by which to coarsen spatial dimensions
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raseter will
+            once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        raster_files : list | str | None
+            Files for raster_index array for the corresponding targets and
+            shape. If a list these can be different files for different
+            targets. If a string the same file will be used for all
+            targets. If None raster_index will be calculated directly.
 
         Returns
         -------
@@ -680,7 +697,7 @@ class SpatialBatchHandler:
         multi_data_handler = MultiDataHandler(file_paths, targets,
                                               shape, features,
                                               max_delta=max_delta,
-                                              raster_file=raster_file)
+                                              raster_files=raster_files)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             batch_size=batch_size,
                                             val_split=val_split,
