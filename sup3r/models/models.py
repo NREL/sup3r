@@ -147,13 +147,7 @@ class BaseModel(ABC):
         """
         return self.generator_weights
 
-    @property
-    @abstractmethod
-    def training_weights(self):
-        """Get a list of layer weights that are to-be-trained based on the
-        current loss weight values."""
-
-    def run_gradient_descent(self, low_res, hi_res_true):
+    def run_gradient_descent(self, low_res, hi_res_true, training_weights):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and adjust NN weights
 
@@ -167,6 +161,9 @@ class BaseModel(ABC):
             Real high-resolution data in a 4D or 5D array:
             (n_observations, spatial_1, spatial_2, features)
             (n_observations, spatial_1, spatial_2, temporal, features)
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
 
         Returns
         -------
@@ -180,15 +177,15 @@ class BaseModel(ABC):
         """
 
         with tf.GradientTape() as tape:
-            tape.watch(self.training_weights)
+            tape.watch(training_weights)
 
             hi_res_gen = self.generate(low_res, to_numpy=False, training=True)
             loss_out = self.calc_loss(hi_res_true, hi_res_gen)
             loss, loss_diagnostics = loss_out
 
-            grad = tape.gradient(loss, self.training_weights)
+            grad = tape.gradient(loss, training_weights)
 
-        self._optimizer.apply_gradients(zip(grad, self.training_weights))
+        self._optimizer.apply_gradients(zip(grad, training_weights))
 
         return loss, loss_diagnostics
 
@@ -412,13 +409,6 @@ class SpatialGan(BaseModel):
         """Get a list of layer weights that are to-be-trained based on the
         current loss weight values."""
 
-        training_weights = []
-        if self.weight_gen_content > 0:
-            training_weights += self.generator_weights
-
-        if self.weight_disc > 0:
-            training_weights += self.disc_weights
-
         return training_weights
 
     def calc_loss(self, hi_res_true, hi_res_gen):
@@ -443,22 +433,12 @@ class SpatialGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        loss_gen_content = tf.constant(0.0, dtype=tf.float32)
-        loss_gen_advers = tf.constant(0.0, dtype=tf.float32)
-        loss_disc = tf.constant(0.0, dtype=tf.float32)
-
         disc_out_true = self.disc.predict(hi_res_true)
         disc_out_gen = self.disc.predict(hi_res_gen)
 
-        if self.weight_gen_content > 0:
-            loss_gen_content = self.calc_loss_gen_content(hi_res_true,
-                                                          hi_res_gen)
-
-        if self.weight_gen_advers > 0:
-            loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
-
-        if self.weight_disc > 0:
-            loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
+        loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
+        loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
         loss = (self.weight_gen_content * loss_gen_content
                 + self.weight_gen_advers * loss_gen_advers
@@ -471,13 +451,27 @@ class SpatialGan(BaseModel):
 
         return loss, loss_diagnostics
 
-    def train(self, batch_handler, n_epoch):
+    def train(self, batch_handler, n_epoch,
+              weight_gen_content=1.0,
+              weight_gen_advers=1.0,
+              weight_disc=1.0):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
         ----------
         batch_handler : sup3r.data_handling.preprocessing.SpatialBatchHandler
             SpatialBatchHandler object to iterate through
+        n_epoch : int
+            Number of epochs to train on
+        weight_gen_content : float
+            Weight factor for the generative content loss term in the loss
+            function.
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the spatial discriminator.
+        weight_disc : float
+            Weight factor for the spatial discriminator loss term in the loss
+            function.
         """
         epochs = list(range(n_epoch))
 
@@ -491,16 +485,30 @@ class SpatialGan(BaseModel):
         else:
             epochs += self._history.index.values[-1] + 1
 
-        tr_loss = None
+        training_weights = []
+        if weight_gen_content > 0:
+            training_weights += self.generator_weights
+        if weight_disc > 0:
+            training_weights += self.disc_weights
+
+        loss = None
         t0 = time.time()
         logger.info('Starting model training with {} epochs.'.format(n_epoch))
         for epoch in epochs:
             for i, batch in enumerate(batch_handler):
-                tr_loss, _ = self.run_gradient_descent(batch.low_res,
-                                                       batch.high_res)
+
+                loss, diag = self.run_gradient_descent(batch.low_res,
+                                                       batch.high_res,
+                                                       training_weights,
+                                                       weight_gen_advers)
+
+                loss_gen_content = diagnostics['loss_gen_content']
+                loss_gen_advers = diagnostics['loss_gen_advers']
+                loss_disc = diagnostics['loss_disc']
+
                 logger.debug('\t - Batch {} of {} has training loss of {:.2e}'
                              .format(i + 1, len(batch_handler.batch_indices),
-                                     tr_loss))
+                                     loss))
 
             hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
                                            to_numpy=False)
@@ -509,10 +517,10 @@ class SpatialGan(BaseModel):
 
             logger.info('Epoch {} train loss: {:.2e} '
                         'val loss: {:.2e} for "{}"'
-                        .format(epoch, tr_loss, val_loss, self.name))
+                        .format(epoch, loss, val_loss, self.name))
 
             self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-            self._history.at[epoch, 'training_loss'] = tr_loss.numpy()
+            self._history.at[epoch, 'training_loss'] = loss.numpy()
             self._history.at[epoch, 'validation_loss'] = val_loss.numpy()
 
 
