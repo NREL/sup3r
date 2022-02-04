@@ -32,18 +32,22 @@ batch_handler = SpatialBatchHandler.make(input_files, targets,
                                          max_delta=max_delta,
                                          val_split=val_split)
 
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
     # saving raster file
-    handler = DataHandler(input_file, target, shape, features, max_delta, raster_file=raster_file)
+    handler = DataHandler(input_file, target, shape, features,
+                          max_delta, raster_file=raster_file)
     handler.get_raster_index(input_file, target, shape)
 
     # loading raster file
-    handler = DataHandler(input_file, target, shape, features, max_delta, raster_file=raster_file)
+    handler = DataHandler(input_file, target, shape, features,
+                          max_delta, raster_file=raster_file)
 
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
+
 
 def test_multi_data_handler():
     """Test MultiDataHandler class

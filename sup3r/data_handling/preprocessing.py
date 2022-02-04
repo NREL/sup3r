@@ -5,6 +5,7 @@ Sup3r preprocessing module.
 import xarray as xr
 import numpy as np
 import os
+from collections import defaultdict
 
 from rex import WindX
 from reV.utilities.exceptions import ConfigError
@@ -128,13 +129,11 @@ class MultiDataHandler:
             handler_times[i] = sum(handler_times[:i]) + d.data.shape[2]
 
         for i, _ in enumerate(time_index_map):
-            for j, _ in enumerate(handler_times):
-                if j < len(handler_times) - 1:
-                    if handler_times[j] <= i < handler_times[j + 1]:
-                        time_index_map[i] = [j, i - handler_times[j]]
-                else:
-                    if handler_times[j] <= i:
-                        time_index_map[i] = [j, i - handler_times[j]]
+            handler_index = np.argmin(np.abs(handler_times - i))
+            if handler_times[handler_index] < i:
+                handler_index -= 1
+            time_index_map[i] = \
+                [handler_index, i - handler_times[handler_index]]
         return time_index_map
 
     @property
@@ -171,6 +170,29 @@ class MultiDataHandler:
         else:
             raise StopIteration
 
+    def _bin_indices(self, time_steps):
+        """Bin time indices according to handler index
+        so that batching can be done with fancy indexing
+        instead of a for loop
+
+        Parameters
+        ----------
+        time_steps : list
+            list of integer time indices
+
+        Returns
+        -------
+        index_bins : dict
+            dictionary of integer arrays where keys
+            are data handler indices and values are lists
+            of time indices for that data handler
+        """
+        index_bins = defaultdict(list)
+        for t in time_steps:
+            index_map = self.time_index_map[t]
+            index_bins[index_map[0]].append(index_map[1])
+        return index_bins
+
     def data(self, time_steps):
         """Data property. Used in batching to select
         3D arrays of (spatial_1, spatial_2, features)
@@ -188,13 +210,11 @@ class MultiDataHandler:
             equal to len(time_steps)
             (spatial_1, spatial_2, temporal, features)
         """
-        data = np.zeros((self.shape[0], self.shape[1],
-                         len(time_steps), self.shape[3]),
-                        dtype=np.float32)
-        for i, t in enumerate(time_steps):
-            [handler_index, time_index] = self.time_index_map[t]
-            data[:, :, i, :] = \
-                self.data_handlers[handler_index].data[:, :, time_index, :]
+
+        index_bins = self._bin_indices(time_steps)
+        data = np.concatenate(
+            [self.data_handlers[k].data[:, :, v, :] for
+             k, v in index_bins.items()], axis=2)
         return data
 
 
