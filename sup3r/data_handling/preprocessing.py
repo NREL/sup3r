@@ -553,7 +553,6 @@ class SpatialBatchHandler:
 
         for i in range(self.multi_data_handler.shape[3]):
             self._normalize_data(i, means[i], stds[i])
-        return
 
     def _normalize_data(self, feature_index, mean, std):
         """Normalize data with initialized
@@ -578,7 +577,6 @@ class SpatialBatchHandler:
         for d in self.multi_data_handler:
             d.data[:, :, :, feature_index] = \
                 (d.data[:, :, :, feature_index] - mean) / std
-        return
 
     def _get_stats(self):
         """Get standard deviations and means
