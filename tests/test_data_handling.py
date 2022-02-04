@@ -7,11 +7,15 @@ import matplotlib.pyplot as plt
 
 from sup3r import TEST_DATA_DIR
 from sup3r.data_handling.preprocessing import (DataHandler,
+                                               MultiDataHandler,
                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
 input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
+               os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5')]
 target = (39.01, -105.15)
+targets = target
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
 batch_size = 14
@@ -19,7 +23,7 @@ spatial_res = 5
 max_delta = 20
 val_split = 0.2
 
-batch_handler = SpatialBatchHandler.make([input_file], target,
+batch_handler = SpatialBatchHandler.make(input_files, targets,
                                          shape, features,
                                          batch_size=batch_size,
                                          spatial_res=spatial_res,
@@ -27,10 +31,32 @@ batch_handler = SpatialBatchHandler.make([input_file], target,
                                          val_split=val_split)
 
 
+def test_multi_data_handler():
+    """Test MultiDataHandler class
+    """
+    multi_handler = MultiDataHandler(input_files, targets, shape, features)
+
+    assert multi_handler.shape == \
+        (shape[0], shape[1],
+         sum([multi_handler.data_handlers[0].shape[2],
+              multi_handler.data_handlers[1].shape[2]]),
+         len(features))
+
+
+def test_normalization():
+    """Test correct normalization"""
+
+    for i in range(len(features)):
+        std = np.std(batch_handler.stacked_data[:, :, :, i])
+        mean = np.mean(batch_handler.stacked_data[:, :, :, i])
+        assert 0.99999 <= std <= 1.0
+        assert -0.00001 <= mean <= 0.00001
+
+
 def test_data_extraction():
     """Test data extraction class"""
 
-    handler = DataHandler([input_file], target, shape, features, max_delta)
+    handler = DataHandler(input_file, target, shape, features, max_delta)
 
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
@@ -39,11 +65,11 @@ def test_data_extraction():
 def test_batch_handling():
     """Test spatial batch handling class"""
 
+    n_observations = 0
     for batch in batch_handler:
-        assert batch.low_res.shape == (batch_size, shape[0] // spatial_res,
-                                       shape[1] // spatial_res, len(features))
-        assert batch.high_res.shape == (batch_size, shape[0],
-                                        shape[1], len(features))
+        n_observations += batch.low_res.shape[0]
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+    assert n_observations == len(batch_handler.training_indices)
 
 
 @pytest.mark.parametrize(
@@ -57,7 +83,7 @@ def test_batch_handling():
 def test_spatial_coarsening(spatial_res, plot):
     """Test spatial coarsening"""
 
-    handler = DataHandler([input_file], target, shape, features, max_delta)
+    handler = DataHandler(input_file, target, shape, features, max_delta)
 
     coarse_data = utilities.spatial_coarsening(handler.data, spatial_res)
     direct_avg = np.zeros((handler.data.shape[0] // spatial_res,

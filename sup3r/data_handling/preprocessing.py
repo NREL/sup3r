@@ -12,11 +12,154 @@ from sup3r.utilities import utilities
 from sup3r import __version__
 
 
+class MultiDataHandler:
+    """Class for handling multiple instances
+    of DataHandler
+    """
+
+    def __init__(self, file_paths, targets, shape,
+                 features, max_delta=20):
+        """
+        Parameters
+        ----------
+        file_paths : list
+            list of file paths
+        targets : list of tuples | tuple
+            list of lower left corner coordinates
+            with same ordering as file_paths or single
+            tuple for all files
+        shape : tuple
+            (n_rows, n_cols)
+            grid size
+        features : list
+            list of features to extract from each
+            data file
+        """
+
+        if not isinstance(targets, list):
+            targets = [targets] * len(file_paths)
+        if not isinstance(file_paths, list):
+            file_paths = [file_paths]
+
+        data_handlers = []
+        for i, f in enumerate(file_paths):
+            data_handlers.append(DataHandler(f, targets[i],
+                                             shape, features,
+                                             max_delta=max_delta))
+        self.data_handlers = data_handlers
+        self.current_handler = None
+        self.max = len(data_handlers)
+        self.grid_shape = shape
+        self.features = features
+        self._i = 0
+
+    @property
+    def shape(self):
+        """Shape property
+
+        Returns
+        -------
+        shape : tuple
+            Full data shape with time dimension stacked
+        """
+        return (self.grid_shape[0], self.grid_shape[1],
+                sum([d.shape[2] for d in self.data_handlers]),
+                len(self.features))
+
+    def __len__(self):
+        """
+        Returns
+        -------
+        len()
+            number of data handlers
+        """
+        return len(self.data_handlers)
+
+    def __iter__(self):
+        self._i = 0
+        return self
+
+    def __next__(self):
+        if self._i < self.max:
+            self.current_handler = self.data_handlers[self._i]
+            self._i += 1
+            return self.current_handler
+        else:
+            raise StopIteration
+
+    def handler_and_time_index(self, stacked_time_index):
+        """Gets handler_index and time_index of that
+        handler from a stacked time index. e.g. If stacked_time_index
+        is 50 and self.data_handler[0].shape[2] = 45 then this will
+        return handler_index = 1, time_index = 5
+
+        Parameters
+        ----------
+        stacked_time_index : int
+            time_index which treats the data handlers as having
+            a stacked time dimension
+
+        Returns
+        -------
+        handler_index : int
+            index of the data handler associated with the given
+            stacked_time_index
+        time_index : int
+            time_index associated with the stacked_time_index
+            and the corresponding data handler
+        """
+
+        handler_index = 0
+        time_index = stacked_time_index
+        while time_index >= self.data_handlers[handler_index].shape[2]:
+            time_index -= self.data_handlers[handler_index].shape[2]
+            handler_index += 1
+        return handler_index, time_index
+
+    @property
+    def stacked_data(self):
+        """Stack data along time dimension
+
+        Returns
+        -------
+        data : np.ndarray
+            4D data array with time dimension concatenated
+            from all data handler data
+            (spatial_1, spatial_2, temporal, features)
+        """
+        return np.concatenate([d.data for d in self.data_handlers], axis=2)
+
+    def data(self, time_steps):
+        """Data method
+
+        Parameters
+        ----------
+        time_steps : list
+            list of integer time indices
+
+        Returns
+        -------
+        data : np.ndarray
+            4D data array with time dimension size
+            equal to len(time_steps)
+            (spatial_1, spatial_2, temporal, features)
+        """
+        data = np.zeros((self.shape[0], self.shape[1],
+                         len(time_steps), self.shape[3]),
+                        dtype=np.float32)
+        for i, t in enumerate(time_steps):
+            handler_index, time_index = self.handler_and_time_index(t)
+            data[:, :, i, :] = \
+                self.data_handlers[handler_index].data[:, :, time_index, :]
+        return data
+
+
 class DataHandler:
     """Sup3r data handling and extraction"""
 
-    def __init__(self, data_files, target,
-                 shape, features, max_delta=20):
+    def __init__(self, file_path, target,
+                 shape, features, max_delta=20,
+                 raster_file=None):
         """Data handling and extraction
 
         Parameters
@@ -31,18 +174,31 @@ class DataHandler:
             list of features to extract
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raseter will
+            once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
         """
 
-        self.data_files = data_files
+        self.file_path = file_path
         self.features = features
-        self.shape = shape
+        self.grid_shape = shape
         self.target = target
         self.raster_index = None
         self.max_delta = max_delta
+        self.raster_file = raster_file
         self.data, self.lat_lon = self.extract_data()
+
+    @property
+    def shape(self):
+        """Full data shape
+
+        Returns
+        -------
+        shape : tuple
+            Full data shape
+            (spatial_1, spatial_2, temporal, features)
+        """
+        return self.data.shape
 
     def extract_data(self):
         """Building base 4D data array
@@ -64,19 +220,13 @@ class DataHandler:
             lat (lon) first channel (second channel)
         """
 
-        raster_index = self.get_raster_index(self.data_files[0],
+        raster_index = self.get_raster_index(self.file_path,
                                              self.target,
-                                             self.shape)
+                                             self.grid_shape)
 
-        y, lat_lon = self._get_file_data(self.data_files[0],
+        y, lat_lon = self._get_file_data(self.file_path,
                                          raster_index,
                                          self.features)
-        if len(self.data_files) > 1:
-            for f in self.data_files[1:]:
-                tmp = self._get_file_data(f, raster_index,
-                                          self.features,
-                                          get_coords=False)
-                y = np.concatenate((y, tmp), axis=2)
 
         y = utilities.transform_rotate_wind(y, lat_lon, self.features)
 
@@ -105,23 +255,29 @@ class DataHandler:
 
         """
 
-        _, file_ext = os.path.splitext(file_path)
-        if file_ext == '.h5':
-            with WindX(file_path) as res:
-                raster_index = res.get_raster_index(target, shape,
-                                                    max_delta=self.max_delta)
-
-        elif file_ext == '.nc':
-            nc_file = xr.open_dataset(file_path)
-            lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
-            lat_idx = np.argmin(np.abs(lat_diff))
-            lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
-            lon_idx = np.argmin(np.abs(lon_diff))
-            raster_index = [[lat_idx, lat_idx + shape[0]],
-                            [lon_idx, lon_idx + shape[1]]]
+        if self.raster_file is not None and os.path.exists(self.raster_file):
+            raster_index = np.loadtxt(self.raster_file)
         else:
-            raise ConfigError('Data must be either h5 or netcdf '
-                              f'but received file extension: {file_ext}')
+            _, file_ext = os.path.splitext(file_path)
+            if file_ext == '.h5':
+                with WindX(file_path) as res:
+                    raster_index = \
+                        res.get_raster_index(target, shape,
+                                             max_delta=self.max_delta)
+
+            elif file_ext == '.nc':
+                nc_file = xr.open_dataset(file_path)
+                lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
+                lat_idx = np.argmin(np.abs(lat_diff))
+                lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
+                lon_idx = np.argmin(np.abs(lon_diff))
+                raster_index = [[lat_idx, lat_idx + shape[0]],
+                                [lon_idx, lon_idx + shape[1]]]
+            else:
+                raise ConfigError('Data must be either h5 or netcdf '
+                                  f'but received file extension: {file_ext}')
+            if self.raster_file is not None:
+                np.savetxt(self.raster_file, raster_index)
         return raster_index
 
     @classmethod
@@ -202,7 +358,8 @@ class DataHandler:
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
-                             len(features)), dtype=np.float32)
+                             len(features)),
+                            dtype=np.float32)
 
             for j, f in enumerate(features):
                 data[:, :, :, j] = np.transpose(handle[f, :, raster_index],
@@ -274,7 +431,8 @@ class DataHandler:
 
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
-                                    raster_index.shape[1], 2))
+                                    raster_index.shape[1], 2),
+                                   dtype=np.float32)
                 lat_lon[:, :, 0] = \
                     handle['XLAT'][0, raster_index[0][0]:raster_index[0][1], 0]
                 lat_lon[:, :, 1] = \
@@ -307,7 +465,7 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data, batch_size=8, val_split=0.2,
+    def __init__(self, multi_data_handler, batch_size=8, val_split=0.2,
                  spatial_res=2, norm=True):
         """
         Parameters
@@ -320,7 +478,7 @@ class SpatialBatchHandler:
             factor by which to coarsen spatial dimensions
         """
 
-        self.data = data
+        self.multi_data_handler = multi_data_handler
         self.val_split = val_split
         self.training_indices, self.val_indices = self._split_data()
         self.batch_size = batch_size
@@ -331,12 +489,52 @@ class SpatialBatchHandler:
         self.low_res = None
         self.high_res = None
         self.data_handler = None
-        self.norm = norm
+        self.means = np.zeros((multi_data_handler.shape[3]), dtype=np.float32)
+        self.stds = np.zeros((multi_data_handler.shape[3]), dtype=np.float32)
 
-        if self.norm:
+        if norm:
             self.means, self.stds = self._get_stats()
-            self.data = \
-                self._normalize_data_all(self.means, self.stds)
+            self._normalize_data_all(self.means, self.stds)
+
+    def data(self, time_steps):
+        """Returns MultiDataHandler data method
+
+        Parameters
+        ----------
+        time_steps : list
+            list of integer time indices
+
+        Returns
+        -------
+        data : np.ndarray
+            4D data array with time dimension size
+            equal to len(time_steps)
+            (spatial_1, spatial_2, temporal, features)
+        """
+        return self.multi_data_handler.data(time_steps)
+
+    @property
+    def stacked_data(self):
+        """MultiDataHandler stacked_data method
+
+        Returns
+        -------
+        data : np.ndarray
+            4D data array with time dimension concatenated
+            from all data handler data
+            (spatial_1, spatial_2, temporal, features)
+        """
+        return self.multi_data_handler.stacked_data
+
+    def __len__(self):
+        """Length method
+
+        Returns
+        -------
+        n_batches : int
+            Number of batches in handler instance
+        """
+        return len(self.batch_indices)
 
     def _normalize_data_all(self, means, stds):
         """Normalize all data features
@@ -351,17 +549,11 @@ class SpatialBatchHandler:
             dimensions (features)
             array of means for all features
             with same ordering as data features
-
-        Returns
-        -------
-        data : np.ndarray
-            Normalized data array
-            (spatial_1, spatial_2, temporal, features)
         """
 
-        for i in range(len(self.data.shape[3])):
-            self.data = self._normalize_data(i, means[i], stds[i])
-        return self.data
+        for i in range(self.multi_data_handler.shape[3]):
+            self._normalize_data(i, means[i], stds[i])
+        return
 
     def _normalize_data(self, feature_index, mean, std):
         """Normalize data with initialized
@@ -382,9 +574,11 @@ class SpatialBatchHandler:
         data : np.ndarray
             normalized data array
         """
-        self.data[:, :, :, feature_index] = \
-            (self.data[:, :, :, feature_index] - mean) / std
-        return self.data
+
+        for d in self.multi_data_handler:
+            d.data[:, :, :, feature_index] = \
+                (d.data[:, :, :, feature_index] - mean) / std
+        return
 
     def _get_stats(self):
         """Get standard deviations and means
@@ -402,9 +596,9 @@ class SpatialBatchHandler:
             with same ordering as data features
         """
 
-        for i in range(self.data.shape[3]):
-            self.means[i] = np.mean(self.data[:, :, :, i])
-            self.stds[i] = np.std(self.data[:, :, :, i])
+        for i in range(self.multi_data_handler.shape[3]):
+            self.means[i] = np.mean(self.stacked_data[:, :, :, i])
+            self.stds[i] = np.std(self.stacked_data[:, :, :, i])
         return self.means, self.stds
 
     def _split_data(self):
@@ -425,7 +619,7 @@ class SpatialBatchHandler:
             array of indices for validation data slice
         """
 
-        n_observations = self.data.shape[2]
+        n_observations = self.multi_data_handler.shape[2]
         all_indices = np.arange(n_observations)
         shuffled = all_indices.copy()
         np.random.shuffle(shuffled)
@@ -445,15 +639,15 @@ class SpatialBatchHandler:
             batch.low_res and batch.high_res
         """
         low_res, high_res = \
-            self._reshape_data(self.data[:, :, self.val_indices, :])
+            self._reshape_data(self.data(self.val_indices))
         batch = Batch(low_res, high_res)
         return batch
 
     @classmethod
-    def make(cls, data_files, target,
+    def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20):
+             max_delta=20, norm=True):
         """Method to initialize both
         data and batch handlers
 
@@ -484,14 +678,15 @@ class SpatialBatchHandler:
         batchHandler : SpatialBatchHandler
             batchHandler with dataHandler attribute
         """
-        data_handler = DataHandler(data_files, target,
-                                   shape, features,
-                                   max_delta=max_delta)
-        batch_handler = SpatialBatchHandler(data_handler.data,
+        multi_data_handler = MultiDataHandler(file_paths, targets,
+                                              shape, features,
+                                              max_delta=max_delta)
+        batch_handler = SpatialBatchHandler(multi_data_handler,
                                             batch_size=batch_size,
                                             val_split=val_split,
-                                            spatial_res=spatial_res)
-        batch_handler.data_handler = data_handler
+                                            spatial_res=spatial_res,
+                                            norm=norm)
+        batch_handler.multi_data_handler = multi_data_handler
         return batch_handler
 
     def _get_batch_indices(self):
@@ -538,8 +733,7 @@ class SpatialBatchHandler:
     def __next__(self):
         if self._i < self.max:
             self.high_res = \
-                self.data[:, :,
-                          self.batch_indices[self._i], :]
+                self.data(self.batch_indices[self._i])
             self.low_res, self.high_res = \
                 self._reshape_data(self.high_res)
             batch = Batch(self.low_res, self.high_res)
