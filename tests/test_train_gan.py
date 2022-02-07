@@ -38,18 +38,24 @@ def test_train_spatial(log=False):
     batch_handler = SpatialBatchHandler(reduced_data, batch_size=32,
                                         spatial_res=2)
 
-    # test that training works and reduces loss
-    model.train(batch_handler, n_epoch=4, weight_gen_advers=0.0,
-                train_gen=True, train_disc=False)
-    assert len(model.history) == 4
-    assert (np.diff(model.history['training_loss_gen'].values) < 0).all()
-    assert (np.diff(model.history['validation_loss_gen'].values) < 0).all()
-
-    # make an un-trained dummy model
-    dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    # test save/load functionality
     with tempfile.TemporaryDirectory() as td:
+        # test that training works and reduces loss
+        model.train(batch_handler, n_epoch=4, weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False, checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert len(model.history) == 4
+        assert (np.diff(model.history['training_loss_gen'].values) < 0).all()
+        assert (np.diff(model.history['validation_loss_gen'].values) < 0).all()
+        assert 'test_0' in os.listdir(td)
+        assert 'test_2' in os.listdir(td)
+        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
+
+        # make an un-trained dummy model
+        dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+        # test save/load functionality
         out_dir = os.path.join(td, 'spatial_gan')
         model.save(out_dir)
         loaded = model.load(out_dir)

@@ -613,7 +613,8 @@ class SpatialGan(BaseModel):
         return loss_gen, loss_disc
 
     def train(self, batch_handler, n_epoch, weight_gen_advers=0.001,
-              train_gen=True, train_disc=True):
+              train_gen=True, train_disc=True, checkpoint_int=None,
+              out_dir='./spatial_gan_{epoch}'):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -632,6 +633,12 @@ class SpatialGan(BaseModel):
             Flag whether to train the generator for this set of epochs
         train_disc : bool
             Flag whether to train the discriminator for this set of epochs
+        checkpoint_int : int | None
+            Epoch interval at which to save checkpoint models.
+        out_dir : str
+            Directory to save checkpoint GAN models. Should have {epoch} in
+            the directory name. This directory will be created if it does not
+            already exist.
         """
 
         epochs = list(range(n_epoch))
@@ -684,6 +691,12 @@ class SpatialGan(BaseModel):
             self._history.at[epoch, 'training_loss_disc'] = loss_disc
             self._history.at[epoch, 'validation_loss_gen'] = val_loss_gen
             self._history.at[epoch, 'validation_loss_disc'] = val_loss_disc
+
+            if checkpoint_int is not None and (epoch % checkpoint_int) == 0:
+                msg = ('GAN output dir for checkpoint models should have '
+                       f'{"{epoch}"} but did not: {out_dir}')
+                assert '{epoch}' in out_dir, msg
+                self.save(out_dir.format(epoch=epoch))
 
 
 class SpatioTemporalGan(BaseModel):
