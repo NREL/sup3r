@@ -5,7 +5,6 @@ Sup3r preprocessing module.
 import xarray as xr
 import numpy as np
 import os
-from collections import defaultdict
 
 from rex import WindX
 from reV.utilities.exceptions import ConfigError
@@ -19,7 +18,8 @@ class MultiDataHandler:
     """
 
     def __init__(self, file_paths, targets, shape,
-                 features, max_delta=20, raster_files=None):
+                 features, max_delta=20, raster_files=None,
+                 batch_size=8, val_split=0.1):
         """
         Parameters
         ----------
@@ -45,6 +45,12 @@ class MultiDataHandler:
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all
             targets. If None raster_index will be calculated directly.
+        val_split : float32
+            Fraction of data to store for validation
+        batch_size : int
+            size of batches along temporal dimension
+        spatial_res: int
+            factor by which to coarsen spatial dimensions
         """
 
         if not isinstance(targets, list):
@@ -59,6 +65,8 @@ class MultiDataHandler:
             data_handlers.append(DataHandler(f, targets[i],
                                              shape, features,
                                              max_delta=max_delta,
+                                             batch_size=batch_size,
+                                             val_split=val_split,
                                              raster_file=raster_files[i]))
         self.data_handlers = data_handlers
         self.current_handler = None
@@ -66,9 +74,27 @@ class MultiDataHandler:
         self.grid_shape = shape
         self.features = features
         self._i = 0
-        self.time_index_map = self.get_time_index_map()
         self.means = np.zeros((self.shape[-1]), dtype=np.float32)
         self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.batch_indices = self.get_batch_indices()
+
+    def get_batch_indices(self):
+        """Aggregate batch indices from each data handler
+        into single array of all batch indices, with an index
+        for the data handler the batch came from.
+
+        Returns
+        -------
+        batch_indices : np.ndarray
+            list of batch indices across all data handlers
+        """
+        self.batch_indices = []
+        for i, h in enumerate(self.data_handlers):
+            for b in h.batch_indices:
+                self.batch_indices.append(
+                    {'handler_index': i, 'batch_indices': b})
+        np.random.shuffle(self.batch_indices)
+        return self.batch_indices
 
     def normalize(self):
         """Compute means and stds for each feature
@@ -111,31 +137,6 @@ class MultiDataHandler:
 
         return self.means, self.stds
 
-    def get_time_index_map(self):
-        """Get map of stacked time index to handler index, and
-        hander specific time index
-
-        Returns
-        -------
-        time_index_map : np.ndarray
-            array of pairs for each time index across
-            all data handlers. e.g. if there are two data
-            handlers both with 2 time steps we would have
-            [[0, 0], [0, 1], [1, 0], [1, 1]]
-        """
-        handler_times = np.zeros((self.__len__()), np.int32)
-        time_index_map = np.zeros((self.shape[2], 2), np.int32)
-        for i, d in enumerate(self.data_handlers):
-            handler_times[i] = sum(handler_times[:i]) + d.data.shape[2]
-
-        for i, _ in enumerate(time_index_map):
-            handler_index = np.argmin(np.abs(handler_times - i))
-            if handler_times[handler_index] < i:
-                handler_index -= 1
-            time_index_map[i] = \
-                [handler_index, i - handler_times[handler_index]]
-        return time_index_map
-
     @property
     def shape(self):
         """Shape property
@@ -170,60 +171,14 @@ class MultiDataHandler:
         else:
             raise StopIteration
 
-    def _bin_indices(self, time_steps):
-        """Bin time indices according to handler index
-        so that batching can be done with fancy indexing
-        instead of a for loop
-
-        Parameters
-        ----------
-        time_steps : list
-            list of integer time indices
-
-        Returns
-        -------
-        index_bins : dict
-            dictionary of integer arrays where keys
-            are data handler indices and values are lists
-            of time indices for that data handler
-        """
-        index_bins = defaultdict(list)
-        for t in time_steps:
-            index_map = self.time_index_map[t]
-            index_bins[index_map[0]].append(index_map[1])
-        return index_bins
-
-    def data(self, time_steps):
-        """Data property. Used in batching to select
-        3D arrays of (spatial_1, spatial_2, features)
-        for each of the indices in time_steps.
-
-        Parameters
-        ----------
-        time_steps : list
-            list of integer time indices
-
-        Returns
-        -------
-        data : np.ndarray
-            4D data array with time dimension size
-            equal to len(time_steps)
-            (spatial_1, spatial_2, temporal, features)
-        """
-
-        index_bins = self._bin_indices(time_steps)
-        data = np.concatenate(
-            [self.data_handlers[k].data[:, :, v, :] for
-             k, v in index_bins.items()], axis=2)
-        return data
-
 
 class DataHandler:
     """Sup3r data handling and extraction"""
 
     def __init__(self, file_path, target,
                  shape, features, max_delta=20,
-                 raster_file=None):
+                 raster_file=None, val_split=0.1,
+                 batch_size=8):
         """Data handling and extraction
 
         Parameters
@@ -246,6 +201,10 @@ class DataHandler:
             shape. If specified the raster_index will be loaded from the file
             if it exists or written to the file if it does not yet exist.
             If None raster_index will be calculated directly.
+        val_split : float32
+            Fraction of data to store for validation
+        batch_size : int
+            size of batches along temporal dimension
         """
 
         self.file_path = file_path
@@ -255,7 +214,59 @@ class DataHandler:
         self.raster_index = None
         self.max_delta = max_delta
         self.raster_file = raster_file
+        self.val_split = val_split
+        self.batch_size = batch_size
         self.data, self.lat_lon = self.extract_data()
+        self.data, self.val_data = self._split_data()
+        self.batch_indices = self.get_batch_indices()
+
+    def _split_data(self):
+        """Splits time dimension into set of training indices
+        and validation indices
+
+        Parameters
+        ----------
+        val_split : float32, optional
+            Fraction of full data array to
+            reserve for validation, by default 0.2
+
+        Returns
+        -------
+        data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Training data fraction of initial data array. Initial
+            data array is overwritten by this new data array.
+        val_data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Validation data fraction of initial data array.
+        """
+
+        n_observations = self.shape[2]
+        all_indices = np.arange(n_observations)
+        shuffled = all_indices.copy()
+        np.random.shuffle(shuffled)
+        n_val_obs = int(self.val_split * n_observations)
+        val_indices = shuffled[:n_val_obs]
+        training_indices = shuffled[n_val_obs:]
+        self.val_data = self.data[:, :, val_indices, :]
+        self.data = self.data[:, :, training_indices, :]
+        return self.data, self.val_data
+
+    def get_batch_indices(self):
+        """Get batch indices for data from this specific
+        DataHandler instance
+
+        Returns
+        -------
+        batch_indices : np.ndarray
+            Array of index arrays corresponding to all batches
+            from this handler's dataset
+        """
+
+        all_indices = np.arange(self.data.shape[2])
+        n_batches = int(np.ceil(len(all_indices) / self.batch_size))
+        self.batch_indices = np.array_split(all_indices, n_batches)
+        return self.batch_indices
 
     def normalize(self, means, stds):
         """Normalize all data features
@@ -288,16 +299,13 @@ class DataHandler:
             specified mean of associated feature
         std : float32
             specificed standard deviation for associated feature
-
-        Returns
-        -------
-        data : np.ndarray
-            normalized data array
         """
+
+        self.val_data[:, :, :, feature_index] = \
+            (self.val_data[:, :, :, feature_index] - mean) / std
 
         self.data[:, :, :, feature_index] = \
             (self.data[:, :, :, feature_index] - mean) / std
-        return self.data
 
     @property
     def shape(self):
@@ -576,8 +584,8 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, multi_data_handler, batch_size=8, val_split=0.2,
-                 spatial_res=2, norm=True):
+    def __init__(self, multi_data_handler, batch_size=8,
+                 val_split=0.2, spatial_res=2, norm=True):
         """
         Parameters
         ----------
@@ -596,15 +604,14 @@ class SpatialBatchHandler:
 
         self.multi_data_handler = multi_data_handler
         self.val_split = val_split
-        self.training_indices, self.val_indices = self._split_data()
         self.batch_size = batch_size
         self.spatial_res = spatial_res
-        self.batch_indices = self._get_batch_indices()
-        self.max = len(self.batch_indices)
         self._i = 0
         self.low_res = None
         self.high_res = None
         self.data_handler = None
+        self.batch_indices = multi_data_handler.batch_indices
+        self.max = len(self.batch_indices)
 
         if norm:
             self.multi_data_handler.normalize()
@@ -636,33 +643,6 @@ class SpatialBatchHandler:
         """
         return len(self.batch_indices)
 
-    def _split_data(self):
-        """Splits time dimension into set of training indices
-        and validation indices
-
-        Parameters
-        ----------
-        val_split : float32, optional
-            Fraction of full data array to
-            reserve for validation, by default 0.2
-
-        Returns
-        -------
-        training_indices : np.ndarray
-            array of indices for training data slice
-        val_indices : np.ndarray
-            array of indices for validation data slice
-        """
-
-        n_observations = self.multi_data_handler.shape[2]
-        all_indices = np.arange(n_observations)
-        shuffled = all_indices.copy()
-        np.random.shuffle(shuffled)
-        n_val_obs = int(self.val_split * n_observations)
-        self.val_indices = shuffled[:n_val_obs]
-        self.training_indices = shuffled[n_val_obs:]
-        return self.training_indices, self.val_indices
-
     @property
     def val_data(self):
         """Validation data property
@@ -673,8 +653,11 @@ class SpatialBatchHandler:
             validation data batch. includes
             batch.low_res and batch.high_res
         """
+        val_data = np.concatenate(
+            [d.val_data for d in self.multi_data_handler.data_handlers],
+            axis=2)
         low_res, high_res = \
-            self._reshape_data(self.data(self.val_indices))
+            self._reshape_data(val_data)
         batch = Batch(low_res, high_res)
         return batch
 
@@ -682,7 +665,8 @@ class SpatialBatchHandler:
     def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
              batch_size=8, spatial_res=3,
-             max_delta=20, norm=True, raster_files=None):
+             max_delta=20, norm=True,
+             raster_files=None):
         """Method to initialize both
         data and batch handlers
 
@@ -721,7 +705,8 @@ class SpatialBatchHandler:
         multi_data_handler = MultiDataHandler(file_paths, targets,
                                               shape, features,
                                               max_delta=max_delta,
-                                              raster_files=raster_files)
+                                              raster_files=raster_files,
+                                              batch_size=batch_size)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             batch_size=batch_size,
                                             val_split=val_split,
@@ -729,20 +714,6 @@ class SpatialBatchHandler:
                                             norm=norm)
         batch_handler.multi_data_handler = multi_data_handler
         return batch_handler
-
-    def _get_batch_indices(self):
-        """Get set of indices for data batches
-
-        Returns
-        -------
-        batch_indices : np.ndarray
-            array of indices for data batches
-        """
-
-        n_batches = int(np.ceil(len(self.training_indices) / self.batch_size))
-        self.batch_indices = np.array_split(self.training_indices, n_batches)
-
-        return self.batch_indices
 
     def _reshape_data(self, high_res):
         """Coarsens high res data and reshapes data arrays
@@ -773,11 +744,14 @@ class SpatialBatchHandler:
 
     def __next__(self):
         if self._i < self.max:
-            self.high_res = \
-                self.data(self.batch_indices[self._i])
-            self.low_res, self.high_res = \
-                self._reshape_data(self.high_res)
-            batch = Batch(self.low_res, self.high_res)
+            batch = self.batch_indices[self._i]
+            high_res = \
+                self.multi_data_handler.data_handlers[
+                    batch['handler_index']].data[:, :,
+                                                 batch['batch_indices'],
+                                                 :]
+            low_res, high_res = self._reshape_data(high_res)
+            batch = Batch(low_res, high_res)
             self._i += 1
             return batch
         else:

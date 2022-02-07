@@ -72,7 +72,7 @@ def test_normalization():
     for i in range(len(features)):
         std = np.std(stacked_data[:, :, :, i])
         mean = np.mean(stacked_data[:, :, :, i])
-        assert 0.99999 <= std <= 1.0
+        assert 0.99999 <= std <= 1.00001
         assert -0.00001 <= mean <= 0.00001
 
 
@@ -92,7 +92,10 @@ def test_batch_handling():
     for batch in batch_handler:
         n_observations += batch.low_res.shape[0]
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
-    assert n_observations == len(batch_handler.training_indices)
+    batch_index_count = 0
+    for b in batch_handler.batch_indices:
+        batch_index_count += len(b['batch_indices'])
+    assert n_observations == batch_index_count
 
 
 @pytest.mark.parametrize(
