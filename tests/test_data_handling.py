@@ -98,6 +98,25 @@ def test_batch_handling():
     assert n_observations == batch_index_count
 
 
+def test_val_data_storage():
+    """Test validation data storage from batch handler method"""
+
+    val_data = batch_handler.val_data
+    assert val_data.low_res.shape[0] == val_data.high_res.shape[0]
+    assert [s for s in val_data.low_res.shape[1:3]] == \
+        [s // spatial_res for s in shape]
+
+    n_observations = 0
+    for f in input_files:
+
+        handler = DataHandler(f, target, shape, features,
+                              max_delta, raster_file=raster_file,
+                              val_split=val_split)
+        data, _ = handler.extract_data()
+        n_observations += data.shape[2]
+    assert val_data.low_res.shape[0] == int(val_split * n_observations)
+
+
 @pytest.mark.parametrize(
     ('spatial_res', 'plot'),
     ((10, False),

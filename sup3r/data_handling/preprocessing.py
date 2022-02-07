@@ -584,54 +584,34 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, multi_data_handler, batch_size=8,
-                 val_split=0.2, spatial_res=2, norm=True):
+    def __init__(self, multi_data_handler, spatial_res, norm=True):
         """
         Parameters
         ----------
         multi_data_handler : MultiDataHandler
             Instance of MultiDataHandler. Includes set of
             DataHandler instances
-        batch_size : int
-            size of batches along temporal dimension
-        spatial_res: int
-            factor by which to coarsen spatial dimensions
-        val_split : float
-            fraction of data to reserve for validation
+        spatial_res : int
+            Factor by which to coarsen spatial dimensions to generate
+            low res data
         norm : bool
             Whether to normalize the data or not
         """
 
         self.multi_data_handler = multi_data_handler
-        self.val_split = val_split
-        self.batch_size = batch_size
-        self.spatial_res = spatial_res
         self._i = 0
         self.low_res = None
         self.high_res = None
         self.data_handler = None
         self.batch_indices = multi_data_handler.batch_indices
         self.max = len(self.batch_indices)
+        self._val_data = None
+        self.spatial_res = spatial_res
 
         if norm:
             self.multi_data_handler.normalize()
 
-    def data(self, time_steps):
-        """Returns MultiDataHandler data method
-
-        Parameters
-        ----------
-        time_steps : list
-            list of integer time indices
-
-        Returns
-        -------
-        data : np.ndarray
-            4D data array with time dimension size
-            equal to len(time_steps)
-            (spatial_1, spatial_2, temporal, features)
-        """
-        return self.multi_data_handler.data(time_steps)
+        self._val_data = self.val_data
 
     def __len__(self):
         """Length method
@@ -653,13 +633,14 @@ class SpatialBatchHandler:
             validation data batch. includes
             batch.low_res and batch.high_res
         """
-        val_data = np.concatenate(
-            [d.val_data for d in self.multi_data_handler.data_handlers],
-            axis=2)
-        low_res, high_res = \
-            self._reshape_data(val_data)
-        batch = Batch(low_res, high_res)
-        return batch
+        if self._val_data is None:
+            high_res = np.concatenate(
+                [d.val_data for d in self.multi_data_handler.data_handlers],
+                axis=2)
+            low_res, high_res = \
+                self._reshape_data(high_res)
+            self._val_data = Batch(low_res, high_res)
+        return self._val_data
 
     @classmethod
     def make(cls, file_paths, targets,
@@ -705,11 +686,10 @@ class SpatialBatchHandler:
         multi_data_handler = MultiDataHandler(file_paths, targets,
                                               shape, features,
                                               max_delta=max_delta,
+                                              val_split=val_split,
                                               raster_files=raster_files,
                                               batch_size=batch_size)
         batch_handler = SpatialBatchHandler(multi_data_handler,
-                                            batch_size=batch_size,
-                                            val_split=val_split,
                                             spatial_res=spatial_res,
                                             norm=norm)
         batch_handler.multi_data_handler = multi_data_handler
