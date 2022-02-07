@@ -30,11 +30,7 @@ def test_train_spatial(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    model = SpatialGan(fp_gen, fp_disc,
-                       weight_gen_content=1.0,
-                       weight_gen_advers=0.0,
-                       weight_disc=0.0,
-                       learning_rate=1e-4)
+    model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     data_handler = DataHandler([input_file], target, shape, features,
                                max_delta=20)
@@ -43,17 +39,14 @@ def test_train_spatial(log=False):
                                         spatial_res=2)
 
     # test that training works and reduces loss
-    model.train(batch_handler, n_epoch=4)
+    model.train(batch_handler, n_epoch=4, weight_gen_advers=0.0,
+                train_gen=True, train_disc=False)
     assert len(model.history) == 4
-    assert (np.diff(model.history['training_loss'].values) < 0).all()
-    assert (np.diff(model.history['validation_loss'].values) < 0).all()
+    assert (np.diff(model.history['training_loss_gen'].values) < 0).all()
+    assert (np.diff(model.history['validation_loss_gen'].values) < 0).all()
 
     # make an un-trained dummy model
-    dummy = SpatialGan(fp_gen, fp_disc,
-                       weight_gen_content=1.0,
-                       weight_gen_advers=0.0,
-                       weight_disc=0.0,
-                       learning_rate=1e-4)
+    dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     # test save/load functionality
     with tempfile.TemporaryDirectory() as td:

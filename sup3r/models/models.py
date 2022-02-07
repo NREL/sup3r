@@ -3,7 +3,10 @@
 from abc import ABC, abstractmethod
 import os
 import time
+import json
 import logging
+import numpy as np
+import pprint
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
@@ -18,22 +21,37 @@ logger = logging.getLogger(__name__)
 class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
-    def __init__(self, optimizer=None, learning_rate=1e-4, name=None):
+    def __init__(self, optimizer=None, learning_rate=1e-4,
+                 history=None, version_record=None, name=None):
         """
         Parameters
         ----------
-        optimizer : tensorflow.keras.optimizers | dict | None
+        optimizer : tensorflow.keras.optimizers | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        history : pd.DataFrame | str | None
+            Model training history with "epoch" index, str pointing to a saved
+            history csv file with "epoch" as first column, or None for clean
+            history
+        version_record : dict | None
+            Optional record of import package versions. None (default) will
+            save active environment versions. A dictionary will be interpreted
+            as versions from a loaded model and will be saved as an attribute.
         name : str | None
             Optional name for the GAN.
         """
         self.name = name
-        self._history = None
         self._gen = None
+        self._learning_rate = learning_rate
+
+        self._version_record = CustomNetwork._parse_versions(version_record)
+
+        self._history = history
+        if isinstance(self._history, str):
+            self._history = pd.read_csv(self._history, index_col=0)
 
         self._optimizer = optimizer
         if isinstance(optimizer, dict):
@@ -130,6 +148,62 @@ class BaseModel(ABC):
                                       training=training)
 
     @property
+    def version_record(self):
+        """A record of important versions that this model was built with.
+
+        Returns
+        -------
+        dict
+        """
+        return self._version_record
+
+    @property
+    def optimizer(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer
+
+    @property
+    def optimizer_config(self):
+        """Get a config that defines the current GAN optimizer
+
+        Returns
+        -------
+        dict
+        """
+        conf = self._optimizer.get_config()
+        for k, v in conf.items():
+            # need to convert numpy dtypes to float/int for json.dump()
+            if np.issubdtype(type(v), np.floating):
+                conf[k] = float(v)
+            elif np.issubdtype(type(v), np.integer):
+                conf[k] = int(v)
+        return conf
+
+    @property
+    def model_params(self):
+        """
+        Model parameters, used to save model to disc
+
+        Returns
+        -------
+        dict
+        """
+
+        model_params = {'name': self.name,
+                        'version_record': self.version_record,
+                        'learning_rate': self._learning_rate,
+                        'optimizer': self.optimizer_config,
+                        }
+
+        return model_params
+
+    @property
     def history(self):
         """
         Model training history DataFrame (None if not yet trained)
@@ -170,11 +244,6 @@ class BaseModel(ABC):
 
         Returns
         -------
-        loss : tf.Tensor
-            0D tensor representing the full GAN loss term. This can be a
-            weighted summation of up to four individual loss terms from the
-            generative / discriminative models and their respective spatial /
-            temporal components or models.
         loss_diagnostics : dict
             Namespace of the breakdown of loss components
         """
@@ -191,7 +260,7 @@ class BaseModel(ABC):
 
         self._optimizer.apply_gradients(zip(grad, training_weights))
 
-        return loss, loss_diagnostics
+        return loss_diagnostics
 
     @staticmethod
     def calc_loss_gen_content(hi_res_true, hi_res_gen):
@@ -239,6 +308,7 @@ class BaseModel(ABC):
         # loss because of the opposite optimization goal
         loss_gen_advers = tf.nn.sigmoid_cross_entropy_with_logits(
             logits=disc_out_gen, labels=tf.ones_like(disc_out_gen))
+        loss_gen_advers = tf.reduce_mean(loss_gen_advers)
 
         return loss_gen_advers
 
@@ -301,7 +371,8 @@ class SpatialGan(BaseModel):
     """Spatial super resolution GAN model"""
 
     def __init__(self, gen_layers, disc_layers,
-                 optimizer=None, learning_rate=1e-4, name=None):
+                 optimizer=None, learning_rate=1e-4,
+                 history=None, version_record=None, name=None):
         """
         Parameters
         ----------
@@ -321,11 +392,20 @@ class SpatialGan(BaseModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        history : pd.DataFrame | str | None
+            Model training history with "epoch" index, str pointing to a saved
+            history csv file with "epoch" as first column, or None for clean
+            history
+        version_record : dict | None
+            Optional record of import package versions. None (default) will
+            save active environment versions. A dictionary will be interpreted
+            as versions from a loaded model and will be saved as an attribute.
         name : str | None
             Optional name for the GAN.
         """
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
+                         history=history, version_record=version_record,
                          name=name)
 
         self._gen = self.load_network(gen_layers, 'Generator')
@@ -346,9 +426,21 @@ class SpatialGan(BaseModel):
 
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         fp_disc = os.path.join(out_dir, 'model_disc.pkl')
-
         self.generator.save(fp_gen)
         self.disc.save(fp_disc)
+
+        fp_history = None
+        if isinstance(self.history, pd.DataFrame):
+            fp_history = os.path.join(out_dir, 'history.csv')
+            self.history.to_csv(fp_history)
+
+        fp_params = os.path.join(out_dir, 'model_params.json')
+        with open(fp_params, 'w') as f:
+            params = self.model_params
+            params['history'] = fp_history
+            json.dump(params, f, sort_keys=True, indent=2)
+
+        logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
 
     @classmethod
     def load(cls, out_dir):
@@ -363,8 +455,20 @@ class SpatialGan(BaseModel):
 
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         fp_disc = os.path.join(out_dir, 'model_disc.pkl')
-        gan = cls(fp_gen, fp_disc)
-        return gan
+        fp_params = os.path.join(out_dir, 'model_params.json')
+        with open(fp_params, 'r') as f:
+            params = json.load(f)
+
+        if 'version_record' in params:
+            logger.info('Loading GAN from disk that was created with the '
+                        'following package versions: \n{}'
+                        .format(pprint.pformat(params['version_record'],
+                                               indent=4)))
+            active_versions = CustomNetwork._parse_versions(None)
+            logger.info('Active python environment versions: \n{}'
+                        .format(pprint.pformat(active_versions, indent=4)))
+
+        return cls(fp_gen, fp_disc, **params)
 
     @property
     def disc(self):
@@ -463,21 +567,19 @@ class SpatialGan(BaseModel):
 
         Returns
         -------
-        loss : tf.Tensor
-            0D loss value for the generator training loss.
         loss_gen : tf.Tensor
             0D loss value for the generator training loss.
         loss_disc
             0D loss value for the discriminator training loss.
         """
         logger.debug('Training generator...')
-        loss, diag = self.run_gradient_descent(
-            low_res, high_res, self.generator_weights,
-            weight_gen_advers=weight_gen_advers,
-            train_gen=True, train_disc=False)
+        diag = self.run_gradient_descent(low_res, high_res,
+                                         self.generator_weights,
+                                         weight_gen_advers=weight_gen_advers,
+                                         train_gen=True, train_disc=False)
         loss_gen = diag['loss_gen']
         loss_disc = diag['loss_disc']
-        return loss, loss_gen, loss_disc
+        return loss_gen, loss_disc
 
     def train_disc(self, low_res, high_res, weight_gen_advers):
         """Train the discriminator network.
@@ -497,21 +599,18 @@ class SpatialGan(BaseModel):
 
         Returns
         -------
-        loss : tf.Tensor
-            0D loss value for the discriminator training loss.
         loss_gen : tf.Tensor
             0D loss value for the generator training loss.
         loss_disc
             0D loss value for the discriminator training loss.
         """
         logger.debug('Training discriminator...')
-        loss, diag = self.run_gradient_descent(
-            low_res, high_res, self.disc_weights,
-            weight_gen_advers=weight_gen_advers,
-            train_gen=False, train_disc=True)
+        diag = self.run_gradient_descent(low_res, high_res, self.disc_weights,
+                                         weight_gen_advers=weight_gen_advers,
+                                         train_gen=False, train_disc=True)
         loss_gen = diag['loss_gen']
         loss_disc = diag['loss_disc']
-        return loss, loss_gen, loss_disc
+        return loss_gen, loss_disc
 
     def train(self, batch_handler, n_epoch, weight_gen_advers=0.001,
               train_gen=True, train_disc=True):
@@ -539,36 +638,24 @@ class SpatialGan(BaseModel):
 
         if self._history is None:
             self._history = pd.DataFrame(
-                columns=['elapsed_time',
-                         'training_loss',
-                         'validation_loss',
-                         ])
+                columns=['elapsed_time'])
             self._history.index.name = 'epoch'
         else:
             epochs += self._history.index.values[-1] + 1
 
-        loss = None
-        loss_gen = None
-        loss_disc = None
+        loss_gen = 0.0
+        loss_disc = 0.0
         t0 = time.time()
         logger.info('Starting model training with {} epochs.'.format(n_epoch))
         for epoch in epochs:
             for ib, batch in enumerate(batch_handler):
 
-                if loss is None:
-                    if train_gen:
-                        loss, loss_gen, loss_disc = self.train_generator(
-                            batch.low_res, batch.high_res, weight_gen_advers)
-                    if train_disc:
-                        loss, loss_gen, loss_disc = self.train_disc(
-                            batch.low_res, batch.high_res, weight_gen_advers)
-
-                if train_gen and loss_disc < 0.6:
-                    loss, loss_gen, loss_disc = self.train_generator(
+                if train_gen and (not train_disc or loss_disc < 0.6):
+                    loss_gen, loss_disc = self.train_generator(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
                 if train_disc and loss_disc > 0.45:
-                    loss, loss_gen, loss_disc = self.train_disc(
+                    loss_gen, loss_disc = self.train_disc(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
                 logger.debug('Batch {} train gen/disc loss: '
