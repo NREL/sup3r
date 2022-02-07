@@ -2,6 +2,7 @@
 """
 Sup3r preprocessing module.
 """
+import logging
 import xarray as xr
 import numpy as np
 import os
@@ -10,6 +11,9 @@ from rex import WindX
 from reV.utilities.exceptions import ConfigError
 from sup3r.utilities import utilities
 from sup3r import __version__
+
+
+logger = logging.getLogger(__name__)
 
 
 class MultiDataHandler:
@@ -88,6 +92,7 @@ class MultiDataHandler:
         batch_indices : np.ndarray
             list of batch indices across all data handlers
         """
+        logger.debug('Getting batch indices')
         self.batch_indices = []
         for i, h in enumerate(self.data_handlers):
             for b in h.batch_indices:
@@ -183,8 +188,8 @@ class DataHandler:
 
         Parameters
         ----------
-        data_files : list
-            list of file paths
+        file_path : list
+            Source wind data filepath .h5 or .nc
         target : tuple
             (lat, lon) lower left corner of raster
         shape : tuple
@@ -206,6 +211,8 @@ class DataHandler:
         batch_size : int
             size of batches along temporal dimension
         """
+        logger.info('Initializing DataHandler for shape {} and source file {}'
+                    .format(shape, file_path))
 
         self.file_path = file_path
         self.features = features
@@ -219,6 +226,7 @@ class DataHandler:
         self.data, self.lat_lon = self.extract_data()
         self.data, self.val_data = self._split_data()
         self.batch_indices = self.get_batch_indices()
+        logger.info('Finished DataHandler init')
 
     def _split_data(self):
         """Splits time dimension into set of training indices
@@ -240,12 +248,13 @@ class DataHandler:
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
         """
-
         n_observations = self.shape[2]
         all_indices = np.arange(n_observations)
         shuffled = all_indices.copy()
         np.random.shuffle(shuffled)
         n_val_obs = int(self.val_split * n_observations)
+        logger.debug('Splitting off {} out of {} timesteps for validation set'
+                     .format(n_val_obs, n_observations))
         val_indices = shuffled[:n_val_obs]
         training_indices = shuffled[n_val_obs:]
         self.val_data = self.data[:, :, val_indices, :]
@@ -375,11 +384,14 @@ class DataHandler:
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
+            logger.debug('Loading raster index: {}'.format(self.raster_file))
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             _, file_ext = os.path.splitext(file_path)
             if file_ext == '.h5':
                 with WindX(file_path) as res:
+                    logger.debug('Calculating raster of shape {} starting '
+                                 'at target {}'.format(shape, target))
                     raster_index = \
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
@@ -396,6 +408,8 @@ class DataHandler:
                 raise ConfigError('Data must be either h5 or netcdf '
                                   f'but received file extension: {file_ext}')
             if self.raster_file is not None:
+                logger.debug('Saving raster index: {}'
+                             .format(self.raster_file))
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
@@ -472,6 +486,7 @@ class DataHandler:
             Only returned if get_coords=True
         """
 
+        logger.debug('Retrieving data from file: {}'.format(file_path))
         with WindX(file_path, hsds=False) as handle:
 
             data = np.zeros((raster_index.shape[0],
@@ -487,6 +502,8 @@ class DataHandler:
                 lat_lon = np.zeros((raster_index.shape[0],
                                     raster_index.shape[1], 2))
                 lat_lon = handle.lat_lon[raster_index]
+
+            logger.debug('Finished retrieving data.')
 
         if get_coords:
             return data, lat_lon
@@ -523,6 +540,7 @@ class DataHandler:
             Only returned if get_coords=True
         """
 
+        logger.debug('Retrieving data from file: {}'.format(file_path))
         handle = xr.open_dataset(file_path)
 
         data = np.zeros((raster_index[0][1] - raster_index[0][0],
@@ -557,6 +575,8 @@ class DataHandler:
                 lat_lon[:, :, 1] = \
                     handle['XLONG'][0, :,
                                     raster_index[1][0]:raster_index[1][1]]
+
+            logger.debug('Finished retrieving data.')
 
         if get_coords:
             return data, lat_lon

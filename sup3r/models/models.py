@@ -665,9 +665,10 @@ class SpatialGan(BaseModel):
                     loss_gen, loss_disc = self.train_disc(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                logger.debug('Batch {} train gen/disc loss: '
+                logger.debug('Batch {} out of {} train gen/disc loss: '
                              '{:.2e}/{:.2e}'
-                             .format(ib + 1, loss_gen, loss_disc))
+                             .format(ib + 1, len(batch_handler),
+                                     loss_gen, loss_disc))
 
             hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
                                            to_numpy=False)
