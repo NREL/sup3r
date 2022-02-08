@@ -20,7 +20,8 @@ class MultiDataHandler:
     def __init__(self, file_paths, targets, shape,
                  features, max_delta=20, raster_files=None,
                  n_temporal_slices=8, n_spatial_slices=5,
-                 spatial_sample_shape=(10, 10), val_split=0.1):
+                 spatial_sample_shape=(10, 10),
+                 val_split=0.1, time_step=5):
         """
         Parameters
         ----------
@@ -58,6 +59,9 @@ class MultiDataHandler:
             size of spatial slices used for spatial batching
         spatial_res: int
             factor by which to coarsen spatial dimensions
+        time_step : int
+            Number of timesteps to downsample. If time_step=1 no time
+            steps will be skipped.
         """
 
         if not isinstance(targets, list):
@@ -76,7 +80,8 @@ class MultiDataHandler:
                             n_spatial_slices=n_spatial_slices,
                             spatial_sample_shape=spatial_sample_shape,
                             val_split=val_split,
-                            raster_file=raster_files[i]))
+                            raster_file=raster_files[i],
+                            time_step=time_step))
         self.data_handlers = data_handlers
         self.current_handler = None
         self.max = len(data_handlers)
@@ -196,7 +201,7 @@ class DataHandler:
                  shape, features, max_delta=20,
                  raster_file=None, val_split=0.1,
                  n_temporal_slices=8, n_spatial_slices=5,
-                 spatial_sample_shape=(10, 10)):
+                 spatial_sample_shape=(10, 10), time_step=1):
 
         """Data handling and extraction
 
@@ -230,6 +235,9 @@ class DataHandler:
             across spatial dimensions
         spatial_sample_shape : tuple
             size of spatial slices used for spatial batching
+        time_step : int
+            Number of timesteps to downsample. If time_step=1 no time
+            steps will be skipped.
         """
 
         self.file_path = file_path
@@ -243,7 +251,9 @@ class DataHandler:
         self.n_temporal_slices = n_temporal_slices
         self.spatial_sample_shape = spatial_sample_shape
         self.n_spatial_slices = n_spatial_slices
+        self.time_step = time_step
         self.data, self.lat_lon = self.extract_data()
+        self.data = self.data[:, :, ::time_step, :]
         self.data, self.val_data = self._split_data()
         self.temporal_slices = self.get_temporal_slices()
         self.spatial_slices = self.get_spatial_slices()
@@ -708,7 +718,8 @@ class SpatialBatchHandler:
              n_temporal_slices=8, n_spatial_slices=5,
              spatial_sample_shape=(10, 10),
              spatial_res=3, max_delta=20,
-             norm=True, raster_files=None):
+             norm=True, raster_files=None,
+             time_step=1):
         """Method to initialize both
         data and batch handlers
 
@@ -747,6 +758,9 @@ class SpatialBatchHandler:
         norm : bool
             Wether to normalize data using means/stds calulcated across
             all handlers
+        time_step : int
+            Number of timesteps to downsample. If time_step=1 no time
+            steps will be skipped.
 
         Returns
         -------
@@ -759,7 +773,8 @@ class SpatialBatchHandler:
             raster_files=raster_files,
             n_temporal_slices=n_temporal_slices,
             n_spatial_slices=n_spatial_slices,
-            spatial_sample_shape=spatial_sample_shape)
+            spatial_sample_shape=spatial_sample_shape,
+            time_step=time_step)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             spatial_res=spatial_res,
                                             norm=norm)
