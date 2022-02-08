@@ -27,7 +27,7 @@ spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
-time_step=3
+time_step = 3
 
 batch_handler = SpatialBatchHandler.make(
     input_files, targets, shape, features,
