@@ -12,7 +12,7 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models.models import SpatialGan
-from sup3r.data_handling.preprocessing import (DataHandler,
+from sup3r.data_handling.preprocessing import (MultiDataHandler,
                                                SpatialBatchHandler)
 
 
@@ -32,11 +32,11 @@ def test_train_spatial(log=False):
 
     model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
 
-    data_handler = DataHandler([input_file], target, shape, features,
-                               max_delta=20)
-    reduced_data = data_handler.data[:, :, ::100, :]
-    batch_handler = SpatialBatchHandler(reduced_data, batch_size=32,
-                                        spatial_res=2)
+    # need to reduce the number of temporal examples to test faster
+    handler = MultiDataHandler(input_file, target, shape, features,
+                               batch_size=256, max_delta=20)
+
+    batch_handler = SpatialBatchHandler(handler, spatial_res=2)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
@@ -53,7 +53,7 @@ def test_train_spatial(log=False):
         assert 'model_disc.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
-        dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-4)
+        dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
 
         # test save/load functionality
         out_dir = os.path.join(td, 'spatial_gan')
@@ -74,3 +74,8 @@ def test_train_spatial(log=False):
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
+
+if __name__ == '__main__':
+    from rex import init_logger
+    init_logger('sup3r', log_level='DEBUG')
+    test_train_spatial()
