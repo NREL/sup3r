@@ -27,6 +27,7 @@ spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
+time_step=3
 
 batch_handler = SpatialBatchHandler.make(
     input_files, targets, shape, features,
@@ -35,7 +36,8 @@ batch_handler = SpatialBatchHandler.make(
     n_spatial_slices=n_spatial_slices,
     spatial_res=spatial_res,
     max_delta=max_delta,
-    val_split=val_split)
+    val_split=val_split,
+    time_step=time_step)
 
 
 def test_raster_index_caching():
