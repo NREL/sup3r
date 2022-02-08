@@ -104,12 +104,10 @@ class MultiDataHandler:
         """
         self.batch_indices = []
         for i, h in enumerate(self.data_handlers):
-            for t in h.time_slices:
-                for s in h.spatial_slices:
-                    self.batch_indices.append(
-                        {'handler_index': i,
-                         'batch_indices':
-                         tuple(s + [t] + [slice(0, len(self.features) + 1)])})
+            for b in h.batch_indices:
+                self.batch_indices.append(
+                    {'handler_index': i,
+                     'batch_indices': b})
         np.random.shuffle(self.batch_indices)
         return self.batch_indices
 
@@ -156,8 +154,6 @@ class MultiDataHandler:
                 self.stds[i] += \
                     np.sum((data_handler.data[:, :, :, i] - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
-
-        return self.means, self.stds
 
     @property
     def shape(self):
@@ -253,10 +249,10 @@ class DataHandler:
         self.n_spatial_slices = n_spatial_slices
         self.time_step = time_step
         self.data, self.lat_lon = self.extract_data()
-        self.data = self.data[:, :, ::time_step, :]
         self.data, self.val_data = self._split_data()
         self.temporal_slices = self.get_temporal_slices()
         self.spatial_slices = self.get_spatial_slices()
+        self.batch_indices = self.get_batch_indices()
 
     def get_spatial_slices(self):
         """Get spatial subsamples from full training domain
@@ -306,6 +302,23 @@ class DataHandler:
         self.val_data = self.data[:, :, val_indices, :]
         self.data = self.data[:, :, training_indices, :]
         return self.data, self.val_data
+
+    def get_batch_indices(self):
+        """Get full set of batch indices
+        composed of all time slices and spatial slices
+
+        Returns
+        -------
+        batch_indices : list[tuple]
+            List of tuples which indicate temporal sample,
+            spatial sample, and features
+        """
+        self.batch_indices = []
+        for t in self.time_slices:
+            for s in self.spatial_slices:
+                self.batch_indices.append(
+                    tuple(s + [t] + [slice(0, len(self.features) + 1)]))
+        return self.batch_indices
 
     def get_temporal_slices(self):
         """Get indices for temporal slices for data
@@ -401,7 +414,8 @@ class DataHandler:
                                          raster_index,
                                          self.features)
 
-        y = utilities.transform_rotate_wind(y, lat_lon, self.features)
+        y = utilities.transform_rotate_wind(
+            y[:, :, ::self.time_step, :], lat_lon, self.features)
 
         self.data = y
         self.lat_lon = lat_lon
@@ -654,15 +668,13 @@ class SpatialBatchHandler:
         means : np.ndarray
             dimensions (features)
             array of means for all features
-            with same ordering as data features. If None
-            and norm is True then this will be used for
-            normalization
+            with same ordering as data features. If not None
+            and norm is True these will be used for normalization
         stds : np.ndarray
             dimensions (features)
             array of means for all features
-            with same ordering as data features. If None
-            and norm is True then this will be used for
-            normalization
+            with same ordering as data features. If not None
+            and norm is True these will be used form normalization
         """
 
         self.multi_data_handler = multi_data_handler
@@ -676,7 +688,7 @@ class SpatialBatchHandler:
         self.spatial_res = spatial_res
 
         if norm:
-            self.normalize(means, stds)
+            self.multi_data_handler.normalize(means, stds)
 
         self._val_data = self.val_data
 
@@ -689,22 +701,6 @@ class SpatialBatchHandler:
             Number of batches in handler instance
         """
         return len(self.batch_indices)
-
-    def normalize(self, means=None, stds=None):
-        """Normalize data with calculated means/stds if
-        these are passed as None or if not None then with
-        arguments
-
-        Parameters
-        ----------
-        means : list[float32] | None
-            means for each feature to use for normalization
-            or None
-        stds : list[float32] | None
-            stds for each feature to use for normalization
-            or None
-        """
-        self.multi_data_handler.normalize(means=means, stds=stds)
 
     @property
     def val_data(self):
