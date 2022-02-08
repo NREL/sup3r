@@ -22,7 +22,8 @@ class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
     def __init__(self, optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None, name=None):
+                 history=None, version_record=None,
+                 means=None, stdevs=None, name=None):
         """
         Parameters
         ----------
@@ -40,12 +41,23 @@ class BaseModel(ABC):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        means : np.ndarray | list | None
+            Set of mean values for data normalization with the same length as
+            number of features. Can be used to maintain a consistent
+            normalization scheme between transfer learning domains.
+        stdevs : np.ndarray | list | None
+            Set of stdev values for data normalization with the same length as
+            number of features. Can be used to maintain a consistent
+            normalization scheme between transfer learning domains.
         name : str | None
             Optional name for the GAN.
         """
         self.name = name
         self._gen = None
         self._learning_rate = learning_rate
+
+        self._means = means
+        self._stdevs = stdevs
 
         self._version_record = CustomNetwork._parse_versions(version_record)
 
@@ -105,6 +117,32 @@ class BaseModel(ABC):
             raise TypeError(msg)
 
         return model
+
+    def set_norm_stats(self, batch_handler):
+        """Set the normalization statistics associated with a data batch
+        handler to model attributes.
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            Data batch handler with a multi_data_handler attribute with
+            normalization stats.
+        """
+
+        if self._means is not None:
+            logger.info('Setting new normalization statistics...')
+            logger.info("Model's previous data mean values: {}"
+                        .format(self._means))
+            logger.info("Model's previous data stdev values: {}"
+                        .format(self._stdevs))
+
+        self._means = batch_handler.multi_data_handler.means
+        self._stdevs = batch_handler.multi_data_handler.stds
+
+        logger.info('Set data normalization mean values: {}'
+                    .format(self._means))
+        logger.info('Set data normalization stdev values: {}'
+                    .format(self._stdevs))
 
     @property
     def generator(self):
@@ -194,11 +232,17 @@ class BaseModel(ABC):
         -------
         dict
         """
+        means = (self._means if self._means is None
+                 else [float(m) for m in self._means])
+        stdevs = (self._stdevs if self._stdevs is None
+                  else [float(s) for s in self._stdevs])
 
         model_params = {'name': self.name,
                         'version_record': self.version_record,
                         'learning_rate': self._learning_rate,
                         'optimizer': self.optimizer_config,
+                        'means': means,
+                        'stdevs': stdevs,
                         }
 
         return model_params
@@ -372,7 +416,8 @@ class SpatialGan(BaseModel):
 
     def __init__(self, gen_layers, disc_layers,
                  optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None, name=None):
+                 history=None, version_record=None,
+                 means=None, stdevs=None, name=None):
         """
         Parameters
         ----------
@@ -400,13 +445,21 @@ class SpatialGan(BaseModel):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        means : np.ndarray | list | None
+            Set of mean values for data normalization with the same length as
+            number of features. Can be used to maintain a consistent
+            normalization scheme between transfer learning domains.
+        stdevs : np.ndarray | list | None
+            Set of stdev values for data normalization with the same length as
+            number of features. Can be used to maintain a consistent
+            normalization scheme between transfer learning domains.
         name : str | None
             Optional name for the GAN.
         """
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
                          history=history, version_record=version_record,
-                         name=name)
+                         means=means, stdevs=stdevs, name=name)
 
         self._gen = self.load_network(gen_layers, 'Generator')
         self._disc = self.load_network(disc_layers, 'Discriminator')
@@ -641,6 +694,8 @@ class SpatialGan(BaseModel):
             already exist.
         """
 
+        self.set_norm_stats(batch_handler)
+
         epochs = list(range(n_epoch))
 
         if self._history is None:
@@ -672,7 +727,7 @@ class SpatialGan(BaseModel):
 
             val_loss_gen = 0.0
             val_loss_disc = 0.0
-            for iv in len(batch_handler.val_data.low_res):
+            for iv in range(len(batch_handler.val_data.low_res)):
                 val_gen = self.generate(batch_handler.val_data.low_res[iv],
                                         to_numpy=False)
                 _, diag = self.calc_loss(batch_handler.val_data.high_res[iv],
@@ -709,7 +764,7 @@ class SpatioTemporalGan(BaseModel):
     """Spatio temporal super resolution GAN model."""
 
     def __init__(self, gen_layers, disc_t_layers, disc_s_layers,
-                 optimizer=None, learning_rate=1e-4, name=None):
+                 **kwargs):
         """
         Parameters
         ----------
@@ -728,18 +783,11 @@ class SpatioTemporalGan(BaseModel):
             discriminative spatial model. Can also be a str filepath to a
             .json config file containing the input layers argument or a .pkl
             for a saved pre-trained model.
-        optimizer : tensorflow.keras.optimizers | dict | None
-            Instantiated tf.keras.optimizers object or a dict optimizer config
-            from tf.keras.optimizers.get_config(). None defaults to Adam.
-        learning_rate : float, optional
-            Optimizer learning rate. Not used if optimizer input arg is a
-            pre-initialized object or if optimizer input arg is a config dict.
-        name : str | None
-            Optional name for the GAN.
+        kwargs : dict
+            Key word args for BaseModel init.
         """
 
-        super().__init__(optimizer=optimizer, learning_rate=learning_rate,
-                         name=name)
+        super().__init__(**kwargs)
 
         self._gen = self.load_network(gen_layers, 'Generator')
         self._disc_t = self.load_network(disc_t_layers, 'TemporalDisc')
