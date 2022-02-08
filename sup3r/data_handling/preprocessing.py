@@ -2,7 +2,6 @@
 """
 Sup3r preprocessing module.
 """
-import logging
 import xarray as xr
 import numpy as np
 import os
@@ -13,9 +12,6 @@ from sup3r.utilities import utilities
 from sup3r import __version__
 
 
-logger = logging.getLogger(__name__)
-
-
 class MultiDataHandler:
     """Class for handling multiple instances
     of DataHandler
@@ -23,7 +19,8 @@ class MultiDataHandler:
 
     def __init__(self, file_paths, targets, shape,
                  features, max_delta=20, raster_files=None,
-                 batch_size=8, val_split=0.1):
+                 n_temporal_slices=8, n_spatial_slices=5,
+                 spatial_sample_shape=(10, 10), val_split=0.1):
         """
         Parameters
         ----------
@@ -51,8 +48,14 @@ class MultiDataHandler:
             targets. If None raster_index will be calculated directly.
         val_split : float32
             Fraction of data to store for validation
-        batch_size : int
-            size of batches along temporal dimension
+        n_temporal_slices : int
+            number of temporal slices to use for batching
+            across time dimension
+        n_spatial_slices : int
+            number of spatial slices to use for batching
+            across spatial dimensions
+        spatial_sample_shape : tuple
+            size of spatial slices used for spatial batching
         spatial_res: int
             factor by which to coarsen spatial dimensions
         """
@@ -66,12 +69,14 @@ class MultiDataHandler:
 
         data_handlers = []
         for i, f in enumerate(file_paths):
-            data_handlers.append(DataHandler(f, targets[i],
-                                             shape, features,
-                                             max_delta=max_delta,
-                                             batch_size=batch_size,
-                                             val_split=val_split,
-                                             raster_file=raster_files[i]))
+            data_handlers.append(
+                DataHandler(f, targets[i], shape, features,
+                            max_delta=max_delta,
+                            n_temporal_slices=n_temporal_slices,
+                            n_spatial_slices=n_spatial_slices,
+                            spatial_sample_shape=spatial_sample_shape,
+                            val_split=val_split,
+                            raster_file=raster_files[i]))
         self.data_handlers = data_handlers
         self.current_handler = None
         self.max = len(data_handlers)
@@ -92,21 +97,28 @@ class MultiDataHandler:
         batch_indices : np.ndarray
             list of batch indices across all data handlers
         """
-        logger.debug('Getting batch indices')
         self.batch_indices = []
         for i, h in enumerate(self.data_handlers):
-            for b in h.batch_indices:
-                self.batch_indices.append(
-                    {'handler_index': i, 'batch_indices': b})
+            for t in h.time_slices:
+                for s in h.spatial_slices:
+                    self.batch_indices.append(
+                        {'handler_index': i,
+                         'batch_indices':
+                         tuple(s + [t] + [slice(0, len(self.features) + 1)])})
         np.random.shuffle(self.batch_indices)
         return self.batch_indices
 
-    def normalize(self):
+    def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature
         across all datasets and normalize each data handler dataset
         """
 
-        self._get_stats()
+        if means is None or stds is None:
+            self._get_stats()
+        if means is not None:
+            self.means = means
+        if stds is not None:
+            self.stds = stds
         for d in self.data_handlers:
             d.normalize(self.means, self.stds)
 
@@ -183,13 +195,15 @@ class DataHandler:
     def __init__(self, file_path, target,
                  shape, features, max_delta=20,
                  raster_file=None, val_split=0.1,
-                 batch_size=8):
+                 n_temporal_slices=8, n_spatial_slices=5,
+                 spatial_sample_shape=(10, 10)):
+
         """Data handling and extraction
 
         Parameters
         ----------
-        file_path : list
-            Source wind data filepath .h5 or .nc
+        data_files : list
+            list of file paths
         target : tuple
             (lat, lon) lower left corner of raster
         shape : tuple
@@ -208,11 +222,15 @@ class DataHandler:
             If None raster_index will be calculated directly.
         val_split : float32
             Fraction of data to store for validation
-        batch_size : int
-            size of batches along temporal dimension
+        n_temporal_slices : int
+            number of temporal slices to use for batching
+            across time dimension
+        n_spatial_slices : int
+            number of spatial slices to use for batching
+            across spatial dimensions
+        spatial_sample_shape : tuple
+            size of spatial slices used for spatial batching
         """
-        logger.info('Initializing DataHandler for shape {} and source file {}'
-                    .format(shape, file_path))
 
         self.file_path = file_path
         self.features = features
@@ -222,11 +240,30 @@ class DataHandler:
         self.max_delta = max_delta
         self.raster_file = raster_file
         self.val_split = val_split
-        self.batch_size = batch_size
+        self.n_temporal_slices = n_temporal_slices
+        self.spatial_sample_shape = spatial_sample_shape
+        self.n_spatial_slices = n_spatial_slices
         self.data, self.lat_lon = self.extract_data()
         self.data, self.val_data = self._split_data()
-        self.batch_indices = self.get_batch_indices()
-        logger.info('Finished DataHandler init')
+        self.temporal_slices = self.get_temporal_slices()
+        self.spatial_slices = self.get_spatial_slices()
+
+    def get_spatial_slices(self):
+        """Get spatial subsamples from full training domain
+
+        Returns
+        -------
+        spatial_slices : list[tuples]
+            List of n_spatial_slices slices corresponding to
+            spatial subsamples of full training domain
+        """
+
+        self.spatial_slices = []
+        for _ in range(self.n_spatial_slices):
+            self.spatial_slices.append(
+                utilities.uniform_box_sampler(
+                    self.data, self.spatial_sample_shape))
+        return self.spatial_slices
 
     def _split_data(self):
         """Splits time dimension into set of training indices
@@ -248,34 +285,32 @@ class DataHandler:
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
         """
+
         n_observations = self.shape[2]
         all_indices = np.arange(n_observations)
         shuffled = all_indices.copy()
         np.random.shuffle(shuffled)
         n_val_obs = int(self.val_split * n_observations)
-        logger.debug('Splitting off {} out of {} timesteps for validation set'
-                     .format(n_val_obs, n_observations))
         val_indices = shuffled[:n_val_obs]
         training_indices = shuffled[n_val_obs:]
         self.val_data = self.data[:, :, val_indices, :]
         self.data = self.data[:, :, training_indices, :]
         return self.data, self.val_data
 
-    def get_batch_indices(self):
-        """Get batch indices for data from this specific
-        DataHandler instance
+    def get_temporal_slices(self):
+        """Get indices for temporal slices for data
+        from this specific DataHandler instance
 
         Returns
         -------
-        batch_indices : np.ndarray
-            Array of index arrays corresponding to all batches
+        temporal_slices : np.ndarray
+            Array of index arrays along time dimension
             from this handler's dataset
         """
 
         all_indices = np.arange(self.data.shape[2])
-        n_batches = int(np.ceil(len(all_indices) / self.batch_size))
-        self.batch_indices = np.array_split(all_indices, n_batches)
-        return self.batch_indices
+        self.time_slices = np.array_split(all_indices, self.n_temporal_slices)
+        return self.time_slices
 
     def normalize(self, means, stds):
         """Normalize all data features
@@ -384,14 +419,11 @@ class DataHandler:
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug('Loading raster index: {}'.format(self.raster_file))
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             _, file_ext = os.path.splitext(file_path)
             if file_ext == '.h5':
                 with WindX(file_path) as res:
-                    logger.debug('Calculating raster of shape {} starting '
-                                 'at target {}'.format(shape, target))
                     raster_index = \
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
@@ -408,8 +440,6 @@ class DataHandler:
                 raise ConfigError('Data must be either h5 or netcdf '
                                   f'but received file extension: {file_ext}')
             if self.raster_file is not None:
-                logger.debug('Saving raster index: {}'
-                             .format(self.raster_file))
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
@@ -486,7 +516,6 @@ class DataHandler:
             Only returned if get_coords=True
         """
 
-        logger.debug('Retrieving data from file: {}'.format(file_path))
         with WindX(file_path, hsds=False) as handle:
 
             data = np.zeros((raster_index.shape[0],
@@ -502,8 +531,6 @@ class DataHandler:
                 lat_lon = np.zeros((raster_index.shape[0],
                                     raster_index.shape[1], 2))
                 lat_lon = handle.lat_lon[raster_index]
-
-            logger.debug('Finished retrieving data.')
 
         if get_coords:
             return data, lat_lon
@@ -540,7 +567,6 @@ class DataHandler:
             Only returned if get_coords=True
         """
 
-        logger.debug('Retrieving data from file: {}'.format(file_path))
         handle = xr.open_dataset(file_path)
 
         data = np.zeros((raster_index[0][1] - raster_index[0][0],
@@ -575,8 +601,6 @@ class DataHandler:
                 lat_lon[:, :, 1] = \
                     handle['XLONG'][0, :,
                                     raster_index[1][0]:raster_index[1][1]]
-
-            logger.debug('Finished retrieving data.')
 
         if get_coords:
             return data, lat_lon
@@ -629,7 +653,7 @@ class SpatialBatchHandler:
         self.spatial_res = spatial_res
 
         if norm:
-            self.multi_data_handler.normalize()
+            self.normalize()
 
         self._val_data = self.val_data
 
@@ -642,6 +666,22 @@ class SpatialBatchHandler:
             Number of batches in handler instance
         """
         return len(self.batch_indices)
+
+    def normalize(self, means=None, stds=None):
+        """Normalize data with calculated means/stds if
+        these are passed as None or if not None then with
+        arguments
+
+        Parameters
+        ----------
+        means : list[float32] | None
+            means for each feature to use for normalization
+            or None
+        stds : list[float32] | None
+            stds for each feature to use for normalization
+            or None
+        """
+        self.multi_data_handler.normalize(means=means, stds=stds)
 
     @property
     def val_data(self):
@@ -665,9 +705,10 @@ class SpatialBatchHandler:
     @classmethod
     def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
-             batch_size=8, spatial_res=3,
-             max_delta=20, norm=True,
-             raster_files=None):
+             n_temporal_slices=8, n_spatial_slices=5,
+             spatial_sample_shape=(10, 10),
+             spatial_res=3, max_delta=20,
+             norm=True, raster_files=None):
         """Method to initialize both
         data and batch handlers
 
@@ -683,8 +724,14 @@ class SpatialBatchHandler:
             list of features to extract
         val_split : float32
             fraction of data to reserve for validation
-        batch_size : int
-            size of batches along temporal dimension
+        n_temporal_slices : int
+            number of temporal slices to use for batching
+            across time dimension
+        n_spatial_slices : int
+            number of spatial slices to use for batching
+            across spatial dimensions
+        spatial_sample_shape : tuple
+            size of spatial slices used for spatial batching
         spatial_res: int
             factor by which to coarsen spatial dimensions
         max_delta : int, optional
@@ -697,18 +744,22 @@ class SpatialBatchHandler:
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all
             targets. If None raster_index will be calculated directly.
+        norm : bool
+            Wether to normalize data using means/stds calulcated across
+            all handlers
 
         Returns
         -------
         batchHandler : SpatialBatchHandler
             batchHandler with dataHandler attribute
         """
-        multi_data_handler = MultiDataHandler(file_paths, targets,
-                                              shape, features,
-                                              max_delta=max_delta,
-                                              val_split=val_split,
-                                              raster_files=raster_files,
-                                              batch_size=batch_size)
+        multi_data_handler = MultiDataHandler(
+            file_paths, targets, shape, features,
+            max_delta=max_delta, val_split=val_split,
+            raster_files=raster_files,
+            n_temporal_slices=n_temporal_slices,
+            n_spatial_slices=n_spatial_slices,
+            spatial_sample_shape=spatial_sample_shape)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             spatial_res=spatial_res,
                                             norm=norm)
@@ -747,9 +798,7 @@ class SpatialBatchHandler:
             batch = self.batch_indices[self._i]
             high_res = \
                 self.multi_data_handler.data_handlers[
-                    batch['handler_index']].data[:, :,
-                                                 batch['batch_indices'],
-                                                 :]
+                    batch['handler_index']].data[batch['batch_indices']]
             low_res, high_res = self._reshape_data(high_res)
             batch = Batch(low_res, high_res)
             self._i += 1

@@ -20,18 +20,22 @@ target = (39.01, -105.15)
 targets = target
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
-batch_size = 14
+n_temporal_slices = 5
+n_spatial_slices = 5
+spatial_sample_shape = (10, 10)
 spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
 
-batch_handler = SpatialBatchHandler.make(input_files, targets,
-                                         shape, features,
-                                         batch_size=batch_size,
-                                         spatial_res=spatial_res,
-                                         max_delta=max_delta,
-                                         val_split=val_split)
+batch_handler = SpatialBatchHandler.make(
+    input_files, targets, shape, features,
+    spatial_sample_shape=spatial_sample_shape,
+    n_temporal_slices=n_temporal_slices,
+    n_spatial_slices=n_spatial_slices,
+    spatial_res=spatial_res,
+    max_delta=max_delta,
+    val_split=val_split)
 
 
 def test_raster_index_caching():
@@ -93,14 +97,16 @@ def test_batch_handling(plot=False):
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
     batch_index_count = 0
     for b in batch_handler.batch_indices:
-        batch_index_count += len(b['batch_indices'])
+        batch_index_count += len(b['batch_indices'][2])
     assert n_observations == batch_index_count
 
     for i, batch in enumerate(batch_handler):
-        assert batch.low_res.shape == (batch_size, shape[0] // spatial_res,
-                                       shape[1] // spatial_res, len(features))
-        assert batch.high_res.shape == (batch_size, shape[0],
-                                        shape[1], len(features))
+        assert batch.low_res.shape == \
+            (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res, len(features))
+        assert batch.high_res.shape == \
+            (batch.high_res.shape[0], spatial_sample_shape[0],
+             spatial_sample_shape[1], len(features))
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
