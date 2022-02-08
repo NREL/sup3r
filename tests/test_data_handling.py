@@ -136,7 +136,7 @@ def test_val_data_storage():
 
         handler = DataHandler(f, target, shape, features,
                               max_delta, raster_file=raster_file,
-                              val_split=val_split)
+                              val_split=val_split, time_step=time_step)
         data, _ = handler.extract_data()
         n_observations += data.shape[2]
     assert val_data.low_res.shape[0] == int(val_split * n_observations)

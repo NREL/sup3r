@@ -28,16 +28,10 @@ def uniform_box_sampler(arr, shape):
     '''
 
     slices = []
-    start_row = int(np.random.uniform(0, arr.shape[0]))
+    start_row = int(np.random.uniform(0, arr.shape[0] - shape[0]))
     stop_row = start_row + shape[0]
-    if stop_row >= arr.shape[0]:
-        stop_row = arr.shape[0] - 1
-        start_row = stop_row - shape[0]
-    start_col = int(np.random.uniform(0, arr.shape[1]))
+    start_col = int(np.random.uniform(0, arr.shape[1] - shape[1]))
     stop_col = start_col + shape[1]
-    if stop_col >= arr.shape[1]:
-        stop_col = arr.shape[1] - 1
-        start_col = stop_col - shape[1]
     slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
     return slices
 
