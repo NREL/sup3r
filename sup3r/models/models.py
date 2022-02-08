@@ -670,16 +670,21 @@ class SpatialGan(BaseModel):
                              .format(ib + 1, len(batch_handler),
                                      loss_gen, loss_disc))
 
-            hi_res_val_gen = self.generate(batch_handler.val_data.low_res,
-                                           to_numpy=False)
-            _, diag = self.calc_loss(batch_handler.val_data.high_res,
-                                     hi_res_val_gen,
-                                     weight_gen_advers=weight_gen_advers)
+            val_loss_gen = 0.0
+            val_loss_disc = 0.0
+            for iv in len(batch_handler.val_data.low_res):
+                val_gen = self.generate(batch_handler.val_data.low_res[iv],
+                                        to_numpy=False)
+                _, diag = self.calc_loss(batch_handler.val_data.high_res[iv],
+                                         val_gen,
+                                         weight_gen_advers=weight_gen_advers)
+                val_loss_gen += diag['loss_gen'].numpy()
+                val_loss_disc += diag['loss_disc'].numpy()
 
+            val_loss_gen /= len(batch_handler.val_data.low_res)
+            val_loss_disc /= len(batch_handler.val_data.low_res)
             loss_gen = loss_gen.numpy()
             loss_disc = loss_disc.numpy()
-            val_loss_gen = diag['loss_gen'].numpy()
-            val_loss_disc = diag['loss_disc'].numpy()
 
             logger.info('Epoch {} of {} generator train/val loss: '
                         '{:.2e}/{:.2e} '
