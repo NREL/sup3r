@@ -117,7 +117,7 @@ def test_batch_handling(plot=False):
                 ax2 = fig.add_subplot(122)
                 ax1.imshow(data_fine)
                 ax2.imshow(data_coarse)
-                plt.savefig('./{}_{}.png'.format(i, ifeature))
+                plt.savefig(f'./{i}_{ifeature}.png')
                 plt.close()
 
 
@@ -126,7 +126,7 @@ def test_val_data_storage():
 
     val_data = batch_handler.val_data
     assert val_data.low_res.shape[0] == val_data.high_res.shape[0]
-    assert [s for s in val_data.low_res.shape[1:3]] == \
+    assert list(val_data.low_res.shape[1:3]) == \
         [s // spatial_res for s in shape]
 
     n_observations = 0
