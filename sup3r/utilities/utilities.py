@@ -9,6 +9,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def uniform_box_sampler(arr, shape):
+    '''
+    Extracts a sample cut from `arr`.
+
+    Parameters:
+    -----------
+    arr : array
+        The numpy array to sample a box from
+    shape : tuple
+        (rows, cols) Size of grid to sample
+        from arr
+
+    Returns:
+    --------
+    slices : List of slices corresponding to row
+    and col extent of arr sample
+    '''
+
+    slices = []
+    start_row = int(np.random.uniform(0, arr.shape[0]))
+    stop_row = start_row + shape[0]
+    if stop_row >= arr.shape[0]:
+        stop_row = arr.shape[0] - 1
+        start_row = stop_row - shape[0]
+    start_col = int(np.random.uniform(0, arr.shape[1]))
+    stop_col = start_col + shape[1]
+    if stop_col >= arr.shape[1]:
+        stop_col = arr.shape[1] - 1
+        start_col = stop_col - shape[1]
+    slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
+    return slices
+
+
 def transform_rotate_wind(y, lat_lon, features):
     """Transform windspeed/direction to
     u and v and align u and v with grid
@@ -191,7 +224,8 @@ def spatial_coarsening(data, spatial_res=2):
     """
 
     if spatial_res is not None:
-        if data.shape[1] % spatial_res != 0:
+        if (data.shape[0] % spatial_res != 0
+                or data.shape[1] % spatial_res != 0):
             msg = 'spatial_res must evenly divide grid size. '
             msg += f'Received spatial_res: {spatial_res} '
             msg += f'with grid size: ({data.shape[0]}, '
