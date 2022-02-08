@@ -638,7 +638,8 @@ class Batch:
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, multi_data_handler, spatial_res, norm=True):
+    def __init__(self, multi_data_handler, spatial_res, norm=True,
+                 means=None, stds=None):
         """
         Parameters
         ----------
@@ -650,6 +651,18 @@ class SpatialBatchHandler:
             low res data
         norm : bool
             Whether to normalize the data or not
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features. If None
+            and norm is True then this will be used for
+            normalization
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features. If None
+            and norm is True then this will be used for
+            normalization
         """
 
         self.multi_data_handler = multi_data_handler
@@ -663,7 +676,7 @@ class SpatialBatchHandler:
         self.spatial_res = spatial_res
 
         if norm:
-            self.normalize()
+            self.normalize(means, stds)
 
         self._val_data = self.val_data
 
@@ -719,7 +732,9 @@ class SpatialBatchHandler:
              spatial_sample_shape=(10, 10),
              spatial_res=3, max_delta=20,
              norm=True, raster_files=None,
-             time_step=1):
+             time_step=1, means=None,
+             stds=None):
+
         """Method to initialize both
         data and batch handlers
 
@@ -761,6 +776,14 @@ class SpatialBatchHandler:
         time_step : int
             Number of timesteps to downsample. If time_step=1 no time
             steps will be skipped.
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
 
         Returns
         -------
@@ -777,7 +800,8 @@ class SpatialBatchHandler:
             time_step=time_step)
         batch_handler = SpatialBatchHandler(multi_data_handler,
                                             spatial_res=spatial_res,
-                                            norm=norm)
+                                            norm=norm, means=means,
+                                            stds=stds)
         batch_handler.multi_data_handler = multi_data_handler
         return batch_handler
 
