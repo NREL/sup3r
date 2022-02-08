@@ -253,7 +253,7 @@ class DataHandler:
         self.n_spatial_slices = n_spatial_slices
         self.time_step = time_step
         self.data, self.lat_lon = self.extract_data()
-        self.data = self.data[:, :, ::time_step, :]
+        self.data = self.data[slice(None, None, time_step, None)]
         self.data, self.val_data = self._split_data()
         self.temporal_slices = self.get_temporal_slices()
         self.spatial_slices = self.get_spatial_slices()
