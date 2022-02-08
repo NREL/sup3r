@@ -727,11 +727,12 @@ class SpatialGan(BaseModel):
 
             val_loss_gen = 0.0
             val_loss_disc = 0.0
+            # # pylint: disable=C0200
             for iv in range(len(batch_handler.val_data.low_res)):
-                val_gen = self.generate(batch_handler.val_data.low_res[iv],
-                                        to_numpy=False)
-                _, diag = self.calc_loss(batch_handler.val_data.high_res[iv],
-                                         val_gen,
+                low_res = batch_handler.val_data.low_res[iv:iv + 1]
+                high_res = batch_handler.val_data.high_res[iv:iv + 1]
+                high_res_gen = self.generate(low_res, to_numpy=False)
+                _, diag = self.calc_loss(high_res, high_res_gen,
                                          weight_gen_advers=weight_gen_advers)
                 val_loss_gen += diag['loss_gen'].numpy()
                 val_loss_disc += diag['loss_disc'].numpy()

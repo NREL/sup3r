@@ -74,8 +74,3 @@ def test_train_spatial(log=False):
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
-
-if __name__ == '__main__':
-    from rex import init_logger
-    init_logger('sup3r', log_level='DEBUG')
-    test_train_spatial()
