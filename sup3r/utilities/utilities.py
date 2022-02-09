@@ -9,23 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def uniform_time_sampler(data):
-    """Extracts a time index from arr
-
-    Parameters
-    ----------
-    data : np.ndarray
-        Data array with dimensions
-        (spatial_1, spatial_2, temporal, features)
-
-    Returns
-    -------
-    time_index : int
-        Random time index sampled from temporal dimension
-    """
-    return int(np.random.uniform(0, data.shape[2]))
-
-
 def uniform_box_sampler(data, shape):
     '''
     Extracts a sample cut from data.

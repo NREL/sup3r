@@ -77,6 +77,20 @@ def test_data_extraction():
                                   handler.data.shape[2], len(features))
 
 
+def test_validation_batching():
+    """Test batching of validation data through
+    ValidationData iterator"""
+
+    for batch in batch_handler.val_data:
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+        assert batch.low_res.shape == \
+            (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res, len(features))
+        assert batch.high_res.shape == \
+            (batch.high_res.shape[0], spatial_sample_shape[0],
+             spatial_sample_shape[1], len(features))
+
+
 def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
@@ -107,10 +121,13 @@ def test_batch_handling(plot=False):
 def test_val_data_storage():
     """Test validation data storage from batch handler method"""
 
-    val_data = batch_handler.val_data
-    assert val_data.low_res.shape[0] == val_data.high_res.shape[0]
-    assert list(val_data.low_res.shape[1:3]) == \
-        [s // spatial_res for s in shape]
+    val_observations = 0
+    batch_handler.val_data._i = 0
+    for batch in batch_handler.val_data:
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+        assert list(batch.low_res.shape[1:3]) == \
+            [s // spatial_res for s in spatial_sample_shape]
+        val_observations += batch.low_res.shape[0]
 
     n_observations = 0
     for f in input_files:
@@ -120,7 +137,8 @@ def test_val_data_storage():
                               val_split=val_split, time_step=time_step)
         data, _ = handler.extract_data()
         n_observations += data.shape[2]
-    assert val_data.low_res.shape[0] == int(val_split * n_observations)
+
+    assert val_observations == int(val_split * n_observations)
 
 
 @pytest.mark.parametrize(
