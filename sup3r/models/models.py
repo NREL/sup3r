@@ -585,6 +585,28 @@ class SpatialGan(BaseModel):
         """
         return self.disc.weights
 
+    def discriminate(self, hi_res, to_numpy=True, training=False):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        hi_res : np.ndarray | tf.Tensor
+            Real or fake high res data in a 4D array or tensor
+            (n_obs, spatial_1, spatial_2, n_features)
+        to_numpy : bool
+            Flag to convert output from tensor to numpy array
+        training : bool
+            Flag for predict() used in the training routine. This is used
+            to freeze the BatchNormalization and Dropout layers.
+
+        Returns
+        -------
+        hi_res : np.ndarray
+            Synthetically generated high-resolution data
+        """
+        return self.disc.predict(hi_res, to_numpy=to_numpy,
+                                 training=training)
+
     @property
     def weights(self):
         """Get a list of all the layer weights and bias terms for the
@@ -623,8 +645,10 @@ class SpatialGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        disc_out_true = self.disc.predict(hi_res_true)
-        disc_out_gen = self.disc.predict(hi_res_gen)
+        disc_out_true = self.discriminate(hi_res_true, to_numpy=False,
+                                          training=True)
+        disc_out_gen = self.discriminate(hi_res_gen, to_numpy=False,
+                                         training=True)
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
