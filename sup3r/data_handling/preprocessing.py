@@ -37,7 +37,7 @@ class ValidationData:
             Factor by which to coarsen spatial dimensions
         """
         self.handlers = handlers
-        self.val_indices = self._val_indices
+        self.val_indices = self._get_val_indices()
         self.spatial_sample_shape = spatial_sample_shape
         self.max = np.ceil(len(self.val_indices) / batch_size)
         self.batch_size = batch_size
@@ -45,8 +45,7 @@ class ValidationData:
         self._i = 0
         self._remaining_observations = len(self.val_indices)
 
-    @property
-    def _val_indices(self):
+    def _get_val_indices(self):
         """List of dicts to index each validation data
         observation across all handlers
 
@@ -164,18 +163,17 @@ class DataHandler:
         self.time_step = time_step
         self.data, self.lat_lon = self.extract_data()
         self.data, self.val_data = self._split_data()
-        self.val_indices = self._val_indices
-        self.random_time_index = self._random_time_index
+        self.val_indices = self._get_val_indices()
+        self.random_time_index = self._get_random_time_index()
         self._i = 0
 
         log_mem(logger, log_level='INFO')
 
     def reset(self):
         """Re-randomize time indices"""
-        self.random_time_index = self._random_time_index
+        self.random_time_index = self._get_random_time_index()
 
-    @property
-    def _random_time_index(self):
+    def _get_random_time_index(self):
         """Array of time indices shuffled
 
         Returns
@@ -190,10 +188,10 @@ class DataHandler:
         """Remove normalization from stored means and stds"""
         for i in range(self.shape[-1]):
             self.val_data[:, :, :, i] = \
-                (self.val_data[:, :, :, i] + means[i]) * stds[i]
+                (self.val_data[:, :, :, i]) * stds[i] + means[i]
 
             self.data[:, :, :, i] = \
-                (self.data[:, :, :, i] + means[i]) * stds[i]
+                (self.data[:, :, :, i]) * stds[i] + means[i]
 
     def normalize(self, means, stds):
         """Normalize all data features
@@ -232,8 +230,7 @@ class DataHandler:
         self._i = 0
         return self
 
-    @property
-    def _val_indices(self):
+    def _get_val_indices(self):
         """Get spatial samples for validation data
         and return list of index tuples to use in BatchHandler
 
