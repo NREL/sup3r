@@ -136,13 +136,25 @@ class BaseModel(ABC):
             logger.info("Model's previous data stdev values: {}"
                         .format(self._stdevs))
 
-        self._means = batch_handler.multi_data_handler.means
-        self._stdevs = batch_handler.multi_data_handler.stds
+        self._means = batch_handler.means
+        self._stdevs = batch_handler.stds
 
         logger.info('Set data normalization mean values: {}'
                     .format(self._means))
         logger.info('Set data normalization stdev values: {}'
                     .format(self._stdevs))
+
+    @staticmethod
+    def seed(s=0):
+        """
+        Set the random seed for reproducable results.
+
+        Parameters
+        ----------
+        s : int
+            Random seed
+        """
+        CustomNetwork.seed(s=s)
 
     @property
     def generator(self):
@@ -797,21 +809,21 @@ class SpatialGan(BaseModel):
                              .format(ib, len(batch_handler),
                                      loss_gen, loss_disc))
 
+            n_val_obs = 0
             val_loss_gen = 0.0
             val_loss_disc = 0.0
-            # # pylint: disable=C0200
-            for iv in range(len(batch_handler.val_data.low_res)):
-                low_res = batch_handler.val_data.low_res[iv:iv + 1]
-                high_res = batch_handler.val_data.high_res[iv:iv + 1]
-                high_res_gen = self.generate(low_res, to_numpy=False)
-                _, diag = self.calc_loss(high_res, high_res_gen,
+            for val_batch in batch_handler.val_data:
+                high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
+                _, diag = self.calc_loss(val_batch.high_res, high_res_gen,
                                          weight_gen_advers=weight_gen_advers,
                                          train_gen=False, train_disc=False)
-                val_loss_gen += diag['loss_gen'].numpy()
-                val_loss_disc += diag['loss_disc'].numpy()
+                val_loss_gen += len(val_batch) * diag['loss_gen'].numpy()
+                val_loss_disc += len(val_batch) * diag['loss_disc'].numpy()
+                n_val_obs += len(val_batch)
 
-            val_loss_gen /= len(batch_handler.val_data.low_res)
-            val_loss_disc /= len(batch_handler.val_data.low_res)
+            val_loss_gen /= n_val_obs
+            val_loss_disc /= n_val_obs
+
             loss_gen = loss_gen.numpy()
             loss_disc = loss_disc.numpy()
 

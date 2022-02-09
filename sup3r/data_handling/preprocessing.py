@@ -39,7 +39,6 @@ class ValidationData:
         self.handlers = handlers
         self.val_indices = self._get_val_indices()
         self.spatial_sample_shape = spatial_sample_shape
-        self.max = np.ceil(len(self.val_indices) / batch_size)
         self.batch_size = batch_size
         self.spatial_res = spatial_res
         self._i = 0
@@ -75,7 +74,7 @@ class ValidationData:
         len : int
             Number of total batches
         """
-        return len(self.max)
+        return int(np.ceil(len(self.val_indices) / self.batch_size))
 
     def __next__(self):
         """Get validation data batch
@@ -223,6 +222,7 @@ class DataHandler:
         spatial_slice = uniform_box_sampler(
             self.data, self.spatial_sample_shape)
         temporal_step = self.random_time_index[self._i]
+
         return tuple(
             spatial_slice + [temporal_step] + [np.arange(len(self.features))])
 
@@ -606,8 +606,27 @@ class Batch:
         high_res : np.ndarray
             4D array (batch_size, spatial_1, spatial_2, features)
         """
-        self.low_res = low_res
-        self.high_res = high_res
+        self._low_res = low_res
+        self._high_res = high_res
+
+    def __len__(self):
+        """Get the number of observations in this batch."""
+        return len(self._low_res)
+
+    @property
+    def shape(self):
+        """Get the (low_res_shape, high_res_shape) shapes."""
+        return (self._low_res.shape, self._high_res.shape)
+
+    @property
+    def low_res(self):
+        """Get the low-resolution data for the batch."""
+        return self._low_res
+
+    @property
+    def high_res(self):
+        """Get the high-resolution data for the batch."""
+        return self._high_res
 
 
 class SpatialBatchHandler:
@@ -839,8 +858,7 @@ class SpatialBatchHandler:
 
     def __next__(self):
         if self._i <= self.n_batches:
-            handler_index = int(np.random.uniform(
-                0, len(self.data_handlers)))
+            handler_index = np.random.choice(len(self.data_handlers))
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,
                                  self.spatial_sample_shape[0],
@@ -848,8 +866,7 @@ class SpatialBatchHandler:
                                  self.shape[-1]))
             for i in range(self.batch_size):
                 high_res[i, :, :, :] = handler.get_next()
-            low_res = spatial_coarsening(high_res,
-                                         self.spatial_res)
+            low_res = spatial_coarsening(high_res, self.spatial_res)
             batch = Batch(low_res, high_res)
             self._i += 1
             return batch
