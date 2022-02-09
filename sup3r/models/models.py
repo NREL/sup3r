@@ -265,6 +265,47 @@ class BaseModel(ABC):
         """
         return self.generator_weights
 
+    @staticmethod
+    def early_stop(history, column, threshold=0.01, n_epoch=5):
+        """Determine whether to stop training early based on nearly no change
+        to validation loss for a certain number of consecutive epochs.
+
+        Parameters
+        ----------
+        history : pd.DataFrame | None
+            Model training history
+        column : str
+            Column from the model training history to evaluate for early
+            termination.
+        threshold : float
+            The absolute relative fractional difference in validation loss
+            between subsequent epochs below which an early termination is
+            warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+            less than the default thresold of 0.01 and would satisfy the
+            condition for early termination.
+        n_epoch : int
+            The number of consecutive epochs that satisfy the threshold that
+            warrants an early stop.
+
+        Returns
+        -------
+        stop : bool
+            Flag to stop training (True) or keep going (False).
+        """
+        stop = False
+
+        if history is not None and len(history) > n_epoch + 1:
+            diffs = np.abs(np.diff(history[column]))
+            if all(diffs[-n_epoch:] < threshold):
+                stop = True
+                logger.info('Found early stop condition, loss values "{}" '
+                            'have absolute relative differences less than '
+                            'threshold {}: {}'
+                            .format(column, threshold, diffs[-n_epoch:]))
+
+        return stop
+
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
                              **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
@@ -667,7 +708,7 @@ class SpatialGan(BaseModel):
 
     def train(self, batch_handler, n_epoch, weight_gen_advers=0.001,
               train_gen=True, train_disc=True, checkpoint_int=None,
-              out_dir='./spatial_gan_{epoch}'):
+              out_dir='./spatial_gan_{epoch}', early_stop_on=None):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -692,6 +733,12 @@ class SpatialGan(BaseModel):
             Directory to save checkpoint GAN models. Should have {epoch} in
             the directory name. This directory will be created if it does not
             already exist.
+        early_stop_on : str | None
+            If not None, this should be a column in the training history to
+            evaluate for early stopping (e.g. validation_loss_gen,
+            validation_loss_disc). If this value in this history decreases by
+            an absolute fractional relative difference of less than 0.01 for
+            more than 5 epochs in a row, the training will stop early.
         """
 
         self.set_norm_stats(batch_handler)
@@ -759,6 +806,12 @@ class SpatialGan(BaseModel):
                        f'{"{epoch}"} but did not: {out_dir}')
                 assert '{epoch}' in out_dir, msg
                 self.save(out_dir.format(epoch=epoch))
+
+            if early_stop_on is not None and early_stop_on in self._history:
+                stop = self.early_stop(self._history, early_stop_on)
+                if stop:
+                    self.save(out_dir.format(epoch=epoch))
+                    break
 
 
 class SpatioTemporalGan(BaseModel):
