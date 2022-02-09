@@ -9,7 +9,6 @@ import tempfile
 
 from sup3r import TEST_DATA_DIR
 from sup3r.data_handling.preprocessing import (DataHandler,
-                                               MultiDataHandler,
                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
@@ -20,24 +19,24 @@ target = (39.01, -105.15)
 targets = target
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
-n_temporal_slices = 5
-n_spatial_slices = 5
+batch_size = 8
 spatial_sample_shape = (10, 10)
 spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
 time_step = 3
+n_batches = 20
 
 batch_handler = SpatialBatchHandler.make(
     input_files, targets, shape, features,
     spatial_sample_shape=spatial_sample_shape,
-    n_temporal_slices=n_temporal_slices,
-    n_spatial_slices=n_spatial_slices,
+    batch_size=batch_size,
     spatial_res=spatial_res,
     max_delta=max_delta,
     val_split=val_split,
-    time_step=time_step)
+    time_step=time_step,
+    n_batches=n_batches)
 
 
 def test_raster_index_caching():
@@ -56,24 +55,12 @@ def test_raster_index_caching():
                                   handler.data.shape[2], len(features))
 
 
-def test_multi_data_handler():
-    """Test MultiDataHandler class
-    """
-    multi_handler = MultiDataHandler(input_files, targets, shape, features)
-
-    assert multi_handler.shape == \
-        (shape[0], shape[1],
-         sum([multi_handler.data_handlers[0].shape[2],
-              multi_handler.data_handlers[1].shape[2]]),
-         len(features))
-
-
 def test_normalization():
     """Test correct normalization"""
 
     stacked_data = \
         np.concatenate(
-            [d.data for d in batch_handler.multi_data_handler.data_handlers],
+            [d.data for d in batch_handler.data_handlers],
             axis=2)
 
     for i in range(len(features)):
@@ -93,14 +80,8 @@ def test_data_extraction():
 def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
-    n_observations = 0
     for batch in batch_handler:
-        n_observations += batch.low_res.shape[0]
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
-    batch_index_count = 0
-    for b in batch_handler.batch_indices:
-        batch_index_count += len(b['batch_indices'][2])
-    assert n_observations == batch_index_count
 
     for i, batch in enumerate(batch_handler):
         assert batch.low_res.shape == \
@@ -150,23 +131,22 @@ def test_spatial_coarsening(spatial_res, plot=False):
 
     handler = DataHandler(input_file, target, shape, features, max_delta=20)
 
-    coarse_data = utilities.spatial_coarsening(handler.data, spatial_res)
-    direct_avg = np.zeros((handler.data.shape[0] // spatial_res,
-                           handler.data.shape[1] // spatial_res,
-                           handler.data.shape[2],
-                           handler.data.shape[3]), dtype=np.float32) \
+    handler_data, _ = handler.extract_data()
+    handler_data = handler_data.transpose((2, 0, 1, 3))
+    coarse_data = utilities.spatial_coarsening(handler_data, spatial_res)
+    direct_avg = np.zeros(coarse_data.shape)
 
-    for i in range(direct_avg.shape[0]):
+    for i in range(direct_avg.shape[1]):
         for j in range(direct_avg.shape[1]):
-            direct_avg[i, j, :, :] = \
-                np.mean(handler.data[spatial_res * i:spatial_res * (i + 1),
+            direct_avg[:, i, j, :] = \
+                np.mean(handler_data[:, spatial_res * i:spatial_res * (i + 1),
                                      spatial_res * j:spatial_res * (j + 1),
-                                     :, :], axis=(0, 1))
+                                     :], axis=(1, 2))
 
     np.testing.assert_equal(coarse_data, direct_avg)
 
     if plot:
         _, ax = plt.subplots(1, 2)
-        ax[0].imshow(handler.data[:, :, 0, 0])
-        ax[1].imshow(coarse_data[:, :, 0, 0])
+        ax[0].imshow(handler_data[0, :, :, 0])
+        ax[1].imshow(coarse_data[0, :, :, 0])
         plt.show()
