@@ -804,7 +804,8 @@ class SpatialGan(BaseModel):
                 high_res = batch_handler.val_data.high_res[iv:iv + 1]
                 high_res_gen = self.generate(low_res, to_numpy=False)
                 _, diag = self.calc_loss(high_res, high_res_gen,
-                                         weight_gen_advers=weight_gen_advers)
+                                         weight_gen_advers=weight_gen_advers,
+                                         train_gen=False, train_disc=False)
                 val_loss_gen += diag['loss_gen'].numpy()
                 val_loss_disc += diag['loss_disc'].numpy()
 
