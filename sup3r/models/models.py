@@ -779,7 +779,8 @@ class SpatialGan(BaseModel):
         loss_gen = 0.0
         loss_disc = 0.0
         t0 = time.time()
-        logger.info('Starting model training with {} epochs.'.format(n_epoch))
+        logger.info('Starting model training at epoch {} with {} total epochs.'
+                    .format(epochs[0], n_epoch))
         for epoch in epochs:
             for ib, batch in enumerate(batch_handler):
 
@@ -793,7 +794,7 @@ class SpatialGan(BaseModel):
 
                 logger.debug('Batch {} out of {} train gen/disc loss: '
                              '{:.2e}/{:.2e}'
-                             .format(ib + 1, len(batch_handler),
+                             .format(ib, len(batch_handler),
                                      loss_gen, loss_disc))
 
             val_loss_gen = 0.0
@@ -817,7 +818,7 @@ class SpatialGan(BaseModel):
             logger.info('Epoch {} of {} generator train/val loss: '
                         '{:.2e}/{:.2e} '
                         'discriminator train/val loss: {:.2e}/{:.2e}'
-                        .format(epoch + 1, len(epochs), loss_gen, val_loss_gen,
+                        .format(epoch, len(epochs), loss_gen, val_loss_gen,
                                 loss_disc, val_loss_disc))
 
             self._history.at[epoch, 'elapsed_time'] = time.time() - t0
