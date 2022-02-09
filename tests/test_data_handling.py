@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """pytests for data handling"""
 
 import os
@@ -78,14 +79,12 @@ def test_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-
-    handler = DataHandler(input_file, target, shape, features, max_delta)
-
+    handler = DataHandler(input_file, target, shape, features, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
 
 
-def test_batch_handling():
+def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
     n_observations = 0
@@ -96,6 +95,24 @@ def test_batch_handling():
     for b in batch_handler.batch_indices:
         batch_index_count += len(b['batch_indices'])
     assert n_observations == batch_index_count
+
+    for i, batch in enumerate(batch_handler):
+        assert batch.low_res.shape == (batch_size, shape[0] // spatial_res,
+                                       shape[1] // spatial_res, len(features))
+        assert batch.high_res.shape == (batch_size, shape[0],
+                                        shape[1], len(features))
+
+        if plot:
+            for ifeature in range(batch.high_res.shape[-1]):
+                data_fine = batch.high_res[0, :, :, ifeature]
+                data_coarse = batch.low_res[0, :, :, ifeature]
+                fig = plt.figure(figsize=(10, 5))
+                ax1 = fig.add_subplot(121)
+                ax2 = fig.add_subplot(122)
+                ax1.imshow(data_fine)
+                ax2.imshow(data_coarse)
+                plt.savefig('./{}_{}.png'.format(i, ifeature))
+                plt.close()
 
 
 def test_val_data_storage():
@@ -118,17 +135,12 @@ def test_val_data_storage():
 
 
 @pytest.mark.parametrize(
-    ('spatial_res', 'plot'),
-    ((10, False),
-     (5, False),
-     (4, False),
-     (2, False),
-     (2, True))
+    'spatial_res', (10, 5, 4, 2)
 )
-def test_spatial_coarsening(spatial_res, plot):
+def test_spatial_coarsening(spatial_res, plot=False):
     """Test spatial coarsening"""
 
-    handler = DataHandler(input_file, target, shape, features, max_delta)
+    handler = DataHandler(input_file, target, shape, features, max_delta=20)
 
     coarse_data = utilities.spatial_coarsening(handler.data, spatial_res)
     direct_avg = np.zeros((handler.data.shape[0] // spatial_res,

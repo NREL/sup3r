@@ -3,6 +3,10 @@
 trraining data"""
 
 import numpy as np
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def transform_rotate_wind(y, lat_lon, features):
@@ -72,6 +76,9 @@ def transform_wind(y, i, j):
     v : np.ndarray
         3D array of meridional wind components
     """
+
+    logger.debug('Transforming speed and direction to U and V')
+
     # convert from windspeed and direction to u v
     windspeed = y[:, :, :, i]
     direction = y[:, :, :, j]
@@ -106,6 +113,8 @@ def rotate_u_v(y, i, j, lat_lon):
     v_rot : np.ndarray
         3D array of meridional wind components
     """
+
+    logger.debug('Aligning U and V with grid coordinate system')
 
     u = y[:, :, :, i]
     v = y[:, :, :, j]

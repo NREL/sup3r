@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Test the sample super resolution GAN configs"""
 import os
-import json
 import numpy as np
 import tensorflow as tf
 
@@ -9,19 +8,12 @@ from sup3r import CONFIG_DIR
 from sup3r.models.models import SpatialGan, SpatioTemporalGan
 
 
-def test_load_spatial_gan():
+def test_load_spatial():
     """Test the loading of a sample the spatial gan model."""
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    with open(fp_gen, 'r') as f:
-        gen_config = json.load(f)
-
-    with open(fp_disc, 'r') as f:
-        disc_config = json.load(f)
-
-    model = SpatialGan(gen_config['hidden_layers'],
-                       disc_config['hidden_layers'])
+    model = SpatialGan(fp_gen, fp_disc)
 
     coarse_shape = (32, 5, 5, 2)
     coarse_input = np.ones(coarse_shape)
@@ -47,24 +39,13 @@ def test_load_spatial_gan():
     assert disc_out.shape[1] == 1
 
 
-def test_load_spatiotemporal_gan():
+def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_2x_24x.json')
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
     fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
 
-    with open(fp_gen, 'r') as f:
-        gen_config = json.load(f)
-
-    with open(fp_disc_s, 'r') as f:
-        disc_config_s = json.load(f)
-
-    with open(fp_disc_t, 'r') as f:
-        disc_config_t = json.load(f)
-
-    model = SpatioTemporalGan(gen_config['hidden_layers'],
-                              disc_config_t['hidden_layers'],
-                              disc_config_s['hidden_layers'])
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
 
     coarse_shape = (32, 5, 5, 4, 2)
     coarse_input = np.ones(coarse_shape)
