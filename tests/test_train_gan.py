@@ -50,7 +50,10 @@ def test_train_spatial(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert len(model.history) == n_epoch
-        assert (np.diff(model.history['validation_loss_gen'].values) < 0).all()
+        vlossg = model.history['validation_loss_gen'].values
+        tlossg = model.history['training_loss_gen'].values
+        assert (np.diff(vlossg) < 0).all()
+        assert (np.diff(tlossg) < 0).sum() > (n_epoch / 2)
         assert 'test_0' in os.listdir(td)
         assert 'test_2' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_2')

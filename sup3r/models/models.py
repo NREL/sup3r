@@ -699,7 +699,7 @@ class SpatialGan(BaseModel):
         -------
         loss_gen : tf.Tensor
             0D loss value for the generator training loss.
-        loss_disc
+        loss_disc : tf.Tensor
             0D loss value for the discriminator training loss.
         """
         logger.debug('Training generator...')
@@ -731,7 +731,7 @@ class SpatialGan(BaseModel):
         -------
         loss_gen : tf.Tensor
             0D loss value for the generator training loss.
-        loss_disc
+        loss_disc : tf.Tensor
             0D loss value for the discriminator training loss.
         """
         logger.debug('Training discriminator...')
@@ -788,26 +788,33 @@ class SpatialGan(BaseModel):
         else:
             epochs += self._history.index.values[-1] + 1
 
-        loss_gen = 0.0
-        loss_disc = 0.0
         t0 = time.time()
-        logger.info('Starting model training at epoch {} with {} total epochs.'
-                    .format(epochs[0], n_epoch))
+        logger.info('Training model for {} epochs starting at epoch {}'
+                    .format(n_epoch, epochs[0]))
         for epoch in epochs:
+            n_train_obs = 0
+            loss_gen = 0.0
+            loss_disc = 0.0
             for ib, batch in enumerate(batch_handler):
+                b_loss_gen = 0.0
+                b_loss_disc = 0.0
 
                 if train_gen and (not train_disc or loss_disc < 0.6):
-                    loss_gen, loss_disc = self.train_generator(
+                    b_loss_gen, b_loss_disc = self.train_generator(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                if train_disc and loss_disc > 0.45:
-                    loss_gen, loss_disc = self.train_disc(
+                if train_disc and (not train_gen or loss_disc > 0.45):
+                    b_loss_gen, b_loss_disc = self.train_disc(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                logger.debug('Batch {} out of {} train gen/disc loss: '
-                             '{:.2e}/{:.2e}'
+                logger.debug('Batch {} out of {} train '
+                             'gen/disc loss: {:.2e}/{:.2e}'
                              .format(ib, len(batch_handler),
-                                     loss_gen, loss_disc))
+                                     b_loss_gen, b_loss_disc))
+
+                n_train_obs += len(batch)
+                loss_gen += len(batch) * b_loss_gen.numpy()
+                loss_disc += len(batch) * b_loss_disc.numpy()
 
             n_val_obs = 0
             val_loss_gen = 0.0
@@ -823,14 +830,13 @@ class SpatialGan(BaseModel):
 
             val_loss_gen /= n_val_obs
             val_loss_disc /= n_val_obs
-
-            loss_gen = loss_gen.numpy()
-            loss_disc = loss_disc.numpy()
+            loss_gen /= n_train_obs
+            loss_disc /= n_train_obs
 
             logger.info('Epoch {} of {} generator train/val loss: '
                         '{:.2e}/{:.2e} '
                         'discriminator train/val loss: {:.2e}/{:.2e}'
-                        .format(epoch, len(epochs), loss_gen, val_loss_gen,
+                        .format(epoch, epochs[-1], loss_gen, val_loss_gen,
                                 loss_disc, val_loss_disc))
 
             self._history.at[epoch, 'elapsed_time'] = time.time() - t0
