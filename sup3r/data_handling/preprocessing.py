@@ -510,8 +510,10 @@ class DataHandler:
                             dtype=np.float32)
 
             for j, f in enumerate(features):
-                data[:, :, :, j] = np.transpose(handle[f, :, raster_index],
-                                                (1, 2, 0))
+                fdata = handle[f, :, raster_index.flatten()]
+                fdata = fdata.reshape((len(fdata), raster_index.shape[0],
+                                      raster_index.shape[1]))
+                data[:, :, :, j] = np.transpose(fdata, (1, 2, 0))
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
                                     raster_index.shape[1], 2))
