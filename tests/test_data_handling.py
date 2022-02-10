@@ -75,6 +75,8 @@ def test_data_extraction():
     handler = DataHandler(input_file, target, shape, features, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
+    assert handler.data.dtype == np.dtype(np.float32)
+    assert handler.val_data.dtype == np.dtype(np.float32)
 
 
 def test_validation_batching():
@@ -82,6 +84,8 @@ def test_validation_batching():
     ValidationData iterator"""
 
     for batch in batch_handler.val_data:
+        assert batch.high_res.dtype == np.dtype(np.float32)
+        assert batch.low_res.dtype == np.dtype(np.float32)
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
         assert batch.low_res.shape == \
             (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
@@ -98,6 +102,8 @@ def test_batch_handling(plot=False):
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
     for i, batch in enumerate(batch_handler):
+        assert batch.high_res.dtype == np.float32
+        assert batch.low_res.dtype == np.float32
         assert batch.low_res.shape == \
             (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
              spatial_sample_shape[1] // spatial_res, len(features))

@@ -91,12 +91,14 @@ class ValidationData:
                 high_res = np.zeros((self.batch_size,
                                      self.spatial_sample_shape[0],
                                      self.spatial_sample_shape[1],
-                                     self.handlers[0].shape[-1]))
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
             else:
                 high_res = np.zeros((self._remaining_observations,
                                      self.spatial_sample_shape[0],
                                      self.spatial_sample_shape[1],
-                                     self.handlers[0].shape[-1]))
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
                 high_res[i, :, :, :] = self.handlers[
@@ -886,7 +888,7 @@ class SpatialBatchHandler:
             high_res = np.zeros((self.batch_size,
                                  self.spatial_sample_shape[0],
                                  self.spatial_sample_shape[1],
-                                 self.shape[-1]))
+                                 self.shape[-1]), dtype=np.float32)
             for i in range(self.batch_size):
                 high_res[i, :, :, :] = handler.get_next()
             low_res = spatial_coarsening(high_res, self.spatial_res)
