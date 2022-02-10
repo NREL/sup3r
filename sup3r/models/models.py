@@ -795,15 +795,15 @@ class SpatialGan(BaseModel):
             n_train_obs = 0
             loss_gen = 0.0
             loss_disc = 0.0
+            b_loss_gen = 0.0
+            b_loss_disc = 0.5
             for ib, batch in enumerate(batch_handler):
-                b_loss_gen = 0.0
-                b_loss_disc = 0.0
 
-                if train_gen and (not train_disc or loss_disc < 0.6):
+                if train_gen and (not train_disc or b_loss_disc < 0.6):
                     b_loss_gen, b_loss_disc = self.train_generator(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                if train_disc and (not train_gen or loss_disc > 0.45):
+                if train_disc and (not train_gen or b_loss_disc > 0.45):
                     b_loss_gen, b_loss_disc = self.train_disc(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
