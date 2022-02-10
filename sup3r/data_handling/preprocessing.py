@@ -2,12 +2,13 @@
 """
 Sup3r preprocessing module.
 """
+import logging
 import xarray as xr
 import numpy as np
 import os
 
 from rex import WindX
-from rex.utilities import log_mem, loggers
+from rex.utilities import log_mem
 from reV.utilities.exceptions import ConfigError
 from sup3r.utilities.utilities import (spatial_coarsening,
                                        transform_rotate_wind,
@@ -15,7 +16,7 @@ from sup3r.utilities.utilities import (spatial_coarsening,
 from sup3r import __version__
 
 
-logger = loggers.init_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ValidationData:
@@ -149,6 +150,8 @@ class DataHandler:
             Number of timesteps to downsample. If time_step=1 no time
             steps will be skipped.
         """
+        logger.info('Initializing DataHandler from source file: {}'
+                    .format(file_path))
 
         self.file_path = file_path
         self.features = features
@@ -166,6 +169,7 @@ class DataHandler:
         self.random_time_index = self._get_random_time_index()
         self._i = 0
 
+        logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
     def reset(self):
@@ -308,6 +312,8 @@ class DataHandler:
         shuffled = all_indices.copy()
         np.random.shuffle(shuffled)
         n_val_obs = int(self.val_split * n_observations)
+        logger.debug('Splitting {} validation observation from data of '
+                     'length {}'.format(n_val_obs, n_observations))
         val_indices = shuffled[:n_val_obs]
         training_indices = shuffled[n_val_obs:]
         self.val_data = self.data[:, :, val_indices, :]
@@ -404,10 +410,12 @@ class DataHandler:
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
+            logger.debug('Loading raster index: {}'.format(self.raster_file))
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             _, file_ext = os.path.splitext(file_path)
             if file_ext == '.h5':
+                logger.debug('Calculating raster index from WTK file.')
                 with WindX(file_path) as res:
                     raster_index = \
                         res.get_raster_index(target, shape,
@@ -425,6 +433,8 @@ class DataHandler:
                 raise ConfigError('Data must be either h5 or netcdf '
                                   f'but received file extension: {file_ext}')
             if self.raster_file is not None:
+                logger.debug('Saving raster index: {}'
+                             .format(self.raster_file))
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
@@ -500,6 +510,8 @@ class DataHandler:
             with 2 channels as lat/lon in that order.
             Only returned if get_coords=True
         """
+        logger.debug('Loading data for raster of shape {}'
+                     .format(raster_index.shape))
 
         with WindX(file_path, hsds=False) as handle:
 
@@ -553,6 +565,8 @@ class DataHandler:
             with 2 channels as lat/lon in that order.
             Only returned if get_coords=True
         """
+        logger.debug('Loading data for raster of shape {}'
+                     .format(raster_index.shape))
 
         handle = xr.open_dataset(file_path)
 
@@ -838,19 +852,26 @@ class SpatialBatchHandler:
         Checks if input means and stds are different from stored
         means and stds and renormalizes if they are new
         """
+
         if means is None or stds is None:
             self._get_stats()
+
         elif means is not None and stds is not None:
             if (not np.array_equal(means, self.means)
                     or not np.array_equal(stds, self.stds)):
                 self.unnormalize()
             self.means = means
             self.stds = stds
+
+        logger.info('Normalizing data with means: {}'.format(self.means))
+        logger.info('Normalizing data with stdevs: {}'.format(self.stds))
         for d in self.data_handlers:
             d.normalize(self.means, self.stds)
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""
+        logger.info('Un-normalizing data with means: {}'.format(self.means))
+        logger.info('Un-normalizing data with stdevs: {}'.format(self.stds))
         for d in self.data_handlers:
             d.unnormalize(self.means, self.stds)
 
