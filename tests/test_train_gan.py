@@ -35,7 +35,8 @@ def test_train_spatial(log=False):
     model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandler(input_file, target, full_shape, features,
+    handler = DataHandler(input_file, features, target=target,
+                          shape=full_shape,
                           spatial_sample_shape=sample_shape,
                           time_step=10)
 
@@ -50,8 +51,8 @@ def test_train_spatial(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert len(model.history) == n_epoch
-        vlossg = model.history['validation_loss_gen'].values
-        tlossg = model.history['training_loss_gen'].values
+        vlossg = model.history['val_loss_gen'].values
+        tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).all()
         assert (np.diff(tlossg) < 0).sum() > (n_epoch / 2)
         assert 'test_0' in os.listdir(td)

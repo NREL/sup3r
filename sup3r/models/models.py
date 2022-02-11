@@ -278,7 +278,7 @@ class BaseModel(ABC):
         return self.generator_weights
 
     @staticmethod
-    def early_stop(history, column, threshold=0.01, n_epoch=5):
+    def early_stop(history, column, threshold=0.005, n_epoch=5):
         """Determine whether to stop training early based on nearly no change
         to validation loss for a certain number of consecutive epochs.
 
@@ -462,6 +462,52 @@ class BaseModel(ABC):
         loss_diagnostics : dict
             Namespace of the breakdown of loss components
         """
+
+    @staticmethod
+    def update_loss_data(loss_data, new_data, batch_len, prefix=None):
+        """Update a dictionary of loss_data with loss information from a new
+        batch.
+
+        Parameters
+        ----------
+        loss_data : dict
+            Namespace of the breakdown of loss components where each value is a
+            running average at the current state in the epoch.
+        new_data : dict
+            Namespace of the breakdown of loss components for a single new
+            batch.
+        batch_len : int
+            Length of the incomming batch.
+        prefix : None | str
+            Option to prefix the names of the loss data when saving to the
+            loss_data dictionary.
+
+        Returns
+        -------
+        loss_data : dict
+            Same as input loss_data but with running averages updated.
+        """
+        assert 'n_obs' in loss_data, 'loss_data must have n_obs to start'
+        prior_n_obs = loss_data['n_obs']
+        new_n_obs = prior_n_obs + batch_len
+
+        for key, new_value in new_data.items():
+            key = key if prefix is None else prefix + key
+            new_value = (new_value if not isinstance(new_value, tf.Tensor)
+                         else new_value.numpy())
+
+            if key in loss_data:
+                saved_value = loss_data[key]
+                saved_value *= prior_n_obs
+                saved_value += batch_len * new_value
+                saved_value /= new_n_obs
+                loss_data[key] = saved_value
+            else:
+                loss_data[key] = new_value
+
+        loss_data['n_obs'] = new_n_obs
+
+        return loss_data
 
 
 class SpatialGan(BaseModel):
@@ -675,6 +721,8 @@ class SpatialGan(BaseModel):
 
         loss_diagnostics = {'loss_gen': loss_gen,
                             'loss_disc': loss_disc,
+                            'loss_gen_content': loss_gen_content,
+                            'loss_gen_advers': loss_gen_advers,
                             }
 
         return loss, loss_diagnostics
@@ -697,19 +745,15 @@ class SpatialGan(BaseModel):
 
         Returns
         -------
-        loss_gen : tf.Tensor
-            0D loss value for the generator training loss.
-        loss_disc : tf.Tensor
-            0D loss value for the discriminator training loss.
+        loss_diagnostics : dict
+            Namespace of the breakdown of loss components
         """
         logger.debug('Training generator...')
         diag = self.run_gradient_descent(low_res, high_res,
                                          self.generator_weights,
                                          weight_gen_advers=weight_gen_advers,
                                          train_gen=True, train_disc=False)
-        loss_gen = diag['loss_gen']
-        loss_disc = diag['loss_disc']
-        return loss_gen, loss_disc
+        return diag
 
     def train_disc(self, low_res, high_res, weight_gen_advers):
         """Train the discriminator network.
@@ -729,23 +773,19 @@ class SpatialGan(BaseModel):
 
         Returns
         -------
-        loss_gen : tf.Tensor
-            0D loss value for the generator training loss.
-        loss_disc : tf.Tensor
-            0D loss value for the discriminator training loss.
+        loss_diagnostics : dict
+            Namespace of the breakdown of loss components
         """
         logger.debug('Training discriminator...')
         diag = self.run_gradient_descent(low_res, high_res, self.disc_weights,
                                          weight_gen_advers=weight_gen_advers,
                                          train_gen=False, train_disc=True)
-        loss_gen = diag['loss_gen']
-        loss_disc = diag['loss_disc']
-        return loss_gen, loss_disc
+        return diag
 
     def train(self, batch_handler, n_epoch, weight_gen_advers=0.001,
               train_gen=True, train_disc=True, disc_loss_bounds=(0.45, 0.6),
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
-              early_stop_on=None, early_stop_threshold=0.01,
+              early_stop_on=None, early_stop_threshold=0.005,
               early_stop_n_epoch=5):
         """Train the GAN model on real low res data and real high res data
 
@@ -810,65 +850,56 @@ class SpatialGan(BaseModel):
         logger.info('Training model for {} epochs starting at epoch {}'
                     .format(n_epoch, epochs[0]))
         for epoch in epochs:
-            n_train_obs = 0
-            loss_gen = 0.0
-            loss_disc = 0.5
-            b_loss_gen = 0.0
-            b_loss_disc = 0.0
+            loss_data = {'n_obs': 0, 'train_loss_disc': 0}
+
             for ib, batch in enumerate(batch_handler):
+                b_loss_data = {}
+                loss_disc = loss_data['train_loss_disc']
 
                 if train_gen and (not train_disc or loss_disc < disc_th_high):
-                    b_loss_gen, b_loss_disc = self.train_generator(
-                        batch.low_res, batch.high_res, weight_gen_advers)
+                    b_loss_data = self.train_generator(batch.low_res,
+                                                       batch.high_res,
+                                                       weight_gen_advers)
 
                 if train_disc and (not train_gen or loss_disc > disc_th_low):
-                    b_loss_gen, b_loss_disc = self.train_disc(
-                        batch.low_res, batch.high_res, weight_gen_advers)
+                    b_loss_data = self.train_disc(batch.low_res,
+                                                  batch.high_res,
+                                                  weight_gen_advers)
 
-                n_train_obs += len(batch)
-
-                # update the running-average generator losses for the epoch
-                loss_gen *= (n_train_obs - len(batch))
-                loss_gen += len(batch) * b_loss_gen.numpy()
-                loss_gen /= n_train_obs
-
-                # update the running-average disc losses for the epoch
-                loss_disc *= (n_train_obs - len(batch))
-                loss_disc += len(batch) * b_loss_disc.numpy()
-                loss_disc /= n_train_obs
+                loss_data = self.update_loss_data(loss_data, b_loss_data,
+                                                  len(batch), prefix='train_')
 
                 logger.debug('Batch {} out of {} has epoch-running-average '
                              'generator loss of {:.2e} and '
                              'discriminator loss of {:.2e}'
                              .format(ib, len(batch_handler),
-                                     loss_gen, loss_disc))
+                                     loss_data['train_loss_gen'],
+                                     loss_data['train_loss_disc']))
 
-            n_val_obs = 0
-            val_loss_gen = 0.0
-            val_loss_disc = 0.0
+            loss_data['n_obs'] = 0
             for val_batch in batch_handler.val_data:
                 high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
                 _, diag = self.calc_loss(val_batch.high_res, high_res_gen,
                                          weight_gen_advers=weight_gen_advers,
                                          train_gen=False, train_disc=False)
-                val_loss_gen += len(val_batch) * diag['loss_gen'].numpy()
-                val_loss_disc += len(val_batch) * diag['loss_disc'].numpy()
-                n_val_obs += len(val_batch)
 
-            val_loss_gen /= n_val_obs
-            val_loss_disc /= n_val_obs
+                loss_data = self.update_loss_data(loss_data, diag,
+                                                  len(val_batch),
+                                                  prefix='val_')
 
             logger.info('Epoch {} of {} '
                         'generator train/val loss: {:.2e}/{:.2e} '
                         'discriminator train/val loss: {:.2e}/{:.2e}'
-                        .format(epoch, epochs[-1], loss_gen, val_loss_gen,
-                                loss_disc, val_loss_disc))
+                        .format(epoch, epochs[-1],
+                                loss_data['train_loss_gen'],
+                                loss_data['val_loss_gen'],
+                                loss_data['train_loss_disc'],
+                                loss_data['val_loss_disc']))
 
             self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-            self._history.at[epoch, 'training_loss_gen'] = loss_gen
-            self._history.at[epoch, 'training_loss_disc'] = loss_disc
-            self._history.at[epoch, 'validation_loss_gen'] = val_loss_gen
-            self._history.at[epoch, 'validation_loss_disc'] = val_loss_disc
+            for key, value in loss_data.items():
+                if key != 'n_obs':
+                    self._history.at[epoch, key] = value
 
             if checkpoint_int is not None and (epoch % checkpoint_int) == 0:
                 msg = ('GAN output dir for checkpoint models should have '
