@@ -743,8 +743,10 @@ class SpatialGan(BaseModel):
         return loss_gen, loss_disc
 
     def train(self, batch_handler, n_epoch, weight_gen_advers=0.001,
-              train_gen=True, train_disc=True, checkpoint_int=None,
-              out_dir='./spatial_gan_{epoch}', early_stop_on=None):
+              train_gen=True, train_disc=True, disc_loss_bounds=(0.45, 0.6),
+              checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
+              early_stop_on=None, early_stop_threshold=0.01,
+              early_stop_n_epoch=5):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -763,6 +765,10 @@ class SpatialGan(BaseModel):
             Flag whether to train the generator for this set of epochs
         train_disc : bool
             Flag whether to train the discriminator for this set of epochs
+        disc_loss_bounds : tuple
+            Lower and upper bounds for the discriminator loss outside of which
+            the discriminator will not train unless train_disc=True and
+            train_gen=False.
         checkpoint_int : int | None
             Epoch interval at which to save checkpoint models.
         out_dir : str
@@ -775,6 +781,16 @@ class SpatialGan(BaseModel):
             validation_loss_disc). If this value in this history decreases by
             an absolute fractional relative difference of less than 0.01 for
             more than 5 epochs in a row, the training will stop early.
+        early_stop_threshold : float
+            The absolute relative fractional difference in validation loss
+            between subsequent epochs below which an early termination is
+            warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+            less than the default thresold of 0.01 and would satisfy the
+            condition for early termination.
+        early_stop_n_epoch : int
+            The number of consecutive epochs that satisfy the threshold that
+            warrants an early stop.
         """
 
         self.set_norm_stats(batch_handler)
@@ -789,32 +805,43 @@ class SpatialGan(BaseModel):
             epochs += self._history.index.values[-1] + 1
 
         t0 = time.time()
+        disc_th_low = np.min(disc_loss_bounds)
+        disc_th_high = np.max(disc_loss_bounds)
         logger.info('Training model for {} epochs starting at epoch {}'
                     .format(n_epoch, epochs[0]))
         for epoch in epochs:
             n_train_obs = 0
             loss_gen = 0.0
-            loss_disc = 0.0
+            loss_disc = 0.5
             b_loss_gen = 0.0
-            b_loss_disc = 0.5
+            b_loss_disc = 0.0
             for ib, batch in enumerate(batch_handler):
 
-                if train_gen and (not train_disc or b_loss_disc < 0.6):
+                if train_gen and (not train_disc or loss_disc < disc_th_high):
                     b_loss_gen, b_loss_disc = self.train_generator(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                if train_disc and (not train_gen or b_loss_disc > 0.45):
+                if train_disc and (not train_gen or loss_disc > disc_th_low):
                     b_loss_gen, b_loss_disc = self.train_disc(
                         batch.low_res, batch.high_res, weight_gen_advers)
 
-                logger.debug('Batch {} out of {} train '
-                             'gen/disc loss: {:.2e}/{:.2e}'
-                             .format(ib, len(batch_handler),
-                                     b_loss_gen, b_loss_disc))
-
                 n_train_obs += len(batch)
+
+                # update the running-average generator losses for the epoch
+                loss_gen *= (n_train_obs - len(batch))
                 loss_gen += len(batch) * b_loss_gen.numpy()
+                loss_gen /= n_train_obs
+
+                # update the running-average disc losses for the epoch
+                loss_disc *= (n_train_obs - len(batch))
                 loss_disc += len(batch) * b_loss_disc.numpy()
+                loss_disc /= n_train_obs
+
+                logger.debug('Batch {} out of {} has epoch-running-average '
+                             'generator loss of {:.2e} and '
+                             'discriminator loss of {:.2e}'
+                             .format(ib, len(batch_handler),
+                                     loss_gen, loss_disc))
 
             n_val_obs = 0
             val_loss_gen = 0.0
@@ -830,11 +857,9 @@ class SpatialGan(BaseModel):
 
             val_loss_gen /= n_val_obs
             val_loss_disc /= n_val_obs
-            loss_gen /= n_train_obs
-            loss_disc /= n_train_obs
 
-            logger.info('Epoch {} of {} generator train/val loss: '
-                        '{:.2e}/{:.2e} '
+            logger.info('Epoch {} of {} '
+                        'generator train/val loss: {:.2e}/{:.2e} '
                         'discriminator train/val loss: {:.2e}/{:.2e}'
                         .format(epoch, epochs[-1], loss_gen, val_loss_gen,
                                 loss_disc, val_loss_disc))
@@ -852,7 +877,9 @@ class SpatialGan(BaseModel):
                 self.save(out_dir.format(epoch=epoch))
 
             if early_stop_on is not None and early_stop_on in self._history:
-                stop = self.early_stop(self._history, early_stop_on)
+                stop = self.early_stop(self._history, early_stop_on,
+                                       threshold=early_stop_threshold,
+                                       n_epoch=early_stop_n_epoch)
                 if stop:
                     self.save(out_dir.format(epoch=epoch))
                     break
