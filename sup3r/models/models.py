@@ -176,7 +176,8 @@ class BaseModel(ABC):
         """
         return self.generator.weights
 
-    def generate(self, low_res, to_numpy=True, training=False):
+    def generate(self, low_res, to_numpy=True, training=False, norm_in=False,
+                 un_norm_out=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -188,14 +189,37 @@ class BaseModel(ABC):
         training : bool
             Flag for predict() used in the training routine. This is used
             to freeze the BatchNormalization and Dropout layers.
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
+        un_norm_out : bool
+            Flag to un-normalize synthetically generated high_res output data
+            back to physical units if the self._means, self._stdevs attributes
+            are available.
 
         Returns
         -------
-        hi_res : np.ndarray
+        hi_res : np.ndarray | tf.Tensor
             Synthetically generated high-resolution data
         """
-        return self.generator.predict(low_res, to_numpy=to_numpy,
-                                      training=training)
+
+        if norm_in and self._means is not None:
+            low_res = (low_res if isinstance(low_res, tf.Tensor)
+                       else low_res.copy())
+            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
+                low_res[islice] = (low_res[islice] - m) / s
+
+        hi_res = self.generator.predict(low_res, to_numpy=to_numpy,
+                                        training=training)
+
+        if un_norm_out and self._means is not None:
+            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
+                hi_res[islice] = (hi_res[islice] * s) + m
+
+        return hi_res
 
     @property
     def version_record(self):
@@ -643,7 +667,8 @@ class SpatialGan(BaseModel):
         """
         return self.disc.weights
 
-    def discriminate(self, hi_res, to_numpy=True, training=False):
+    def discriminate(self, hi_res, to_numpy=True, training=False,
+                     norm_in=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -656,14 +681,23 @@ class SpatialGan(BaseModel):
         training : bool
             Flag for predict() used in the training routine. This is used
             to freeze the BatchNormalization and Dropout layers.
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
 
         Returns
         -------
-        hi_res : np.ndarray
-            Synthetically generated high-resolution data
+        out : np.ndarray | tf.Tensor
+            Discriminator output logits
         """
-        return self.disc.predict(hi_res, to_numpy=to_numpy,
-                                 training=training)
+        if norm_in and self._means is not None:
+            hi_res = hi_res if isinstance(hi_res, tf.Tensor) else hi_res.copy()
+            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
+                hi_res[islice] = (hi_res[islice] - m) / s
+
+        return self.disc.predict(hi_res, to_numpy=to_numpy, training=training)
 
     @property
     def weights(self):
