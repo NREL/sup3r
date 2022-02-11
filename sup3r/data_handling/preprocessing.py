@@ -116,8 +116,8 @@ class ValidationData:
 class DataHandler:
     """Sup3r data handling and extraction"""
 
-    def __init__(self, file_path, target,
-                 shape, features, max_delta=20,
+    def __init__(self, file_path, features,
+                 target=None, shape=None, max_delta=20,
                  raster_file=None, val_split=0.1,
                  spatial_sample_shape=(10, 10),
                  time_step=1):
@@ -126,14 +126,15 @@ class DataHandler:
 
         Parameters
         ----------
-        data_files : list
-            list of file paths
-        target : tuple
-            (lat, lon) lower left corner of raster
-        shape : tuple
-            (rows, cols) grid size
+        file_path : str
+            A single source wind file to extract raster data from
         features : list
             list of features to extract
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
             once. If shape is (20, 20) and max_delta=10, the full raster will
@@ -143,7 +144,8 @@ class DataHandler:
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
             if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly.
+            If None raster_index will be calculated directly. Either need
+            target+shape or raster_file.
         val_split : float32
             Fraction of data to store for validation
         spatial_sample_shape : tuple
@@ -154,6 +156,12 @@ class DataHandler:
         """
         logger.info('Initializing DataHandler from source file: {}'
                     .format(file_path))
+
+        check = ((target is not None and shape is not None)
+                 or raster_file is not None)
+        msg = ('You must either provide the target+shape inputs '
+               'or the raster_file input.')
+        assert check, msg
 
         self.file_path = file_path
         self.features = features
@@ -228,6 +236,7 @@ class DataHandler:
         spatial_slice = uniform_box_sampler(
             self.data, self.spatial_sample_shape)
         temporal_step = self.random_time_index[self._i]
+        self._i += 1
 
         return tuple(
             spatial_slice + [temporal_step] + [np.arange(len(self.features))])
@@ -283,7 +292,6 @@ class DataHandler:
         """
         if self._i < len(self.random_time_index):
             observation = self.data[self.get_observation_index()]
-            self._i += 1
         else:
             raise StopIteration
         return observation
@@ -761,9 +769,9 @@ class SpatialBatchHandler:
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     @classmethod
-    def make(cls, file_paths, targets,
-             shape, features, val_split=0.2,
-             batch_size=8,
+    def make(cls, file_paths, features,
+             targets=None, shape=None,
+             val_split=0.2, batch_size=8,
              spatial_sample_shape=(10, 10),
              spatial_res=3, max_delta=20,
              norm=True, raster_files=None,
@@ -776,14 +784,15 @@ class SpatialBatchHandler:
 
         Parameters
         ----------
-        data_files : list
-            list of file paths
-        target : tuple
-            (lat, lon) lower left corner of raster
-        shape : tuple
-            (rows, cols) grid size
+        file_paths : list
+            list of file paths to wind data files
         features : list
             list of features to extract
+        targets : tuple
+            List of several (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
         val_split : float32
             fraction of data to reserve for validation
         batch_size : int
@@ -801,7 +810,8 @@ class SpatialBatchHandler:
             Files for raster_index array for the corresponding targets and
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all
-            targets. If None raster_index will be calculated directly.
+            targets. If None raster_index will be calculated directly. Either
+            need target+shape or raster_file.
         norm : bool
             Wether to normalize data using means/stds calulcated across
             all handlers
@@ -824,6 +834,13 @@ class SpatialBatchHandler:
         batchHandler : SpatialBatchHandler
             batchHandler with dataHandler attribute
         """
+
+        check = ((targets is not None and shape is not None)
+                 or raster_files is not None)
+        msg = ('You must either provide the targets+shape inputs '
+               'or the raster_files input.')
+        assert check, msg
+
         data_handlers = []
         for i, f in enumerate(file_paths):
             if raster_files is None:
@@ -835,7 +852,7 @@ class SpatialBatchHandler:
             else:
                 target = targets[i]
             data_handlers.append(
-                DataHandler(f, target, shape, features,
+                DataHandler(f, features, target=target, shape=shape,
                             max_delta=max_delta,
                             raster_file=raster_file,
                             val_split=val_split,
