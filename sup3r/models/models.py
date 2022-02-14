@@ -533,6 +533,25 @@ class BaseModel(ABC):
 
         return loss_details
 
+    @staticmethod
+    def log_loss_details(loss_details, level='INFO'):
+        """Log the loss details to the module logger.
+
+        Parameters
+        ----------
+        loss_details : dict
+            Namespace of the breakdown of loss components where each value is a
+            running average at the current state in the epoch.
+        level : str
+            Log level (e.g. INFO, DEBUG)
+        """
+        for k, v in sorted(loss_details.items()):
+            if k != 'n_obs':
+                if level.lower() == 'info':
+                    logger.info('\t{}: {:.2e}'.format(k, v))
+                else:
+                    logger.debug('\t{}: {:.2e}'.format(k, v))
+
 
 class SpatialGan(BaseModel):
     """Spatial super resolution GAN model"""
@@ -643,10 +662,10 @@ class SpatialGan(BaseModel):
             logger.info('Loading GAN from disk that was created with the '
                         'following package versions: \n{}'
                         .format(pprint.pformat(params['version_record'],
-                                               indent=4)))
+                                               indent=2)))
             active_versions = CustomNetwork._parse_versions(None)
             logger.info('Active python environment versions: \n{}'
-                        .format(pprint.pformat(active_versions, indent=4)))
+                        .format(pprint.pformat(active_versions, indent=2)))
 
         return cls(fp_gen, fp_disc, **params)
 
@@ -989,6 +1008,7 @@ class SpatialGan(BaseModel):
                                 loss_details['val_loss_gen'],
                                 loss_details['train_loss_disc'],
                                 loss_details['val_loss_disc']))
+            self.log_loss_details(loss_details)
 
             self._history.at[epoch, 'elapsed_time'] = time.time() - t0
             for key, value in loss_details.items():
