@@ -613,7 +613,6 @@ class SpatialGan(BaseModel):
         fp_params = os.path.join(out_dir, 'model_params.json')
         with open(fp_params, 'w') as f:
             params = self.model_params
-            params['history'] = fp_history
             json.dump(params, f, sort_keys=True, indent=2)
 
         logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
@@ -632,8 +631,13 @@ class SpatialGan(BaseModel):
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         fp_disc = os.path.join(out_dir, 'model_disc.pkl')
         fp_params = os.path.join(out_dir, 'model_params.json')
+        fp_history = os.path.join(out_dir, 'history.csv')
+
         with open(fp_params, 'r') as f:
             params = json.load(f)
+
+        # using the saved model dir makes this more portable
+        params['history'] = fp_history
 
         if 'version_record' in params:
             logger.info('Loading GAN from disk that was created with the '
@@ -864,7 +868,7 @@ class SpatialGan(BaseModel):
                                                     len(batch),
                                                     prefix='train_')
 
-            logger.debug('Batch {} out of {} has epoch-running-average '
+            logger.debug('Batch {} out of {} has epoch-average '
                          'generator loss of {:.2e} and '
                          'discriminator loss of {:.2e}'
                          .format(ib, len(batch_handler),
