@@ -2,49 +2,335 @@
 """
 Sup3r preprocessing module.
 """
+import logging
 import xarray as xr
 import numpy as np
 import os
 
 from rex import WindX
+from rex.utilities import log_mem
 from reV.utilities.exceptions import ConfigError
-from sup3r.utilities import utilities
+from sup3r.utilities.utilities import (spatial_coarsening,
+                                       transform_rotate_wind,
+                                       uniform_box_sampler)
 from sup3r import __version__
+
+
+logger = logging.getLogger(__name__)
+
+
+class ValidationData:
+    """Iterator for validation data"""
+
+    def __init__(self, handlers, batch_size=8,
+                 spatial_sample_shape=(10, 10),
+                 spatial_res=3):
+        """
+        Parameters
+        ----------
+        handlers : list[DataHandler]
+            List of DataHandler instances
+        batch_size : int
+            Size of validation data batches
+        spatial_sample_shape : tuple
+            Size of spatial sample of validation data
+        spatial_res = int
+            Factor by which to coarsen spatial dimensions
+        """
+        self.handlers = handlers
+        self.val_indices = self._get_val_indices()
+        self.spatial_sample_shape = spatial_sample_shape
+        self.batch_size = batch_size
+        self.spatial_res = spatial_res
+        self._i = 0
+        self._remaining_observations = len(self.val_indices)
+
+    def _get_val_indices(self):
+        """List of dicts to index each validation data
+        observation across all handlers
+
+        Returns
+        -------
+        val_indices : list[dict]
+            List of dicts with handler_index and tuple_index.
+            The tuple index is used to get validation data observation
+            with data[tuple_index]"""
+        val_indices = []
+        for i, h in enumerate(self.handlers):
+            for t in h.val_indices:
+                val_indices.append(
+                    {'handler_index': i,
+                     'tuple_index': t})
+        return val_indices
+
+    def __iter__(self):
+        self._i = 0
+        self._remaining_observations = len(self.val_indices)
+        return self
+
+    def __len__(self):
+        """
+        Returns
+        -------
+        len : int
+            Number of total batches
+        """
+        return int(np.ceil(len(self.val_indices) / self.batch_size))
+
+    def __next__(self):
+        """Get validation data batch
+
+        Returns
+        -------
+        batch : Batch
+            validation data batch with low and high res data
+            each with n_observations = batch_size
+        """
+        if self._remaining_observations > 0:
+            if self._remaining_observations > self.batch_size:
+                high_res = np.zeros((self.batch_size,
+                                     self.spatial_sample_shape[0],
+                                     self.spatial_sample_shape[1],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            else:
+                high_res = np.zeros((self._remaining_observations,
+                                     self.spatial_sample_shape[0],
+                                     self.spatial_sample_shape[1],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            for i in range(high_res.shape[0]):
+                val_index = self.val_indices[self._i + i]
+                high_res[i, :, :, :] = self.handlers[
+                    val_index['handler_index']].val_data[
+                        val_index['tuple_index']]
+                self._remaining_observations -= 1
+            low_res = spatial_coarsening(high_res, self.spatial_res)
+            batch = Batch(low_res, high_res)
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
 
 
 class DataHandler:
     """Sup3r data handling and extraction"""
 
-    def __init__(self, data_files, target,
-                 shape, features, max_delta=20):
+    def __init__(self, file_path, features,
+                 target=None, shape=None, max_delta=20,
+                 raster_file=None, val_split=0.1,
+                 spatial_sample_shape=(10, 10),
+                 time_step=1):
+
         """Data handling and extraction
 
         Parameters
         ----------
-        data_files : list
-            list of file paths
-        target : tuple
-            (lat, lon) lower left corner of raster
-        shape : tuple
-            (rows, cols) grid size
+        file_path : str
+            A single source wind file to extract raster data from
         features : list
             list of features to extract
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raseter will
+            once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        raster_file : str | None
+            File for raster_index array for the corresponding target and
+            shape. If specified the raster_index will be loaded from the file
+            if it exists or written to the file if it does not yet exist.
+            If None raster_index will be calculated directly. Either need
+            target+shape or raster_file.
+        val_split : float32
+            Fraction of data to store for validation
+        spatial_sample_shape : tuple
+            size of spatial slices used for spatial batching
+        time_step : int
+            Number of timesteps to downsample. If time_step=1 no time
+            steps will be skipped.
         """
+        logger.info('Initializing DataHandler from source file: {}'
+                    .format(file_path))
 
-        self.data_files = data_files
+        check = ((target is not None and shape is not None)
+                 or raster_file is not None)
+        msg = ('You must either provide the target+shape inputs '
+               'or the raster_file input.')
+        assert check, msg
+
+        self.file_path = file_path
         self.features = features
-        self.shape = shape
+        self.grid_shape = shape
         self.target = target
         self.raster_index = None
         self.max_delta = max_delta
+        self.raster_file = raster_file
+        self.val_split = val_split
+        self.spatial_sample_shape = spatial_sample_shape
+        self.time_step = time_step
         self.data, self.lat_lon = self.extract_data()
+        self.data, self.val_data = self._split_data()
+        self.val_indices = self._get_val_indices()
+        self.random_time_index = self._get_random_time_index()
+        self._i = 0
 
-    def normalize_data(self, feature_index, mean, std):
+        logger.info('Finished intializing DataHandler.')
+        log_mem(logger, log_level='INFO')
+
+    def reset(self):
+        """Re-randomize time indices"""
+        self.random_time_index = self._get_random_time_index()
+
+    def _get_random_time_index(self):
+        """Array of time indices shuffled
+
+        Returns
+        -------
+        np.ndarray
+        """
+        time_indices = np.arange(self.data.shape[2])
+        np.random.shuffle(time_indices)
+        return time_indices
+
+    def unnormalize(self, means, stds):
+        """Remove normalization from stored means and stds"""
+        for i in range(self.shape[-1]):
+            self.val_data[:, :, :, i] = \
+                (self.val_data[:, :, :, i]) * stds[i] + means[i]
+
+            self.data[:, :, :, i] = \
+                (self.data[:, :, :, i]) * stds[i] + means[i]
+
+    def normalize(self, means, stds):
+        """Normalize all data features
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        """
+
+        for i in range(self.shape[-1]):
+            self._normalize_data(i, means[i], stds[i])
+
+    def get_observation_index(self):
+        """Randomly gets spatial sample and time index
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time_index,
+            and features indices. Used to get single observation
+            like self.data[observation_index]
+        """
+        spatial_slice = uniform_box_sampler(
+            self.data, self.spatial_sample_shape)
+        temporal_step = self.random_time_index[self._i]
+        self._i += 1
+
+        return tuple(
+            spatial_slice + [temporal_step] + [np.arange(len(self.features))])
+
+    def __iter__(self):
+        self._i = 0
+        return self
+
+    def _get_val_indices(self):
+        """Get spatial samples for validation data
+        and return list of index tuples to use in BatchHandler
+
+        Returns
+        -------
+        val_indices : list[tuple]
+            List of index tuples using spatial samples for each
+            time index
+        """
+        val_indices = []
+        for t in range(self.val_data.shape[2]):
+            spatial_slice = uniform_box_sampler(
+                self.val_data[:, :, t, :], self.spatial_sample_shape)
+            tuple_index = tuple(
+                spatial_slice + [t] + [np.arange(len(self.features))])
+            val_indices.append(tuple_index)
+        return val_indices
+
+    def get_next(self):
+        """Gets data for observation using
+        random observation index. Loops repeatedly
+        over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            3D array (spatial_1, spatial_2, features)
+        """
+        if self._i >= len(self.random_time_index):
+            self.reset()
+            self._i = 0
+        observation = self.__next__()
+        return observation
+
+    def __next__(self):
+        """Gets data for observation using
+        random observation index. Single loop
+        through randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            3D array (spatial_1, spatial_2, features)
+        """
+        if self._i < len(self.random_time_index):
+            observation = self.data[self.get_observation_index()]
+        else:
+            raise StopIteration
+        return observation
+
+    def _split_data(self):
+        """Splits time dimension into set of training indices
+        and validation indices
+
+        Parameters
+        ----------
+        val_split : float32, optional
+            Fraction of full data array to
+            reserve for validation, by default 0.2
+
+        Returns
+        -------
+        data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Training data fraction of initial data array. Initial
+            data array is overwritten by this new data array.
+        val_data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Validation data fraction of initial data array.
+        """
+
+        n_observations = self.shape[2]
+        all_indices = np.arange(n_observations)
+        shuffled = all_indices.copy()
+        np.random.shuffle(shuffled)
+        n_val_obs = int(self.val_split * n_observations)
+        logger.debug('Splitting {} validation observation from data of '
+                     'length {}'.format(n_val_obs, n_observations))
+        val_indices = shuffled[:n_val_obs]
+        training_indices = shuffled[n_val_obs:]
+        self.val_data = self.data[:, :, val_indices, :]
+        self.data = self.data[:, :, training_indices, :]
+        return self.data, self.val_data
+
+    def _normalize_data(self, feature_index, mean, std):
         """Normalize data with initialized
         mean and standard deviation for
         a specific feature
@@ -57,15 +343,25 @@ class DataHandler:
             specified mean of associated feature
         std : float32
             specificed standard deviation for associated feature
+        """
+
+        self.val_data[:, :, :, feature_index] = \
+            (self.val_data[:, :, :, feature_index] - mean) / std
+
+        self.data[:, :, :, feature_index] = \
+            (self.data[:, :, :, feature_index] - mean) / std
+
+    @property
+    def shape(self):
+        """Full data shape
 
         Returns
         -------
-        data : np.ndarray
-            normalized data array
+        shape : tuple
+            Full data shape
+            (spatial_1, spatial_2, temporal, features)
         """
-        self.data[:, :, :, feature_index] = \
-            (self.data[:, :, :, feature_index] - mean) / std
-        return self.data
+        return self.data.shape
 
     def extract_data(self):
         """Building base 4D data array
@@ -87,21 +383,16 @@ class DataHandler:
             lat (lon) first channel (second channel)
         """
 
-        raster_index = self.get_raster_index(self.data_files[0],
+        raster_index = self.get_raster_index(self.file_path,
                                              self.target,
-                                             self.shape)
+                                             self.grid_shape)
 
-        y, lat_lon = self._get_file_data(self.data_files[0],
+        y, lat_lon = self._get_file_data(self.file_path,
                                          raster_index,
                                          self.features)
-        if len(self.data_files) > 1:
-            for f in self.data_files[1:]:
-                tmp = self._get_file_data(f, raster_index,
-                                          self.features,
-                                          get_coords=False)
-                y = np.concatenate((y, tmp), axis=2)
 
-        y = utilities.transform_rotate_wind(y, lat_lon, self.features)
+        y = transform_rotate_wind(
+            y[:, :, ::self.time_step, :], lat_lon, self.features)
 
         self.data = y
         self.lat_lon = lat_lon
@@ -128,23 +419,33 @@ class DataHandler:
 
         """
 
-        _, file_ext = os.path.splitext(file_path)
-        if file_ext == '.h5':
-            with WindX(file_path) as res:
-                raster_index = res.get_raster_index(target, shape,
-                                                    max_delta=self.max_delta)
-
-        elif file_ext == '.nc':
-            nc_file = xr.open_dataset(file_path)
-            lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
-            lat_idx = np.argmin(np.abs(lat_diff))
-            lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
-            lon_idx = np.argmin(np.abs(lon_diff))
-            raster_index = [[lat_idx, lat_idx + shape[0]],
-                            [lon_idx, lon_idx + shape[1]]]
+        if self.raster_file is not None and os.path.exists(self.raster_file):
+            logger.debug('Loading raster index: {}'.format(self.raster_file))
+            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
-            raise ConfigError('Data must be either h5 or netcdf '
-                              f'but received file extension: {file_ext}')
+            _, file_ext = os.path.splitext(file_path)
+            if file_ext == '.h5':
+                logger.debug('Calculating raster index from WTK file.')
+                with WindX(file_path) as res:
+                    raster_index = \
+                        res.get_raster_index(target, shape,
+                                             max_delta=self.max_delta)
+
+            elif file_ext == '.nc':
+                nc_file = xr.open_dataset(file_path)
+                lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
+                lat_idx = np.argmin(np.abs(lat_diff))
+                lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
+                lon_idx = np.argmin(np.abs(lon_diff))
+                raster_index = [[lat_idx, lat_idx + shape[0]],
+                                [lon_idx, lon_idx + shape[1]]]
+            else:
+                raise ConfigError('Data must be either h5 or netcdf '
+                                  f'but received file extension: {file_ext}')
+            if self.raster_file is not None:
+                logger.debug('Saving raster index: {}'
+                             .format(self.raster_file))
+                np.savetxt(self.raster_file, raster_index)
         return raster_index
 
     @classmethod
@@ -219,17 +520,22 @@ class DataHandler:
             with 2 channels as lat/lon in that order.
             Only returned if get_coords=True
         """
+        logger.debug('Loading data for raster of shape {}'
+                     .format(raster_index.shape))
 
         with WindX(file_path, hsds=False) as handle:
 
             data = np.zeros((raster_index.shape[0],
                              raster_index.shape[1],
                              len(handle.time_index),
-                             len(features)), dtype=np.float32)
+                             len(features)),
+                            dtype=np.float32)
 
             for j, f in enumerate(features):
-                data[:, :, :, j] = np.transpose(handle[f, :, raster_index],
-                                                (1, 2, 0))
+                fdata = handle[f, :, raster_index.flatten()]
+                fdata = fdata.reshape((len(fdata), raster_index.shape[0],
+                                      raster_index.shape[1]))
+                data[:, :, :, j] = np.transpose(fdata, (1, 2, 0))
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
                                     raster_index.shape[1], 2))
@@ -269,6 +575,8 @@ class DataHandler:
             with 2 channels as lat/lon in that order.
             Only returned if get_coords=True
         """
+        logger.debug('Loading data for raster of shape {}'
+                     .format(raster_index.shape))
 
         handle = xr.open_dataset(file_path)
 
@@ -297,7 +605,8 @@ class DataHandler:
 
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
-                                    raster_index.shape[1], 2))
+                                    raster_index.shape[1], 2),
+                                   dtype=np.float32)
                 lat_lon[:, :, 0] = \
                     handle['XLAT'][0, raster_index[0][0]:raster_index[0][1], 0]
                 lat_lon[:, :, 1] = \
@@ -323,176 +632,284 @@ class Batch:
         high_res : np.ndarray
             4D array (batch_size, spatial_1, spatial_2, features)
         """
-        self.low_res = low_res
-        self.high_res = high_res
+        self._low_res = low_res
+        self._high_res = high_res
+
+    def __len__(self):
+        """Get the number of observations in this batch."""
+        return len(self._low_res)
+
+    @property
+    def shape(self):
+        """Get the (low_res_shape, high_res_shape) shapes."""
+        return (self._low_res.shape, self._high_res.shape)
+
+    @property
+    def low_res(self):
+        """Get the low-resolution data for the batch."""
+        return self._low_res
+
+    @property
+    def high_res(self):
+        """Get the high-resolution data for the batch."""
+        return self._high_res
 
 
 class SpatialBatchHandler:
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data, batch_size=8, val_split=0.2,
-                 spatial_res=2):
+    def __init__(self, data_handlers, batch_size=8,
+                 spatial_res=3, norm=True,
+                 spatial_sample_shape=(10, 10),
+                 means=None, stds=None,
+                 n_batches=10):
         """
         Parameters
         ----------
-        data : np.ndarray
-            4D array (spatial_1, spatial_2, temporal, features)
+        data_handlers : list[DataHandler]
+            List of DataHandler instances
         batch_size : int
-            size of batches along temporal dimension
-        spatial_res: int
-            factor by which to coarsen spatial dimensions
+            Number of observations in a batch
+        spatial_res : int
+            Factor by which to coarsen spatial dimensions to generate
+            low res data
+        norm : bool
+            Whether to normalize the data or not
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features. If not None
+            and norm is True these will be used for normalization
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features. If not None
+            and norm is True these will be used form normalization
+        spatial_sample_shape : tuple
+            Shape of spatial sample to extract from full spatial domain
         """
 
-        self.data = data
-        self.val_split = val_split
-        self.training_indices, self.val_indices = self._split_data()
-        self.batch_size = batch_size
-        self.spatial_res = spatial_res
-        self.batch_indices = self._get_batch_indices()
-        self.max = len(self.batch_indices)
+        self.data_handlers = data_handlers
         self._i = 0
         self.low_res = None
         self.high_res = None
         self.data_handler = None
-        self.mean = None
-        self.std = None
+        self.batch_size = batch_size
+        self._val_data = None
+        self.spatial_res = spatial_res
+        self.spatial_sample_shape = spatial_sample_shape
+        self.means = np.zeros((self.shape[-1]))
+        self.stds = np.zeros((self.shape[-1]))
+        self.n_batches = n_batches
 
-    def _split_data(self):
-        """Splits time dimension into set of training indices
-        and validation indices
+        if norm:
+            self.normalize(means, stds)
 
-        Parameters
-        ----------
-        val_split : float32, optional
-            Fraction of full data array to
-            reserve for validation, by default 0.2
+        self.val_data = ValidationData(data_handlers, batch_size,
+                                       spatial_sample_shape,
+                                       spatial_res)
+
+    def __len__(self):
+        """Use user input of n_batches to specify length
 
         Returns
         -------
-        training_indices : np.ndarray
-            array of indices for training data slice
-        val_indices : np.ndarray
-            array of indices for validation data slice
+        self.n_batches : int
+            Number of batches possible to iterate over
         """
-
-        n_observations = self.data.shape[2]
-        all_indices = np.arange(n_observations)
-        shuffled = all_indices.copy()
-        np.random.shuffle(shuffled)
-        n_val_obs = int(self.val_split * n_observations)
-        self.val_indices = shuffled[:n_val_obs]
-        self.training_indices = shuffled[n_val_obs:]
-        return self.training_indices, self.val_indices
+        return self.n_batches
 
     @property
-    def val_data(self):
-        """Validation data property
+    def shape(self):
+        """Shape of full dataset across all handlers
 
         Returns
         -------
-        batch : Batch
-            validation data batch. includes
-            batch.low_res and batch.high_res
+        shape : tuple
+            (spatial_1, spatial_2, temporal, features)
+            With temporal extent equal to the sum across
+            all data handlers time dimension
         """
-        low_res, high_res = \
-            self._reshape_data(self.data[:, :, self.val_indices, :])
-        batch = Batch(low_res, high_res)
-        return batch
+        time_steps = 0
+        for h in self.data_handlers:
+            time_steps += h.shape[2]
+        return (self.data_handlers[0].shape[0],
+                self.data_handlers[0].shape[1],
+                time_steps,
+                self.data_handlers[0].shape[3])
+
+    def _get_stats(self):
+        """Get standard deviations and means
+        for all data features
+
+        Returns
+        -------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        """
+
+        for i in range(self.shape[-1]):
+            n_elems = 0
+            for data_handler in self.data_handlers:
+                self.means[i] += np.sum(data_handler.data[:, :, :, i])
+                n_elems += \
+                    data_handler.shape[0] \
+                    * data_handler.shape[1] \
+                    * data_handler.shape[2]
+            self.means[i] = self.means[i] / n_elems
+            for data_handler in self.data_handlers:
+                self.stds[i] += \
+                    np.sum((data_handler.data[:, :, :, i] - self.means[i])**2)
+            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     @classmethod
-    def make(cls, data_files, target,
-             shape, features, val_split=0.2,
-             batch_size=8, spatial_res=3,
-             max_delta=20):
+    def make(cls, file_paths, features,
+             targets=None, shape=None,
+             val_split=0.2, batch_size=8,
+             spatial_sample_shape=(10, 10),
+             spatial_res=3, max_delta=20,
+             norm=True, raster_files=None,
+             time_step=1, means=None,
+             n_batches=10,
+             stds=None):
+
         """Method to initialize both
         data and batch handlers
 
         Parameters
         ----------
-        data_files : list
-            list of file paths
-        target : tuple
-            (lat, lon) lower left corner of raster
-        shape : tuple
-            (rows, cols) grid size
+        file_paths : list
+            list of file paths to wind data files
         features : list
             list of features to extract
+        targets : tuple
+            List of several (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
         val_split : float32
             fraction of data to reserve for validation
         batch_size : int
-            size of batches along temporal dimension
+            number of observations in a batch
+        spatial_sample_shape : tuple
+            size of spatial slices used for spatial batching
         spatial_res: int
             factor by which to coarsen spatial dimensions
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raseter will
+            once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        raster_files : list | str | None
+            Files for raster_index array for the corresponding targets and
+            shape. If a list these can be different files for different
+            targets. If a string the same file will be used for all
+            targets. If None raster_index will be calculated directly. Either
+            need target+shape or raster_file.
+        norm : bool
+            Wether to normalize data using means/stds calulcated across
+            all handlers
+        time_step : int
+            Number of timesteps to downsample. If time_step=1 no time
+            steps will be skipped.
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        n_batches : int
+            Number of batches to iterate through
 
         Returns
         -------
         batchHandler : SpatialBatchHandler
             batchHandler with dataHandler attribute
         """
-        data_handler = DataHandler(data_files, target,
-                                   shape, features,
-                                   max_delta=max_delta)
-        batch_handler = SpatialBatchHandler(data_handler.data,
-                                            batch_size=batch_size,
-                                            val_split=val_split,
-                                            spatial_res=spatial_res)
-        batch_handler.data_handler = data_handler
+
+        check = ((targets is not None and shape is not None)
+                 or raster_files is not None)
+        msg = ('You must either provide the targets+shape inputs '
+               'or the raster_files input.')
+        assert check, msg
+
+        data_handlers = []
+        for i, f in enumerate(file_paths):
+            if raster_files is None:
+                raster_file = None
+            else:
+                raster_file = raster_files[i]
+            if not isinstance(targets, list):
+                target = targets
+            else:
+                target = targets[i]
+            data_handlers.append(
+                DataHandler(f, features, target=target, shape=shape,
+                            max_delta=max_delta,
+                            raster_file=raster_file,
+                            val_split=val_split,
+                            spatial_sample_shape=spatial_sample_shape,
+                            time_step=time_step))
+        batch_handler = SpatialBatchHandler(
+            data_handlers, spatial_res=spatial_res,
+            spatial_sample_shape=spatial_sample_shape,
+            batch_size=batch_size, norm=norm, means=means,
+            stds=stds, n_batches=n_batches)
         return batch_handler
 
-    def _get_batch_indices(self):
-        """Get set of indices for data batches
-
-        Returns
-        -------
-        batch_indices : np.ndarray
-            array of indices for data batches
+    def normalize(self, means=None, stds=None):
+        """Compute means and stds for each feature
+        across all datasets and normalize each data handler dataset.
+        Checks if input means and stds are different from stored
+        means and stds and renormalizes if they are new
         """
 
-        n_batches = int(np.ceil(len(self.training_indices) / self.batch_size))
-        self.batch_indices = np.array_split(self.training_indices, n_batches)
+        if means is None or stds is None:
+            self._get_stats()
 
-        return self.batch_indices
+        elif means is not None and stds is not None:
+            if (not np.array_equal(means, self.means)
+                    or not np.array_equal(stds, self.stds)):
+                self.unnormalize()
+            self.means = means
+            self.stds = stds
 
-    def _reshape_data(self, high_res):
-        """Coarsens high res data and reshapes data arrays
-        to use time slices as observations
+        logger.info('Normalizing data with means: {}'.format(self.means))
+        logger.info('Normalizing data with stdevs: {}'.format(self.stds))
+        for d in self.data_handlers:
+            d.normalize(self.means, self.stds)
 
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D array (spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        low_res : np.ndarray
-            4D array (temporal, spatial_1, spatial_2, features)
-        high_res : np.ndarray
-            4D array (temporal, spatial_1, spatial_2, features)
-        """
-
-        low_res = utilities.spatial_coarsening(high_res,
-                                               self.spatial_res)
-        low_res = low_res.transpose((2, 0, 1, 3))
-        high_res = high_res.transpose((2, 0, 1, 3))
-        return low_res, high_res
+    def unnormalize(self):
+        """Remove normalization from stored means and stds"""
+        logger.info('Un-normalizing data with means: {}'.format(self.means))
+        logger.info('Un-normalizing data with stdevs: {}'.format(self.stds))
+        for d in self.data_handlers:
+            d.unnormalize(self.means, self.stds)
 
     def __iter__(self):
         self._i = 0
         return self
 
     def __next__(self):
-        if self._i < self.max:
-            self.high_res = \
-                self.data[:, :,
-                          self.batch_indices[self._i], :]
-            self.low_res, self.high_res = \
-                self._reshape_data(self.high_res)
-            batch = Batch(self.low_res, self.high_res)
+        if self._i <= self.n_batches:
+            handler_index = np.random.choice(len(self.data_handlers))
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size,
+                                 self.spatial_sample_shape[0],
+                                 self.spatial_sample_shape[1],
+                                 self.shape[-1]), dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, :, :, :] = handler.get_next()
+            low_res = spatial_coarsening(high_res, self.spatial_res)
+            batch = Batch(low_res, high_res)
             self._i += 1
             return batch
         else:

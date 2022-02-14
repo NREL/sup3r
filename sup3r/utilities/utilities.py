@@ -3,6 +3,38 @@
 trraining data"""
 
 import numpy as np
+import logging
+
+
+logger = logging.getLogger(__name__)
+
+
+def uniform_box_sampler(data, shape):
+    '''
+    Extracts a sample cut from data.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (rows, cols) Size of grid to sample
+        from arr
+
+    Returns:
+    --------
+    slices : List of slices corresponding to row
+    and col extent of arr sample
+    '''
+
+    slices = []
+    start_row = int(np.random.uniform(0, data.shape[0] - shape[0]))
+    stop_row = start_row + shape[0]
+    start_col = int(np.random.uniform(0, data.shape[1] - shape[1]))
+    stop_col = start_col + shape[1]
+    slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
+    return slices
 
 
 def transform_rotate_wind(y, lat_lon, features):
@@ -72,6 +104,9 @@ def transform_wind(y, i, j):
     v : np.ndarray
         3D array of meridional wind components
     """
+
+    logger.debug('Transforming speed and direction to U and V')
+
     # convert from windspeed and direction to u v
     windspeed = y[:, :, :, i]
     direction = y[:, :, :, j]
@@ -106,6 +141,8 @@ def rotate_u_v(y, i, j, lat_lon):
     v_rot : np.ndarray
         3D array of meridional wind components
     """
+
+    logger.debug('Aligning U and V with grid coordinate system')
 
     u = y[:, :, :, i]
     v = y[:, :, :, j]
@@ -165,7 +202,7 @@ def spatial_coarsening(data, spatial_res=2):
     ----------
     data : np.ndarray
         4D array with dimensions
-        (spatial_1, spatial_2, temporal, features)
+        (n_observations, spatial_1, spatial_2, features)
 
     lat_lon : np.ndarray
         2D array with dimensions
@@ -182,18 +219,19 @@ def spatial_coarsening(data, spatial_res=2):
     """
 
     if spatial_res is not None:
-        if data.shape[1] % spatial_res != 0:
+        if (data.shape[1] % spatial_res != 0
+                or data.shape[2] % spatial_res != 0):
             msg = 'spatial_res must evenly divide grid size. '
             msg += f'Received spatial_res: {spatial_res} '
-            msg += f'with grid size: ({data.shape[0]}, '
-            msg += f'{data.shape[1]})'
+            msg += f'with grid size: ({data.shape[1]}, '
+            msg += f'{data.shape[2]})'
             raise ValueError(msg)
 
-        coarse_data = data.reshape(-1, spatial_res,
+        coarse_data = data.reshape(data.shape[0], -1,
+                                   spatial_res,
                                    data.shape[1] // spatial_res,
                                    spatial_res,
-                                   data.shape[2],
-                                   data.shape[3]).sum((1, 3)) \
+                                   data.shape[3]).sum((2, 4)) \
             / (spatial_res * spatial_res)
 
     else:
