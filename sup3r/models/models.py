@@ -1015,7 +1015,9 @@ class SpatialGan(BaseModel):
                 if key != 'n_obs':
                     self._history.at[epoch, key] = value
 
-            if checkpoint_int is not None and (epoch % checkpoint_int) == 0:
+            last_epoch = epoch == epochs[-1]
+            chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
+            if last_epoch or chp:
                 msg = ('GAN output dir for checkpoint models should have '
                        f'{"{epoch}"} but did not: {out_dir}')
                 assert '{epoch}' in out_dir, msg
