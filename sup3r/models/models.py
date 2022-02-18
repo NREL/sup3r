@@ -647,6 +647,8 @@ class SpatialGan(BaseModel):
             Directory to load GAN model files from.
         """
 
+        logger.info('Loading GAN from disk in directory: {}'.format(out_dir))
+
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         fp_disc = os.path.join(out_dir, 'model_disc.pkl')
         fp_params = os.path.join(out_dir, 'model_params.json')
