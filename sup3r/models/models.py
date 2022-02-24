@@ -471,6 +471,76 @@ class BaseModel(ABC):
 
         return stop
 
+    def finish_epoch(self, epoch, epochs, t0, loss_details,
+                     checkpoint_int, out_dir,
+                     early_stop_on, early_stop_threshold,
+                     early_stop_n_epoch):
+        """Perform finishing checks after an epoch is done training
+
+        Parameters
+        ----------
+        epoch : int
+            Epoch number that is finishing
+        epochs : list
+            List of epochs being iterated through
+        t0 : float
+            Starting time of training.
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        checkpoint_int : int | None
+            Epoch interval at which to save checkpoint models.
+        out_dir : str
+            Directory to save checkpoint GAN models. Should have {epoch} in
+            the directory name. This directory will be created if it does not
+            already exist.
+        early_stop_on : str | None
+            If not None, this should be a column in the training history to
+            evaluate for early stopping (e.g. validation_loss_gen,
+            validation_loss_disc). If this value in this history decreases by
+            an absolute fractional relative difference of less than 0.01 for
+            more than 5 epochs in a row, the training will stop early.
+        early_stop_threshold : float
+            The absolute relative fractional difference in validation loss
+            between subsequent epochs below which an early termination is
+            warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+            less than the default thresold of 0.01 and would satisfy the
+            condition for early termination.
+        early_stop_n_epoch : int
+            The number of consecutive epochs that satisfy the threshold that
+            warrants an early stop.
+
+        Returns
+        -------
+        stop : bool
+            Flag to early stop training.
+        """
+
+        self.log_loss_details(loss_details)
+
+        self._history.at[epoch, 'elapsed_time'] = time.time() - t0
+        for key, value in loss_details.items():
+            if key != 'n_obs':
+                self._history.at[epoch, key] = value
+
+        last_epoch = epoch == epochs[-1]
+        chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
+        if last_epoch or chp:
+            msg = ('GAN output dir for checkpoint models should have '
+                   f'{"{epoch}"} but did not: {out_dir}')
+            assert '{epoch}' in out_dir, msg
+            self.save(out_dir.format(epoch=epoch))
+
+        stop = False
+        if early_stop_on is not None and early_stop_on in self._history:
+            stop = self.early_stop(self._history, early_stop_on,
+                                   threshold=early_stop_threshold,
+                                   n_epoch=early_stop_n_epoch)
+            if stop:
+                self.save(out_dir.format(epoch=epoch))
+
+        return stop
+
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
                              **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
@@ -1007,28 +1077,13 @@ class SpatialGan(BaseModel):
                                 loss_details['val_loss_gen'],
                                 loss_details['train_loss_disc'],
                                 loss_details['val_loss_disc']))
-            self.log_loss_details(loss_details)
 
-            self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-            for key, value in loss_details.items():
-                if key != 'n_obs':
-                    self._history.at[epoch, key] = value
-
-            last_epoch = epoch == epochs[-1]
-            chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
-            if last_epoch or chp:
-                msg = ('GAN output dir for checkpoint models should have '
-                       f'{"{epoch}"} but did not: {out_dir}')
-                assert '{epoch}' in out_dir, msg
-                self.save(out_dir.format(epoch=epoch))
-
-            if early_stop_on is not None and early_stop_on in self._history:
-                stop = self.early_stop(self._history, early_stop_on,
-                                       threshold=early_stop_threshold,
-                                       n_epoch=early_stop_n_epoch)
-                if stop:
-                    self.save(out_dir.format(epoch=epoch))
-                    break
+            stop = self.finish_epoch(epoch, epochs, t0, loss_details,
+                                     checkpoint_int, out_dir,
+                                     early_stop_on, early_stop_threshold,
+                                     early_stop_n_epoch)
+            if stop:
+                break
 
 
 class SpatioTemporalGan(BaseModel):
@@ -1561,25 +1616,10 @@ class SpatioTemporalGan(BaseModel):
                                 loss_details['train_loss_disc_t'],
                                 loss_details['val_loss_disc_t'],
                                 ))
-            self.log_loss_details(loss_details)
 
-            self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-            for key, value in loss_details.items():
-                if key != 'n_obs':
-                    self._history.at[epoch, key] = value
-
-            last_epoch = epoch == epochs[-1]
-            chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
-            if last_epoch or chp:
-                msg = ('GAN output dir for checkpoint models should have '
-                       f'{"{epoch}"} but did not: {out_dir}')
-                assert '{epoch}' in out_dir, msg
-                self.save(out_dir.format(epoch=epoch))
-
-            if early_stop_on is not None and early_stop_on in self._history:
-                stop = self.early_stop(self._history, early_stop_on,
-                                       threshold=early_stop_threshold,
-                                       n_epoch=early_stop_n_epoch)
-                if stop:
-                    self.save(out_dir.format(epoch=epoch))
-                    break
+            stop = self.finish_epoch(epoch, epochs, t0, loss_details,
+                                     checkpoint_int, out_dir,
+                                     early_stop_on, early_stop_threshold,
+                                     early_stop_n_epoch)
+            if stop:
+                break
