@@ -991,8 +991,9 @@ class SpatialGan(BaseModel):
             epochs += self._history.index.values[-1] + 1
 
         t0 = time.time()
-        logger.info('Training model for {} epochs starting at epoch {}'
-                    .format(n_epoch, epochs[0]))
+        logger.info('Training model with weight_gen_advers: {} '
+                    'for {} epochs starting at epoch {}'
+                    .format(weight_gen_advers, n_epoch, epochs[0]))
 
         for epoch in epochs:
             loss_details = self.train_epoch(batch_handler, weight_gen_advers,
