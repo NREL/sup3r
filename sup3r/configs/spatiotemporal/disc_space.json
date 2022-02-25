@@ -1,6 +1,6 @@
 {
   "hidden_layers": [
-    {"class": "UnpackTemporal"},
+    {"class": "UnpackTemporal", "temporal_axis": 3},
     {"class": "Conv2D", "filters": 32, "kernel_size": 3, "padding": "same", "strides": 1},
     {"alpha": 0.2, "class": "LeakyReLU"},
     {"class": "Conv2D", "filters": 32, "kernel_size": 3, "padding": "same", "strides": 2},
