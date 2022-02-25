@@ -42,7 +42,7 @@ def test_load_spatiotemporal():
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
     fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
 
-    model = SpatioTemporalGan(fp_gen, fp_disc_t, fp_disc_s)
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
 
     coarse_shape = (32, 5, 5, 4, 2)
     x = np.ones(coarse_shape)
@@ -67,11 +67,10 @@ def test_load_spatiotemporal():
     assert disc_out.shape[0] == coarse_shape[0]
     assert disc_out.shape[1] == 1
 
-    # only take one temporal slice for the spatial disc
-    x = tf.identity(gen_out[:, :, :, 0, :])
+    x = tf.identity(gen_out)
     for layer in model.disc_spatial:
         x = layer(x)
     disc_out = tf.identity(x)
     assert len(disc_out.shape) == 2
-    assert disc_out.shape[0] == coarse_shape[0]
+    assert disc_out.shape[0] == gen_out.shape[0] * gen_out.shape[3]
     assert disc_out.shape[1] == 1
