@@ -539,7 +539,8 @@ class ValidationData:
     def __init__(self, handlers, batch_size=8,
                  spatial_sample_shape=(10, 10),
                  temporal_sample_shape=1,
-                 spatial_res=3, temporal_res=2):
+                 spatial_res=3, temporal_res=1,
+                 temporal_coarsening_method='subsample'):
         """
         Parameters
         ----------
@@ -549,8 +550,13 @@ class ValidationData:
             Size of validation data batches
         spatial_sample_shape : tuple
             Size of spatial sample of validation data
-        spatial_res = int
+        spatial_res : int
             Factor by which to coarsen spatial dimensions
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every temporal_res-th time step,
+            average will average over temporal_res time steps,
+            total will sum over temporal_res time steps
         """
         self.handlers = handlers
         self.val_indices = self._get_val_indices()
@@ -563,6 +569,7 @@ class ValidationData:
         self.temporal_res = temporal_res
         self._i = 0
         self._remaining_observations = len(self.val_indices)
+        self.temporal_coarsening_method = temporal_coarsening_method
 
     def _get_val_indices(self):
         """List of dicts to index each validation data
@@ -632,7 +639,8 @@ class ValidationData:
                     (high_res.shape[0], high_res.shape[2],
                      high_res.shape[3], high_res.shape[4]))
             low_res = spatial_coarsening(high_res, self.spatial_res)
-            low_res = temporal_coarsening(low_res, self.temporal_res)
+            low_res = temporal_coarsening(
+                low_res, self.temporal_res, self.temporal_coarsening_method)
             batch = Batch(low_res, high_res)
             self._i += 1
             return batch
@@ -686,7 +694,8 @@ class BatchHandler:
                  temporal_sample_shape=10,
                  spatial_sample_shape=(10, 10),
                  means=None, stds=None,
-                 norm=True, n_batches=10):
+                 norm=True, n_batches=10,
+                 temporal_coarsening_method='subsample'):
         """
         Parameters
         ----------
@@ -716,6 +725,11 @@ class BatchHandler:
             Shape of spatial sample to extract from full spatial domain
         temporal_sample_shape : int
             Shape of time sample to extract from full temporal domain
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every temporal_res-th time step,
+            average will average over temporal_res time steps,
+            total will sum over temporal_res time steps
         """
 
         self.data_handlers = data_handlers
@@ -732,6 +746,7 @@ class BatchHandler:
         self.means = np.zeros((self.shape[-1]))
         self.stds = np.zeros((self.shape[-1]))
         self.n_batches = n_batches
+        self.temporal_coarsening_method = temporal_coarsening_method
 
         if norm:
             self.normalize(means, stds)
@@ -740,7 +755,8 @@ class BatchHandler:
             data_handlers, batch_size,
             spatial_res=spatial_res, temporal_res=temporal_res,
             spatial_sample_shape=spatial_sample_shape,
-            temporal_sample_shape=temporal_sample_shape)
+            temporal_sample_shape=temporal_sample_shape,
+            temporal_coarsening_method=temporal_coarsening_method)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -755,15 +771,13 @@ class BatchHandler:
     @classmethod
     def make(cls, file_paths, targets,
              shape, features, val_split=0.2,
-             batch_size=8,
              spatial_sample_shape=(10, 10),
              temporal_sample_shape=10,
              spatial_res=3, temporal_res=2,
              max_delta=20, norm=True,
-             raster_files=None,
-             time_step=1, means=None,
-             n_batches=10,
-             stds=None):
+             raster_files=None, time_pruning=1,
+             batch_size=8, n_batches=10,
+             means=None, stds=None):
 
         """Method to initialize both
         data and batch handlers
@@ -784,7 +798,7 @@ class BatchHandler:
             number of observations in a batch
         spatial_sample_shape : tuple
             size of spatial slices used for spatial batching
-        temporal_sample_shape : tuple
+        temporal_sample_shape : int
             size of time slices used for temporal batching
         spatial_res: int
             factor by which to coarsen spatial dimensions
@@ -803,7 +817,7 @@ class BatchHandler:
         norm : bool
             Wether to normalize data using means/stds calulcated across
             all handlers
-        time_step : int
+        time_pruning : int
             Number of timesteps to downsample. If time_step=1 no time
             steps will be skipped.
         means : np.ndarray
@@ -838,7 +852,7 @@ class BatchHandler:
                     raster_file=raster_file, val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
-                    time_step=time_step))
+                    time_pruning=time_pruning))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             spatial_sample_shape=spatial_sample_shape,
@@ -939,7 +953,8 @@ class BatchHandler:
             low_res = spatial_coarsening(
                 high_res, self.spatial_res)
             low_res = temporal_coarsening(
-                low_res, self.temporal_res)
+                low_res, self.temporal_res,
+                self.temporal_coarsening_method)
             batch = Batch(low_res, high_res)
             self._i += 1
             return batch
@@ -950,9 +965,8 @@ class BatchHandler:
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data_handlers, batch_size=8,
-                 spatial_res=3, temporal_res=1,
-                 temporal_sample_shape=1,
+    def __init__(self, data_handlers,
+                 batch_size=8, spatial_res=3,
                  spatial_sample_shape=(10, 10),
                  means=None, stds=None,
                  norm=True, n_batches=10):
@@ -985,7 +999,8 @@ class SpatialBatchHandler(BatchHandler):
                          spatial_res=spatial_res, temporal_res=1,
                          temporal_sample_shape=1,
                          spatial_sample_shape=spatial_sample_shape,
-                         norm=norm, n_batches=n_batches)
+                         norm=norm, n_batches=n_batches,
+                         means=means, stds=stds)
 
     @classmethod
     def make(cls, file_paths, features,
