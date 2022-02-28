@@ -20,7 +20,7 @@ def uniform_box_sampler(data, shape):
         (spatial_1, spatial_2, temporal, features)
     shape : tuple
         (rows, cols) Size of grid to sample
-        from arr
+        from data
 
     Returns:
     --------
@@ -35,6 +35,30 @@ def uniform_box_sampler(data, shape):
     stop_col = start_col + shape[1]
     slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
     return slices
+
+
+def uniform_time_sampler(data, shape):
+    '''
+    Extracts a temporal slice from data.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (time_steps) Size of time slice to sample
+        from data
+
+    Returns:
+    --------
+    slice : slice
+        time slice with size shape
+    '''
+
+    start = int(np.random.uniform(0, data.shape[2] - shape))
+    stop = start + shape
+    return slice(start, stop)
 
 
 def transform_rotate_wind(y, lat_lon, features):
@@ -168,17 +192,23 @@ def rotate_u_v(y, i, j, lat_lon):
     return y
 
 
-def temporal_coarsening(data, temporal_res=2):
+def temporal_coarsening(data, temporal_res=2, method='subsample'):
     """"Coarsen data according to temporal_res resolution
 
     Parameters
     ----------
     data : np.ndarray
-        4D array with dimensions
-        (spatial_1, spatial_2, temporal, features)
+        5D array with dimensions
+        (observations, temporal, spatial_1, spatial_2, features)
 
     temporal_res : int
         factor by which to coarsen temporal dimension
+
+    method : str
+        [subsample, average, total]
+        Subsample will take every temporal_res-th time step,
+        average will average over temporal_res time steps,
+        total will sum over temporal_res time steps
 
     Returns
     -------
@@ -187,8 +217,22 @@ def temporal_coarsening(data, temporal_res=2):
         with new coarse resolution
     """
 
-    if temporal_res is not None:
-        coarse_data = data[:, :, ::temporal_res, :]
+    if temporal_res is not None and len(data.shape) == 5:
+        if method == 'subsample':
+            coarse_data = data[:, ::temporal_res, :, :, :]
+        if method == 'average':
+            coarse_data = np.average(
+                data.reshape(
+                    (data.shape[0], -1, temporal_res,
+                     data.shape[2], data.shape[3],
+                     data.shape[4])), axis=1)
+        if method == 'total':
+            coarse_data = np.sum(
+                data.reshape(
+                    (data.shape[0], -1, temporal_res,
+                     data.shape[2], data.shape[3],
+                     data.shape[4])), axis=1)
+
     else:
         coarse_data = data.copy()
 
@@ -201,8 +245,8 @@ def spatial_coarsening(data, spatial_res=2):
     Parameters
     ----------
     data : np.ndarray
-        4D array with dimensions
-        (n_observations, spatial_1, spatial_2, features)
+        4D | 5D array with dimensions
+        (n_observations, temporal (optional), spatial_1, spatial_2, features)
 
     lat_lon : np.ndarray
         2D array with dimensions
@@ -214,25 +258,45 @@ def spatial_coarsening(data, spatial_res=2):
     Returns
     -------
     coarse_data : np.ndarray
-        4D array with same dimensions as data
+        4D | 5D array with same dimensions as data
         with new coarse resolution
     """
 
     if spatial_res is not None:
-        if (data.shape[1] % spatial_res != 0
-                or data.shape[2] % spatial_res != 0):
-            msg = 'spatial_res must evenly divide grid size. '
-            msg += f'Received spatial_res: {spatial_res} '
-            msg += f'with grid size: ({data.shape[1]}, '
-            msg += f'{data.shape[2]})'
-            raise ValueError(msg)
+        if len(data.shape) == 5:
+            if (data.shape[2] % spatial_res != 0
+                    or data.shape[3] % spatial_res != 0):
+                msg = 'spatial_res must evenly divide grid size. '
+                msg += f'Received spatial_res: {spatial_res} '
+                msg += f'with grid size: ({data.shape[2]}, '
+                msg += f'{data.shape[3]})'
+                raise ValueError(msg)
+        else:
+            if (data.shape[1] % spatial_res != 0
+                    or data.shape[2] % spatial_res != 0):
+                msg = 'spatial_res must evenly divide grid size. '
+                msg += f'Received spatial_res: {spatial_res} '
+                msg += f'with grid size: ({data.shape[1]}, '
+                msg += f'{data.shape[2]})'
+                raise ValueError(msg)
 
-        coarse_data = data.reshape(data.shape[0], -1,
-                                   spatial_res,
-                                   data.shape[1] // spatial_res,
-                                   spatial_res,
-                                   data.shape[3]).sum((2, 4)) \
-            / (spatial_res * spatial_res)
+        if len(data.shape) == 5:
+            coarse_data = data.reshape(data.shape[0],
+                                       data.shape[1],
+                                       -1,
+                                       spatial_res,
+                                       data.shape[2] // spatial_res,
+                                       spatial_res,
+                                       data.shape[4]).sum((3, 5)) \
+                / (spatial_res * spatial_res)
+
+        else:
+            coarse_data = data.reshape(data.shape[0], -1,
+                                       spatial_res,
+                                       data.shape[1] // spatial_res,
+                                       spatial_res,
+                                       data.shape[3]).sum((2, 4)) \
+                / (spatial_res * spatial_res)
 
     else:
         coarse_data = data.copy()
