@@ -25,7 +25,7 @@ spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
-time_step = 3
+time_pruning = 3
 n_batches = 20
 
 batch_handler = SpatialBatchHandler.make(
@@ -35,7 +35,7 @@ batch_handler = SpatialBatchHandler.make(
     spatial_res=spatial_res,
     max_delta=max_delta,
     val_split=val_split,
-    time_step=time_step,
+    time_pruning=time_pruning,
     n_batches=n_batches)
 
 
@@ -134,7 +134,8 @@ def test_val_data_storage():
 
         handler = DataHandler(f, target, shape, features,
                               max_delta, raster_file=raster_file,
-                              val_split=val_split, time_step=time_step)
+                              val_split=val_split,
+                              time_pruning=time_pruning)
         data, _ = handler.extract_data()
         n_observations += data.shape[2]
 
