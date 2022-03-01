@@ -121,9 +121,25 @@ def test_validation_batching():
              spatial_sample_shape[1], len(features))
 
 
-def test_spatiotemporal_validation_batching():
+@pytest.mark.parametrize(
+    'method', ('subsample', 'average', 'total')
+)
+def test_spatiotemporal_validation_batching(method):
     """Test batching of validation data through
     ValidationData iterator"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, targets, shape, features,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches,
+        temporal_coarsening_method=method)
 
     for batch in spatiotemporal_batch_handler.val_data:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]

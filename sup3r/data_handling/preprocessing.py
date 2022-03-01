@@ -23,12 +23,10 @@ logger = loggers.init_logger(__name__)
 class DataHandler:
     """Sup3r data handling and extraction"""
 
-    def __init__(self, file_path, target,
-                 shape, features, max_delta=20,
-                 raster_file=None, val_split=0.1,
-                 temporal_sample_shape=1,
-                 spatial_sample_shape=(10, 10),
-                 time_pruning=1, shuffle_time=False):
+    def __init__(self, file_path, target, shape, features,
+                 max_delta=20, time_pruning=1, val_split=0.1,
+                 temporal_sample_shape=1, spatial_sample_shape=(10, 10),
+                 raster_file=None, shuffle_time=False):
 
         """Data handling and extraction
 
@@ -59,7 +57,7 @@ class DataHandler:
         temporal_sample_shape : int
             size of time slices used for temporal batching
         time_pruning : int
-            Number of timesteps to downsample. If time_step=1 no time
+            Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
@@ -172,8 +170,8 @@ class DataHandler:
             List of index tuples using spatial samples for each
             time index
         """
-        val_indices = []
-        for _ in range(self.val_data.shape[2]):
+        val_indices = np.empty(self.val_data.shape[2], dtype=tuple)
+        for i, _ in enumerate(val_indices):
             spatial_slice = uniform_box_sampler(
                 self.val_data, self.spatial_sample_shape)
             temporal_slice = uniform_time_sampler(
@@ -181,7 +179,7 @@ class DataHandler:
             tuple_index = tuple(
                 spatial_slice + [temporal_slice]
                 + [np.arange(len(self.features))])
-            val_indices.append(tuple_index)
+            val_indices[i] = tuple_index
         return val_indices
 
     def get_next(self):
@@ -213,6 +211,9 @@ class DataHandler:
         """
         if self._i < len(self.time_indices):
             observation = self.data[self.get_observation_index()]
+
+            # ordering dimensions
+            # (temporal, spatial_1, spatial_2, features)
             observation = np.transpose(
                 observation, (2, 0, 1, 3))
             self._i += 1
@@ -611,7 +612,11 @@ class ValidationData:
                     val_index['handler_index']].val_data[
                         val_index['tuple_index']]
                 self._remaining_observations -= 1
+
+            # ordering dimensions
+            # (observations, temporal, spatial_1, spatial_2, features)
             high_res = np.transpose(high_res, (0, 3, 1, 2, 4))
+
             if self.temporal_sample_shape == 1:
                 high_res = high_res.reshape(
                     (high_res.shape[0], high_res.shape[2],
@@ -736,7 +741,8 @@ class BatchHandler:
              max_delta=20, norm=True,
              raster_files=None, time_pruning=1,
              batch_size=8, n_batches=10,
-             means=None, stds=None):
+             means=None, stds=None,
+             temporal_coarsening_method='subsample'):
 
         """Method to initialize both
         data and batch handlers
@@ -777,7 +783,7 @@ class BatchHandler:
             Wether to normalize data using means/stds calulcated across
             all handlers
         time_pruning : int
-            Number of timesteps to downsample. If time_step=1 no time
+            Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
         means : np.ndarray
             dimensions (features)
@@ -789,6 +795,11 @@ class BatchHandler:
             with same ordering as data features
         n_batches : int
             Number of batches to iterate through
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every temporal_res-th time step,
+            average will average over temporal_res time steps,
+            total will sum over temporal_res time steps
 
         Returns
         -------
@@ -816,10 +827,9 @@ class BatchHandler:
             data_handlers, spatial_res=spatial_res,
             spatial_sample_shape=spatial_sample_shape,
             temporal_sample_shape=temporal_sample_shape,
-            temporal_res=temporal_res,
-            batch_size=batch_size,
-            norm=norm, means=means,
-            stds=stds, n_batches=n_batches)
+            temporal_res=temporal_res, batch_size=batch_size,
+            norm=norm, means=means, stds=stds, n_batches=n_batches,
+            temporal_coarsening_method=temporal_coarsening_method)
         return batch_handler
 
     @property
@@ -1007,7 +1017,7 @@ class SpatialBatchHandler(BatchHandler):
             Wether to normalize data using means/stds calulcated across
             all handlers
         time_pruning : int
-            Number of timesteps to downsample. If time_step=1 no time
+            Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
         means : np.ndarray
             dimensions (features)
