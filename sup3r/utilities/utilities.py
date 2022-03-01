@@ -205,7 +205,7 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
         factor by which to coarsen temporal dimension
 
     method : str
-        [subsample, average, total]
+        accepted options: [subsample, average, total]
         Subsample will take every temporal_res-th time step,
         average will average over temporal_res time steps,
         total will sum over temporal_res time steps
@@ -225,13 +225,13 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
                 data.reshape(
                     (data.shape[0], -1, temporal_res,
                      data.shape[2], data.shape[3],
-                     data.shape[4])), axis=1)
+                     data.shape[4])), axis=2)
         if method == 'total':
             coarse_data = np.sum(
                 data.reshape(
                     (data.shape[0], -1, temporal_res,
                      data.shape[2], data.shape[3],
-                     data.shape[4])), axis=1)
+                     data.shape[4])), axis=2)
 
     else:
         coarse_data = data.copy()
