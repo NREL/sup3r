@@ -844,7 +844,7 @@ class BatchHandler:
 
         Returns
         -------
-        batchHandler : TemporalBatchHandler
+        batchHandler : BatchHandler
             batchHandler with dataHandler attribute
         """
         data_handlers = []
