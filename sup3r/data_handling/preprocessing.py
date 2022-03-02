@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class DataHandler:
     """Sup3r data handling and extraction"""
 
-    def __init__(self, file_path, target=None, shape=None, features=None,
+    def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False):
@@ -620,14 +620,16 @@ class ValidationData:
                     self.spatial_sample_shape[0],
                     self.spatial_sample_shape[1],
                     self.temporal_sample_shape,
-                    self.handlers[0].shape[-1]))
+                    self.handlers[0].shape[-1]),
+                    dtype=np.float32)
             else:
                 high_res = np.zeros((
                     self._remaining_observations,
                     self.spatial_sample_shape[0],
                     self.spatial_sample_shape[1],
                     self.temporal_sample_shape,
-                    self.handlers[0].shape[-1]))
+                    self.handlers[0].shape[-1]),
+                    dtype=np.float32)
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
                 high_res[i, :, :, :, :] = self.handlers[
@@ -859,7 +861,8 @@ class BatchHandler:
                 target = targets[i]
             data_handlers.append(
                 DataHandler(
-                    f, target, shape, features, max_delta=max_delta,
+                    f, features, target=target,
+                    shape=shape, max_delta=max_delta,
                     raster_file=raster_file, val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
@@ -1097,7 +1100,8 @@ class SpatialBatchHandler(BatchHandler):
                 target = targets[i]
             data_handlers.append(
                 DataHandler(
-                    f, target, shape, features,
+                    f, features,
+                    target=target, shape=shape,
                     max_delta=max_delta,
                     raster_file=raster_file,
                     val_split=val_split,

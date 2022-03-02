@@ -102,8 +102,8 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=20)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -230,7 +230,7 @@ def test_val_data_storage():
     n_observations = 0
     for f in input_files:
 
-        handler = DataHandler(f, target, shape, features,
+        handler = DataHandler(f, features, target, shape,
                               max_delta, raster_file=raster_file,
                               val_split=val_split,
                               time_pruning=time_pruning)
@@ -246,8 +246,8 @@ def test_val_data_storage():
 def test_spatial_coarsening(spatial_res, plot=False):
     """Test spatial coarsening"""
 
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=20)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20)
 
     handler_data, _ = handler.extract_data()
     handler_data = handler_data.transpose((2, 0, 1, 3))

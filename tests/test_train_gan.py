@@ -38,7 +38,7 @@ def test_train_spatial(log=False):
     handler = DataHandler(input_file, features, target=target,
                           shape=full_shape,
                           spatial_sample_shape=sample_shape,
-                          time_step=10)
+                          time_pruning=10)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
                                         spatial_sample_shape=sample_shape,
