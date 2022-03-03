@@ -166,7 +166,7 @@ def test_spatiotemporal_batch_indices():
     """Test spatiotemporal batch indices for unique
     spatial indices and contiguous increasing temporal slice"""
 
-    for batch in spatiotemporal_batch_handler:
+    for _ in spatiotemporal_batch_handler:
         for index in spatiotemporal_batch_handler.current_batch_indices:
             spatial_1_slice = np.arange(index[0].start, index[0].stop)
             spatial_2_slice = np.arange(index[1].start, index[1].stop)
