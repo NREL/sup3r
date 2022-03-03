@@ -166,6 +166,7 @@ def test_spatiotemporal_batch_indices():
     """Test spatiotemporal batch indices for unique
     spatial indices and contiguous increasing temporal slice"""
 
+    all_spatial_tuples = []
     for _ in spatiotemporal_batch_handler:
         for index in spatiotemporal_batch_handler.current_batch_indices:
             spatial_1_slice = np.arange(index[0].start, index[0].stop)
@@ -177,11 +178,20 @@ def test_spatiotemporal_batch_indices():
                     spatial_tuples.append(tuple([s1, s2]))
             assert len(spatial_tuples) == len(list(set(spatial_tuples)))
 
+            all_spatial_tuples.append(np.array(spatial_tuples))
+
             sorted_temporal_slice = temporal_slice.copy()
             sorted_temporal_slice.sort()
             assert np.array_equal(sorted_temporal_slice, temporal_slice)
 
             assert all(temporal_slice[1:] - temporal_slice[:-1] == 1)
+
+    comparisons = []
+    for i, s1 in enumerate(all_spatial_tuples):
+        for j, s2 in enumerate(all_spatial_tuples):
+            if i != j:
+                comparisons.append(np.array_equal(s1, s2))
+    assert not all(comparisons)
 
 
 def test_spatiotemporal_batch_handling(plot=False):
