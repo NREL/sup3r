@@ -42,7 +42,7 @@ batch_handler = SpatialBatchHandler.make(
     n_batches=n_batches)
 
 spatiotemporal_batch_handler = BatchHandler.make(
-    input_files, targets, shape, features,
+    input_files, features, targets, shape,
     spatial_sample_shape=spatial_sample_shape,
     temporal_sample_shape=temporal_sample_shape,
     batch_size=batch_size,
@@ -134,7 +134,7 @@ def test_spatiotemporal_validation_batching(method):
     ValidationData iterator"""
 
     spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, targets, shape, features,
+        input_files, features, targets, shape,
         spatial_sample_shape=spatial_sample_shape,
         temporal_sample_shape=temporal_sample_shape,
         batch_size=batch_size,
@@ -149,30 +149,60 @@ def test_spatiotemporal_validation_batching(method):
     for batch in spatiotemporal_batch_handler.val_data:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
         assert batch.low_res.shape == \
-            (batch.low_res.shape[0], temporal_sample_shape // temporal_res,
+            (batch.low_res.shape[0],
              spatial_sample_shape[0] // spatial_res,
-             spatial_sample_shape[1] // spatial_res, len(features))
+             spatial_sample_shape[1] // spatial_res,
+             temporal_sample_shape // temporal_res,
+             len(features))
         assert batch.high_res.shape == \
-            (batch.high_res.shape[0], temporal_sample_shape,
+            (batch.high_res.shape[0],
              spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+             spatial_sample_shape[1],
+             temporal_sample_shape,
+             len(features))
+
+
+def test_spatiotemporal_batch_indices():
+    """Test spatiotemporal batch indices for unique
+    spatial indices and contiguous increasing temporal slice"""
+
+    for batch in spatiotemporal_batch_handler:
+        for index in spatiotemporal_batch_handler.current_batch_indices:
+            spatial_1_slice = np.arange(index[0].start, index[0].stop)
+            spatial_2_slice = np.arange(index[1].start, index[1].stop)
+            temporal_slice = np.arange(index[2].start, index[2].stop)
+            spatial_tuples = []
+            for s1 in spatial_1_slice:
+                for s2 in spatial_2_slice:
+                    spatial_tuples.append(tuple([s1, s2]))
+            assert len(spatial_tuples) == len(list(set(spatial_tuples)))
+
+            sorted_temporal_slice = temporal_slice.copy()
+            sorted_temporal_slice.sort()
+            assert np.array_equal(sorted_temporal_slice, temporal_slice)
+
+            assert all(temporal_slice[1:] - temporal_slice[:-1] == 1)
 
 
 def test_spatiotemporal_batch_handling(plot=False):
-    """Test spatial batch handling class"""
+    """Test spatiotemporal batch handling class"""
 
     for batch in spatiotemporal_batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
     for i, batch in enumerate(spatiotemporal_batch_handler):
         assert batch.low_res.shape == \
-            (batch.low_res.shape[0], temporal_sample_shape // temporal_res,
+            (batch.low_res.shape[0],
              spatial_sample_shape[0] // spatial_res,
-             spatial_sample_shape[1] // spatial_res, len(features))
+             spatial_sample_shape[1] // spatial_res,
+             temporal_sample_shape // temporal_res,
+             len(features))
         assert batch.high_res.shape == \
-            (batch.high_res.shape[0], temporal_sample_shape,
+            (batch.high_res.shape[0],
              spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+             spatial_sample_shape[1],
+             temporal_sample_shape,
+             len(features))
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
@@ -197,11 +227,15 @@ def test_batch_handling(plot=False):
         assert batch.high_res.dtype == np.float32
         assert batch.low_res.dtype == np.float32
         assert batch.low_res.shape == \
-            (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
-             spatial_sample_shape[1] // spatial_res, len(features))
+            (batch.low_res.shape[0],
+             spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res,
+             len(features))
         assert batch.high_res.shape == \
-            (batch.high_res.shape[0], spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+            (batch.high_res.shape[0],
+             spatial_sample_shape[0],
+             spatial_sample_shape[1],
+             len(features))
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):

@@ -17,6 +17,7 @@ from sup3r.utilities.utilities import (spatial_coarsening,
                                        uniform_time_sampler)
 from sup3r import __version__
 
+np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +87,9 @@ class DataHandler:
         self.temporal_sample_shape = temporal_sample_shape
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
+        self.current_obs_index = None
         self.data, self.lat_lon = self.extract_data()
         self.data, self.val_data = self._split_data()
-        self.val_indices = self._get_val_indices()
-        self.time_indices = self._get_time_indices()
-        self._i = 0
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -142,19 +141,6 @@ class DataHandler:
         self.data[:, :, :, feature_index] = \
             (self.data[:, :, :, feature_index] - mean) / std
 
-    def _get_time_indices(self):
-        """Array of time indices shuffled
-
-        Returns
-        -------
-        np.ndarray
-        """
-        n_observations = self.data.shape[2]
-        all_indices = np.arange(n_observations)
-        if self.shuffle_time:
-            np.random.shuffle(all_indices)
-        return all_indices
-
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
 
@@ -172,28 +158,6 @@ class DataHandler:
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
-    def _get_val_indices(self):
-        """Get spatial samples for validation data
-        and return list of index tuples to use in BatchHandler
-
-        Returns
-        -------
-        val_indices : list[tuple]
-            List of index tuples using spatial samples for each
-            time index
-        """
-        val_indices = np.empty(self.val_data.shape[2], dtype=tuple)
-        for i, _ in enumerate(val_indices):
-            spatial_slice = uniform_box_sampler(
-                self.val_data, self.spatial_sample_shape)
-            temporal_slice = uniform_time_sampler(
-                self.val_data, self.temporal_sample_shape)
-            tuple_index = tuple(
-                spatial_slice + [temporal_slice]
-                + [np.arange(len(self.features))])
-            val_indices[i] = tuple_index
-        return val_indices
-
     def get_next(self):
         """Gets data for observation using
         random observation index. Loops repeatedly
@@ -203,34 +167,10 @@ class DataHandler:
         -------
         observation : np.ndarray
             4D array
-            (temporal, spatial_1, spatial_2, features)
+            (spatial_1, spatial_2, temporal, features)
         """
-        if self._i >= len(self.time_indices):
-            self._i = 0
-        observation = self.__next__()
-        return observation
-
-    def __next__(self):
-        """Gets data for observation using
-        random observation index. Single loop
-        through randomized time index
-
-        Returns
-        -------
-        observation : np.ndarray
-            4D array
-            (temporal, spatial_1, spatial_2, features)
-        """
-        if self._i < len(self.time_indices):
-            observation = self.data[self.get_observation_index()]
-
-            # ordering dimensions
-            # (temporal, spatial_1, spatial_2, features)
-            observation = np.transpose(
-                observation, (2, 0, 1, 3))
-            self._i += 1
-        else:
-            raise StopIteration
+        self.current_obs_index = self.get_observation_index()
+        observation = self.data[self.current_obs_index]
         return observation
 
     def _split_data(self):
@@ -560,17 +500,17 @@ class ValidationData:
             total will sum over temporal_res time steps
         """
         self.handlers = handlers
-        self.val_indices = self._get_val_indices()
         self.spatial_sample_shape = spatial_sample_shape
         self.temporal_sample_shape = temporal_sample_shape
+        self.val_indices = self._get_val_indices()
         self.max = np.ceil(
             len(self.val_indices) / (batch_size))
         self.batch_size = batch_size
         self.spatial_res = spatial_res
         self.temporal_res = temporal_res
-        self._i = 0
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
+        self._i = 0
 
     def _get_val_indices(self):
         """List of dicts to index each validation data
@@ -582,12 +522,20 @@ class ValidationData:
             List of dicts with handler_index and tuple_index.
             The tuple index is used to get validation data observation
             with data[tuple_index]"""
+
         val_indices = []
         for i, h in enumerate(self.handlers):
-            for t in h.val_indices:
+            for _ in range(h.val_data.shape[2]):
+                spatial_slice = uniform_box_sampler(
+                    h.val_data, self.spatial_sample_shape)
+                temporal_slice = uniform_time_sampler(
+                    h.val_data, self.temporal_sample_shape)
+                tuple_index = tuple(
+                    spatial_slice + [temporal_slice]
+                    + [np.arange(h.val_data.shape[-1])])
                 val_indices.append(
                     {'handler_index': i,
-                     'tuple_index': t})
+                     'tuple_index': tuple_index})
         return val_indices
 
     def __iter__(self):
@@ -637,15 +585,10 @@ class ValidationData:
                         val_index['tuple_index']]
                 self._remaining_observations -= 1
 
-            # ordering dimensions
-            # (observations, temporal, spatial_1, spatial_2, features)
-            high_res = np.transpose(high_res, (0, 3, 1, 2, 4))
-
             if self.temporal_sample_shape == 1:
-                high_res = high_res.reshape(
-                    (high_res.shape[0], high_res.shape[2],
-                     high_res.shape[3], high_res.shape[4]))
-            low_res = spatial_coarsening(high_res, self.spatial_res)
+                high_res = high_res[:, :, :, 0, :]
+            low_res = spatial_coarsening(
+                high_res, self.spatial_res)
             low_res = temporal_coarsening(
                 low_res, self.temporal_res, self.temporal_coarsening_method)
             batch = Batch(low_res, high_res)
@@ -754,6 +697,7 @@ class BatchHandler:
         self.stds = np.zeros((self.shape[-1]))
         self.n_batches = n_batches
         self.temporal_coarsening_method = temporal_coarsening_method
+        self.current_batch_indices = None
 
         if norm:
             self.normalize(means, stds)
@@ -776,8 +720,8 @@ class BatchHandler:
         return self.n_batches
 
     @classmethod
-    def make(cls, file_paths, targets,
-             shape, features, val_split=0.2,
+    def make(cls, file_paths, features,
+             targets=None, shape=None, val_split=0.2,
              spatial_sample_shape=(10, 10),
              temporal_sample_shape=10,
              spatial_res=3, temporal_res=2,
@@ -794,8 +738,9 @@ class BatchHandler:
         ----------
         data_files : list
             list of file paths
-        target : tuple
-            (lat, lon) lower left corner of raster
+        targets : tuple
+            List of several (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
         shape : tuple
             (rows, cols) grid size
         features : list
@@ -952,9 +897,10 @@ class BatchHandler:
         return self
 
     def __next__(self):
+        self.current_batch_indices = []
         if self._i <= self.n_batches:
-            handler_index = int(np.random.uniform(
-                0, len(self.data_handlers)))
+            handler_index = np.random.randint(
+                0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,
                                  self.temporal_sample_shape,
@@ -963,6 +909,7 @@ class BatchHandler:
                                  self.shape[-1]))
             for i in range(self.batch_size):
                 high_res[i, :, :, :, :] = handler.get_next()
+                self.current_batch_indices.append(handler.current_obs_index)
             low_res = spatial_coarsening(
                 high_res, self.spatial_res)
             low_res = temporal_coarsening(
@@ -1117,15 +1064,17 @@ class SpatialBatchHandler(BatchHandler):
 
     def __next__(self):
         if self._i <= self.n_batches:
-            handler_index = np.random.choice(len(self.data_handlers))
+            handler_index = np.random.randint(
+                0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,
                                  self.spatial_sample_shape[0],
                                  self.spatial_sample_shape[1],
                                  self.shape[-1]), dtype=np.float32)
             for i in range(self.batch_size):
-                high_res[i, :, :, :] = handler.get_next()
-            low_res = spatial_coarsening(high_res, self.spatial_res)
+                high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
+            low_res = spatial_coarsening(
+                high_res, self.spatial_res)
             batch = Batch(low_res, high_res)
             self._i += 1
             return batch

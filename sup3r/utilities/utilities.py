@@ -5,6 +5,7 @@ trraining data"""
 import numpy as np
 import logging
 
+np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,9 @@ def uniform_box_sampler(data, shape):
     '''
 
     slices = []
-    start_row = int(np.random.uniform(0, data.shape[0] - shape[0]))
+    start_row = np.random.randint(0, data.shape[0] - shape[0])
     stop_row = start_row + shape[0]
-    start_col = int(np.random.uniform(0, data.shape[1] - shape[1]))
+    start_col = np.random.randint(0, data.shape[1] - shape[1])
     stop_col = start_col + shape[1]
     slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
     return slices
@@ -56,7 +57,7 @@ def uniform_time_sampler(data, shape):
         time slice with size shape
     '''
 
-    start = int(np.random.uniform(0, data.shape[2] - shape))
+    start = np.random.randint(0, data.shape[2] - shape)
     stop = start + shape
     return slice(start, stop)
 
@@ -199,7 +200,7 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
     ----------
     data : np.ndarray
         5D array with dimensions
-        (observations, temporal, spatial_1, spatial_2, features)
+        (observations, spatial_1, spatial_2, temporal, features)
 
     temporal_res : int
         factor by which to coarsen temporal dimension
@@ -219,19 +220,19 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
 
     if temporal_res is not None and len(data.shape) == 5:
         if method == 'subsample':
-            coarse_data = data[:, ::temporal_res, :, :, :]
+            coarse_data = data[:, :, :, ::temporal_res, :]
         if method == 'average':
             coarse_data = np.average(
                 data.reshape(
-                    (data.shape[0], -1, temporal_res,
-                     data.shape[2], data.shape[3],
-                     data.shape[4])), axis=2)
+                    (data.shape[0], data.shape[1],
+                     data.shape[2], -1, temporal_res,
+                     data.shape[4])), axis=4)
         if method == 'total':
             coarse_data = np.sum(
                 data.reshape(
-                    (data.shape[0], -1, temporal_res,
-                     data.shape[2], data.shape[3],
-                     data.shape[4])), axis=2)
+                    (data.shape[0], data.shape[1],
+                     data.shape[2], -1, temporal_res,
+                     data.shape[4])), axis=4)
 
     else:
         coarse_data = data.copy()
@@ -246,7 +247,7 @@ def spatial_coarsening(data, spatial_res=2):
     ----------
     data : np.ndarray
         4D | 5D array with dimensions
-        (n_observations, temporal (optional), spatial_1, spatial_2, features)
+        (n_observations, spatial_1, spatial_2, temporal (optional), features)
 
     lat_lon : np.ndarray
         2D array with dimensions
@@ -263,31 +264,22 @@ def spatial_coarsening(data, spatial_res=2):
     """
 
     if spatial_res is not None:
-        if len(data.shape) == 5:
-            if (data.shape[2] % spatial_res != 0
-                    or data.shape[3] % spatial_res != 0):
-                msg = 'spatial_res must evenly divide grid size. '
-                msg += f'Received spatial_res: {spatial_res} '
-                msg += f'with grid size: ({data.shape[2]}, '
-                msg += f'{data.shape[3]})'
-                raise ValueError(msg)
-        else:
-            if (data.shape[1] % spatial_res != 0
-                    or data.shape[2] % spatial_res != 0):
-                msg = 'spatial_res must evenly divide grid size. '
-                msg += f'Received spatial_res: {spatial_res} '
-                msg += f'with grid size: ({data.shape[1]}, '
-                msg += f'{data.shape[2]})'
-                raise ValueError(msg)
+        if (data.shape[1] % spatial_res != 0
+                or data.shape[2] % spatial_res != 0):
+            msg = 'spatial_res must evenly divide grid size. '
+            msg += f'Received spatial_res: {spatial_res} '
+            msg += f'with grid size: ({data.shape[1]}, '
+            msg += f'{data.shape[2]})'
+            raise ValueError(msg)
 
         if len(data.shape) == 5:
             coarse_data = data.reshape(data.shape[0],
-                                       data.shape[1],
                                        -1,
                                        spatial_res,
-                                       data.shape[2] // spatial_res,
+                                       data.shape[1] // spatial_res,
                                        spatial_res,
-                                       data.shape[4]).sum((3, 5)) \
+                                       data.shape[3],
+                                       data.shape[4]).sum((2, 4)) \
                 / (spatial_res * spatial_res)
 
         else:
