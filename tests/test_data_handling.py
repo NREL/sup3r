@@ -9,6 +9,7 @@ import tempfile
 
 from sup3r import TEST_DATA_DIR
 from sup3r.data_handling.preprocessing import (DataHandler,
+                                               BatchHandler,
                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
@@ -25,8 +26,10 @@ spatial_res = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
-time_step = 3
+time_pruning = 3
 n_batches = 20
+temporal_sample_shape = 10
+temporal_res = 2
 
 batch_handler = SpatialBatchHandler.make(
     input_files, features, targets=targets, shape=shape,
@@ -35,7 +38,19 @@ batch_handler = SpatialBatchHandler.make(
     spatial_res=spatial_res,
     max_delta=max_delta,
     val_split=val_split,
-    time_step=time_step,
+    time_pruning=time_pruning,
+    n_batches=n_batches)
+
+spatiotemporal_batch_handler = BatchHandler.make(
+    input_files, features, targets, shape,
+    spatial_sample_shape=spatial_sample_shape,
+    temporal_sample_shape=temporal_sample_shape,
+    batch_size=batch_size,
+    spatial_res=spatial_res,
+    temporal_res=temporal_res,
+    max_delta=max_delta,
+    val_split=val_split,
+    time_pruning=time_pruning,
     n_batches=n_batches)
 
 
@@ -70,10 +85,25 @@ def test_normalization():
         assert -0.00001 <= mean <= 0.00001
 
 
+def test_spatiotemporal_normalization():
+    """Test correct normalization"""
+
+    stacked_data = \
+        np.concatenate(
+            [d.data for d in spatiotemporal_batch_handler.data_handlers],
+            axis=2)
+
+    for i in range(len(features)):
+        std = np.std(stacked_data[:, :, :, i])
+        mean = np.mean(stacked_data[:, :, :, i])
+        assert 0.99999 <= std <= 1.00001
+        assert -0.00001 <= mean <= 0.00001
+
+
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=20)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -96,6 +126,107 @@ def test_validation_batching():
              spatial_sample_shape[1], len(features))
 
 
+@pytest.mark.parametrize(
+    'method', ('subsample', 'average', 'total')
+)
+def test_spatiotemporal_validation_batching(method):
+    """Test batching of validation data through
+    ValidationData iterator"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches,
+        temporal_coarsening_method=method)
+
+    for batch in spatiotemporal_batch_handler.val_data:
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+        assert batch.low_res.shape == \
+            (batch.low_res.shape[0],
+             spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res,
+             temporal_sample_shape // temporal_res,
+             len(features))
+        assert batch.high_res.shape == \
+            (batch.high_res.shape[0],
+             spatial_sample_shape[0],
+             spatial_sample_shape[1],
+             temporal_sample_shape,
+             len(features))
+
+
+def test_spatiotemporal_batch_indices():
+    """Test spatiotemporal batch indices for unique
+    spatial indices and contiguous increasing temporal slice"""
+
+    all_spatial_tuples = []
+    for _ in spatiotemporal_batch_handler:
+        for index in spatiotemporal_batch_handler.current_batch_indices:
+            spatial_1_slice = np.arange(index[0].start, index[0].stop)
+            spatial_2_slice = np.arange(index[1].start, index[1].stop)
+            temporal_slice = np.arange(index[2].start, index[2].stop)
+            spatial_tuples = []
+            for s1 in spatial_1_slice:
+                for s2 in spatial_2_slice:
+                    spatial_tuples.append(tuple([s1, s2]))
+            assert len(spatial_tuples) == len(list(set(spatial_tuples)))
+
+            all_spatial_tuples.append(np.array(spatial_tuples))
+
+            sorted_temporal_slice = temporal_slice.copy()
+            sorted_temporal_slice.sort()
+            assert np.array_equal(sorted_temporal_slice, temporal_slice)
+
+            assert all(temporal_slice[1:] - temporal_slice[:-1] == 1)
+
+    comparisons = []
+    for i, s1 in enumerate(all_spatial_tuples):
+        for j, s2 in enumerate(all_spatial_tuples):
+            if i != j:
+                comparisons.append(np.array_equal(s1, s2))
+    assert not all(comparisons)
+
+
+def test_spatiotemporal_batch_handling(plot=False):
+    """Test spatiotemporal batch handling class"""
+
+    for batch in spatiotemporal_batch_handler:
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+
+    for i, batch in enumerate(spatiotemporal_batch_handler):
+        assert batch.low_res.shape == \
+            (batch.low_res.shape[0],
+             spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res,
+             temporal_sample_shape // temporal_res,
+             len(features))
+        assert batch.high_res.shape == \
+            (batch.high_res.shape[0],
+             spatial_sample_shape[0],
+             spatial_sample_shape[1],
+             temporal_sample_shape,
+             len(features))
+
+        if plot:
+            for ifeature in range(batch.high_res.shape[-1]):
+                data_fine = batch.high_res[0, 0, :, :, ifeature]
+                data_coarse = batch.low_res[0, 0, :, :, ifeature]
+                fig = plt.figure(figsize=(10, 5))
+                ax1 = fig.add_subplot(121)
+                ax2 = fig.add_subplot(122)
+                ax1.imshow(data_fine)
+                ax2.imshow(data_coarse)
+                plt.savefig(f'./{i}_{ifeature}.png')
+                plt.close()
+
+
 def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
@@ -106,11 +237,15 @@ def test_batch_handling(plot=False):
         assert batch.high_res.dtype == np.float32
         assert batch.low_res.dtype == np.float32
         assert batch.low_res.shape == \
-            (batch.low_res.shape[0], spatial_sample_shape[0] // spatial_res,
-             spatial_sample_shape[1] // spatial_res, len(features))
+            (batch.low_res.shape[0],
+             spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res,
+             len(features))
         assert batch.high_res.shape == \
-            (batch.high_res.shape[0], spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+            (batch.high_res.shape[0],
+             spatial_sample_shape[0],
+             spatial_sample_shape[1],
+             len(features))
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
@@ -139,9 +274,10 @@ def test_val_data_storage():
     n_observations = 0
     for f in input_files:
 
-        handler = DataHandler(f, features, target=target, shape=shape,
-                              max_delta=max_delta, raster_file=raster_file,
-                              val_split=val_split, time_step=time_step)
+        handler = DataHandler(f, features, target, shape,
+                              max_delta, raster_file=raster_file,
+                              val_split=val_split,
+                              time_pruning=time_pruning)
         data, _ = handler.extract_data()
         n_observations += data.shape[2]
 
@@ -154,8 +290,8 @@ def test_val_data_storage():
 def test_spatial_coarsening(spatial_res, plot=False):
     """Test spatial coarsening"""
 
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=20)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20)
 
     handler_data, _ = handler.extract_data()
     handler_data = handler_data.transpose((2, 0, 1, 3))
