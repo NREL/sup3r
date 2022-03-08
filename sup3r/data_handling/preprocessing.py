@@ -57,9 +57,11 @@ class DataHandler:
         val_split : float32
             Fraction of data to store for validation
         spatial_sample_shape : tuple
-            size of spatial slices used for spatial batching
+            Size of spatial slice used in a single high-res observation for
+            spatial batching
         temporal_sample_shape : int
-            size of time slices used for temporal batching
+            Number of time slices used in a single high-res observation for
+            temporal batching
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
