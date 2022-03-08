@@ -162,9 +162,65 @@ def test_spatiotemporal_validation_batching(method):
              len(features))
 
 
-def test_spatiotemporal_batch_indices():
+@pytest.mark.parametrize(
+    'spatial_sample_shape, temporal_sample_shape',
+    [((10, 10), 10), ((5, 5), 10),
+     ((10, 10), 12), ((5, 5), 12)]
+)
+def test_spatiotemporal_batch_observations(spatial_sample_shape,
+                                           temporal_sample_shape):
+    """Test that batch observations are found in source data"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
+
+    for batch in spatiotemporal_batch_handler:
+        for i, index in enumerate(
+                spatiotemporal_batch_handler.current_batch_indices):
+            spatial_1_slice = index[0]
+            spatial_2_slice = index[1]
+            temporal_slice = index[2]
+
+            handler_index = spatiotemporal_batch_handler.current_handler_index
+            handler = spatiotemporal_batch_handler.data_handlers[handler_index]
+
+            assert np.array_equal(
+                batch.high_res[i, :, :, :],
+                handler.data[spatial_1_slice,
+                             spatial_2_slice,
+                             temporal_slice, :])
+
+
+@pytest.mark.parametrize(
+    'spatial_sample_shape, temporal_sample_shape',
+    [((10, 10), 10), ((5, 5), 10),
+     ((10, 10), 12), ((5, 5), 12)]
+)
+def test_spatiotemporal_batch_indices(spatial_sample_shape,
+                                      temporal_sample_shape):
     """Test spatiotemporal batch indices for unique
     spatial indices and contiguous increasing temporal slice"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
 
     all_spatial_tuples = []
     for _ in spatiotemporal_batch_handler:
