@@ -31,28 +31,6 @@ n_batches = 20
 temporal_sample_shape = 12
 temporal_res = 2
 
-batch_handler = SpatialBatchHandler.make(
-    input_files, features, targets=targets, shape=shape,
-    spatial_sample_shape=spatial_sample_shape,
-    batch_size=batch_size,
-    spatial_res=spatial_res,
-    max_delta=max_delta,
-    val_split=val_split,
-    time_pruning=time_pruning,
-    n_batches=n_batches)
-
-spatiotemporal_batch_handler = BatchHandler.make(
-    input_files, features, targets, shape,
-    spatial_sample_shape=spatial_sample_shape,
-    temporal_sample_shape=temporal_sample_shape,
-    batch_size=batch_size,
-    spatial_res=spatial_res,
-    temporal_res=temporal_res,
-    max_delta=max_delta,
-    val_split=val_split,
-    time_pruning=time_pruning,
-    n_batches=n_batches)
-
 
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
@@ -73,6 +51,15 @@ def test_raster_index_caching():
 def test_normalization():
     """Test correct normalization"""
 
+    batch_handler = SpatialBatchHandler.make(
+        input_files, features, targets=targets, shape=shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
+
     stacked_data = \
         np.concatenate(
             [d.data for d in batch_handler.data_handlers],
@@ -87,6 +74,16 @@ def test_normalization():
 
 def test_spatiotemporal_normalization():
     """Test correct normalization"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
 
     stacked_data = \
         np.concatenate(
@@ -114,6 +111,15 @@ def test_validation_batching():
     """Test batching of validation data through
     ValidationData iterator"""
 
+    batch_handler = SpatialBatchHandler.make(
+        input_files, features, targets=targets, shape=shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
+
     for batch in batch_handler.val_data:
         assert batch.high_res.dtype == np.dtype(np.float32)
         assert batch.low_res.dtype == np.dtype(np.float32)
@@ -124,6 +130,44 @@ def test_validation_batching():
         assert batch.high_res.shape == \
             (batch.high_res.shape[0], spatial_sample_shape[0],
              spatial_sample_shape[1], len(features))
+
+
+@pytest.mark.parametrize(
+    'method, temporal_res',
+    [('subsample', 2), ('average', 2), ('total', 2),
+     ('subsample', 3), ('average', 3), ('total', 3),
+     ('subsample', 4), ('average', 4), ('total', 4)]
+)
+def test_temporal_coarsening(method, temporal_res):
+    """Test temporal coarsening of batches"""
+
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches,
+        temporal_coarsening_method=method)
+
+    for batch in spatiotemporal_batch_handler:
+        assert batch.low_res.shape[0] == batch.high_res.shape[0]
+        assert batch.low_res.shape == \
+            (batch.low_res.shape[0],
+             spatial_sample_shape[0] // spatial_res,
+             spatial_sample_shape[1] // spatial_res,
+             temporal_sample_shape // temporal_res,
+             len(features))
+        assert batch.high_res.shape == \
+            (batch.high_res.shape[0],
+             spatial_sample_shape[0],
+             spatial_sample_shape[1],
+             temporal_sample_shape,
+             len(features))
 
 
 @pytest.mark.parametrize(
@@ -253,6 +297,18 @@ def test_spatiotemporal_batch_indices(spatial_sample_shape,
 def test_spatiotemporal_batch_handling(plot=False):
     """Test spatiotemporal batch handling class"""
 
+    spatiotemporal_batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        spatial_sample_shape=spatial_sample_shape,
+        temporal_sample_shape=temporal_sample_shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        temporal_res=temporal_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
+
     for batch in spatiotemporal_batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
@@ -286,6 +342,15 @@ def test_spatiotemporal_batch_handling(plot=False):
 def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
+    batch_handler = SpatialBatchHandler.make(
+        input_files, features, targets=targets, shape=shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
+
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
@@ -318,6 +383,15 @@ def test_batch_handling(plot=False):
 
 def test_val_data_storage():
     """Test validation data storage from batch handler method"""
+
+    batch_handler = SpatialBatchHandler.make(
+        input_files, features, targets=targets, shape=shape,
+        batch_size=batch_size,
+        spatial_res=spatial_res,
+        max_delta=max_delta,
+        val_split=val_split,
+        time_pruning=time_pruning,
+        n_batches=n_batches)
 
     val_observations = 0
     batch_handler.val_data._i = 0
