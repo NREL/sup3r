@@ -593,11 +593,9 @@ class ValidationData:
 
             if self.temporal_sample_shape == 1:
                 high_res = high_res[:, :, :, 0, :]
-            low_res = spatial_coarsening(
-                high_res, self.spatial_res)
-            low_res = temporal_coarsening(
-                low_res, self.temporal_res, self.temporal_coarsening_method)
-            batch = Batch(low_res, high_res)
+            batch = Batch.get_coarse_batch(
+                high_res, self.spatial_res, self.temporal_res,
+                self.temporal_coarsening_method)
             self._i += 1
             return batch
         else:
@@ -640,6 +638,39 @@ class Batch:
     def high_res(self):
         """Get the high-resolution data for the batch."""
         return self._high_res
+
+    @classmethod
+    def get_coarse_batch(cls, high_res,
+                         spatial_res, temporal_res,
+                         temporal_coarsening_method):
+        """Coarsen high res data and return Batch with
+        high res and low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, temporal (optional), spatial_1, spatial_2, features)
+        spatial_res : int
+            factor by which to coarsen spatial dimensions
+        temporal_res : int
+            factor by which to coarsen temporal dimension
+        temporal_coarsening_method : str
+            method to use for temporal coarsening.
+            can be subsample, average, or total
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+        low_res = spatial_coarsening(
+            high_res, spatial_res)
+        low_res = temporal_coarsening(
+            low_res, temporal_res,
+            temporal_coarsening_method)
+        batch = cls(low_res, high_res)
+        return batch
 
 
 class BatchHandler:
@@ -915,12 +946,9 @@ class BatchHandler:
             for i in range(self.batch_size):
                 high_res[i, :, :, :, :] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
-            low_res = spatial_coarsening(
-                high_res, self.spatial_res)
-            low_res = temporal_coarsening(
-                low_res, self.temporal_res,
+            batch = Batch.get_coarse_batch(
+                high_res, self.spatial_res, self.temporal_res,
                 self.temporal_coarsening_method)
-            batch = Batch(low_res, high_res)
             self._i += 1
             return batch
         else:
