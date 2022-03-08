@@ -41,7 +41,6 @@ def test_train_spatial(log=False):
                           time_pruning=10)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
-                                        spatial_sample_shape=sample_shape,
                                         n_batches=10)
 
     with tempfile.TemporaryDirectory() as td:
