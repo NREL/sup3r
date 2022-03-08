@@ -11,20 +11,20 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models.models import SpatialGan
-from sup3r.data_handling.preprocessing import DataHandler, SpatialBatchHandler
+from sup3r.models.models import SpatialGan, SpatioTemporalGan
+from sup3r.data_handling.preprocessing import (DataHandler,
+                                               SpatialBatchHandler,
+                                               BatchHandler)
 
 
-input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-target = (39.01, -105.15)
-full_shape = (20, 20)
-sample_shape = (10, 10)
-features = ['windspeed_100m', 'winddirection_100m']
-n_epoch = 6
+FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+TARGET_COORD = (39.01, -105.15)
+FEATURES = ['windspeed_100m', 'winddirection_100m']
 
 
-def test_train_spatial(log=False):
-    """Test basic model training with only gen content loss."""
+def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
+                       n_epoch=6):
+    """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
@@ -35,7 +35,7 @@ def test_train_spatial(log=False):
     model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandler(input_file, features, target=target,
+    handler = DataHandler(FP_WTK, FEATURES, target=TARGET_COORD,
                           shape=full_shape,
                           spatial_sample_shape=sample_shape,
                           time_pruning=10)
@@ -81,3 +81,38 @@ def test_train_spatial(log=False):
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
+
+if __name__ == '__main__':
+    """Test basic spatiotemporal model training with only gen content loss."""
+    log = True
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+    full_shape = (20, 20)
+    sample_shape = (12, 12)
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    SpatioTemporalGan.seed()
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                              learning_rate=1e-4)
+
+    handler = DataHandler(FP_WTK, FEATURES, target=TARGET_COORD,
+                          shape=full_shape,
+                          temporal_sample_shape=8,
+                          spatial_sample_shape=sample_shape,
+                          time_pruning=1)
+
+    batch_handler = BatchHandler([handler], batch_size=8,
+                                 spatial_res=3, temporal_res=4,
+                                 spatial_sample_shape=sample_shape,
+                                 n_batches=10)
+
+    with tempfile.TemporaryDirectory() as td:
+        # test that training works and reduces loss
+        model.train(batch_handler, n_epoch=6,
+                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
+                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
