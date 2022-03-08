@@ -903,9 +903,9 @@ class BatchHandler:
                 0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,
-                                 self.temporal_sample_shape,
                                  self.spatial_sample_shape[0],
                                  self.spatial_sample_shape[1],
+                                 self.temporal_sample_shape,
                                  self.shape[-1]))
             for i in range(self.batch_size):
                 high_res[i, :, :, :, :] = handler.get_next()

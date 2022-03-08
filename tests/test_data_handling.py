@@ -28,7 +28,7 @@ val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
 time_pruning = 3
 n_batches = 20
-temporal_sample_shape = 10
+temporal_sample_shape = 12
 temporal_res = 2
 
 batch_handler = SpatialBatchHandler.make(
