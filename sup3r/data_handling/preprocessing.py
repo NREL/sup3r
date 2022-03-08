@@ -477,9 +477,7 @@ class DataHandler:
 class ValidationData:
     """Iterator for validation data"""
 
-    def __init__(self, handlers, batch_size=8,
-                 spatial_sample_shape=(10, 10),
-                 temporal_sample_shape=1,
+    def __init__(self, data_handlers, batch_size=8,
                  spatial_res=3, temporal_res=1,
                  temporal_coarsening_method='subsample'):
         """
@@ -489,8 +487,8 @@ class ValidationData:
             List of DataHandler instances
         batch_size : int
             Size of validation data batches
-        spatial_sample_shape : tuple
-            Size of spatial sample of validation data
+        temporal_res : int
+            Factor by which to coarsen temporal dimension
         spatial_res : int
             Factor by which to coarsen spatial dimensions
         temporal_coarsening_method : str
@@ -499,9 +497,17 @@ class ValidationData:
             average will average over temporal_res time steps,
             total will sum over temporal_res time steps
         """
-        self.handlers = handlers
-        self.spatial_sample_shape = spatial_sample_shape
-        self.temporal_sample_shape = temporal_sample_shape
+
+        spatial_shapes = np.array(
+            [d.spatial_sample_shape for d in data_handlers])
+        temporal_shapes = np.array(
+            [d.temporal_sample_shape for d in data_handlers])
+        assert np.all(spatial_shapes[0] == spatial_shapes)
+        assert np.all(temporal_shapes[0] == temporal_shapes)
+
+        self.handlers = data_handlers
+        self.spatial_sample_shape = spatial_shapes[0]
+        self.temporal_sample_shape = temporal_shapes[0]
         self.val_indices = self._get_val_indices()
         self.max = np.ceil(
             len(self.val_indices) / (batch_size))
@@ -641,8 +647,6 @@ class BatchHandler:
 
     def __init__(self, data_handlers, batch_size=8,
                  spatial_res=3, temporal_res=2,
-                 temporal_sample_shape=10,
-                 spatial_sample_shape=(10, 10),
                  means=None, stds=None,
                  norm=True, n_batches=10,
                  temporal_coarsening_method='subsample'):
@@ -671,16 +675,19 @@ class BatchHandler:
             array of means for all features
             with same ordering as data features. If not None
             and norm is True these will be used form normalization
-        spatial_sample_shape : tuple
-            Shape of spatial sample to extract from full spatial domain
-        temporal_sample_shape : int
-            Shape of time sample to extract from full temporal domain
         temporal_coarsening_method : str
             [subsample, average, total]
             Subsample will take every temporal_res-th time step,
             average will average over temporal_res time steps,
             total will sum over temporal_res time steps
         """
+
+        spatial_shapes = np.array(
+            [d.spatial_sample_shape for d in data_handlers])
+        temporal_shapes = np.array(
+            [d.temporal_sample_shape for d in data_handlers])
+        assert np.all(spatial_shapes[0] == spatial_shapes)
+        assert np.all(temporal_shapes[0] == temporal_shapes)
 
         self.data_handlers = data_handlers
         self._i = 0
@@ -691,8 +698,8 @@ class BatchHandler:
         self._val_data = None
         self.spatial_res = spatial_res
         self.temporal_res = temporal_res
-        self.spatial_sample_shape = spatial_sample_shape
-        self.temporal_sample_shape = temporal_sample_shape
+        self.spatial_sample_shape = spatial_shapes[0]
+        self.temporal_sample_shape = temporal_shapes[0]
         self.means = np.zeros((self.shape[-1]))
         self.stds = np.zeros((self.shape[-1]))
         self.n_batches = n_batches
@@ -704,10 +711,8 @@ class BatchHandler:
             self.normalize(means, stds)
 
         self.val_data = ValidationData(
-            data_handlers, batch_size,
+            data_handlers, batch_size=batch_size,
             spatial_res=spatial_res, temporal_res=temporal_res,
-            spatial_sample_shape=spatial_sample_shape,
-            temporal_sample_shape=temporal_sample_shape,
             temporal_coarsening_method=temporal_coarsening_method)
 
     def __len__(self):
@@ -815,8 +820,6 @@ class BatchHandler:
                     time_pruning=time_pruning))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
-            spatial_sample_shape=spatial_sample_shape,
-            temporal_sample_shape=temporal_sample_shape,
             temporal_res=temporal_res, batch_size=batch_size,
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method)
@@ -929,7 +932,6 @@ class SpatialBatchHandler(BatchHandler):
 
     def __init__(self, data_handlers,
                  batch_size=8, spatial_res=3,
-                 spatial_sample_shape=(10, 10),
                  means=None, stds=None,
                  norm=True, n_batches=10):
         """
@@ -954,13 +956,9 @@ class SpatialBatchHandler(BatchHandler):
             array of means for all features
             with same ordering as data features. If not None
             and norm is True these will be used form normalization
-        spatial_sample_shape : tuple
-            Shape of spatial sample to extract from full spatial domain
         """
         super().__init__(data_handlers, batch_size=batch_size,
                          spatial_res=spatial_res, temporal_res=1,
-                         temporal_sample_shape=1,
-                         spatial_sample_shape=spatial_sample_shape,
                          norm=norm, n_batches=n_batches,
                          means=means, stds=stds)
 
@@ -1059,7 +1057,6 @@ class SpatialBatchHandler(BatchHandler):
                     time_pruning=time_pruning))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
-            spatial_sample_shape=spatial_sample_shape,
             batch_size=batch_size, norm=norm, means=means,
             stds=stds, n_batches=n_batches)
         return batch_handler
