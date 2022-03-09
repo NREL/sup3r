@@ -36,6 +36,36 @@ def test_load_spatial(spatial_len):
         assert disc_out.shape[1] == 1
 
 
+def test_load_all_spatial_generators():
+    """Test all generator configs in the spatial config dir"""
+    st_config_dir = os.path.join(CONFIG_DIR, 'spatial/')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    gen_configs = [fn for fn in os.listdir(st_config_dir)
+                   if fn.startswith('gen')]
+
+    for fn in gen_configs:
+        enhancements = [s for s in fn.replace('.json', '').split('_')
+                        if s.endswith('x')]
+        assert len(enhancements) == 1
+        s_enhance = int(enhancements[0].strip('x'))
+
+        fp_gen = os.path.join(st_config_dir, fn)
+        model = SpatialGan(fp_gen, fp_disc)
+
+        coarse_shape = (1, 5, 5, 2)
+        x = np.ones(coarse_shape)
+
+        for layer in model.generator:
+            x = layer(x)
+
+        assert len(x.shape) == 4
+        assert x.shape[0] == coarse_shape[0]
+        assert x.shape[1] == s_enhance * coarse_shape[1]
+        assert x.shape[2] == s_enhance * coarse_shape[2]
+        assert x.shape[3] == coarse_shape[3]
+
+
 def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_2x_24x.json')
@@ -74,3 +104,36 @@ def test_load_spatiotemporal():
     assert len(disc_out.shape) == 2
     assert disc_out.shape[0] == gen_out.shape[0] * gen_out.shape[3]
     assert disc_out.shape[1] == 1
+
+
+def test_load_all_st_generators():
+    """Test all generator configs in the spatiotemporal config dir"""
+    st_config_dir = os.path.join(CONFIG_DIR, 'spatiotemporal/')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    gen_configs = [fn for fn in os.listdir(st_config_dir)
+                   if fn.startswith('gen')]
+
+    for fn in gen_configs:
+        enhancements = [s for s in fn.replace('.json', '').split('_')
+                        if s.endswith('x')]
+        assert len(enhancements) == 2
+        s_enhance = int(enhancements[0].strip('x'))
+        t_enhance = int(enhancements[1].strip('x'))
+
+        fp_gen = os.path.join(st_config_dir, fn)
+        model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
+
+        coarse_shape = (1, 5, 5, 4, 2)
+        x = np.ones(coarse_shape)
+
+        for layer in model.generator:
+            x = layer(x)
+
+        assert len(x.shape) == 5
+        assert x.shape[0] == coarse_shape[0]
+        assert x.shape[1] == s_enhance * coarse_shape[1]
+        assert x.shape[2] == s_enhance * coarse_shape[2]
+        assert x.shape[3] == t_enhance * coarse_shape[3]
+        assert x.shape[4] == coarse_shape[4]
