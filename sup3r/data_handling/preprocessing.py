@@ -558,7 +558,7 @@ class ValidationData:
         len : int
             Number of total batches
         """
-        return len(self.max)
+        return int(self.max)
 
     def __next__(self):
         """Get validation data batch

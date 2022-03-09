@@ -913,6 +913,7 @@ class SpatialGan(BaseModel):
         loss_details : dict
             Same as input but now includes val_* loss info
         """
+        logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
             high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
@@ -987,9 +988,8 @@ class SpatialGan(BaseModel):
                                                     prefix='train_')
 
             logger.debug('Batch {} out of {} has epoch-average '
-                         'generator loss of {:.2e} and '
-                         'discriminator loss of {:.2e}. '
-                         'Trained gen / disc: {} / {}'
+                         '(gen / disc) loss of: ({:.2e} / {:.2e}). '
+                         'Trained (gen / disc): ({} / {})'
                          .format(ib, len(batch_handler),
                                  loss_details['train_loss_gen'],
                                  loss_details['train_loss_disc'],
@@ -1407,6 +1407,7 @@ class SpatioTemporalGan(BaseModel):
         loss_details : dict
             Same as input but now includes val_* loss info
         """
+        logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
             high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
@@ -1506,10 +1507,9 @@ class SpatioTemporalGan(BaseModel):
                                                     prefix='train_')
 
             logger.debug('Batch {} out of {} has epoch-average '
-                         'generator loss of {:.2e}, '
-                         'disc_s loss of {:.2e}, and '
-                         'disc_t loss of {:.2e}. '
-                         'Trained gen / disc_s / disc_t: {} / {} / {}'
+                         '(gen / disc_s / disc_t) loss of: '
+                         '({:.2e} / {:.2e} / {:.2e}). '
+                         'Trained (gen / disc_s / disc_t): ({} / {} / {})'
                          .format(ib, len(batch_handler),
                                  loss_details['train_loss_gen'],
                                  loss_details['train_loss_disc_s'],
