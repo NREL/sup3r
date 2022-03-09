@@ -1606,7 +1606,7 @@ class SpatioTemporalGan(BaseModel):
 
             logger.info('Epoch {} of {} '
                         'generator train/val loss: {:.2e}/{:.2e} '
-                        'spatial discriminator train/val loss: {:.2e}/{:.2e}'
+                        'spatial discriminator train/val loss: {:.2e}/{:.2e} '
                         'temporal discriminator train/val loss: {:.2e}/{:.2e}'
                         .format(epoch, epochs[-1],
                                 loss_details['train_loss_gen'],
