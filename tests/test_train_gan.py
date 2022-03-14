@@ -149,3 +149,21 @@ def test_train_st(n_epoch=6, log=False):
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
+
+
+def test_optimizer_update():
+    """Test updating optimizer method."""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    SpatioTemporalGan.seed()
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                              learning_rate=1e-4)
+
+    updated_model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                                      learning_rate=1e-2)
+    updated_model.update_optimizer(learning_rate=1e-4)
+
+    assert updated_model.optimizer_config == model.optimizer_config
