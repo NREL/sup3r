@@ -73,6 +73,19 @@ class BaseModel(ABC):
         elif optimizer is None:
             self._optimizer = optimizers.Adam(learning_rate=learning_rate)
 
+    def update_optimizer(self, **kwargs):
+        """Update optimizer by changing current configuration
+
+        Parameters
+        kwargs : dict
+            kwargs to use for optimizer configuration update
+
+        """
+        conf = self.optimizer_config
+        conf.update(**kwargs)
+        OptimizerClass = getattr(optimizers, conf['name'])
+        self._optimizer = OptimizerClass.from_config(conf)
+
     @staticmethod
     def load_network(model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
