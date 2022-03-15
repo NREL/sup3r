@@ -614,10 +614,12 @@ class Batch:
         ----------
         low_res : np.ndarray
             4D | 5D array
-            (batch_size, temporal (optional), spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         high_res : np.ndarray
             4D | 5D array
-            (batch_size, temporal (optional), spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         """
         self._low_res = low_res
         self._high_res = high_res
@@ -652,7 +654,8 @@ class Batch:
         ----------
         high_res : np.ndarray
             4D | 5D array
-            (batch_size, temporal (optional), spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         spatial_res : int
             factor by which to coarsen spatial dimensions
         temporal_res : int
