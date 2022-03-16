@@ -224,7 +224,7 @@ class BaseModel(ABC):
     @staticmethod
     def seed(s=0):
         """
-        Set the random seed for reproducable results.
+        Set the random seed for reproducible results.
 
         Parameters
         ----------
