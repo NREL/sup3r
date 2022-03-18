@@ -125,26 +125,19 @@ def test_load_all_st_generators():
         fp_gen = os.path.join(st_config_dir, fn)
         model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
 
-        # test an initial coarse shape
-        coarse_shape = (1, 5, 5, 4, 2)
-        x = np.ones(coarse_shape)
-        for layer in model.generator:
-            x = layer(x)
-        assert len(x.shape) == 5
-        assert x.shape[0] == coarse_shape[0]
-        assert x.shape[1] == s_enhance * coarse_shape[1]
-        assert x.shape[2] == s_enhance * coarse_shape[2]
-        assert x.shape[3] == t_enhance * coarse_shape[3]
-        assert x.shape[4] == coarse_shape[4]
+        coarse_shapes = ((1, 5, 5, 4, 2),
+                         (1, 7, 7, 9, 2),
+                         (3, 6, 6, 8, 2),
+                         (2, 20, 20, 96, 2),
+                         )
 
-        # test a new coarse shape != original coarse shape
-        coarse_shape = (1, 7, 7, 9, 2)
-        x = np.ones(coarse_shape)
-        for layer in model.generator:
-            x = layer(x)
-        assert len(x.shape) == 5
-        assert x.shape[0] == coarse_shape[0]
-        assert x.shape[1] == s_enhance * coarse_shape[1]
-        assert x.shape[2] == s_enhance * coarse_shape[2]
-        assert x.shape[3] == t_enhance * coarse_shape[3]
-        assert x.shape[4] == coarse_shape[4]
+        for coarse_shape in coarse_shapes:
+            x = np.ones(coarse_shape)
+            for layer in model.generator:
+                x = layer(x)
+            assert len(x.shape) == 5
+            assert x.shape[0] == coarse_shape[0]
+            assert x.shape[1] == s_enhance * coarse_shape[1]
+            assert x.shape[2] == s_enhance * coarse_shape[2]
+            assert x.shape[3] == t_enhance * coarse_shape[3]
+            assert x.shape[4] == coarse_shape[4]
