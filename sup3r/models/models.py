@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import pprint
 import pandas as pd
+from warnings import warn
 import tensorflow as tf
 from tensorflow.keras import optimizers
 from tensorflow.keras.metrics import mean_squared_error
@@ -1485,10 +1486,11 @@ class SpatioTemporalGan(BaseModel):
             b_loss_details = {}
             loss_disc_s = loss_details['train_loss_disc_s']
             loss_disc_t = loss_details['train_loss_disc_t']
-            disc_s_too_good = loss_disc_s < disc_th_low
-            disc_t_too_good = loss_disc_t < disc_th_low
-            gen_too_good = ((loss_disc_s > disc_th_high)
-                            or (loss_disc_t > disc_th_high))
+            disc_s_too_good = loss_disc_s <= disc_th_low
+            disc_t_too_good = loss_disc_t <= disc_th_low
+            disc_s_too_bad = (loss_disc_s > disc_th_high) and train_disc_s
+            disc_t_too_bad = (loss_disc_t > disc_th_high) and train_disc_t
+            gen_too_good = disc_s_too_bad or disc_t_too_bad
 
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
@@ -1528,6 +1530,13 @@ class SpatioTemporalGan(BaseModel):
                                  loss_details['train_loss_disc_s'],
                                  loss_details['train_loss_disc_t'],
                                  trained_gen, trained_disc_s, trained_disc_t))
+
+            if all([trained_gen, trained_disc_s, trained_disc_t]):
+                msg = ('For some reason none of the GAN networks trained '
+                       'during batch {} out of {}!'
+                       .format(ib, len(batch_handler)))
+                logger.warning(msg)
+                warn(msg)
 
         return loss_details
 
