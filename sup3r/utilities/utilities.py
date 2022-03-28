@@ -4,6 +4,7 @@ trraining data"""
 
 import numpy as np
 import logging
+from wtk.wrf import WRFHeights
 
 np.random.seed(42)
 
@@ -333,3 +334,96 @@ def lat_lon_coarsening(lat_lon, spatial_res=2):
                                      spatial_res, 2).sum((3, 1)) \
         / (spatial_res * spatial_res)
     return coarse_lat_lon
+
+
+def forward_average(array_in):
+    """
+    Average neighboring values in an array.
+    Used to unstagger WRF variable values.
+    Parameters
+    ----------
+    array_in : ndarray
+        Input array, or array axis
+    Returns
+    -------
+    ndarray
+        Array of average values, length will be 1 less than array_in
+    """
+    return (array_in[:-1] + array_in[1:]) * 0.5
+
+
+def unstagger_var(data, var):
+    """
+    Unstagger WRF variable values
+
+    Parameters
+    ----------
+    data :
+        netcdf data object
+    var : str
+        Name of variable to be unstaggered
+
+    Returns
+    -------
+    ndarray
+        Unstaggered array of variable values.
+    """
+
+    # Import Variable values from nc database instance
+    array_in = np.array(data[var])
+
+    # Determine axis to unstagger
+    if "U" in var:
+        axis = -1
+    elif "V" in var:
+        axis = -2
+    else:  # PH, PHB, and W are staggered in the "z" direction
+        axis = -3
+
+    return np.apply_along_axis(forward_average, axis, array_in)
+
+
+def calc_height(data):
+    """
+    Calculate height from the ground
+    Parameters
+    ----------
+    data :
+        netcdf data object
+
+    Returns
+    ---------
+    height_arr : ndarray
+        4D array of heights above ground
+    """
+    # Base-state Geopotential(m^2/s^2)
+    phb = unstagger_var(data, 'PHB')
+    # Perturbation Geopotential (m^2/s^2)
+    ph = unstagger_var('PH')
+    # Terrain Height (m)
+    hgt = data['HGT']
+
+    return (ph + phb) / 9.81 - hgt
+
+
+def interp_var(data, var, heights):
+    """
+    Interpolate var_array to given level(s) based on h_array.
+    Interpolation is linear and done for every 'z' column of [var, h] data.
+
+    Parameters
+    ----------
+    data :
+        netcdf data object
+    var : str
+        Name of variable to be unstaggered
+    heights : float | list
+        level or levels to interpolate to (e.g. final desired hub heights)
+    Returns
+    -------
+    out_array : ndarray
+        Array of interpolated values.
+    """
+    h_array = calc_height(data)
+    var_array = unstagger_var(data, var)
+    return WRFHeights.interp3D(var_array, h_array, heights)
