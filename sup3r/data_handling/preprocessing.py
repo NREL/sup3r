@@ -558,6 +558,25 @@ class ValidationData:
                      'tuple_index': tuple_index})
         return val_indices
 
+    @property
+    def shape(self):
+        """Shape of full validation dataset across all handlers
+
+        Returns
+        -------
+        shape : tuple
+            (spatial_1, spatial_2, temporal, features)
+            With temporal extent equal to the sum across
+            all data handlers time dimension
+        """
+        time_steps = 0
+        for h in self.handlers:
+            time_steps += h.val_data.shape[2]
+        return (self.handlers[0].val_data.shape[0],
+                self.handlers[0].val_data.shape[1],
+                time_steps,
+                self.handlers[0].val_data.shape[3])
+
     def __iter__(self):
         self._i = 0
         self._remaining_observations = len(self.val_indices)
