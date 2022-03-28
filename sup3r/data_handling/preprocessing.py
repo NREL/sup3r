@@ -9,7 +9,6 @@ import os
 
 from rex import WindX
 from rex.utilities import log_mem
-from reV.utilities.exceptions import ConfigError
 from sup3r.utilities.utilities import (spatial_coarsening,
                                        transform_rotate_wind,
                                        uniform_box_sampler,
@@ -35,7 +34,8 @@ class DataHandler:
         Parameters
         ----------
         file_path : str
-            A single source wind file to extract raster data from
+            A single source h5 wind file to extract raster data from or a list of
+            netcdf files with identical grid
         features : list
             list of features to extract
         target : tuple
@@ -280,16 +280,20 @@ class DataHandler:
             logger.debug('Loading raster index: {}'.format(self.raster_file))
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
-            _, file_ext = os.path.splitext(file_path)
+            if isinstance(file_path, list):
+                data_file = file_path[0]
+            else:
+                data_file = file_path
+            _, file_ext = os.path.splitext(data_file)
             if file_ext == '.h5':
                 logger.debug('Calculating raster index from WTK file.')
-                with WindX(file_path) as res:
+                with WindX(data_file) as res:
                     raster_index = \
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
 
             else:
-                nc_file = xr.open_dataset(file_path)
+                nc_file = xr.open_dataset(data_file)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
                 lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
