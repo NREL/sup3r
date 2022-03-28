@@ -68,7 +68,7 @@ class DataHandler:
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         """
-        logger.info('Initializing DataHandler from source file: {}'
+        logger.info('Initializing DataHandler from source files: {}'
                     .format(file_path))
 
         check = ((target is not None and shape is not None)
@@ -802,7 +802,8 @@ class BatchHandler:
              raster_files=None, time_pruning=1,
              batch_size=8, n_batches=10,
              means=None, stds=None,
-             temporal_coarsening_method='subsample'):
+             temporal_coarsening_method='subsample',
+             list_chunk_size=100):
 
         """Method to initialize both
         data and batch handlers
@@ -861,12 +862,20 @@ class BatchHandler:
             Subsample will take every temporal_res-th time step,
             average will average over temporal_res time steps,
             total will sum over temporal_res time steps
+        list_chunk_size : int
+            Size of chunks to split file_paths into if a list of files
+            is passed. If None no splitting will be performed.
 
         Returns
         -------
         batchHandler : BatchHandler
             batchHandler with dataHandler attribute
         """
+
+        if isinstance(file_paths, list) and list_chunk_size is not None:
+            file_paths = sorted(file_paths)
+            file_paths = np.array_split(file_paths, list_chunk_size)
+
         data_handlers = []
         for i, f in enumerate(file_paths):
             if raster_files is None:
