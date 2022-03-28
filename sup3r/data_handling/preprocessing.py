@@ -401,7 +401,8 @@ class DataHandler:
                 data[:, :, :, j] = np.transpose(fdata, (1, 2, 0))
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
-                                    raster_index.shape[1], 2))
+                                    raster_index.shape[1], 2),
+                                   dtype=np.float32)
                 lat_lon = handle.lat_lon[raster_index]
 
         if get_coords:
@@ -470,9 +471,10 @@ class DataHandler:
                         (1, 2, 0))
 
             if get_coords:
-                lat_lon = np.zeros((raster_index.shape[0],
-                                    raster_index.shape[1], 2),
-                                   dtype=np.float32)
+                lat_lon = np.zeros(
+                    (raster_index[0][1] - raster_index[0][0],
+                     raster_index[1][1] - raster_index[1][0], 2),
+                    dtype=np.float32)
                 lat_lon[:, :, 0] = \
                     handle['XLAT'][0, raster_index[0][0]:raster_index[0][1], 0]
                 lat_lon[:, :, 1] = \
