@@ -288,7 +288,7 @@ class DataHandler:
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
 
-            elif file_ext == '.nc':
+            else:
                 nc_file = xr.open_dataset(file_path)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
@@ -296,9 +296,6 @@ class DataHandler:
                 lon_idx = np.argmin(np.abs(lon_diff))
                 raster_index = [[lat_idx, lat_idx + shape[0]],
                                 [lon_idx, lon_idx + shape[1]]]
-            else:
-                raise ConfigError('Data must be either h5 or netcdf '
-                                  f'but received file extension: {file_ext}')
             if self.raster_file is not None:
                 logger.debug('Saving raster index: {}'
                              .format(self.raster_file))
@@ -342,13 +339,10 @@ class DataHandler:
             return cls._get_h5_data(file_path, raster_index,
                                     features,
                                     get_coords=get_coords)
-        elif file_ext == '.nc':
+        else:
             return cls._get_nc_data(file_path, raster_index,
                                     features,
                                     get_coords=get_coords)
-        else:
-            raise ConfigError('Data must be either h5 or netcdf '
-                              f'but received file extension: {file_ext}')
 
     @staticmethod
     def _get_h5_data(file_path, raster_index,
@@ -435,7 +429,8 @@ class DataHandler:
         logger.debug('Loading data for raster of shape {}'
                      .format(raster_index.shape))
 
-        handle = xr.open_dataset(file_path)
+        handle = xr.open_mfdataset(
+            file_path, combine='nested', concat_dim='Time')
 
         data = np.zeros((raster_index[0][1] - raster_index[0][0],
                          raster_index[1][1] - raster_index[1][0],
