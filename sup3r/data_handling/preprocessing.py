@@ -875,6 +875,7 @@ class BatchHandler:
         if isinstance(file_paths, list) and list_chunk_size is not None:
             file_paths = sorted(file_paths)
             file_paths = np.array_split(file_paths, list_chunk_size)
+            file_paths = [list(fps) for fps in file_paths]
 
         data_handlers = []
         for i, f in enumerate(file_paths):
