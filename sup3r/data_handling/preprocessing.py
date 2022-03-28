@@ -853,7 +853,10 @@ class BatchHandler:
             if raster_files is None:
                 raster_file = None
             else:
-                raster_file = raster_files[i]
+                if not isinstance(raster_files, list):
+                    raster_file = raster_files
+                else:
+                    raster_file = raster_files[i]
             if not isinstance(targets, list):
                 target = targets
             else:

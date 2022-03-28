@@ -30,17 +30,19 @@ def uniform_box_sampler(data, shape):
     '''
 
     slices = []
-    if data.shape[0] == shape[0]:
+    if data.shape[0] >= shape[0]:
         start_row = 0
+        stop_row = data.shape[0]
     else:
         start_row = np.random.randint(0, data.shape[0] - shape[0])
-    stop_row = start_row + shape[0]
+        stop_row = start_row + shape[0]
 
-    if data.shape[1] == shape[1]:
+    if data.shape[1] >= shape[1]:
         start_col = 0
+        stop_col = data.shape[1]
     else:
         start_col = np.random.randint(0, data.shape[1] - shape[1])
-    stop_col = start_col + shape[1]
+        stop_col = start_col + shape[1]
 
     slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
     return slices
@@ -65,11 +67,12 @@ def uniform_time_sampler(data, shape):
         time slice with size shape
     '''
 
-    if data.shape[2] == shape:
+    if data.shape[2] >= shape:
         start = 0
+        stop = data.shape[2]
     else:
         start = np.random.randint(0, data.shape[2] - shape)
-    stop = start + shape
+        stop = start + shape
     return slice(start, stop)
 
 
