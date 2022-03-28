@@ -310,6 +310,7 @@ class DataHandler:
     def _get_file_data(cls, file_path,
                        raster_index,
                        features,
+                       level_index=None,
                        get_coords=True):
         """Extract fields from file for region
         given by target and shape
@@ -324,6 +325,8 @@ class DataHandler:
             (n_lat, n_lon) grid size for region
         features : list
             list of fields to extract from file
+        level_index : int
+            Level index for wrf data vertical extent
         get_coords : bool
             get coordinates
 
@@ -350,6 +353,7 @@ class DataHandler:
         else:
             return cls._get_nc_data(file_path, raster_index,
                                     features,
+                                    level_index=level_index,
                                     get_coords=get_coords)
 
     @staticmethod
@@ -435,7 +439,9 @@ class DataHandler:
             Only returned if get_coords=True
         """
         logger.debug('Loading data for raster of shape {}'
-                     .format(raster_index.shape))
+                     .format(
+                         (raster_index[0][1] - raster_index[0][0],
+                          raster_index[1][1] - raster_index[1][0])))
 
         handle = xr.open_mfdataset(
             file_path, combine='nested', concat_dim='Time')
