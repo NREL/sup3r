@@ -464,7 +464,7 @@ class DataHandler:
             else:
                 data[:, :, :, j] = \
                     np.transpose(
-                        handle[f][:, level_index,
+                        handle[f][:,
                                   raster_index[0][0]:raster_index[0][1],
                                   raster_index[1][0]:raster_index[1][1]],
                         (1, 2, 0))
