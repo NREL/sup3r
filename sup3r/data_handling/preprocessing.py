@@ -451,24 +451,23 @@ class DataHandler:
                          handle['Times'].shape[0],
                          len(features)), dtype=np.float32)
 
-        dim_names = list(handle.dims)
         for j, f in enumerate(features):
             if len(handle[f].shape) > 3:
                 if level_index is None:
                     level_index = 0
                 data[:, :, :, j] = \
                     np.transpose(
-                        handle[f][:, level_index,
-                                  raster_index[0][0]:raster_index[0][1],
-                                  raster_index[1][0]:raster_index[1][1]],
-                        (dim_names[1], dim_names[2], dim_names[0]))
+                        np.array(handle[f][:, level_index,
+                                 raster_index[0][0]:raster_index[0][1],
+                                 raster_index[1][0]:raster_index[1][1]]),
+                        (1, 2, 0))
             else:
                 data[:, :, :, j] = \
                     np.transpose(
-                        handle[f][:,
-                                  raster_index[0][0]:raster_index[0][1],
-                                  raster_index[1][0]:raster_index[1][1]],
-                        (dim_names[1], dim_names[2], dim_names[0]))
+                        np.array(handle[f][:,
+                                 raster_index[0][0]:raster_index[0][1],
+                                 raster_index[1][0]:raster_index[1][1]]),
+                        (1, 2, 0))
 
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
