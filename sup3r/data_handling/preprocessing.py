@@ -34,8 +34,8 @@ class DataHandler:
         Parameters
         ----------
         file_path : str
-            A single source h5 wind file to extract raster data from or a list of
-            netcdf files with identical grid
+            A single source h5 wind file to extract raster data from
+            or a list of netcdf files with identical grid
         features : list
             list of features to extract
         target : tuple
@@ -296,7 +296,7 @@ class DataHandler:
                 nc_file = xr.open_dataset(data_file)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
-                lon_diff = list(nc_file['XLON'][0, 0, :] - target[1])
+                lon_diff = list(nc_file['XLONG'][0, 0, :] - target[1])
                 lon_idx = np.argmin(np.abs(lon_diff))
                 raster_index = [[lat_idx, lat_idx + shape[0]],
                                 [lon_idx, lon_idx + shape[1]]]
