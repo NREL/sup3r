@@ -338,7 +338,11 @@ class DataHandler:
             Only returned if get_coords=True
         """
 
-        _, file_ext = os.path.splitext(file_path)
+        if isinstance(file_path, list):
+            data_file = file_path[0]
+        else:
+            data_file = file_path
+        _, file_ext = os.path.splitext(data_file)
         if file_ext == '.h5':
             return cls._get_h5_data(file_path, raster_index,
                                     features,
