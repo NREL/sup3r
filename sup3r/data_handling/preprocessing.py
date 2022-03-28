@@ -476,9 +476,10 @@ class DataHandler:
                      raster_index[1][1] - raster_index[1][0], 2),
                     dtype=np.float32)
                 lat_lon[:, :, 0] = \
-                    handle['XLAT'][0, raster_index[0][0]:raster_index[0][1], 0]
+                    handle['XLAT'][0, raster_index[0][0]:raster_index[0][1],
+                                   raster_index[1][0]:raster_index[1][1]]
                 lat_lon[:, :, 1] = \
-                    handle['XLONG'][0, :,
+                    handle['XLONG'][0, raster_index[0][0]:raster_index[0][1],
                                     raster_index[1][0]:raster_index[1][1]]
 
         if get_coords:
