@@ -543,7 +543,8 @@ def mixing_ratio(P, T, RH):
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
                                P_bottom, U_top, U_bottom,
-                               V_top, V_bottom, RH, delta_h):
+                               V_top, V_bottom, RH,
+                               delta_h_numer, delta_h_denom):
 
     """Formula for the gradient richardson
     number - related to the bouyant production
@@ -583,9 +584,13 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
         lower height
     RH : ndarray
         Relative humidity
-    delta_h : float
+    delta_h_numer : float
         Difference in heights between
-        top and bottom levels
+        top and bottom potential temperature
+        levels
+    delta_h_denom : float
+        Difference in heights between
+        top and bottom windspeed levels
 
     Returns
     -------
@@ -601,12 +606,12 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     PT_top_v = virtual_var(PT_top, mixing_r)
     PT_bottom = potential_temperature(T_bottom, P_bottom)
     PT_bottom_v = virtual_var(PT_bottom, mixing_r)
-    PT_diff = (PT_top_v - PT_bottom_v)
+    PT_diff = (PT_top_v - PT_bottom_v) / delta_h_numer
     U_diff = (U_top - U_bottom)
     V_diff = (V_top - V_bottom)
     T_v = virtual_var(T_mid, mixing_r)
 
-    numer = 9.81 * PT_diff * delta_h / T_v
-    denom = (U_diff ** 2 + V_diff ** 2)
+    numer = 9.81 * PT_diff / T_v
+    denom = (U_diff ** 2 + V_diff ** 2) / delta_h_denom ** 2
     denom[denom == 0] = 0.001
     return numer / denom
