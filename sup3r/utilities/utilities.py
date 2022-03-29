@@ -441,7 +441,7 @@ def potential_temperature(T, P):
     Parameters
     ----------
     T : ndarray
-        Temperature in Kelvin
+        Temperature in celsius
     P : ndarray
         Pressure of fluid
 
@@ -450,10 +450,10 @@ def potential_temperature(T, P):
     ndarray
         Potential temperature
     """
-    return T * (P / 1000) ** (-0.286)
+    return (T - 273.15) * (P / 1000) ** (-0.286)
 
 
-def virtual_var(var, mixing_ratio=1):
+def virtual_var(var, mixing_ratio):
     """Formula for virtual variable
     e.g. virtual temperature, virtual
     potential temperature
@@ -463,7 +463,7 @@ def virtual_var(var, mixing_ratio=1):
     var : ndarray
         Variable array (e.g. temperature
         array or potential temperature array)
-    mixing_ratio : float
+    mixing_ratio : ndarray
         Ratio of the mass of water vapor to the
         mass of dry air
 
@@ -475,6 +475,66 @@ def virtual_var(var, mixing_ratio=1):
         Richardson number calculation)
     """
     return var * (1 + 0.61 * mixing_ratio)
+
+
+def saturation_vapor_pressure(T):
+    """Saturation Vapor pressure calculation
+    using Tetens equation
+
+    Parameters
+    ----------
+    T : ndarray
+        Temperature in celsius
+
+    Returns
+    -------
+    ndarray
+        Pressure in kPa
+    """
+
+    Es = T
+    Es[T > 0] = 0.61078 * np.exp(17.27 * T / (T + 237.3))
+    Es[T <= 0] = 0.61078 * np.exp(21.875 * T / (T + 265.5))
+    return Es
+
+
+def vapor_pressure(T, RH):
+    """
+    Parameters
+    ----------
+    T : ndarray
+        Temperature in celsius
+    RH : ndarray
+        Relative humidity
+
+    Returns
+    -------
+    ndarray
+        Pressure in kPa
+    """
+    Es = saturation_vapor_pressure(T)
+    E = RH * Es / 100
+    return E
+
+
+def mixing_ratio(P, T):
+    """Mixing ratio calculation for
+    use in richardson number calculation
+
+    Parameters
+    ----------
+    P : ndarray
+        Pressure in kPa
+    T : ndarray
+        Temperature in celsius
+
+    Returns
+    -------
+    ndarray
+        Mixing ratio
+    """
+    vapor_p = vapor_pressure(T)
+    return 0.622 * vapor_p / (P - vapor_p)
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
@@ -528,15 +588,17 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
 
     """
 
+    T_mid = (T_top + T_bottom) / 2.0
+    P_mid = (P_top + P_bottom) / 2.0
+    mixing_r = mixing_ratio(P_mid, T_mid)
     PT_top = potential_temperature(T_top, P_top)
-    PT_top_v = virtual_var(PT_top)
+    PT_top_v = virtual_var(PT_top, mixing_r)
     PT_bottom = potential_temperature(T_bottom, P_bottom)
-    PT_bottom_v = virtual_var(PT_bottom)
+    PT_bottom_v = virtual_var(PT_bottom, mixing_r)
     PT_grad = (PT_top_v - PT_bottom_v) / delta_h
     U_grad = (U_top - U_bottom) / delta_h
     V_grad = (V_top - V_bottom) / delta_h
-    T_mid = (T_top + T_bottom) / 2.0
-    T_v = virtual_var(T_mid)
+    T_v = virtual_var(T_mid, mixing_r)
 
     Ri = 9.81 * T_v ** (-1) * PT_grad
     denom = (U_grad ** 2 + V_grad ** 2)
