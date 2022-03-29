@@ -87,7 +87,7 @@ class DataHandler:
 
         self.file_path = file_path
         self.features = features
-        self.renamed_features = features
+        self.renamed_features = features.copy()
         self.grid_shape = shape
         self.target = target
         self.raster_index = None
