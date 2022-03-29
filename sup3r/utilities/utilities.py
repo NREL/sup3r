@@ -517,7 +517,7 @@ def vapor_pressure(T, RH):
     return E
 
 
-def mixing_ratio(P, T):
+def mixing_ratio(P, T, RH):
     """Mixing ratio calculation for
     use in richardson number calculation
 
@@ -527,19 +527,21 @@ def mixing_ratio(P, T):
         Pressure in kPa
     T : ndarray
         Temperature in celsius
+    RH : ndarray
+        Relative humidity
 
     Returns
     -------
     ndarray
         Mixing ratio
     """
-    vapor_p = vapor_pressure(T)
+    vapor_p = vapor_pressure(T, RH)
     return 0.622 * vapor_p / (P - vapor_p)
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
                                P_bottom, U_top, U_bottom,
-                               V_top, V_bottom, delta_h):
+                               V_top, V_bottom, RH, delta_h):
 
     """Formula for the gradient richardson
     number - related to the bouyant production
@@ -577,6 +579,8 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     V_bottom : ndarray
         Meridional wind component at
         lower height
+    RH : ndarray
+        Relative humidity
     delta_h : float
         Difference in heights between
         top and bottom levels
@@ -590,7 +594,7 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
 
     T_mid = (T_top + T_bottom) / 2.0
     P_mid = (P_top + P_bottom) / 2.0
-    mixing_r = mixing_ratio(P_mid, T_mid)
+    mixing_r = mixing_ratio(P_mid, T_mid, RH)
     PT_top = potential_temperature(T_top, P_top)
     PT_top_v = virtual_var(PT_top, mixing_r)
     PT_bottom = potential_temperature(T_bottom, P_bottom)
