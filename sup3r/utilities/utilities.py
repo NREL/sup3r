@@ -493,8 +493,10 @@ def saturation_vapor_pressure(T):
     """
 
     Es = T
-    Es[T > 0] = 0.61078 * np.exp(17.27 * T / (T + 237.3))
-    Es[T <= 0] = 0.61078 * np.exp(21.875 * T / (T + 265.5))
+    Es[T > 0] = 0.61078 * np.exp(
+        17.27 * T[T > 0] / (T[T > 0] + 237.3))
+    Es[T <= 0] = 0.61078 * np.exp(
+        21.875 * T[T <= 0] / (T[T <= 0] + 265.5))
     return Es
 
 
