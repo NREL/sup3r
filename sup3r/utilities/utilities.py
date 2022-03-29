@@ -77,7 +77,8 @@ def uniform_time_sampler(data, shape):
     return slice(start, stop)
 
 
-def transform_rotate_wind(y, lat_lon, features):
+def transform_rotate_wind(y, lat_lon, features,
+                          renamed_features):
     """Transform windspeed/direction to
     u and v and align u and v with grid
 
@@ -89,6 +90,9 @@ def transform_rotate_wind(y, lat_lon, features):
         3D array of lat lon
     features : list
         list of extracted features
+    renamed_features : list
+        list of feature names after
+        transformations
 
     Returns
     -------
@@ -97,7 +101,7 @@ def transform_rotate_wind(y, lat_lon, features):
         (windspeed, direction) -> (u, v)
     """
 
-    renamed_features = features.copy()
+    #renamed_features = features.copy()
     for i, f in enumerate(renamed_features):
         if f.split('_')[0] == 'windspeed':
             if len(f.split('_')) > 1:
@@ -110,6 +114,9 @@ def transform_rotate_wind(y, lat_lon, features):
                 renamed_features[i] = 'U'
                 renamed_features[j] = 'V'
 
+            logger.debug(
+                f'Transforming {features[i]}, {features[j]}'
+                f' to {renamed_features[i]}, {renamed_features[j]}')
             y = transform_wind(y, i, j)
 
         if renamed_features[i].split('_')[0] == 'U':
@@ -119,6 +126,9 @@ def transform_rotate_wind(y, lat_lon, features):
             else:
                 j = renamed_features.index('V')
 
+            logger.debug(
+                f'Rotating {features[i]}, {features[j]}'
+                f' to {renamed_features[i]}, {renamed_features[j]}')
             y = rotate_u_v(y, i, j, lat_lon)
 
     return y
