@@ -427,3 +427,111 @@ def interp_var(data, var, heights):
     h_array = calc_height(data)
     var_array = unstagger_var(data, var)
     return WRFHeights.interp3D(var_array, h_array, heights)
+
+
+def potential_temperature(T, P):
+    """Potential temperature of fluid
+    at pressure P and temperature T
+
+    Parameters
+    ----------
+    T : ndarray
+        Temperature in Kelvin
+    P : ndarray
+        Pressure of fluid
+
+    Returns
+    -------
+    ndarray
+        Potential temperature
+    """
+    return T * (P / 1000) ** (-0.286)
+
+
+def virtual_var(var, mixing_ratio=1):
+    """Formula for virtual variable
+    e.g. virtual temperature, virtual
+    potential temperature
+
+    Parameters
+    ----------
+    var : ndarray
+        Variable array (e.g. temperature
+        array or potential temperature array)
+    mixing_ratio : float
+        Ratio of the mass of water vapor to the
+        mass of dry air
+
+    Returns
+    -------
+    ndarray
+        Virtual quantity (e.g. virtual temperature
+        or virtual potential temperature, for use in
+        Richardson number calculation)
+    """
+    return var * (1 + 0.61 * mixing_ratio)
+
+
+def gradient_richardson_number(T_top, T_bottom, P_top,
+                               P_bottom, U_top, U_bottom,
+                               V_top, V_bottom, delta_h):
+
+    """Formula for the gradient richardson
+    number - related to the bouyant production
+    or consumption of turbulence divided by the
+    shear production of turbulence. Used to indicate
+    dynamic stability
+
+    Parameters
+    ----------
+    T_top : ndarray
+        Temperature at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    T_bottom : ndarray
+        Temperature at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    P_top : ndarray
+        Pressure at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    P_bottom : ndarray
+        Pressure at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    U_top : ndarray
+        Zonal wind component at higher
+        height
+    U_bottom : ndarray
+        Zonal wind component at lower
+        height
+    V_top : ndarray
+        Meridional wind component at
+        higher height
+    V_bottom : ndarray
+        Meridional wind component at
+        lower height
+    delta_h : float
+        Difference in heights between
+        top and bottom levels
+
+    Returns
+    -------
+    ndarray
+        Gradient Richardson Number
+
+    """
+
+    PT_top = potential_temperature(T_top, P_top)
+    PT_top_v = virtual_var(PT_top)
+    PT_bottom = potential_temperature(T_bottom, P_bottom)
+    PT_bottom_v = virtual_var(PT_bottom)
+    PT_grad = (PT_top_v - PT_bottom_v) / delta_h
+    U_grad = (U_top - U_bottom) / delta_h
+    V_grad = (V_top - V_bottom) / delta_h
+    T_mid = (T_top + T_bottom) / 2.0
+    T_v = virtual_var(T_mid)
+
+    Ri = 9.81 * T_v ** (-1) * PT_grad / (U_grad ** 2 + V_grad ** 2)
+    return Ri
