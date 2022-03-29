@@ -540,8 +540,7 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
 
     Ri = 9.81 * T_v ** (-1) * PT_grad
     denom = (U_grad ** 2 + V_grad ** 2)
-    if denom == 0:
-        Ri = 0
-    else:
-        Ri /= denom
+    Ri[denom == 0] = 0
+    denom[denom == 0] = 1
+    Ri /= denom
     return Ri
