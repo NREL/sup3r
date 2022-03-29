@@ -101,7 +101,6 @@ def transform_rotate_wind(y, lat_lon, features,
         (windspeed, direction) -> (u, v)
     """
 
-    # renamed_features = features.copy()
     for i, f in enumerate(renamed_features):
         if f.split('_')[0] == 'windspeed':
             if len(f.split('_')) > 1:
@@ -116,7 +115,7 @@ def transform_rotate_wind(y, lat_lon, features,
 
             logger.debug(
                 f'Transforming {features[i]}, {features[j]}'
-                f' to {renamed_features[i]}, {renamed_features[j]}')
+                f' to {renamed_features[i]}, {renamed_features[j]}.')
             y = transform_wind(y, i, j)
 
         if renamed_features[i].split('_')[0] == 'U':
@@ -127,8 +126,8 @@ def transform_rotate_wind(y, lat_lon, features,
                 j = renamed_features.index('V')
 
             logger.debug(
-                f'Rotating {features[i]}, {features[j]}'
-                f' to {renamed_features[i]}, {renamed_features[j]}')
+                f'Aligning {renamed_features[i]},'
+                f' {renamed_features[j]} with grid.')
             y = rotate_u_v(y, i, j, lat_lon)
 
     return y
@@ -154,8 +153,6 @@ def transform_wind(y, i, j):
     v : np.ndarray
         3D array of meridional wind components
     """
-
-    logger.debug('Transforming speed and direction to U and V')
 
     # convert from windspeed and direction to u v
     windspeed = y[:, :, :, i]
@@ -191,8 +188,6 @@ def rotate_u_v(y, i, j, lat_lon):
     v_rot : np.ndarray
         3D array of meridional wind components
     """
-
-    logger.debug('Aligning U and V with grid coordinate system')
 
     u = y[:, :, :, i]
     v = y[:, :, :, j]
@@ -543,5 +538,10 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     T_mid = (T_top + T_bottom) / 2.0
     T_v = virtual_var(T_mid)
 
-    Ri = 9.81 * T_v ** (-1) * PT_grad / (U_grad ** 2 + V_grad ** 2)
+    Ri = 9.81 * T_v ** (-1) * PT_grad
+    denom = (U_grad ** 2 + V_grad ** 2)
+    if denom == 0:
+        Ri = 0
+    else:
+        Ri /= denom
     return Ri
