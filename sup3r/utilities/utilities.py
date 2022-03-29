@@ -601,14 +601,12 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     PT_top_v = virtual_var(PT_top, mixing_r)
     PT_bottom = potential_temperature(T_bottom, P_bottom)
     PT_bottom_v = virtual_var(PT_bottom, mixing_r)
-    PT_grad = (PT_top_v - PT_bottom_v) / delta_h
-    U_grad = (U_top - U_bottom) / delta_h
-    V_grad = (V_top - V_bottom) / delta_h
+    PT_diff = (PT_top_v - PT_bottom_v)
+    U_diff = (U_top - U_bottom)
+    V_diff = (V_top - V_bottom)
     T_v = virtual_var(T_mid, mixing_r)
 
-    Ri = 9.81 * T_v ** (-1) * PT_grad
-    denom = (U_grad ** 2 + V_grad ** 2)
-    Ri[denom == 0] = 0
-    denom[denom == 0] = 1
-    Ri /= denom
-    return Ri
+    numer = 9.81 * PT_diff * delta_h / T_v
+    denom = (U_diff ** 2 + V_diff ** 2)
+    denom[denom == 0] = 0.001
+    return numer / denom
