@@ -453,6 +453,40 @@ def potential_temperature(T, P):
     return (T - 273.15) * (P / 1000) ** (-0.286)
 
 
+def potential_temperature_difference(T_top, P_top,
+                                     T_bottom, P_bottom):
+    """Potential temp difference calculation
+
+    Parameters
+    ---------
+    T_top : ndarray
+        Temperature at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    T_bottom : ndarray
+        Temperature at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    P_top : ndarray
+        Pressure at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    P_bottom : ndarray
+        Pressure at lower height.
+        Used in the approximation of
+        potential temperature derivative
+
+    Returns
+    -------
+    ndarray
+        Difference in potential temperature between
+        top and bottom levels
+    """
+    PT_top = potential_temperature(T_top, P_top)
+    PT_bottom = potential_temperature(T_bottom, P_bottom)
+    return PT_top - PT_bottom
+
+
 def virtual_var(var, mixing_ratio):
     """Formula for virtual variable
     e.g. virtual temperature, virtual
