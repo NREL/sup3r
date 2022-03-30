@@ -582,7 +582,7 @@ class BaseModel(ABC):
             Namespace of the breakdown of loss components
         """
 
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
             hi_res_gen = self.generate(low_res, to_numpy=False, training=True)
