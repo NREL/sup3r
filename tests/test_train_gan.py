@@ -115,7 +115,14 @@ def test_train_st(n_epoch=6, log=False):
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
+        assert 'config_generator' in model.meta
+        assert 'config_spatial_disc' in model.meta
+        assert 'config_temporal_disc' in model.meta
+
         assert len(model.history) == n_epoch
+        assert all(model.history['train_gen_trained_frac'] == 1)
+        assert all(model.history['train_disc_s_trained_frac'] == 0)
+        assert all(model.history['train_disc_t_trained_frac'] == 0)
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 1.5)
@@ -134,6 +141,11 @@ def test_train_st(n_epoch=6, log=False):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
         loaded = model.load(out_dir)
+
+        assert 'config_generator' in loaded.meta
+        assert 'config_spatial_disc' in loaded.meta
+        assert 'config_temporal_disc' in loaded.meta
+
         for batch in batch_handler:
             out_og = model.generate(batch.low_res)
             out_dummy = dummy.generate(batch.low_res)
