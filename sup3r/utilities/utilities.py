@@ -74,7 +74,7 @@ def get_BVF_squared(handle, raster_index, source_type):
     raster_index : ndarray
         Raster index array
     source_type : str
-        Either wtk or wrf
+        Either h5 or nc
 
     Returns
     -------
@@ -83,11 +83,15 @@ def get_BVF_squared(handle, raster_index, source_type):
 
     """
 
-    if source_type == 'wtk':
+    logger.info('Calculating Brunt-Vaisala Frequency')
+
+    if source_type == 'h5':
         required_inputs = ['temperature_200m',
                            'temperature_100m',
                            'pressure_200m',
                            'pressure_100m']
+    elif source_type == 'nc':
+        logger.error('Not setup to handle nc data yet')
 
     T_top = extract_feature(
         handle, raster_index, required_inputs[0], source_type)
