@@ -86,12 +86,16 @@ def get_BVF_squared(handle, raster_index, source_type):
     logger.info('Calculating Brunt-Vaisala Frequency')
 
     if source_type == 'h5':
+        delta_h = 100
         required_inputs = ['temperature_200m',
                            'temperature_100m',
                            'pressure_200m',
                            'pressure_100m']
     elif source_type == 'nc':
         logger.error('Not setup to handle nc data yet')
+
+    else:
+        raise ValueError('Can only handle h5 or netcdf data')
 
     T_top = extract_feature(
         handle, raster_index, required_inputs[0], source_type)
@@ -103,7 +107,7 @@ def get_BVF_squared(handle, raster_index, source_type):
         handle, raster_index, required_inputs[3], source_type)
 
     return BVF_squared(T_top, T_bottom,
-                       P_top, P_bottom)
+                       P_top, P_bottom, delta_h)
 
 
 def uniform_box_sampler(data, shape):
