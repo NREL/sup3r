@@ -55,7 +55,6 @@ class BaseModel(ABC):
         """
         self.name = name
         self._gen = None
-        self._learning_rate = learning_rate
 
         self._means = means
         self._stdevs = stdevs
@@ -352,7 +351,6 @@ class BaseModel(ABC):
 
         model_params = {'name': self.name,
                         'version_record': self.version_record,
-                        'learning_rate': self._learning_rate,
                         'optimizer': self.optimizer_config,
                         'means': means,
                         'stdevs': stdevs,
@@ -487,7 +485,7 @@ class BaseModel(ABC):
     def finish_epoch(self, epoch, epochs, t0, loss_details,
                      checkpoint_int, out_dir,
                      early_stop_on, early_stop_threshold,
-                     early_stop_n_epoch):
+                     early_stop_n_epoch, extras=None):
         """Perform finishing checks after an epoch is done training
 
         Parameters
@@ -522,6 +520,8 @@ class BaseModel(ABC):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
+        extras : dict | None
+            Extra kwargs/parameters to save in the epoch history.
 
         Returns
         -------
@@ -551,6 +551,10 @@ class BaseModel(ABC):
                                    n_epoch=early_stop_n_epoch)
             if stop:
                 self.save(out_dir.format(epoch=epoch))
+
+        if extras is not None:
+            for k, v in extras.items():
+                self._history.at[epoch, k] = v
 
         return stop
 
@@ -994,6 +998,8 @@ class SpatialGan(BaseModel):
                     weight_gen_advers=weight_gen_advers,
                     train_gen=False, train_disc=True)
 
+            b_loss_details['gen_trained_frac'] = float(trained_gen)
+            b_loss_details['disc_trained_frac'] = float(trained_disc)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),
@@ -1090,10 +1096,14 @@ class SpatialGan(BaseModel):
                                 loss_details['train_loss_disc'],
                                 loss_details['val_loss_disc']))
 
+            extras = {'weight_gen_advers': weight_gen_advers,
+                      'disc_loss_bound_0': disc_loss_bounds[0],
+                      'disc_loss_bound_1': disc_loss_bounds[1],
+                      'learning_rate': self.optimizer_config['learning_rate']}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch)
+                                     early_stop_n_epoch, extras=extras)
             if stop:
                 break
 
@@ -1503,6 +1513,9 @@ class SpatioTemporalGan(BaseModel):
                     weight_gen_advers_t=weight_gen_advers_t,
                     train_gen=False, train_disc_s=False, train_disc_t=True)
 
+            b_loss_details['gen_trained_frac'] = float(trained_gen)
+            b_loss_details['disc_s_trained_frac'] = float(trained_disc_s)
+            b_loss_details['disc_t_trained_frac'] = float(trained_disc_t)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),
@@ -1626,9 +1639,14 @@ class SpatioTemporalGan(BaseModel):
                                 loss_details['val_loss_disc_t'],
                                 ))
 
+            extras = {'weight_gen_advers_s': weight_gen_advers_s,
+                      'weight_gen_advers_t': weight_gen_advers_t,
+                      'disc_loss_bound_0': disc_loss_bounds[0],
+                      'disc_loss_bound_1': disc_loss_bounds[1],
+                      'learning_rate': self.optimizer_config['learning_rate']}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch)
+                                     early_stop_n_epoch, extras=extras)
             if stop:
                 break
