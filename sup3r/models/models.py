@@ -23,7 +23,7 @@ class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
     def __init__(self, optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -42,6 +42,8 @@ class BaseModel(ABC):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -55,6 +57,7 @@ class BaseModel(ABC):
         """
         self.name = name
         self._gen = None
+        self._meta = meta if meta is not None else {}
 
         self._means = means
         self._stdevs = stdevs
@@ -73,21 +76,7 @@ class BaseModel(ABC):
         elif optimizer is None:
             self._optimizer = optimizers.Adam(learning_rate=learning_rate)
 
-    def update_optimizer(self, **kwargs):
-        """Update optimizer by changing current configuration
-
-        Parameters
-        kwargs : dict
-            kwargs to use for optimizer configuration update
-
-        """
-        conf = self.optimizer_config
-        conf.update(**kwargs)
-        OptimizerClass = getattr(optimizers, conf['name'])
-        self._optimizer = OptimizerClass.from_config(conf)
-
-    @staticmethod
-    def load_network(model, name):
+    def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
         config, or .pkl file saved pre=trained model.
 
@@ -107,6 +96,7 @@ class BaseModel(ABC):
 
         if isinstance(model, str) and model.endswith('.json'):
             model = safe_json_load(model)
+            self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
             else:
@@ -335,6 +325,24 @@ class BaseModel(ABC):
                 conf[k] = int(v)
         return conf
 
+    def update_optimizer(self, **kwargs):
+        """Update optimizer by changing current configuration
+
+        Parameters
+        kwargs : dict
+            kwargs to use for optimizer configuration update
+
+        """
+        conf = self.optimizer_config
+        conf.update(**kwargs)
+        OptimizerClass = getattr(optimizers, conf['name'])
+        self._optimizer = OptimizerClass.from_config(conf)
+
+    @property
+    def meta(self):
+        """Get meta data dictionary that defines how the model was created"""
+        return self._meta
+
     @property
     def model_params(self):
         """
@@ -354,6 +362,7 @@ class BaseModel(ABC):
                         'optimizer': self.optimizer_config,
                         'means': means,
                         'stdevs': stdevs,
+                        'meta': self.meta,
                         }
 
         return model_params
@@ -713,7 +722,7 @@ class SpatialGan(BaseModel):
 
     def __init__(self, gen_layers, disc_layers,
                  optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -742,6 +751,8 @@ class SpatialGan(BaseModel):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -756,10 +767,10 @@ class SpatialGan(BaseModel):
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
                          history=history, version_record=version_record,
-                         means=means, stdevs=stdevs, name=name)
+                         meta=meta, means=means, stdevs=stdevs, name=name)
 
-        self._gen = self.load_network(gen_layers, 'Generator')
-        self._disc = self.load_network(disc_layers, 'Discriminator')
+        self._gen = self.load_network(gen_layers, 'generator')
+        self._disc = self.load_network(disc_layers, 'discriminator')
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -1113,7 +1124,7 @@ class SpatioTemporalGan(BaseModel):
 
     def __init__(self, gen_layers, disc_s_layers, disc_t_layers,
                  optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -1147,6 +1158,8 @@ class SpatioTemporalGan(BaseModel):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -1161,11 +1174,11 @@ class SpatioTemporalGan(BaseModel):
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
                          history=history, version_record=version_record,
-                         means=means, stdevs=stdevs, name=name)
+                         meta=meta, means=means, stdevs=stdevs, name=name)
 
-        self._gen = self.load_network(gen_layers, 'Generator')
-        self._disc_s = self.load_network(disc_s_layers, 'SpatialDisc')
-        self._disc_t = self.load_network(disc_t_layers, 'TemporalDisc')
+        self._gen = self.load_network(gen_layers, 'generator')
+        self._disc_s = self.load_network(disc_s_layers, 'spatial_disc')
+        self._disc_t = self.load_network(disc_t_layers, 'temporal_disc')
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
