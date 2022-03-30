@@ -244,17 +244,13 @@ class BaseModel(ABC):
         return self.generator.weights
 
     @tf.function
-    def generate(self, low_res, training=False, norm_in=False,
-                 un_norm_out=False):
+    def generate(self, low_res, norm_in=False, un_norm_out=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
         ----------
         low_res : np.ndarray
             Real low-resolution data
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -277,8 +273,9 @@ class BaseModel(ABC):
                 islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
                 low_res[islice] = (low_res[islice] - m) / s
 
-        hi_res = self.generator.predict(low_res, to_numpy=False,
-                                        training=training)
+        hi_res = self.generator.layers[0](low_res)
+        for layer in self.generator.layers[1:]:
+            hi_res = layer(hi_res)
 
         if un_norm_out and self._means is not None:
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
@@ -597,7 +594,7 @@ class BaseModel(ABC):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
-            hi_res_gen = self.generate(low_res, training=True)
+            hi_res_gen = self.generate(low_res)
             loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                       **calc_loss_kwargs)
             loss, loss_details = loss_out
@@ -834,7 +831,7 @@ class SpatialGan(BaseModel):
         """
         return self.disc.weights
 
-    def discriminate(self, hi_res, training=False, norm_in=False):
+    def discriminate(self, hi_res, norm_in=False):
         """Run the discriminator model on a hi resolution input field.
 
         Parameters
@@ -842,9 +839,6 @@ class SpatialGan(BaseModel):
         hi_res : tf.Tensor
             Real or fake high res data in a 4D tensor
             (n_obs, spatial_1, spatial_2, n_features)
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -861,7 +855,11 @@ class SpatialGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc.predict(hi_res, to_numpy=False, training=training)
+        out = self.disc.layers[0](hi_res)
+        for layer in self.disc.layers[1:]:
+            out = layer(out)
+
+        return out
 
     @property
     def weights(self):
@@ -900,8 +898,8 @@ class SpatialGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        disc_out_true = self.discriminate(hi_res_true, training=True)
-        disc_out_gen = self.discriminate(hi_res_gen, training=True)
+        disc_out_true = self.discriminate(hi_res_true)
+        disc_out_gen = self.discriminate(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
@@ -1267,7 +1265,7 @@ class SpatioTemporalGan(BaseModel):
         return self.disc_temporal.weights
 
     @tf.function
-    def discriminate_s(self, hi_res, training=False, norm_in=False):
+    def discriminate_s(self, hi_res, norm_in=False):
         """Run the spatial discriminator model on a hi resolution input field
 
         Parameters
@@ -1275,9 +1273,6 @@ class SpatioTemporalGan(BaseModel):
         hi_res : tf.Tensor
             Real or fake high res data in a 5D tensor
             (n_obs, spatial_1, spatial_2, temporal, n_features)
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -1294,11 +1289,14 @@ class SpatioTemporalGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc_spatial.predict(hi_res, to_numpy=False,
-                                         training=training)
+        out = self.disc_spatial.layers[0](hi_res)
+        for layer in self.disc_spatial.layers[1:]:
+            out = layer(out)
+
+        return out
 
     @tf.function
-    def discriminate_t(self, hi_res, training=False, norm_in=False):
+    def discriminate_t(self, hi_res, norm_in=False):
         """Run the temporal discriminator model on a hi resolution input field
 
         Parameters
@@ -1306,9 +1304,6 @@ class SpatioTemporalGan(BaseModel):
         hi_res : tf.Tensor
             Real or fake high res data in a 5D tensor
             (n_obs, spatial_1, spatial_2, temporal, n_features)
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -1325,8 +1320,11 @@ class SpatioTemporalGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc_temporal.predict(hi_res, to_numpy=False,
-                                          training=training)
+        out = self.disc_temporal.layers[0](hi_res)
+        for layer in self.disc_temporal.layers[1:]:
+            out = layer(out)
+
+        return out
 
     @property
     def weights(self):
@@ -1372,11 +1370,11 @@ class SpatioTemporalGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        disc_out_spat_true = self.discriminate_s(hi_res_true, training=True)
-        disc_out_spat_gen = self.discriminate_s(hi_res_gen, training=True)
+        disc_out_spat_true = self.discriminate_s(hi_res_true)
+        disc_out_spat_gen = self.discriminate_s(hi_res_gen)
 
-        disc_out_temp_true = self.discriminate_t(hi_res_true, training=True)
-        disc_out_temp_gen = self.discriminate_t(hi_res_gen, training=True)
+        disc_out_temp_true = self.discriminate_t(hi_res_true)
+        disc_out_temp_gen = self.discriminate_t(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers_s = self.calc_loss_gen_advers(disc_out_spat_gen)
