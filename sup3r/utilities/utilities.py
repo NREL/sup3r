@@ -575,10 +575,51 @@ def mixing_ratio(P, T, RH):
     return 0.622 * vapor_p / (P - vapor_p)
 
 
+def BVF_squared(T_top, T_bottom,
+                P_top, P_bottom,
+                delta_h):
+    """
+    Squared Brunt Vaisala Frequency
+
+    Parameters
+    ----------
+    T_top : ndarray
+        Temperature at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    T_bottom : ndarray
+        Temperature at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    P_top : ndarray
+        Pressure at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    P_bottom : ndarray
+        Pressure at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    delta_h : float
+        Difference in heights between
+        top and bottom levels
+
+    Results
+    -------
+    ndarray
+        Squared Brunt Vaisala Frequency
+    """
+
+    PT_top = potential_temperature(T_top, P_top)
+    PT_bottom = potential_temperature(T_bottom, P_bottom)
+    PT_mid = (PT_top + PT_bottom) / 2.0
+    return 9.81 / PT_mid * (PT_top - PT_bottom) / delta_h
+
+
+
+
 def gradient_richardson_number(T_top, T_bottom, P_top,
                                P_bottom, U_top, U_bottom,
-                               V_top, V_bottom, RH,
-                               delta_h):
+                               V_top, V_bottom, delta_h):
 
     """Formula for the gradient richardson
     number - related to the bouyant production
@@ -616,8 +657,6 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     V_bottom : ndarray
         Meridional wind component at
         lower height
-    RH : ndarray
-        Relative humidity
     delta_h : float
         Difference in heights between
         top and bottom levels
@@ -629,19 +668,10 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
 
     """
 
-    T_mid = (T_top + T_bottom) / 2.0
-    P_mid = (P_top + P_bottom) / 2.0
-    mixing_r = mixing_ratio(P_mid, T_mid, RH)
-    PT_top = potential_temperature(T_top, P_top)
-    PT_top_v = virtual_var(PT_top, mixing_r)
-    PT_bottom = potential_temperature(T_bottom, P_bottom)
-    PT_bottom_v = virtual_var(PT_bottom, mixing_r)
-    PT_diff = (PT_top_v - PT_bottom_v) / delta_h
     U_diff = (U_top - U_bottom)
     V_diff = (V_top - V_bottom)
-    T_v = virtual_var(T_mid, mixing_r)
-
-    numer = 9.81 * PT_diff / T_v
+    numer = BVF_squared(T_top, T_bottom,
+                        P_top, P_bottom, delta_h)
     denom = (U_diff ** 2 + V_diff ** 2) / delta_h ** 2
-    denom[denom == 0] = 0.001
+    denom[denom < 0.001] = 0.001
     return numer / denom
