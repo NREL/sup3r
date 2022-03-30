@@ -23,7 +23,7 @@ class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
     def __init__(self, optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -42,6 +42,8 @@ class BaseModel(ABC):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -55,7 +57,7 @@ class BaseModel(ABC):
         """
         self.name = name
         self._gen = None
-        self._learning_rate = learning_rate
+        self._meta = meta if meta is not None else {}
 
         self._means = means
         self._stdevs = stdevs
@@ -74,21 +76,7 @@ class BaseModel(ABC):
         elif optimizer is None:
             self._optimizer = optimizers.Adam(learning_rate=learning_rate)
 
-    def update_optimizer(self, **kwargs):
-        """Update optimizer by changing current configuration
-
-        Parameters
-        kwargs : dict
-            kwargs to use for optimizer configuration update
-
-        """
-        conf = self.optimizer_config
-        conf.update(**kwargs)
-        OptimizerClass = getattr(optimizers, conf['name'])
-        self._optimizer = OptimizerClass.from_config(conf)
-
-    @staticmethod
-    def load_network(model, name):
+    def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
         config, or .pkl file saved pre=trained model.
 
@@ -108,6 +96,7 @@ class BaseModel(ABC):
 
         if isinstance(model, str) and model.endswith('.json'):
             model = safe_json_load(model)
+            self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
             else:
@@ -254,19 +243,14 @@ class BaseModel(ABC):
         """
         return self.generator.weights
 
-    def generate(self, low_res, to_numpy=True, training=False, norm_in=False,
-                 un_norm_out=False):
+    @tf.function
+    def generate(self, low_res, norm_in=False, un_norm_out=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
         ----------
         low_res : np.ndarray
             Real low-resolution data
-        to_numpy : bool
-            Flag to convert output from tensor to numpy array
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -278,7 +262,7 @@ class BaseModel(ABC):
 
         Returns
         -------
-        hi_res : np.ndarray | tf.Tensor
+        hi_res : tf.Tensor
             Synthetically generated high-resolution data
         """
 
@@ -289,8 +273,9 @@ class BaseModel(ABC):
                 islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
                 low_res[islice] = (low_res[islice] - m) / s
 
-        hi_res = self.generator.predict(low_res, to_numpy=to_numpy,
-                                        training=training)
+        hi_res = self.generator.layers[0](low_res)
+        for layer in self.generator.layers[1:]:
+            hi_res = layer(hi_res)
 
         if un_norm_out and self._means is not None:
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
@@ -337,6 +322,24 @@ class BaseModel(ABC):
                 conf[k] = int(v)
         return conf
 
+    def update_optimizer(self, **kwargs):
+        """Update optimizer by changing current configuration
+
+        Parameters
+        kwargs : dict
+            kwargs to use for optimizer configuration update
+
+        """
+        conf = self.optimizer_config
+        conf.update(**kwargs)
+        OptimizerClass = getattr(optimizers, conf['name'])
+        self._optimizer = OptimizerClass.from_config(conf)
+
+    @property
+    def meta(self):
+        """Get meta data dictionary that defines how the model was created"""
+        return self._meta
+
     @property
     def model_params(self):
         """
@@ -353,10 +356,10 @@ class BaseModel(ABC):
 
         model_params = {'name': self.name,
                         'version_record': self.version_record,
-                        'learning_rate': self._learning_rate,
                         'optimizer': self.optimizer_config,
                         'means': means,
                         'stdevs': stdevs,
+                        'meta': self.meta,
                         }
 
         return model_params
@@ -488,7 +491,7 @@ class BaseModel(ABC):
     def finish_epoch(self, epoch, epochs, t0, loss_details,
                      checkpoint_int, out_dir,
                      early_stop_on, early_stop_threshold,
-                     early_stop_n_epoch):
+                     early_stop_n_epoch, extras=None):
         """Perform finishing checks after an epoch is done training
 
         Parameters
@@ -523,6 +526,8 @@ class BaseModel(ABC):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
+        extras : dict | None
+            Extra kwargs/parameters to save in the epoch history.
 
         Returns
         -------
@@ -553,6 +558,10 @@ class BaseModel(ABC):
             if stop:
                 self.save(out_dir.format(epoch=epoch))
 
+        if extras is not None:
+            for k, v in extras.items():
+                self._history.at[epoch, k] = v
+
         return stop
 
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
@@ -582,10 +591,10 @@ class BaseModel(ABC):
             Namespace of the breakdown of loss components
         """
 
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
-            hi_res_gen = self.generate(low_res, to_numpy=False, training=True)
+            hi_res_gen = self.generate(low_res)
             loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                       **calc_loss_kwargs)
             loss, loss_details = loss_out
@@ -597,12 +606,13 @@ class BaseModel(ABC):
         return loss_details
 
     @staticmethod
+    @tf.function
     def calc_loss_gen_content(hi_res_true, hi_res_gen):
         """Calculate the content loss term for the generator model.
 
         Parameters
         ----------
-        hi_res_true : tf.Tensor | np.ndarray
+        hi_res_true : tf.Tensor
             Ground truth high resolution spatiotemporal data.
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
@@ -621,6 +631,7 @@ class BaseModel(ABC):
         return loss_gen_content
 
     @staticmethod
+    @tf.function
     def calc_loss_gen_advers(disc_out_gen):
         """Calculate the adversarial component of the loss term for the
         generator model.
@@ -647,6 +658,7 @@ class BaseModel(ABC):
         return loss_gen_advers
 
     @staticmethod
+    @tf.function
     def calc_loss_disc(disc_out_true, disc_out_gen):
         """Calculate the loss term for the discriminator model (either the
         spatial or temporal discriminator).
@@ -680,13 +692,14 @@ class BaseModel(ABC):
         return loss_disc
 
     @abstractmethod
+    @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen):
         """Calculate the GAN loss function using generated and true high
         resolution data.
 
         Parameters
         ----------
-        hi_res_true : tf.Tensor | np.ndarray
+        hi_res_true : tf.Tensor
             Ground truth high resolution spatiotemporal data.
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
@@ -706,7 +719,7 @@ class SpatialGan(BaseModel):
 
     def __init__(self, gen_layers, disc_layers,
                  optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -735,6 +748,8 @@ class SpatialGan(BaseModel):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -749,10 +764,10 @@ class SpatialGan(BaseModel):
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
                          history=history, version_record=version_record,
-                         means=means, stdevs=stdevs, name=name)
+                         meta=meta, means=means, stdevs=stdevs, name=name)
 
-        self._gen = self.load_network(gen_layers, 'Generator')
-        self._disc = self.load_network(disc_layers, 'Discriminator')
+        self._gen = self.load_network(gen_layers, 'generator')
+        self._disc = self.load_network(disc_layers, 'discriminator')
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -816,20 +831,14 @@ class SpatialGan(BaseModel):
         """
         return self.disc.weights
 
-    def discriminate(self, hi_res, to_numpy=True, training=False,
-                     norm_in=False):
+    def discriminate(self, hi_res, norm_in=False):
         """Run the discriminator model on a hi resolution input field.
 
         Parameters
         ----------
-        hi_res : np.ndarray | tf.Tensor
-            Real or fake high res data in a 4D array or tensor
+        hi_res : tf.Tensor
+            Real or fake high res data in a 4D tensor
             (n_obs, spatial_1, spatial_2, n_features)
-        to_numpy : bool
-            Flag to convert output from tensor to numpy array
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -837,7 +846,7 @@ class SpatialGan(BaseModel):
 
         Returns
         -------
-        out : np.ndarray | tf.Tensor
+        out : tf.Tensor
             Discriminator output logits
         """
         if norm_in and self._means is not None:
@@ -846,7 +855,11 @@ class SpatialGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc.predict(hi_res, to_numpy=to_numpy, training=training)
+        out = self.disc.layers[0](hi_res)
+        for layer in self.disc.layers[1:]:
+            out = layer(out)
+
+        return out
 
     @property
     def weights(self):
@@ -863,7 +876,7 @@ class SpatialGan(BaseModel):
 
         Parameters
         ----------
-        hi_res_true : tf.Tensor | np.ndarray
+        hi_res_true : tf.Tensor
             Ground truth high resolution spatial data.
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
@@ -885,10 +898,8 @@ class SpatialGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        disc_out_true = self.discriminate(hi_res_true, to_numpy=False,
-                                          training=True)
-        disc_out_gen = self.discriminate(hi_res_gen, to_numpy=False,
-                                         training=True)
+        disc_out_true = self.discriminate(hi_res_true)
+        disc_out_gen = self.discriminate(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
@@ -930,7 +941,7 @@ class SpatialGan(BaseModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
+            high_res_gen = self.generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,
@@ -996,6 +1007,8 @@ class SpatialGan(BaseModel):
                     weight_gen_advers=weight_gen_advers,
                     train_gen=False, train_disc=True)
 
+            b_loss_details['gen_trained_frac'] = float(trained_gen)
+            b_loss_details['disc_trained_frac'] = float(trained_disc)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),
@@ -1092,10 +1105,14 @@ class SpatialGan(BaseModel):
                                 loss_details['train_loss_disc'],
                                 loss_details['val_loss_disc']))
 
+            extras = {'weight_gen_advers': weight_gen_advers,
+                      'disc_loss_bound_0': disc_loss_bounds[0],
+                      'disc_loss_bound_1': disc_loss_bounds[1],
+                      'learning_rate': self.optimizer_config['learning_rate']}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch)
+                                     early_stop_n_epoch, extras=extras)
             if stop:
                 break
 
@@ -1105,7 +1122,7 @@ class SpatioTemporalGan(BaseModel):
 
     def __init__(self, gen_layers, disc_s_layers, disc_t_layers,
                  optimizer=None, learning_rate=1e-4,
-                 history=None, version_record=None,
+                 history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -1139,6 +1156,8 @@ class SpatioTemporalGan(BaseModel):
             Optional record of import package versions. None (default) will
             save active environment versions. A dictionary will be interpreted
             as versions from a loaded model and will be saved as an attribute.
+        meta : dict | None
+            Model meta data that describes how the model was created.
         means : np.ndarray | list | None
             Set of mean values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
@@ -1153,11 +1172,11 @@ class SpatioTemporalGan(BaseModel):
 
         super().__init__(optimizer=optimizer, learning_rate=learning_rate,
                          history=history, version_record=version_record,
-                         means=means, stdevs=stdevs, name=name)
+                         meta=meta, means=means, stdevs=stdevs, name=name)
 
-        self._gen = self.load_network(gen_layers, 'Generator')
-        self._disc_s = self.load_network(disc_s_layers, 'SpatialDisc')
-        self._disc_t = self.load_network(disc_t_layers, 'TemporalDisc')
+        self._gen = self.load_network(gen_layers, 'generator')
+        self._disc_s = self.load_network(disc_s_layers, 'spatial_disc')
+        self._disc_t = self.load_network(disc_t_layers, 'temporal_disc')
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -1245,20 +1264,15 @@ class SpatioTemporalGan(BaseModel):
         """
         return self.disc_temporal.weights
 
-    def discriminate_s(self, hi_res, to_numpy=True, training=False,
-                       norm_in=False):
+    @tf.function
+    def discriminate_s(self, hi_res, norm_in=False):
         """Run the spatial discriminator model on a hi resolution input field
 
         Parameters
         ----------
-        hi_res : np.ndarray | tf.Tensor
-            Real or fake high res data in a 5D array or tensor
+        hi_res : tf.Tensor
+            Real or fake high res data in a 5D tensor
             (n_obs, spatial_1, spatial_2, temporal, n_features)
-        to_numpy : bool
-            Flag to convert output from tensor to numpy array
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -1266,7 +1280,7 @@ class SpatioTemporalGan(BaseModel):
 
         Returns
         -------
-        out : np.ndarray | tf.Tensor
+        out : tf.Tensor
             Spatial discriminator output logits
         """
         if norm_in and self._means is not None:
@@ -1275,23 +1289,21 @@ class SpatioTemporalGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc_spatial.predict(hi_res, to_numpy=to_numpy,
-                                         training=training)
+        out = self.disc_spatial.layers[0](hi_res)
+        for layer in self.disc_spatial.layers[1:]:
+            out = layer(out)
 
-    def discriminate_t(self, hi_res, to_numpy=True, training=False,
-                       norm_in=False):
+        return out
+
+    @tf.function
+    def discriminate_t(self, hi_res, norm_in=False):
         """Run the temporal discriminator model on a hi resolution input field
 
         Parameters
         ----------
-        hi_res : np.ndarray | tf.Tensor
-            Real or fake high res data in a 5D array or tensor
+        hi_res : tf.Tensor
+            Real or fake high res data in a 5D tensor
             (n_obs, spatial_1, spatial_2, temporal, n_features)
-        to_numpy : bool
-            Flag to convert output from tensor to numpy array
-        training : bool
-            Flag for predict() used in the training routine. This is used
-            to freeze the BatchNormalization and Dropout layers.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The disc should always
@@ -1299,7 +1311,7 @@ class SpatioTemporalGan(BaseModel):
 
         Returns
         -------
-        out : np.ndarray | tf.Tensor
+        out : tf.Tensor
             Temporal discriminator output logits
         """
         if norm_in and self._means is not None:
@@ -1308,8 +1320,11 @@ class SpatioTemporalGan(BaseModel):
                 islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
                 hi_res[islice] = (hi_res[islice] - m) / s
 
-        return self.disc_temporal.predict(hi_res, to_numpy=to_numpy,
-                                          training=training)
+        out = self.disc_temporal.layers[0](hi_res)
+        for layer in self.disc_temporal.layers[1:]:
+            out = layer(out)
+
+        return out
 
     @property
     def weights(self):
@@ -1319,6 +1334,7 @@ class SpatioTemporalGan(BaseModel):
         return (self.generator_weights + self.disc_spatial_weights
                 + self.disc_temporal_weights)
 
+    @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen,
                   weight_gen_advers_s=0.001, weight_gen_advers_t=0.001,
                   train_gen=True, train_disc_s=False, train_disc_t=False):
@@ -1327,7 +1343,7 @@ class SpatioTemporalGan(BaseModel):
 
         Parameters
         ----------
-        hi_res_true : tf.Tensor | np.ndarray
+        hi_res_true : tf.Tensor
             Ground truth high resolution spatiotemporal data.
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
@@ -1354,32 +1370,24 @@ class SpatioTemporalGan(BaseModel):
             Namespace of the breakdown of loss components
         """
 
-        disc_out_spatial_true = self.discriminate_s(hi_res_true,
-                                                    to_numpy=False,
-                                                    training=True)
-        disc_out_spatial_gen = self.discriminate_s(hi_res_gen,
-                                                   to_numpy=False,
-                                                   training=True)
+        disc_out_spat_true = self.discriminate_s(hi_res_true)
+        disc_out_spat_gen = self.discriminate_s(hi_res_gen)
 
-        disc_out_temporal_true = self.discriminate_t(hi_res_true,
-                                                     to_numpy=False,
-                                                     training=True)
-        disc_out_temporal_gen = self.discriminate_t(hi_res_gen,
-                                                    to_numpy=False,
-                                                    training=True)
+        disc_out_temp_true = self.discriminate_t(hi_res_true)
+        disc_out_temp_gen = self.discriminate_t(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
-        loss_gen_advers_s = self.calc_loss_gen_advers(disc_out_spatial_gen)
-        loss_gen_advers_t = self.calc_loss_gen_advers(disc_out_temporal_gen)
+        loss_gen_advers_s = self.calc_loss_gen_advers(disc_out_spat_gen)
+        loss_gen_advers_t = self.calc_loss_gen_advers(disc_out_temp_gen)
         loss_gen = (loss_gen_content
                     + weight_gen_advers_s * loss_gen_advers_s
                     + weight_gen_advers_t * loss_gen_advers_t)
 
-        loss_disc_s = self.calc_loss_disc(disc_out_spatial_true,
-                                          disc_out_spatial_gen)
+        loss_disc_s = self.calc_loss_disc(disc_out_spat_true,
+                                          disc_out_spat_gen)
 
-        loss_disc_t = self.calc_loss_disc(disc_out_temporal_true,
-                                          disc_out_temporal_gen)
+        loss_disc_t = self.calc_loss_disc(disc_out_temp_true,
+                                          disc_out_temp_gen)
 
         loss = None
         if train_gen:
@@ -1424,7 +1432,7 @@ class SpatioTemporalGan(BaseModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self.generate(val_batch.low_res, to_numpy=False)
+            high_res_gen = self.generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers_s=weight_gen_advers_s,
@@ -1516,6 +1524,9 @@ class SpatioTemporalGan(BaseModel):
                     weight_gen_advers_t=weight_gen_advers_t,
                     train_gen=False, train_disc_s=False, train_disc_t=True)
 
+            b_loss_details['gen_trained_frac'] = float(trained_gen)
+            b_loss_details['disc_s_trained_frac'] = float(trained_disc_s)
+            b_loss_details['disc_t_trained_frac'] = float(trained_disc_t)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),
@@ -1639,9 +1650,14 @@ class SpatioTemporalGan(BaseModel):
                                 loss_details['val_loss_disc_t'],
                                 ))
 
+            extras = {'weight_gen_advers_s': weight_gen_advers_s,
+                      'weight_gen_advers_t': weight_gen_advers_t,
+                      'disc_loss_bound_0': disc_loss_bounds[0],
+                      'disc_loss_bound_1': disc_loss_bounds[1],
+                      'learning_rate': self.optimizer_config['learning_rate']}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch)
+                                     early_stop_n_epoch, extras=extras)
             if stop:
                 break
