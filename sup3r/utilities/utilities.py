@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Utilities module for preparing
-trraining data"""
+training data"""
 
 import numpy as np
 import logging
@@ -9,6 +9,97 @@ from wtk.wrf import WRFHeights
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def extract_feature(handle, raster_index,
+                    feature, source_type,
+                    level_index=None):
+    """Extract single feature from data source
+
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    feature : str
+        Feature to extract from data
+    source_type : str
+        Either h5 or nc
+
+    Returns
+    -------
+    ndarray
+        Data array for extracted feature
+
+    """
+
+    if source_type == 'h5':
+        fdata = handle[feature, :, raster_index.flatten()]
+        fdata = fdata.reshape((len(fdata),
+                               raster_index.shape[0],
+                               raster_index.shape[1]))
+
+    elif source_type == 'nc':
+
+        if handle[feature].shape > 3:
+            if level_index is None:
+                level_index = 0
+                fdata = \
+                    handle[feature][: level_index,
+                                    raster_index[0][0]:raster_index[0][1],
+                                    raster_index[1][0]:raster_index[1][1]]
+        else:
+            fdata = np.array(handle[feature][:,
+                             raster_index[0][0]:raster_index[0][1],
+                             raster_index[1][0]:raster_index[1][1]])
+    else:
+        raise ValueError(
+            'Can only handle wtk or wrf data')
+
+    return np.transpose(fdata, (1, 2, 0))
+
+
+def get_BVF_squared(handle, raster_index, source_type):
+    """Compute BVF squared
+
+    Parameters
+    ----------
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    source_type : str
+        Either wtk or wrf
+
+    Returns
+    -------
+    ndarray
+        BVF squared array
+
+    """
+
+    if source_type == 'wtk':
+        required_inputs = ['temperature_200m',
+                           'temperature_100m',
+                           'pressure_200m',
+                           'pressure_100m']
+
+    T_top = extract_feature(
+        handle, raster_index, required_inputs[0], source_type)
+    T_bottom = extract_feature(
+        handle, raster_index, required_inputs[1], source_type)
+    P_top = extract_feature(
+        handle, raster_index, required_inputs[2], source_type)
+    P_bottom = extract_feature(
+        handle, raster_index, required_inputs[3], source_type)
+
+    return BVF_squared(T_top, T_bottom,
+                       P_top, P_bottom)
 
 
 def uniform_box_sampler(data, shape):

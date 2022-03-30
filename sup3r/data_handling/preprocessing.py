@@ -9,7 +9,9 @@ import os
 
 from rex import WindX
 from rex.utilities import log_mem
-from sup3r.utilities.utilities import (spatial_coarsening,
+from sup3r.utilities.utilities import (get_BVF_squared,
+                                       extract_feature,
+                                       spatial_coarsening,
                                        transform_rotate_wind,
                                        uniform_box_sampler,
                                        temporal_coarsening,
@@ -420,10 +422,12 @@ class DataHandler:
                             dtype=np.float32)
 
             for j, f in enumerate(features):
-                fdata = handle[f, :, raster_index.flatten()]
-                fdata = fdata.reshape((len(fdata), raster_index.shape[0],
-                                      raster_index.shape[1]))
-                data[:, :, :, j] = np.transpose(fdata, (1, 2, 0))
+                if f == 'BVF_squared':
+                    data[:, :, :, j] = get_BVF_squared(
+                        handle, raster_index, 'h5')
+                else:
+                    data[:, :, :, j] = extract_feature(
+                        handle, raster_index, f, 'h5')
             if get_coords:
                 lat_lon = np.zeros((raster_index.shape[0],
                                     raster_index.shape[1], 2),
@@ -508,12 +512,8 @@ class DataHandler:
                 data[:, :, :, j] = \
                     np.transpose(interp_array, (1, 2, 0))
             else:
-                data[:, :, :, j] = \
-                    np.transpose(
-                        np.array(handle[f][:,
-                                 raster_index[0][0]:raster_index[0][1],
-                                 raster_index[1][0]:raster_index[1][1]]),
-                        (1, 2, 0))
+                data[:, :, :, j] = extract_feature(
+                    handle, raster_index, f, 'nc')
 
             if get_coords:
                 lat_lon = np.zeros(
