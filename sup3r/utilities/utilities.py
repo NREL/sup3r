@@ -615,7 +615,6 @@ def BVF_squared(T_top, T_bottom,
     return 9.81 / PT_mid * (PT_top - PT_bottom) / delta_h
 
 
-
 def gradient_richardson_number(T_top, T_bottom, P_top,
                                P_bottom, U_top, U_bottom,
                                V_top, V_bottom, delta_h):
