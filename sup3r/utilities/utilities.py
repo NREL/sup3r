@@ -616,7 +616,6 @@ def BVF_squared(T_top, T_bottom,
 
 
 
-
 def gradient_richardson_number(T_top, T_bottom, P_top,
                                P_bottom, U_top, U_bottom,
                                V_top, V_bottom, delta_h):
@@ -673,5 +672,5 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     numer = BVF_squared(T_top, T_bottom,
                         P_top, P_bottom, delta_h)
     denom = (U_diff ** 2 + V_diff ** 2) / delta_h ** 2
-    denom[denom < 0.001] = 0.001
+    denom[denom < 1e-6] = 1e-6
     return numer / denom
