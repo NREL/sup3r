@@ -186,28 +186,29 @@ def get_BVF_squared(handle, raster_index, source_type):
     """
 
     if source_type == 'h5':
-        delta_h = 100
-        required_inputs = ['temperature_200m',
-                           'temperature_100m',
-                           'pressure_200m',
-                           'pressure_100m']
+        T_top = extract_feature(
+            handle, raster_index, 'temperature_200m', source_type)
+        T_bottom = extract_feature(
+            handle, raster_index, 'temperature_100m', source_type)
+        P_top = extract_feature(
+            handle, raster_index, 'pressure_200m', source_type)
+        P_bottom = extract_feature(
+            handle, raster_index, 'pressure_100m', source_type)
     elif source_type == 'nc':
-        logger.error('Not setup to handle nc data yet')
+        T_top = extract_feature(
+            handle, raster_index, 'T', source_type, 200)
+        T_bottom = extract_feature(
+            handle, raster_index, 'T', source_type, 100)
+        P_top = extract_feature(
+            handle, raster_index, 'P', source_type, 200)
+        P_bottom = extract_feature(
+            handle, raster_index, 'P', source_type, 100)
 
     else:
         raise ValueError('Can only handle h5 or netcdf data')
 
-    T_top = extract_feature(
-        handle, raster_index, required_inputs[0], source_type)
-    T_bottom = extract_feature(
-        handle, raster_index, required_inputs[1], source_type)
-    P_top = extract_feature(
-        handle, raster_index, required_inputs[2], source_type)
-    P_bottom = extract_feature(
-        handle, raster_index, required_inputs[3], source_type)
-
     return BVF_squared(T_top, T_bottom,
-                       P_top, P_bottom, delta_h)
+                       P_top, P_bottom, 100)
 
 
 def uniform_box_sampler(data, shape):
