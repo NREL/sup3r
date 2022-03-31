@@ -54,7 +54,7 @@ def compute_feature(handle, raster_index,
                 handle, raster_index, feature, source_type)
         else:
             try:
-                height = feature.split('_')[1].strip('m')
+                height = float(feature.split('_')[1].strip('m'))
                 fdata = extract_feature(
                     handle, raster_index, feature, source_type, height)
             except ValueError:
@@ -79,7 +79,7 @@ def extract_feature(handle, raster_index,
         Feature to extract from data
     source_type : str
         Either h5 or nc
-    interp_height : str | None
+    interp_height : float | None
         Interpolation height for wrf data
 
     Returns
