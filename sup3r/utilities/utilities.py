@@ -196,9 +196,9 @@ def get_BVF_squared(handle, raster_index, source_type):
             handle, raster_index, 'pressure_100m', source_type)
     elif source_type == 'nc':
         T_top = extract_feature(
-            handle, raster_index, 'T', source_type, 200)
+            handle, raster_index, 'T', source_type, 200) - 273.15
         T_bottom = extract_feature(
-            handle, raster_index, 'T', source_type, 100)
+            handle, raster_index, 'T', source_type, 100) - 273.15
         P_top = extract_feature(
             handle, raster_index, 'P', source_type, 200)
         P_bottom = extract_feature(
