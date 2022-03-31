@@ -126,8 +126,9 @@ def get_UV(handle, raster_index, height, source_type):
         or WRF data
     raster_index : ndarray
         Raster index array
-    height : str
-        Height of U/V to extract. e.g. 100m
+    height : str | int
+        Height of U/V to extract in meters.
+        e.g. 100
     source_type : str
         Either h5 or nc
 
@@ -142,8 +143,8 @@ def get_UV(handle, raster_index, height, source_type):
     logger.info(f'Getting U/V for height {height}')
 
     if source_type == 'h5':
-        required_inputs = [f'windspeed_{height}',
-                           f'winddirection_{height}']
+        required_inputs = [f'windspeed_{height}m',
+                           f'winddirection_{height}m']
         ws = extract_feature(
             handle, raster_index, required_inputs[0], source_type)
         wd = extract_feature(
