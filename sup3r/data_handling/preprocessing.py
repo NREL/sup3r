@@ -137,6 +137,10 @@ class DataHandler:
             specificed standard deviation for associated feature
         """
 
+        if std == 0:
+            logger.error(
+                'Standard Deviation is zero for '
+                f'{self.features[feature_index]}')
         self.val_data[:, :, :, feature_index] = \
             (self.val_data[:, :, :, feature_index] - mean) / std
 
