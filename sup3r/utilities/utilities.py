@@ -104,7 +104,7 @@ def extract_feature(handle, raster_index,
                                     raster_index[0][0]:raster_index[0][1],
                                     raster_index[1][0]:raster_index[1][1]]
             else:
-                fdata = interp_var(handle, feature, interp_height)
+                fdata = interp_var(handle, feature, float(interp_height))
         else:
             fdata = np.array(handle[feature][:,
                              raster_index[0][0]:raster_index[0][1],
