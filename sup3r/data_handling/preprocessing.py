@@ -248,7 +248,7 @@ class DataHandler:
                                 raster_index,
                                 self.features)
 
-        self.data = y
+        self.data = y[:, :, ::self.time_pruning, :]
         self.raster_index = raster_index
 
         return y
@@ -731,14 +731,14 @@ class BatchHandler:
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
-             list_chunk_size=100):
+             list_chunk_size=None):
 
         """Method to initialize both
         data and batch handlers
 
         Parameters
         ----------
-        data_files : list
+        file_paths : list
             list of file paths
         targets : tuple
             List of several (lat, lon) lower left corner of raster. Either need
@@ -1044,6 +1044,8 @@ class SpatialBatchHandler(BatchHandler):
         for i, f in enumerate(file_paths):
             if raster_files is None:
                 raster_file = None
+            if not isinstance(raster_files, list):
+                raster_file = raster_files
             else:
                 raster_file = raster_files[i]
             if not isinstance(targets, list):

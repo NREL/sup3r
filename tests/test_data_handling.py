@@ -19,7 +19,7 @@ input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
 target = (39.01, -105.15)
 targets = target
 shape = (20, 20)
-features = ['windspeed_100m', 'winddirection_100m']
+features = ['U_100m', 'V_100m', 'BVF_squared']
 batch_size = 8
 spatial_sample_shape = (10, 10)
 spatial_res = 5
@@ -408,7 +408,7 @@ def test_val_data_storage():
                               max_delta, raster_file=raster_file,
                               val_split=val_split,
                               time_pruning=time_pruning)
-        data, _ = handler.extract_data()
+        data = handler.extract_data()
         n_observations += data.shape[2]
 
     assert val_observations == int(val_split * n_observations)
@@ -423,7 +423,7 @@ def test_spatial_coarsening(spatial_res, plot=False):
     handler = DataHandler(input_file, features, target=target,
                           shape=shape, max_delta=20)
 
-    handler_data, _ = handler.extract_data()
+    handler_data = handler.extract_data()
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, spatial_res)
     direct_avg = np.zeros(coarse_data.shape)
