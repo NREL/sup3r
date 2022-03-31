@@ -618,69 +618,69 @@ def calc_height(data):
 
 
 def interp3D(var_array, h_array, heights):
-        """
-        Interpolate var_array to given level(s) based on h_array.
-        Interpolation is linear and done for every 'z' column of [var, h] data.
-        Parameters
-        ----------
-        var_array : ndarray
-            Array of variable values
-        h_array : ndarray
-            Array of heigh values corresponding to the wrf source data
-        heights : float | list
-            level or levels to interpolate to (e.g. final desired hub heights)
-        Returns
-        -------
-        out_array : ndarray
-            Array of interpolated values.
-        """
+    """
+    Interpolate var_array to given level(s) based on h_array.
+    Interpolation is linear and done for every 'z' column of [var, h] data.
+    Parameters
+    ----------
+    var_array : ndarray
+        Array of variable values
+    h_array : ndarray
+        Array of heigh values corresponding to the wrf source data
+    heights : float | list
+        level or levels to interpolate to (e.g. final desired hub heights)
+    Returns
+    -------
+    out_array : ndarray
+        Array of interpolated values.
+    """
 
-        msg = ('Input arrays must be the same shape.'
-               '\nvar_array: {}\nh_array: {}'
-               .format(var_array.shape, h_array.shape))
-        assert var_array.shape == h_array.shape, msg
+    msg = ('Input arrays must be the same shape.'
+           '\nvar_array: {}\nh_array: {}'
+           .format(var_array.shape, h_array.shape))
+    assert var_array.shape == h_array.shape, msg
 
-        heights = [heights] if isinstance(heights, (int, float)) else heights
-        h_min = np.nanmin(h_array)
-        h_max = np.nanmax(h_array)
-        height_check = (h_min < min(heights) and max(heights) < h_max)
+    heights = [heights] if isinstance(heights, (int, float)) else heights
+    h_min = np.nanmin(h_array)
+    h_max = np.nanmax(h_array)
+    height_check = (h_min < min(heights) and max(heights) < h_max)
 
-        if np.isnan(h_min):
-            msg = 'All pressure level height data is NaN!'
-            logger.error(msg)
-            raise RuntimeError(msg)
+    if np.isnan(h_min):
+        msg = 'All pressure level height data is NaN!'
+        logger.error(msg)
+        raise RuntimeError(msg)
 
-        if not height_check:
-            msg = ('Heights {} exceed the bounds of the pressure levels: '
-                   '({}, {})'.format(heights, h_min, h_max))
-            logger.error(msg)
-            raise RuntimeError(msg)
+    if not height_check:
+        msg = ('Heights {} exceed the bounds of the pressure levels: '
+               '({}, {})'.format(heights, h_min, h_max))
+        logger.error(msg)
+        raise RuntimeError(msg)
 
-        array_shape = var_array.shape
+    array_shape = var_array.shape
 
-        # Reduce h_array and var_array shape to accomodate interpolation
-        if len(array_shape) == 4:
-            h_array = h_array[0]
-            var_array = var_array[0]
+    # Reduce h_array and var_array shape to accomodate interpolation
+    if len(array_shape) == 4:
+        h_array = h_array[0]
+        var_array = var_array[0]
 
-        # Flatten h_array and var_array along lat, long axis
-        h_array = h_array.reshape((array_shape[-3],
+    # Flatten h_array and var_array along lat, long axis
+    h_array = h_array.reshape((array_shape[-3],
+                               np.product(array_shape[-2:]))).T
+    var_array = var_array.reshape((array_shape[-3],
                                    np.product(array_shape[-2:]))).T
-        var_array = var_array.reshape((array_shape[-3],
-                                       np.product(array_shape[-2:]))).T
 
-        # Interpolate each column of height and var to specified levels
-        out_array = np.array([np.interp(heights, h, var)
-                              for h, var in zip(h_array, var_array)])
-        # Reshape out_array
-        if isinstance(heights, (float, int)):
-            out_array = out_array.T.reshape((1, array_shape[-2],
-                                             array_shape[-1]))
-        else:
-            out_array = out_array.T.reshape((len(heights), array_shape[-2],
-                                             array_shape[-1]))
+    # Interpolate each column of height and var to specified levels
+    out_array = np.array([np.interp(heights, h, var)
+                          for h, var in zip(h_array, var_array)])
+    # Reshape out_array
+    if isinstance(heights, (float, int)):
+        out_array = out_array.T.reshape((1, array_shape[-2],
+                                         array_shape[-1]))
+    else:
+        out_array = out_array.T.reshape((len(heights), array_shape[-2],
+                                         array_shape[-1]))
 
-        return out_array
+    return out_array
 
 
 def interp_var(data, var, heights):
