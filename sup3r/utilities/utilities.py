@@ -298,9 +298,8 @@ def transform_rotate_wind(ws, wd, lat_lon):
     v : np.ndarray
         3D array of high res V data
     """
-
-    return rotate_u_v(
-        transform_wind(ws, wd), lat_lon)
+    u, v = transform_wind(ws, wd)
+    return rotate_u_v(u, v, lat_lon)
 
 
 def transform_wind(ws, wd):
