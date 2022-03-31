@@ -288,14 +288,16 @@ class DataHandler:
                 data_file = file_path
             _, file_ext = os.path.splitext(data_file)
             if file_ext == '.h5':
-                logger.debug('Calculating raster index from WTK file.')
+                logger.debug('Calculating raster index from WTK file '
+                             f'for shape {shape} and target {target}')
                 with WindX(data_file) as res:
                     raster_index = \
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
 
             else:
-                logger.debug('Calculating raster index from WRF file.')
+                logger.debug('Calculating raster index from WRF file '
+                             f'for shape {shape} and target {target}')
                 nc_file = xr.open_dataset(data_file)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
