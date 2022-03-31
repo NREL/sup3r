@@ -9,14 +9,11 @@ import os
 
 from rex import WindX
 from rex.utilities import log_mem
-from sup3r.utilities.utilities import (get_BVF_squared,
-                                       extract_feature,
+from sup3r.utilities.utilities import (compute_feature,
                                        spatial_coarsening,
-                                       transform_rotate_wind,
                                        uniform_box_sampler,
                                        temporal_coarsening,
-                                       uniform_time_sampler,
-                                       interp_var)
+                                       uniform_time_sampler)
 from sup3r import __version__
 
 np.random.seed(42)
@@ -30,8 +27,7 @@ class DataHandler:
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, level_indices=None,
-                 interp_heights=None):
+                 raster_file=None, shuffle_time=False):
 
         """Data handling and extraction
 
@@ -71,12 +67,6 @@ class DataHandler:
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        level_indices : int | list
-            Pressure level index to use if data feature
-            has a vertical dimension
-        interp_heights : float | list
-            Height to interpolate vertical pressure level
-            to if data feature has a vertical dimension
         """
         logger.info('Initializing DataHandler from source files: {}'
                     .format(file_path))
@@ -89,7 +79,6 @@ class DataHandler:
 
         self.file_path = file_path
         self.features = features
-        self.renamed_features = features.copy()
         self.grid_shape = shape
         self.target = target
         self.raster_index = None
@@ -101,8 +90,7 @@ class DataHandler:
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
-        self.data, self.lat_lon = self.extract_data(
-            level_indices=level_indices, interp_heights=interp_heights)
+        self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
 
         logger.info('Finished intializing DataHandler.')
@@ -232,20 +220,13 @@ class DataHandler:
         """
         return self.data.shape
 
-    def extract_data(self, level_indices=None,
-                     interp_heights=None):
+    def extract_data(self):
         """Building base 4D data array
 
         Parameters
         ----------
         data_files : list
             list of strings of file paths
-        level_indices : int | list
-            Pressure level index to use if data feature
-            has a vertical dimension
-        interp_heights : float | list
-            Height to interpolate vertical pressure level
-            to if data feature has a vertical dimension
 
         Returns
         -------
@@ -263,21 +244,14 @@ class DataHandler:
                                              self.target,
                                              self.grid_shape)
 
-        y, lat_lon = self._get_file_data(self.file_path,
-                                         raster_index,
-                                         self.features,
-                                         level_indices=level_indices,
-                                         interp_heights=interp_heights)
-
-        y = transform_rotate_wind(
-            y[:, :, ::self.time_pruning, :], lat_lon,
-            self.features, self.renamed_features)
+        y = self._get_file_data(self.file_path,
+                                raster_index,
+                                self.features)
 
         self.data = y
-        self.lat_lon = lat_lon
         self.raster_index = raster_index
 
-        return y, lat_lon
+        return y
 
     def get_raster_index(self, file_path, target, shape):
         """Get raster index for file data
@@ -331,10 +305,7 @@ class DataHandler:
     @classmethod
     def _get_file_data(cls, file_path,
                        raster_index,
-                       features,
-                       level_indices=None,
-                       interp_heights=None,
-                       get_coords=True):
+                       features):
         """Extract fields from file for region
         given by target and shape
 
@@ -348,23 +319,12 @@ class DataHandler:
             (n_lat, n_lon) grid size for region
         features : list
             list of fields to extract from file
-        level_indices : int | list
-            Level index for wrf data vertical extent
-        interp_heights : float | list
-            Height to interpolate vertical pressure level
-            to if data feature has a vertical dimension
-        get_coords : bool
-            get coordinates
 
         Returns
         -------
         y : np.ndarray
             4D array of extracted data
             (spatial_1, spatial_2, temporal, features)
-        lat_lon : np.ndarray
-            3D array of (spatial_1, spatial_2, 2)
-            with 2 channels as lat/lon in that order.
-            Only returned if get_coords=True
         """
 
         if isinstance(file_path, list):
@@ -374,18 +334,14 @@ class DataHandler:
         _, file_ext = os.path.splitext(data_file)
         if file_ext == '.h5':
             return cls._get_h5_data(file_path, raster_index,
-                                    features,
-                                    get_coords=get_coords)
+                                    features)
         else:
             return cls._get_nc_data(file_path, raster_index,
-                                    features,
-                                    level_indices=level_indices,
-                                    interp_heights=interp_heights,
-                                    get_coords=get_coords)
+                                    features)
 
     @staticmethod
     def _get_h5_data(file_path, raster_index,
-                     features, get_coords=True):
+                     features):
         """Get chunk of h5 data based on raster_indices
         and features
 
@@ -397,18 +353,12 @@ class DataHandler:
             2D array of grid indices
         features : str list
             List of fields to extract from dataset
-        get_coords : bool
-            get coordinates
 
         Returns
         -------
         data : np.ndarray
             Real high-resolution data in a 4D array:
             (spatial_1, spatial_2, temporal, features)
-        lat_lon : np.ndarray
-            3D array of (spatial_1, spatial_2, 2)
-            with 2 channels as lat/lon in that order.
-            Only returned if get_coords=True
         """
         logger.debug('Loading data for raster of shape {}'
                      .format(raster_index.shape))
@@ -420,30 +370,14 @@ class DataHandler:
                              len(handle.time_index),
                              len(features)),
                             dtype=np.float32)
-
             for j, f in enumerate(features):
-                if f == 'BVF_squared':
-                    data[:, :, :, j] = get_BVF_squared(
-                        handle, raster_index, 'h5')
-                else:
-                    data[:, :, :, j] = extract_feature(
-                        handle, raster_index, f, 'h5')
-            if get_coords:
-                lat_lon = np.zeros((raster_index.shape[0],
-                                    raster_index.shape[1], 2),
-                                   dtype=np.float32)
-                lat_lon = handle.lat_lon[raster_index]
-
-        if get_coords:
-            return data, lat_lon
-        else:
-            return data
+                data[:, :, :, j] = compute_feature(
+                    handle, raster_index, f, 'h5')
+        return data
 
     @staticmethod
     def _get_nc_data(file_path, raster_index,
-                     features, get_coords=True,
-                     level_indices=None,
-                     interp_heights=None):
+                     features):
         """Get chunk of netcdf data based on raster_indices
         and features
 
@@ -455,25 +389,12 @@ class DataHandler:
             2D array of grid indices
         features : str list
             List of fields to extract from dataset
-        level_indices : int | list
-            Level index for wrf data vertical extent
-        interp_heights : float | list
-            Height to interpolate vertical pressure level
-            to if data feature has a vertical dimension
-            in meters
-        get_coords : bool
-            get coordinates
 
         Returns
         -------
         data : np.ndarray
             Real high-resolution data in a 4D array:
             (spatial_1, spatial_2, temporal, features)
-
-        lat_lon : np.ndarray
-            3D array of (spatial_1, spatial_2, 2)
-            with 2 channels as lat/lon in that order.
-            Only returned if get_coords=True
         """
         logger.debug('Loading data for raster of shape {}'
                      .format(
@@ -489,48 +410,10 @@ class DataHandler:
                          len(features)), dtype=np.float32)
 
         for j, f in enumerate(features):
-            if isinstance(interp_heights, list):
-                interp_height = interp_heights[j]
-            else:
-                interp_height = interp_heights
-            if isinstance(level_indices, list):
-                level_index = level_indices[j]
-            else:
-                level_index = level_indices
+            data[:, :, :, j] = compute_feature(
+                handle, raster_index, f, 'h5')
 
-            if len(handle[f].shape) > 3:
-                if interp_height is not None:
-                    logger.info(f'Interpolating {f} to {interp_height} meters')
-                    interp_array = interp_var(handle, f, interp_height)
-                else:
-                    if level_index is None:
-                        level_index = 0
-                    interp_array = \
-                        handle[f][: level_index,
-                                  raster_index[0][0]:raster_index[0][1],
-                                  raster_index[1][0]:raster_index[1][1]]
-                data[:, :, :, j] = \
-                    np.transpose(interp_array, (1, 2, 0))
-            else:
-                data[:, :, :, j] = extract_feature(
-                    handle, raster_index, f, 'nc')
-
-            if get_coords:
-                lat_lon = np.zeros(
-                    (raster_index[0][1] - raster_index[0][0],
-                     raster_index[1][1] - raster_index[1][0], 2),
-                    dtype=np.float32)
-                lat_lon[:, :, 0] = \
-                    handle['XLAT'][0, raster_index[0][0]:raster_index[0][1],
-                                   raster_index[1][0]:raster_index[1][1]]
-                lat_lon[:, :, 1] = \
-                    handle['XLONG'][0, raster_index[0][0]:raster_index[0][1],
-                                    raster_index[1][0]:raster_index[1][1]]
-
-        if get_coords:
-            return data, lat_lon
-        else:
-            return data
+        return data
 
 
 class ValidationData:

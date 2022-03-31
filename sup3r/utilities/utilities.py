@@ -11,9 +11,59 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def compute_feature(handle, raster_index,
+                    feature, source_type):
+    """Compute single feature by extracting
+    needed features from data source
+
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    feature : str
+        Feature to extract from data
+    source_type : str
+        Either h5 or nc
+
+    Returns
+    -------
+    ndarray
+        Data array for computed feature
+
+    """
+
+    if feature == 'BVF_squared':
+        fdata = get_BVF_squared(
+            handle, raster_index, source_type)
+    if 'U' in feature:
+        height = feature.split('_')[1].strip('m')
+        fdata, _ = get_UV(
+            handle, raster_index, height, source_type)
+    if 'V' in feature:
+        height = feature.split('_')[1].strip('m')
+        _, fdata = get_UV(
+            handle, raster_index, height, source_type)
+    else:
+        if feature in handle:
+            fdata = extract_feature(
+                handle, raster_index, feature, source_type)
+        else:
+            try:
+                height = feature.split('_')[1].strip('m')
+                fdata = extract_feature(
+                    handle, raster_index, feature, source_type, height)
+            except ValueError:
+                logger.error(f'Feature {feature} not found in source data')
+
+    return fdata
+
+
 def extract_feature(handle, raster_index,
                     feature, source_type,
-                    level_index=None):
+                    interp_height=None):
     """Extract single feature from data source
 
     Parameters
@@ -27,6 +77,8 @@ def extract_feature(handle, raster_index,
         Feature to extract from data
     source_type : str
         Either h5 or nc
+    interp_height : str | None
+        Interpolation height for wrf data
 
     Returns
     -------
@@ -44,12 +96,13 @@ def extract_feature(handle, raster_index,
     elif source_type == 'nc':
 
         if handle[feature].shape > 3:
-            if level_index is None:
-                level_index = 0
+            if interp_height is None:
                 fdata = \
-                    handle[feature][: level_index,
+                    handle[feature][: 0,
                                     raster_index[0][0]:raster_index[0][1],
                                     raster_index[1][0]:raster_index[1][1]]
+            else:
+                fdata = interp_var(handle, feature, interp_height)
         else:
             fdata = np.array(handle[feature][:,
                              raster_index[0][0]:raster_index[0][1],
@@ -61,11 +114,59 @@ def extract_feature(handle, raster_index,
     return np.transpose(fdata, (1, 2, 0))
 
 
-def get_BVF_squared(handle, raster_index, source_type):
-    """Compute BVF squared
+def get_UV(handle, raster_index, height, source_type):
+    """Compute U and V wind components
 
     Parameters
     ----------
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    height : str
+        Height of U/V to extract. e.g. 100m
+    source_type : str
+        Either h5 or nc
+
+    Returns
+    -------
+    U : ndarray
+        array of U wind component
+    V : ndarray
+        array of V wind component
+    """
+
+    logger.info(f'Getting U/V for height {height}')
+
+    if source_type == 'h5':
+        required_inputs = [f'windspeed_{height}',
+                           f'winddirection_{height}']
+        ws = extract_feature(
+            handle, raster_index, required_inputs[0], source_type)
+        wd = extract_feature(
+            handle, raster_index, required_inputs[1], source_type)
+        lat_lon = get_lat_lon(handle, raster_index, source_type)
+
+        logger.info(f'Transforming {required_inputs}'
+                    ' to U/V and aligning with grid')
+        return transform_rotate_wind(ws, wd, lat_lon)
+    elif source_type == 'nc':
+        u = extract_feature(
+            handle, raster_index, 'U', source_type, height)
+        v = extract_feature(
+            handle, raster_index, 'V', source_type, height)
+        return u, v
+
+    else:
+        raise ValueError('Can only handle h5 or netcdf data')
+
+
+def get_BVF_squared(handle, raster_index, source_type):
+    """Compute BVF squared
+
     Parameters
     ----------
     handle : WindX | xarray
@@ -176,73 +277,40 @@ def uniform_time_sampler(data, shape):
     return slice(start, stop)
 
 
-def transform_rotate_wind(y, lat_lon, features,
-                          renamed_features):
+def transform_rotate_wind(ws, wd, lat_lon):
     """Transform windspeed/direction to
     u and v and align u and v with grid
 
     Parameters
     ----------
-    y : np.ndarray
-        4D array of high res data
+    ws : np.ndarray
+        3D array of high res windspeed data
+    wd : np.ndarray
+        3D array of high res winddirection data
     lat_lon : np.ndarray
         3D array of lat lon
-    features : list
-        list of extracted features
-    renamed_features : list
-        list of feature names after
-        transformations
 
     Returns
     -------
-    y : np.ndarray
-        4D array of high res data with
-        (windspeed, direction) -> (u, v)
+    u : np.ndarray
+        3D array of high res U data
+    v : np.ndarray
+        3D array of high res V data
     """
 
-    for i, f in enumerate(renamed_features):
-        if f.split('_')[0] == 'windspeed':
-            if len(f.split('_')) > 1:
-                height = f.split('_')[1]
-                j = renamed_features.index(f'winddirection_{height}')
-                renamed_features[i] = f'U_{height}'
-                renamed_features[j] = f'V_{height}'
-            else:
-                j = renamed_features.index('winddirection')
-                renamed_features[i] = 'U'
-                renamed_features[j] = 'V'
-
-            logger.debug(
-                f'Transforming {features[i]}, {features[j]}'
-                f' to {renamed_features[i]}, {renamed_features[j]}.')
-            y = transform_wind(y, i, j)
-
-        if renamed_features[i].split('_')[0] == 'U':
-            if len(renamed_features[i].split('_')) > 1:
-                height = renamed_features[i].split('_')[1]
-                j = renamed_features.index(f'V_{height}')
-            else:
-                j = renamed_features.index('V')
-
-            logger.debug(
-                f'Aligning {renamed_features[i]},'
-                f' {renamed_features[j]} with grid.')
-            y = rotate_u_v(y, i, j, lat_lon)
-
-    return y
+    return rotate_u_v(
+        transform_wind(ws, wd), lat_lon)
 
 
-def transform_wind(y, i, j):
+def transform_wind(ws, wd):
     """Maps windspeed and direction to u v
 
     Parameters
     ----------
-    y : np.ndarray
-        4D array (spatial_1, spatial_2, temporal, features)
-    i : int
-        index of windspeed feature on the feature axis
-    j : int
-        index of winddirection feature on the feature axis
+    ws : np.ndarray
+        3D array of windspeed (spatial_1, spatial_2, temporal)
+    wd : int
+        3D array of winddirection (spatial_1, spatial_2, temporal)
 
     Returns
     -------
@@ -253,27 +321,22 @@ def transform_wind(y, i, j):
         3D array of meridional wind components
     """
 
-    # convert from windspeed and direction to u v
-    windspeed = y[:, :, :, i]
-    direction = y[:, :, :, j]
+    u = ws * np.cos(np.radians(wd - 180.0))
+    v = ws * np.sin(np.radians(wd - 180.0))
 
-    y[:, :, :, i] = windspeed * np.cos(np.radians(direction - 180.0))
-    y[:, :, :, j] = windspeed * np.sin(np.radians(direction - 180.0))
-
-    return y
+    return u, v
 
 
-def rotate_u_v(y, i, j, lat_lon):
+def rotate_u_v(u, v, lat_lon):
     """aligns u v with grid
 
     Parameters
     ----------
-    y : np.ndarray
-        4D array (spatial_1, spatial_2, temporal, features)
-    i : int
-        index of u feature along feature axis
-    j : int
-        index of v feature along feature axis
+    u : np.ndarray
+        3D array of zonal wind components
+
+    v : np.ndarray
+        3D array of meridional wind components
     lat_lon : np.ndarray
         3D array (spatial_1, spatial_2, 2)
         2 channels are lat and lon in that
@@ -288,8 +351,6 @@ def rotate_u_v(y, i, j, lat_lon):
         3D array of meridional wind components
     """
 
-    u = y[:, :, :, i]
-    v = y[:, :, :, j]
     lats = lat_lon[:, :, 0]
     lons = lat_lon[:, :, 1]
 
@@ -304,12 +365,57 @@ def rotate_u_v(y, i, j, lat_lon):
     sin2 = np.sin(theta)
     cos2 = np.cos(theta)
 
-    y[:, :, :, i] = np.einsum('ij,ijk->ijk', sin2, v) \
+    u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
         + np.einsum('ij,ijk->ijk', cos2, u)
-    y[:, :, :, j] = np.einsum('ij,ijk->ijk', cos2, v) \
+    v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
         - np.einsum('ij,ijk->ijk', sin2, u)
 
-    return y
+    return u_rot, v_rot
+
+
+def get_lat_lon(handle, raster_index, source_type):
+    """Get lats and lons corresponding to raster
+    for use in windspeed/direction -> u/v mapping
+
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    source_type : str
+        Either h5 or nc
+
+    Returns
+    -------
+    ndarray
+        BVF squared array
+    """
+
+    if source_type == 'h5':
+        lat_lon = np.zeros((raster_index.shape[0],
+                            raster_index.shape[1], 2),
+                           dtype=np.float32)
+        lat_lon = handle.lat_lon[raster_index]
+
+    elif source_type == 'nc':
+
+        lat_lon = np.zeros(
+            (raster_index[0][1] - raster_index[0][0],
+             raster_index[1][1] - raster_index[1][0], 2),
+            dtype=np.float32)
+        lat_lon[:, :, 0] = \
+            handle['XLAT'][0, raster_index[0][0]:raster_index[0][1],
+                           raster_index[1][0]:raster_index[1][1]]
+        lat_lon[:, :, 1] = \
+            handle['XLONG'][0, raster_index[0][0]:raster_index[0][1],
+                            raster_index[1][0]:raster_index[1][1]]
+
+    else:
+        raise ValueError('Can only handle h5 or netcdf data')
+
+    return lat_lon
 
 
 def temporal_coarsening(data, temporal_res=2, method='subsample'):
@@ -520,7 +626,7 @@ def interp_var(data, var, heights):
     data :
         netcdf data object
     var : str
-        Name of variable to be unstaggered
+        Name of variable to be interpolated
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
     Returns
