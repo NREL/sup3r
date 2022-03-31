@@ -295,6 +295,7 @@ class DataHandler:
                                              max_delta=self.max_delta)
 
             else:
+                logger.debug('Calculating raster index from WRF file.')
                 nc_file = xr.open_dataset(data_file)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
@@ -302,6 +303,13 @@ class DataHandler:
                 lon_idx = np.argmin(np.abs(lon_diff))
                 raster_index = [[lat_idx, lat_idx + shape[0]],
                                 [lon_idx, lon_idx + shape[1]]]
+                if (raster_index[0][1] >= len(lat_diff)
+                   or raster_index[1][1] >= len(lon_diff)):
+                    raise ValueError(
+                        f'Invalid target {target} and shape {shape} for '
+                        f'data domain of size {len(lat_diff)}, '
+                        f'{len(lon_diff)}')
+
             if self.raster_file is not None:
                 logger.debug('Saving raster index: {}'
                              .format(self.raster_file))
