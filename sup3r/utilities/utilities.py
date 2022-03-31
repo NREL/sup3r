@@ -35,14 +35,16 @@ def compute_feature(handle, raster_index,
 
     """
 
+    logger.info(f'Computing {feature}')
+
     if feature == 'BVF_squared':
         fdata = get_BVF_squared(
             handle, raster_index, source_type)
-    if 'U' in feature:
+    elif 'U' in feature:
         height = feature.split('_')[1].strip('m')
         fdata, _ = get_UV(
             handle, raster_index, height, source_type)
-    if 'V' in feature:
+    elif 'V' in feature:
         height = feature.split('_')[1].strip('m')
         _, fdata = get_UV(
             handle, raster_index, height, source_type)
@@ -56,7 +58,7 @@ def compute_feature(handle, raster_index,
                 fdata = extract_feature(
                     handle, raster_index, feature, source_type, height)
             except ValueError:
-                logger.error(f'Feature {feature} not found in source data')
+                logger.error(f'Feature {feature} not found in source data.')
 
     return fdata
 
@@ -140,8 +142,6 @@ def get_UV(handle, raster_index, height, source_type):
         array of V wind component
     """
 
-    logger.info(f'Getting U/V for height {height}')
-
     if source_type == 'h5':
         required_inputs = [f'windspeed_{height}m',
                            f'winddirection_{height}m']
@@ -152,7 +152,7 @@ def get_UV(handle, raster_index, height, source_type):
         lat_lon = get_lat_lon(handle, raster_index, source_type)
 
         logger.info(f'Transforming {required_inputs}'
-                    ' to U/V and aligning with grid')
+                    ' to U/V and aligning with grid.')
         return transform_rotate_wind(ws, wd, lat_lon)
     elif source_type == 'nc':
         u = extract_feature(
@@ -184,8 +184,6 @@ def get_BVF_squared(handle, raster_index, source_type):
         BVF squared array
 
     """
-
-    logger.info('Calculating Brunt-Vaisala Frequency')
 
     if source_type == 'h5':
         delta_h = 100
