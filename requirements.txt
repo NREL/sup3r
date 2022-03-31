@@ -2,6 +2,7 @@ matplotlib>=3.1
 NREL-rex
 NREL-phygnn>=0.0.16
 NREL-rev
+NREL-wtk
 pytest>=5.2
 tensorflow>2.0
 xarray
