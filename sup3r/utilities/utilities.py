@@ -613,9 +613,8 @@ def calc_height(data):
     hgt = data['HGT']
 
     if phb.shape != hgt.shape:
-        hgt = np.repeat(hgt, phb.shape[-3], axis=0)
-        if len(phb.shape) == 4:
-            hgt = np.expand_dims(hgt, axis=0)
+        hgt = np.expand_dims(hgt, axis=1)
+        hgt = np.repeat(hgt, phb.shape[-3], axis=1)
 
     return (ph + phb) / 9.81 - hgt
 
