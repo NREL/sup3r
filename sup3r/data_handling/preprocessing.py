@@ -72,9 +72,9 @@ class DataHandler:
                     .format(file_path))
 
         check = ((target is not None and shape is not None)
-                 or raster_file is not None)
+                 or (raster_file is not None and os.path.exists(raster_file)))
         msg = ('You must either provide the target+shape inputs '
-               'or the raster_file input.')
+               'or an existing raster_file input.')
         assert check, msg
 
         self.file_path = file_path
@@ -339,85 +339,36 @@ class DataHandler:
             data_file = file_path
         _, file_ext = os.path.splitext(data_file)
         if file_ext == '.h5':
-            return cls._get_h5_data(file_path, raster_index,
-                                    features)
+            logger.debug('Loading data for raster of shape {}'
+                         .format(raster_index.shape))
+
+            with WindX(file_path, hsds=False) as handle:
+
+                data = np.zeros((raster_index.shape[0],
+                                 raster_index.shape[1],
+                                 len(handle.time_index),
+                                 len(features)),
+                                dtype=np.float32)
+                for j, f in enumerate(features):
+                    data[:, :, :, j] = compute_feature(
+                        handle, raster_index, f, 'h5')
         else:
-            return cls._get_nc_data(file_path, raster_index,
-                                    features)
+            logger.debug('Loading data for raster of shape {}'
+                         .format(
+                             (raster_index[0][1] - raster_index[0][0],
+                              raster_index[1][1] - raster_index[1][0])))
 
-    @staticmethod
-    def _get_h5_data(file_path, raster_index,
-                     features):
-        """Get chunk of h5 data based on raster_indices
-        and features
+            handle = xr.open_mfdataset(
+                file_path, combine='nested', concat_dim='Time')
 
-        Parameters
-        ----------
-        file_path : str
-            h5 file path.
-        raster_index : np.ndarray
-            2D array of grid indices
-        features : str list
-            List of fields to extract from dataset
+            data = np.zeros((raster_index[0][1] - raster_index[0][0],
+                             raster_index[1][1] - raster_index[1][0],
+                             handle['Times'].shape[0],
+                             len(features)), dtype=np.float32)
 
-        Returns
-        -------
-        data : np.ndarray
-            Real high-resolution data in a 4D array:
-            (spatial_1, spatial_2, temporal, features)
-        """
-        logger.debug('Loading data for raster of shape {}'
-                     .format(raster_index.shape))
-
-        with WindX(file_path, hsds=False) as handle:
-
-            data = np.zeros((raster_index.shape[0],
-                             raster_index.shape[1],
-                             len(handle.time_index),
-                             len(features)),
-                            dtype=np.float32)
             for j, f in enumerate(features):
                 data[:, :, :, j] = compute_feature(
-                    handle, raster_index, f, 'h5')
-        return data
-
-    @staticmethod
-    def _get_nc_data(file_path, raster_index,
-                     features):
-        """Get chunk of netcdf data based on raster_indices
-        and features
-
-        Parameters
-        ----------
-        file_path : str
-            netcdf file path.
-        raster_index : np.ndarray
-            2D array of grid indices
-        features : str list
-            List of fields to extract from dataset
-
-        Returns
-        -------
-        data : np.ndarray
-            Real high-resolution data in a 4D array:
-            (spatial_1, spatial_2, temporal, features)
-        """
-        logger.debug('Loading data for raster of shape {}'
-                     .format(
-                         (raster_index[0][1] - raster_index[0][0],
-                          raster_index[1][1] - raster_index[1][0])))
-
-        handle = xr.open_mfdataset(
-            file_path, combine='nested', concat_dim='Time')
-
-        data = np.zeros((raster_index[0][1] - raster_index[0][0],
-                         raster_index[1][1] - raster_index[1][0],
-                         handle['Times'].shape[0],
-                         len(features)), dtype=np.float32)
-
-        for j, f in enumerate(features):
-            data[:, :, :, j] = compute_feature(
-                handle, raster_index, f, 'nc')
+                    handle, raster_index, f, 'nc')
 
         return data
 

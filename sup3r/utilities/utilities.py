@@ -636,6 +636,8 @@ def interp_var(data, var, heights):
     out_array : ndarray
         Array of interpolated values.
     """
+
+    logger.info(f'Interpolating {var} to heights: {heights}')
     h_array = calc_height(data)
     var_array = unstagger_var(data, var)
     return WRFHeights.interp3D(var_array, h_array, heights)
