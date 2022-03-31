@@ -311,8 +311,8 @@ class DataHandler:
                         f'Invalid target {target} and shape {shape} for '
                         f'data domain of size ({len(lat_diff)}, '
                         f'{len(lon_diff)}) with lower left corner '
-                        f'({np.min(nc_file["XLAT"][0, :, 0])}, '
-                        f'{np.min(nc_file["XLONG"][0, 0, :])})')
+                        f'({np.min(nc_file["XLAT"][0, :, 0].values)}, '
+                        f'{np.min(nc_file["XLONG"][0, 0, :].values)})')
 
             if self.raster_file is not None:
                 logger.debug('Saving raster index: {}'
