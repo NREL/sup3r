@@ -583,15 +583,12 @@ def unstagger_var(data, var):
     # Import Variable values from nc database instance
     array_in = np.array(data[var])
 
-    # Determine axis to unstagger
-    if "U" in var:
-        axis = -1
-    elif "V" in var:
-        axis = -2
-    else:  # PH, PHB, and W are staggered in the "z" direction
-        axis = -3
-
-    return np.apply_along_axis(forward_average, axis, array_in)
+    for i, d in enumerate(data[var].dims):
+        if 'stag' in d:
+            array_in = np.apply_along_axis(
+                forward_average, i, array_in
+            )
+    return array_in
 
 
 def calc_height(data):
