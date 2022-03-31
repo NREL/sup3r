@@ -97,7 +97,7 @@ def extract_feature(handle, raster_index,
 
     elif source_type == 'nc':
 
-        if handle[feature].shape > 3:
+        if len(handle[feature].shape) > 3:
             if interp_height is None:
                 fdata = \
                     handle[feature][: 0,
