@@ -138,10 +138,11 @@ class DataHandler:
         """
 
         if std == 0:
+            std = 1
             logger.error(
                 'Standard Deviation is zero for '
                 f'{self.features[feature_index]}')
-            std = 1
+
         self.val_data[:, :, :, feature_index] = \
             (self.val_data[:, :, :, feature_index] - mean) / std
 
@@ -416,7 +417,7 @@ class DataHandler:
 
         for j, f in enumerate(features):
             data[:, :, :, j] = compute_feature(
-                handle, raster_index, f, 'h5')
+                handle, raster_index, f, 'nc')
 
         return data
 

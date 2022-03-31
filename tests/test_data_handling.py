@@ -67,6 +67,8 @@ def test_normalization():
 
     for i in range(len(features)):
         std = np.std(stacked_data[:, :, :, i])
+        if std == 0:
+            std = 1
         mean = np.mean(stacked_data[:, :, :, i])
         assert 0.99999 <= std <= 1.00001
         assert -0.00001 <= mean <= 0.00001
@@ -92,6 +94,8 @@ def test_spatiotemporal_normalization():
 
     for i in range(len(features)):
         std = np.std(stacked_data[:, :, :, i])
+        if std == 0:
+            std = 1
         mean = np.mean(stacked_data[:, :, :, i])
         assert 0.99999 <= std <= 1.00001
         assert -0.00001 <= mean <= 0.00001
