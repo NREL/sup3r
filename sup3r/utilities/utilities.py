@@ -608,7 +608,7 @@ def calc_height(data):
     # Base-state Geopotential(m^2/s^2)
     phb = unstagger_var(data, 'PHB')
     # Perturbation Geopotential (m^2/s^2)
-    ph = unstagger_var('PH')
+    ph = unstagger_var(data, 'PH')
     # Terrain Height (m)
     hgt = data['HGT']
 
