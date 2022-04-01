@@ -37,15 +37,19 @@ def compute_feature(handle, raster_index,
     logger.info(f'Computing {feature}')
 
     if feature == 'BVF_squared':
-        fdata = get_BVF_squared(
+        fdata = get_bvf_squared(
             handle, raster_index, source_type)
+    elif feature == 'Ri':
+        fdata = get_richardson_number(
+            handle, raster_index, source_type)
+        )
     elif 'U' in feature:
         height = feature.split('_')[1].strip('m')
-        fdata, _ = get_UV(
+        fdata, _ = get_uv(
             handle, raster_index, height, source_type)
     elif 'V' in feature:
         height = feature.split('_')[1].strip('m')
-        _, fdata = get_UV(
+        _, fdata = get_uv(
             handle, raster_index, height, source_type)
     else:
         if feature in handle:
@@ -117,7 +121,7 @@ def extract_feature(handle, raster_index,
     return np.transpose(fdata, (1, 2, 0))
 
 
-def get_UV(handle, raster_index, height, source_type):
+def get_uv(handle, raster_index, height, source_type):
     """Compute U and V wind components
 
     Parameters
@@ -166,7 +170,69 @@ def get_UV(handle, raster_index, height, source_type):
         raise ValueError('Can only handle h5 or netcdf data')
 
 
-def get_BVF_squared(handle, raster_index, source_type):
+def get_richardson_number(handle, raster_index, source_type):
+    """Compute Bulk Richardson Number
+
+    Parameters
+    ----------
+    handle : WindX | xarray
+        Data Handle for either WTK data
+        or WRF data
+    raster_index : ndarray
+        Raster index array
+    source_type : str
+        Either h5 or nc
+
+    Returns
+    -------
+    ndarray
+        Bulk Richardson Number array
+
+    """
+
+    if source_type == 'h5':
+        T_top = extract_feature(
+            handle, raster_index, 'temperature_200m', source_type)
+        T_bottom = extract_feature(
+            handle, raster_index, 'temperature_100m', source_type)
+        P_top = extract_feature(
+            handle, raster_index, 'pressure_200m', source_type)
+        P_bottom = extract_feature(
+            handle, raster_index, 'pressure_100m', source_type)
+        U_top = extract_feature(
+            handle, raster_index, 'U_200m', source_type)
+        U_bottom = extract_feature(
+            handle, raster_index, 'U_100m', source_type)
+        V_top = extract_feature(
+            handle, raster_index, 'V_200m', source_type)
+        V_bottom = extract_feature(
+            handle, raster_index, 'V_100m', source_type)
+    elif source_type == 'nc':
+        T_top = extract_feature(
+            handle, raster_index, 'T', source_type, 200) - 273.15
+        T_bottom = extract_feature(
+            handle, raster_index, 'T', source_type, 100) - 273.15
+        P_top = extract_feature(
+            handle, raster_index, 'P', source_type, 200)
+        P_bottom = extract_feature(
+            handle, raster_index, 'P', source_type, 100)
+        U_top = extract_feature(
+            handle, raster_index, 'U', source_type, 200)
+        U_bottom = extract_feature(
+            handle, raster_index, 'U', source_type, 100)
+        V_top = extract_feature(
+            handle, raster_index, 'V', source_type, 200)
+        V_bottom = extract_feature(
+            handle, raster_index, 'V', source_type, 100)
+
+    else:
+        raise ValueError('Can only handle h5 or netcdf data')
+
+    return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
+                                      U_top, U_bottom, V_top, V_bottom)
+
+
+def get_bvf_squared(handle, raster_index, source_type):
     """Compute BVF squared
 
     Parameters
@@ -717,14 +783,15 @@ def potential_temperature(T, P):
     T : ndarray
         Temperature in celsius
     P : ndarray
-        Pressure of fluid
+        Pressure of fluid in Pa
 
     Returns
     -------
     ndarray
         Potential temperature
     """
-    return (T - 273.15) * (P / 1000) ** (-0.286)
+    P0 = 100000
+    return (T + 273.15) * (P0 / P) ** (0.286)
 
 
 def potential_temperature_difference(T_top, P_top,
@@ -886,7 +953,8 @@ def BVF_squared(T_top, T_bottom,
     PT_top = potential_temperature(T_top, P_top)
     PT_bottom = potential_temperature(T_bottom, P_bottom)
     PT_mid = (PT_top + PT_bottom) / 2.0
-    return 9.81 / PT_mid * (PT_top - PT_bottom) / delta_h
+    PT_diff = (PT_top - PT_bottom)
+    return 9.81 * PT_diff / (PT_mid * delta_h)
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
