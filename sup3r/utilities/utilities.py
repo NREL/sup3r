@@ -42,7 +42,6 @@ def compute_feature(handle, raster_index,
     elif feature == 'Ri':
         fdata = get_richardson_number(
             handle, raster_index, source_type)
-        )
     elif 'U' in feature:
         height = feature.split('_')[1].strip('m')
         fdata, _ = get_uv(
