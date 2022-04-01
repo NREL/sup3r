@@ -571,7 +571,9 @@ class DataHandler(FeatureHandler):
         return self.data.shape
 
     def extract_data(self):
-        """Building base 4D data array
+        """Building base 4D data array. Can
+        handle multiple files but assumes each
+        file has the same spatial domain
 
         Parameters
         ----------
@@ -695,6 +697,7 @@ class DataHandler(FeatureHandler):
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
+    @source_type_handler
     def _get_file_data(self, file_path, raster_index,
                        features, source_type):
         """Extract fields from file for region
@@ -724,13 +727,13 @@ class DataHandler(FeatureHandler):
             logger.debug('Loading data for raster of shape {}'
                          .format(raster_index.shape))
 
-            with WindX(file_path, hsds=False) as handle:
+            handle = WindX(file_path, hsds=False)
 
-                data = np.zeros((raster_index.shape[0],
-                                 raster_index.shape[1],
-                                 len(handle.time_index),
-                                 len(features)),
-                                dtype=np.float32)
+            data = np.zeros((raster_index.shape[0],
+                             raster_index.shape[1],
+                             len(handle.time_index),
+                             len(features)),
+                            dtype=np.float32)
         elif source_type == 'nc':
             logger.debug(
                 'Loading data for raster of shape {}'
