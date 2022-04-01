@@ -35,7 +35,7 @@ def source_type_handler(func):
             raise ValueError(
                 f'{func.__name__} can only handle h5 or netcdf data')
         else:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
     return inner_function
 
 
