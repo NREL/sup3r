@@ -6,6 +6,7 @@ import logging
 import xarray as xr
 import numpy as np
 import os
+import inspect
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -24,6 +25,20 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def source_type_handler(func):
+    """Decorator to handle source_type
+    error catching"""
+
+    def inner_function(*args, **kwargs):
+        arg_spec = inspect.getfullargspec(func).args
+        if args[arg_spec.index('source_type')] not in ['h5', 'nc']:
+            raise ValueError(
+                f'{func.__name__} can only handle h5 or netcdf data')
+        else:
+            func(*args, **kwargs)
+    return inner_function
+
+
 class FeatureHandler:
     """Feature Handler with cache
     for previously loaded features used
@@ -33,6 +48,7 @@ class FeatureHandler:
     def __init__(self):
         self.feature_cache = {}
 
+    @source_type_handler
     def compute_feature(self, handle, raster_index,
                         feature, source_type):
         """Compute single feature by extracting
@@ -58,7 +74,7 @@ class FeatureHandler:
         """
 
         if feature not in handle:
-            logger.info(f'Computing {feature}')
+            logger.info(f'Computing {feature}.')
         if feature in self.feature_cache:
             logger.info(
                 f'{feature} already computed. '
@@ -97,6 +113,7 @@ class FeatureHandler:
         self.feature_cache[feature] = fdata
         return fdata
 
+    @source_type_handler
     def extract_feature(self, handle, raster_index,
                         feature, source_type,
                         interp_height=None):
@@ -123,7 +140,7 @@ class FeatureHandler:
 
         """
 
-        logger.debug(f'Extracting {feature}')
+        logger.debug(f'Extracting {feature}.')
 
         if feature in self.feature_cache:
             logger.debug(
@@ -152,14 +169,12 @@ class FeatureHandler:
                 fdata = np.array(handle[feature][:,
                                  raster_index[0][0]:raster_index[0][1],
                                  raster_index[1][0]:raster_index[1][1]])
-        else:
-            raise ValueError(
-                'Can only handle wtk or wrf data')
 
         fdata = np.transpose(fdata, (1, 2, 0))
         self.feature_cache[feature] = fdata
         return fdata
 
+    @source_type_handler
     def get_uv(self, handle, raster_index, height,
                source_type):
         """Compute U and V wind components
@@ -203,9 +218,7 @@ class FeatureHandler:
                 handle, raster_index, 'V', source_type, height)
             return u, v
 
-        else:
-            raise ValueError('Can only handle h5 or netcdf data')
-
+    @source_type_handler
     def get_richardson_number(self, handle, raster_index, source_type):
         """Compute Bulk Richardson Number
 
@@ -257,13 +270,11 @@ class FeatureHandler:
             V_bottom = self.extract_feature(
                 handle, raster_index, 'V', source_type, 100)
 
-        else:
-            raise ValueError('Can only handle h5 or netcdf data')
-
         return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
                                           U_top, U_bottom, V_top, V_bottom,
                                           100)
 
+    @source_type_handler
     def get_bvf_squared(self, handle, raster_index, source_type):
         """Compute BVF squared
 
@@ -303,12 +314,10 @@ class FeatureHandler:
             P_bottom = self.extract_feature(
                 handle, raster_index, 'P', source_type, 100)
 
-        else:
-            raise ValueError('Can only handle h5 or netcdf data')
-
         return BVF_squared(T_top, T_bottom,
                            P_top, P_bottom, 100)
 
+    @source_type_handler
     def get_lat_lon(self, handle, raster_index, source_type):
         """Get lats and lons corresponding to raster
         for use in windspeed/direction -> u/v mapping
@@ -350,9 +359,6 @@ class FeatureHandler:
             lat_lon[:, :, 1] = \
                 handle['XLONG'][0, raster_index[0][0]:raster_index[0][1],
                                 raster_index[1][0]:raster_index[1][1]]
-
-        else:
-            raise ValueError('Can only handle h5 or netcdf data')
 
         self.feature_cache['lat_lon'] = lat_lon
         return lat_lon
@@ -588,26 +594,65 @@ class DataHandler(FeatureHandler):
                                              self.target,
                                              self.grid_shape)
 
-        y = self._get_file_data(self.file_path,
-                                raster_index,
-                                self.features)
+        source_type = self.get_source_type(self.file_path)
+        if source_type == 'h5':
+            if not isinstance(self.file_path):
+                self.file_path = [self.file_path]
+
+            y = np.concatenate(
+                [self._get_file_data(
+                    f, raster_index, self.features,
+                    source_type) for f in self.file_path], axis=2)
+        elif source_type == 'nc':
+            y = self._get_file_data(self.file_path,
+                                    raster_index,
+                                    self.features,
+                                    source_type)
 
         self.data = y[:, :, ::self.time_pruning, :]
         self.raster_index = raster_index
 
         return y
 
-    def get_raster_index(self, file_path, target, shape):
+    @staticmethod
+    def get_source_type(file_path):
+        """Get data file type to use
+        in source_type checking
+
+        Parameters
+        ----------
+        file_path : str | list
+            path to data file
+
+        Returns
+        -------
+        source_type : str
+            data file extension
+        """
+        if isinstance(file_path, list):
+            data_file = file_path[0]
+        else:
+            data_file = file_path
+            _, source_type = os.path.splitext(data_file)
+        if source_type == '.h5':
+            return 'h5'
+        else:
+            return 'nc'
+
+    @source_type_handler
+    def get_raster_index(self, file_path, target, shape, source_type):
         """Get raster index for file data
 
         Parameters
         ----------
-        file_path : str
+        file_path : str | list
             path to data file
         target : tuple
             (lat, lon) for lower left corner
         shape : tuple
             (n_rows, n_cols) grid size
+        source_type : str
+            Either h5 or nc
 
         Returns
         -------
@@ -620,23 +665,18 @@ class DataHandler(FeatureHandler):
             logger.debug('Loading raster index: {}'.format(self.raster_file))
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
-            if isinstance(file_path, list):
-                data_file = file_path[0]
-            else:
-                data_file = file_path
-            _, file_ext = os.path.splitext(data_file)
-            if file_ext == '.h5':
+            if source_type == 'h5':
                 logger.debug('Calculating raster index from WTK file '
                              f'for shape {shape} and target {target}')
-                with WindX(data_file) as res:
+                with WindX(file_path) as res:
                     raster_index = \
                         res.get_raster_index(target, shape,
                                              max_delta=self.max_delta)
 
-            else:
+            elif source_type == 'nc':
                 logger.debug('Calculating raster index from WRF file '
                              f'for shape {shape} and target {target}')
-                nc_file = xr.open_dataset(data_file)
+                nc_file = xr.open_dataset(file_path)
                 lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
                 lon_diff = list(nc_file['XLONG'][0, 0, :] - target[1])
@@ -658,15 +698,14 @@ class DataHandler(FeatureHandler):
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
-    def _get_file_data(self, file_path,
-                       raster_index,
-                       features):
+    def _get_file_data(self, file_path, raster_index,
+                       features, source_type):
         """Extract fields from file for region
         given by target and shape
 
         Parameters
         ----------
-        file_path : str
+        file_path : str | list
             File path
         target : tuple
             (lat, lon) for lower left corner of region
@@ -674,6 +713,8 @@ class DataHandler(FeatureHandler):
             (n_lat, n_lon) grid size for region
         features : list
             list of fields to extract from file
+        source_type : str
+            Either h5 or nc
 
         Returns
         -------
@@ -682,12 +723,7 @@ class DataHandler(FeatureHandler):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        if isinstance(file_path, list):
-            data_file = file_path[0]
-        else:
-            data_file = file_path
-        _, file_ext = os.path.splitext(data_file)
-        if file_ext == '.h5':
+        if source_type == '.h5':
             logger.debug('Loading data for raster of shape {}'
                          .format(raster_index.shape))
 
@@ -698,14 +734,12 @@ class DataHandler(FeatureHandler):
                                  len(handle.time_index),
                                  len(features)),
                                 dtype=np.float32)
-                for j, f in enumerate(features):
-                    data[:, :, :, j] = self.compute_feature(
-                        handle, raster_index, f, 'h5')
-        else:
-            logger.debug('Loading data for raster of shape {}'
-                         .format(
-                             (raster_index[0][1] - raster_index[0][0],
-                              raster_index[1][1] - raster_index[1][0])))
+        elif source_type == 'nc':
+            logger.debug(
+                'Loading data for raster of shape {}'
+                .format(
+                    (raster_index[0][1] - raster_index[0][0],
+                     raster_index[1][1] - raster_index[1][0])))
 
             handle = xr.open_mfdataset(
                 file_path, combine='nested', concat_dim='Time')
@@ -715,9 +749,9 @@ class DataHandler(FeatureHandler):
                              handle['Times'].shape[0],
                              len(features)), dtype=np.float32)
 
-            for j, f in enumerate(features):
-                data[:, :, :, j] = self.compute_feature(
-                    handle, raster_index, f, 'nc')
+        for j, f in enumerate(features):
+            data[:, :, :, j] = self.compute_feature(
+                handle, raster_index, f, source_type)
 
         return data
 
