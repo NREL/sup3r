@@ -9,7 +9,7 @@ import os
 
 from rex import WindX
 from rex.utilities import log_mem
-from sup3r.utilities.utilities import (compute_feature,
+from sup3r.utilities.utilities import (VariableHandler,
                                        spatial_coarsening,
                                        uniform_box_sampler,
                                        temporal_coarsening,
@@ -90,6 +90,7 @@ class DataHandler:
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
+        self.var_handler = VariableHandler()
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
 
@@ -320,8 +321,7 @@ class DataHandler:
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
-    @classmethod
-    def _get_file_data(cls, file_path,
+    def _get_file_data(self, file_path,
                        raster_index,
                        features):
         """Extract fields from file for region
@@ -362,7 +362,7 @@ class DataHandler:
                                  len(features)),
                                 dtype=np.float32)
                 for j, f in enumerate(features):
-                    data[:, :, :, j] = compute_feature(
+                    data[:, :, :, j] = self.var_handler.compute_feature(
                         handle, raster_index, f, 'h5')
         else:
             logger.debug('Loading data for raster of shape {}'
@@ -379,7 +379,7 @@ class DataHandler:
                              len(features)), dtype=np.float32)
 
             for j, f in enumerate(features):
-                data[:, :, :, j] = compute_feature(
+                data[:, :, :, j] = self.var_handler.compute_feature(
                     handle, raster_index, f, 'nc')
 
         return data

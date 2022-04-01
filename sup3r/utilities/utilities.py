@@ -10,266 +10,295 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def compute_feature(handle, raster_index,
-                    feature, source_type):
-    """Compute single feature by extracting
-    needed features from data source
-
-    Parameters
-    ----------
-    handle : WindX | xarray
-        Data Handle for either WTK data
-        or WRF data
-    raster_index : ndarray
-        Raster index array
-    feature : str
-        Feature to extract from data
-    source_type : str
-        Either h5 or nc
-
-    Returns
-    -------
-    ndarray
-        Data array for computed feature
-
+class VariableHandler:
+    """Variable Handler with cache
+    for previously loaded variables used
+    in other calculations
     """
 
-    logger.info(f'Computing {feature}')
+    def __init__(self):
+        self.variable_cache = {}
 
-    if feature == 'BVF_squared':
-        fdata = get_bvf_squared(
-            handle, raster_index, source_type)
-    elif feature == 'Ri':
-        fdata = get_richardson_number(
-            handle, raster_index, source_type)
-    elif 'U' in feature:
-        height = feature.split('_')[1].strip('m')
-        fdata, _ = get_uv(
-            handle, raster_index, height, source_type)
-    elif 'V' in feature:
-        height = feature.split('_')[1].strip('m')
-        _, fdata = get_uv(
-            handle, raster_index, height, source_type)
-    else:
-        if feature in handle:
-            fdata = extract_feature(
-                handle, raster_index, feature, source_type)
+    def compute_feature(self, handle, raster_index,
+                        feature, source_type):
+        """Compute single feature by extracting
+        needed features from data source
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        source_type : str
+            Either h5 or nc
+
+        Returns
+        -------
+        ndarray
+            Data array for computed feature
+
+        """
+
+        if feature in self.variable_cache:
+            logger.info(
+                f'{feature} already computed. '
+                'Loading from cache')
+            return self.variable_cache[feature]
+
+        logger.info(f'Computing {feature}')
+
+        if feature == 'BVF_squared':
+            fdata = self.get_bvf_squared(
+                handle, raster_index, source_type)
+        elif feature == 'Ri':
+            fdata = self.get_richardson_number(
+                handle, raster_index, source_type)
+        elif 'U' in feature:
+            height = feature.split('_')[1].strip('m')
+            fdata, v = self.get_uv(
+                handle, raster_index, height, source_type)
+            self.variable_cache[feature.replace('U', 'V')] = v
+        elif 'V' in feature:
+            height = feature.split('_')[1].strip('m')
+            u, fdata = self.get_uv(
+                handle, raster_index, height, source_type)
+            self.variable_cache[feature.replace('V', 'U')] = u
         else:
-            try:
-                height = float(feature.split('_')[1].strip('m'))
-                fdata = extract_feature(
-                    handle, raster_index, feature, source_type, height)
-            except ValueError:
-                logger.error(f'Feature {feature} not found in source data.')
-
-    return fdata
-
-
-def extract_feature(handle, raster_index,
-                    feature, source_type,
-                    interp_height=None):
-    """Extract single feature from data source
-
-    Parameters
-    ----------
-    handle : WindX | xarray
-        Data Handle for either WTK data
-        or WRF data
-    raster_index : ndarray
-        Raster index array
-    feature : str
-        Feature to extract from data
-    source_type : str
-        Either h5 or nc
-    interp_height : float | None
-        Interpolation height for wrf data
-
-    Returns
-    -------
-    ndarray
-        Data array for extracted feature
-
-    """
-
-    if source_type == 'h5':
-        fdata = handle[feature, :, raster_index.flatten()]
-        fdata = fdata.reshape((len(fdata),
-                               raster_index.shape[0],
-                               raster_index.shape[1]))
-
-    elif source_type == 'nc':
-
-        if len(handle[feature].shape) > 3:
-            if interp_height is None:
-                fdata = \
-                    handle[feature][: 0,
-                                    raster_index[0][0]:raster_index[0][1],
-                                    raster_index[1][0]:raster_index[1][1]]
+            if feature in handle:
+                fdata = self.extract_feature(
+                    handle, raster_index, feature, source_type)
             else:
-                fdata = interp_var(handle, feature, float(interp_height))
-                fdata = fdata[:, raster_index[0][0]:raster_index[0][1],
-                              raster_index[1][0]:raster_index[1][1]]
+                try:
+                    height = float(feature.split('_')[1].strip('m'))
+                    fdata = self.extract_feature(
+                        handle, raster_index, feature, source_type, height)
+                except ValueError:
+                    logger.error(
+                        f'Feature {feature} not found in source data.')
+
+        self.variable_cache[feature] = fdata
+        return fdata
+
+    def extract_feature(self, handle, raster_index,
+                        feature, source_type,
+                        interp_height=None):
+        """Extract single feature from data source
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        source_type : str
+            Either h5 or nc
+        interp_height : float | None
+            Interpolation height for wrf data
+
+        Returns
+        -------
+        ndarray
+            Data array for extracted feature
+
+        """
+
+        if feature in self.variable_cache:
+            return self.variable_cache[feature]
+
+        if source_type == 'h5':
+            fdata = handle[feature, :, raster_index.flatten()]
+            fdata = fdata.reshape((len(fdata),
+                                   raster_index.shape[0],
+                                   raster_index.shape[1]))
+
+        elif source_type == 'nc':
+
+            if len(handle[feature].shape) > 3:
+                if interp_height is None:
+                    fdata = \
+                        handle[feature][: 0,
+                                        raster_index[0][0]:raster_index[0][1],
+                                        raster_index[1][0]:raster_index[1][1]]
+                else:
+                    fdata = interp_var(handle, feature, float(interp_height))
+                    fdata = fdata[:, raster_index[0][0]:raster_index[0][1],
+                                  raster_index[1][0]:raster_index[1][1]]
+            else:
+                fdata = np.array(handle[feature][:,
+                                 raster_index[0][0]:raster_index[0][1],
+                                 raster_index[1][0]:raster_index[1][1]])
         else:
-            fdata = np.array(handle[feature][:,
-                             raster_index[0][0]:raster_index[0][1],
-                             raster_index[1][0]:raster_index[1][1]])
-    else:
-        raise ValueError(
-            'Can only handle wtk or wrf data')
+            raise ValueError(
+                'Can only handle wtk or wrf data')
 
-    return np.transpose(fdata, (1, 2, 0))
+        fdata = np.transpose(fdata, (1, 2, 0))
+        self.variable_cache[feature] = fdata
+        return fdata
 
+    def get_uv(self, handle, raster_index, height,
+               source_type):
+        """Compute U and V wind components
 
-def get_uv(handle, raster_index, height, source_type):
-    """Compute U and V wind components
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str | int
+            Height of U/V to extract in meters.
+            e.g. 100
+        source_type : str
+            Either h5 or nc
 
-    Parameters
-    ----------
-    Parameters
-    ----------
-    handle : WindX | xarray
-        Data Handle for either WTK data
-        or WRF data
-    raster_index : ndarray
-        Raster index array
-    height : str | int
-        Height of U/V to extract in meters.
-        e.g. 100
-    source_type : str
-        Either h5 or nc
+        Returns
+        -------
+        U : ndarray
+            array of U wind component
+        V : ndarray
+            array of V wind component
+        """
 
-    Returns
-    -------
-    U : ndarray
-        array of U wind component
-    V : ndarray
-        array of V wind component
-    """
+        if source_type == 'h5':
+            required_inputs = [f'windspeed_{height}m',
+                               f'winddirection_{height}m']
+            ws = self.extract_feature(
+                handle, raster_index, required_inputs[0], source_type)
+            wd = self.extract_feature(
+                handle, raster_index, required_inputs[1], source_type)
+            lat_lon = get_lat_lon(handle, raster_index, source_type)
 
-    if source_type == 'h5':
-        required_inputs = [f'windspeed_{height}m',
-                           f'winddirection_{height}m']
-        ws = extract_feature(
-            handle, raster_index, required_inputs[0], source_type)
-        wd = extract_feature(
-            handle, raster_index, required_inputs[1], source_type)
-        lat_lon = get_lat_lon(handle, raster_index, source_type)
+            logger.info(f'Transforming {required_inputs}'
+                        ' to U/V and aligning with grid.')
+            return transform_rotate_wind(ws, wd, lat_lon)
+        elif source_type == 'nc':
+            u = self.extract_feature(
+                handle, raster_index, 'U', source_type, height)
+            v = self.extract_feature(
+                handle, raster_index, 'V', source_type, height)
+            return u, v
 
-        logger.info(f'Transforming {required_inputs}'
-                    ' to U/V and aligning with grid.')
-        return transform_rotate_wind(ws, wd, lat_lon)
-    elif source_type == 'nc':
-        u = extract_feature(
-            handle, raster_index, 'U', source_type, height)
-        v = extract_feature(
-            handle, raster_index, 'V', source_type, height)
-        return u, v
+        else:
+            raise ValueError('Can only handle h5 or netcdf data')
 
-    else:
-        raise ValueError('Can only handle h5 or netcdf data')
+    def get_richardson_number(self, handle, raster_index, source_type):
+        """Compute Bulk Richardson Number
 
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        source_type : str
+            Either h5 or nc
+        variable_cache : dict
+            Dictionary of previously
+            loaded variables to use for
+            other computations
 
-def get_richardson_number(handle, raster_index, source_type):
-    """Compute Bulk Richardson Number
+        Returns
+        -------
+        ndarray
+            Bulk Richardson Number array
 
-    Parameters
-    ----------
-    handle : WindX | xarray
-        Data Handle for either WTK data
-        or WRF data
-    raster_index : ndarray
-        Raster index array
-    source_type : str
-        Either h5 or nc
+        """
 
-    Returns
-    -------
-    ndarray
-        Bulk Richardson Number array
+        if source_type == 'h5':
+            T_top = self.extract_feature(
+                handle, raster_index, 'temperature_200m', source_type)
+            T_bottom = self.extract_feature(
+                handle, raster_index, 'temperature_100m', source_type)
+            P_top = self.extract_feature(
+                handle, raster_index, 'pressure_200m', source_type)
+            P_bottom = self.extract_feature(
+                handle, raster_index, 'pressure_100m', source_type)
+            U_top, V_top = self.get_uv(
+                handle, raster_index, 200, source_type)
+            U_bottom, V_bottom = self.get_uv(
+                handle, raster_index, 100, source_type)
+        elif source_type == 'nc':
+            T_top = self.extract_feature(
+                handle, raster_index, 'T', source_type, 200) - 273.15
+            T_bottom = self.extract_feature(
+                handle, raster_index, 'T', source_type, 100) - 273.15
+            P_top = self.extract_feature(
+                handle, raster_index, 'P', source_type, 200)
+            P_bottom = self.extract_feature(
+                handle, raster_index, 'P', source_type, 100)
+            U_top = self.extract_feature(
+                handle, raster_index, 'U', source_type, 200)
+            U_bottom = self.extract_feature(
+                handle, raster_index, 'U', source_type, 100)
+            V_top = self.extract_feature(
+                handle, raster_index, 'V', source_type, 200)
+            V_bottom = self.extract_feature(
+                handle, raster_index, 'V', source_type, 100)
 
-    """
+        else:
+            raise ValueError('Can only handle h5 or netcdf data')
 
-    if source_type == 'h5':
-        T_top = extract_feature(
-            handle, raster_index, 'temperature_200m', source_type)
-        T_bottom = extract_feature(
-            handle, raster_index, 'temperature_100m', source_type)
-        P_top = extract_feature(
-            handle, raster_index, 'pressure_200m', source_type)
-        P_bottom = extract_feature(
-            handle, raster_index, 'pressure_100m', source_type)
-        U_top, V_top = get_uv(handle, raster_index, 200, source_type)
-        U_bottom, V_bottom = get_uv(handle, raster_index, 100, source_type)
-    elif source_type == 'nc':
-        T_top = extract_feature(
-            handle, raster_index, 'T', source_type, 200) - 273.15
-        T_bottom = extract_feature(
-            handle, raster_index, 'T', source_type, 100) - 273.15
-        P_top = extract_feature(
-            handle, raster_index, 'P', source_type, 200)
-        P_bottom = extract_feature(
-            handle, raster_index, 'P', source_type, 100)
-        U_top = extract_feature(
-            handle, raster_index, 'U', source_type, 200)
-        U_bottom = extract_feature(
-            handle, raster_index, 'U', source_type, 100)
-        V_top = extract_feature(
-            handle, raster_index, 'V', source_type, 200)
-        V_bottom = extract_feature(
-            handle, raster_index, 'V', source_type, 100)
+        return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
+                                          U_top, U_bottom, V_top, V_bottom,
+                                          100)
 
-    else:
-        raise ValueError('Can only handle h5 or netcdf data')
+    def get_bvf_squared(self, handle, raster_index, source_type):
+        """Compute BVF squared
 
-    return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
-                                      U_top, U_bottom, V_top, V_bottom,
-                                      100)
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        source_type : str
+            Either h5 or nc
+        variable_cache : dict
+            Dictionary of previously
+            loaded variables to use for
+            other computations
 
+        Returns
+        -------
+        ndarray
+            BVF squared array
 
-def get_bvf_squared(handle, raster_index, source_type):
-    """Compute BVF squared
+        """
 
-    Parameters
-    ----------
-    handle : WindX | xarray
-        Data Handle for either WTK data
-        or WRF data
-    raster_index : ndarray
-        Raster index array
-    source_type : str
-        Either h5 or nc
+        if source_type == 'h5':
+            T_top = self.extract_feature(
+                handle, raster_index, 'temperature_200m', source_type)
+            T_bottom = self.extract_feature(
+                handle, raster_index, 'temperature_100m', source_type)
+            P_top = self.extract_feature(
+                handle, raster_index, 'pressure_200m', source_type)
+            P_bottom = self.extract_feature(
+                handle, raster_index, 'pressure_100m', source_type)
+        elif source_type == 'nc':
+            T_top = self.extract_feature(
+                handle, raster_index, 'T', source_type, 200) - 273.15
+            T_bottom = self.extract_feature(
+                handle, raster_index, 'T', source_type, 100) - 273.15
+            P_top = self.extract_feature(
+                handle, raster_index, 'P', source_type, 200)
+            P_bottom = self.extract_feature(
+                handle, raster_index, 'P', source_type, 100)
 
-    Returns
-    -------
-    ndarray
-        BVF squared array
+        else:
+            raise ValueError('Can only handle h5 or netcdf data')
 
-    """
-
-    if source_type == 'h5':
-        T_top = extract_feature(
-            handle, raster_index, 'temperature_200m', source_type)
-        T_bottom = extract_feature(
-            handle, raster_index, 'temperature_100m', source_type)
-        P_top = extract_feature(
-            handle, raster_index, 'pressure_200m', source_type)
-        P_bottom = extract_feature(
-            handle, raster_index, 'pressure_100m', source_type)
-    elif source_type == 'nc':
-        T_top = extract_feature(
-            handle, raster_index, 'T', source_type, 200) - 273.15
-        T_bottom = extract_feature(
-            handle, raster_index, 'T', source_type, 100) - 273.15
-        P_top = extract_feature(
-            handle, raster_index, 'P', source_type, 200)
-        P_bottom = extract_feature(
-            handle, raster_index, 'P', source_type, 100)
-
-    else:
-        raise ValueError('Can only handle h5 or netcdf data')
-
-    return BVF_squared(T_top, T_bottom,
-                       P_top, P_bottom, 100)
+        return BVF_squared(T_top, T_bottom,
+                           P_top, P_bottom, 100)
 
 
 def uniform_box_sampler(data, shape):
