@@ -590,11 +590,12 @@ class DataHandler(FeatureHandler):
             lat (lon) first channel (second channel)
         """
 
+        source_type = self.get_source_type(self.file_path)
         raster_index = self.get_raster_index(self.file_path,
                                              self.target,
-                                             self.grid_shape)
+                                             self.grid_shape,
+                                             source_type)
 
-        source_type = self.get_source_type(self.file_path)
         if source_type == 'h5':
             if not isinstance(self.file_path):
                 self.file_path = [self.file_path]
