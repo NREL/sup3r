@@ -222,7 +222,8 @@ def get_richardson_number(handle, raster_index, source_type):
         raise ValueError('Can only handle h5 or netcdf data')
 
     return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
-                                      U_top, U_bottom, V_top, V_bottom)
+                                      U_top, U_bottom, V_top, V_bottom,
+                                      100)
 
 
 def get_bvf_squared(handle, raster_index, source_type):
