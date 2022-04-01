@@ -630,7 +630,7 @@ class DataHandler(FeatureHandler):
         source_type : str
             data file extension
         """
-        _, source_type = os.path.splitext(file_path[0]))
+        _, source_type = os.path.splitext(file_path[0])
         if source_type == '.h5':
             return 'h5'
         else:
