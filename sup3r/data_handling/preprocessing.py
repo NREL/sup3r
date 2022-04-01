@@ -590,16 +590,16 @@ class DataHandler(FeatureHandler):
             lat (lon) first channel (second channel)
         """
 
+        if not isinstance(self.file_path, list):
+            self.file_path = [self.file_path]
+
         source_type = self.get_source_type(self.file_path)
-        raster_index = self.get_raster_index(self.file_path,
+        raster_index = self.get_raster_index(self.file_path[0],
                                              self.target,
                                              self.grid_shape,
                                              source_type)
 
         if source_type == 'h5':
-            if not isinstance(self.file_path, list):
-                self.file_path = [self.file_path]
-
             y = np.concatenate(
                 [self._get_file_data(
                     f, raster_index, self.features,
@@ -622,7 +622,7 @@ class DataHandler(FeatureHandler):
 
         Parameters
         ----------
-        file_path : str | list
+        file_path : list
             path to data file
 
         Returns
@@ -630,11 +630,7 @@ class DataHandler(FeatureHandler):
         source_type : str
             data file extension
         """
-        if isinstance(file_path, list):
-            data_file = file_path[0]
-        else:
-            data_file = file_path
-            _, source_type = os.path.splitext(data_file)
+        _, source_type = os.path.splitext(file_path[0]))
         if source_type == '.h5':
             return 'h5'
         else:
