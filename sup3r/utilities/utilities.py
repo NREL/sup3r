@@ -46,7 +46,7 @@ class VariableHandler:
         if feature in self.variable_cache:
             logger.info(
                 f'{feature} already computed. '
-                'Loading from cache')
+                'Loading from cache.')
             return self.variable_cache[feature]
 
         logger.info(f'Computing {feature}')
@@ -109,7 +109,11 @@ class VariableHandler:
 
         """
 
+        logger.debug(f'Extracting {feature}')
+
         if feature in self.variable_cache:
+            logger.debug(
+                f'{feature} already extracted. Loading from cache. ')
             return self.variable_cache[feature]
 
         if source_type == 'h5':
@@ -201,10 +205,6 @@ class VariableHandler:
             Raster index array
         source_type : str
             Either h5 or nc
-        variable_cache : dict
-            Dictionary of previously
-            loaded variables to use for
-            other computations
 
         Returns
         -------
@@ -263,10 +263,6 @@ class VariableHandler:
             Raster index array
         source_type : str
             Either h5 or nc
-        variable_cache : dict
-            Dictionary of previously
-            loaded variables to use for
-            other computations
 
         Returns
         -------
