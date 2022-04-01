@@ -597,7 +597,7 @@ class DataHandler(FeatureHandler):
                                              source_type)
 
         if source_type == 'h5':
-            if not isinstance(self.file_path):
+            if not isinstance(self.file_path, list):
                 self.file_path = [self.file_path]
 
             y = np.concatenate(
