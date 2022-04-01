@@ -198,14 +198,8 @@ def get_richardson_number(handle, raster_index, source_type):
             handle, raster_index, 'pressure_200m', source_type)
         P_bottom = extract_feature(
             handle, raster_index, 'pressure_100m', source_type)
-        U_top = extract_feature(
-            handle, raster_index, 'U_200m', source_type)
-        U_bottom = extract_feature(
-            handle, raster_index, 'U_100m', source_type)
-        V_top = extract_feature(
-            handle, raster_index, 'V_200m', source_type)
-        V_bottom = extract_feature(
-            handle, raster_index, 'V_100m', source_type)
+        U_top, V_top = get_uv(handle, raster_index, 200, source_type)
+        U_bottom, V_bottom = get_uv(handle, raster_index, 100, source_type)
     elif source_type == 'nc':
         T_top = extract_feature(
             handle, raster_index, 'T', source_type, 200) - 273.15
