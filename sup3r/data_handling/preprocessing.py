@@ -724,7 +724,7 @@ class DataHandler(FeatureHandler):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        if source_type == '.h5':
+        if source_type == 'h5':
             logger.debug('Loading data for raster of shape {}'
                          .format(raster_index.shape))
 
