@@ -110,6 +110,8 @@ def test_load_spatiotemporal():
 
 @pytest.mark.parametrize('fn_gen', GEN_CONFIGS)
 @pytest.mark.parametrize(
+    'fn_gen', GEN_CONFIGS)
+@pytest.mark.parametrize(
     'coarse_shape', ((1, 5, 5, 4, 2), (1, 7, 7, 9, 2),
                      (3, 6, 6, 8, 2), (2, 20, 20, 96, 2)))
 def test_load_all_st_generators(fn_gen, coarse_shape):
