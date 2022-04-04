@@ -317,11 +317,14 @@ def forward_average(array_in):
 
 def unstagger_var(data, var):
     """
-    Unstagger WRF variable values
+    Unstagger WRF variable values.
+    Some variables use a staggered grid with values
+    associated with grid cell edges. We want to center
+    these values.
 
     Parameters
     ----------
-    data :
+    data : xarray
         netcdf data object
     var : str
         Name of variable to be unstaggered
@@ -348,13 +351,14 @@ def calc_height(data):
     Calculate height from the ground
     Parameters
     ----------
-    data :
+    data : xarray
         netcdf data object
 
     Returns
     ---------
     height_arr : ndarray
-        4D array of heights above ground
+        (spatial_1, spatial_2, vertical_level, temporal)
+        4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
     phb = unstagger_var(data, 'PHB')
@@ -443,7 +447,7 @@ def interp_var(data, var, heights):
 
     Parameters
     ----------
-    data :
+    data : xarray
         netcdf data object
     var : str
         Name of variable to be interpolated

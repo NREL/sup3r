@@ -7,6 +7,7 @@ import xarray as xr
 import numpy as np
 import os
 import inspect
+import re
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -47,6 +48,49 @@ class FeatureHandler:
 
     def __init__(self):
         self.feature_cache = {}
+        self.registry = {
+            'BVF_squared': self.get_bvf_squared,
+            'Ri': self.get_richardson_number,
+            'U_(.*)m': self.get_u,
+            'V_(.*)m': self.get_v}
+
+    def lookup(self, feature):
+        """Lookup feature in feature registry
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        method | None
+            Method to use for computing feature
+        """
+        for k, v in self.registry.items():
+            if re.match(k, feature):
+                return v
+        return None
+
+    def get_feature_height(self, feature):
+        """Get height from feature name
+        to use in height interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100m
+
+        Returns
+        -------
+        float | None
+            height to use for interpolation
+            in meters
+        """
+        height = re.search(r'\d*m', feature)
+        if height is not None:
+            height = float(height[0].strip('m'))
+        return height
 
     @source_type_handler
     def compute_feature(self, handle, raster_index,
@@ -81,31 +125,26 @@ class FeatureHandler:
                 'Loading from cache.')
             return self.feature_cache[feature]
 
-        if feature == 'BVF_squared':
-            fdata = self.get_bvf_squared(
-                handle, raster_index, source_type)
-        elif feature == 'Ri':
-            fdata = self.get_richardson_number(
-                handle, raster_index, source_type)
-        elif 'U' in feature:
-            height = feature.split('_')[1].strip('m')
-            fdata, v = self.get_uv(
-                handle, raster_index, height, source_type)
-            self.feature_cache[feature.replace('U', 'V')] = v
-        elif 'V' in feature:
-            height = feature.split('_')[1].strip('m')
-            u, fdata = self.get_uv(
-                handle, raster_index, height, source_type)
-            self.feature_cache[feature.replace('V', 'U')] = u
+        method = self.lookup(feature)
+        height = self.get_feature_height(feature)
+        if method is not None:
+            if height is not None:
+                fdata = method(
+                    handle, raster_index, height,
+                    source_type)
+            else:
+                fdata = method(
+                    handle, raster_index, source_type)
         else:
             if feature in handle:
                 fdata = self.extract_feature(
-                    handle, raster_index, feature, source_type)
+                    handle, raster_index, feature,
+                    source_type)
             else:
                 try:
-                    height = float(feature.split('_')[1].strip('m'))
                     fdata = self.extract_feature(
-                        handle, raster_index, feature, source_type, height)
+                        handle, raster_index, feature,
+                        source_type, height)
                 except ValueError:
                     logger.error(
                         f'{feature} not found in source data.')
@@ -173,6 +212,60 @@ class FeatureHandler:
         fdata = np.transpose(fdata, (1, 2, 0))
         self.feature_cache[feature] = fdata
         return fdata
+
+    def get_u(self, handle, raster_index, height,
+              source_type):
+        """Compute U wind component
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str | int
+            Height of U/V to extract in meters.
+            e.g. 100
+        source_type : str
+            Either h5 or nc
+
+        Returns
+        -------
+        U : ndarray
+            array of U wind component
+        """
+
+        u, _ = self.get_uv(handle, raster_index, height,
+                           source_type)
+        return u
+
+    def get_v(self, handle, raster_index, height,
+              source_type):
+        """Compute V wind component
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str | int
+            Height of U/V to extract in meters.
+            e.g. 100
+        source_type : str
+            Either h5 or nc
+
+        Returns
+        -------
+        V : ndarray
+            array of V wind component
+        """
+
+        _, v = self.get_uv(handle, raster_index, height,
+                           source_type)
+        return v
 
     @source_type_handler
     def get_uv(self, handle, raster_index, height,
