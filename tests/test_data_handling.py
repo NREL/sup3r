@@ -38,7 +38,7 @@ def test_raster_index_caching():
     # saving raster file
     handler = DataHandler(input_file, features, target=target, shape=shape,
                           max_delta=max_delta, raster_file=raster_file)
-    handler.get_raster_index(input_file, target, shape)
+    handler.get_raster_index(input_file, target, shape, 'h5')
 
     # loading raster file
     handler = DataHandler(input_file, features, target=target, shape=shape,
