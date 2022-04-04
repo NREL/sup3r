@@ -603,6 +603,33 @@ def mixing_ratio(P, T, RH):
     return 0.622 * vapor_p / (P - vapor_p)
 
 
+def MO_length(ws_friction, PT_mean, PT_surface_flux):
+    """Monin - Obukhov Length
+
+    Parameters
+    ----------
+    ws_friction : ndarray
+        (spatial_1, spatial_2, temporal)
+        Frictional windspeed
+    PT_mean : ndarray
+        (spatial_1, spatial_2, temporal)
+        Vertical average of potential temperature
+    PT_surface_flux : ndarray
+        (spatial_1, spatial_2, temporal)
+        Potential temperature flux at the surface
+
+    Returns
+    -------
+    ndarray
+        (spatial_1, spatial_2, temporal)
+        Monin - Obukhov Length
+    """
+
+    numer = -ws_friction ** 3 * PT_mean
+    denom = (0.41 * 9.81 * PT_surface_flux)
+    return numer / denom
+
+
 def BVF_squared(T_top, T_bottom,
                 P_top, P_bottom,
                 delta_h):
