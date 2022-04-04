@@ -108,9 +108,8 @@ def test_load_spatiotemporal():
     assert disc_out.shape[0] == gen_out.shape[0] * gen_out.shape[3]
     assert disc_out.shape[1] == 1
 
+
 @pytest.mark.parametrize('fn_gen', GEN_CONFIGS)
-@pytest.mark.parametrize(
-    'fn_gen', GEN_CONFIGS)
 @pytest.mark.parametrize(
     'coarse_shape', ((1, 5, 5, 4, 2), (1, 7, 7, 9, 2),
                      (3, 6, 6, 8, 2), (2, 20, 20, 96, 2)))
