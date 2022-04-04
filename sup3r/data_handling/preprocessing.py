@@ -72,7 +72,8 @@ class FeatureHandler:
                 return v
         return None
 
-    def get_feature_height(self, feature):
+    @staticmethod
+    def get_feature_height(feature):
         """Get height from feature name
         to use in height interpolation
 
