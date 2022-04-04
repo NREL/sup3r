@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import tempfile
 
 from sup3r import TEST_DATA_DIR
-from sup3r.data_handling.preprocessing import (DataHandler,
+from sup3r.data_handling.preprocessing import (DataHandlerH5,
                                                BatchHandler,
                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
@@ -36,13 +36,13 @@ def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
     # saving raster file
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=max_delta, raster_file=raster_file)
+    handler = DataHandlerH5(input_file, features, target=target, shape=shape,
+                            max_delta=max_delta, raster_file=raster_file)
     handler.get_raster_index(input_file, target, shape)
 
     # loading raster file
-    handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=max_delta, raster_file=raster_file)
+    handler = DataHandlerH5(input_file, features, target=target, shape=shape,
+                            max_delta=max_delta, raster_file=raster_file)
 
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
@@ -103,8 +103,8 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(input_file, features, target=target,
-                          shape=shape, max_delta=20)
+    handler = DataHandlerH5(input_file, features, target=target,
+                            shape=shape, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -408,10 +408,10 @@ def test_val_data_storage():
     n_observations = 0
     for f in input_files:
 
-        handler = DataHandler(f, features, target, shape,
-                              max_delta, raster_file=raster_file,
-                              val_split=val_split,
-                              time_pruning=time_pruning)
+        handler = DataHandlerH5(f, features, target, shape,
+                                max_delta, raster_file=raster_file,
+                                val_split=val_split,
+                                time_pruning=time_pruning)
         data = handler.extract_data()
         n_observations += data.shape[2]
 
@@ -424,8 +424,8 @@ def test_val_data_storage():
 def test_spatial_coarsening(spatial_res, plot=False):
     """Test spatial coarsening"""
 
-    handler = DataHandler(input_file, features, target=target,
-                          shape=shape, max_delta=20)
+    handler = DataHandlerH5(input_file, features, target=target,
+                            shape=shape, max_delta=20)
 
     handler_data = handler.extract_data()
     handler_data = handler_data.transpose((2, 0, 1, 3))
