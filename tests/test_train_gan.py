@@ -19,7 +19,7 @@ from sup3r.data_handling.preprocessing import (DataHandler,
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['windspeed_100m', 'winddirection_100m']
+FEATURES = ['U_100m', 'V_100m']
 
 
 def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),

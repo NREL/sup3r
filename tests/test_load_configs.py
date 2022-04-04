@@ -108,9 +108,11 @@ def test_load_spatiotemporal():
     assert disc_out.shape[0] == gen_out.shape[0] * gen_out.shape[3]
     assert disc_out.shape[1] == 1
 
-
 @pytest.mark.parametrize('fn_gen', GEN_CONFIGS)
-def test_load_all_st_generators(fn_gen):
+@pytest.mark.parametrize(
+    'coarse_shape', ((1, 5, 5, 4, 2), (1, 7, 7, 9, 2),
+                     (3, 6, 6, 8, 2), (2, 20, 20, 96, 2)))
+def test_load_all_st_generators(fn_gen, coarse_shape):
     """Test all generator configs in the spatiotemporal config dir"""
     fp_gen = os.path.join(ST_CONFIG_DIR, fn_gen)
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
@@ -124,18 +126,12 @@ def test_load_all_st_generators(fn_gen):
 
     model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
 
-    coarse_shapes = ((1, 5, 5, 4, 2),
-                     (1, 7, 7, 9, 2),
-                     (3, 6, 6, 8, 2),
-                     )
-
-    for coarse_shape in coarse_shapes:
-        x = np.ones(coarse_shape)
-        for layer in model.generator:
-            x = layer(x)
-        assert len(x.shape) == 5
-        assert x.shape[0] == coarse_shape[0]
-        assert x.shape[1] == s_enhance * coarse_shape[1]
-        assert x.shape[2] == s_enhance * coarse_shape[2]
-        assert x.shape[3] == t_enhance * coarse_shape[3]
-        assert x.shape[4] == coarse_shape[4]
+    x = np.ones(coarse_shape)
+    for layer in model.generator:
+        x = layer(x)
+    assert len(x.shape) == 5
+    assert x.shape[0] == coarse_shape[0]
+    assert x.shape[1] == s_enhance * coarse_shape[1]
+    assert x.shape[2] == s_enhance * coarse_shape[2]
+    assert x.shape[3] == t_enhance * coarse_shape[3]
+    assert x.shape[4] == coarse_shape[4]
