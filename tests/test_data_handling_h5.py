@@ -25,7 +25,7 @@ spatial_sample_shape = (10, 10)
 spatial_res = 5
 max_delta = 20
 val_split = 0.2
-raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster.txt')
+raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_h5.txt')
 time_pruning = 3
 n_batches = 20
 temporal_sample_shape = 12
@@ -55,6 +55,7 @@ def test_normalization():
         input_files, features, targets=targets, shape=shape,
         batch_size=batch_size,
         spatial_res=spatial_res,
+        spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
         time_pruning=time_pruning,
@@ -119,6 +120,7 @@ def test_validation_batching():
         input_files, features, targets=targets, shape=shape,
         batch_size=batch_size,
         spatial_res=spatial_res,
+        spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
         time_pruning=time_pruning,
@@ -350,6 +352,7 @@ def test_batch_handling(plot=False):
         input_files, features, targets=targets, shape=shape,
         batch_size=batch_size,
         spatial_res=spatial_res,
+        spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
         time_pruning=time_pruning,
@@ -392,6 +395,7 @@ def test_val_data_storage():
         input_files, features, targets=targets, shape=shape,
         batch_size=batch_size,
         spatial_res=spatial_res,
+        spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
         time_pruning=time_pruning,

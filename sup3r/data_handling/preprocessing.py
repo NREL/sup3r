@@ -155,7 +155,6 @@ class FeatureHandler:
         -------
         ndarray
             Data array for extracted feature
-
         """
 
     def get_u(self, handle, raster_index, height):
@@ -243,7 +242,6 @@ class FeatureHandler:
         -------
         ndarray
             Bulk Richardson Number array
-
         """
 
     @abstractmethod
@@ -262,7 +260,6 @@ class FeatureHandler:
         -------
         ndarray
             BVF squared array
-
         """
 
     @abstractmethod
@@ -648,7 +645,7 @@ class DataHandlerNC(DataHandler):
 
         for j, f in enumerate(features):
             data[:, :, :, j] = self.compute_feature(
-                handle, raster_index, f, 'nc')
+                handle, raster_index, f)
 
         return data
 
@@ -1557,6 +1554,31 @@ class BatchHandler:
             return 'nc'
 
     @staticmethod
+    def chunk_file_paths(file_paths, list_chunk_size=None):
+        """Split list of file paths into chunks
+        of size list_chunk_size
+
+        Parameters
+        ----------
+        file_paths : list
+            List of file paths
+        list_chunk_size : int, optional
+            Size of file path liist chunk, by default None
+
+        Returns
+        -------
+        list
+            List of file path chunks
+        """
+
+        if isinstance(file_paths, list) and list_chunk_size is not None:
+            file_paths = sorted(file_paths)
+            n_chunks = len(file_paths) // list_chunk_size + 1
+            file_paths = list(np.array_split(file_paths, n_chunks))
+            file_paths = [list(fps) for fps in file_paths]
+        return file_paths
+
+    @staticmethod
     def get_handler_class(file_paths):
         """Method to get source type specific
         DataHandler class
@@ -1665,11 +1687,7 @@ class BatchHandler:
         assert check, msg
 
         HandlerClass = cls.get_handler_class(file_paths)
-
-        if isinstance(file_paths, list) and list_chunk_size is not None:
-            file_paths = sorted(file_paths)
-            file_paths = np.array_split(file_paths, list_chunk_size)
-            file_paths = [list(fps) for fps in file_paths]
+        file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
 
         data_handlers = []
         for i, f in enumerate(file_paths):
@@ -1842,7 +1860,8 @@ class SpatialBatchHandler(BatchHandler):
              norm=True, raster_files=None,
              time_pruning=1, means=None,
              n_batches=10,
-             stds=None):
+             stds=None,
+             list_chunk_size=None):
 
         """Method to initialize both
         data and batch handlers
@@ -1893,6 +1912,9 @@ class SpatialBatchHandler(BatchHandler):
             with same ordering as data features
         n_batches : int
             Number of batches to iterate through
+        list_chunk_size : int
+            Size of chunks to split file_paths into if a list of files
+            is passed. If None no splitting will be performed.
 
         Returns
         -------
@@ -1907,6 +1929,7 @@ class SpatialBatchHandler(BatchHandler):
         assert check, msg
 
         HandlerClass = cls.get_handler_class(file_paths)
+        file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
 
         data_handlers = []
         for i, f in enumerate(file_paths):
