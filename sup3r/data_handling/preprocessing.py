@@ -344,10 +344,11 @@ class DataHandler(FeatureHandler):
 
         super().__init__()
         self.file_path = file_path
+        if not isinstance(self.file_path, list):
+            self.file_path = [self.file_path]
         self.features = features
         self.grid_shape = shape
         self.target = target
-        self.raster_index = None
         self.max_delta = max_delta
         self.raster_file = raster_file
         self.val_split = val_split
@@ -356,6 +357,8 @@ class DataHandler(FeatureHandler):
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
+        self.raster_index = self.get_raster_index(
+            self.file_path, self.target, self.grid_shape)
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
 
@@ -498,26 +501,19 @@ class DataHandler(FeatureHandler):
         handle multiple files but assumes each
         file has the same spatial domain
 
-        Parameters
-        ----------
-        data_files : list
-            list of strings of file paths
-
         Returns
         -------
-        y : np.ndarray
+        data : np.ndarray
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
-
-        lat_lon : np.ndarray
-            3D array of lat lon
-            (spatial_1, spatial_2, 2)
-            lat (lon) first channel (second channel)
         """
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data
+        """Get raster index for file data. Here we
+        assume the list of paths in file_path all have data
+        with the same spatial domain. We use the first
+        file in the list to compute the raster
 
         Parameters
         ----------
@@ -657,12 +653,15 @@ class DataHandlerNC(DataHandler):
         return data
 
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data
+        """Get raster index for file data. Here we
+        assume the list of paths in file_path all have data
+        with the same spatial domain. We use the first
+        file in the list to compute the raster.
 
         Parameters
         ----------
-        file_path : str | list
-            path to data file
+        file_path : list
+            path to data files
         target : tuple
             (lat, lon) for lower left corner
         shape : tuple
@@ -681,7 +680,7 @@ class DataHandlerNC(DataHandler):
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
-            nc_file = xr.open_dataset(file_path)
+            nc_file = xr.open_dataset(file_path[0])
             lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
             lat_idx = np.argmin(np.abs(lat_diff))
             lon_diff = list(nc_file['XLONG'][0, 0, :] - target[1])
@@ -725,19 +724,9 @@ class DataHandlerNC(DataHandler):
             lat (lon) first channel (second channel)
         """
 
-        if not isinstance(self.file_path, list):
-            self.file_path = [self.file_path]
-
-        raster_index = self.get_raster_index(self.file_path[0],
-                                             self.target,
-                                             self.grid_shape)
-
-        y = self._get_file_data(self.file_path,
-                                raster_index,
-                                self.features)
-
-        self.data = y[:, :, ::self.time_pruning, :]
-        self.raster_index = raster_index
+        self.data = self._get_file_data(
+            self.file_path, self.raster_index,
+            self.features)[:, :, ::self.time_pruning, :]
 
         return self.data
 
@@ -902,7 +891,8 @@ class DataHandlerNC(DataHandler):
         Returns
         -------
         ndarray
-            BVF squared array
+            lat lon array
+            (spatial_1, spatial_2, 2)
         """
 
         if 'lat_lon' in self.feature_cache:
@@ -1016,11 +1006,14 @@ class DataHandlerH5(DataHandler):
         return data
 
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data
+        """Get raster index for file data. Here we
+        assume the list of paths in file_path all have data
+        with the same spatial domain. We use the first
+        file in the list to compute the raster.
 
         Parameters
         ----------
-        file_path : str | list
+        file_path : list
             path to data file
         target : tuple
             (lat, lon) for lower left corner
@@ -1040,7 +1033,7 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with WindX(file_path) as res:
+            with WindX(file_path[0]) as res:
                 raster_index = \
                     res.get_raster_index(target, shape,
                                          max_delta=self.max_delta)
@@ -1055,36 +1048,18 @@ class DataHandlerH5(DataHandler):
         handle multiple files but assumes each
         file has the same spatial domain
 
-        Parameters
-        ----------
-        data_files : list
-            list of strings of file paths
-
         Returns
         -------
-        y : np.ndarray
+        data : np.ndarray
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
-
-        lat_lon : np.ndarray
-            3D array of lat lon
-            (spatial_1, spatial_2, 2)
-            lat (lon) first channel (second channel)
         """
 
-        if not isinstance(self.file_path, list):
-            self.file_path = [self.file_path]
-
-        raster_index = self.get_raster_index(self.file_path[0],
-                                             self.target,
-                                             self.grid_shape)
-
         y = np.concatenate(
-            [self._get_file_data(f, raster_index, self.features)
+            [self._get_file_data(f, self.raster_index, self.features)
                 for f in self.file_path], axis=2)
 
         self.data = y[:, :, ::self.time_pruning, :]
-        self.raster_index = raster_index
 
         return self.data
 
@@ -1108,7 +1083,6 @@ class DataHandlerH5(DataHandler):
         -------
         ndarray
             Data array for extracted feature
-
         """
 
         logger.debug(f'Extracting {feature}.')
@@ -1240,7 +1214,8 @@ class DataHandlerH5(DataHandler):
         Returns
         -------
         ndarray
-            BVF squared array
+            lat lon array
+            (spatial_1, spatial_2, 2)
         """
 
         if 'lat_lon' in self.feature_cache:

@@ -12,7 +12,7 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models.models import SpatialGan, SpatioTemporalGan
-from sup3r.data_handling.preprocessing import (DataHandler,
+from sup3r.data_handling.preprocessing import (DataHandlerH5,
                                                SpatialBatchHandler,
                                                BatchHandler)
 
@@ -35,10 +35,10 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
     model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandler(FP_WTK, FEATURES, target=TARGET_COORD,
-                          shape=full_shape,
-                          spatial_sample_shape=sample_shape,
-                          time_pruning=10)
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            spatial_sample_shape=sample_shape,
+                            time_pruning=10)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
                                         n_batches=10)
@@ -97,11 +97,11 @@ def test_train_st(n_epoch=6, log=False):
     model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
                               learning_rate=1e-4)
 
-    handler = DataHandler(FP_WTK, FEATURES, target=TARGET_COORD,
-                          shape=(20, 20),
-                          temporal_sample_shape=24,
-                          spatial_sample_shape=(18, 18),
-                          time_pruning=1, val_split=0.005)
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            temporal_sample_shape=24,
+                            spatial_sample_shape=(18, 18),
+                            time_pruning=1, val_split=0.005)
 
     batch_handler = BatchHandler([handler], batch_size=2,
                                  spatial_res=3, temporal_res=4,
