@@ -40,6 +40,9 @@ temporal_res = 2
 list_chunk_size = 10
 
 
+os.system(f'rm -f {raster_file}')
+
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 

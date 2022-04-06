@@ -31,6 +31,8 @@ n_batches = 20
 temporal_sample_shape = 12
 temporal_res = 2
 
+os.system(f'rm -f {raster_file}')
+
 
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""

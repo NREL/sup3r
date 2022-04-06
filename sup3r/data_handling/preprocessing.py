@@ -26,6 +26,39 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+class RasterIndex(list):
+    """RasterIndex class to add
+    shape method to NC raster_index"""
+
+    def __new__(cls, raster_obj):
+        obj = list(raster_obj).__new__(cls)
+        cls._shape = None
+        if any(isinstance(r, slice) for r in raster_obj):
+            return obj
+        else:
+            return np.array(raster_obj)
+
+    @property
+    def shape(self):
+        """Shape method for both
+        H5 and NC raster_index objects
+
+        Returns
+        -------
+        tuple
+            Shape of raster index
+        """
+
+        if self._shape is None:
+            if any(isinstance(r, slice) for r in self):
+                self._shape = (
+                    self[0].stop - self[0].start,
+                    self[1].stop - self[1].start)
+            else:
+                self._shape = np.array(self).shape
+        return self._shape
+
+
 class FeatureHandler:
     """Feature Handler with cache
     for previously loaded features used
@@ -343,6 +376,7 @@ class DataHandler(FeatureHandler):
         self.file_path = file_path
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
+        self.file_path = sorted(self.file_path)
         self.features = features
         self.grid_shape = shape
         self.target = target
@@ -356,6 +390,7 @@ class DataHandler(FeatureHandler):
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
+
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
 
@@ -447,6 +482,45 @@ class DataHandler(FeatureHandler):
         observation = self.data[self.current_obs_index]
         return observation
 
+    def _get_file_data(self, file_path, raster_index,
+                       features):
+        """Extract fields from file for region
+        given by target and shape
+
+        Parameters
+        ----------
+        file_path : str | list
+            File path
+        target : tuple
+            (lat, lon) for lower left corner of region
+        shape : tuple
+            (n_lat, n_lon) grid size for region
+        features : list
+            list of fields to extract from file
+
+        Returns
+        -------
+        y : np.ndarray
+            4D array of extracted data
+            (spatial_1, spatial_2, temporal, features)
+        """
+
+        logger.debug('Loading data for raster of shape {}'
+                     .format(raster_index.shape))
+
+        handle = self._get_file_handle(file_path)
+
+        data = np.zeros((raster_index.shape[0],
+                         raster_index.shape[1],
+                         len(handle.time_index),
+                         len(features)),
+                        dtype=np.float32)
+        for j, f in enumerate(features):
+            data[:, :, :, j] = self.compute_feature(
+                handle, raster_index, f)
+
+        return data
+
     def _split_data(self):
         """Splits time dimension into set of training indices
         and validation indices
@@ -492,7 +566,6 @@ class DataHandler(FeatureHandler):
         """
         return self.data.shape
 
-    @abstractmethod
     def extract_data(self):
         """Building base 4D data array. Can
         handle multiple files but assumes each
@@ -504,6 +577,17 @@ class DataHandler(FeatureHandler):
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
         """
+
+        if not isinstance(self.file_path, list):
+            self.file_path = [self.file_path]
+
+        y = np.concatenate(
+            [self._get_file_data(f, self.raster_index, self.features)
+                for f in self.file_path], axis=2)
+
+        self.data = y[:, :, ::self.time_pruning, :]
+
+        return self.data
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):
@@ -524,32 +608,23 @@ class DataHandler(FeatureHandler):
         Returns
         -------
         raster_index : np.ndarray
-            2D array of grid indices
-
+            2D array of grid indices for H5 or list of
+            slices for NETCDF
         """
 
     @abstractmethod
-    def _get_file_data(self, file_path, raster_index,
-                       features):
-        """Extract fields from file for region
-        given by target and shape
+    def _get_file_handle(self, file_path):
+        """Get file type specific file handle
 
         Parameters
         ----------
-        file_path : str | list
-            File path
-        target : tuple
-            (lat, lon) for lower left corner of region
-        shape : tuple
-            (n_lat, n_lon) grid size for region
-        features : list
-            list of fields to extract from file
+        file_path : str
+            Path to file for which to return a handle
 
         Returns
         -------
-        y : np.ndarray
-            4D array of extracted data
-            (spatial_1, spatial_2, temporal, features)
+        handle : xarray | WindX
+            File handle for corresponding file path
         """
 
 
@@ -606,48 +681,24 @@ class DataHandlerNC(DataHandler):
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time)
 
-    def _get_file_data(self, file_path, raster_index,
-                       features):
-        """Extract fields from file for region
-        given by target and shape
+    def _get_file_handle(self, file_path):
+        """Get file type specific file handle
 
         Parameters
         ----------
-        file_path : str | list
-            File path
-        target : tuple
-            (lat, lon) for lower left corner of region
-        shape : tuple
-            (n_lat, n_lon) grid size for region
-        features : list
-            list of fields to extract from file
+        file_path : list
+            Path to files for which to return a handle
 
         Returns
         -------
-        y : np.ndarray
-            4D array of extracted data
-            (spatial_1, spatial_2, temporal, features)
+        handle : WindX
+            File handle for corresponding file path
         """
-
-        logger.debug(
-            'Loading data for raster of shape {}'
-            .format(
-                (raster_index[0][1] - raster_index[0][0],
-                 raster_index[1][1] - raster_index[1][0])))
 
         handle = xr.open_mfdataset(
             file_path, combine='nested', concat_dim='Time')
-
-        data = np.zeros((raster_index[0][1] - raster_index[0][0],
-                         raster_index[1][1] - raster_index[1][0],
-                         handle['Times'].shape[0],
-                         len(features)), dtype=np.float32)
-
-        for j, f in enumerate(features):
-            data[:, :, :, j] = self.compute_feature(
-                handle, raster_index, f)
-
-        return data
+        handle['time_index'] = handle['Times']
+        return handle
 
     def get_raster_index(self, file_path, target, shape):
         """Get raster index for file data. Here we
@@ -672,20 +723,23 @@ class DataHandlerNC(DataHandler):
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug('Loading raster index: {}'.format(self.raster_file))
-            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+            logger.debug(f'Loading raster index: {self.raster_file}')
+            raster_index = np.load(self.raster_file)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
-            nc_file = xr.open_dataset(file_path[0])
+            nc_file = xr.open_mfdataset(
+                file_path, combine='nested', concat_dim='Time')
             lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
             lat_idx = np.argmin(np.abs(lat_diff))
             lon_diff = list(nc_file['XLONG'][0, 0, :] - target[1])
             lon_idx = np.argmin(np.abs(lon_diff))
-            raster_index = [[lat_idx, lat_idx + shape[0]],
-                            [lon_idx, lon_idx + shape[1]]]
-            if (raster_index[0][1] >= len(lat_diff)
-               or raster_index[1][1] >= len(lon_diff)):
+            raster_index = RasterIndex(
+                [slice(lat_idx, lat_idx + shape[0]),
+                 slice(lon_idx, lon_idx + shape[1])])
+
+            if (raster_index[1].stop >= len(lat_diff)
+               or raster_index[1].stop >= len(lon_diff)):
                 raise ValueError(
                     f'Invalid target {target} and shape {shape} for '
                     f'data domain of size ({len(lat_diff)}, '
@@ -694,38 +748,9 @@ class DataHandlerNC(DataHandler):
                     f'{np.min(nc_file["XLONG"][0, 0, :].values)})')
 
             if self.raster_file is not None:
-                logger.debug('Saving raster index: {}'
-                             .format(self.raster_file))
-                np.savetxt(self.raster_file, raster_index)
+                logger.debug(f'Saving raster index: {self.raster_file}')
+                np.save(self.raster_file, raster_index)
         return raster_index
-
-    def extract_data(self):
-        """Building base 4D data array. Can
-        handle multiple files but assumes each
-        file has the same spatial domain
-
-        Parameters
-        ----------
-        data_files : list
-            list of strings of file paths
-
-        Returns
-        -------
-        y : np.ndarray
-            4D array of high res data
-            (spatial_1, spatial_2, temporal, features)
-
-        lat_lon : np.ndarray
-            3D array of lat lon
-            (spatial_1, spatial_2, 2)
-            lat (lon) first channel (second channel)
-        """
-
-        self.data = self._get_file_data(
-            self.file_path, self.raster_index,
-            self.features)[:, :, ::self.time_pruning, :]
-
-        return self.data
 
     def extract_feature(self, handle, raster_index,
                         feature, interp_height=None):
@@ -760,17 +785,13 @@ class DataHandlerNC(DataHandler):
         if len(handle[feature].shape) > 3:
             if interp_height is None:
                 fdata = \
-                    handle[feature][: 0,
-                                    raster_index[0][0]:raster_index[0][1],
-                                    raster_index[1][0]:raster_index[1][1]]
+                    handle[feature][tuple([slice(None)] + [0] + raster_index)]
             else:
                 fdata = interp_var(handle, feature, float(interp_height))
-                fdata = fdata[:, raster_index[0][0]:raster_index[0][1],
-                              raster_index[1][0]:raster_index[1][1]]
+                fdata = fdata[tuple([slice(None)] + raster_index)]
         else:
-            fdata = np.array(handle[feature][:,
-                             raster_index[0][0]:raster_index[0][1],
-                             raster_index[1][0]:raster_index[1][1]])
+            fdata = np.array(
+                handle[feature][tuple([slice(None)] + raster_index)])
 
         fdata = np.transpose(fdata, (1, 2, 0))
         self.feature_cache[feature] = fdata
@@ -900,11 +921,9 @@ class DataHandlerNC(DataHandler):
              raster_index[1][1] - raster_index[1][0], 2),
             dtype=np.float32)
         lat_lon[:, :, 0] = \
-            handle['XLAT'][0, raster_index[0][0]:raster_index[0][1],
-                           raster_index[1][0]:raster_index[1][1]]
+            handle['XLAT'][tuple([0] + raster_index)]
         lat_lon[:, :, 1] = \
-            handle['XLONG'][0, raster_index[0][0]:raster_index[0][1],
-                            raster_index[1][0]:raster_index[1][1]]
+            handle['XLONG'][tuple([0] + raster_index)]
 
         self.feature_cache['lat_lon'] = lat_lon
         return lat_lon
@@ -963,44 +982,21 @@ class DataHandlerH5(DataHandler):
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time)
 
-    def _get_file_data(self, file_path, raster_index,
-                       features):
-        """Extract fields from file for region
-        given by target and shape
+    def _get_file_handle(self, file_path):
+        """Get file type specific file handle
 
         Parameters
         ----------
-        file_path : str | list
-            File path
-        target : tuple
-            (lat, lon) for lower left corner of region
-        shape : tuple
-            (n_lat, n_lon) grid size for region
-        features : list
-            list of fields to extract from file
+        file_path : str
+            Path to file for which to return a handle
 
         Returns
         -------
-        y : np.ndarray
-            4D array of extracted data
-            (spatial_1, spatial_2, temporal, features)
+        handle : WindX
+            File handle for corresponding file path
         """
 
-        logger.debug('Loading data for raster of shape {}'
-                     .format(raster_index.shape))
-
-        handle = WindX(file_path, hsds=False)
-
-        data = np.zeros((raster_index.shape[0],
-                         raster_index.shape[1],
-                         len(handle.time_index),
-                         len(features)),
-                        dtype=np.float32)
-        for j, f in enumerate(features):
-            data[:, :, :, j] = self.compute_feature(
-                handle, raster_index, f)
-
-        return data
+        return WindX(file_path, hsds=False)
 
     def get_raster_index(self, file_path, target, shape):
         """Get raster index for file data. Here we
@@ -1031,37 +1027,17 @@ class DataHandlerH5(DataHandler):
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
             with WindX(file_path[0]) as res:
-                raster_index = \
-                    res.get_raster_index(target, shape,
-                                         max_delta=self.max_delta)
+                raster_index = RasterIndex(
+                    res.get_raster_index(
+                        target, shape, max_delta=self.max_delta))
             if self.raster_file is not None:
                 logger.debug('Saving raster index: {}'
                              .format(self.raster_file))
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 
-    def extract_data(self):
-        """Building base 4D data array. Can
-        handle multiple files but assumes each
-        file has the same spatial domain
-
-        Returns
-        -------
-        data : np.ndarray
-            4D array of high res data
-            (spatial_1, spatial_2, temporal, features)
-        """
-
-        y = np.concatenate(
-            [self._get_file_data(f, self.raster_index, self.features)
-                for f in self.file_path], axis=2)
-
-        self.data = y[:, :, ::self.time_pruning, :]
-
-        return self.data
-
     def extract_feature(self, handle, raster_index,
-                        feature, interp_height=None):
+                        feature):
         """Extract single feature from data source
 
         Parameters
