@@ -55,6 +55,12 @@ class FeatureHandler:
             'Ri': self.get_richardson_number,
             'U_(.*)m': self.get_u,
             'V_(.*)m': self.get_v}
+        self.alternative_names = {
+            'temperature': 'T',
+            'pressure': 'P',
+            'T': 'temperature',
+            'P': 'pressure'
+        }
 
     def lookup(self, feature):
         """Lookup feature in feature registry
@@ -74,6 +80,32 @@ class FeatureHandler:
                 return v
         return None
 
+    def check_renamed_feature(self, handle, feature):
+        """Method to account for possible alternative
+        feature names. e.g. T for temperature
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            handle pointing to file data
+        feature : str
+            Feature name. e.g. temperature_100m
+
+        Returns
+        -------
+        renamed_feature : str
+            New feature name. e.g. T_100m
+        """
+
+        for k, v in self.alternative_names.items():
+            if k in feature:
+                renamed_feature = feature.replace(k, v)
+                handle_basenames = [
+                    self.get_feature_basename(f) for f in handle]
+                if v in handle_basenames:
+                    return renamed_feature
+        return None
+
     @staticmethod
     def get_feature_height(feature):
         """Get height from feature name
@@ -90,10 +122,33 @@ class FeatureHandler:
             height to use for interpolation
             in meters
         """
-        height = re.search(r'\d*m', feature)
-        if height is not None:
-            height = float(height[0].strip('m'))
+        height = feature.split('_')[-1].strip('m')
+        if not height.isdigit():
+            height = None
         return height
+
+    def get_feature_basename(self, feature):
+        """Get basename of feature. e.g.
+        temperature from temperature_100m
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100m
+
+        Returns
+        -------
+        str
+            feature basename
+        """
+
+        height = self.get_feature_height(feature)
+        if height is not None:
+            suffix = feature.split('_')[-1]
+            basename = feature.strip(f'_{suffix}')
+        else:
+            basename = feature
+        return basename
 
     def compute_feature(self, handle, raster_index,
                         feature):
@@ -127,6 +182,9 @@ class FeatureHandler:
 
         method = self.lookup(feature)
         height = self.get_feature_height(feature)
+        feature_basename = self.get_feature_basename(feature)
+        renamed_feature = self.check_renamed_feature(handle, feature)
+
         if method is not None:
             if height is not None:
                 fdata = method(
@@ -137,15 +195,20 @@ class FeatureHandler:
         else:
             if feature in handle:
                 fdata = self.extract_feature(
-                    handle, raster_index, feature)
+                    handle, raster_index, feature, height)
+            elif feature_basename in handle:
+                fdata = self.extract_feature(
+                    handle, raster_index, feature_basename, height)
+            elif renamed_feature is not None:
+                fdata = self.compute_feature(
+                    handle, raster_index, renamed_feature)
             else:
                 try:
                     fdata = self.extract_feature(
-                        handle, raster_index, feature,
-                        height)
+                        handle, raster_index, feature)
                 except ValueError:
                     logger.error(
-                        f'{feature} not found in source data.')
+                        f'{feature} cannot be computed from source data')
 
         self.feature_cache[feature] = fdata
         return fdata
@@ -269,25 +332,6 @@ class FeatureHandler:
             array of V wind component
         """
 
-    @abstractmethod
-    def get_richardson_number(self, handle, raster_index):
-        """Compute Bulk Richardson Number
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            Bulk Richardson Number array
-        """
-
-    @abstractmethod
     def get_bvf_squared(self, handle, raster_index):
         """Compute BVF squared
 
@@ -303,7 +347,55 @@ class FeatureHandler:
         -------
         ndarray
             BVF squared array
+
         """
+
+        T_top = self.compute_feature(
+            handle, raster_index, 'T_200m')
+        T_bottom = self.compute_feature(
+            handle, raster_index, 'T_100m')
+        P_top = self.compute_feature(
+            handle, raster_index, 'P_200m')
+        P_bottom = self.compute_feature(
+            handle, raster_index, 'P_100m')
+
+        return BVF_squared(T_top, T_bottom,
+                           P_top, P_bottom, 100)
+
+    def get_richardson_number(self, handle, raster_index):
+        """Compute Bulk Richardson Number
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+
+        Returns
+        -------
+        ndarray
+            Bulk Richardson Number array
+
+        """
+
+        T_top = self.extract_feature(
+            handle, raster_index, 'T_200m')
+        T_bottom = self.extract_feature(
+            handle, raster_index, 'T_100m')
+        P_top = self.extract_feature(
+            handle, raster_index, 'P_200m')
+        P_bottom = self.extract_feature(
+            handle, raster_index, 'P_100m')
+        U_top, V_top = self.get_uv(
+            handle, raster_index, 200)
+        U_bottom, V_bottom = self.get_uv(
+            handle, raster_index, 100)
+
+        return gradient_richardson_number(
+            T_top, T_bottom, P_top, P_bottom,
+            U_top, U_bottom, V_top, V_bottom, 100)
 
     @abstractmethod
     def get_lat_lon(self, handle, raster_index):
@@ -789,75 +881,6 @@ class DataHandlerNC(DataHandler):
             handle, raster_index, 'V', height)
         return u, v
 
-    def get_richardson_number(self, handle, raster_index):
-        """Compute Bulk Richardson Number
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            Bulk Richardson Number array
-
-        """
-
-        T_top = self.extract_feature(
-            handle, raster_index, 'T', 200) - 273.15
-        T_bottom = self.extract_feature(
-            handle, raster_index, 'T', 100) - 273.15
-        P_top = self.extract_feature(
-            handle, raster_index, 'P', 200)
-        P_bottom = self.extract_feature(
-            handle, raster_index, 'P', 100)
-        U_top = self.extract_feature(
-            handle, raster_index, 'U', 200)
-        U_bottom = self.extract_feature(
-            handle, raster_index, 'U', 100)
-        V_top = self.extract_feature(
-            handle, raster_index, 'V', 200)
-        V_bottom = self.extract_feature(
-            handle, raster_index, 'V', 100)
-
-        return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
-                                          U_top, U_bottom, V_top, V_bottom,
-                                          100)
-
-    def get_bvf_squared(self, handle, raster_index):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-
-        """
-
-        T_top = self.extract_feature(
-            handle, raster_index, 'T', 200) - 273.15
-        T_bottom = self.extract_feature(
-            handle, raster_index, 'T', 100) - 273.15
-        P_top = self.extract_feature(
-            handle, raster_index, 'P', 200)
-        P_bottom = self.extract_feature(
-            handle, raster_index, 'P', 100)
-
-        return BVF_squared(T_top, T_bottom,
-                           P_top, P_bottom, 100)
-
     def get_lat_lon(self, handle, raster_index):
         """Get lats and lons corresponding to raster
         for use in windspeed/direction -> u/v mapping
@@ -1030,71 +1053,6 @@ class DataHandlerH5(DataHandler):
         logger.info(f'Transforming {required_inputs}'
                     ' to U/V and aligning with grid.')
         return transform_rotate_wind(ws, wd, lat_lon)
-
-    def get_richardson_number(self, handle, raster_index):
-        """Compute Bulk Richardson Number
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            Bulk Richardson Number array
-
-        """
-
-        T_top = self.extract_feature(
-            handle, raster_index, 'temperature_200m')
-        T_bottom = self.extract_feature(
-            handle, raster_index, 'temperature_100m')
-        P_top = self.extract_feature(
-            handle, raster_index, 'pressure_200m')
-        P_bottom = self.extract_feature(
-            handle, raster_index, 'pressure_100m')
-        U_top, V_top = self.get_uv(
-            handle, raster_index, 200)
-        U_bottom, V_bottom = self.get_uv(
-            handle, raster_index, 100)
-
-        return gradient_richardson_number(T_top, T_bottom, P_top, P_bottom,
-                                          U_top, U_bottom, V_top, V_bottom,
-                                          100)
-
-    def get_bvf_squared(self, handle, raster_index):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-
-        """
-
-        T_top = self.extract_feature(
-            handle, raster_index, 'temperature_200m')
-        T_bottom = self.extract_feature(
-            handle, raster_index, 'temperature_100m')
-        P_top = self.extract_feature(
-            handle, raster_index, 'pressure_200m')
-        P_bottom = self.extract_feature(
-            handle, raster_index, 'pressure_100m')
-
-        return BVF_squared(T_top, T_bottom,
-                           P_top, P_bottom, 100)
 
     def get_lat_lon(self, handle, raster_index):
         """Get lats and lons corresponding to raster
