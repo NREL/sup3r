@@ -233,7 +233,9 @@ class FeatureHandler:
             array of U wind component
         """
 
-        u, _ = self.get_uv(handle, raster_index, height)
+        u, v = self.get_uv(handle, raster_index, height)
+        self.feature_cache[f'U_{height}m'] = u
+        self.feature_cache[f'V_{height}m'] = v
         return u
 
     def get_v(self, handle, raster_index, height):
@@ -256,7 +258,10 @@ class FeatureHandler:
             array of V wind component
         """
 
-        _, v = self.get_uv(handle, raster_index, height)
+        u, v = self.get_uv(handle, raster_index, height)
+        self.feature_cache[f'U_{height}m'] = u
+        self.feature_cache[f'V_{height}m'] = v
+
         return v
 
     def extract_feature(self, handle, raster_index,
