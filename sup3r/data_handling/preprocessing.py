@@ -500,6 +500,7 @@ class DataHandler(FeatureHandler):
 
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
+        del self.feature_cache
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
