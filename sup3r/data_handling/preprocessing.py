@@ -9,6 +9,7 @@ import numpy as np
 import os
 import re
 import gc
+import psutil
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -32,8 +33,6 @@ class RasterIndex(list):
     shape method to NC raster_index"""
 
     def __init__(self, raster_obj):
-        self._array = np.array(raster_obj)
-        self._shape = None
         if any(isinstance(r, slice) for r in raster_obj):
             super().__init__(raster_obj)
             self.shape = (self[0].stop - self[0].start,
@@ -151,6 +150,57 @@ class FeatureHandler:
             basename = feature
         return basename
 
+    def extract_feature(self, handle, raster_index,
+                        feature, interp_height=None):
+        """Extract single feature from data source
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        interp_height : float | None
+            Interpolation height for wrf data
+
+        Returns
+        -------
+        ndarray
+            Data array for extracted feature
+            (spatial_1, spatial_2, temporal)
+        """
+
+        logger.debug(f'Extracting {feature}.')
+
+        if feature in self.feature_cache:
+            logger.debug(
+                f'{feature} already extracted. Loading from cache. ')
+            return self.feature_cache[feature]
+
+        if len(handle[feature].shape) > 3:
+            if interp_height is None:
+                fdata = \
+                    handle[feature][tuple([slice(None)] + [0] + raster_index)]
+            else:
+                fdata = interp_var(handle, feature, float(interp_height))
+                fdata = fdata[tuple([slice(None)] + raster_index)]
+        else:
+            fdata = np.array(
+                handle[feature][tuple([slice(None)] + raster_index)],
+                dtype=np.float32)
+
+        if fdata.shape[-2:] != raster_index.shape:
+            fdata = fdata.reshape(
+                (len(fdata), raster_index.shape[0], raster_index.shape[1]))
+
+        fdata = fdata.astype(np.float32)
+        fdata = np.transpose(fdata, (1, 2, 0))
+        self.feature_cache[feature] = fdata
+        return fdata
+
     def compute_feature(self, handle, raster_index,
                         feature):
         """Compute single feature by extracting
@@ -170,7 +220,7 @@ class FeatureHandler:
         -------
         ndarray
             Data array for computed feature
-
+            (spatial_1, spatial_2, temporal)
         """
 
         if feature not in handle:
@@ -266,56 +316,6 @@ class FeatureHandler:
 
         return v
 
-    def extract_feature(self, handle, raster_index,
-                        feature, interp_height=None):
-        """Extract single feature from data source
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-        feature : str
-            Feature to extract from data
-        interp_height : float | None
-            Interpolation height for wrf data
-
-        Returns
-        -------
-        ndarray
-            Data array for extracted feature
-            (spatial_1, spatial_2, temporal)
-
-        """
-
-        logger.debug(f'Extracting {feature}.')
-
-        if feature in self.feature_cache:
-            logger.debug(
-                f'{feature} already extracted. Loading from cache. ')
-            return self.feature_cache[feature]
-
-        if len(handle[feature].shape) > 3:
-            if interp_height is None:
-                fdata = \
-                    handle[feature][tuple([slice(None)] + [0] + raster_index)]
-            else:
-                fdata = interp_var(handle, feature, float(interp_height))
-                fdata = fdata[tuple([slice(None)] + raster_index)]
-        else:
-            fdata = np.array(
-                handle[feature][tuple([slice(None)] + raster_index)])
-
-        if fdata.shape[-2:] != raster_index.shape:
-            fdata = fdata.reshape(
-                (len(fdata), raster_index.shape[0], raster_index.shape[1]))
-
-        fdata = np.transpose(fdata, (1, 2, 0)).astype(np.float32)
-        self.feature_cache[feature] = fdata
-        return fdata
-
     @abstractmethod
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components
@@ -354,7 +354,6 @@ class FeatureHandler:
         -------
         ndarray
             BVF squared array
-
         """
 
         T_top = self.compute_feature(
@@ -384,7 +383,6 @@ class FeatureHandler:
         -------
         ndarray
             Bulk Richardson Number array
-
         """
 
         T_top = self.extract_feature(
@@ -630,6 +628,13 @@ class DataHandler(FeatureHandler):
             data[:, :, :, j] = self.compute_feature(
                 handle, raster_index, f)
 
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
+        print(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
         return data
 
     def _split_data(self):

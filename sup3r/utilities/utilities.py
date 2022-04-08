@@ -336,7 +336,7 @@ def unstagger_var(data, var):
     """
 
     # Import Variable values from nc database instance
-    array_in = np.array(data[var])
+    array_in = np.array(data[var], np.float32)
 
     for i, d in enumerate(data[var].dims):
         if 'stag' in d:
@@ -427,8 +427,9 @@ def interp3D(var_array, h_array, heights):
                                    np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    out_array = np.array([np.interp(heights, h, var)
-                          for h, var in zip(h_array, var_array)])
+    out_array = np.array(
+        [np.interp(heights, h, var) for h, var in zip(h_array, var_array)],
+        np.float32)
     # Reshape out_array
     if isinstance(heights, (float, int)):
         out_array = out_array.T.reshape((1, array_shape[-2],
@@ -482,7 +483,9 @@ def potential_temperature(T, P):
         Potential temperature
     """
     P0 = 100000
-    return (T + 273.15) * (P0 / P) ** (0.286)
+    return np.array(
+        (T + 273.15) * (P0 / P) ** (0.286),
+        dtype=np.float32)
 
 
 def potential_temperature_difference(T_top, P_top,
@@ -514,9 +517,43 @@ def potential_temperature_difference(T_top, P_top,
         Difference in potential temperature between
         top and bottom levels
     """
-    PT_top = potential_temperature(T_top, P_top)
-    PT_bottom = potential_temperature(T_bottom, P_bottom)
-    return PT_top - PT_bottom
+    PT_diff = potential_temperature(T_top, P_top)
+    PT_diff -= potential_temperature(T_bottom, P_bottom)
+    return PT_diff
+
+
+def potential_temperature_average(T_top, P_top,
+                                  T_bottom, P_bottom):
+    """Potential temp average calculation
+
+    Parameters
+    ---------
+    T_top : ndarray
+        Temperature at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    T_bottom : ndarray
+        Temperature at lower height.
+        Used in the approximation of
+        potential temperature derivative
+    P_top : ndarray
+        Pressure at higher height.
+        Used in the approximation of
+        potential temperature derivative
+    P_bottom : ndarray
+        Pressure at lower height.
+        Used in the approximation of
+        potential temperature derivative
+
+    Returns
+    -------
+    ndarray
+        Average of potential temperature between
+        top and bottom levels
+    """
+    PT_avg = potential_temperature(T_top, P_top)
+    PT_avg += potential_temperature(T_bottom, P_bottom)
+    return PT_avg / 2.0
 
 
 def virtual_var(var, mixing_ratio):
@@ -668,11 +705,12 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    PT_top = potential_temperature(T_top, P_top)
-    PT_bottom = potential_temperature(T_bottom, P_bottom)
-    PT_mid = (PT_top + PT_bottom) / 2.0
-    PT_diff = (PT_top - PT_bottom)
-    return 9.81 * PT_diff / (PT_mid * delta_h)
+    bvf_squared = 9.81 / delta_h
+    bvf_squared *= potential_temperature_difference(
+        T_top, P_top, T_bottom, P_bottom)
+    bvf_squared /= potential_temperature_average(
+        T_top, P_top, T_bottom, P_bottom)
+    return bvf_squared
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
@@ -726,10 +764,9 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
 
     """
 
-    U_diff = (U_top - U_bottom)
-    V_diff = (V_top - V_bottom)
-    numer = BVF_squared(T_top, T_bottom,
-                        P_top, P_bottom, delta_h)
-    denom = (U_diff ** 2 + V_diff ** 2) / delta_h ** 2
-    denom[denom < 1e-6] = 1e-6
-    return numer / denom
+    ws_grad = (U_top - U_bottom) ** 2
+    ws_grad += (V_top - V_bottom) ** 2
+    ws_grad /= delta_h ** 2
+    ws_grad[ws_grad < 1e-6] = 1e-6
+    return BVF_squared(
+        T_top, T_bottom, P_top, P_bottom, delta_h) / ws_grad
