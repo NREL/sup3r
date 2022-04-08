@@ -273,7 +273,7 @@ class FeatureHandler:
         f_info = Feature(feature, handle)
 
         if method is not None:
-            logger.debug(f'Using {method} to compute {feature}')
+            logger.debug(f'Using {method.__name__} to compute {feature}')
             fdata = method(
                 handle, raster_index, f_info.height)
         else:

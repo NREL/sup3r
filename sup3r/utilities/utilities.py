@@ -364,7 +364,9 @@ def calc_height(data):
         hgt = np.expand_dims(hgt, axis=1)
         hgt = np.repeat(hgt, phb.shape[-3], axis=1)
 
-    return (ph + phb) / 9.81 - hgt
+    hgt = (ph + phb) / 9.81 - hgt
+    del ph, phb
+    return hgt
 
 
 def interp3D(var_array, h_array, heights):
@@ -454,9 +456,10 @@ def interp_var(data, var, heights):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-    h_array = calc_height(data)
-    var_array = unstagger_var(data, var)
-    return interp3D(var_array, h_array, heights)
+    return interp3D(
+        unstagger_var(data, var),
+        calc_height(data),
+        heights)
 
 
 def potential_temperature(T, P):
