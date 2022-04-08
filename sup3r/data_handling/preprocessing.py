@@ -209,20 +209,17 @@ class FeatureHandler:
 
         if len(handle[feature].shape) > 3:
             if interp_height is None:
-                fdata = np.array(
-                    handle[feature][tuple([slice(None)] + [0] + raster_index)],
-                    dtype=np.float32)
+                fdata = handle[feature][tuple(
+                    [slice(None)] + [0] + raster_index)].astype(np.float32)
             else:
                 logger.debug(
                     f'Interpolating {feature} at height {interp_height}m')
-                fdata = np.array(
-                    interp_var(handle, feature, float(interp_height)),
-                    dtype=np.float32)
+                fdata = interp_var(
+                    handle, feature, float(interp_height)).astype(np.float32)
                 fdata = fdata[tuple([slice(None)] + raster_index)]
         else:
-            fdata = np.array(
-                handle[feature][tuple([slice(None)] + raster_index)],
-                dtype=np.float32)
+            fdata = handle[feature][tuple(
+                [slice(None)] + raster_index)].astype(np.float32)
 
         if fdata.shape[-2:] != raster_index.shape:
             logger.debug(f'Reshaping raw {feature} data')
@@ -232,7 +229,7 @@ class FeatureHandler:
         fdata = np.transpose(fdata, (1, 2, 0))
         if self.cache_features:
             self.feature_cache[feature] = fdata
-        return fdata
+        return fdata.astype(np.float32)
 
     def compute_feature(
             self, handle, raster_index, feature) -> np.dtype(np.float32):
@@ -294,7 +291,7 @@ class FeatureHandler:
 
         if self.cache_features:
             self.feature_cache[feature] = fdata
-        return fdata
+        return fdata.astype(np.float32)
 
     def get_u(
             self, handle, raster_index, height) -> np.dtype(np.float32):
@@ -347,7 +344,7 @@ class FeatureHandler:
         u, v = self.get_uv(handle, raster_index, height)
         if self.cache_features:
             self.feature_cache[f'U_{height}m'] = u
-            self.feature_cache[f'V_{height}m'] = v
+        self.feature_cache[f'V_{height}m'] = v
         return v
 
     def get_bvf_squared(

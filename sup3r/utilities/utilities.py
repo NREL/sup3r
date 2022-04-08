@@ -106,10 +106,13 @@ def transform_rotate_wind(ws, wd, lat_lon):
     theta[0] = theta[1]  # fix the roll row
     wd = np.radians(wd - 180.0)
 
-    return (np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-            + np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd),
-            np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-            - np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd))
+    return (
+        (np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+         + np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+         ).astype(np.float32),
+        (np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+         - np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+         ).astype(np.float32))
 
 
 def temporal_coarsening(data, temporal_res=2, method='subsample'):
@@ -496,10 +499,9 @@ def potential_temperature_average(T_top, P_top,
         Average of potential temperature between
         top and bottom levels
     """
-    return np.array(
-        (potential_temperature(T_top, P_top)
-         + potential_temperature(T_bottom, P_bottom)) / 2.0,
-        dtype=np.float32)
+    return ((potential_temperature(T_top, P_top)
+            + potential_temperature(T_bottom, P_bottom)) / 2.0
+            ).astype(np.float32)
 
 
 def virtual_var(var, mixing_ratio):
@@ -651,13 +653,12 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    return np.array(
-        (9.81 / delta_h
-         * potential_temperature_difference(
-             T_top, P_top, T_bottom, P_bottom)
-         / potential_temperature_average(
-             T_top, P_top, T_bottom, P_bottom)),
-        dtype=np.float32)
+    return (9.81 / delta_h
+            * potential_temperature_difference(
+                T_top, P_top, T_bottom, P_bottom)
+            / potential_temperature_average(
+                T_top, P_top, T_bottom, P_bottom)
+            ).astype(np.float32)
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
