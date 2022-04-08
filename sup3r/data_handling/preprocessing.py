@@ -176,6 +176,11 @@ class FeatureHandler:
 
         logger.debug(f'Extracting {feature}.')
 
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
+
         if feature in self.feature_cache:
             logger.debug(
                 f'{feature} already extracted. Loading from cache. ')
@@ -638,11 +643,6 @@ class DataHandler(FeatureHandler):
         for j, f in enumerate(features):
             data[:, :, :, j] = self.compute_feature(
                 handle, raster_index, f)
-
-            mem = psutil.virtual_memory()
-            logger.info(
-                'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-                .format(mem.used / 1e9, mem.total / 1e9))
 
         return data
 

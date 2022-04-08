@@ -149,24 +149,18 @@ def rotate_u_v(u, v, lat_lon):
         3D array of meridional wind components
     """
 
-    lats = lat_lon[:, :, 0]
-    lons = lat_lon[:, :, 1]
-
     # get the dy/dx to the nearest vertical neighbor
-    dy = lats - np.roll(lats, 1, axis=0)
-    dx = lons - np.roll(lons, 1, axis=0)
+    dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
+    dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
     theta[0] = theta[1]  # fix the roll row
 
-    sin2 = np.sin(theta)
-    cos2 = np.cos(theta)
-
-    u_rot = np.einsum('ij,ijk->ijk', sin2, v) \
-        + np.einsum('ij,ijk->ijk', cos2, u)
-    v_rot = np.einsum('ij,ijk->ijk', cos2, v) \
-        - np.einsum('ij,ijk->ijk', sin2, u)
+    u_rot = np.einsum('ij,ijk->ijk', np.sin(theta), v) \
+        + np.einsum('ij,ijk->ijk', np.cos(theta), u)
+    v_rot = np.einsum('ij,ijk->ijk', np.cos(theta), v) \
+        - np.einsum('ij,ijk->ijk', np.sin(theta), u)
 
     return u_rot, v_rot
 
@@ -213,7 +207,7 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
                      data.shape[4])), axis=4)
 
     else:
-        coarse_data = data.copy()
+        coarse_data = data
 
     return coarse_data
 
@@ -269,7 +263,7 @@ def spatial_coarsening(data, spatial_res=2):
                 / (spatial_res * spatial_res)
 
     else:
-        coarse_data = data.copy()
+        coarse_data = data
 
     return coarse_data
 
@@ -517,9 +511,8 @@ def potential_temperature_difference(T_top, P_top,
         Difference in potential temperature between
         top and bottom levels
     """
-    PT_diff = potential_temperature(T_top, P_top)
-    PT_diff -= potential_temperature(T_bottom, P_bottom)
-    return PT_diff
+    return (potential_temperature(T_top, P_top)
+           - potential_temperature(T_bottom, P_bottom))
 
 
 def potential_temperature_average(T_top, P_top,
@@ -551,9 +544,8 @@ def potential_temperature_average(T_top, P_top,
         Average of potential temperature between
         top and bottom levels
     """
-    PT_avg = potential_temperature(T_top, P_top)
-    PT_avg += potential_temperature(T_bottom, P_bottom)
-    return PT_avg / 2.0
+    return (potential_temperature(T_top, P_top)
+           + potential_temperature(T_bottom, P_bottom)) / 2.0
 
 
 def virtual_var(var, mixing_ratio):
@@ -705,12 +697,11 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    bvf_squared = 9.81 / delta_h
-    bvf_squared *= potential_temperature_difference(
-        T_top, P_top, T_bottom, P_bottom)
-    bvf_squared /= potential_temperature_average(
-        T_top, P_top, T_bottom, P_bottom)
-    return bvf_squared
+    return (9.81 / delta_h
+            * potential_temperature_difference(
+                T_top, P_top, T_bottom, P_bottom)
+            / potential_temperature_average(
+                T_top, P_top, T_bottom, P_bottom))
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
