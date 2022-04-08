@@ -632,9 +632,6 @@ class DataHandler(FeatureHandler):
         logger.info(
             'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
             .format(mem.used / 1e9, mem.total / 1e9))
-        print(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
         return data
 
     def _split_data(self):
