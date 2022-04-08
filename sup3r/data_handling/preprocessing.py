@@ -177,6 +177,11 @@ class FeatureHandler:
 
         logger.debug(f'Extracting {feature}.')
 
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
+
         if feature in self.feature_cache:
             logger.debug(
                 f'{feature} already extracted. Loading from cache. ')
@@ -244,6 +249,11 @@ class FeatureHandler:
                 'Loading from cache.')
             return self.feature_cache[feature]
 
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
+
         method = self.lookup(feature)
         height = self.get_feature_height(feature)
         feature_basename = self.get_feature_basename(feature)
@@ -251,12 +261,8 @@ class FeatureHandler:
 
         if method is not None:
             logger.debug(f'Using {method} to compute {feature}')
-            if height is not None:
-                fdata = method(
-                    handle, raster_index, height)
-            else:
-                fdata = method(
-                    handle, raster_index)
+            fdata = method(
+                handle, raster_index, height)
         else:
             if feature in handle:
                 fdata = self.extract_feature(
@@ -274,6 +280,11 @@ class FeatureHandler:
                 except ValueError:
                     logger.error(
                         f'{feature} cannot be computed from source data')
+
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
 
         if self.cache_features:
             self.feature_cache[feature] = fdata
@@ -329,8 +340,77 @@ class FeatureHandler:
         u, v = self.get_uv(handle, raster_index, height)
         self.feature_cache[f'U_{height}m'] = u
         self.feature_cache[f'V_{height}m'] = v
-
         return v
+
+    def get_bvf_squared(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
+        """Compute BVF squared
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF squared array
+        """
+
+        return BVF_squared(
+            self.compute_feature(
+                handle, raster_index, f'T_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'T_{int(height) - 100}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{int(height) - 100}m'),
+            100)
+
+    def get_richardson_number(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
+        """Compute Bulk Richardson Number
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            Bulk Richardson Number array
+        """
+
+        return gradient_richardson_number(
+            self.compute_feature(
+                handle, raster_index, f'T_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'T_{int(height) - 100}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{int(height) - 100}m'),
+            self.compute_feature(
+                handle, raster_index, f'U_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'U_{int(height) - 100}m'),
+            self.compute_feature(
+                handle, raster_index, f'V_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'V_{int(height) - 100}m'),
+            100)
 
     @abstractmethod
     def get_uv(self, handle, raster_index, height):
@@ -354,71 +434,6 @@ class FeatureHandler:
         V : ndarray
             array of V wind component
         """
-
-    def get_bvf_squared(
-            self, handle, raster_index) -> np.dtype(np.float32):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-        """
-
-        T_top = self.compute_feature(
-            handle, raster_index, 'T_200m')
-        T_bottom = self.compute_feature(
-            handle, raster_index, 'T_100m')
-        P_top = self.compute_feature(
-            handle, raster_index, 'P_200m')
-        P_bottom = self.compute_feature(
-            handle, raster_index, 'P_100m')
-
-        return BVF_squared(T_top, T_bottom,
-                           P_top, P_bottom, 100)
-
-    def get_richardson_number(
-            self, handle, raster_index) -> np.dtype(np.float32):
-        """Compute Bulk Richardson Number
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            Bulk Richardson Number array
-        """
-
-        T_top = self.extract_feature(
-            handle, raster_index, 'T_200m')
-        T_bottom = self.extract_feature(
-            handle, raster_index, 'T_100m')
-        P_top = self.extract_feature(
-            handle, raster_index, 'P_200m')
-        P_bottom = self.extract_feature(
-            handle, raster_index, 'P_100m')
-        U_top, V_top = self.get_uv(
-            handle, raster_index, 200)
-        U_bottom, V_bottom = self.get_uv(
-            handle, raster_index, 100)
-
-        return gradient_richardson_number(
-            T_top, T_bottom, P_top, P_bottom,
-            U_top, U_bottom, V_top, V_bottom, 100)
 
     @abstractmethod
     def get_lat_lon(
