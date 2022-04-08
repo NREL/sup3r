@@ -42,44 +42,74 @@ class RasterIndex(list):
             self.shape = raster_obj.shape
 
 
-class FeatureHandler:
-    """Feature Handler with cache
-    for previously loaded features used
-    in other calculations
-    """
+class Feature:
+    """Class to simplify feature
+    computations. Stores alternative names,
+    feature height, feature basename, name of
+    feature in handle"""
 
-    def __init__(self, cache_features=True):
-        self.cache_features = cache_features
-        self.feature_cache = {}
-        self.registry = {
-            'BVF_squared': self.get_bvf_squared,
-            'Ri': self.get_richardson_number,
-            'U_(.*)m': self.get_u,
-            'V_(.*)m': self.get_v}
+    def __init__(self, feature, handle):
         self.alternative_names = {
             'temperature': 'T',
             'pressure': 'P',
             'T': 'temperature',
             'P': 'pressure'
         }
+        self.raw_name = feature
+        self.height = self.get_feature_height(feature)
+        self.basename = self.get_feature_basename(feature)
+        self.alt_name = self.check_renamed_feature(
+            handle, feature)
+        if self.raw_name in handle:
+            self.handle_input = self.raw_name
+        elif self.basename in handle:
+            self.handle_input = self.basename
+        else:
+            self.handle_input = None
 
-    def lookup(self, feature):
-        """Lookup feature in feature registry
+    def get_feature_basename(self, feature):
+        """Get basename of feature. e.g.
+        temperature from temperature_100m
 
         Parameters
         ----------
         feature : str
-            Feature to lookup in registry
+            Name of feature. e.g. U_100m
 
         Returns
         -------
-        method | None
-            Method to use for computing feature
+        str
+            feature basename
         """
-        for k, v in self.registry.items():
-            if re.match(k, feature):
-                return v
-        return None
+
+        height = self.get_feature_height(feature)
+        if height is not None:
+            suffix = feature.split('_')[-1]
+            basename = feature.strip(f'_{suffix}')
+        else:
+            basename = feature
+        return basename
+
+    @staticmethod
+    def get_feature_height(feature):
+        """Get height from feature name
+        to use in height interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100m
+
+        Returns
+        -------
+        float | None
+            height to use for interpolation
+            in meters
+        """
+        height = feature.split('_')[-1].strip('m')
+        if not height.isdigit():
+            height = None
+        return height
 
     def check_renamed_feature(self, handle, feature):
         """Method to account for possible alternative
@@ -107,49 +137,39 @@ class FeatureHandler:
                     return renamed_feature
         return None
 
-    @staticmethod
-    def get_feature_height(feature):
-        """Get height from feature name
-        to use in height interpolation
+
+class FeatureHandler:
+    """Feature Handler with cache
+    for previously loaded features used
+    in other calculations
+    """
+
+    def __init__(self, cache_features=True):
+        self.cache_features = cache_features
+        self.feature_cache = {}
+        self.registry = {
+            'BVF_squared': self.get_bvf_squared,
+            'Ri': self.get_richardson_number,
+            'U_(.*)m': self.get_u,
+            'V_(.*)m': self.get_v}
+
+    def lookup(self, feature):
+        """Lookup feature in feature registry
 
         Parameters
         ----------
         feature : str
-            Name of feature. e.g. U_100m
+            Feature to lookup in registry
 
         Returns
         -------
-        float | None
-            height to use for interpolation
-            in meters
+        method | None
+            Method to use for computing feature
         """
-        height = feature.split('_')[-1].strip('m')
-        if not height.isdigit():
-            height = None
-        return height
-
-    def get_feature_basename(self, feature):
-        """Get basename of feature. e.g.
-        temperature from temperature_100m
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100m
-
-        Returns
-        -------
-        str
-            feature basename
-        """
-
-        height = self.get_feature_height(feature)
-        if height is not None:
-            suffix = feature.split('_')[-1]
-            basename = feature.strip(f'_{suffix}')
-        else:
-            basename = feature
-        return basename
+        for k, v in self.registry.items():
+            if re.match(k, feature):
+                return v
+        return None
 
     def extract_feature(
             self, handle, raster_index,
@@ -178,7 +198,7 @@ class FeatureHandler:
         logger.debug(f'Extracting {feature}.')
 
         mem = psutil.virtual_memory()
-        logger.info(
+        logger.debug(
             'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
             .format(mem.used / 1e9, mem.total / 1e9))
 
@@ -208,11 +228,6 @@ class FeatureHandler:
             logger.debug(f'Reshaping raw {feature} data')
             fdata = fdata.reshape(
                 (len(fdata), raster_index.shape[0], raster_index.shape[1]))
-
-        mem = psutil.virtual_memory()
-        logger.info(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
 
         fdata = np.transpose(fdata, (1, 2, 0))
         if self.cache_features:
@@ -250,29 +265,24 @@ class FeatureHandler:
             return self.feature_cache[feature]
 
         mem = psutil.virtual_memory()
-        logger.info(
+        logger.debug(
             'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
             .format(mem.used / 1e9, mem.total / 1e9))
 
         method = self.lookup(feature)
-        height = self.get_feature_height(feature)
-        feature_basename = self.get_feature_basename(feature)
-        renamed_feature = self.check_renamed_feature(handle, feature)
+        f_info = Feature(feature, handle)
 
         if method is not None:
             logger.debug(f'Using {method} to compute {feature}')
             fdata = method(
-                handle, raster_index, height)
+                handle, raster_index, f_info.height)
         else:
-            if feature in handle:
+            if f_info.handle_input is not None:
                 fdata = self.extract_feature(
-                    handle, raster_index, feature, height)
-            elif feature_basename in handle:
-                fdata = self.extract_feature(
-                    handle, raster_index, feature_basename, height)
-            elif renamed_feature is not None:
+                    handle, raster_index, f_info.handle_input, f_info.height)
+            elif f_info.alt_name is not None:
                 fdata = self.compute_feature(
-                    handle, raster_index, renamed_feature)
+                    handle, raster_index, f_info.alt_name)
             else:
                 try:
                     fdata = self.extract_feature(
@@ -280,11 +290,6 @@ class FeatureHandler:
                 except ValueError:
                     logger.error(
                         f'{feature} cannot be computed from source data')
-
-        mem = psutil.virtual_memory()
-        logger.info(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
 
         if self.cache_features:
             self.feature_cache[feature] = fdata
@@ -362,6 +367,9 @@ class FeatureHandler:
             BVF squared array
         """
 
+        if height is None:
+            height = 200
+
         return BVF_squared(
             self.compute_feature(
                 handle, raster_index, f'T_{height}m'),
@@ -392,6 +400,9 @@ class FeatureHandler:
         ndarray
             Bulk Richardson Number array
         """
+
+        if height is None:
+            height = 200
 
         return gradient_richardson_number(
             self.compute_feature(
