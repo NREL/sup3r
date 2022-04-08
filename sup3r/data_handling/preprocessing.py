@@ -210,6 +210,7 @@ class FeatureHandler:
                     logger.error(
                         f'{feature} cannot be computed from source data')
 
+        fdata = fdata.astype(np.float32)
         self.feature_cache[feature] = fdata
         return fdata
 
@@ -310,7 +311,7 @@ class FeatureHandler:
             fdata = fdata.reshape(
                 (len(fdata), raster_index.shape[0], raster_index.shape[1]))
 
-        fdata = np.transpose(fdata, (1, 2, 0))
+        fdata = np.transpose(fdata, (1, 2, 0)).astype(np.float32)
         self.feature_cache[feature] = fdata
         return fdata
 
