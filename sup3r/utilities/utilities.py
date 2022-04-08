@@ -388,8 +388,8 @@ def interp3D(var_array, h_array, heights):
     """
 
     msg = ('Input arrays must be the same shape.'
-           '\nvar_array: {}\nh_array: {}'
-           .format(var_array.shape, h_array.shape))
+           f'\nvar_array: {var_array.shape}'
+           f'\nh_array: {h_array.shape}')
     assert var_array.shape == h_array.shape, msg
 
     heights = [heights] if isinstance(heights, (int, float)) else heights
@@ -403,8 +403,8 @@ def interp3D(var_array, h_array, heights):
         raise RuntimeError(msg)
 
     if not height_check:
-        msg = ('Heights {} exceed the bounds of the pressure levels: '
-               '({}, {})'.format(heights, h_min, h_max))
+        msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
+               f'({h_min}, {h_max})')
         logger.error(msg)
         raise RuntimeError(msg)
 

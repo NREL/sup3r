@@ -199,8 +199,8 @@ class FeatureHandler:
 
         mem = psutil.virtual_memory()
         logger.debug(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
+            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         if feature in self.feature_cache:
             logger.debug(
@@ -266,14 +266,15 @@ class FeatureHandler:
 
         mem = psutil.virtual_memory()
         logger.debug(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
+            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         method = self.lookup(feature)
         f_info = Feature(feature, handle)
 
         if method is not None:
-            logger.debug(f'Using {method.__name__} to compute {feature}')
+            logger.debug(
+                f'Using method {method.__name__} to compute {feature}')
             fdata = method(
                 handle, raster_index, f_info.height)
         else:
@@ -517,8 +518,8 @@ class DataHandler(FeatureHandler):
         cache_features : bool
             Whether to cache features after computation/extraction
         """
-        logger.info('Initializing DataHandler from source files: {}'
-                    .format(file_path))
+        logger.info(
+            f'Initializing DataHandler from source files: {file_path}')
 
         check = ((target is not None and shape is not None)
                  or (raster_file is not None and os.path.exists(raster_file)))
@@ -661,8 +662,8 @@ class DataHandler(FeatureHandler):
             (spatial_1, spatial_2, temporal, features)
         """
 
-        logger.debug('Loading data for raster of shape {}'
-                     .format(raster_index.shape))
+        logger.debug(
+            f'Loading data for raster of shape {raster_index.shape}')
 
         handle = self._get_file_handle(file_path)
 
@@ -1071,7 +1072,7 @@ class DataHandlerH5(DataHandler):
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug('Loading raster index: {}'.format(self.raster_file))
+            logger.debug(f'Loading raster index: {self.raster_file}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             logger.debug('Calculating raster index from WTK file '
@@ -1080,8 +1081,8 @@ class DataHandlerH5(DataHandler):
                 raster_index = res.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             if self.raster_file is not None:
-                logger.debug('Saving raster index: {}'
-                             .format(self.raster_file))
+                logger.debug(
+                    f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return RasterIndex(raster_index)
 
