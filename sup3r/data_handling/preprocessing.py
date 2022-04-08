@@ -639,10 +639,11 @@ class DataHandler(FeatureHandler):
             data[:, :, :, j] = self.compute_feature(
                 handle, raster_index, f)
 
-        mem = psutil.virtual_memory()
-        logger.info(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
+            mem = psutil.virtual_memory()
+            logger.info(
+                'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+                .format(mem.used / 1e9, mem.total / 1e9))
+
         return data
 
     def _split_data(self):
