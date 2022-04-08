@@ -96,8 +96,10 @@ def transform_rotate_wind(ws, wd, lat_lon):
     v : np.ndarray
         3D array of high res V data
     """
-    u, v = transform_wind(ws, wd)
-    return rotate_u_v(u, v, lat_lon)
+    return rotate_u_v(
+        ws * np.cos(np.radians(wd - 180.0)),
+        ws * np.sin(np.radians(wd - 180.0)),
+        lat_lon)
 
 
 def transform_wind(ws, wd):
@@ -119,10 +121,8 @@ def transform_wind(ws, wd):
         3D array of meridional wind components
     """
 
-    u = ws * np.cos(np.radians(wd - 180.0))
-    v = ws * np.sin(np.radians(wd - 180.0))
-
-    return u, v
+    return (ws * np.cos(np.radians(wd - 180.0)),
+            ws * np.sin(np.radians(wd - 180.0)))
 
 
 def rotate_u_v(u, v, lat_lon):
@@ -155,14 +155,13 @@ def rotate_u_v(u, v, lat_lon):
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
+    del dy, dx
     theta[0] = theta[1]  # fix the roll row
 
-    u_rot = np.einsum('ij,ijk->ijk', np.sin(theta), v) \
-        + np.einsum('ij,ijk->ijk', np.cos(theta), u)
-    v_rot = np.einsum('ij,ijk->ijk', np.cos(theta), v) \
-        - np.einsum('ij,ijk->ijk', np.sin(theta), u)
-
-    return u_rot, v_rot
+    return ((np.einsum('ij,ijk->ijk', np.sin(theta), v)
+             + np.einsum('ij,ijk->ijk', np.cos(theta), u)),
+            (np.einsum('ij,ijk->ijk', np.cos(theta), v)
+             - np.einsum('ij,ijk->ijk', np.sin(theta), u)))
 
 
 def temporal_coarsening(data, temporal_res=2, method='subsample'):
