@@ -96,10 +96,20 @@ def transform_rotate_wind(ws, wd, lat_lon):
     v : np.ndarray
         3D array of high res V data
     """
-    return rotate_u_v(
-        ws * np.cos(np.radians(wd - 180.0)),
-        ws * np.sin(np.radians(wd - 180.0)),
-        lat_lon)
+    # get the dy/dx to the nearest vertical neighbor
+    dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
+    dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+
+    # calculate the angle from the vertical
+    theta = (np.pi / 2) - np.arctan2(dy, dx)
+    del dy, dx
+    theta[0] = theta[1]  # fix the roll row
+    wd = np.radians(wd - 180.0)
+
+    return (np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+            + np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd),
+            np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+            - np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd))
 
 
 def transform_wind(ws, wd):
