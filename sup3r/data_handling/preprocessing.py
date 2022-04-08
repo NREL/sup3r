@@ -8,6 +8,7 @@ import xarray as xr
 import numpy as np
 import os
 import re
+import gc
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -502,6 +503,7 @@ class DataHandler(FeatureHandler):
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
         self.feature_cache = {}
+        gc.collect()
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
