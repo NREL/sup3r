@@ -711,11 +711,15 @@ class DataHandler(FeatureHandler):
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
 
-        y = np.concatenate(
-            [self._get_file_data(f, self.raster_index, self.features)
-                for f in self.file_path], axis=2)
+        if len(self.file_path) > 1:
+            self.data = np.concatenate(
+                [self._get_file_data(f, self.raster_index, self.features)
+                    for f in self.file_path], axis=2)
+        else:
+            self.data = self._get_file_data(
+                self.file_path[0], self.raster_index, self.features)
 
-        self.data = y[:, :, ::self.time_pruning, :]
+        self.data = self.data[:, :, ::self.time_pruning, :]
 
         return self.data
 
