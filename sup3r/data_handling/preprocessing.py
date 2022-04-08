@@ -48,7 +48,8 @@ class FeatureHandler:
     in other calculations
     """
 
-    def __init__(self):
+    def __init__(self, cache_features=True):
+        self.cache_features = cache_features
         self.feature_cache = {}
         self.registry = {
             'BVF_squared': self.get_bvf_squared,
@@ -176,11 +177,6 @@ class FeatureHandler:
 
         logger.debug(f'Extracting {feature}.')
 
-        mem = psutil.virtual_memory()
-        logger.info(
-            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
-            .format(mem.used / 1e9, mem.total / 1e9))
-
         if feature in self.feature_cache:
             logger.debug(
                 f'{feature} already extracted. Loading from cache. ')
@@ -208,8 +204,14 @@ class FeatureHandler:
             fdata = fdata.reshape(
                 (len(fdata), raster_index.shape[0], raster_index.shape[1]))
 
+        mem = psutil.virtual_memory()
+        logger.info(
+            'Current memory usage is {:.3f} GB out of {:.3f} GB total.'
+            .format(mem.used / 1e9, mem.total / 1e9))
+
         fdata = np.transpose(fdata, (1, 2, 0))
-        self.feature_cache[feature] = fdata
+        if self.cache_features:
+            self.feature_cache[feature] = fdata
         return fdata
 
     def compute_feature(
@@ -273,7 +275,8 @@ class FeatureHandler:
                     logger.error(
                         f'{feature} cannot be computed from source data')
 
-        self.feature_cache[feature] = fdata
+        if self.cache_features:
+            self.feature_cache[feature] = fdata
         return fdata
 
     def get_u(
@@ -445,7 +448,7 @@ class DataHandler(FeatureHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, cache_features=True):
 
         """Data handling and extraction
 
@@ -485,6 +488,8 @@ class DataHandler(FeatureHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        cache_features : bool
+            Whether to cache features after computation/extraction
         """
         logger.info('Initializing DataHandler from source files: {}'
                     .format(file_path))
@@ -495,7 +500,7 @@ class DataHandler(FeatureHandler):
                'or an existing raster_file input.')
         assert check, msg
 
-        super().__init__()
+        super().__init__(cache_features)
         self.file_path = file_path
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
@@ -759,7 +764,7 @@ class DataHandlerNC(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, cache_features=True):
 
         """Data handling and extraction
 
@@ -799,12 +804,15 @@ class DataHandlerNC(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        cache_features : bool
+            Whether to cache features after computation/extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time)
+            spatial_sample_shape, raster_file, shuffle_time,
+            cache_features)
 
     def _get_file_handle(self, file_path):
         """Get file type specific file handle
@@ -944,7 +952,7 @@ class DataHandlerH5(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, cache_features=True):
 
         """Data handling and extraction
 
@@ -984,12 +992,15 @@ class DataHandlerH5(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        cache_features : bool
+            Whether to cache features after computation/extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time)
+            spatial_sample_shape, raster_file, shuffle_time,
+            cache_features)
 
     def _get_file_handle(self, file_path):
         """Get file type specific file handle
@@ -1492,7 +1503,8 @@ class BatchHandler:
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
-             list_chunk_size=None):
+             list_chunk_size=None,
+             cache_features=True):
 
         """Method to initialize both
         data and batch handlers
@@ -1554,6 +1566,8 @@ class BatchHandler:
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
+        cache_features : bool
+            Whether to cache features after computation/extraction
 
         Returns
         -------
@@ -1590,7 +1604,8 @@ class BatchHandler:
                     raster_file=raster_file, val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
-                    time_pruning=time_pruning))
+                    time_pruning=time_pruning,
+                    cache_features=cache_features))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             temporal_res=temporal_res, batch_size=batch_size,
@@ -1742,7 +1757,8 @@ class SpatialBatchHandler(BatchHandler):
              time_pruning=1, means=None,
              n_batches=10,
              stds=None,
-             list_chunk_size=None):
+             list_chunk_size=None,
+             cache_features=True):
 
         """Method to initialize both
         data and batch handlers
@@ -1796,6 +1812,8 @@ class SpatialBatchHandler(BatchHandler):
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
+        cache_features : bool
+            Whether to cache features after computation/extraction
 
         Returns
         -------
@@ -1833,7 +1851,8 @@ class SpatialBatchHandler(BatchHandler):
                     val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=1,
-                    time_pruning=time_pruning))
+                    time_pruning=time_pruning,
+                    cache_features=cache_features))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
             batch_size=batch_size, norm=norm, means=means,
