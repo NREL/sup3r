@@ -512,7 +512,7 @@ def potential_temperature_difference(T_top, P_top,
         top and bottom levels
     """
     return (potential_temperature(T_top, P_top)
-           - potential_temperature(T_bottom, P_bottom))
+            - potential_temperature(T_bottom, P_bottom))
 
 
 def potential_temperature_average(T_top, P_top,
@@ -545,7 +545,7 @@ def potential_temperature_average(T_top, P_top,
         top and bottom levels
     """
     return (potential_temperature(T_top, P_top)
-           + potential_temperature(T_bottom, P_bottom)) / 2.0
+            + potential_temperature(T_bottom, P_bottom)) / 2.0
 
 
 def virtual_var(var, mixing_ratio):
