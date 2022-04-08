@@ -318,8 +318,9 @@ class FeatureHandler:
         """
 
         u, v = self.get_uv(handle, raster_index, height)
-        self.feature_cache[f'U_{height}m'] = u
-        self.feature_cache[f'V_{height}m'] = v
+        if self.cache_features:
+            self.feature_cache[f'U_{height}m'] = u
+            self.feature_cache[f'V_{height}m'] = v
         return u
 
     def get_v(
@@ -344,8 +345,9 @@ class FeatureHandler:
         """
 
         u, v = self.get_uv(handle, raster_index, height)
-        self.feature_cache[f'U_{height}m'] = u
-        self.feature_cache[f'V_{height}m'] = v
+        if self.cache_features:
+            self.feature_cache[f'U_{height}m'] = u
+            self.feature_cache[f'V_{height}m'] = v
         return v
 
     def get_bvf_squared(

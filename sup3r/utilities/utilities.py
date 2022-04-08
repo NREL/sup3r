@@ -132,9 +132,11 @@ def rotate_u_v(u, v, lat_lon):
     ----------
     u : np.ndarray
         3D array of zonal wind components
+        (spatial_1, spatial_2, temporal)
 
     v : np.ndarray
         3D array of meridional wind components
+        (spatial_1, spatial_2, temporal)
     lat_lon : np.ndarray
         3D array (spatial_1, spatial_2, 2)
         2 channels are lat and lon in that
@@ -158,10 +160,10 @@ def rotate_u_v(u, v, lat_lon):
     del dy, dx
     theta[0] = theta[1]  # fix the roll row
 
-    return ((np.einsum('ij,ijk->ijk', np.sin(theta), v)
-             + np.einsum('ij,ijk->ijk', np.cos(theta), u)),
-            (np.einsum('ij,ijk->ijk', np.cos(theta), v)
-             - np.einsum('ij,ijk->ijk', np.sin(theta), u)))
+    return (np.sin(theta)[:, :, np.newaxis] * v
+            + np.cos(theta)[:, :, np.newaxis] * u,
+            np.cos(theta)[:, :, np.newaxis] * v
+            - np.sin(theta)[:, :, np.newaxis] * u)
 
 
 def temporal_coarsening(data, temporal_res=2, method='subsample'):
