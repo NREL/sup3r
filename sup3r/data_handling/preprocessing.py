@@ -150,8 +150,9 @@ class FeatureHandler:
             basename = feature
         return basename
 
-    def extract_feature(self, handle, raster_index,
-                        feature, interp_height=None):
+    def extract_feature(
+            self, handle, raster_index,
+            feature, interp_height=None) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -182,10 +183,15 @@ class FeatureHandler:
 
         if len(handle[feature].shape) > 3:
             if interp_height is None:
-                fdata = \
-                    handle[feature][tuple([slice(None)] + [0] + raster_index)]
+                fdata = np.array(
+                    handle[feature][tuple([slice(None)] + [0] + raster_index)],
+                    dtype=np.float32)
             else:
-                fdata = interp_var(handle, feature, float(interp_height))
+                logger.debug(
+                    f'Interpolating {feature} at height {interp_height}m')
+                fdata = np.array(
+                    interp_var(handle, feature, float(interp_height)),
+                    dtype=np.float32)
                 fdata = fdata[tuple([slice(None)] + raster_index)]
         else:
             fdata = np.array(
@@ -193,16 +199,16 @@ class FeatureHandler:
                 dtype=np.float32)
 
         if fdata.shape[-2:] != raster_index.shape:
+            logger.debug(f'Reshaping raw {feature} data')
             fdata = fdata.reshape(
                 (len(fdata), raster_index.shape[0], raster_index.shape[1]))
 
-        fdata = fdata.astype(np.float32)
         fdata = np.transpose(fdata, (1, 2, 0))
         self.feature_cache[feature] = fdata
         return fdata
 
-    def compute_feature(self, handle, raster_index,
-                        feature):
+    def compute_feature(
+            self, handle, raster_index, feature) -> np.dtype(np.float32):
         """Compute single feature by extracting
         needed features from data source
 
@@ -237,6 +243,7 @@ class FeatureHandler:
         renamed_feature = self.check_renamed_feature(handle, feature)
 
         if method is not None:
+            logger.debug(f'Using {method} to compute {feature}')
             if height is not None:
                 fdata = method(
                     handle, raster_index, height)
@@ -261,11 +268,11 @@ class FeatureHandler:
                     logger.error(
                         f'{feature} cannot be computed from source data')
 
-        fdata = fdata.astype(np.float32)
         self.feature_cache[feature] = fdata
         return fdata
 
-    def get_u(self, handle, raster_index, height):
+    def get_u(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
         """Compute U wind component
 
         Parameters
@@ -290,7 +297,8 @@ class FeatureHandler:
         self.feature_cache[f'V_{height}m'] = v
         return u
 
-    def get_v(self, handle, raster_index, height):
+    def get_v(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
         """Compute V wind component
 
         Parameters
@@ -339,7 +347,8 @@ class FeatureHandler:
             array of V wind component
         """
 
-    def get_bvf_squared(self, handle, raster_index):
+    def get_bvf_squared(
+            self, handle, raster_index) -> np.dtype(np.float32):
         """Compute BVF squared
 
         Parameters
@@ -368,7 +377,8 @@ class FeatureHandler:
         return BVF_squared(T_top, T_bottom,
                            P_top, P_bottom, 100)
 
-    def get_richardson_number(self, handle, raster_index):
+    def get_richardson_number(
+            self, handle, raster_index) -> np.dtype(np.float32):
         """Compute Bulk Richardson Number
 
         Parameters
@@ -403,7 +413,8 @@ class FeatureHandler:
             U_top, U_bottom, V_top, V_bottom, 100)
 
     @abstractmethod
-    def get_lat_lon(self, handle, raster_index):
+    def get_lat_lon(
+            self, handle, raster_index) -> np.dtype(np.float32):
         """Get lats and lons corresponding to raster
         for use in windspeed/direction -> u/v mapping
 
