@@ -370,13 +370,13 @@ class FeatureHandler:
             height = 200
 
         U_top = self.compute_feature(
-            handle, raster_index, f'U_{height}m'),
+            handle, raster_index, f'U_{height}m')
         U_bottom = self.compute_feature(
-            handle, raster_index, f'U_{int(height) - 100}m'),
+            handle, raster_index, f'U_{int(height) - 100}m')
         V_top = self.compute_feature(
-            handle, raster_index, f'V_{height}m'),
+            handle, raster_index, f'V_{height}m')
         V_bottom = self.compute_feature(
-            handle, raster_index, f'V_{int(height) - 100}m'),
+            handle, raster_index, f'V_{int(height) - 100}m')
         ws_grad = (U_top - U_bottom) ** 2
         ws_grad += (V_top - V_bottom) ** 2
         ws_grad /= 100 ** 2
