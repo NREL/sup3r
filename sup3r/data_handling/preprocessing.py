@@ -19,7 +19,6 @@ from sup3r.utilities.utilities import (spatial_coarsening,
                                        uniform_time_sampler,
                                        interp_var,
                                        transform_rotate_wind,
-                                       gradient_richardson_number,
                                        BVF_squared)
 from sup3r import __version__
 
@@ -210,16 +209,16 @@ class FeatureHandler:
         if len(handle[feature].shape) > 3:
             if interp_height is None:
                 fdata = handle[feature][tuple(
-                    [slice(None)] + [0] + raster_index)].astype(np.float32)
+                    [slice(None)] + [0] + raster_index)]
             else:
                 logger.debug(
                     f'Interpolating {feature} at height {interp_height}m')
                 fdata = interp_var(
-                    handle, feature, float(interp_height)).astype(np.float32)
+                    handle, feature, float(interp_height))
                 fdata = fdata[tuple([slice(None)] + raster_index)]
         else:
             fdata = handle[feature][tuple(
-                [slice(None)] + raster_index)].astype(np.float32)
+                [slice(None)] + raster_index)]
 
         if fdata.shape[-2:] != raster_index.shape:
             logger.debug(f'Reshaping raw {feature} data')
@@ -347,40 +346,6 @@ class FeatureHandler:
         self.feature_cache[f'V_{height}m'] = v
         return v
 
-    def get_bvf_squared(
-            self, handle, raster_index, height) -> np.dtype(np.float32):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-        """
-
-        if height is None:
-            height = 200
-
-        return BVF_squared(
-            self.compute_feature(
-                handle, raster_index, f'T_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'T_{int(height) - 100}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{int(height) - 100}m'),
-            100)
-
     def get_richardson_number(
             self, handle, raster_index, height) -> np.dtype(np.float32):
         """Compute Bulk Richardson Number
@@ -404,24 +369,42 @@ class FeatureHandler:
         if height is None:
             height = 200
 
-        return gradient_richardson_number(
-            self.compute_feature(
-                handle, raster_index, f'T_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'T_{int(height) - 100}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{int(height) - 100}m'),
-            self.compute_feature(
-                handle, raster_index, f'U_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'U_{int(height) - 100}m'),
-            self.compute_feature(
-                handle, raster_index, f'V_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'V_{int(height) - 100}m'),
-            100)
+        U_top = self.compute_feature(
+            handle, raster_index, f'U_{height}m'),
+        U_bottom = self.compute_feature(
+            handle, raster_index, f'U_{int(height) - 100}m'),
+        V_top = self.compute_feature(
+            handle, raster_index, f'V_{height}m'),
+        V_bottom = self.compute_feature(
+            handle, raster_index, f'V_{int(height) - 100}m'),
+        ws_grad = (U_top - U_bottom) ** 2
+        ws_grad += (V_top - V_bottom) ** 2
+        ws_grad /= 100 ** 2
+        ws_grad[ws_grad < 1e-6] = 1e-6
+
+        return self.get_bvf_squared(
+            handle, raster_index, height) / ws_grad
+
+    @abstractmethod
+    def get_bvf_squared(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
+        """Compute BVF squared
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF squared array
+        """
 
     @abstractmethod
     def get_uv(self, handle, raster_index, height):
@@ -844,7 +827,8 @@ class DataHandlerNC(DataHandler):
             spatial_sample_shape, raster_file, shuffle_time,
             cache_features)
 
-    def _get_file_handle(self, file_path):
+    @staticmethod
+    def _get_file_handle(file_path):
         """Get file type specific file handle
 
         Parameters
@@ -913,6 +897,37 @@ class DataHandlerNC(DataHandler):
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file, raster_index)
         return RasterIndex(raster_index)
+
+    def get_bvf_squared(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
+        """Compute BVF squared
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF squared array
+        """
+
+        if height is None:
+            height = 200
+
+        # T is perturbation potential temperature for wrf and the
+        # base potential temperature is 300K
+        PT_top = self.compute_feature(
+            handle, raster_index, f'T_{height}m') + 300
+        PT_bottom = self.compute_feature(
+            handle, raster_index, f'T_{int(height) - 100}m') + 300
+        return 9.81 / 100 * (PT_top - PT_bottom) / (PT_top + PT_bottom) / 2
 
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components
@@ -1032,7 +1047,8 @@ class DataHandlerH5(DataHandler):
             spatial_sample_shape, raster_file, shuffle_time,
             cache_features)
 
-    def _get_file_handle(self, file_path):
+    @staticmethod
+    def _get_file_handle(file_path):
         """Get file type specific file handle
 
         Parameters
@@ -1084,6 +1100,40 @@ class DataHandlerH5(DataHandler):
                     f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return RasterIndex(raster_index)
+
+    def get_bvf_squared(
+            self, handle, raster_index, height) -> np.dtype(np.float32):
+        """Compute BVF squared
+
+        Parameters
+        ----------
+        handle : WindX | xarray
+            Data Handle for either WTK data
+            or WRF data
+        raster_index : ndarray
+            Raster index array
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF squared array
+        """
+
+        if height is None:
+            height = 200
+
+        return BVF_squared(
+            self.compute_feature(
+                handle, raster_index, f'T_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'T_{int(height) - 100}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{height}m'),
+            self.compute_feature(
+                handle, raster_index, f'P_{int(height) - 100}m'),
+            100)
 
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components

@@ -43,6 +43,25 @@ list_chunk_size = 10
 os.system(f'rm -f {raster_file}')
 
 
+def test_feature_handler():
+    """Make sure compute feature is returing float32"""
+
+    handler = DataHandlerNC(input_file, features, target=target, shape=shape,
+                            max_delta=max_delta, raster_file=raster_file)
+    handle = handler._get_file_handle(input_file)
+    for f in features:
+        tmp = handler.compute_feature(handle, handler.raster_index, f)
+        assert tmp.dtype == np.dtype(np.float32)
+
+    var_names = {'T_bottom': ['T', 100],
+                 'T_top': ['T', 200],
+                 'P_bottom': ['P', 100],
+                 'P_top': ['P', 200]}
+    for _, v in var_names.items():
+        tmp = handler.extract_feature(handle, handler.raster_index, v[0], v[1])
+        assert tmp.dtype == np.dtype(np.float32)
+
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 

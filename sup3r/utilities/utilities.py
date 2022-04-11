@@ -464,10 +464,8 @@ def potential_temperature_difference(T_top, P_top,
         Difference in potential temperature between
         top and bottom levels
     """
-    return np.array(
-        potential_temperature(T_top, P_top)
-        - potential_temperature(T_bottom, P_bottom),
-        dtype=np.float32)
+    return (potential_temperature(T_top, P_top)
+            - potential_temperature(T_bottom, P_bottom))
 
 
 def potential_temperature_average(T_top, P_top,
@@ -500,8 +498,7 @@ def potential_temperature_average(T_top, P_top,
         top and bottom levels
     """
     return ((potential_temperature(T_top, P_top)
-            + potential_temperature(T_bottom, P_bottom)) / 2.0
-            ).astype(np.float32)
+            + potential_temperature(T_bottom, P_bottom)) / 2)
 
 
 def virtual_var(var, mixing_ratio):
@@ -657,8 +654,7 @@ def BVF_squared(T_top, T_bottom,
             * potential_temperature_difference(
                 T_top, P_top, T_bottom, P_bottom)
             / potential_temperature_average(
-                T_top, P_top, T_bottom, P_bottom)
-            ).astype(np.float32)
+                T_top, P_top, T_bottom, P_bottom))
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,

@@ -34,6 +34,46 @@ temporal_res = 2
 os.system(f'rm -f {raster_file}')
 
 
+def test_feature_handler():
+    """Make sure compute feature is returing float32"""
+
+    handler = DataHandlerH5(input_file, features, target=target, shape=shape,
+                            max_delta=max_delta, raster_file=raster_file)
+    handle = handler._get_file_handle(input_file)
+    for f in features:
+        tmp = handler.compute_feature(handle, handler.raster_index, f)
+        assert tmp.dtype == np.dtype(np.float32)
+
+    vars = {}
+    var_names = {'temperature_100m': 'T_bottom',
+                 'temperature_200m': 'T_top',
+                 'pressure_100m': 'P_bottom',
+                 'pressure_200m': 'P_top'}
+    for k, v in var_names.items():
+        tmp = handler.extract_feature(handle, handler.raster_index, k)
+        assert tmp.dtype == np.dtype(np.float32)
+        vars[v] = tmp
+
+    pt_top = utilities.potential_temperature(vars['T_top'],
+                                             vars['P_top'])
+    pt_bottom = utilities.potential_temperature(vars['T_bottom'],
+                                                vars['P_bottom'])
+    assert pt_top.dtype == np.dtype(np.float32)
+    assert pt_bottom.dtype == np.dtype(np.float32)
+
+    pt_diff = utilities.potential_temperature_difference(
+        vars['T_top'], vars['P_top'], vars['T_bottom'], vars['P_bottom'])
+    pt_mid = utilities.potential_temperature_average(
+        vars['T_top'], vars['P_top'], vars['T_bottom'], vars['P_bottom'])
+
+    assert pt_diff.dtype == np.dtype(np.float32)
+    assert pt_mid.dtype == np.dtype(np.float32)
+
+    bvf_squared = utilities.BVF_squared(
+        vars['T_top'], vars['P_top'], vars['T_bottom'], vars['P_bottom'], 100)
+    assert bvf_squared.dtype == np.dtype(np.float32)
+
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
