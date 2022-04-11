@@ -498,7 +498,7 @@ def potential_temperature_average(T_top, P_top,
         top and bottom levels
     """
     return ((potential_temperature(T_top, P_top)
-            + potential_temperature(T_bottom, P_bottom)) / 2)
+            + potential_temperature(T_bottom, P_bottom)) / 2.0)
 
 
 def virtual_var(var, mixing_ratio):
@@ -650,11 +650,13 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    return (9.81 / delta_h
-            * potential_temperature_difference(
-                T_top, P_top, T_bottom, P_bottom)
-            / potential_temperature_average(
-                T_top, P_top, T_bottom, P_bottom))
+    bvf_squared = 9.81 / delta_h
+    bvf_squared *= potential_temperature_difference(
+        T_top, P_top, T_bottom, P_bottom)
+    bvf_squared /= potential_temperature_average(
+        T_top, P_top, T_bottom, P_bottom)
+
+    return bvf_squared
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,

@@ -143,14 +143,23 @@ class FeatureHandler:
     in other calculations
     """
 
-    def __init__(self, cache_features=True):
-        self.cache_features = cache_features
+    def __init__(self, handle, raster_index,
+                 cache_computed_features=True,
+                 cache_extracted_features=False):
+        self.cache_computed_features = cache_computed_features
+        self.cache_extracted_features = cache_extracted_features
         self.feature_cache = {}
         self.registry = {
-            'BVF_squared': self.get_bvf_squared,
-            'Ri': self.get_richardson_number,
+            'BVF_squared_(.*)': self.get_bvf_squared,
+            'Ri_(.*)': self.get_richardson_number,
             'U_(.*)m': self.get_u,
             'V_(.*)m': self.get_v}
+        self.tmp_compute_array = np.zeros(
+            (raster_index.shape[0], raster_index.shape[1],
+             len(handle.time_index)), dtype=np.float32)
+        self.tmp_extract_array = np.zeros(
+            (raster_index.shape[0], raster_index.shape[1],
+             len(handle.time_index)), dtype=np.float32)
 
     def lookup(self, feature):
         """Lookup feature in feature registry
@@ -208,27 +217,26 @@ class FeatureHandler:
 
         if len(handle[feature].shape) > 3:
             if interp_height is None:
-                fdata = handle[feature][tuple(
+                self.tmp_extract_array = handle[feature][tuple(
                     [slice(None)] + [0] + raster_index)]
             else:
                 logger.debug(
                     f'Interpolating {feature} at height {interp_height}m')
-                fdata = interp_var(
+                self.tmp_extract_array = interp_var(
                     handle, feature, float(interp_height))
-                fdata = fdata[tuple([slice(None)] + raster_index)]
+                self.tmp_extract_array = self.tmp_extract_array[
+                    tuple([slice(None)] + raster_index)]
         else:
-            fdata = handle[feature][tuple(
+            self.tmp_extract_array = handle[feature][tuple(
                 [slice(None)] + raster_index)]
 
-        if fdata.shape[-2:] != raster_index.shape:
-            logger.debug(f'Reshaping raw {feature} data')
-            fdata = fdata.reshape(
-                (len(fdata), raster_index.shape[0], raster_index.shape[1]))
+        self.tmp_extract_array = self.tmp_extract_array.reshape(
+            (raster_index.shape[0], raster_index.shape[1],
+             len(handle.time_index)))
 
-        fdata = np.transpose(fdata, (1, 2, 0))
-        if self.cache_features:
-            self.feature_cache[feature] = fdata
-        return fdata.astype(np.float32)
+        if self.cache_extracted_features:
+            self.feature_cache[feature] = self.tmp_extract_array.copy()
+        return self.tmp_extract_array.astype(np.float32)
 
     def compute_feature(
             self, handle, raster_index, feature) -> np.dtype(np.float32):
@@ -264,6 +272,9 @@ class FeatureHandler:
         logger.debug(
             f'Current memory usage is {mem.used / 1e9 :.3f} GB'
             f' out of {mem.total / 1e9 :.3f} GB total.')
+        print(
+            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         method = self.lookup(feature)
         f_info = Feature(feature, handle)
@@ -271,26 +282,26 @@ class FeatureHandler:
         if method is not None:
             logger.debug(
                 f'Using method {method.__name__} to compute {feature}')
-            fdata = method(
+            self.tmp_compute_array = method(
                 handle, raster_index, f_info.height)
         else:
             if f_info.handle_input is not None:
-                fdata = self.extract_feature(
+                self.tmp_compute_array = self.extract_feature(
                     handle, raster_index, f_info.handle_input, f_info.height)
             elif f_info.alt_name is not None:
-                fdata = self.compute_feature(
+                self.tmp_compute_array = self.compute_feature(
                     handle, raster_index, f_info.alt_name)
             else:
                 try:
-                    fdata = self.extract_feature(
+                    self.tmp_compute_array = self.extract_feature(
                         handle, raster_index, feature)
                 except ValueError:
                     logger.error(
                         f'{feature} cannot be computed from source data')
 
-        if self.cache_features:
-            self.feature_cache[feature] = fdata
-        return fdata.astype(np.float32)
+        if self.cache_computed_features:
+            self.feature_cache[feature] = self.tmp_compute_array.copy()
+        return self.tmp_compute_array
 
     def get_u(
             self, handle, raster_index, height) -> np.dtype(np.float32):
@@ -314,7 +325,7 @@ class FeatureHandler:
         """
 
         u, v = self.get_uv(handle, raster_index, height)
-        if self.cache_features:
+        if self.cache_computed_features:
             self.feature_cache[f'U_{height}m'] = u
             self.feature_cache[f'V_{height}m'] = v
         return u
@@ -341,9 +352,9 @@ class FeatureHandler:
         """
 
         u, v = self.get_uv(handle, raster_index, height)
-        if self.cache_features:
+        if self.cache_computed_features:
             self.feature_cache[f'U_{height}m'] = u
-        self.feature_cache[f'V_{height}m'] = v
+            self.feature_cache[f'V_{height}m'] = v
         return v
 
     def get_richardson_number(
@@ -382,8 +393,8 @@ class FeatureHandler:
         ws_grad /= 100 ** 2
         ws_grad[ws_grad < 1e-6] = 1e-6
 
-        return self.get_bvf_squared(
-            handle, raster_index, height) / ws_grad
+        return self.compute_feature(
+            handle, raster_index, f'BVF_squared_{height}m') / ws_grad
 
     @abstractmethod
     def get_bvf_squared(
@@ -457,7 +468,9 @@ class DataHandler(FeatureHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, cache_features=True):
+                 raster_file=None, shuffle_time=False,
+                 cache_computed_features=True,
+                 cache_extracted_features=False):
 
         """Data handling and extraction
 
@@ -497,8 +510,10 @@ class DataHandler(FeatureHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        cache_features : bool
-            Whether to cache features after computation/extraction
+        cache_computed_features : bool
+            Whether to cache features after computation
+        cache_extracted_features : bool
+            Whether to cache features after direct extraction
         """
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
@@ -509,7 +524,6 @@ class DataHandler(FeatureHandler):
                'or an existing raster_file input.')
         assert check, msg
 
-        super().__init__(cache_features)
         self.file_path = file_path
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
@@ -527,7 +541,11 @@ class DataHandler(FeatureHandler):
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
-
+        self.file_handle = self._get_file_handle(file_path)
+        super().__init__(self.file_handle,
+                         self.raster_index,
+                         cache_computed_features,
+                         cache_extracted_features)
         self.data = self.extract_data()
         self.data, self.val_data = self._split_data()
         self.feature_cache = {}
@@ -777,7 +795,9 @@ class DataHandlerNC(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, cache_features=True):
+                 raster_file=None, shuffle_time=False,
+                 cache_computed_features=True,
+                 cache_extracted_features=False):
 
         """Data handling and extraction
 
@@ -817,15 +837,17 @@ class DataHandlerNC(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        cache_features : bool
-            Whether to cache features after computation/extraction
+        cache_computed_features : bool
+            Whether to cache features after computation
+        cache_extracted_features : bool
+            Whether to cache features after direct extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            cache_features)
+            cache_computed_features, cache_extracted_features)
 
     @staticmethod
     def _get_file_handle(file_path):
@@ -997,7 +1019,9 @@ class DataHandlerH5(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, cache_features=True):
+                 raster_file=None, shuffle_time=False,
+                 cache_computed_features=True,
+                 cache_extracted_features=False):
 
         """Data handling and extraction
 
@@ -1037,15 +1061,17 @@ class DataHandlerH5(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        cache_features : bool
-            Whether to cache features after computation/extraction
+        cache_computed_features : bool
+            Whether to cache features after computation
+        cache_extracted_features : bool
+            Whether to cache features after direct extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            cache_features)
+            cache_computed_features, cache_extracted_features)
 
     @staticmethod
     def _get_file_handle(file_path):

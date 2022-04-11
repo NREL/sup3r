@@ -38,7 +38,8 @@ def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
     handler = DataHandlerH5(input_file, features, target=target, shape=shape,
-                            max_delta=max_delta, raster_file=raster_file)
+                            max_delta=max_delta, raster_file=raster_file,
+                            cache_computed_features=False)
     handle = handler._get_file_handle(input_file)
     for f in features:
         tmp = handler.compute_feature(handle, handler.raster_index, f)
@@ -50,7 +51,7 @@ def test_feature_handler():
                  'pressure_100m': 'P_bottom',
                  'pressure_200m': 'P_top'}
     for k, v in var_names.items():
-        tmp = handler.extract_feature(handle, handler.raster_index, k)
+        tmp = handler.compute_feature(handle, handler.raster_index, k)
         assert tmp.dtype == np.dtype(np.float32)
         vars[v] = tmp
 
@@ -70,7 +71,7 @@ def test_feature_handler():
     assert pt_mid.dtype == np.dtype(np.float32)
 
     bvf_squared = utilities.BVF_squared(
-        vars['T_top'], vars['P_top'], vars['T_bottom'], vars['P_bottom'], 100)
+        vars['T_top'], vars['T_bottom'], vars['P_top'], vars['P_bottom'], 100)
     assert bvf_squared.dtype == np.dtype(np.float32)
 
 
