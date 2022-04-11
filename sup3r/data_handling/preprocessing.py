@@ -205,11 +205,6 @@ class FeatureHandler:
 
         logger.debug(f'Extracting {feature}.')
 
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
-
         if feature in self.feature_cache:
             logger.debug(
                 f'{feature} already extracted. Loading from cache. ')
@@ -298,7 +293,7 @@ class FeatureHandler:
 
         if self.cache_computed_features:
             self.feature_cache[feature] = self.tmp_compute_array.copy()
-        return self.tmp_compute_array
+        return self.tmp_compute_array.astype(np.float32)
 
     def get_u(
             self, handle, raster_index, height) -> np.dtype(np.float32):
