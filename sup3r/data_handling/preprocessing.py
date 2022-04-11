@@ -272,9 +272,6 @@ class FeatureHandler:
         logger.debug(
             f'Current memory usage is {mem.used / 1e9 :.3f} GB'
             f' out of {mem.total / 1e9 :.3f} GB total.')
-        print(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         method = self.lookup(feature)
         f_info = Feature(feature, handle)
@@ -1610,7 +1607,8 @@ class BatchHandler:
              means=None, stds=None,
              temporal_coarsening_method='subsample',
              list_chunk_size=None,
-             cache_features=True):
+             cache_computed_features=True,
+             cache_extracted_features=False):
 
         """Method to initialize both
         data and batch handlers
@@ -1672,8 +1670,10 @@ class BatchHandler:
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
-        cache_features : bool
-            Whether to cache features after computation/extraction
+        cache_computed_features : bool
+            Whether to cache features after computation
+        cache_extracted_features : bool
+            Whether to cache features after direct extraction
 
         Returns
         -------
@@ -1711,7 +1711,8 @@ class BatchHandler:
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
                     time_pruning=time_pruning,
-                    cache_features=cache_features))
+                    cache_computed_features=cache_computed_features,
+                    cache_extracted_features=cache_extracted_features))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             temporal_res=temporal_res, batch_size=batch_size,
@@ -1864,7 +1865,8 @@ class SpatialBatchHandler(BatchHandler):
              n_batches=10,
              stds=None,
              list_chunk_size=None,
-             cache_features=True):
+             cache_computed_features=True,
+             cache_extracted_features=False):
 
         """Method to initialize both
         data and batch handlers
@@ -1918,8 +1920,10 @@ class SpatialBatchHandler(BatchHandler):
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
-        cache_features : bool
-            Whether to cache features after computation/extraction
+        cache_computed_features : bool
+            Whether to cache features after computation
+        cache_extracted_features : bool
+            Whether to cache features after direct extraction
 
         Returns
         -------
@@ -1958,7 +1962,8 @@ class SpatialBatchHandler(BatchHandler):
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=1,
                     time_pruning=time_pruning,
-                    cache_features=cache_features))
+                    cache_computed_features=cache_computed_features,
+                    cache_extracted_features=cache_extracted_features))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
             batch_size=batch_size, norm=norm, means=means,
