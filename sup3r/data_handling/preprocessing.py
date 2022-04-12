@@ -161,6 +161,7 @@ class FeatureHandler:
         self.tmp_compute_array = None
         self.tmp_extract_array = None
         self.serial_compute = serial_compute
+        self.time_index = self._get_file_handle(file_path).time_index
 
     def parallel_feature_compute(self, raster_index,
                                  features):
@@ -175,16 +176,20 @@ class FeatureHandler:
 
         Returns
         -------
-        dict
-            dictionary of computed feature data
+        ndarray
+            array of computed feature data
+            (spatial_1, spatial_2, temporal, features)
         """
         futures = {}
-        data = {}
+        data = np.zeros(
+            (raster_index.shape[0], raster_index.shape[1],
+             len(self.time_index), len(features)),
+            dtype=np.float32)
         now = dt.now()
 
         if self.serial_compute:
-            for f in features:
-                data[f] = self.compute_feature(raster_index, f)
+            for i, f in enumerate(features):
+                data[:, :, :, i] = self.compute_feature(raster_index, f)
 
         else:
             with SpawnProcessPool() as exe:
@@ -199,14 +204,14 @@ class FeatureHandler:
                     f' in {dt.now() - now}')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.info(f'Future {futures[future]} completed in '
-                                f'{dt.now() - now}.')
+                    logger.info(f'Feature {features[futures[future]]}'
+                                f' completed in {dt.now() - now}.')
                     logger.info(f'{i+1} out of {len(futures)} futures '
                                 'completed')
 
             logger.info('done processing')
             for k, v in futures.items():
-                data[features[v]] = k.result()
+                data[:, :, :, v] = k.result()
         return data
 
     def lookup(self, feature):
@@ -682,16 +687,7 @@ class DataHandler(FeatureHandler):
         logger.debug(
             f'Loading data for raster of shape {raster_index.shape}')
 
-        data = np.zeros((raster_index.shape[0],
-                         raster_index.shape[1],
-                         len(self.time_index),
-                         len(features)),
-                        dtype=np.float32)
-        data_dict = self.parallel_feature_compute(raster_index, features)
-        for i, f in enumerate(features):
-            data[:, :, :, i] = data_dict[f]
-
-        return data
+        return self.parallel_feature_compute(raster_index, features)
 
     def _split_data(self):
         """Splits time dimension into set of training indices
@@ -941,13 +937,12 @@ class DataHandlerNC(DataHandler):
         # T is perturbation potential temperature for wrf and the
         # base potential temperature is 300K
 
-        data_dict = self.parallel_feature_compute(
+        data = self.parallel_feature_compute(
             raster_index, [f'T_{height}m', f'T_{int(height) - 100}m'])
         bvf_squared = 9.81 / 100
-        bvf_squared *= (data_dict[f'T_{height}m']
-                        - data_dict[f'T_{int(height) - 100}m'])
-        bvf_squared /= (data_dict[f'T_{height}m']
-                        + data_dict[f'T_{int(height) - 100}m']) / 2
+        bvf_squared *= (data[:, :, :, 0] - data[:, :, :, 1])
+        bvf_squared /= (data[:, :, :, 0] + data[:, :, :, 1]) / 2
+        del data
         return bvf_squared
 
     def get_uv(self, handle, raster_index, height):
@@ -1153,14 +1148,12 @@ class DataHandlerH5(DataHandler):
                     f'pressure_{height}m',
                     f'pressure_{int(height) - 100}m']
 
-        data_dict = self.parallel_feature_compute(
+        data = self.parallel_feature_compute(
             raster_index, features)
 
         return BVF_squared(
-            data_dict[f'temperature_{height}m'],
-            data_dict[f'temperature_{int(height) - 100}m'],
-            data_dict[f'pressure_{height}m'],
-            data_dict[f'pressure_{int(height) - 100}m'], 100)
+            data[:, :, :, 0], data[:, :, :, 1],
+            data[:, :, :, 2], data[:, :, :, 3], 100)
 
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components
@@ -1186,15 +1179,13 @@ class DataHandlerH5(DataHandler):
 
         features = [f'windspeed_{height}m',
                     f'winddirection_{height}m']
-        data_dict = self.parallel_feature_compute(
+        data = self.parallel_feature_compute(
             raster_index, features)
         lat_lon = self.get_lat_lon(handle, raster_index)
         logger.info(f'Transforming {features}'
                     ' to U/V and aligning with grid.')
         return transform_rotate_wind(
-            data_dict[f'windspeed_{height}m'],
-            data_dict[f'winddirection_{height}m'],
-            lat_lon)
+            data[:, :, :, 0], data[:, :, :, 1], lat_lon)
 
     def get_lat_lon(self, handle, raster_index):
         """Get lats and lons corresponding to raster
