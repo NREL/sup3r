@@ -39,10 +39,10 @@ def test_feature_handler():
 
     handler = DataHandlerH5(input_file, features, target=target, shape=shape,
                             max_delta=max_delta, raster_file=raster_file,
-                            cache_computed_features=False)
-    handle = handler._get_file_handle(input_file)
+                            cache_computed_features=True,
+                            cache_extracted_features=True)
     for f in features:
-        tmp = handler.compute_feature(handle, handler.raster_index, f)
+        tmp = handler.compute_feature(handler.raster_index, f)
         assert tmp.dtype == np.dtype(np.float32)
 
     vars = {}
@@ -51,7 +51,7 @@ def test_feature_handler():
                  'pressure_100m': 'P_bottom',
                  'pressure_200m': 'P_top'}
     for k, v in var_names.items():
-        tmp = handler.compute_feature(handle, handler.raster_index, k)
+        tmp = handler.compute_feature(handler.raster_index, k)
         assert tmp.dtype == np.dtype(np.float32)
         vars[v] = tmp
 

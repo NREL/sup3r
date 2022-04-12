@@ -47,12 +47,14 @@ def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
     handler = DataHandlerNC(input_file, features, target=target, shape=shape,
-                            max_delta=max_delta, raster_file=raster_file)
-    handle = handler._get_file_handle(input_file)
+                            max_delta=max_delta, raster_file=raster_file,
+                            cache_computed_features=True,
+                            cache_extracted_features=True)
     for f in features:
-        tmp = handler.compute_feature(handle, handler.raster_index, f)
+        tmp = handler.compute_feature(handler.raster_index, f)
         assert tmp.dtype == np.dtype(np.float32)
 
+    handle = handler._get_file_handle(input_file)
     var_names = {'T_bottom': ['T', 100],
                  'T_top': ['T', 200],
                  'P_bottom': ['P', 100],

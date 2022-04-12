@@ -3,6 +3,7 @@
 Sup3r preprocessing module.
 """
 from abc import abstractmethod
+from concurrent.futures import as_completed
 import logging
 import xarray as xr
 import numpy as np
@@ -10,9 +11,11 @@ import os
 import re
 import gc
 import psutil
+from datetime import datetime as dt
 
 from rex import WindX
 from rex.utilities import log_mem
+from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (spatial_coarsening,
                                        uniform_box_sampler,
                                        temporal_coarsening,
@@ -143,23 +146,68 @@ class FeatureHandler:
     in other calculations
     """
 
-    def __init__(self, handle, raster_index,
+    def __init__(self, file_path,
                  cache_computed_features=True,
-                 cache_extracted_features=False):
+                 cache_extracted_features=False,
+                 serial_compute=False):
         self.cache_computed_features = cache_computed_features
         self.cache_extracted_features = cache_extracted_features
+        self.file_path = file_path
         self.feature_cache = {}
         self.registry = {
             'BVF_squared_(.*)': self.get_bvf_squared,
-            'Ri_(.*)': self.get_richardson_number,
             'U_(.*)m': self.get_u,
             'V_(.*)m': self.get_v}
-        self.tmp_compute_array = np.zeros(
-            (raster_index.shape[0], raster_index.shape[1],
-             len(handle.time_index)), dtype=np.float32)
-        self.tmp_extract_array = np.zeros(
-            (raster_index.shape[0], raster_index.shape[1],
-             len(handle.time_index)), dtype=np.float32)
+        self.tmp_compute_array = None
+        self.tmp_extract_array = None
+        self.serial_compute = serial_compute
+
+    def parallel_feature_compute(self, raster_index,
+                                 features):
+        """Get list of features using parallel subprocesses
+
+        Parameters
+        ----------
+        raster_index : ndarray
+            raster index for spatial domain
+        features : list
+            list of feature strings
+
+        Returns
+        -------
+        dict
+            dictionary of computed feature data
+        """
+        futures = {}
+        data = {}
+        now = dt.now()
+
+        if self.serial_compute:
+            for f in features:
+                data[f] = self.compute_feature(raster_index, f)
+
+        else:
+            with SpawnProcessPool() as exe:
+                for i, f in enumerate(features):
+                    future = exe.submit(self.compute_feature,
+                                        raster_index=raster_index,
+                                        feature=f)
+                    futures[future] = i
+
+                logger.info(
+                    f'Started computing {features}'
+                    f' in {dt.now() - now}')
+
+                for i, future in enumerate(as_completed(futures)):
+                    logger.info(f'Future {futures[future]} completed in '
+                                f'{dt.now() - now}.')
+                    logger.info(f'{i+1} out of {len(futures)} futures '
+                                'completed')
+
+            logger.info('done processing')
+            for k, v in futures.items():
+                data[features[v]] = k.result()
+        return data
 
     def lookup(self, feature):
         """Lookup feature in feature registry
@@ -226,15 +274,14 @@ class FeatureHandler:
                 [slice(None)] + raster_index)]
 
         self.tmp_extract_array = self.tmp_extract_array.reshape(
-            (raster_index.shape[0], raster_index.shape[1],
-             len(handle.time_index)))
+            (raster_index.shape[0], raster_index.shape[1], -1))
 
         if self.cache_extracted_features:
             self.feature_cache[feature] = self.tmp_extract_array.copy()
         return self.tmp_extract_array.astype(np.float32)
 
     def compute_feature(
-            self, handle, raster_index, feature) -> np.dtype(np.float32):
+            self, raster_index, feature) -> np.dtype(np.float32):
         """Compute single feature by extracting
         needed features from data source
 
@@ -255,6 +302,8 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
 
+        handle = self._get_file_handle(self.file_path)
+
         if feature not in handle:
             logger.info(f'Computing {feature}.')
         if feature in self.feature_cache:
@@ -274,15 +323,19 @@ class FeatureHandler:
         if method is not None:
             logger.debug(
                 f'Using method {method.__name__} to compute {feature}')
-            self.tmp_compute_array = method(
-                handle, raster_index, f_info.height)
+            if 'handle' in method.__code__.co_varnames:
+                self.tmp_compute_array = method(
+                    handle, raster_index, f_info.height)
+            else:
+                self.tmp_compute_array = method(
+                    raster_index, f_info.height)
         else:
             if f_info.handle_input is not None:
                 self.tmp_compute_array = self.extract_feature(
                     handle, raster_index, f_info.handle_input, f_info.height)
             elif f_info.alt_name is not None:
                 self.tmp_compute_array = self.compute_feature(
-                    handle, raster_index, f_info.alt_name)
+                    raster_index, f_info.alt_name)
             else:
                 try:
                     self.tmp_compute_array = self.extract_feature(
@@ -349,55 +402,13 @@ class FeatureHandler:
             self.feature_cache[f'V_{height}m'] = v
         return v
 
-    def get_richardson_number(
-            self, handle, raster_index, height) -> np.dtype(np.float32):
-        """Compute Bulk Richardson Number
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
-        raster_index : ndarray
-            Raster index array
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            Bulk Richardson Number array
-        """
-
-        if height is None:
-            height = 200
-
-        U_top = self.compute_feature(
-            handle, raster_index, f'U_{height}m')
-        U_bottom = self.compute_feature(
-            handle, raster_index, f'U_{int(height) - 100}m')
-        V_top = self.compute_feature(
-            handle, raster_index, f'V_{height}m')
-        V_bottom = self.compute_feature(
-            handle, raster_index, f'V_{int(height) - 100}m')
-        ws_grad = (U_top - U_bottom) ** 2
-        ws_grad += (V_top - V_bottom) ** 2
-        ws_grad /= 100 ** 2
-        ws_grad[ws_grad < 1e-6] = 1e-6
-
-        return self.compute_feature(
-            handle, raster_index, f'BVF_squared_{height}m') / ws_grad
-
     @abstractmethod
     def get_bvf_squared(
-            self, handle, raster_index, height) -> np.dtype(np.float32):
+            self, raster_index, height) -> np.dtype(np.float32):
         """Compute BVF squared
 
         Parameters
         ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
         raster_index : ndarray
             Raster index array
         height : str
@@ -451,6 +462,21 @@ class FeatureHandler:
         ndarray
             lat lon array
             (spatial_1, spatial_2, 2)
+        """
+
+    @abstractmethod
+    def _get_file_handle(self, file_path):
+        """Get file type specific file handle
+
+        Parameters
+        ----------
+        file_path : str
+            Path to file for which to return a handle
+
+        Returns
+        -------
+        handle : xarray | WindX
+            File handle for corresponding file path
         """
 
 
@@ -522,6 +548,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
         self.features = features
         self.grid_shape = shape
+        self.time_index = self._get_file_handle(self.file_path).time_index
         self.target = target
         self.max_delta = max_delta
         self.raster_file = raster_file
@@ -533,9 +560,7 @@ class DataHandler(FeatureHandler):
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
-        self.file_handle = self._get_file_handle(file_path)
-        super().__init__(self.file_handle,
-                         self.raster_index,
+        super().__init__(self.file_path,
                          cache_computed_features,
                          cache_extracted_features)
         self.data = self.extract_data()
@@ -631,7 +656,7 @@ class DataHandler(FeatureHandler):
         observation = self.data[self.current_obs_index]
         return observation
 
-    def _get_file_data(self, file_path, raster_index,
+    def _get_file_data(self, raster_index,
                        features):
         """Extract fields from file for region
         given by target and shape
@@ -657,16 +682,14 @@ class DataHandler(FeatureHandler):
         logger.debug(
             f'Loading data for raster of shape {raster_index.shape}')
 
-        handle = self._get_file_handle(file_path)
-
         data = np.zeros((raster_index.shape[0],
                          raster_index.shape[1],
-                         len(handle.time_index),
+                         len(self.time_index),
                          len(features)),
                         dtype=np.float32)
-        for j, f in enumerate(features):
-            data[:, :, :, j] = self.compute_feature(
-                handle, raster_index, f)
+        data_dict = self.parallel_feature_compute(raster_index, features)
+        for i, f in enumerate(features):
+            data[:, :, :, i] = data_dict[f]
 
         return data
 
@@ -730,13 +753,8 @@ class DataHandler(FeatureHandler):
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
 
-        if len(self.file_path) > 1:
-            self.data = np.concatenate(
-                [self._get_file_data(f, self.raster_index, self.features)
-                    for f in self.file_path], axis=2)
-        else:
-            self.data = self._get_file_data(
-                self.file_path[0], self.raster_index, self.features)
+        self.data = self._get_file_data(
+            self.raster_index, self.features)
 
         self.data = self.data[:, :, ::self.time_pruning, :]
 
@@ -763,21 +781,6 @@ class DataHandler(FeatureHandler):
         raster_index : np.ndarray
             2D array of grid indices for H5 or list of
             slices for NETCDF
-        """
-
-    @abstractmethod
-    def _get_file_handle(self, file_path):
-        """Get file type specific file handle
-
-        Parameters
-        ----------
-        file_path : str
-            Path to file for which to return a handle
-
-        Returns
-        -------
-        handle : xarray | WindX
-            File handle for corresponding file path
         """
 
 
@@ -913,7 +916,7 @@ class DataHandlerNC(DataHandler):
         return RasterIndex(raster_index)
 
     def get_bvf_squared(
-            self, handle, raster_index, height) -> np.dtype(np.float32):
+            self, raster_index, height) -> np.dtype(np.float32):
         """Compute BVF squared
 
         Parameters
@@ -937,11 +940,15 @@ class DataHandlerNC(DataHandler):
 
         # T is perturbation potential temperature for wrf and the
         # base potential temperature is 300K
-        PT_top = self.compute_feature(
-            handle, raster_index, f'T_{height}m') + 300
-        PT_bottom = self.compute_feature(
-            handle, raster_index, f'T_{int(height) - 100}m') + 300
-        return 9.81 / 100 * (PT_top - PT_bottom) / (PT_top + PT_bottom) / 2
+
+        data_dict = self.parallel_feature_compute(
+            raster_index, [f'T_{height}m', f'T_{int(height) - 100}m'])
+        bvf_squared = 9.81 / 100
+        bvf_squared *= (data_dict[f'T_{height}m']
+                        - data_dict[f'T_{int(height) - 100}m'])
+        bvf_squared /= (data_dict[f'T_{height}m']
+                        + data_dict[f'T_{int(height) - 100}m']) / 2
+        return bvf_squared
 
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components
@@ -996,10 +1003,10 @@ class DataHandlerNC(DataHandler):
         lat_lon = np.zeros((raster_index.shape[0],
                             raster_index.shape[1], 2),
                            dtype=np.float32)
-        lat_lon[:, :, 0] = \
-            handle['XLAT'][tuple([0] + raster_index)]
-        lat_lon[:, :, 1] = \
-            handle['XLONG'][tuple([0] + raster_index)]
+        lat_lon[:, :, 0] = self.extract_feature(
+            handle, raster_index, 'XLAT')[0]
+        lat_lon[:, :, 1] = self.extract_feature(
+            handle, raster_index, 'XLONG')[0]
 
         self.feature_cache['lat_lon'] = lat_lon
         return lat_lon
@@ -1080,7 +1087,9 @@ class DataHandlerH5(DataHandler):
             File handle for corresponding file path
         """
 
-        return WindX(file_path, hsds=False)
+        if not isinstance(file_path, list):
+            file_path = [file_path]
+        return WindX(file_path[0], hsds=False)
 
     def get_raster_index(self, file_path, target, shape):
         """Get raster index for file data. Here we
@@ -1120,14 +1129,11 @@ class DataHandlerH5(DataHandler):
         return RasterIndex(raster_index)
 
     def get_bvf_squared(
-            self, handle, raster_index, height) -> np.dtype(np.float32):
+            self, raster_index, height) -> np.dtype(np.float32):
         """Compute BVF squared
 
         Parameters
         ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
         raster_index : ndarray
             Raster index array
         height : str
@@ -1142,16 +1148,19 @@ class DataHandlerH5(DataHandler):
         if height is None:
             height = 200
 
+        features = [f'temperature_{height}m',
+                    f'temperature_{int(height) - 100}m',
+                    f'pressure_{height}m',
+                    f'pressure_{int(height) - 100}m']
+
+        data_dict = self.parallel_feature_compute(
+            raster_index, features)
+
         return BVF_squared(
-            self.compute_feature(
-                handle, raster_index, f'T_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'T_{int(height) - 100}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{height}m'),
-            self.compute_feature(
-                handle, raster_index, f'P_{int(height) - 100}m'),
-            100)
+            data_dict[f'temperature_{height}m'],
+            data_dict[f'temperature_{int(height) - 100}m'],
+            data_dict[f'pressure_{height}m'],
+            data_dict[f'pressure_{int(height) - 100}m'], 100)
 
     def get_uv(self, handle, raster_index, height):
         """Compute U and V wind components
@@ -1175,16 +1184,17 @@ class DataHandlerH5(DataHandler):
             array of V wind component
         """
 
-        required_inputs = [f'windspeed_{height}m',
-                           f'winddirection_{height}m']
-        ws = self.extract_feature(
-            handle, raster_index, required_inputs[0])
-        wd = self.extract_feature(
-            handle, raster_index, required_inputs[1])
+        features = [f'windspeed_{height}m',
+                    f'winddirection_{height}m']
+        data_dict = self.parallel_feature_compute(
+            raster_index, features)
         lat_lon = self.get_lat_lon(handle, raster_index)
-        logger.info(f'Transforming {required_inputs}'
+        logger.info(f'Transforming {features}'
                     ' to U/V and aligning with grid.')
-        return transform_rotate_wind(ws, wd, lat_lon)
+        return transform_rotate_wind(
+            data_dict[f'windspeed_{height}m'],
+            data_dict[f'winddirection_{height}m'],
+            lat_lon)
 
     def get_lat_lon(self, handle, raster_index):
         """Get lats and lons corresponding to raster
@@ -1192,9 +1202,6 @@ class DataHandlerH5(DataHandler):
 
         Parameters
         ----------
-        handle : WindX | xarray
-            Data Handle for either WTK data
-            or WRF data
         raster_index : ndarray
             Raster index array
 
