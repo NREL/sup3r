@@ -813,12 +813,15 @@ class DataHandler(FeatureHandler):
         for t, t_slice in enumerate(time_chunks):
             for i, f in enumerate(features):
                 method = cls.lookup_method(f)
+                inputs = cls.lookup_inputs(f)
                 height = Feature.get_feature_height(f)
                 tmp = raw_data[t]
+                logger.debug(f'Adding chunk {t} of {f} to final array.')
                 if f in tmp:
                     data[:, :, t_slice, i] = tmp[f]
                 elif method is not None:
-                    logger.info(f'Computing {f}')
+                    logger.debug(f'Computing chunk {t} of {f} '
+                                 f'using inputs: {inputs(f)}')
                     if 'file_path' in method.__code__.co_varnames:
                         data[:, :, t_slice, i] = method(
                             tmp, file_path, raster_index, height)
