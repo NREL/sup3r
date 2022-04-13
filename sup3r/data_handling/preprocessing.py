@@ -1946,7 +1946,8 @@ class BatchHandler:
              means=None, stds=None,
              temporal_coarsening_method='subsample',
              list_chunk_size=None,
-             max_workers=None):
+             max_workers=None,
+             time_chunk_size=500):
 
         """Method to initialize both
         data and batch handlers
@@ -2011,6 +2012,8 @@ class BatchHandler:
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
 
         Returns
         -------
@@ -2048,7 +2051,8 @@ class BatchHandler:
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
                     time_pruning=time_pruning,
-                    max_workers=max_workers))
+                    max_workers=max_workers,
+                    time_chunk_size=time_chunk_size))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             temporal_res=temporal_res, batch_size=batch_size,
@@ -2201,7 +2205,8 @@ class SpatialBatchHandler(BatchHandler):
              n_batches=10,
              stds=None,
              list_chunk_size=None,
-             max_workers=None):
+             max_workers=None,
+             time_chunk_size=500):
 
         """Method to initialize both
         data and batch handlers
@@ -2258,6 +2263,8 @@ class SpatialBatchHandler(BatchHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
 
         Returns
         -------
@@ -2296,7 +2303,8 @@ class SpatialBatchHandler(BatchHandler):
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=1,
                     time_pruning=time_pruning,
-                    max_workers=max_workers))
+                    max_workers=max_workers,
+                    time_chunk_size=time_chunk_size))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
             batch_size=batch_size, norm=norm, means=means,
