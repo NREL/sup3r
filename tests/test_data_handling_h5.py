@@ -460,7 +460,7 @@ def test_val_data_storage():
                                 val_split=val_split,
                                 time_pruning=time_pruning)
         data = handler.extract_data(
-            input_file, handler.raster_index, handler.time_index,
+            f, handler.raster_index, handler.time_index,
             features, time_pruning)
         n_observations += data.shape[2]
 
