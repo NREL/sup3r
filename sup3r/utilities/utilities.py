@@ -429,10 +429,9 @@ def potential_temperature(T, P):
     ndarray
         Potential temperature
     """
-    P0 = 100000
-    return np.array(
-        (T + 273.15) * (P0 / P) ** (0.286),
-        dtype=np.float32)
+    P0 = np.float32(100000)
+    out = (T + 273.15) * (P0 / P) ** (0.286)
+    return out
 
 
 def potential_temperature_difference(T_top, P_top,
@@ -650,7 +649,7 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    bvf_squared = 9.81 / delta_h
+    bvf_squared = np.float32(9.81 / delta_h)
     bvf_squared *= potential_temperature_difference(
         T_top, P_top, T_bottom, P_bottom)
     bvf_squared /= potential_temperature_average(

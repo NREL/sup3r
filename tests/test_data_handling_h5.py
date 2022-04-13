@@ -38,12 +38,12 @@ def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
     handler = DataHandlerH5(input_file, features, target=target, shape=shape,
-                            max_delta=max_delta, raster_file=raster_file,
-                            cache_computed_features=True,
-                            cache_extracted_features=True)
-    for f in features:
-        tmp = handler.compute_feature(handler.raster_index, f)
-        assert tmp.dtype == np.dtype(np.float32)
+                            max_delta=max_delta, raster_file=raster_file)
+
+    tmp = handler.extract_data(
+        input_file, handler.raster_index, handler.time_index,
+        features, time_pruning)
+    assert tmp.dtype == np.dtype(np.float32)
 
     vars = {}
     var_names = {'temperature_100m': 'T_bottom',
@@ -51,7 +51,7 @@ def test_feature_handler():
                  'pressure_100m': 'P_bottom',
                  'pressure_200m': 'P_top'}
     for k, v in var_names.items():
-        tmp = handler.compute_feature(handler.raster_index, k)
+        tmp = handler.extract_feature(input_file, handler.raster_index, k)
         assert tmp.dtype == np.dtype(np.float32)
         vars[v] = tmp
 
@@ -459,7 +459,9 @@ def test_val_data_storage():
                                 max_delta, raster_file=raster_file,
                                 val_split=val_split,
                                 time_pruning=time_pruning)
-        data = handler.extract_data()
+        data = handler.extract_data(
+            input_file, handler.raster_index, handler.time_index,
+            features, time_pruning)
         n_observations += data.shape[2]
 
     assert val_observations == int(val_split * n_observations)
@@ -474,7 +476,9 @@ def test_spatial_coarsening(spatial_res, plot=False):
     handler = DataHandlerH5(input_file, features, target=target,
                             shape=shape, max_delta=20)
 
-    handler_data = handler.extract_data()
+    handler_data = handler.extract_data(
+        input_file, handler.raster_index, handler.time_index,
+        features, time_pruning)
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, spatial_res)
     direct_avg = np.zeros(coarse_data.shape)
