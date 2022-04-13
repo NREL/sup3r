@@ -538,16 +538,13 @@ class FeatureHandler:
         """
 
     @classmethod
-    def get_u(cls, data, file_path, raster_index,
-              height) -> np.dtype(np.float32):
+    def get_u(cls, data, height) -> np.dtype(np.float32):
         """Compute U wind component
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str | int
             Height of U/V to extract in meters.
             e.g. 100
@@ -558,20 +555,17 @@ class FeatureHandler:
             array of U wind component
         """
 
-        u, _ = cls.get_uv(data, file_path, raster_index, height)
+        u, _ = cls.get_uv(data, height)
         return u
 
     @classmethod
-    def get_v(cls, data, file_path, raster_index,
-              height) -> np.dtype(np.float32):
+    def get_v(cls, data, height) -> np.dtype(np.float32):
         """Compute V wind component
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str | int
             Height of U/V to extract in meters.
             e.g. 100
@@ -582,7 +576,7 @@ class FeatureHandler:
             array of V wind component
         """
 
-        _, v = cls.get_uv(data, file_path, raster_index, height)
+        _, v = cls.get_uv(data, height)
         return v
 
     @classmethod
@@ -593,10 +587,8 @@ class FeatureHandler:
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str
             Height of top level in meters
 
@@ -608,15 +600,13 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def get_uv(cls, data, file_path, raster_index, height):
+    def get_uv(cls, data, height):
         """Compute U and V wind components
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str | int
             Height of U/V to extract in meters.
             e.g. 100
@@ -1208,10 +1198,8 @@ class DataHandlerNC(DataHandler):
 
         Parameters
         ----------
-        file_path : list
-            path to data files
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str
             Height of top level in meters
 
@@ -1240,10 +1228,8 @@ class DataHandlerNC(DataHandler):
 
         Parameters
         ----------
-        file_path : list
-            path to data files
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str | int
             Height of U/V to extract in meters.
             e.g. 100
@@ -1501,10 +1487,8 @@ class DataHandlerH5(DataHandler):
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str
             Height of top level in meters
 
@@ -1530,10 +1514,8 @@ class DataHandlerH5(DataHandler):
 
         Parameters
         ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
+        data : dict
+            dictionary of feature arrays used for this compuation
         height : str | int
             Height of U/V to extract in meters.
             e.g. 100
@@ -1552,7 +1534,7 @@ class DataHandlerH5(DataHandler):
             data['lat_lon'])
 
     @classmethod
-    def get_lat_lon(cls, data, file_path, raster_index):
+    def get_lat_lon(cls, file_path, raster_index):
         """Get lats and lons corresponding to raster
         for use in windspeed/direction -> u/v mapping
 
@@ -1571,12 +1553,12 @@ class DataHandlerH5(DataHandler):
         """
 
         handle = get_file_handle(file_path)
-        data['lat_lon'] = handle.lat_lon[tuple(raster_index)]
-        data['lat_lon'] = data['lat_lon'].reshape(
+        lat_lon = handle.lat_lon[tuple(raster_index)]
+        lat_lon = lat_lon.reshape(
             (raster_index.shape[0],
              raster_index.shape[1], 2))
 
-        return data['lat_lon']
+        return lat_lon
 
 
 class ValidationData:
