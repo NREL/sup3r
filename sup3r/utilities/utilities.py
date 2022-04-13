@@ -430,7 +430,7 @@ def potential_temperature(T, P):
         Potential temperature
     """
     P0 = np.float32(100000)
-    out = (T + 273.15) * (P0 / P) ** (0.286)
+    out = (T + np.float32(273.15)) * (P0 / P) ** np.float32(0.286)
     return out
 
 
@@ -497,7 +497,7 @@ def potential_temperature_average(T_top, P_top,
         top and bottom levels
     """
     return ((potential_temperature(T_top, P_top)
-            + potential_temperature(T_bottom, P_bottom)) / 2.0)
+            + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
 
 
 def virtual_var(var, mixing_ratio):

@@ -198,6 +198,13 @@ class FeatureHandler:
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
+
+        logger.info(f'Extracting {input_features}')
+        mem = psutil.virtual_memory()
+        logger.debug(
+            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+            f' out of {mem.total / 1e9 :.3f} GB total.')
+
         futures = {}
         data = {}
         now = dt.now()
@@ -284,6 +291,11 @@ class FeatureHandler:
 
         derived_features = [f for f in all_features if f not in input_features]
         logger.info(f'Computing {derived_features}')
+
+        mem = psutil.virtual_memory()
+        logger.debug(
+            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         futures = {}
         now = dt.now()
