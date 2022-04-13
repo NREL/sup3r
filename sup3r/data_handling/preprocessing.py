@@ -11,13 +11,11 @@ import os
 import re
 import psutil
 from datetime import datetime as dt
-import pickle
 from multiprocessing.reduction import ForkingPickler, AbstractReducer
 import multiprocessing as mp
 
 from rex import WindX
 from rex.utilities import log_mem
-from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (spatial_coarsening,
                                        uniform_box_sampler,
                                        temporal_coarsening,
@@ -33,6 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 class ForkingPickler4(ForkingPickler):
+    """Class to modify pickle protocol
+
+    Parameters
+    ----------
+    ForkingPickler : _type_
+        _description_
+    """
     def __init__(self, *args):
         if len(args) > 1:
             args[1] = 2
@@ -46,16 +51,31 @@ class ForkingPickler4(ForkingPickler):
 
 
 def dump(obj, file, protocol=4):
+    """Overloading dump method with
+    protocol 4
+
+    Parameters
+    ----------
+    obj : pickle object
+        pickle object to dump
+    file : str
+        path to file
+    protcol : int
+        pickle protocol
+    """
     ForkingPickler4(file, protocol).dump(obj)
 
+
 class Pickle4Reducer(AbstractReducer):
+    """Modifying pickle reducer protocol"""
     ForkingPickler = ForkingPickler4
     register = ForkingPickler4.register
     dump = dump
 
 
-ctx = mp.get_context()
-ctx.reducer = Pickle4Reducer()
+mp.context._default_context.reducer = Pickle4Reducer()
+
+from rex.utilities.execution import SpawnProcessPool
 
 
 def get_file_handle(file_paths):
@@ -231,7 +251,7 @@ class FeatureHandler:
 
         else:
             with SpawnProcessPool(
-                    mp_context=ctx, max_workers=max_workers) as exe:
+                    max_workers=max_workers) as exe:
                 for f in features:
                     future = exe.submit(method,
                                         file_path=file_path,
