@@ -252,8 +252,8 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_compute(cls, data, file_path, raster_index, time_chunks,
-                         input_features, all_features, max_workers=None):
+    def parallel_compute(cls, data, time_chunks, input_features,
+                         all_features, max_workers=None):
 
         """Get features using parallel subprocesses
 
@@ -264,10 +264,6 @@ class FeatureHandler:
             for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
-        file_path : list
-            list of file paths
-        raster_index : ndarray
-            raster index for spatial domain
         time_chunks : list
             List of slices to chunk data feature extraction
             along time dimension
@@ -304,27 +300,19 @@ class FeatureHandler:
                 for i, f in enumerate(derived_features):
                     method = cls.lookup_method(f)
                     height = Feature.get_feature_height(f)
-                    if 'file_path' in method.__code__.co_varnames:
-                        data[t][f] = method(
-                            data[t], file_path, raster_index, height)
-                    else:
-                        data[t][f] = method(data[t], height)
+                    tmp = cls.get_input_arrays(data[t], f)
+                    tmp['lat_lon'] = data['lat_lon']
+                    data[t][f] = method(tmp, height)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
                         method = cls.lookup_method(f)
                         height = Feature.get_feature_height(f)
-                        if 'file_path' in method.__code__.co_varnames:
-                            future = exe.submit(
-                                method, data=data[t],
-                                file_path=file_path,
-                                raster_index=raster_index,
-                                height=height)
-                        else:
-                            future = exe.submit(
-                                method, data=data[t],
-                                height=height)
+                        tmp = cls.get_input_arrays(data[t], f)
+                        tmp['lat_lon'] = data['lat_lon']
+                        future = exe.submit(
+                            method, data=tmp, height=height)
 
                         meta = {'feature': f,
                                 'chunk': t}
@@ -351,6 +339,28 @@ class FeatureHandler:
         logger.info(f'Finished computing {derived_features}')
 
         return data
+
+    @classmethod
+    def get_input_arrays(cls, data, f):
+        """Get only arrays needed for computations
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of feature arrays
+        f : str
+            feature to compute using input arrays
+
+        Returns
+        -------
+        dict
+            Dictionary of arrays with only needed features
+        """
+        inputs = cls.lookup_inputs(f)
+        tmp = {}
+        for r in inputs(f):
+            tmp[r] = data[r]
+        return tmp
 
     @classmethod
     def method_registry(cls):
@@ -917,9 +927,11 @@ class DataHandler(FeatureHandler):
         raw_data = cls.parallel_extract(
             file_path, raster_index, time_chunks,
             raw_features, max_workers)
+
+        raw_data['lat_lon'] = cls.get_lat_lon(file_path, raster_index)
+
         raw_data = cls.parallel_compute(
-            raw_data, file_path, raster_index, time_chunks,
-            raw_features, features, max_workers)
+            raw_data, time_chunks, raw_features, features, max_workers)
 
         logger.info('Building final data array')
         for t, t_slice in enumerate(time_chunks):
@@ -1214,11 +1226,12 @@ class DataHandlerNC(DataHandler):
 
         # T is perturbation potential temperature for wrf and the
         # base potential temperature is 300K
-        bvf_squared = 9.81 / 100
+        bvf_squared = np.float32(9.81 / 100)
         bvf_squared *= (data[f'T_{height}m']
                         - data[f'T_{int(height) - 100}m'])
         bvf_squared /= (data[f'T_{height}m']
-                        + data[f'T_{int(height) - 100}m']) / 2
+                        + data[f'T_{int(height) - 100}m'])
+        bvf_squared /= np.float32(2)
         return bvf_squared
 
     @classmethod
@@ -1512,7 +1525,7 @@ class DataHandlerH5(DataHandler):
             100)
 
     @classmethod
-    def get_uv(cls, data, file_path, raster_index, height):
+    def get_uv(cls, data, height):
         """Compute U and V wind components
 
         Parameters
@@ -1536,7 +1549,7 @@ class DataHandlerH5(DataHandler):
         return transform_rotate_wind(
             data[f'windspeed_{height}m'],
             data[f'winddirection_{height}m'],
-            cls.get_lat_lon(data, file_path, raster_index))
+            data['lat_lon'])
 
     @classmethod
     def get_lat_lon(cls, data, file_path, raster_index):
