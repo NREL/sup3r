@@ -638,7 +638,7 @@ class DataHandler(FeatureHandler):
 
         if std == 0:
             std = 1
-            logger.error(
+            logger.warning(
                 'Standard Deviation is zero for '
                 f'{self.features[feature_index]}')
 
