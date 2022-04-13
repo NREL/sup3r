@@ -12,6 +12,8 @@ import re
 import psutil
 from datetime import datetime as dt
 import pickle
+from multiprocessing.reduction import ForkingPickler, AbstractReducer
+import multiprocessing as mp
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -26,9 +28,34 @@ from sup3r.utilities.utilities import (spatial_coarsening,
 from sup3r import __version__
 
 np.random.seed(42)
-pickle.DEFAULT_PROTOCOL = 4
 
 logger = logging.getLogger(__name__)
+
+
+class ForkingPickler4(ForkingPickler):
+    def __init__(self, *args):
+        if len(args) > 1:
+            args[1] = 2
+        else:
+            args.append(2)
+        super().__init__(*args)
+
+    @classmethod
+    def dumps(cls, obj, protocol=4):
+        return ForkingPickler.dumps(obj, protocol)
+
+
+def dump(obj, file, protocol=4):
+    ForkingPickler4(file, protocol).dump(obj)
+
+class Pickle4Reducer(AbstractReducer):
+    ForkingPickler = ForkingPickler4
+    register = ForkingPickler4.register
+    dump = dump
+
+
+ctx = mp.get_context()
+ctx.reducer = Pickle4Reducer()
 
 
 def get_file_handle(file_paths):
@@ -203,7 +230,8 @@ class FeatureHandler:
                     file_path, raster_index, f)
 
         else:
-            with SpawnProcessPool(max_workers=max_workers) as exe:
+            with SpawnProcessPool(
+                    mp_context=ctx, max_workers=max_workers) as exe:
                 for f in features:
                     future = exe.submit(method,
                                         file_path=file_path,
