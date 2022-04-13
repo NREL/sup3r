@@ -170,15 +170,13 @@ class FeatureHandler:
     """
 
     @classmethod
-    def parallel_exe(cls, method, file_path, raster_index,
-                     time_chunks, features, max_workers=None):
+    def parallel_extract(cls, file_path, raster_index, time_chunks,
+                         input_features, max_workers=None):
 
         """Get features using parallel subprocesses
 
         Parameters
         ----------
-        method : extract_feature
-            method to parallelize
         file_path : list
             list of file paths
         raster_index : ndarray
@@ -186,17 +184,19 @@ class FeatureHandler:
         time_chunks : list
             List of slices to chunk data feature extraction
             along time dimension
-        features : list
-            list of feature strings
+        input_features : list
+            list of input feature strings
         max_workers : int | None
             Number of max workers to use for extraction.
             If equal to 1 then method is run in serial
 
         Returns
         -------
-        ndarray
-            array of computed/extracted feature data
-            (spatial_1, spatial_2, temporal, features)
+        dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
         """
         futures = {}
         data = {}
@@ -204,17 +204,17 @@ class FeatureHandler:
 
         if max_workers == 1:
             for t, t_slice in enumerate(time_chunks):
-                for f in features:
+                for f in input_features:
                     if t not in data:
                         data[t] = {}
-                    data[t][f] = method(
+                    data[t][f] = cls.extract_feature(
                         file_path, raster_index, f, t_slice)
 
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
-                    for f in features:
-                        future = exe.submit(method,
+                    for f in input_features:
+                        future = exe.submit(cls.extract_feature,
                                             file_path=file_path,
                                             raster_index=raster_index,
                                             feature=f,
@@ -224,7 +224,7 @@ class FeatureHandler:
                         futures[future] = meta
 
                 logger.info(
-                    f'Started extracting {features}'
+                    f'Started extracting {input_features}'
                     f' in {dt.now() - now}')
 
                 for i, future in enumerate(as_completed(futures)):
@@ -233,14 +233,118 @@ class FeatureHandler:
                     logger.debug(f'{i+1} out of {len(futures)} futures '
                                  'completed')
 
-            logger.info(f'Building data dictionary of {len(features)}'
-                        f' features and {len(time_chunks)} time_chunks')
+            logger.info('Building input feature dictionary of '
+                        f'{len(input_features)} features and '
+                        f'{len(time_chunks)} time_chunks')
             for k, v in futures.items():
                 if v['chunk'] not in data:
                     data[v['chunk']] = {}
                 data[v['chunk']][v['feature']] = k.result()
+        logger.info(f'Finished extracting {input_features}')
+        return data
 
-        logger.info('done processing')
+    @classmethod
+    def parallel_compute(cls, data, file_path, raster_index, time_chunks,
+                         input_features, all_features, max_workers=None):
+
+        """Get features using parallel subprocesses
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
+        file_path : list
+            list of file paths
+        raster_index : ndarray
+            raster index for spatial domain
+        time_chunks : list
+            List of slices to chunk data feature extraction
+            along time dimension
+        input_features : list
+            list of input feature strings
+        all_features : list
+            list of all features including those requiring
+            derivation from input features
+        max_workers : int | None
+            Number of max workers to use for extraction.
+            If equal to 1 then method is run in serial
+
+        Returns
+        -------
+        dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
+        """
+
+        derived_features = [f for f in all_features if f not in input_features]
+        logger.info(f'Computing {derived_features}')
+
+        futures = {}
+        now = dt.now()
+        if max_workers == 1:
+            for t, _ in enumerate(time_chunks):
+                for i, f in enumerate(derived_features):
+                    method = cls.lookup_method(f)
+                    inputs = cls.lookup_inputs(f)
+                    height = Feature.get_feature_height(f)
+                    tmp = data[t]
+                    logger.debug(f'Computing chunk {t} of {f} '
+                                 f'using inputs: {inputs(f)}')
+                    if 'file_path' in method.__code__.co_varnames:
+                        data[t][f] = method(
+                            tmp, file_path, raster_index, height)
+                    else:
+                        data[t][f] = method(tmp, height)
+        else:
+            with SpawnProcessPool(max_workers=max_workers) as exe:
+                for t, _ in enumerate(time_chunks):
+                    for f in derived_features:
+                        method = cls.lookup_method(f)
+                        inputs = cls.lookup_inputs(f)
+                        height = Feature.get_feature_height(f)
+                        tmp = data[t]
+                        logger.debug(f'Computing chunk {t} of {f} '
+                                     f'using inputs: {inputs(f)}')
+                        if 'file_path' in method.__code__.co_varnames:
+                            future = exe.submit(
+                                method, data=tmp,
+                                file_path=file_path,
+                                raster_index=raster_index,
+                                height=height)
+                        else:
+                            future = exe.submit(
+                                method, data=tmp,
+                                height=height)
+
+                        meta = {'feature': f,
+                                'chunk': t}
+
+                        futures[future] = meta
+
+                logger.info(
+                    f'Started computing {derived_features}'
+                    f' in {dt.now() - now}')
+
+                for i, future in enumerate(as_completed(futures)):
+                    logger.debug(f'{futures[future]}'
+                                 f' completed in {dt.now() - now}.')
+                    logger.debug(f'{i+1} out of {len(futures)} futures '
+                                 'completed')
+
+            logger.info('Building derived feature dictionary of '
+                        f'{len(derived_features)} features and '
+                        f'{len(time_chunks)} time_chunks')
+            for k, v in futures.items():
+                if v['chunk'] not in data:
+                    data[v['chunk']] = {}
+                data[v['chunk']][v['feature']] = k.result()
+        logger.info(f'Finished computing {derived_features}')
+
         return data
 
     @classmethod
@@ -805,28 +909,20 @@ class DataHandler(FeatureHandler):
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
         raw_features = cls.get_raw_feature_list(features)
-        raw_data = cls.parallel_exe(
-            cls.extract_feature, file_path, raster_index,
-            time_chunks, raw_features, max_workers)
+        raw_data = cls.parallel_extract(
+            file_path, raster_index, time_chunks,
+            raw_features, max_workers)
+        raw_data = cls.parallel_compute(
+            raw_data, file_path, raster_index, time_chunks,
+            raw_features, features, max_workers)
 
         logger.info('Building final data array')
         for t, t_slice in enumerate(time_chunks):
             for i, f in enumerate(features):
-                method = cls.lookup_method(f)
-                inputs = cls.lookup_inputs(f)
-                height = Feature.get_feature_height(f)
                 tmp = raw_data[t]
                 logger.debug(f'Adding chunk {t} of {f} to final array.')
                 if f in tmp:
                     data[:, :, t_slice, i] = tmp[f]
-                elif method is not None:
-                    logger.debug(f'Computing chunk {t} of {f} '
-                                 f'using inputs: {inputs(f)}')
-                    if 'file_path' in method.__code__.co_varnames:
-                        data[:, :, t_slice, i] = method(
-                            tmp, file_path, raster_index, height)
-                    else:
-                        data[:, :, t_slice, i] = method(tmp, height)
 
         data = data[:, :, ::time_pruning, :]
 
