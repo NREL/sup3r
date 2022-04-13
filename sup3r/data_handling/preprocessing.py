@@ -240,6 +240,7 @@ class FeatureHandler:
                 if v['chunk'] not in data:
                     data[v['chunk']] = {}
                 data[v['chunk']][v['feature']] = k.result()
+
         logger.info(f'Finished extracting {input_features}')
         return data
 
@@ -290,35 +291,27 @@ class FeatureHandler:
             for t, _ in enumerate(time_chunks):
                 for i, f in enumerate(derived_features):
                     method = cls.lookup_method(f)
-                    inputs = cls.lookup_inputs(f)
                     height = Feature.get_feature_height(f)
-                    tmp = data[t]
-                    logger.debug(f'Computing chunk {t} of {f} '
-                                 f'using inputs: {inputs(f)}')
                     if 'file_path' in method.__code__.co_varnames:
                         data[t][f] = method(
-                            tmp, file_path, raster_index, height)
+                            data[t], file_path, raster_index, height)
                     else:
-                        data[t][f] = method(tmp, height)
+                        data[t][f] = method(data[t], height)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
                         method = cls.lookup_method(f)
-                        inputs = cls.lookup_inputs(f)
                         height = Feature.get_feature_height(f)
-                        tmp = data[t]
-                        logger.debug(f'Computing chunk {t} of {f} '
-                                     f'using inputs: {inputs(f)}')
                         if 'file_path' in method.__code__.co_varnames:
                             future = exe.submit(
-                                method, data=tmp,
+                                method, data=data[t],
                                 file_path=file_path,
                                 raster_index=raster_index,
                                 height=height)
                         else:
                             future = exe.submit(
-                                method, data=tmp,
+                                method, data=data[t],
                                 height=height)
 
                         meta = {'feature': f,
