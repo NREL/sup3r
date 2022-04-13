@@ -46,10 +46,10 @@ os.system(f'rm -f {raster_file}')
 def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
-    handler = DataHandlerNC(input_file, features, target=target, shape=shape,
+    handler = DataHandlerNC(input_files, features, target=target, shape=shape,
                             max_delta=max_delta, raster_file=raster_file)
     tmp = handler.extract_data(
-        input_file, handler.raster_index, handler.time_index,
+        input_files, handler.raster_index, handler.time_index,
         features, time_pruning)
     assert tmp.dtype == np.dtype(np.float32)
 
@@ -59,7 +59,7 @@ def test_feature_handler():
                  'P_top': ['P', 200]}
     for _, v in var_names.items():
         tmp = handler.extract_feature(
-            input_file, handler.raster_index, f'{v[0]}_{v[1]}m')
+            input_files, handler.raster_index, f'{v[0]}_{v[1]}m')
         assert tmp.dtype == np.dtype(np.float32)
 
 

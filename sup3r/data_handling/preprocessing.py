@@ -11,11 +11,10 @@ import os
 import re
 import psutil
 from datetime import datetime as dt
-from multiprocessing.reduction import ForkingPickler, AbstractReducer
-import multiprocessing as mp
 
 from rex import WindX
 from rex.utilities import log_mem
+from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (spatial_coarsening,
                                        uniform_box_sampler,
                                        temporal_coarsening,
@@ -28,54 +27,6 @@ from sup3r import __version__
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-class ForkingPickler4(ForkingPickler):
-    """Class to modify pickle protocol
-
-    Parameters
-    ----------
-    ForkingPickler : _type_
-        _description_
-    """
-    def __init__(self, *args):
-        if len(args) > 1:
-            args[1] = 2
-        else:
-            args.append(2)
-        super().__init__(*args)
-
-    @classmethod
-    def dumps(cls, obj, protocol=4):
-        return ForkingPickler.dumps(obj, protocol)
-
-
-def dump(obj, file, protocol=4):
-    """Overloading dump method with
-    protocol 4
-
-    Parameters
-    ----------
-    obj : pickle object
-        pickle object to dump
-    file : str
-        path to file
-    protcol : int
-        pickle protocol
-    """
-    ForkingPickler4(file, protocol).dump(obj)
-
-
-class Pickle4Reducer(AbstractReducer):
-    """Modifying pickle reducer protocol"""
-    ForkingPickler = ForkingPickler4
-    register = ForkingPickler4.register
-    dump = dump
-
-
-mp.context._default_context.reducer = Pickle4Reducer()
-
-from rex.utilities.execution import SpawnProcessPool
 
 
 def get_file_handle(file_paths):
@@ -220,7 +171,8 @@ class FeatureHandler:
 
     @classmethod
     def parallel_exe(cls, method, file_path, raster_index,
-                     features, max_workers=None):
+                     time_chunks, features, max_workers=None):
+
         """Get features using parallel subprocesses
 
         Parameters
@@ -231,8 +183,14 @@ class FeatureHandler:
             list of file paths
         raster_index : ndarray
             raster index for spatial domain
+        time_chunks : list
+            List of slices to chunk data feature extraction
+            along time dimension
         features : list
             list of feature strings
+        max_workers : int | None
+            Number of max workers to use for extraction.
+            If equal to 1 then method is run in serial
 
         Returns
         -------
@@ -245,33 +203,41 @@ class FeatureHandler:
         now = dt.now()
 
         if max_workers == 1:
-            for f in features:
-                data[f] = method(
-                    file_path, raster_index, f)
+            for t, t_slice in enumerate(time_chunks):
+                for f in features:
+                    if t not in data:
+                        data[t] = {}
+                    data[t][f] = method(
+                        file_path, raster_index, f, t_slice)
 
         else:
-            with SpawnProcessPool(
-                    max_workers=max_workers) as exe:
-                for f in features:
-                    future = exe.submit(method,
-                                        file_path=file_path,
-                                        raster_index=raster_index,
-                                        feature=f)
-                    futures[future] = f
+            with SpawnProcessPool(max_workers=max_workers) as exe:
+                for t, t_slice in enumerate(time_chunks):
+                    for f in features:
+                        future = exe.submit(method,
+                                            file_path=file_path,
+                                            raster_index=raster_index,
+                                            feature=f,
+                                            time_slice=t_slice)
+                        meta = {'feature': f,
+                                'chunk': t}
+                        futures[future] = meta
 
                 logger.info(
                     f'Started extracting {features}'
                     f' in {dt.now() - now}')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.info(f'Feature {futures[future]}'
+                    logger.info(f'{futures[future]}'
                                 f' completed in {dt.now() - now}.')
                     logger.info(f'{i+1} out of {len(futures)} futures '
                                 'completed')
 
             logger.info('done processing')
             for k, v in futures.items():
-                data[v] = k.result()
+                if v['chunk'] not in data:
+                    data[v['chunk']] = {}
+                data[v['chunk']][v['feature']] = k.result()
 
         return data
 
@@ -428,7 +394,8 @@ class FeatureHandler:
     @classmethod
     @abstractmethod
     def extract_feature(
-            cls, file_path, raster_index, feature) -> np.dtype(np.float32):
+            cls, file_path, raster_index,
+            feature, time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -437,10 +404,10 @@ class FeatureHandler:
             path to data file
         raster_index : ndarray
             Raster index array
+        time_slice : slice
+            slice of time to extract
         feature : str
             Feature to extract from data
-        interp_height : float | None
-            Interpolation height for wrf data
 
         Returns
         -------
@@ -568,7 +535,8 @@ class DataHandler(FeatureHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None):
+                 raster_file=None, shuffle_time=False, max_workers=None,
+                 time_chunk_size=48):
 
         """Data handling and extraction
 
@@ -611,6 +579,8 @@ class DataHandler(FeatureHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
         """
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
@@ -642,7 +612,8 @@ class DataHandler(FeatureHandler):
             self.file_path, self.target, self.grid_shape)
         self.data = self.extract_data(
             self.file_path, self.raster_index, self.time_index,
-            self.features, self.time_pruning, max_workers)
+            self.features, self.time_pruning, max_workers,
+            time_chunk_size)
         self.data, self.val_data = self.split_data(self.data)
 
         logger.info('Finished intializing DataHandler.')
@@ -781,7 +752,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None):
+                     max_workers=None, chunk_size=48):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -804,6 +775,9 @@ class DataHandler(FeatureHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        chunk_size : int
+            Size of chunks to split time dimension into for smaller
+            data extractions
 
         Returns
         -------
@@ -824,22 +798,28 @@ class DataHandler(FeatureHandler):
                          len(features)),
                         dtype=np.float32)
 
+        n_chunks = len(time_index) // chunk_size + 1
+        time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
+        time_chunks = [slice(t[0], t[-1]) for t in time_chunks]
+
         raw_features = cls.get_raw_feature_list(features)
         raw_data = cls.parallel_exe(
             cls.extract_feature, file_path, raster_index,
-            raw_features, max_workers)
+            time_chunks, raw_features, max_workers)
 
-        for i, f in enumerate(features):
-            method = cls.lookup_method(f)
-            height = Feature.get_feature_height(f)
-            if f in raw_data:
-                data[:, :, :, i] = raw_data[f]
-            elif method is not None:
-                if 'file_path' in method.__code__.co_varnames:
-                    data[:, :, :, i] = method(
-                        raw_data, file_path, raster_index, height)
-                else:
-                    data[:, :, :, i] = method(raw_data, height)
+        for t, t_slice in enumerate(time_chunks):
+            for i, f in enumerate(features):
+                method = cls.lookup_method(f)
+                height = Feature.get_feature_height(f)
+                tmp = raw_data[t]
+                if f in tmp:
+                    data[:, :, t_slice, i] = tmp[f]
+                elif method is not None:
+                    if 'file_path' in method.__code__.co_varnames:
+                        data[:, :, t_slice, i] = method(
+                            tmp, file_path, raster_index, height)
+                    else:
+                        data[:, :, t_slice, i] = method(tmp, height)
 
         data = data[:, :, ::time_pruning, :]
 
@@ -875,7 +855,8 @@ class DataHandlerNC(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None):
+                 raster_file=None, shuffle_time=False, max_workers=None,
+                 time_chunk_size=48):
 
         """Data handling and extraction
 
@@ -918,17 +899,20 @@ class DataHandlerNC(DataHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_workers)
+            max_workers, time_chunk_size)
 
     @classmethod
     def extract_feature(
-            cls, file_path, raster_index, feature) -> np.dtype(np.float32):
+            cls, file_path, raster_index,
+            feature, time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -937,10 +921,10 @@ class DataHandlerNC(DataHandler):
             path to data file
         raster_index : ndarray
             Raster index array
+        time_slice : slice
+            slice of time to extract
         feature : str
             Feature to extract from data
-        interp_height : float | None
-            Interpolation height for wrf data
 
         Returns
         -------
@@ -966,17 +950,17 @@ class DataHandlerNC(DataHandler):
             if len(handle[f_info.basename].shape) > 3:
                 if interp_height is None:
                     fdata = handle[feature][tuple(
-                        [slice(None)] + [0] + raster_index)]
+                        [time_slice] + [0] + raster_index)]
                 else:
                     logger.debug(
                         f'Interpolating {basename} at height {interp_height}m')
                     fdata = interp_var(
                         handle, basename, float(interp_height))
                     fdata = fdata[
-                        tuple([slice(None)] + raster_index)]
+                        tuple([time_slice] + raster_index)]
             else:
                 fdata = handle[
-                    tuple([feature] + [slice(None)] + raster_index)]
+                    tuple([feature] + [time_slice] + raster_index)]
 
             fdata = fdata.reshape(
                 (raster_index.shape[0], raster_index.shape[1], -1))
@@ -1185,7 +1169,8 @@ class DataHandlerH5(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None):
+                 raster_file=None, shuffle_time=False, max_workers=None,
+                 time_chunk_size=48):
 
         """Data handling and extraction
 
@@ -1228,17 +1213,20 @@ class DataHandlerH5(DataHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_workers)
+            max_workers, time_chunk_size)
 
     @classmethod
     def extract_feature(
-            cls, file_path, raster_index, feature) -> np.dtype(np.float32):
+            cls, file_path, raster_index,
+            feature, time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -1247,10 +1235,10 @@ class DataHandlerH5(DataHandler):
             path to data file
         raster_index : ndarray
             Raster index array
+        time_slice : slice
+            slice of time to extract
         feature : str
             Feature to extract from data
-        interp_height : float | None
-            Interpolation height for wrf data
 
         Returns
         -------
@@ -1270,7 +1258,7 @@ class DataHandlerH5(DataHandler):
 
         try:
             fdata = handle[
-                tuple([feature] + [slice(None)] + raster_index)]
+                tuple([feature] + [time_slice] + raster_index)]
 
             fdata = fdata.reshape(
                 (raster_index.shape[0], raster_index.shape[1], -1))
