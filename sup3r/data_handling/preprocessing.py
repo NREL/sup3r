@@ -11,6 +11,7 @@ import os
 import re
 import psutil
 from datetime import datetime as dt
+import pickle
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -25,6 +26,7 @@ from sup3r.utilities.utilities import (spatial_coarsening,
 from sup3r import __version__
 
 np.random.seed(42)
+pickle.DEFAULT_PROTOCOL = 4
 
 logger = logging.getLogger(__name__)
 
@@ -518,7 +520,7 @@ class DataHandler(FeatureHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, max_workers=None):
 
         """Data handling and extraction
 
@@ -558,6 +560,9 @@ class DataHandler(FeatureHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
         """
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
@@ -589,7 +594,7 @@ class DataHandler(FeatureHandler):
             self.file_path, self.target, self.grid_shape)
         self.data = self.extract_data(
             self.file_path, self.raster_index, self.time_index,
-            self.features, self.time_pruning)
+            self.features, self.time_pruning, max_workers)
         self.data, self.val_data = self.split_data(self.data)
 
         logger.info('Finished intializing DataHandler.')
@@ -727,7 +732,8 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def extract_data(cls, file_path, raster_index,
-                     time_index, features, time_pruning):
+                     time_index, features, time_pruning,
+                     max_workers=None):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -747,6 +753,9 @@ class DataHandler(FeatureHandler):
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
 
         Returns
         -------
@@ -769,7 +778,8 @@ class DataHandler(FeatureHandler):
 
         raw_features = cls.get_raw_feature_list(features)
         raw_data = cls.parallel_exe(
-            cls.extract_feature, file_path, raster_index, raw_features)
+            cls.extract_feature, file_path, raster_index,
+            raw_features, max_workers)
 
         for i, f in enumerate(features):
             method = cls.lookup_method(f)
@@ -817,7 +827,7 @@ class DataHandlerNC(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, max_workers=None):
 
         """Data handling and extraction
 
@@ -857,12 +867,16 @@ class DataHandlerNC(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time)
+            spatial_sample_shape, raster_file, shuffle_time,
+            max_workers)
 
     @classmethod
     def extract_feature(
@@ -1123,7 +1137,7 @@ class DataHandlerH5(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False):
+                 raster_file=None, shuffle_time=False, max_workers=None):
 
         """Data handling and extraction
 
@@ -1163,12 +1177,16 @@ class DataHandlerH5(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time)
+            spatial_sample_shape, raster_file, shuffle_time,
+            max_workers)
 
     @classmethod
     def extract_feature(
@@ -1788,7 +1806,8 @@ class BatchHandler:
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
-             list_chunk_size=None):
+             list_chunk_size=None,
+             max_workers=None):
 
         """Method to initialize both
         data and batch handlers
@@ -1850,6 +1869,9 @@ class BatchHandler:
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
 
         Returns
         -------
@@ -1886,7 +1908,8 @@ class BatchHandler:
                     raster_file=raster_file, val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
-                    time_pruning=time_pruning))
+                    time_pruning=time_pruning,
+                    max_workers=max_workers))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             temporal_res=temporal_res, batch_size=batch_size,
@@ -2038,7 +2061,8 @@ class SpatialBatchHandler(BatchHandler):
              time_pruning=1, means=None,
              n_batches=10,
              stds=None,
-             list_chunk_size=None):
+             list_chunk_size=None,
+             max_workers=None):
 
         """Method to initialize both
         data and batch handlers
@@ -2092,6 +2116,9 @@ class SpatialBatchHandler(BatchHandler):
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
+        max_workers : int | None
+            max number of workers to use for data extraction.
+            If max_workers == 1 then extraction will be serialized.
 
         Returns
         -------
@@ -2129,7 +2156,8 @@ class SpatialBatchHandler(BatchHandler):
                     val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=1,
-                    time_pruning=time_pruning))
+                    time_pruning=time_pruning,
+                    max_workers=max_workers))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
             batch_size=batch_size, norm=norm, means=means,
