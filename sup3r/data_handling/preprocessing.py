@@ -228,17 +228,19 @@ class FeatureHandler:
                     f' in {dt.now() - now}')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.info(f'{futures[future]}'
-                                f' completed in {dt.now() - now}.')
-                    logger.info(f'{i+1} out of {len(futures)} futures '
-                                'completed')
+                    logger.debug(f'{futures[future]}'
+                                 f' completed in {dt.now() - now}.')
+                    logger.debug(f'{i+1} out of {len(futures)} futures '
+                                 'completed')
 
-            logger.info('done processing')
+            logger.info(f'Building data dictionary of {len(features)}'
+                        f' features and {len(time_chunks)} time_chunks')
             for k, v in futures.items():
                 if v['chunk'] not in data:
                     data[v['chunk']] = {}
                 data[v['chunk']][v['feature']] = k.result()
 
+        logger.info('done processing')
         return data
 
     @classmethod
@@ -536,7 +538,7 @@ class DataHandler(FeatureHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=48):
+                 time_chunk_size=500):
 
         """Data handling and extraction
 
@@ -752,7 +754,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None, chunk_size=48):
+                     max_workers=None, chunk_size=500):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -800,13 +802,14 @@ class DataHandler(FeatureHandler):
 
         n_chunks = len(time_index) // chunk_size + 1
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
-        time_chunks = [slice(t[0], t[-1]) for t in time_chunks]
+        time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
         raw_features = cls.get_raw_feature_list(features)
         raw_data = cls.parallel_exe(
             cls.extract_feature, file_path, raster_index,
             time_chunks, raw_features, max_workers)
 
+        logger.info('Building final data array')
         for t, t_slice in enumerate(time_chunks):
             for i, f in enumerate(features):
                 method = cls.lookup_method(f)
@@ -815,6 +818,7 @@ class DataHandler(FeatureHandler):
                 if f in tmp:
                     data[:, :, t_slice, i] = tmp[f]
                 elif method is not None:
+                    logger.info(f'Computing {f}')
                     if 'file_path' in method.__code__.co_varnames:
                         data[:, :, t_slice, i] = method(
                             tmp, file_path, raster_index, height)
@@ -856,7 +860,7 @@ class DataHandlerNC(DataHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=48):
+                 time_chunk_size=500):
 
         """Data handling and extraction
 
@@ -895,7 +899,7 @@ class DataHandlerNC(DataHandler):
             Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
         shuffle_time : bool
-            Whether to shuffle time indices before valiidation split
+            Whether to shuffle time indices before validation split
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
@@ -1170,7 +1174,7 @@ class DataHandlerH5(DataHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=48):
+                 time_chunk_size=500):
 
         """Data handling and extraction
 
