@@ -294,7 +294,7 @@ class FeatureHandler:
                              if f in cls.TIME_IND_FEATURES]
 
         if max_workers == 1:
-            cls.serial_extract(
+            return cls.serial_extract(
                 file_path, raster_index, time_chunks, input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
@@ -391,15 +391,17 @@ class FeatureHandler:
             f' out of {mem.total / 1e9 :.3f} GB total.')
 
         for t, t_slice in enumerate(time_chunks):
-            for i, f in enumerate(derived_features):
+            for _, f in enumerate(derived_features):
                 method = cls.lookup_method(f)
                 height = Feature.get_feature_height(f)
                 tmp = cls.get_input_arrays(data, t, f)
-                data_array[:, :, t_slice, i] = method(tmp, height)
+                f_index = all_features.index(f)
+                data_array[:, :, t_slice, f_index] = method(tmp, height)
 
         for t, t_slice in enumerate(time_chunks):
-            for i, f in enumerate(non_derived_features):
-                data_array[:, :, t_slice, i] = data[t][f]
+            for _, f in enumerate(non_derived_features):
+                f_index = all_features.index(f)
+                data_array[:, :, t_slice, f_index] = data[t][f]
                 data[t].pop(f)
             data.pop(t)
 
@@ -455,7 +457,7 @@ class FeatureHandler:
         futures = {}
         now = dt.now()
         if max_workers == 1:
-            cls.serial_compute(
+            return cls.serial_compute(
                 data, data_array, time_chunks, input_features, all_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
@@ -503,8 +505,9 @@ class FeatureHandler:
                 data_array[:, :, t_slice, f_index] = k.result()
 
             for t, t_slice in enumerate(time_chunks):
-                for i, f in enumerate(non_derived_features):
-                    data_array[:, :, t_slice, i] = data[t][f]
+                for _, f in enumerate(non_derived_features):
+                    f_index = all_features.index(f)
+                    data_array[:, :, t_slice, f_index] = data[t][f]
                     data[t].pop(f)
                 data.pop(t)
 
@@ -909,6 +912,10 @@ class DataHandler(FeatureHandler):
             time_chunk_size)
         self.data, self.val_data = self.split_data(self.data)
 
+        msg = ('The temporal_sample_shape cannot '
+               'be larger than the number of time steps in the raw data.')
+        assert len(self.time_index) >= temporal_sample_shape, msg
+
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
@@ -1057,7 +1064,9 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None, time_chunk_size=100):
+                     max_workers=None, time_chunk_size=100,
+                     serial_time_chunk_size=40,
+                     feature_list_chunk_size=20):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -1080,8 +1089,16 @@ class DataHandler(FeatureHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
+        serial_time_chunk_size : int
+            size of list of time slices to run in parallel. e.g. if
+            100 then 100 slices of size time_chunk_size will be run
+            in parallel and if there are more slices than this each
+            list of slices will be run in series.
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller
+            data extractions
+        feature_list_chunk_size : int
+            Size of chunks to split feature set into for smaller
             data extractions
 
         Returns
@@ -1107,15 +1124,30 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        raw_features = cls.get_raw_feature_list(features)
+        n_chunks = len(time_chunks) // serial_time_chunk_size + 1
+        serial_time_chunks = np.array_split(time_chunks, n_chunks)
 
-        raw_data = cls.parallel_extract(
-            file_path, raster_index, time_chunks,
-            raw_features, max_workers)
+        n_chunks = len(features) // feature_list_chunk_size + 1
+        feature_chunks = np.array_split(np.arange(0, len(features)), n_chunks)
+        feature_chunks = [slice(f[0], f[-1] + 1) for f in feature_chunks]
 
-        data_array = cls.parallel_compute(
-            raw_data, data_array, raster_index, time_chunks,
-            raw_features, features, max_workers)
+        for f_slice in feature_chunks:
+            f_list = features[f_slice]
+            raw_features = cls.get_raw_feature_list(f_list)
+            for t_slices in serial_time_chunks:
+                t_slice = slice(t_slices[0].start, t_slices[-1].stop)
+                logger.debug(
+                    f'Extracting data chunk with {f_list} '
+                    f'and time_slice: {t_slice}')
+
+                raw_data = cls.parallel_extract(
+                    file_path, raster_index, t_slices,
+                    raw_features, max_workers)
+
+                data_array[:, :, :, f_slice] = cls.parallel_compute(
+                    raw_data, data_array[:, :, :, f_slice],
+                    raster_index, t_slices,
+                    raw_features, f_list, max_workers)
 
         data_array = data_array[:, :, ::time_pruning, :]
         logger.info('Finished extracting data from '

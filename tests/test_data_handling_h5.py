@@ -178,7 +178,7 @@ def test_validation_batching():
              spatial_sample_shape[1] // spatial_res, len(features))
         assert batch.high_res.shape == \
             (batch.high_res.shape[0], spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+             spatial_sample_shape[1], len(features) - 1)
 
 
 @pytest.mark.parametrize(

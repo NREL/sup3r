@@ -16,6 +16,12 @@ from sup3r.utilities import utilities
 input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
 target = (19, -125)
 targets = target
