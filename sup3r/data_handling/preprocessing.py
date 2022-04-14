@@ -1059,8 +1059,10 @@ class DataHandlerNC(DataHandler):
         try:
             if len(handle[f_info.basename].shape) > 3:
                 if interp_height is None:
-                    fdata = handle[feature][tuple(
-                        [time_slice] + [0] + raster_index)]
+                    fdata = np.array(
+                        handle[feature][
+                            tuple([time_slice] + [0] + raster_index)],
+                        dtype=np.float32)
                 else:
                     logger.debug(
                         f'Interpolating {basename} at height {interp_height}m')
@@ -1069,8 +1071,9 @@ class DataHandlerNC(DataHandler):
                     fdata = fdata[
                         tuple([time_slice] + raster_index)]
             else:
-                fdata = handle[
-                    tuple([feature] + [time_slice] + raster_index)]
+                fdata = np.array(
+                    handle[feature][tuple([time_slice] + raster_index)],
+                    dtype=np.float32)
 
             fdata = fdata.reshape(
                 (raster_index.shape[0], raster_index.shape[1], -1))
@@ -1245,7 +1248,7 @@ class DataHandlerNC(DataHandler):
         return data[f'U_{height}m'], data[f'V_{height}m']
 
     @classmethod
-    def get_lat_lon(cls, data):
+    def get_lat_lon(cls, file_path, raster_index):
         """Get lats and lons corresponding to raster
         for use in windspeed/direction -> u/v mapping
 
@@ -1263,9 +1266,11 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, 2)
         """
 
-        lat_lon = np.concatenate(
-            [data['XLAT'][0][:, :, np.newaxis],
-             data['XLONG'][1][:, :, np.newaxis]])
+        lat = cls.extract_feature(
+            file_path, raster_index, 'XLAT', time_slice=slice(0, 1))
+        lon = cls.extract_feature(
+            file_path, raster_index, 'XLONG', time_slice=slice(0, 1))
+        lat_lon = np.concatenate([lat, lon], axis=2)
 
         return lat_lon
 
