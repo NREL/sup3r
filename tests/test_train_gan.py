@@ -40,8 +40,12 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
                             spatial_sample_shape=sample_shape,
                             time_pruning=10)
 
+    assert handler.shape[-1] == len(FEATURES)
+
     batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
                                         n_batches=10)
+
+    assert batch_handler.shape[-1] == len(FEATURES)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss

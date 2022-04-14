@@ -232,11 +232,15 @@ class FeatureHandler:
 
                 logger.info(
                     f'Started extracting {input_features}'
-                    f' in {dt.now() - now}')
+                    f' in {dt.now() - now}. Using {len(time_chunks)} '
+                    f' time chunks of shape ({raster_index.shape[0]}, '
+                    f'{raster_index.shape[1]}, '
+                    f'{time_chunks[0].stop - time_chunks[1].start}) '
+                    f'for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.debug(f'{futures[future]}'
-                                 f' completed in {dt.now() - now}.')
+                    logger.debug(f'Finished extracting {futures[future]}'
+                                 f' in {dt.now() - now}.')
                     logger.debug(f'{i+1} out of {len(futures)} futures '
                                  'completed')
 
@@ -319,9 +323,15 @@ class FeatureHandler:
 
                         futures[future] = meta
 
+                first_chunk = list(data.keys())[0]
+                first_feature = list(data[first_chunk].keys())[0]
                 logger.info(
                     f'Started computing {derived_features}'
-                    f' in {dt.now() - now}')
+                    f' in {dt.now() - now}. Using {len(time_chunks)} '
+                    ' time chunks of shape '
+                    f'({data[first_chunk][first_feature].shape}, '
+                    f'{time_chunks[0].stop - time_chunks[1].start}) '
+                    f'for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
                     logger.debug(f'{futures[future]}'
@@ -932,6 +942,7 @@ class DataHandler(FeatureHandler):
                     data[:, :, t_slice, i] = tmp[f]
 
         data = data[:, :, ::time_pruning, :]
+        logger.info('Finished extracting data')
 
         return data
 
