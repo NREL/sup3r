@@ -1064,9 +1064,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None, time_chunk_size=100,
-                     serial_time_chunk_size=40,
-                     feature_list_chunk_size=20):
+                     max_workers=None, time_chunk_size=100):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -1124,30 +1122,16 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        n_chunks = len(time_chunks) // serial_time_chunk_size + 1
-        serial_time_chunks = np.array_split(time_chunks, n_chunks)
+        raw_features = cls.get_raw_feature_list(features)
 
-        n_chunks = len(features) // feature_list_chunk_size + 1
-        feature_chunks = np.array_split(np.arange(0, len(features)), n_chunks)
-        feature_chunks = [slice(f[0], f[-1] + 1) for f in feature_chunks]
+        raw_data = cls.parallel_extract(
+            file_path, raster_index, time_chunks,
+            raw_features, max_workers)
 
-        for f_slice in feature_chunks:
-            f_list = features[f_slice]
-            raw_features = cls.get_raw_feature_list(f_list)
-            for t_slices in serial_time_chunks:
-                t_slice = slice(t_slices[0].start, t_slices[-1].stop)
-                logger.debug(
-                    f'Extracting data chunk with {f_list} '
-                    f'and time_slice: {t_slice}')
-
-                raw_data = cls.parallel_extract(
-                    file_path, raster_index, t_slices,
-                    raw_features, max_workers)
-
-                data_array[:, :, :, f_slice] = cls.parallel_compute(
-                    raw_data, data_array[:, :, :, f_slice],
-                    raster_index, t_slices,
-                    raw_features, f_list, max_workers)
+        data_array = cls.parallel_compute(
+            raw_data, data_array,
+            raster_index, time_chunks,
+            raw_features, features, max_workers)
 
         data_array = data_array[:, :, ::time_pruning, :]
         logger.info('Finished extracting data from '
