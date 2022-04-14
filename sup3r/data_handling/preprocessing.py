@@ -232,14 +232,16 @@ class FeatureHandler:
 
         data = defaultdict(dict)
 
-        TIME_DEP_FEATURES = [f for f in input_features
+        time_dep_features = [f for f in input_features
                              if f not in cls.TIME_IND_FEATURES]
+        time_ind_features = [f for f in input_features
+                             if f in cls.TIME_IND_FEATURES]
 
         for t, t_slice in enumerate(time_chunks):
-            for f in TIME_DEP_FEATURES:
+            for f in time_dep_features:
                 data[t][f] = cls.extract_feature(
                     file_path, raster_index, f, t_slice)
-        for f in cls.TIME_IND_FEATURES:
+        for f in time_ind_features:
             data[-1][f] = cls.extract_feature(
                 file_path, raster_index, f)
 
@@ -286,8 +288,10 @@ class FeatureHandler:
         data = defaultdict(dict)
         now = dt.now()
 
-        TIME_DEP_FEATURES = [f for f in input_features
+        time_dep_features = [f for f in input_features
                              if f not in cls.TIME_IND_FEATURES]
+        time_ind_features = [f for f in input_features
+                             if f in cls.TIME_IND_FEATURES]
 
         if max_workers == 1:
             cls.serial_extract(
@@ -295,7 +299,7 @@ class FeatureHandler:
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
-                    for f in TIME_DEP_FEATURES:
+                    for f in time_dep_features:
                         future = exe.submit(cls.extract_feature,
                                             file_path=file_path,
                                             raster_index=raster_index,
@@ -305,7 +309,7 @@ class FeatureHandler:
                                 'chunk': t}
                         futures[future] = meta
 
-                for f in cls.TIME_IND_FEATURES:
+                for f in time_ind_features:
                     future = exe.submit(cls.extract_feature,
                                         file_path=file_path,
                                         raster_index=raster_index,
@@ -337,7 +341,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def serial_compute(cls, data, time_chunks,
+    def serial_compute(cls, data, data_array, time_chunks,
                        input_features, all_features):
 
         """Compute features in series
@@ -349,6 +353,9 @@ class FeatureHandler:
             for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
+        data_array : ndarray
+            Array to fill with feature data
+            (spatial_1, spatial_2, temporal, features)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -365,14 +372,13 @@ class FeatureHandler:
 
         Returns
         -------
-        dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
+        data_array : ndarray
+            Final array with feature data to be used for training
+            (spatial_1, spatial_2, temporal, features)
         """
 
         derived_features = [f for f in all_features if f not in input_features]
+        non_derived_features = [f for f in all_features if f in input_features]
         logger.info(f'Computing {derived_features}')
 
         mem = psutil.virtual_memory()
@@ -380,20 +386,24 @@ class FeatureHandler:
             f'Current memory usage is {mem.used / 1e9 :.3f} GB'
             f' out of {mem.total / 1e9 :.3f} GB total.')
 
-        for t, _ in enumerate(time_chunks):
-            for _, f in enumerate(derived_features):
+        for t, t_slice in enumerate(time_chunks):
+            for i, f in enumerate(derived_features):
                 method = cls.lookup_method(f)
                 height = Feature.get_feature_height(f)
                 tmp = cls.get_input_arrays(data, t, f)
-                data[t][f] = method(tmp, height)
+                data_array[:, :, t_slice, i] = method(tmp, height)
 
-            cls.pop_old_data(data, t, all_features)
+        for t, t_slice in enumerate(time_chunks):
+            for i, f in enumerate(non_derived_features):
+                data_array[:, :, t_slice, i] = data[t][f]
+                data[t].pop(f)
+            data.pop(t)
 
         logger.info(f'Finished computing {derived_features}')
-        return data
+        return data_array
 
     @classmethod
-    def parallel_compute(cls, data, raster_index, time_chunks,
+    def parallel_compute(cls, data, data_array, raster_index, time_chunks,
                          input_features, all_features, max_workers=None):
 
         """Compute features using parallel subprocesses
@@ -405,6 +415,9 @@ class FeatureHandler:
             for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
+        data_array : ndarray
+            Array to fill with feature data
+            (spatial_1, spatial_2, temporal, features)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -421,14 +434,13 @@ class FeatureHandler:
 
         Returns
         -------
-        dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
+        data_array : ndarray
+            Final array with feature data to be used for training
+            (spatial_1, spatial_2, temporal, features)
         """
 
         derived_features = [f for f in all_features if f not in input_features]
+        non_derived_features = [f for f in all_features if f in input_features]
         logger.info(f'Computing {derived_features}')
 
         mem = psutil.virtual_memory()
@@ -440,7 +452,7 @@ class FeatureHandler:
         now = dt.now()
         if max_workers == 1:
             cls.serial_compute(
-                data, time_chunks, input_features, all_features)
+                data, data_array, time_chunks, input_features, all_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
@@ -475,11 +487,24 @@ class FeatureHandler:
             logger.info('Building derived feature dictionary of '
                         f'{len(derived_features)} features and '
                         f'{len(time_chunks)} time_chunks')
-            for k, v in futures.items():
-                data[v['chunk']][v['feature']] = k.result()
-        logger.info(f'Finished computing {derived_features}')
 
-        return data
+            logger.info(f'Finished computing {derived_features}')
+
+            logger.info('Building final data array')
+            for k, v in futures.items():
+                t = v['chunk']
+                t_slice = time_chunks[t]
+                f = v['feature']
+                f_index = all_features.index(f)
+                data_array[:, :, t_slice, f_index] = k.result()
+
+            for t, t_slice in enumerate(time_chunks):
+                for i, f in enumerate(non_derived_features):
+                    data_array[:, :, t_slice, i] = data[t][f]
+                    data[t].pop(f)
+                data.pop(t)
+
+        return data_array
 
     @classmethod
     def get_input_arrays(cls, data, chunk_number, f):
@@ -1069,38 +1094,30 @@ class DataHandler(FeatureHandler):
         logger.debug(
             f'Loading data for raster of shape {raster_index.shape}')
 
-        data = np.zeros((raster_index.shape[0],
-                         raster_index.shape[1],
-                         len(time_index),
-                         len(features)),
-                        dtype=np.float32)
+        data_array = np.zeros(
+            (raster_index.shape[0], raster_index.shape[1],
+             len(time_index), len(features)),
+            dtype=np.float32)
 
         n_chunks = len(time_index) // time_chunk_size + 1
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
         raw_features = cls.get_raw_feature_list(features)
+
         raw_data = cls.parallel_extract(
             file_path, raster_index, time_chunks,
             raw_features, max_workers)
 
-        raw_data = cls.parallel_compute(
-            raw_data, raster_index, time_chunks,
+        data_array = cls.parallel_compute(
+            raw_data, data_array, raster_index, time_chunks,
             raw_features, features, max_workers)
 
-        logger.info('Building final data array')
-        for t, t_slice in enumerate(time_chunks):
-            for i, f in enumerate(features):
-                tmp = raw_data[t]
-                logger.debug(f'Adding chunk {t} of {f} to final array.')
-                if f in tmp:
-                    data[:, :, t_slice, i] = tmp[f]
-
-        data = data[:, :, ::time_pruning, :]
+        data_array = data_array[:, :, ::time_pruning, :]
         logger.info('Finished extracting data from '
                     f'{file_path} in {dt.now() - now}')
 
-        return data
+        return data_array
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):
@@ -1223,8 +1240,12 @@ class DataHandlerNC(DataHandler):
         interp_height = f_info.height
         basename = f_info.basename
 
+        method = cls.lookup_method(feature)
+        if method is not None and basename not in handle:
+            return method(file_path, raster_index)
+
         try:
-            if len(handle[f_info.basename].shape) > 3:
+            if len(handle[basename].shape) > 3:
                 if interp_height is None:
                     fdata = np.array(
                         handle[feature][
@@ -1536,7 +1557,7 @@ class DataHandlerH5(DataHandler):
             f' out of {mem.total / 1e9 :.3f} GB total.')
 
         method = cls.lookup_method(feature)
-        if method is not None:
+        if method is not None and feature not in handle:
             return method(file_path, raster_index)
 
         try:
