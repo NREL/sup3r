@@ -263,8 +263,8 @@ class FeatureHandler:
 
                 for i, future in enumerate(as_completed(futures)):
                     if i % len(futures) // 10 == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} futures '
-                                     'completed')
+                        logger.debug(f'{i+1} out of {len(futures)} feature '
+                                     'chunks extracted.')
 
             logger.info('Building input feature dictionary of '
                         f'{len(input_features)} features and '
@@ -357,8 +357,8 @@ class FeatureHandler:
 
                 for i, future in enumerate(as_completed(futures)):
                     if i % len(futures) // 10 == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} futures '
-                                     'completed')
+                        logger.debug(f'{i+1} out of {len(futures)} feature '
+                                     'chunks computed')
 
             logger.info('Building derived feature dictionary of '
                         f'{len(derived_features)} features and '
