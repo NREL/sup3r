@@ -3,6 +3,7 @@
 Sup3r preprocessing module.
 """
 from abc import abstractmethod
+from fnmatch import fnmatch
 from concurrent.futures import as_completed
 import logging
 import xarray as xr
@@ -673,6 +674,12 @@ class FeatureHandler:
 class DataHandler(FeatureHandler):
     """Sup3r data handling and extraction"""
 
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('BVF_*',)
+
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
@@ -759,6 +766,18 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    @property
+    def output_features(self):
+        """Get a list of features that should be output by the generative model
+        corresponding to the features in the high res batch array."""
+        out = []
+        for feature in self.features:
+            ignore = any(fnmatch(feature.lower(), pattern.lower())
+                         for pattern in self.TRAIN_ONLY_FEATURES)
+            if not ignore:
+                out.append(feature)
+        return out
 
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
@@ -1609,7 +1628,8 @@ class ValidationData:
 
     def __init__(self, data_handlers, batch_size=8,
                  spatial_res=3, temporal_res=1,
-                 temporal_coarsening_method='subsample'):
+                 temporal_coarsening_method='subsample',
+                 output_features_ind=None):
         """
         Parameters
         ----------
@@ -1626,6 +1646,9 @@ class ValidationData:
             Subsample will take every temporal_res-th time step,
             average will average over temporal_res time steps,
             total will sum over temporal_res time steps
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
         """
 
         spatial_shapes = np.array(
@@ -1647,6 +1670,7 @@ class ValidationData:
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
+        self.output_features_ind = output_features_ind
 
     def _get_val_indices(self):
         """List of dicts to index each validation data
@@ -1743,8 +1767,10 @@ class ValidationData:
             if self.temporal_sample_shape == 1:
                 high_res = high_res[:, :, :, 0, :]
             batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res, self.temporal_res,
-                self.temporal_coarsening_method)
+                high_res, self.spatial_res,
+                temporal_res=self.temporal_res,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind)
             self._i += 1
             return batch
         else:
@@ -1790,10 +1816,31 @@ class Batch:
         """Get the high-resolution data for the batch."""
         return self._high_res
 
+    @staticmethod
+    def reduce_features(high_res, output_features_ind=None):
+        """Remove any feature channels that are only intended for the low-res
+        training input.
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        if output_features_ind is None:
+            return high_res
+        else:
+            return high_res[..., output_features_ind]
+
     @classmethod
     def get_coarse_batch(cls, high_res,
-                         spatial_res, temporal_res,
-                         temporal_coarsening_method):
+                         spatial_res, temporal_res=1,
+                         temporal_coarsening_method='subsample',
+                         output_features_ind=None):
         """Coarsen high res data and return Batch with
         high res and low res data
 
@@ -1810,6 +1857,9 @@ class Batch:
         temporal_coarsening_method : str
             method to use for temporal coarsening.
             can be subsample, average, or total
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
 
         Returns
         -------
@@ -1818,9 +1868,14 @@ class Batch:
         """
         low_res = spatial_coarsening(
             high_res, spatial_res)
-        low_res = temporal_coarsening(
-            low_res, temporal_res,
-            temporal_coarsening_method)
+
+        if temporal_res != 1:
+            low_res = temporal_coarsening(
+                low_res, temporal_res,
+                temporal_coarsening_method)
+
+        high_res = cls.reduce_features(high_res, output_features_ind)
+
         batch = cls(low_res, high_res)
         return batch
 
@@ -1896,7 +1951,8 @@ class BatchHandler:
         self.val_data = ValidationData(
             data_handlers, batch_size=batch_size,
             spatial_res=spatial_res, temporal_res=temporal_res,
-            temporal_coarsening_method=temporal_coarsening_method)
+            temporal_coarsening_method=temporal_coarsening_method,
+            output_features_ind=self.output_features_ind)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -1907,6 +1963,29 @@ class BatchHandler:
             Number of batches possible to iterate over
         """
         return self.n_batches
+
+    @property
+    def training_features(self):
+        """Get the ordered list of feature names held in this object's
+        data handlers"""
+        return self.data_handlers[0].features
+
+    @property
+    def output_features(self):
+        """Get the ordered list of feature names held in this object's
+        data handlers"""
+        return self.data_handlers[0].output_features
+
+    @property
+    def output_features_ind(self):
+        """Get the feature channel indices that should be used for the
+        generated output features"""
+        if self.training_features == self.output_features:
+            return None
+        else:
+            out = [i for i, feature in enumerate(self.training_features)
+                   if feature in self.output_features]
+            return out
 
     @staticmethod
     def get_source_type(file_paths):
@@ -2193,9 +2272,13 @@ class BatchHandler:
             for i in range(self.batch_size):
                 high_res[i, :, :, :, :] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
+
             batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res, self.temporal_res,
-                self.temporal_coarsening_method)
+                high_res, self.spatial_res,
+                temporal_res=self.temporal_res,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind)
+
             self._i += 1
             return batch
         else:
@@ -2365,9 +2448,11 @@ class SpatialBatchHandler(BatchHandler):
                                  self.shape[-1]), dtype=np.float32)
             for i in range(self.batch_size):
                 high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
-            low_res = spatial_coarsening(
-                high_res, self.spatial_res)
-            batch = Batch(low_res, high_res)
+
+            batch = Batch.get_coarse_batch(
+                high_res, self.spatial_res,
+                output_features_ind=self.output_features_ind)
+
             self._i += 1
             return batch
         else:
