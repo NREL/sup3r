@@ -330,6 +330,10 @@ class FeatureHandler:
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
+                        mem = psutil.virtual_memory()
+                        logger.debug(
+                            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+                            f' out of {mem.total / 1e9 :.3f} GB total.')
 
             logger.info('Building input feature dictionary of '
                         f'{len(input_features)} features and '
@@ -483,10 +487,10 @@ class FeatureHandler:
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
-
-            logger.info('Building derived feature dictionary of '
-                        f'{len(derived_features)} features and '
-                        f'{len(time_chunks)} time_chunks')
+                        mem = psutil.virtual_memory()
+                        logger.debug(
+                            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+                            f' out of {mem.total / 1e9 :.3f} GB total.')
 
             logger.info(f'Finished computing {derived_features}')
 
