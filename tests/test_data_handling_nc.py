@@ -168,7 +168,7 @@ def test_validation_batching():
              spatial_sample_shape[1] // spatial_res, len(features))
         assert batch.high_res.shape == \
             (batch.high_res.shape[0], spatial_sample_shape[0],
-             spatial_sample_shape[1], len(features))
+             spatial_sample_shape[1], len(features) - 1)
 
 
 @pytest.mark.parametrize(
@@ -206,7 +206,7 @@ def test_temporal_coarsening(method, temporal_res):
              spatial_sample_shape[0],
              spatial_sample_shape[1],
              temporal_sample_shape,
-             len(features))
+             len(features) - 1)
 
 
 @pytest.mark.parametrize(
@@ -243,7 +243,7 @@ def test_spatiotemporal_validation_batching(method):
              spatial_sample_shape[0],
              spatial_sample_shape[1],
              temporal_sample_shape,
-             len(features))
+             len(features) - 1)
 
 
 @pytest.mark.parametrize(
@@ -282,7 +282,7 @@ def test_spatiotemporal_batch_observations(spatial_sample_shape,
                 batch.high_res[i, :, :, :],
                 handler.data[spatial_1_slice,
                              spatial_2_slice,
-                             temporal_slice, :])
+                             temporal_slice, :-1])
 
 
 @pytest.mark.parametrize(
@@ -367,7 +367,7 @@ def test_spatiotemporal_batch_handling(plot=False):
              spatial_sample_shape[0],
              spatial_sample_shape[1],
              temporal_sample_shape,
-             len(features))
+             len(features) - 1)
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
@@ -411,7 +411,7 @@ def test_batch_handling(plot=False):
             (batch.high_res.shape[0],
              spatial_sample_shape[0],
              spatial_sample_shape[1],
-             len(features))
+             len(features) - 1)
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
