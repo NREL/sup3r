@@ -326,7 +326,7 @@ class FeatureHandler:
                         futures[future] = meta
 
                 logger.info(
-                    f'Started extracting {derived_features}'
+                    f'Started computing {derived_features}'
                     f' in {dt.now() - now}. Using {len(time_chunks)}'
                     f' time chunks of shape ({raster_index.shape[0]}, '
                     f'{raster_index.shape[1]}, '
@@ -334,8 +334,8 @@ class FeatureHandler:
                     f'for {len(derived_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.debug(f'{futures[future]}'
-                                 f' completed in {dt.now() - now}.')
+                    logger.debug(f'Finished computing {futures[future]}'
+                                 f' in {dt.now() - now}.')
                     logger.debug(f'{i+1} out of {len(futures)} futures '
                                  'completed')
 
@@ -657,7 +657,7 @@ class DataHandler(FeatureHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=500):
+                 time_chunk_size=100):
 
         """Data handling and extraction
 
@@ -873,7 +873,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None, chunk_size=500):
+                     max_workers=None, time_chunk_size=100):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -896,7 +896,7 @@ class DataHandler(FeatureHandler):
         max_workers : int | None
             max number of workers to use for data extraction.
             If max_workers == 1 then extraction will be serialized.
-        chunk_size : int
+        time_chunk_size : int
             Size of chunks to split time dimension into for smaller
             data extractions
 
@@ -919,7 +919,7 @@ class DataHandler(FeatureHandler):
                          len(features)),
                         dtype=np.float32)
 
-        n_chunks = len(time_index) // chunk_size + 1
+        n_chunks = len(time_index) // time_chunk_size + 1
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
@@ -978,7 +978,7 @@ class DataHandlerNC(DataHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=500):
+                 time_chunk_size=100):
 
         """Data handling and extraction
 
@@ -1294,7 +1294,7 @@ class DataHandlerH5(DataHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False, max_workers=None,
-                 time_chunk_size=500):
+                 time_chunk_size=100):
 
         """Data handling and extraction
 
@@ -1964,7 +1964,7 @@ class BatchHandler:
              temporal_coarsening_method='subsample',
              list_chunk_size=None,
              max_workers=None,
-             time_chunk_size=500):
+             time_chunk_size=100):
 
         """Method to initialize both
         data and batch handlers
@@ -2223,7 +2223,7 @@ class SpatialBatchHandler(BatchHandler):
              stds=None,
              list_chunk_size=None,
              max_workers=None,
-             time_chunk_size=500):
+             time_chunk_size=100):
 
         """Method to initialize both
         data and batch handlers
