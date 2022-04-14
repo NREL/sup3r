@@ -11,6 +11,7 @@ import os
 import re
 import psutil
 from datetime import datetime as dt
+from collections import defaultdict
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -170,6 +171,30 @@ class FeatureHandler:
     """
 
     @classmethod
+    def pop_old_data(cls, data, chunk_number, all_features):
+        """Remove input feature data if no longer needed for
+        requested features
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
+        chunk_number : int
+            time chunk index to check
+        all_features : list
+            list of all requested features including those
+            requiring derivation from input features
+
+        """
+        old_keys = [f for f in data[chunk_number].keys()
+                    if f not in all_features]
+        for k in old_keys:
+            data[chunk_number].pop(k)
+
+    @classmethod
     def parallel_extract(cls, file_path, raster_index, time_chunks,
                          input_features, max_workers=None):
 
@@ -206,14 +231,12 @@ class FeatureHandler:
             f' out of {mem.total / 1e9 :.3f} GB total.')
 
         futures = {}
-        data = {}
+        data = defaultdict(dict)
         now = dt.now()
 
         if max_workers == 1:
             for t, t_slice in enumerate(time_chunks):
                 for f in input_features:
-                    if t not in data:
-                        data[t] = {}
                     data[t][f] = cls.extract_feature(
                         file_path, raster_index, f, t_slice)
 
@@ -239,17 +262,14 @@ class FeatureHandler:
                     f'for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.debug(f'Finished extracting {futures[future]}'
-                                 f' in {dt.now() - now}.')
-                    logger.debug(f'{i+1} out of {len(futures)} futures '
-                                 'completed')
+                    if i % len(futures) // 10 == 0:
+                        logger.debug(f'{i+1} out of {len(futures)} futures '
+                                     'completed')
 
             logger.info('Building input feature dictionary of '
                         f'{len(input_features)} features and '
                         f'{len(time_chunks)} time_chunks')
             for k, v in futures.items():
-                if v['chunk'] not in data:
-                    data[v['chunk']] = {}
                 data[v['chunk']][v['feature']] = k.result()
 
         logger.info(f'Finished extracting {input_features}')
@@ -307,8 +327,8 @@ class FeatureHandler:
                     method = cls.lookup_method(f)
                     height = Feature.get_feature_height(f)
                     tmp = cls.get_input_arrays(data[t], f)
-                    tmp['lat_lon'] = data['lat_lon']
                     data[t][f] = method(tmp, height)
+
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
@@ -316,7 +336,6 @@ class FeatureHandler:
                         method = cls.lookup_method(f)
                         height = Feature.get_feature_height(f)
                         tmp = cls.get_input_arrays(data[t], f)
-                        tmp['lat_lon'] = data['lat_lon']
                         future = exe.submit(
                             method, data=tmp, height=height)
 
@@ -324,6 +343,9 @@ class FeatureHandler:
                                 'chunk': t}
 
                         futures[future] = meta
+
+                    cls.pop_old_data(
+                        data, t, all_features)
 
                 logger.info(
                     f'Started computing {derived_features}'
@@ -334,17 +356,14 @@ class FeatureHandler:
                     f'for {len(derived_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
-                    logger.debug(f'Finished computing {futures[future]}'
-                                 f' in {dt.now() - now}.')
-                    logger.debug(f'{i+1} out of {len(futures)} futures '
-                                 'completed')
+                    if i % len(futures) // 10 == 0:
+                        logger.debug(f'{i+1} out of {len(futures)} futures '
+                                     'completed')
 
             logger.info('Building derived feature dictionary of '
                         f'{len(derived_features)} features and '
                         f'{len(time_chunks)} time_chunks')
             for k, v in futures.items():
-                if v['chunk'] not in data:
-                    data[v['chunk']] = {}
                 data[v['chunk']][v['feature']] = k.result()
         logger.info(f'Finished computing {derived_features}')
 
@@ -384,7 +403,8 @@ class FeatureHandler:
         registry = {
             'BVF_squared_(.*)': cls.get_bvf_squared,
             'U_(.*)m': cls.get_u,
-            'V_(.*)m': cls.get_v}
+            'V_(.*)m': cls.get_v,
+            'lat_lon': cls.get_lat_lon}
         return registry
 
     @classmethod
@@ -907,6 +927,7 @@ class DataHandler(FeatureHandler):
             (spatial_1, spatial_2, temporal, features)
         """
 
+        now = dt.now()
         if not isinstance(file_path, list):
             file_path = [file_path]
 
@@ -928,8 +949,6 @@ class DataHandler(FeatureHandler):
             file_path, raster_index, time_chunks,
             raw_features, max_workers)
 
-        raw_data['lat_lon'] = cls.get_lat_lon(file_path, raster_index)
-
         raw_data = cls.parallel_compute(
             raw_data, raster_index, time_chunks,
             raw_features, features, max_workers)
@@ -943,7 +962,8 @@ class DataHandler(FeatureHandler):
                     data[:, :, t_slice, i] = tmp[f]
 
         data = data[:, :, ::time_pruning, :]
-        logger.info('Finished extracting data')
+        logger.info('Finished extracting data from '
+                    f'{file_path} in {dt.now() - now}')
 
         return data
 
@@ -1380,6 +1400,10 @@ class DataHandlerH5(DataHandler):
             f'Current memory usage is {mem.used / 1e9 :.3f} GB'
             f' out of {mem.total / 1e9 :.3f} GB total.')
 
+        method = cls.lookup_method(feature)
+        if method is not None:
+            return method(file_path, raster_index)
+
         try:
             fdata = handle[
                 tuple([feature] + [time_slice] + raster_index)]
@@ -1472,7 +1496,8 @@ class DataHandlerH5(DataHandler):
 
         height = Feature.get_feature_height(feature)
         features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m']
+                    f'winddirection_{height}m',
+                    'lat_lon']
         return features
 
     @classmethod
@@ -1494,7 +1519,8 @@ class DataHandlerH5(DataHandler):
 
         height = Feature.get_feature_height(feature)
         features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m']
+                    f'winddirection_{height}m',
+                    'lat_lon']
         return features
 
     @classmethod
