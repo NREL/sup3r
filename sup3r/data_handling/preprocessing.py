@@ -230,13 +230,12 @@ class FeatureHandler:
                                 'chunk': t}
                         futures[future] = meta
 
-                first_chunk = list(data.keys())[0]
-                first_feature = list(data[first_chunk].keys())[0]
                 logger.info(
                     f'Started extracting {input_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)} '
-                    ' time chunks of shape '
-                    f'({data[first_chunk][first_feature].shape}) '
+                    f' in {dt.now() - now}. Using {len(time_chunks)}'
+                    f' time chunks of shape ({raster_index.shape[0]}, '
+                    f'{raster_index.shape[1]}, '
+                    f'{time_chunks[0].stop - time_chunks[0].start}) '
                     f'for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
@@ -257,8 +256,8 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_compute(cls, data, time_chunks, input_features,
-                         all_features, max_workers=None):
+    def parallel_compute(cls, data, raster_index, time_chunks,
+                         input_features, all_features, max_workers=None):
 
         """Get features using parallel subprocesses
 
@@ -269,6 +268,8 @@ class FeatureHandler:
             for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
+        raster_index : ndarray
+            raster index for spatial domain
         time_chunks : list
             List of slices to chunk data feature extraction
             along time dimension
@@ -324,14 +325,13 @@ class FeatureHandler:
 
                         futures[future] = meta
 
-                first_chunk = list(data.keys())[0]
-                first_feature = list(data[first_chunk].keys())[0]
                 logger.info(
-                    f'Started computing {derived_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)} '
-                    ' time chunks of shape '
-                    f'({data[first_chunk][first_feature].shape}) '
-                    f'for {len(input_features)} features')
+                    f'Started extracting {derived_features}'
+                    f' in {dt.now() - now}. Using {len(time_chunks)}'
+                    f' time chunks of shape ({raster_index.shape[0]}, '
+                    f'{raster_index.shape[1]}, '
+                    f'{time_chunks[0].stop - time_chunks[0].start}) '
+                    f'for {len(derived_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
                     logger.debug(f'{futures[future]}'
@@ -931,7 +931,8 @@ class DataHandler(FeatureHandler):
         raw_data['lat_lon'] = cls.get_lat_lon(file_path, raster_index)
 
         raw_data = cls.parallel_compute(
-            raw_data, time_chunks, raw_features, features, max_workers)
+            raw_data, raster_index, time_chunks,
+            raw_features, features, max_workers)
 
         logger.info('Building final data array')
         for t, t_slice in enumerate(time_chunks):
