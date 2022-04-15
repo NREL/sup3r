@@ -31,6 +31,23 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def check_memory(msg=None):
+    """Log current memory usage
+
+    Parameters
+    ----------
+    msg : str | None
+        optional additional log msg
+    """
+
+    mem = psutil.virtual_memory()
+    if msg is not None:
+        logger.debug(msg)
+    logger.debug(
+        f'Current memory usage is {mem.used / 1e9 :.3f} GB'
+        f' out of {mem.total / 1e9 :.3f} GB total.')
+
+
 def get_file_handle(file_paths):
     """Get data file handle
     based on file type
@@ -192,13 +209,13 @@ class FeatureHandler:
             requiring derivation from input features
 
         """
-        old_keys = [f for f in data[chunk_number].keys()
+        old_keys = [f for f in data[chunk_number]
                     if f not in all_features]
         for k in old_keys:
             data[chunk_number].pop(k)
 
     @classmethod
-    def serial_extract(cls, file_path, raster_index, time_chunks,
+    def serial_extract(cls, file_path, data, raster_index, time_chunks,
                        input_features):
 
         """Extract features in series
@@ -207,6 +224,12 @@ class FeatureHandler:
         ----------
         file_path : list
             list of file paths
+        data : dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features. Empty unless
+            data has been stored for future computations.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -224,14 +247,6 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
 
-        logger.info(f'Extracting {input_features}')
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
-
-        data = defaultdict(dict)
-
         time_dep_features = [f for f in input_features
                              if f not in cls.TIME_IND_FEATURES]
         time_ind_features = [f for f in input_features
@@ -245,11 +260,10 @@ class FeatureHandler:
             data[-1][f] = cls.extract_feature(
                 file_path, raster_index, f)
 
-        logger.info(f'Finished extracting {input_features}')
         return data
 
     @classmethod
-    def parallel_extract(cls, file_path, raster_index, time_chunks,
+    def parallel_extract(cls, file_path, data, raster_index, time_chunks,
                          input_features, max_workers=None):
 
         """Extract features using parallel subprocesses
@@ -258,6 +272,12 @@ class FeatureHandler:
         ----------
         file_path : list
             list of file paths
+        data : dict
+            dictionary of feature arrays with integer keys
+            for chunks and str keys for features. Empty unless
+            data has been stored for future computations.
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -279,13 +299,8 @@ class FeatureHandler:
         """
 
         logger.info(f'Extracting {input_features}')
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         futures = {}
-        data = defaultdict(dict)
         now = dt.now()
 
         time_dep_features = [f for f in input_features
@@ -295,7 +310,7 @@ class FeatureHandler:
 
         if max_workers == 1:
             return cls.serial_extract(
-                file_path, raster_index, time_chunks, input_features)
+                file_path, data, raster_index, time_chunks, input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
@@ -330,23 +345,21 @@ class FeatureHandler:
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
-                        mem = psutil.virtual_memory()
-                        logger.debug(
-                            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-                            f' out of {mem.total / 1e9 :.3f} GB total.')
 
             logger.info('Building input feature dictionary of '
                         f'{len(input_features)} features and '
                         f'{len(time_chunks)} time_chunks')
             for k, v in futures.items():
                 data[v['chunk']][v['feature']] = k.result()
+            del futures
+            exe.shutdown()
 
-        logger.info(f'Finished extracting {input_features}')
         return data
 
     @classmethod
-    def serial_compute(cls, data, data_array, time_chunks,
-                       input_features, all_features):
+    def serial_compute(cls, data, time_chunks,
+                       input_features, all_features,
+                       cache_features=False):
 
         """Compute features in series
 
@@ -357,9 +370,6 @@ class FeatureHandler:
             for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
-        data_array : ndarray
-            Array to fill with feature data
-            (spatial_1, spatial_2, temporal, features)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -376,41 +386,32 @@ class FeatureHandler:
 
         Returns
         -------
-        data_array : ndarray
-            Final array with feature data to be used for training
-            (spatial_1, spatial_2, temporal, features)
+        data : dict
+            dictionary of feature arrays, including computed
+            features, with integer keys for chunks and str
+            keys for features. Includes
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
         """
 
         derived_features = [f for f in all_features if f not in input_features]
-        non_derived_features = [f for f in all_features if f in input_features]
-        logger.info(f'Computing {derived_features}')
 
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
-
-        for t, t_slice in enumerate(time_chunks):
+        for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
                 method = cls.lookup_method(f)
                 height = Feature.get_feature_height(f)
                 tmp = cls.get_input_arrays(data, t, f)
-                f_index = all_features.index(f)
-                data_array[:, :, t_slice, f_index] = method(tmp, height)
+                data[t][f] = method(tmp, height)
 
-        for t, t_slice in enumerate(time_chunks):
-            for _, f in enumerate(non_derived_features):
-                f_index = all_features.index(f)
-                data_array[:, :, t_slice, f_index] = data[t][f]
-                data[t].pop(f)
-            data.pop(t)
+            if not cache_features:
+                cls.pop_old_data(data, t, all_features)
 
-        logger.info(f'Finished computing {derived_features}')
-        return data_array
+        return data
 
     @classmethod
-    def parallel_compute(cls, data, data_array, raster_index, time_chunks,
-                         input_features, all_features, max_workers=None):
+    def parallel_compute(cls, data, raster_index, time_chunks,
+                         input_features, all_features,
+                         max_workers=None, cache_features=False):
 
         """Compute features using parallel subprocesses
 
@@ -435,30 +436,31 @@ class FeatureHandler:
             list of all features including those requiring
             derivation from input features
         max_workers : int | None
-            Number of max workers to use for extraction.
+            Number of max workers to use for computation.
             If equal to 1 then method is run in serial
+        cache_features : bool
+            Whether to cache features that might be
+            needed for other computations
 
         Returns
         -------
-        data_array : ndarray
-            Final array with feature data to be used for training
-            (spatial_1, spatial_2, temporal, features)
+        data : dict
+            dictionary of feature arrays, including computed
+            features, with integer keys for chunks and str
+            keys for features. Includes
+            e.g. data[chunk_number][feature] = array.
+            (spatial_1, spatial_2, temporal)
         """
 
         derived_features = [f for f in all_features if f not in input_features]
-        non_derived_features = [f for f in all_features if f in input_features]
         logger.info(f'Computing {derived_features}')
-
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         futures = {}
         now = dt.now()
         if max_workers == 1:
             return cls.serial_compute(
-                data, data_array, time_chunks, input_features, all_features)
+                data, time_chunks, input_features, all_features,
+                cache_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
@@ -474,8 +476,9 @@ class FeatureHandler:
 
                         futures[future] = meta
 
-                    cls.pop_old_data(
-                        data, t, all_features)
+                    if not cache_features:
+                        cls.pop_old_data(
+                            data, t, all_features)
 
                 logger.info(
                     f'Started computing {derived_features}'
@@ -489,29 +492,18 @@ class FeatureHandler:
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
-                        mem = psutil.virtual_memory()
-                        logger.debug(
-                            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-                            f' out of {mem.total / 1e9 :.3f} GB total.')
 
-            logger.info(f'Finished computing {derived_features}')
-
-            logger.info('Building final data array')
+            logger.info('Building derived feature dictionary of '
+                        f'{len(derived_features)} features and '
+                        f'{len(time_chunks)} time_chunks')
             for k, v in futures.items():
                 t = v['chunk']
-                t_slice = time_chunks[t]
                 f = v['feature']
-                f_index = all_features.index(f)
-                data_array[:, :, t_slice, f_index] = k.result()
+                data[t][f] = k.result()
+            del futures
+            exe.shutdown()
 
-            for t, t_slice in enumerate(time_chunks):
-                for _, f in enumerate(non_derived_features):
-                    f_index = all_features.index(f)
-                    data_array[:, :, t_slice, f_index] = data[t][f]
-                    data[t].pop(f)
-                data.pop(t)
-
-        return data_array
+        return data
 
     @classmethod
     def get_input_arrays(cls, data, chunk_number, f):
@@ -831,7 +823,9 @@ class DataHandler(FeatureHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None,
+                 raster_file=None, shuffle_time=False,
+                 max_extract_workers=None,
+                 max_compute_workers=None,
                  time_chunk_size=100):
 
         """Data handling and extraction
@@ -872,9 +866,12 @@ class DataHandler(FeatureHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
         """
@@ -908,8 +905,8 @@ class DataHandler(FeatureHandler):
             self.file_path, self.target, self.grid_shape)
         self.data = self.extract_data(
             self.file_path, self.raster_index, self.time_index,
-            self.features, self.time_pruning, max_workers,
-            time_chunk_size)
+            self.features, self.time_pruning, max_extract_workers,
+            max_compute_workers, time_chunk_size)
         self.data, self.val_data = self.split_data(self.data)
 
         msg = ('The temporal_sample_shape cannot '
@@ -1062,9 +1059,57 @@ class DataHandler(FeatureHandler):
         return self.data.shape
 
     @classmethod
+    def computed_features(cls, f_list, previously_computed=None):
+        """Keep track of computed features for deleting
+        old data
+
+        Parameters
+        ----------
+        f_list : list
+            list of features that have been requested
+        previously_computed : list, optional
+            previous list of computed features, by default []
+
+        Returns
+        -------
+        list
+            new list of computed features
+        """
+
+        if previously_computed is None:
+            previously_computed = []
+        for f in f_list:
+            if f not in previously_computed:
+                previously_computed.append(f)
+        return previously_computed
+
+    @classmethod
+    def needed_features(cls, f_list, computed_features):
+        """Keep track of needed features for deleting
+        old data
+
+        Parameters
+        ----------
+        f_list : list
+            list of features that have been requested
+        computed_features : list, optional
+            list of computed features
+
+        Returns
+        -------
+        list
+            new list of needed features
+        """
+        return cls.get_raw_feature_list(
+            set(f_list) - set(computed_features))
+
+    @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
-                     max_workers=None, time_chunk_size=100):
+                     max_extract_workers=None,
+                     max_compute_workers=None,
+                     time_chunk_size=100, feature_chunk_size=1,
+                     cache_features=False):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -1084,20 +1129,20 @@ class DataHandler(FeatureHandler):
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
             steps will be skipped.
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
-        serial_time_chunk_size : int
-            size of list of time slices to run in parallel. e.g. if
-            100 then 100 slices of size time_chunk_size will be run
-            in parallel and if there are more slices than this each
-            list of slices will be run in series.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller
             data extractions
-        feature_list_chunk_size : int
-            Size of chunks to split feature set into for smaller
-            data extractions
+        feature_chunk_size : int
+            Number of features to extract/compute in parallel
+        cache_features : bool
+            Whether to cache features that might be needed for other
+            computations
 
         Returns
         -------
@@ -1118,20 +1163,54 @@ class DataHandler(FeatureHandler):
              len(time_index), len(features)),
             dtype=np.float32)
 
-        n_chunks = len(time_index) // time_chunk_size + 1
+        # split time dimension into smaller slices which can be
+        # extracted in parallel
+        n_chunks = int(np.ceil(len(time_index) / time_chunk_size))
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        raw_features = cls.get_raw_feature_list(features)
+        n_chunks = int(np.ceil(len(features) / feature_chunk_size))
+        feature_chunks = np.array_split(np.arange(0, len(features)), n_chunks)
+        feature_chunks = [slice(f[0], f[-1] + 1) for f in feature_chunks]
 
-        raw_data = cls.parallel_extract(
-            file_path, raster_index, time_chunks,
-            raw_features, max_workers)
+        raw_data = defaultdict(dict)
+        computed_features = []
 
-        data_array = cls.parallel_compute(
-            raw_data, data_array,
-            raster_index, time_chunks,
-            raw_features, features, max_workers)
+        for f_slice in feature_chunks:
+
+            f_list = features[f_slice]
+
+            raw_features = cls.get_raw_feature_list(f_list)
+
+            check_memory(f'Starting {f_list} extraction from {file_path}')
+
+            raw_data = cls.parallel_extract(
+                file_path, raw_data, raster_index, time_chunks,
+                raw_features, max_extract_workers)
+
+            check_memory(f'Finished extracting {f_list}')
+
+            raw_data = cls.parallel_compute(
+                raw_data, raster_index, time_chunks,
+                raw_features, f_list, max_compute_workers,
+                cache_features)
+
+            check_memory(f'Finished computing {f_list}')
+
+            computed_features = cls.computed_features(
+                f_list, computed_features)
+
+            needed_features = cls.needed_features(
+                features, computed_features)
+
+            for t, t_slice in enumerate(time_chunks):
+                for _, f in enumerate(f_list):
+                    f_index = features.index(f)
+                    data_array[:, :, t_slice, f_index] = raw_data[t][f]
+                    if cache_features and f not in needed_features:
+                        raw_data[t].pop(f)
+                if not cache_features:
+                    raw_data.pop(t)
 
         data_array = data_array[:, :, ::time_pruning, :]
         logger.info('Finished extracting data from '
@@ -1169,7 +1248,9 @@ class DataHandlerNC(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None,
+                 raster_file=None, shuffle_time=False,
+                 max_extract_workers=None,
+                 max_compute_workers=None,
                  time_chunk_size=100):
 
         """Data handling and extraction
@@ -1210,9 +1291,12 @@ class DataHandlerNC(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before validation split
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
         """
@@ -1221,7 +1305,7 @@ class DataHandlerNC(DataHandler):
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_workers, time_chunk_size)
+            max_extract_workers, max_compute_workers, time_chunk_size)
 
     @classmethod
     def extract_feature(
@@ -1247,14 +1331,7 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        logger.debug(f'Extracting {feature}.')
-
         handle = get_file_handle(file_path)
-
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         f_info = Feature(feature, handle)
         interp_height = f_info.height
@@ -1489,7 +1566,9 @@ class DataHandlerH5(DataHandler):
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False, max_workers=None,
+                 raster_file=None, shuffle_time=False,
+                 max_extract_workers=None,
+                 max_compute_workers=None,
                  time_chunk_size=100):
 
         """Data handling and extraction
@@ -1530,9 +1609,12 @@ class DataHandlerH5(DataHandler):
             steps will be skipped.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
         """
@@ -1541,7 +1623,7 @@ class DataHandlerH5(DataHandler):
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_workers, time_chunk_size)
+            max_extract_workers, max_compute_workers, time_chunk_size)
 
     @classmethod
     def extract_feature(
@@ -1567,14 +1649,7 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        logger.debug(f'Extracting {feature}.')
-
         handle = get_file_handle(file_path)
-
-        mem = psutil.virtual_memory()
-        logger.debug(
-            f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-            f' out of {mem.total / 1e9 :.3f} GB total.')
 
         method = cls.lookup_method(feature)
         if method is not None and feature not in handle:
@@ -2186,7 +2261,7 @@ class BatchHandler:
 
         if isinstance(file_paths, list) and list_chunk_size is not None:
             file_paths = sorted(file_paths)
-            n_chunks = len(file_paths) // list_chunk_size + 1
+            n_chunks = int(np.ceil(len(file_paths) / list_chunk_size))
             file_paths = list(np.array_split(file_paths, n_chunks))
             file_paths = [list(fps) for fps in file_paths]
         return file_paths
@@ -2225,7 +2300,8 @@ class BatchHandler:
              means=None, stds=None,
              temporal_coarsening_method='subsample',
              list_chunk_size=None,
-             max_workers=None,
+             max_extract_workers=None,
+             max_compute_workers=None,
              time_chunk_size=100):
 
         """Method to initialize both
@@ -2288,9 +2364,12 @@ class BatchHandler:
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
 
@@ -2330,7 +2409,8 @@ class BatchHandler:
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
                     time_pruning=time_pruning,
-                    max_workers=max_workers,
+                    max_extract_workers=max_extract_workers,
+                    max_compute_workers=max_compute_workers,
                     time_chunk_size=time_chunk_size))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
@@ -2488,7 +2568,8 @@ class SpatialBatchHandler(BatchHandler):
              n_batches=10,
              stds=None,
              list_chunk_size=None,
-             max_workers=None,
+             max_extract_workers=None,
+             max_compute_workers=None,
              time_chunk_size=100):
 
         """Method to initialize both
@@ -2543,9 +2624,12 @@ class SpatialBatchHandler(BatchHandler):
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
-        max_workers : int | None
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_workers == 1 then extraction will be serialized.
+            If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
 
@@ -2586,7 +2670,8 @@ class SpatialBatchHandler(BatchHandler):
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=1,
                     time_pruning=time_pruning,
-                    max_workers=max_workers,
+                    max_extract_workers=max_extract_workers,
+                    max_compute_workers=max_compute_workers,
                     time_chunk_size=time_chunk_size))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,

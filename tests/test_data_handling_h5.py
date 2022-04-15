@@ -126,6 +126,8 @@ def test_spatiotemporal_normalization():
         batch_size=batch_size,
         spatial_res=spatial_res,
         temporal_res=temporal_res,
+        temporal_sample_shape=temporal_sample_shape,
+        spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
         time_pruning=time_pruning,

@@ -106,13 +106,13 @@ def transform_rotate_wind(ws, wd, lat_lon):
     theta[0] = theta[1]  # fix the roll row
     wd = np.radians(wd - 180.0)
 
-    return (
-        (np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-         + np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
-         ).astype(np.float32),
-        (np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-         - np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
-         ).astype(np.float32))
+    u_rot = np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+    u_rot += np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+
+    v_rot = np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+    v_rot -= np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+    del theta, ws, wd
+    return u_rot, v_rot
 
 
 def temporal_coarsening(data, temporal_res=2, method='subsample'):
@@ -429,8 +429,8 @@ def potential_temperature(T, P):
     ndarray
         Potential temperature
     """
-    P0 = np.float32(100000)
-    out = (T + np.float32(273.15)) * (P0 / P) ** np.float32(0.286)
+    out = (T + np.float32(273.15))
+    out *= (np.float32(100000) / P) ** np.float32(0.286)
     return out
 
 
@@ -713,5 +713,7 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     ws_grad += (V_top - V_bottom) ** 2
     ws_grad /= delta_h ** 2
     ws_grad[ws_grad < 1e-6] = 1e-6
-    return BVF_squared(
+    Ri = BVF_squared(
         T_top, T_bottom, P_top, P_bottom, delta_h) / ws_grad
+    del ws_grad
+    return Ri

@@ -38,7 +38,8 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             spatial_sample_shape=sample_shape,
-                            time_pruning=10, max_workers=1)
+                            time_pruning=10, max_extract_workers=1,
+                            max_compute_workers=1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
                                         n_batches=10)
@@ -102,7 +103,8 @@ def test_train_st(n_epoch=4, log=False):
                             temporal_sample_shape=24,
                             spatial_sample_shape=(18, 18),
                             time_pruning=1, val_split=0.005,
-                            max_workers=1)
+                            max_extract_workers=1,
+                            max_compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  spatial_res=3, temporal_res=4,
@@ -162,7 +164,7 @@ def test_train_st(n_epoch=4, log=False):
             assert loss_og.numpy() < loss_dummy.numpy()
 
         # test that a new shape can be passed through the generator
-        test_data = np.ones((3, 50, 50, 12, 3), dtype=np.float32)
+        test_data = np.ones((3, 10, 10, 4, 3), dtype=np.float32)
         y_test = model.generate(test_data)
         assert y_test.shape[0] == test_data.shape[0]
         assert y_test.shape[1] == test_data.shape[1] * 3
