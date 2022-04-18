@@ -3,7 +3,7 @@ NREL-rex
 NREL-phygnn>=0.0.16
 NREL-rev
 pytest>=5.2
-tensorflow>2.0
+tensorflow>2.4
 xarray
 netcdf4>=1.5.8
 dask
