@@ -818,7 +818,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF_*',)
+    TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninbukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
@@ -1108,7 +1108,7 @@ class DataHandler(FeatureHandler):
                      time_index, features, time_pruning,
                      max_extract_workers=None,
                      max_compute_workers=None,
-                     time_chunk_size=100, feature_chunk_size=1,
+                     time_chunk_size=100, feature_chunk_size=None,
                      cache_features=False):
         """Building base 4D data array. Can
         handle multiple files but assumes each
@@ -1138,8 +1138,9 @@ class DataHandler(FeatureHandler):
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller
             data extractions
-        feature_chunk_size : int
-            Number of features to extract/compute in parallel
+        feature_chunk_size : int | None
+            Number of features to extract/compute in parallel. If None all
+            features will be extracted/computed in parallel.
         cache_features : bool
             Whether to cache features that might be needed for other
             computations
@@ -1169,7 +1170,12 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        n_chunks = int(np.ceil(len(features) / feature_chunk_size))
+
+        if feature_chunk_size is None:
+            n_chunks = 1
+        else:
+            n_chunks = int(np.ceil(len(features) / feature_chunk_size))
+
         feature_chunks = np.array_split(np.arange(0, len(features)), n_chunks)
         feature_chunks = [slice(f[0], f[-1] + 1) for f in feature_chunks]
 
@@ -1339,34 +1345,34 @@ class DataHandlerNC(DataHandler):
 
         method = cls.lookup_method(feature)
         if method is not None and basename not in handle:
-            return method(file_path, raster_index)
+            fdata = method(file_path, raster_index)
 
-        try:
-            if len(handle[basename].shape) > 3:
-                if interp_height is None:
-                    fdata = np.array(
-                        handle[feature][
-                            tuple([time_slice] + [0] + raster_index)],
-                        dtype=np.float32)
+        else:
+            try:
+                if len(handle[basename].shape) > 3:
+                    if interp_height is None:
+                        fdata = np.array(
+                            handle[feature][
+                                tuple([time_slice] + [0] + raster_index)],
+                            dtype=np.float32)
+                    else:
+                        logger.debug(
+                            f'Interpolating {basename} at height {interp_height}m')
+                        fdata = interp_var(
+                            handle, basename, float(interp_height))
+                        fdata = fdata[
+                            tuple([time_slice] + raster_index)]
                 else:
-                    logger.debug(
-                        f'Interpolating {basename} at height {interp_height}m')
-                    fdata = interp_var(
-                        handle, basename, float(interp_height))
-                    fdata = fdata[
-                        tuple([time_slice] + raster_index)]
-            else:
-                fdata = np.array(
-                    handle[feature][tuple([time_slice] + raster_index)],
-                    dtype=np.float32)
+                    fdata = np.array(
+                        handle[feature][tuple([time_slice] + raster_index)],
+                        dtype=np.float32)
 
-            fdata = fdata.reshape(
-                (raster_index.shape[0], raster_index.shape[1], -1))
 
-        except ValueError:
-            logger.error(
-                f'{feature} cannot be extracted from source data')
+            except ValueError:
+                logger.error(
+                    f'{feature} cannot be extracted from source data')
 
+        fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
 
     def get_raster_index(self, file_path, target, shape):
@@ -1653,18 +1659,20 @@ class DataHandlerH5(DataHandler):
 
         method = cls.lookup_method(feature)
         if method is not None and feature not in handle:
-            return method(file_path, raster_index)
+            fdata = method(file_path, raster_index)
 
-        try:
-            fdata = handle[
-                tuple([feature] + [time_slice] + raster_index)]
+        else:
+            try:
+                fdata = handle[
+                    tuple([feature] + [time_slice] + raster_index)]
 
-            fdata = fdata.reshape(
-                (raster_index.shape[0], raster_index.shape[1], -1))
+            except ValueError:
+                logger.error(
+                    f'{feature} cannot be extracted from source data')
 
-        except ValueError:
-            logger.error(
-                f'{feature} cannot be extracted from source data')
+        fdata = fdata.reshape(
+            (-1, raster_index.shape[0], raster_index.shape[1]))
+        fdata = np.transpose(fdata, (1, 2, 0))
 
         return fdata.astype(np.float32)
 
