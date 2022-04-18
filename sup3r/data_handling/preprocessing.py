@@ -1170,7 +1170,6 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-
         if feature_chunk_size is None:
             n_chunks = 1
         else:
@@ -1357,7 +1356,8 @@ class DataHandlerNC(DataHandler):
                             dtype=np.float32)
                     else:
                         logger.debug(
-                            f'Interpolating {basename} at height {interp_height}m')
+                            f'Interpolating {basename}'
+                            f' at height {interp_height}m')
                         fdata = interp_var(
                             handle, basename, float(interp_height))
                         fdata = fdata[
@@ -1366,7 +1366,6 @@ class DataHandlerNC(DataHandler):
                     fdata = np.array(
                         handle[feature][tuple([time_slice] + raster_index)],
                         dtype=np.float32)
-
 
             except ValueError:
                 logger.error(
