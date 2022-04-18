@@ -164,7 +164,7 @@ def test_train_st(n_epoch=4, log=False):
             assert loss_og.numpy() < loss_dummy.numpy()
 
         # test that a new shape can be passed through the generator
-        test_data = np.ones((3, 10, 10, 4, 3), dtype=np.float32)
+        test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
         y_test = model.generate(test_data)
         assert y_test.shape[0] == test_data.shape[0]
         assert y_test.shape[1] == test_data.shape[1] * 3

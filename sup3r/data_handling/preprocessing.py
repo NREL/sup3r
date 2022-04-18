@@ -1344,7 +1344,7 @@ class DataHandlerNC(DataHandler):
 
         method = cls.lookup_method(feature)
         if method is not None and basename not in handle:
-            fdata = method(file_path, raster_index)
+            return method(file_path, raster_index)
 
         else:
             try:
@@ -1658,7 +1658,7 @@ class DataHandlerH5(DataHandler):
 
         method = cls.lookup_method(feature)
         if method is not None and feature not in handle:
-            fdata = method(file_path, raster_index)
+            return method(file_path, raster_index)
 
         else:
             try:
