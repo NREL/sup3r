@@ -13,6 +13,7 @@ import re
 import psutil
 from datetime import datetime as dt
 from collections import defaultdict
+import tempfile
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -824,9 +825,9 @@ class DataHandler(FeatureHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
-                 time_chunk_size=100):
+                 max_extract_workers=None, max_compute_workers=None,
+                 time_chunk_size=100, cache_features=False,
+                 cache_file_path=None):
 
         """Data handling and extraction
 
@@ -874,6 +875,13 @@ class DataHandler(FeatureHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
+        cache_features : bool
+            Whether to cache features for use in computations. e.g. cache
+            windspeed_100m for use in computing U_100m and V_100m.
+        cache_file_path : str | None
+            Path to file for saving feature data. If not None feature
+            arrays will be saved here and not stored in self.data until
+            load_cached_data is called.
         """
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
@@ -901,13 +909,30 @@ class DataHandler(FeatureHandler):
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
+        self.cache_file_path = cache_file_path
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
-        self.data = self.extract_data(
-            self.file_path, self.raster_index, self.time_index,
-            self.features, self.time_pruning, max_extract_workers,
-            max_compute_workers, time_chunk_size)
-        self.data, self.val_data = self.split_data(self.data)
+
+        if os.path.exists(cache_file_path):
+            logger.info(
+                f'{cache_file_path} exists. Loading data from cache '
+                f'instead of extracting from {file_path}')
+            self.load_cached_data()
+
+        else:
+            self.data = self.extract_data(
+                self.file_path, self.raster_index, self.time_index,
+                self.features, self.time_pruning,
+                max_extract_workers=max_extract_workers,
+                max_compute_workers=max_compute_workers,
+                time_chunk_size=time_chunk_size,
+                cache_features=cache_features)
+
+        if cache_file_path is None:
+            self.data, self.val_data = self.split_data(self.data)
+        else:
+            self.cache_data(cache_file_path)
+            self.data = None
 
         msg = ('The temporal_sample_shape cannot '
                'be larger than the number of time steps in the raw data.')
@@ -1103,6 +1128,34 @@ class DataHandler(FeatureHandler):
         return cls.get_raw_feature_list(
             set(f_list) - set(computed_features))
 
+    def cache_data(self, cache_file_path):
+        """Cache feature data to file and delete from memory
+
+        Parameters
+        ----------
+        cache_file_path : str | None
+            Path to file for saving feature data
+        data_array : ndarray
+            4D array of high res data
+            (spatial_1, spatial_2, temporal, features)
+        """
+
+        if (cache_file_path is not None
+                and not os.path.exists(cache_file_path)):
+
+            logger.info(f'Saving features to {cache_file_path}')
+            np.save(cache_file_path, self.data)
+
+    def load_cached_data(self):
+        """Load data from cache files and split into
+        training and validation
+        """
+
+        logger.info(f'Loading features from {self.cache_file_path}')
+
+        self.data = np.load(self.cache_file_path)
+        self.data, self.val_data = self.split_data(self.data)
+
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
@@ -1256,15 +1309,15 @@ class DataHandlerNC(DataHandler):
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None,
                  max_compute_workers=None,
-                 time_chunk_size=100):
+                 time_chunk_size=100, cache_features=False,
+                 cache_file_path=None):
 
         """Data handling and extraction
 
         Parameters
         ----------
-        file_path : str
-            A single source h5 wind file to extract raster data from
-            or a list of netcdf files with identical grid
+        file_path : list
+            A list of netcdf files with identical grid
         features : list
             list of features to extract
         target : tuple
@@ -1304,13 +1357,18 @@ class DataHandlerNC(DataHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
+        cache_file_path : str | None
+            Path to file for saving feature data. If not None feature
+            arrays will be saved here and not stored in self.data until
+            load_cached_data is called.
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_extract_workers, max_compute_workers, time_chunk_size)
+            max_extract_workers, max_compute_workers,
+            time_chunk_size, cache_features, cache_file_path)
 
     @classmethod
     def extract_feature(
@@ -1572,9 +1630,9 @@ class DataHandlerH5(DataHandler):
                  max_delta=20, time_pruning=1, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
-                 time_chunk_size=100):
+                 max_extract_workers=None, max_compute_workers=None,
+                 time_chunk_size=100, cache_features=False,
+                 cache_file_path=None):
 
         """Data handling and extraction
 
@@ -1622,13 +1680,18 @@ class DataHandlerH5(DataHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
+        cache_file_path : str | None
+            Path to file for saving feature data. If not None feature
+            arrays will be saved here and not stored in self.data until
+            load_cached_data is called.
         """
 
         super().__init__(
             file_path, features, target, shape, max_delta,
             time_pruning, val_split, temporal_sample_shape,
             spatial_sample_shape, raster_file, shuffle_time,
-            max_extract_workers, max_compute_workers, time_chunk_size)
+            max_extract_workers, max_compute_workers,
+            time_chunk_size, cache_features, cache_file_path)
 
     @classmethod
     def extract_feature(
@@ -2166,6 +2229,12 @@ class BatchHandler:
         assert np.all(spatial_shapes[0] == spatial_shapes)
         assert np.all(temporal_shapes[0] == temporal_shapes)
 
+        for d in data_handlers:
+            if d.data is None:
+                d.load_cached_data()
+
+        check_memory()
+
         self.data_handlers = data_handlers
         self._i = 0
         self.low_res = None
@@ -2309,7 +2378,8 @@ class BatchHandler:
              list_chunk_size=None,
              max_extract_workers=None,
              max_compute_workers=None,
-             time_chunk_size=100):
+             time_chunk_size=100,
+             cache_file_paths=None):
 
         """Method to initialize both
         data and batch handlers
@@ -2379,6 +2449,10 @@ class BatchHandler:
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
+        cache_file_paths : list | None | bool
+            Files for cached feature data. If None then feature data will be
+            stored in memory while other features are being computed/extracted.
+            If True then features will be cached using default file names.
 
         Returns
         -------
@@ -2397,6 +2471,13 @@ class BatchHandler:
 
         data_handlers = []
         for i, f in enumerate(file_paths):
+            if cache_file_paths is None or cache_file_paths is False:
+                cache_file_path = None
+            elif cache_file_paths is True:
+                cache_file_path = os.path.join(
+                    tempfile.gettempdir(), f'cached_features_{i}.npy')
+            else:
+                cache_file_path = cache_file_paths[i]
             if raster_files is None:
                 raster_file = None
             else:
@@ -2418,7 +2499,8 @@ class BatchHandler:
                     time_pruning=time_pruning,
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
-                    time_chunk_size=time_chunk_size))
+                    time_chunk_size=time_chunk_size,
+                    cache_file_path=cache_file_path))
         batch_handler = BatchHandler(
             data_handlers, spatial_res=spatial_res,
             temporal_res=temporal_res, batch_size=batch_size,
@@ -2577,7 +2659,8 @@ class SpatialBatchHandler(BatchHandler):
              list_chunk_size=None,
              max_extract_workers=None,
              max_compute_workers=None,
-             time_chunk_size=100):
+             time_chunk_size=100,
+             cache_file_paths=None):
 
         """Method to initialize both
         data and batch handlers
@@ -2639,6 +2722,10 @@ class SpatialBatchHandler(BatchHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
+        cache_file_paths : list | None | bool
+            Files for cached feature data. If None then feature data will be
+            stored in memory while other features are being computed/extracted.
+            If True then features will be cached using default file names.
 
         Returns
         -------
@@ -2657,6 +2744,10 @@ class SpatialBatchHandler(BatchHandler):
 
         data_handlers = []
         for i, f in enumerate(file_paths):
+            if cache_file_paths is None or cache_file_paths is False:
+                cache_file_path = None
+            else:
+                cache_file_path = cache_file_paths[i]
             if raster_files is None:
                 raster_file = None
             if not isinstance(raster_files, list):
@@ -2679,7 +2770,8 @@ class SpatialBatchHandler(BatchHandler):
                     time_pruning=time_pruning,
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
-                    time_chunk_size=time_chunk_size))
+                    time_chunk_size=time_chunk_size,
+                    cache_file_path=cache_file_path))
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
             batch_size=batch_size, norm=norm, means=means,
