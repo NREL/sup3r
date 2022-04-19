@@ -46,8 +46,8 @@ os.system(f'rm -f {os.path.join(tempfile.gettempdir(), "cached_features*")}')
 
 @pytest.mark.parametrize(
     'spatial_sample_shape, temporal_sample_shape',
-    [((10, 10), 10), ((5, 5), 10),
-     ((10, 10), 12), ((5, 5), 12)]
+    [((4, 4), 6), ((2, 2), 6),
+     ((4, 4), 4), ((2, 2), 4)]
 )
 def test_spatiotemporal_batch_caching(spatial_sample_shape,
                                       temporal_sample_shape):
