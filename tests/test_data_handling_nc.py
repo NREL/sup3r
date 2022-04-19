@@ -38,7 +38,7 @@ n_batches = 20
 temporal_sample_shape = 6
 temporal_res = 2
 list_chunk_size = 10
-cache_file = os.path.join(tempfile.gettempdir(), 'cached_features.npy')
+cache_file = os.path.join(tempfile.gettempdir(), 'cached_features_nc.npy')
 
 os.system(f'rm -f {raster_file}')
 os.system(f'rm -f {os.path.join(tempfile.gettempdir(), "cached_features*")}')

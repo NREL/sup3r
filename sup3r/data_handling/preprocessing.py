@@ -1140,16 +1140,17 @@ class DataHandler(FeatureHandler):
         ----------
         cache_file_path : str | None
             Path to file for saving feature data
-        data_array : ndarray
-            4D array of high res data
-            (spatial_1, spatial_2, temporal, features)
         """
 
         if (cache_file_path is not None
                 and not os.path.exists(cache_file_path)):
 
+            data_dict = {}
+            for i, f in enumerate(self.features):
+                data_dict[f] = self.data[:, :, :, i]
+
             logger.info(f'Saving features to {cache_file_path}')
-            np.save(cache_file_path, self.data)
+            np.save(cache_file_path, data_dict)
 
     def load_cached_data(self):
         """Load data from cache files and split into
@@ -1158,7 +1159,12 @@ class DataHandler(FeatureHandler):
 
         logger.info(f'Loading features from {self.cache_file_path}')
 
-        self.data = np.load(self.cache_file_path)
+        data_dict = np.load(self.cache_file_path, allow_pickle=True)[()]
+        feature_arrays = [np.array(
+            data_dict[f][:, :, :, np.newaxis],
+            dtype=np.float32) for f in self.features]
+        self.data = np.concatenate(feature_arrays, axis=-1)
+        del data_dict, feature_arrays
         self.data, self.val_data = self.split_data(self.data)
 
     @classmethod

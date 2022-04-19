@@ -30,7 +30,7 @@ time_pruning = 3
 n_batches = 20
 temporal_sample_shape = 12
 temporal_res = 2
-cache_file = os.path.join(tempfile.gettempdir(), 'cached_features.npy')
+cache_file = os.path.join(tempfile.gettempdir(), 'cached_features_h5.npy')
 
 os.system(f'rm -f {raster_file}')
 os.system(f'rm -f {os.path.join(tempfile.gettempdir(), "cached_features*")}')
