@@ -1599,7 +1599,7 @@ class SpatioTemporalGan(BaseModel):
                                  loss_details['train_loss_disc_t'],
                                  trained_gen, trained_disc_s, trained_disc_t))
 
-            if all(not x for x in [trained_gen, trained_disc_s, trained_disc_t]):
+            if all([not trained_gen, not trained_disc_s, not trained_disc_t]):
                 msg = ('For some reason none of the GAN networks trained '
                        'during batch {} out of {}!'
                        .format(ib, len(batch_handler)))
