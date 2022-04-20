@@ -551,6 +551,7 @@ class FeatureHandler:
         """
         registry = {
             'BVF_squared_(.*)': cls.get_bvf_squared,
+            'BVF_MO_(.*)': cls.get_bvf_mo,
             'U_(.*)m': cls.get_u,
             'V_(.*)m': cls.get_v,
             'lat_lon': cls.get_lat_lon}
@@ -567,6 +568,7 @@ class FeatureHandler:
         """
         registry = {
             'BVF_squared_(.*)': cls.get_bvf_inputs,
+            'BVF_MO_(.*)': cls.get_bvf_mo_inputs,
             'U_(.*)m': cls.get_u_inputs,
             'V_(.*)m': cls.get_v_inputs}
         return registry
@@ -586,6 +588,23 @@ class FeatureHandler:
         -------
         list
             list of features used to compute bvf_squared
+        """
+
+    @classmethod
+    @abstractmethod
+    def get_bvf_mo_inputs(cls, feature):
+        """Get list of raw features used
+        in bvf_mo calculation
+
+        Parameters
+        ----------
+        feature : str
+            name of feature. e.g. BVF_MO_100m
+
+        Returns
+        -------
+        list
+            list of features used to compute bvf_mo
         """
 
     @classmethod
@@ -775,6 +794,25 @@ class FeatureHandler:
         -------
         ndarray
             BVF squared array
+        """
+
+    @classmethod
+    @abstractmethod
+    def get_bvf_mo(
+            cls, data, height) -> np.dtype(np.float32):
+        """Compute BVF_squared times monin obukhov length
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays used for this compuation
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF_MO array
         """
 
     @classmethod
@@ -1431,6 +1469,26 @@ class DataHandlerNC(DataHandler):
         return raster_index
 
     @classmethod
+    def get_bvf_mo_inputs(cls, feature):
+        """Get list of raw features used
+        in bvf_mo calculation
+
+        Parameters
+        ----------
+        feature : str
+            name of feature. e.g. BVF_MO_100m
+
+        Returns
+        -------
+        list
+            list of features used to compute bvf_mo
+        """
+
+        height = Feature.get_feature_height(feature)
+        return [f'T_{height}m', f'T_{int(height) - 100}m',
+                f'RMOL_{height}m']
+
+    @classmethod
     def get_bvf_inputs(cls, feature):
         """Get list of raw features used
         in bvf calculation
@@ -1519,6 +1577,43 @@ class DataHandlerNC(DataHandler):
                         + data[f'T_{int(height) - 100}m'])
         bvf_squared /= np.float32(2)
         return bvf_squared
+
+    @classmethod
+    def get_bvf_mo(
+            cls, data, height) -> np.dtype(np.float32):
+        """Compute BVF squared times monin obukhov length
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays used for this compuation
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF_MO array
+        """
+
+        if height is None:
+            height = 200
+
+        # T is perturbation potential temperature for wrf and the
+        # base potential temperature is 300K
+        bvf_mo = np.float32(9.81 / 100)
+        bvf_mo *= (data[f'T_{height}m']
+                   - data[f'T_{int(height) - 100}m'])
+        bvf_mo /= (data[f'T_{height}m']
+                   + data[f'T_{int(height) - 100}m'])
+        bvf_mo /= np.float32(2)
+        bvf_mo /= data[f'RMOL_{height}m']
+
+        # making this zero when not both bvf and mo are negative
+        bvf_mo[data[f'RMOL_{height}m'] >= 0] = 0
+        bvf_mo[bvf_mo < 0] = 0
+
+        return bvf_mo
 
     @classmethod
     def get_uv(cls, data, height):
@@ -1681,6 +1776,30 @@ class DataHandlerH5(DataHandler):
         return features
 
     @classmethod
+    def get_bvf_mo_inputs(cls, feature):
+        """Get list of raw features used
+        in bvf_mo calculation
+
+        Parameters
+        ----------
+        feature : str
+            name of feature. e.g. BVF_MO_100m
+
+        Returns
+        -------
+        list
+            list of features used to compute bvf_mo
+        """
+        height = Feature.get_feature_height(feature)
+        features = [f'temperature_{height}m',
+                    f'temperature_{int(height) - 100}m',
+                    f'pressure_{height}m',
+                    f'pressure_{int(height) - 100}m',
+                    'inversemoninobukhovlength_2m']
+
+        return features
+
+    @classmethod
     def get_u_inputs(cls, feature):
         """Get list of raw features used
         in u calculation
@@ -1751,6 +1870,39 @@ class DataHandlerH5(DataHandler):
             data[f'pressure_{height}m'],
             data[f'pressure_{int(height) - 100}m'],
             100)
+
+    @classmethod
+    def get_bvf_mo(
+            cls, data, height) -> np.dtype(np.float32):
+        """Compute BVF squared times monin obukhov length
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays used for this compuation
+        height : str
+            Height of top level in meters
+
+        Returns
+        -------
+        ndarray
+            BVF_MO array
+        """
+
+        if height is None:
+            height = 200
+
+        bvf_mo = BVF_squared(
+            data[f'temperature_{height}m'],
+            data[f'temperature_{int(height) - 100}m'],
+            data[f'pressure_{height}m'],
+            data[f'pressure_{int(height) - 100}m'],
+            100) / data['inversemoninobukhovlength_2m']
+
+        # making this zero when not both bvf and mo are negative
+        bvf_mo[data['inversemoninobukhovlength_2m'] >= 0] = 0
+        bvf_mo[bvf_mo < 0] = 0
+        return bvf_mo
 
     @classmethod
     def get_uv(cls, data, height):
