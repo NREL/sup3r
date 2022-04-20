@@ -682,6 +682,7 @@ class BatchHandler:
             temporal_res=temporal_res, batch_size=batch_size,
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method)
+
         return batch_handler
 
     @property
@@ -790,38 +791,6 @@ class BatchHandler:
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 
-    def __init__(self, data_handlers,
-                 batch_size=8, spatial_res=3,
-                 means=None, stds=None,
-                 norm=True, n_batches=10):
-        """
-        Parameters
-        ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances
-        batch_size : int
-            Number of observations in a batch
-        spatial_res : int
-            Factor by which to coarsen spatial dimensions to generate
-            low res data
-        norm : bool
-            Whether to normalize the data or not
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used for normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used form normalization
-        """
-        super().__init__(data_handlers, batch_size=batch_size,
-                         spatial_res=spatial_res, temporal_res=1,
-                         norm=norm, n_batches=n_batches,
-                         means=means, stds=stds)
-
     @classmethod
     def make(cls, file_paths, features,
              targets=None, shape=None,
@@ -925,7 +894,8 @@ class SpatialBatchHandler(BatchHandler):
 
         batch_handler = SpatialBatchHandler(
             data_handlers, spatial_res=spatial_res,
-            batch_size=batch_size, norm=norm, means=means,
+            temporal_res=1, batch_size=batch_size,
+            norm=norm, means=means,
             stds=stds, n_batches=n_batches)
         return batch_handler
 

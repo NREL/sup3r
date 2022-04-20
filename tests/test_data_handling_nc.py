@@ -38,10 +38,8 @@ n_batches = 20
 temporal_sample_shape = 6
 temporal_res = 2
 list_chunk_size = 10
-cache_file = os.path.join(tempfile.gettempdir(), 'cached_features_nc.npy')
 
 os.system(f'rm -f {raster_file}')
-os.system(f'rm -f {cache_file}')
 
 
 @pytest.mark.parametrize(
@@ -53,48 +51,64 @@ def test_spatiotemporal_batch_caching(spatial_sample_shape,
                                       temporal_sample_shape):
     """Test that batch observations are found in source data"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        spatial_sample_shape=spatial_sample_shape,
-        temporal_sample_shape=temporal_sample_shape,
-        batch_size=batch_size,
-        spatial_res=spatial_res,
-        temporal_res=temporal_res,
-        max_delta=max_delta,
-        val_split=val_split,
-        time_pruning=time_pruning,
-        n_batches=n_batches,
-        cache_file_paths=True,
-        list_chunk_size=list_chunk_size)
+    cache_files = []
+    n_files = int(np.ceil(len(input_files) / list_chunk_size))
+    with tempfile.TemporaryDirectory() as td:
+        for i in range(n_files):
+            tmp = os.path.join(td, f'cache_{i}.npy')
+            if os.path.exists(tmp):
+                os.system(f'rm {tmp}')
+            cache_files.append(tmp)
 
-    for batch in spatiotemporal_batch_handler:
-        for i, index in enumerate(
-                spatiotemporal_batch_handler.current_batch_indices):
-            spatial_1_slice = index[0]
-            spatial_2_slice = index[1]
-            temporal_slice = index[2]
+        st_batch_handler = BatchHandler.make(
+            input_files, features, targets, shape,
+            spatial_sample_shape=spatial_sample_shape,
+            temporal_sample_shape=temporal_sample_shape,
+            batch_size=batch_size,
+            spatial_res=spatial_res,
+            temporal_res=temporal_res,
+            max_delta=max_delta,
+            val_split=val_split,
+            time_pruning=time_pruning,
+            n_batches=n_batches,
+            list_chunk_size=list_chunk_size,
+            cache_file_paths=cache_files)
 
-            handler_index = spatiotemporal_batch_handler.current_handler_index
-            handler = spatiotemporal_batch_handler.data_handlers[handler_index]
+        for batch in st_batch_handler:
+            for i, index in enumerate(
+                    st_batch_handler.current_batch_indices):
+                spatial_1_slice = index[0]
+                spatial_2_slice = index[1]
+                temporal_slice = index[2]
 
-            assert np.array_equal(
-                batch.high_res[i, :, :, :],
-                handler.data[spatial_1_slice,
-                             spatial_2_slice,
-                             temporal_slice, :-1])
+                handler_index = st_batch_handler.current_handler_index
+                handler = st_batch_handler.data_handlers[handler_index]
+
+                assert np.array_equal(
+                    batch.high_res[i, :, :, :],
+                    handler.data[spatial_1_slice,
+                                 spatial_2_slice,
+                                 temporal_slice, :-1])
 
 
 def test_data_caching():
     """Test data extraction class"""
-    handler = DataHandlerNC(input_file, features, target=target,
-                            shape=shape, max_delta=20,
-                            cache_file_path=cache_file)
-    assert handler.data is None
-    handler.load_cached_data()
-    assert handler.data.shape == (shape[0], shape[1],
-                                  handler.data.shape[2], len(features))
-    assert handler.data.dtype == np.dtype(np.float32)
-    assert handler.val_data.dtype == np.dtype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        cache_file = os.path.join(td, 'cached_features_nc.npy')
+        if os.path.exists(cache_file):
+            os.system(f'rm {cache_file}')
+        handler = DataHandlerNC(input_file, features, target=target,
+                                shape=shape, max_delta=20,
+                                cache_file_path=cache_file)
+        assert handler.data is None
+        handler.load_cached_data()
+        assert handler.data.shape == (shape[0], shape[1],
+                                      handler.data.shape[2], len(features))
+        assert handler.data.dtype == np.dtype(np.float32)
+        assert handler.val_data.dtype == np.dtype(np.float32)
+
+        os.system(f'rm {cache_file}')
 
 
 def test_feature_handler():

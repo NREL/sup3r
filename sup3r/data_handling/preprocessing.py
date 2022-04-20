@@ -1162,6 +1162,15 @@ class DataHandler(FeatureHandler):
             data_dict[f][:, :, :, np.newaxis],
             dtype=np.float32) for f in self.features]
         self.data = np.concatenate(feature_arrays, axis=-1)
+
+        shape = get_raster_shape(self.raster_index)
+        requested_shape = (shape[0], shape[1],
+                           len(self.time_index[::self.time_pruning]),
+                           len(self.features))
+        msg = (f'Data loaded from cache {self.data.shape} '
+               f'does not match the requested shape {requested_shape}')
+        assert self.data.shape == requested_shape, msg
+
         del data_dict, feature_arrays
         self.data, self.val_data = self.split_data(self.data)
 
