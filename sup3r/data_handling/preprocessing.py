@@ -12,6 +12,7 @@ import os
 import re
 from datetime import datetime as dt
 from collections import defaultdict
+import pickle
 
 from rex import WindX
 from rex.utilities import log_mem
@@ -61,10 +62,13 @@ def get_time_index(file_paths):
         data file extension
     """
     if get_source_type(file_paths) == 'h5':
-        return WindX(file_paths[0], hsds=False).time_index
+        with WindX(file_paths[0], hsds=False) as handle:
+            time_index = handle.time_index
     else:
-        return xr.open_mfdataset(
-            file_paths, combine='nested', concat_dim='Time')['Times']
+        with xr.open_mfdataset(file_paths, combine='nested',
+                               concat_dim='Time') as handle:
+            time_index = handle['Times']
+    return time_index
 
 
 def get_raster_shape(raster_index):
@@ -830,7 +834,8 @@ class DataHandler(FeatureHandler):
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None, max_compute_workers=None,
                  time_chunk_size=100,
-                 cache_file_path=None):
+                 cache_file_prefix=None,
+                 overwrite_cache=False):
 
         """Data handling and extraction
 
@@ -877,11 +882,16 @@ class DataHandler(FeatureHandler):
             max number of workers to use for data extraction.
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
-            Size of chunks to split time dimension into for data extraction
-        cache_file_path : str | None
-            Path to file for saving feature data. If not None feature
-            arrays will be saved here and not stored in self.data until
-            load_cached_data is called.
+            Size of chunks to split time dimension into for parallel data
+            extraction. If running in serial this can be set to the size
+            of the full time index for best performance.
+        cache_file_prefix : str | None
+            Prefix of files for saving feature data. Each feature will be saved
+            to a file with the feature name appended to the end of
+            cache_file_prefix. If not None feature arrays will be saved here
+            and not stored in self.data until load_cached_data is called.
+        overwrite_cache : bool
+            Whether to overwrite any previously saved cache files.
         """
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
@@ -909,17 +919,23 @@ class DataHandler(FeatureHandler):
         self.time_pruning = time_pruning
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
-        self.cache_file_path = cache_file_path
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
+        self.cache_files = [f'{cache_file_prefix}_{f}.npy' for f in features]
+        self.overwrite_cache = overwrite_cache
 
-        if cache_file_path is not None and os.path.exists(cache_file_path):
-            logger.info(
-                f'{cache_file_path} exists. Loading data from cache '
-                f'instead of extracting from {file_path}')
+        if cache_file_prefix is not None and not self.overwrite_cache and all(
+                os.path.exists(fp) for fp in self.cache_files):
+            logger.info(f'{self.cache_files} exists. Loading data from cache '
+                        f'instead of extracting from {file_path}')
             self.load_cached_data()
 
         else:
+            if self.overwrite_cache:
+                logger.info(
+                    f'{self.cache_files} exists but overwrite_cache is '
+                    'set to True. Proceeding with extraction.')
+
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.time_index,
                 self.features, self.time_pruning,
@@ -927,10 +943,10 @@ class DataHandler(FeatureHandler):
                 max_compute_workers=max_compute_workers,
                 time_chunk_size=time_chunk_size)
 
-            if cache_file_path is None:
+            if cache_file_prefix is None:
                 self.data, self.val_data = self.split_data(self.data)
             else:
-                self.cache_data(cache_file_path)
+                self.cache_data(self.cache_files)
                 self.data = None
 
         msg = ('The temporal_sample_shape cannot '
@@ -1127,7 +1143,7 @@ class DataHandler(FeatureHandler):
         return cls.get_raw_feature_list(
             set(f_list) - set(computed_features))
 
-    def cache_data(self, cache_file_path):
+    def cache_data(self, cache_file_paths):
         """Cache feature data to file and delete from memory
 
         Parameters
@@ -1136,31 +1152,37 @@ class DataHandler(FeatureHandler):
             Path to file for saving feature data
         """
 
-        if cache_file_path is not None:
-            if not os.path.exists(cache_file_path):
+        for i, fp in enumerate(cache_file_paths):
+            if not os.path.exists(fp) or self.overwrite_cache:
+                if self.overwrite_cache:
+                    logger.info(
+                        f'Overwriting. Saving {self.features[i]} to {fp}')
+                else:
+                    logger.info(f'Saving {self.features[i]} to {fp}')
 
-                data_dict = {}
-                for i, f in enumerate(self.features):
-                    data_dict[f] = self.data[:, :, :, i]
-
-                logger.info(f'Saving features to {cache_file_path}')
-                np.save(cache_file_path, data_dict)
+                with open(fp, 'wb') as fh:
+                    pickle.dump(self.data[:, :, :, i], fh, protocol=4)
             else:
                 logger.warning(
-                    f'Called cache_data but {cache_file_path} '
-                    'already exists. Delete this file to overwrite.')
+                    f'Called cache_data but {fp} '
+                    'already exists. Set to overwrite_cache to True to '
+                    'overwrite.')
 
     def load_cached_data(self):
         """Load data from cache files and split into
         training and validation
         """
 
-        logger.info(f'Loading features from {self.cache_file_path}')
+        feature_arrays = []
+        for i, fp in enumerate(self.cache_files):
+            assert self.features[i] in fp
+            logger.info(f'Loading {self.features[i]} from {fp}')
 
-        data_dict = np.load(self.cache_file_path, allow_pickle=True)[()]
-        feature_arrays = [np.array(
-            data_dict[f][:, :, :, np.newaxis],
-            dtype=np.float32) for f in self.features]
+            with open(fp, 'rb') as fh:
+                feature_arrays.append(
+                    np.array(pickle.load(fh)[:, :, :, np.newaxis],
+                             dtype=np.float32))
+
         self.data = np.concatenate(feature_arrays, axis=-1)
 
         shape = get_raster_shape(self.raster_index)
@@ -1171,7 +1193,7 @@ class DataHandler(FeatureHandler):
                f'does not match the requested shape {requested_shape}')
         assert self.data.shape == requested_shape, msg
 
-        del data_dict, feature_arrays
+        del feature_arrays
         self.data, self.val_data = self.split_data(self.data)
 
     @classmethod
@@ -1385,27 +1407,27 @@ class DataHandlerNC(DataHandler):
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
-            nc_file = xr.open_mfdataset(
-                file_path, combine='nested', concat_dim='Time')
-            lat_diff = list(nc_file['XLAT'][0, :, 0] - target[0])
-            lat_idx = np.argmin(np.abs(lat_diff))
-            lon_diff = list(nc_file['XLONG'][0, 0, :] - target[1])
-            lon_idx = np.argmin(np.abs(lon_diff))
-            raster_index = [slice(lat_idx, lat_idx + shape[0]),
-                            slice(lon_idx, lon_idx + shape[1])]
+            with xr.open_mfdataset(file_path, combine='nested',
+                                   concat_dim='Time') as handle:
+                lat_diff = list(handle['XLAT'][0, :, 0] - target[0])
+                lat_idx = np.argmin(np.abs(lat_diff))
+                lon_diff = list(handle['XLONG'][0, 0, :] - target[1])
+                lon_idx = np.argmin(np.abs(lon_diff))
+                raster_index = [slice(lat_idx, lat_idx + shape[0]),
+                                slice(lon_idx, lon_idx + shape[1])]
 
-            if (raster_index[1].stop >= len(lat_diff)
-               or raster_index[1].stop >= len(lon_diff)):
-                raise ValueError(
-                    f'Invalid target {target} and shape {shape} for '
-                    f'data domain of size ({len(lat_diff)}, '
-                    f'{len(lon_diff)}) with lower left corner '
-                    f'({np.min(nc_file["XLAT"][0, :, 0].values)}, '
-                    f'{np.min(nc_file["XLONG"][0, 0, :].values)})')
+                if (raster_index[1].stop >= len(lat_diff)
+                   or raster_index[1].stop >= len(lon_diff)):
+                    raise ValueError(
+                        f'Invalid target {target} and shape {shape} for '
+                        f'data domain of size ({len(lat_diff)}, '
+                        f'{len(lon_diff)}) with lower left corner '
+                        f'({np.min(handle["XLAT"][0, :, 0].values)}, '
+                        f'{np.min(handle["XLONG"][0, 0, :].values)})')
 
-            if self.raster_file is not None:
-                logger.debug(f'Saving raster index: {self.raster_file}')
-                np.save(self.raster_file, raster_index)
+                if self.raster_file is not None:
+                    logger.debug(f'Saving raster index: {self.raster_file}')
+                    np.save(self.raster_file, raster_index)
         return raster_index
 
     @classmethod
@@ -1626,8 +1648,8 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with WindX(file_path[0]) as res:
-                raster_index = res.get_raster_index(
+            with WindX(file_path[0], hsds=False) as handle:
+                raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             if self.raster_file is not None:
                 logger.debug(

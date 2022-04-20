@@ -41,7 +41,7 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
                             time_pruning=10, max_extract_workers=1,
                             max_compute_workers=1)
 
-    batch_handler = SpatialBatchHandler([handler], batch_size=8, spatial_res=2,
+    batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
                                         n_batches=10)
 
     with tempfile.TemporaryDirectory() as td:
@@ -107,7 +107,7 @@ def test_train_st(n_epoch=4, log=False):
                             max_compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
-                                 spatial_res=3, temporal_res=4,
+                                 s_enhance=3, t_enhance=4,
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:

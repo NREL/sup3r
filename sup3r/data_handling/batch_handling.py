@@ -4,8 +4,6 @@ Sup3r batch_handling module.
 """
 import logging
 import numpy as np
-import os
-import tempfile
 
 from rex.utilities import log_mem
 from sup3r.utilities.utilities import (spatial_coarsening,
@@ -24,7 +22,7 @@ class ValidationData:
     """Iterator for validation data"""
 
     def __init__(self, data_handlers, batch_size=8,
-                 spatial_res=3, temporal_res=1,
+                 s_enhance=3, t_enhance=1,
                  temporal_coarsening_method='subsample',
                  output_features_ind=None):
         """
@@ -34,15 +32,17 @@ class ValidationData:
             List of DataHandler instances
         batch_size : int
             Size of validation data batches
-        temporal_res : int
+        t_enhance : int
             Factor by which to coarsen temporal dimension
-        spatial_res : int
+            of the high resolution data
+        s_enhance : int
             Factor by which to coarsen spatial dimensions
+            of the high resolution data
         temporal_coarsening_method : str
             [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
+            Subsample will take every t_enhance-th time step,
+            average will average over t_enhance time steps,
+            total will sum over t_enhance time steps
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
@@ -62,8 +62,8 @@ class ValidationData:
         self.max = np.ceil(
             len(self.val_indices) / (batch_size))
         self.batch_size = batch_size
-        self.spatial_res = spatial_res
-        self.temporal_res = temporal_res
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
@@ -164,8 +164,8 @@ class ValidationData:
             if self.temporal_sample_shape == 1:
                 high_res = high_res[:, :, :, 0, :]
             batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
-                temporal_res=self.temporal_res,
+                high_res, self.s_enhance,
+                t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind)
             self._i += 1
@@ -235,7 +235,7 @@ class Batch:
 
     @classmethod
     def get_coarse_batch(cls, high_res,
-                         spatial_res, temporal_res=1,
+                         s_enhance, t_enhance=1,
                          temporal_coarsening_method='subsample',
                          output_features_ind=None):
         """Coarsen high res data and return Batch with
@@ -247,10 +247,12 @@ class Batch:
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        spatial_res : int
-            factor by which to coarsen spatial dimensions
-        temporal_res : int
-            factor by which to coarsen temporal dimension
+        s_enhance : int
+            factor by which to coarsen spatial dimensions of the
+            high resolution data
+        t_enhance : int
+            factor by which to coarsen temporal dimension of the
+            high resolution data
         temporal_coarsening_method : str
             method to use for temporal coarsening.
             can be subsample, average, or total
@@ -264,11 +266,11 @@ class Batch:
             Batch instance with low and high res data
         """
         low_res = spatial_coarsening(
-            high_res, spatial_res)
+            high_res, s_enhance)
 
-        if temporal_res != 1:
+        if t_enhance != 1:
             low_res = temporal_coarsening(
-                low_res, temporal_res,
+                low_res, t_enhance,
                 temporal_coarsening_method)
 
         high_res = cls.reduce_features(high_res, output_features_ind)
@@ -281,7 +283,7 @@ class BatchHandler:
     """Sup3r base batch handling class"""
 
     def __init__(self, data_handlers, batch_size=8,
-                 spatial_res=3, temporal_res=2,
+                 s_enhance=3, t_enhance=2,
                  means=None, stds=None,
                  norm=True, n_batches=10,
                  temporal_coarsening_method='subsample'):
@@ -292,12 +294,12 @@ class BatchHandler:
             List of DataHandler instances
         batch_size : int
             Number of observations in a batch
-        spatial_res : int
-            Factor by which to coarsen spatial dimensions to generate
-            low res data
-        temporal_res : int
-            Factor by which to coarsen temporal dimension to generate
-            low res data
+        s_enhance : int
+            Factor by which to coarsen spatial dimensions of the high
+            resolution data to generate low res data
+        t_enhance : int
+            Factor by which to coarsen temporal dimension of the high
+            resolution data to generate low res data
         norm : bool
             Whether to normalize the data or not
         means : np.ndarray
@@ -312,9 +314,9 @@ class BatchHandler:
             and norm is True these will be used form normalization
         temporal_coarsening_method : str
             [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
+            Subsample will take every t_enhance-th time step,
+            average will average over t_enhance time steps,
+            total will sum over t_enhance time steps
         """
 
         spatial_shapes = np.array(
@@ -337,8 +339,8 @@ class BatchHandler:
         self.data_handler = None
         self.batch_size = batch_size
         self._val_data = None
-        self.spatial_res = spatial_res
-        self.temporal_res = temporal_res
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
         self.spatial_sample_shape = spatial_shapes[0]
         self.temporal_sample_shape = temporal_shapes[0]
         self.means = np.zeros((self.shape[-1]), dtype=np.float32)
@@ -353,7 +355,7 @@ class BatchHandler:
 
         self.val_data = ValidationData(
             data_handlers, batch_size=batch_size,
-            spatial_res=spatial_res, temporal_res=temporal_res,
+            s_enhance=s_enhance, t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
             output_features_ind=self.output_features_ind)
 
@@ -426,7 +428,8 @@ class BatchHandler:
                            max_extract_workers=None,
                            max_compute_workers=None,
                            time_chunk_size=100,
-                           cache_file_paths=None):
+                           cache_file_prefixes=None,
+                           overwrite_cache=False):
 
         """
         Initialize set of data handlers for input to make method
@@ -474,10 +477,12 @@ class BatchHandler:
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
+        cache_file_prefixes : list | None
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted.
+        overwrite_cache : bool
+            Whether to overwrite any previously saved cache files.
 
         Returns
         -------
@@ -496,8 +501,8 @@ class BatchHandler:
 
         data_handlers = []
         for i, f in enumerate(file_paths):
-            cache_file_path, raster_file, target = cls.make_inputs(
-                cache_file_paths, raster_files, targets, i)
+            cache_file_prefix, raster_file, target = cls.make_inputs(
+                cache_file_prefixes, raster_files, targets, i)
             data_handlers.append(
                 HandlerClass(
                     f, features, target=target,
@@ -509,20 +514,21 @@ class BatchHandler:
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
                     time_chunk_size=time_chunk_size,
-                    cache_file_path=cache_file_path))
+                    cache_file_prefix=cache_file_prefix,
+                    overwrite_cache=overwrite_cache))
         return data_handlers
 
     @classmethod
-    def make_inputs(cls, cache_file_paths, raster_files,
+    def make_inputs(cls, cache_file_prefixes, raster_files,
                     targets, handler_index):
         """Sanitize some of the inputs to the make method
 
         Parameters
         ----------
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
+        cache_file_prefixes : list | None
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted.
         raster_files : list | str | None
             Files for raster_index array for the corresponding targets and
             shape. If a list these can be different files for different
@@ -546,13 +552,10 @@ class BatchHandler:
             selected by the handler_index
         """
 
-        if cache_file_paths is None or cache_file_paths is False:
-            cache_file_path = None
-        elif cache_file_paths is True:
-            cache_file_path = os.path.join(
-                tempfile.gettempdir(), f'cached_features_{handler_index}.npy')
+        if cache_file_prefixes is None or cache_file_prefixes is False:
+            cache_file_prefix = None
         else:
-            cache_file_path = cache_file_paths[handler_index]
+            cache_file_prefix = cache_file_prefixes[handler_index]
         if raster_files is None:
             raster_file = None
         else:
@@ -565,14 +568,14 @@ class BatchHandler:
         else:
             target = targets[handler_index]
 
-        return cache_file_path, raster_file, target
+        return cache_file_prefix, raster_file, target
 
     @classmethod
     def make(cls, file_paths, features,
              targets=None, shape=None, val_split=0.2,
              spatial_sample_shape=(10, 10),
              temporal_sample_shape=10,
-             spatial_res=3, temporal_res=2,
+             s_enhance=3, t_enhance=2,
              max_delta=20, norm=True,
              raster_files=None, time_pruning=1,
              batch_size=8, n_batches=10,
@@ -582,7 +585,8 @@ class BatchHandler:
              max_extract_workers=None,
              max_compute_workers=None,
              time_chunk_size=100,
-             cache_file_paths=None):
+             cache_file_prefixes=None,
+             overwrite_cache=False):
 
         """Method to initialize both
         data and batch handlers
@@ -606,10 +610,12 @@ class BatchHandler:
             size of spatial slices used for spatial batching
         temporal_sample_shape : int
             size of time slices used for temporal batching
-        spatial_res: int
-            factor by which to coarsen spatial dimensions
-        temporal_res: int
-            factor by which to coarsen temporal dimension
+        s_enhance: int
+            factor by which to coarsen spatial dimensions of the high
+            resolution data
+        t_enhance: int
+            factor by which to coarsen temporal dimension of the high
+            resolution data
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
             once. If shape is (20, 20) and max_delta=10, the full raster will
@@ -638,9 +644,9 @@ class BatchHandler:
             Number of batches to iterate through
         temporal_coarsening_method : str
             [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
+            Subsample will take every t_enhance-th time step,
+            average will average over t_enhance time steps,
+            total will sum over t_enhance time steps
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
@@ -652,10 +658,12 @@ class BatchHandler:
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
+        cache_file_prefixes : list | None | bool
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted.
+        overwrite_cache : bool
+            Whether to overwrite any previously saved cache files.
 
         Returns
         -------
@@ -675,11 +683,12 @@ class BatchHandler:
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
             time_chunk_size=time_chunk_size,
-            cache_file_paths=cache_file_paths)
+            cache_file_prefixes=cache_file_prefixes,
+            overwrite_cache=overwrite_cache)
 
         batch_handler = BatchHandler(
-            data_handlers, spatial_res=spatial_res,
-            temporal_res=temporal_res, batch_size=batch_size,
+            data_handlers, s_enhance=s_enhance,
+            t_enhance=t_enhance, batch_size=batch_size,
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method)
 
@@ -777,8 +786,8 @@ class BatchHandler:
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
-                temporal_res=self.temporal_res,
+                high_res, self.s_enhance,
+                t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind)
 
@@ -796,7 +805,7 @@ class SpatialBatchHandler(BatchHandler):
              targets=None, shape=None,
              val_split=0.2, batch_size=8,
              spatial_sample_shape=(10, 10),
-             spatial_res=3, max_delta=20,
+             s_enhance=3, max_delta=20,
              norm=True, raster_files=None,
              time_pruning=1, means=None,
              n_batches=10,
@@ -805,7 +814,7 @@ class SpatialBatchHandler(BatchHandler):
              max_extract_workers=None,
              max_compute_workers=None,
              time_chunk_size=100,
-             cache_file_paths=None):
+             cache_file_prefixes=None):
 
         """Method to initialize both
         data and batch handlers
@@ -827,7 +836,7 @@ class SpatialBatchHandler(BatchHandler):
             number of observations in a batch
         spatial_sample_shape : tuple
             size of spatial slices used for spatial batching
-        spatial_res: int
+        s_enhance: int
             factor by which to coarsen spatial dimensions
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
@@ -867,10 +876,11 @@ class SpatialBatchHandler(BatchHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
+        cache_file_prefixes : list | None | bool
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted. If True then features will be cached using
+            default file names.
 
         Returns
         -------
@@ -890,11 +900,11 @@ class SpatialBatchHandler(BatchHandler):
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
             time_chunk_size=time_chunk_size,
-            cache_file_paths=cache_file_paths)
+            cache_file_prefixes=cache_file_prefixes)
 
         batch_handler = SpatialBatchHandler(
-            data_handlers, spatial_res=spatial_res,
-            temporal_res=1, batch_size=batch_size,
+            data_handlers, s_enhance=s_enhance,
+            t_enhance=1, batch_size=batch_size,
             norm=norm, means=means,
             stds=stds, n_batches=n_batches)
         return batch_handler
@@ -912,7 +922,7 @@ class SpatialBatchHandler(BatchHandler):
                 high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
 
             batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
+                high_res, self.s_enhance,
                 output_features_ind=self.output_features_ind)
 
             self._i += 1
