@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 import tempfile
 
 from sup3r import TEST_DATA_DIR
-from sup3r.data_handling.preprocessing import (DataHandlerNC,
-                                               BatchHandler,
-                                               SpatialBatchHandler)
+from sup3r.data_handling.preprocessing import DataHandlerNC
+from sup3r.data_handling.batch_handling import (BatchHandler,
+                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
 input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
@@ -41,7 +41,7 @@ list_chunk_size = 10
 cache_file = os.path.join(tempfile.gettempdir(), 'cached_features_nc.npy')
 
 os.system(f'rm -f {raster_file}')
-os.system(f'rm -f {os.path.join(tempfile.gettempdir(), "cached_features*")}')
+os.system(f'rm -f {cache_file}')
 
 
 @pytest.mark.parametrize(

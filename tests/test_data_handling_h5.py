@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 import tempfile
 
 from sup3r import TEST_DATA_DIR
-from sup3r.data_handling.preprocessing import (DataHandlerH5,
-                                               BatchHandler,
-                                               SpatialBatchHandler)
+from sup3r.data_handling.preprocessing import DataHandlerH5
+from sup3r.data_handling.batch_handling import (BatchHandler,
+                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
 input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -33,7 +33,7 @@ temporal_res = 2
 cache_file = os.path.join(tempfile.gettempdir(), 'cached_features_h5.npy')
 
 os.system(f'rm -f {raster_file}')
-os.system(f'rm -f {os.path.join(tempfile.gettempdir(), "cached_features*")}')
+os.system(f'rm -f {cache_file}')
 
 
 @pytest.mark.parametrize(
@@ -105,7 +105,7 @@ def test_feature_handler():
                  'pressure_100m': 'P_bottom',
                  'pressure_200m': 'P_top'}
     for k, v in var_names.items():
-        tmp = handler.extract_feature(input_file, handler.raster_index, k)
+        tmp = handler.extract_feature([input_file], handler.raster_index, k)
         assert tmp.dtype == np.dtype(np.float32)
         vars[v] = tmp
 

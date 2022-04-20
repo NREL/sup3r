@@ -12,9 +12,9 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models.models import SpatialGan, SpatioTemporalGan
-from sup3r.data_handling.preprocessing import (DataHandlerH5,
-                                               SpatialBatchHandler,
-                                               BatchHandler)
+from sup3r.data_handling.preprocessing import DataHandlerH5
+from sup3r.data_handling.batch_handling import (BatchHandler,
+                                                SpatialBatchHandler)
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

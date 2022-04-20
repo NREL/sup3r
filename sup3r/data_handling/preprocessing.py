@@ -10,21 +10,18 @@ import xarray as xr
 import numpy as np
 import os
 import re
-import psutil
 from datetime import datetime as dt
 from collections import defaultdict
-import tempfile
 
 from rex import WindX
 from rex.utilities import log_mem
 from rex.utilities.execution import SpawnProcessPool
-from sup3r.utilities.utilities import (spatial_coarsening,
-                                       uniform_box_sampler,
-                                       temporal_coarsening,
+from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
                                        interp_var,
                                        transform_rotate_wind,
                                        BVF_squared)
+
 from sup3r import __version__
 
 np.random.seed(42)
@@ -32,24 +29,27 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def check_memory(msg=None):
-    """Log current memory usage
-
-    Parameters
+def get_source_type(file_paths):
+    """Get data source type
     ----------
-    msg : str | None
-        optional additional log msg
+    file_paths : list
+        path to data file
+    Returns
+    -------
+    source_type : str
+        Either h5 or nc
     """
+    if not isinstance(file_paths, list):
+        file_paths = [file_paths]
 
-    mem = psutil.virtual_memory()
-    if msg is not None:
-        logger.debug(msg)
-    logger.debug(
-        f'Current memory usage is {mem.used / 1e9 :.3f} GB'
-        f' out of {mem.total / 1e9 :.3f} GB total.')
+    _, source_type = os.path.splitext(file_paths[0])
+    if source_type == '.h5':
+        return 'h5'
+    else:
+        return 'nc'
 
 
-def get_file_handle(file_paths):
+def get_time_index(file_paths):
     """Get data file handle
     based on file type
     ----------
@@ -60,31 +60,44 @@ def get_file_handle(file_paths):
     handle : xarray | WindX
         data file extension
     """
-    if not isinstance(file_paths, list):
-        file_paths = [file_paths]
-
-    _, source_type = os.path.splitext(file_paths[0])
-    if source_type == '.h5':
-        handle = WindX(file_paths[0], hsds=False)
+    if get_source_type(file_paths) == 'h5':
+        return WindX(file_paths[0], hsds=False).time_index
     else:
-        handle = xr.open_mfdataset(
-            file_paths, combine='nested', concat_dim='Time')
-        handle['time_index'] = handle['Times']
-    return handle
+        return xr.open_mfdataset(
+            file_paths, combine='nested', concat_dim='Time')['Times']
 
 
-class RasterIndex(list):
-    """RasterIndex class to add
-    shape method to NC raster_index"""
+def get_raster_shape(raster_index):
+    """method to get shape of raster_index"""
 
-    def __init__(self, raster_obj):
-        if any(isinstance(r, slice) for r in raster_obj):
-            super().__init__(raster_obj)
-            self.shape = (self[0].stop - self[0].start,
-                          self[1].stop - self[1].start)
-        else:
-            super().__init__([raster_obj.flatten()])
-            self.shape = raster_obj.shape
+    if any(isinstance(r, slice) for r in raster_index):
+        shape = (raster_index[0].stop - raster_index[0].start,
+                 raster_index[1].stop - raster_index[1].start)
+    else:
+        shape = raster_index.shape
+    return shape
+
+
+def get_handler_class(file_paths):
+    """Method to get source type specific
+    DataHandler class
+
+    Parameters
+    ----------
+    file_paths : list
+        list of file paths
+
+    Returns
+    -------
+    DataHandler
+        Either DataHandlerNC or DataHandlerH5
+
+    """
+    if get_source_type(file_paths) == 'h5':
+        HandlerClass = DataHandlerH5
+    else:
+        HandlerClass = DataHandlerNC
+    return HandlerClass
 
 
 class Feature:
@@ -94,6 +107,18 @@ class Feature:
     feature in handle"""
 
     def __init__(self, feature, handle):
+        """Takes a feature (e.g. U_100m) and
+        gets the height (100), basename (U) and
+        determines whether the feature is found in
+        the data handle
+
+        Parameters
+        ----------
+        feature : str
+            Raw feature name e.g. U_100m
+        handle : WindX | xarray
+            handle for data file
+        """
         self.alternative_names = {
             'temperature': 'T',
             'pressure': 'P',
@@ -334,33 +359,26 @@ class FeatureHandler:
                             'chunk': -1}
                     futures[future] = meta
 
+                shape = get_raster_shape(raster_index)
                 logger.info(
                     f'Started extracting {input_features}'
                     f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({raster_index.shape[0]}, '
-                    f'{raster_index.shape[1]}, '
+                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_chunks[0].stop - time_chunks[0].start}) '
                     f'for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
+                    v = futures[future]
+                    data[v['chunk']][v['feature']] = future.result()
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
-
-            logger.info('Building input feature dictionary of '
-                        f'{len(input_features)} features and '
-                        f'{len(time_chunks)} time_chunks')
-            for k, v in futures.items():
-                data[v['chunk']][v['feature']] = k.result()
-            del futures
-            exe.shutdown()
 
         return data
 
     @classmethod
     def serial_compute(cls, data, time_chunks,
-                       input_features, all_features,
-                       cache_features=False):
+                       input_features, all_features):
 
         """Compute features in series
 
@@ -403,16 +421,14 @@ class FeatureHandler:
                 height = Feature.get_feature_height(f)
                 tmp = cls.get_input_arrays(data, t, f)
                 data[t][f] = method(tmp, height)
-
-            if not cache_features:
-                cls.pop_old_data(data, t, all_features)
+            cls.pop_old_data(data, t, all_features)
 
         return data
 
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
                          input_features, all_features,
-                         max_workers=None, cache_features=False):
+                         max_workers=None):
 
         """Compute features using parallel subprocesses
 
@@ -439,9 +455,6 @@ class FeatureHandler:
         max_workers : int | None
             Number of max workers to use for computation.
             If equal to 1 then method is run in serial
-        cache_features : bool
-            Whether to cache features that might be
-            needed for other computations
 
         Returns
         -------
@@ -460,8 +473,7 @@ class FeatureHandler:
         now = dt.now()
         if max_workers == 1:
             return cls.serial_compute(
-                data, time_chunks, input_features, all_features,
-                cache_features)
+                data, time_chunks, input_features, all_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
@@ -477,32 +489,23 @@ class FeatureHandler:
 
                         futures[future] = meta
 
-                    if not cache_features:
-                        cls.pop_old_data(
-                            data, t, all_features)
+                    cls.pop_old_data(
+                        data, t, all_features)
 
+                shape = get_raster_shape(raster_index)
                 logger.info(
                     f'Started computing {derived_features}'
                     f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({raster_index.shape[0]}, '
-                    f'{raster_index.shape[1]}, '
+                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_chunks[0].stop - time_chunks[0].start}) '
                     f'for {len(derived_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
+                    v = futures[future]
+                    data[v['chunk']][v['feature']] = future.result()
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
-
-            logger.info('Building derived feature dictionary of '
-                        f'{len(derived_features)} features and '
-                        f'{len(time_chunks)} time_chunks')
-            for k, v in futures.items():
-                t = v['chunk']
-                f = v['feature']
-                data[t][f] = k.result()
-            del futures
-            exe.shutdown()
 
         return data
 
@@ -826,8 +829,7 @@ class DataHandler(FeatureHandler):
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None, max_compute_workers=None,
-                 time_chunk_size=100, feature_chunk_size=None,
-                 cache_features=False,
+                 time_chunk_size=100,
                  cache_file_path=None):
 
         """Data handling and extraction
@@ -876,12 +878,6 @@ class DataHandler(FeatureHandler):
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for data extraction
-        feature_chunk_size : int | None
-            Number of features to extract/compute in parallel. If None all
-            features will be extracted/computed in parallel.
-        cache_features : bool
-            Whether to cache features for use in computations. e.g. cache
-            windspeed_100m for use in computing U_100m and V_100m.
         cache_file_path : str | None
             Path to file for saving feature data. If not None feature
             arrays will be saved here and not stored in self.data until
@@ -903,7 +899,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
         self.features = features
         self.grid_shape = shape
-        self.time_index = get_file_handle(self.file_path).time_index
+        self.time_index = get_time_index(self.file_path)
         self.target = target
         self.max_delta = max_delta
         self.raster_file = raster_file
@@ -929,9 +925,7 @@ class DataHandler(FeatureHandler):
                 self.features, self.time_pruning,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
-                time_chunk_size=time_chunk_size,
-                feature_chunk_size=feature_chunk_size,
-                cache_features=cache_features)
+                time_chunk_size=time_chunk_size)
 
         if cache_file_path is None:
             self.data, self.val_data = self.split_data(self.data)
@@ -1142,15 +1136,19 @@ class DataHandler(FeatureHandler):
             Path to file for saving feature data
         """
 
-        if (cache_file_path is not None
-                and not os.path.exists(cache_file_path)):
+        if cache_file_path is not None:
+            if not os.path.exists(cache_file_path):
 
-            data_dict = {}
-            for i, f in enumerate(self.features):
-                data_dict[f] = self.data[:, :, :, i]
+                data_dict = {}
+                for i, f in enumerate(self.features):
+                    data_dict[f] = self.data[:, :, :, i]
 
-            logger.info(f'Saving features to {cache_file_path}')
-            np.save(cache_file_path, data_dict)
+                logger.info(f'Saving features to {cache_file_path}')
+                np.save(cache_file_path, data_dict)
+            else:
+                logger.warning(
+                    f'Called cache_data but {cache_file_path} '
+                    'already exists')
 
     def load_cached_data(self):
         """Load data from cache files and split into
@@ -1172,8 +1170,7 @@ class DataHandler(FeatureHandler):
                      time_index, features, time_pruning,
                      max_extract_workers=None,
                      max_compute_workers=None,
-                     time_chunk_size=100, feature_chunk_size=None,
-                     cache_features=False):
+                     time_chunk_size=100):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -1202,12 +1199,6 @@ class DataHandler(FeatureHandler):
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller
             data extractions
-        feature_chunk_size : int | None
-            Number of features to extract/compute in parallel. If None all
-            features will be extracted/computed in parallel.
-        cache_features : bool
-            Whether to cache features that might be needed for other
-            computations
 
         Returns
         -------
@@ -1220,12 +1211,12 @@ class DataHandler(FeatureHandler):
         if not isinstance(file_path, list):
             file_path = [file_path]
 
+        shape = get_raster_shape(raster_index)
         logger.debug(
-            f'Loading data for raster of shape {raster_index.shape}')
+            f'Loading data for raster of shape {shape}')
 
         data_array = np.zeros(
-            (raster_index.shape[0], raster_index.shape[1],
-             len(time_index), len(features)),
+            (shape[0], shape[1], len(time_index), len(features)),
             dtype=np.float32)
 
         # split time dimension into smaller slices which can be
@@ -1234,52 +1225,30 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        if feature_chunk_size is None:
-            n_chunks = 1
-        else:
-            n_chunks = int(np.ceil(len(features) / feature_chunk_size))
-
-        feature_chunks = np.array_split(np.arange(0, len(features)), n_chunks)
-        feature_chunks = [slice(f[0], f[-1] + 1) for f in feature_chunks]
-
         raw_data = defaultdict(dict)
-        computed_features = []
+        raw_features = cls.get_raw_feature_list(features)
 
-        for f_slice in feature_chunks:
+        log_mem(logger)
+        logger.info(f'Starting {features} extraction from {file_path}')
 
-            f_list = features[f_slice]
+        raw_data = cls.parallel_extract(
+            file_path, raw_data, raster_index, time_chunks,
+            raw_features, max_extract_workers)
 
-            raw_features = cls.get_raw_feature_list(f_list)
+        log_mem(logger)
+        logger.info(f'Finished extracting {features}')
 
-            check_memory(f'Starting {f_list} extraction from {file_path}')
+        raw_data = cls.parallel_compute(
+            raw_data, raster_index, time_chunks,
+            raw_features, features, max_compute_workers)
 
-            raw_data = cls.parallel_extract(
-                file_path, raw_data, raster_index, time_chunks,
-                raw_features, max_extract_workers)
+        log_mem(logger)
+        logger.info(f'Finished computing {features}')
 
-            check_memory(f'Finished extracting {f_list}')
-
-            raw_data = cls.parallel_compute(
-                raw_data, raster_index, time_chunks,
-                raw_features, f_list, max_compute_workers,
-                cache_features)
-
-            check_memory(f'Finished computing {f_list}')
-
-            computed_features = cls.computed_features(
-                f_list, computed_features)
-
-            needed_features = cls.needed_features(
-                features, computed_features)
-
-            for t, t_slice in enumerate(time_chunks):
-                for _, f in enumerate(f_list):
-                    f_index = features.index(f)
-                    data_array[:, :, t_slice, f_index] = raw_data[t][f]
-                    if cache_features and f not in needed_features:
-                        raw_data[t].pop(f)
-                if not cache_features:
-                    raw_data.pop(t)
+        for t, t_slice in enumerate(time_chunks):
+            for i, f in enumerate(features):
+                data_array[:, :, t_slice, i] = raw_data[t][f]
+            raw_data.pop(t)
 
         data_array = data_array[:, :, ::time_pruning, :]
         logger.info('Finished extracting data from '
@@ -1314,78 +1283,6 @@ class DataHandler(FeatureHandler):
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
-    def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_pruning=1, val_split=0.1,
-                 temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
-                 time_chunk_size=100, feature_chunk_size=None,
-                 cache_features=False,
-                 cache_file_path=None):
-
-        """Data handling and extraction
-
-        Parameters
-        ----------
-        file_path : list
-            A list of netcdf files with identical grid
-        features : list
-            list of features to extract
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. Either need
-            target+shape or raster_file.
-        val_split : float32
-            Fraction of data to store for validation
-        spatial_sample_shape : tuple
-            Size of spatial slice used in a single high-res observation for
-            spatial batching
-        temporal_sample_shape : int
-            Number of time slices used in a single high-res observation for
-            temporal batching
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
-        shuffle_time : bool
-            Whether to shuffle time indices before validation split
-        max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for data extraction
-        feature_chunk_size : int | None
-            Number of features to extract/compute in parallel. If None all
-            features will be extracted/computed in parallel.
-        cache_file_path : str | None
-            Path to file for saving feature data. If not None feature
-            arrays will be saved here and not stored in self.data until
-            load_cached_data is called.
-        """
-
-        super().__init__(
-            file_path, features, target, shape, max_delta,
-            time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time,
-            max_extract_workers, max_compute_workers,
-            time_chunk_size, feature_chunk_size,
-            cache_features, cache_file_path)
-
     @classmethod
     def extract_feature(
             cls, file_path, raster_index,
@@ -1410,40 +1307,43 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        handle = get_file_handle(file_path)
+        with xr.open_mfdataset(file_path, combine='nested',
+                               concat_dim='Time') as handle:
 
-        f_info = Feature(feature, handle)
-        interp_height = f_info.height
-        basename = f_info.basename
+            f_info = Feature(feature, handle)
+            interp_height = f_info.height
+            basename = f_info.basename
 
-        method = cls.lookup_method(feature)
-        if method is not None and basename not in handle:
-            return method(file_path, raster_index)
+            method = cls.lookup_method(feature)
+            if method is not None and basename not in handle:
+                return method(file_path, raster_index)
 
-        else:
-            try:
-                if len(handle[basename].shape) > 3:
-                    if interp_height is None:
+            else:
+                try:
+                    if len(handle[basename].shape) > 3:
+                        if interp_height is None:
+                            fdata = np.array(
+                                handle[feature][
+                                    tuple([time_slice] + [0] + raster_index)],
+                                dtype=np.float32)
+                        else:
+                            logger.debug(
+                                f'Interpolating {basename}'
+                                f' at height {interp_height}m')
+                            fdata = interp_var(
+                                handle, basename, float(interp_height))
+                            fdata = fdata[
+                                tuple([time_slice] + raster_index)]
+                    else:
                         fdata = np.array(
                             handle[feature][
-                                tuple([time_slice] + [0] + raster_index)],
+                                tuple([time_slice] + raster_index)],
                             dtype=np.float32)
-                    else:
-                        logger.debug(
-                            f'Interpolating {basename}'
-                            f' at height {interp_height}m')
-                        fdata = interp_var(
-                            handle, basename, float(interp_height))
-                        fdata = fdata[
-                            tuple([time_slice] + raster_index)]
-                else:
-                    fdata = np.array(
-                        handle[feature][tuple([time_slice] + raster_index)],
-                        dtype=np.float32)
 
-            except ValueError:
-                logger.error(
-                    f'{feature} cannot be extracted from source data')
+                except ValueError as e:
+                    msg = f'{feature} cannot be extracted from source data'
+                    logger.exception(msg)
+                    raise ValueError(msg) from e
 
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
@@ -1497,7 +1397,7 @@ class DataHandlerNC(DataHandler):
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file, raster_index)
-        return RasterIndex(raster_index)
+        return raster_index
 
     @classmethod
     def get_bvf_inputs(cls, feature):
@@ -1642,78 +1542,6 @@ class DataHandlerNC(DataHandler):
 class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
-    def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_pruning=1, val_split=0.1,
-                 temporal_sample_shape=1, spatial_sample_shape=(10, 10),
-                 raster_file=None, shuffle_time=False,
-                 max_extract_workers=None, max_compute_workers=None,
-                 time_chunk_size=100, feature_chunk_size=None,
-                 cache_features=False,
-                 cache_file_path=None):
-
-        """Data handling and extraction
-
-        Parameters
-        ----------
-        file_path : str
-            A single source h5 wind file to extract raster data from
-            or a list of netcdf files with identical grid
-        features : list
-            list of features to extract
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. Either need
-            target+shape or raster_file.
-        val_split : float32
-            Fraction of data to store for validation
-        spatial_sample_shape : tuple
-            Size of spatial slice used in a single high-res observation for
-            spatial batching
-        temporal_sample_shape : int
-            Number of time slices used in a single high-res observation for
-            temporal batching
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
-        shuffle_time : bool
-            Whether to shuffle time indices before valiidation split
-        max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for data extraction
-        feature_chunk_size : int | None
-            Number of features to extract/compute in parallel. If None all
-            features will be extracted/computed in parallel.
-        cache_file_path : str | None
-            Path to file for saving feature data. If not None feature
-            arrays will be saved here and not stored in self.data until
-            load_cached_data is called.
-        """
-
-        super().__init__(
-            file_path, features, target, shape, max_delta,
-            time_pruning, val_split, temporal_sample_shape,
-            spatial_sample_shape, raster_file, shuffle_time,
-            max_extract_workers, max_compute_workers,
-            time_chunk_size, feature_chunk_size,
-            cache_features, cache_file_path)
-
     @classmethod
     def extract_feature(
             cls, file_path, raster_index,
@@ -1738,20 +1566,22 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        handle = get_file_handle(file_path)
+        with WindX(file_path[0], hsds=False) as handle:
 
-        method = cls.lookup_method(feature)
-        if method is not None and feature not in handle:
-            return method(file_path, raster_index)
+            method = cls.lookup_method(feature)
+            if method is not None and feature not in handle:
+                return method(file_path, raster_index)
 
-        else:
-            try:
-                fdata = handle[
-                    tuple([feature] + [time_slice] + raster_index)]
+            else:
+                try:
+                    fdata = handle[
+                        tuple([feature] + [time_slice]
+                              + [raster_index.flatten()])]
 
-            except ValueError:
-                logger.error(
-                    f'{feature} cannot be extracted from source data')
+                except ValueError as e:
+                    msg = f'{feature} cannot be extracted from source data'
+                    logger.exception(msg)
+                    raise ValueError(msg) from e
 
         fdata = fdata.reshape(
             (-1, raster_index.shape[0], raster_index.shape[1]))
@@ -1794,7 +1624,7 @@ class DataHandlerH5(DataHandler):
                 logger.debug(
                     f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
-        return RasterIndex(raster_index)
+        return raster_index
 
     @classmethod
     def get_bvf_inputs(cls, feature):
@@ -1820,7 +1650,6 @@ class DataHandlerH5(DataHandler):
         return features
 
     @classmethod
-    @abstractmethod
     def get_u_inputs(cls, feature):
         """Get list of raw features used
         in u calculation
@@ -1843,7 +1672,6 @@ class DataHandlerH5(DataHandler):
         return features
 
     @classmethod
-    @abstractmethod
     def get_v_inputs(cls, feature):
         """Get list of raw features used
         in v calculation
@@ -1937,889 +1765,10 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, 2)
         """
 
-        handle = get_file_handle(file_path)
-        lat_lon = handle.lat_lon[tuple(raster_index)]
-        lat_lon = lat_lon.reshape(
-            (raster_index.shape[0],
-             raster_index.shape[1], 2))
+        with WindX(file_path[0], hsds=False) as handle:
+            lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
+            lat_lon = lat_lon.reshape(
+                (raster_index.shape[0],
+                 raster_index.shape[1], 2))
 
         return lat_lon
-
-
-class ValidationData:
-    """Iterator for validation data"""
-
-    def __init__(self, data_handlers, batch_size=8,
-                 spatial_res=3, temporal_res=1,
-                 temporal_coarsening_method='subsample',
-                 output_features_ind=None):
-        """
-        Parameters
-        ----------
-        handlers : list[DataHandler]
-            List of DataHandler instances
-        batch_size : int
-            Size of validation data batches
-        temporal_res : int
-            Factor by which to coarsen temporal dimension
-        spatial_res : int
-            Factor by which to coarsen spatial dimensions
-        temporal_coarsening_method : str
-            [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-
-        spatial_shapes = np.array(
-            [d.spatial_sample_shape for d in data_handlers])
-        temporal_shapes = np.array(
-            [d.temporal_sample_shape for d in data_handlers])
-        assert np.all(spatial_shapes[0] == spatial_shapes)
-        assert np.all(temporal_shapes[0] == temporal_shapes)
-
-        self.handlers = data_handlers
-        self.spatial_sample_shape = spatial_shapes[0]
-        self.temporal_sample_shape = temporal_shapes[0]
-        self.val_indices = self._get_val_indices()
-        self.max = np.ceil(
-            len(self.val_indices) / (batch_size))
-        self.batch_size = batch_size
-        self.spatial_res = spatial_res
-        self.temporal_res = temporal_res
-        self._remaining_observations = len(self.val_indices)
-        self.temporal_coarsening_method = temporal_coarsening_method
-        self._i = 0
-        self.output_features_ind = output_features_ind
-
-    def _get_val_indices(self):
-        """List of dicts to index each validation data
-        observation across all handlers
-
-        Returns
-        -------
-        val_indices : list[dict]
-            List of dicts with handler_index and tuple_index.
-            The tuple index is used to get validation data observation
-            with data[tuple_index]"""
-
-        val_indices = []
-        for i, h in enumerate(self.handlers):
-            for _ in range(h.val_data.shape[2]):
-                spatial_slice = uniform_box_sampler(
-                    h.val_data, self.spatial_sample_shape)
-                temporal_slice = uniform_time_sampler(
-                    h.val_data, self.temporal_sample_shape)
-                tuple_index = tuple(
-                    spatial_slice + [temporal_slice]
-                    + [np.arange(h.val_data.shape[-1])])
-                val_indices.append(
-                    {'handler_index': i,
-                     'tuple_index': tuple_index})
-        return val_indices
-
-    @property
-    def shape(self):
-        """Shape of full validation dataset across all handlers
-
-        Returns
-        -------
-        shape : tuple
-            (spatial_1, spatial_2, temporal, features)
-            With temporal extent equal to the sum across
-            all data handlers time dimension
-        """
-        time_steps = 0
-        for h in self.handlers:
-            time_steps += h.val_data.shape[2]
-        return (self.handlers[0].val_data.shape[0],
-                self.handlers[0].val_data.shape[1],
-                time_steps,
-                self.handlers[0].val_data.shape[3])
-
-    def __iter__(self):
-        self._i = 0
-        self._remaining_observations = len(self.val_indices)
-        return self
-
-    def __len__(self):
-        """
-        Returns
-        -------
-        len : int
-            Number of total batches
-        """
-        return int(self.max)
-
-    def __next__(self):
-        """Get validation data batch
-
-        Returns
-        -------
-        batch : Batch
-            validation data batch with low and high res data
-            each with n_observations = batch_size
-        """
-        if self._remaining_observations > 0:
-            if self._remaining_observations > self.batch_size:
-                high_res = np.zeros((
-                    self.batch_size,
-                    self.spatial_sample_shape[0],
-                    self.spatial_sample_shape[1],
-                    self.temporal_sample_shape,
-                    self.handlers[0].shape[-1]),
-                    dtype=np.float32)
-            else:
-                high_res = np.zeros((
-                    self._remaining_observations,
-                    self.spatial_sample_shape[0],
-                    self.spatial_sample_shape[1],
-                    self.temporal_sample_shape,
-                    self.handlers[0].shape[-1]),
-                    dtype=np.float32)
-            for i in range(high_res.shape[0]):
-                val_index = self.val_indices[self._i + i]
-                high_res[i, :, :, :, :] = self.handlers[
-                    val_index['handler_index']].val_data[
-                        val_index['tuple_index']]
-                self._remaining_observations -= 1
-
-            if self.temporal_sample_shape == 1:
-                high_res = high_res[:, :, :, 0, :]
-            batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
-                temporal_res=self.temporal_res,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
-            self._i += 1
-            return batch
-        else:
-            raise StopIteration
-
-
-class Batch:
-    """Batch of low_res and high_res data"""
-
-    def __init__(self, low_res, high_res):
-        """Stores low and high res data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        """
-        self._low_res = low_res
-        self._high_res = high_res
-
-    def __len__(self):
-        """Get the number of observations in this batch."""
-        return len(self._low_res)
-
-    @property
-    def shape(self):
-        """Get the (low_res_shape, high_res_shape) shapes."""
-        return (self._low_res.shape, self._high_res.shape)
-
-    @property
-    def low_res(self):
-        """Get the low-resolution data for the batch."""
-        return self._low_res
-
-    @property
-    def high_res(self):
-        """Get the high-resolution data for the batch."""
-        return self._high_res
-
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
-        """Remove any feature channels that are only intended for the low-res
-        training input.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-        if output_features_ind is None:
-            return high_res
-        else:
-            return high_res[..., output_features_ind]
-
-    @classmethod
-    def get_coarse_batch(cls, high_res,
-                         spatial_res, temporal_res=1,
-                         temporal_coarsening_method='subsample',
-                         output_features_ind=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        spatial_res : int
-            factor by which to coarsen spatial dimensions
-        temporal_res : int
-            factor by which to coarsen temporal dimension
-        temporal_coarsening_method : str
-            method to use for temporal coarsening.
-            can be subsample, average, or total
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-
-        Returns
-        -------
-        Batch
-            Batch instance with low and high res data
-        """
-        low_res = spatial_coarsening(
-            high_res, spatial_res)
-
-        if temporal_res != 1:
-            low_res = temporal_coarsening(
-                low_res, temporal_res,
-                temporal_coarsening_method)
-
-        high_res = cls.reduce_features(high_res, output_features_ind)
-
-        batch = cls(low_res, high_res)
-        return batch
-
-
-class BatchHandler:
-    """Sup3r base batch handling class"""
-
-    def __init__(self, data_handlers, batch_size=8,
-                 spatial_res=3, temporal_res=2,
-                 means=None, stds=None,
-                 norm=True, n_batches=10,
-                 temporal_coarsening_method='subsample'):
-        """
-        Parameters
-        ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances
-        batch_size : int
-            Number of observations in a batch
-        spatial_res : int
-            Factor by which to coarsen spatial dimensions to generate
-            low res data
-        temporal_res : int
-            Factor by which to coarsen temporal dimension to generate
-            low res data
-        norm : bool
-            Whether to normalize the data or not
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used for normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used form normalization
-        temporal_coarsening_method : str
-            [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
-        """
-
-        spatial_shapes = np.array(
-            [d.spatial_sample_shape for d in data_handlers])
-        temporal_shapes = np.array(
-            [d.temporal_sample_shape for d in data_handlers])
-        assert np.all(spatial_shapes[0] == spatial_shapes)
-        assert np.all(temporal_shapes[0] == temporal_shapes)
-
-        for d in data_handlers:
-            if d.data is None:
-                d.load_cached_data()
-
-        check_memory()
-
-        self.data_handlers = data_handlers
-        self._i = 0
-        self.low_res = None
-        self.high_res = None
-        self.data_handler = None
-        self.batch_size = batch_size
-        self._val_data = None
-        self.spatial_res = spatial_res
-        self.temporal_res = temporal_res
-        self.spatial_sample_shape = spatial_shapes[0]
-        self.temporal_sample_shape = temporal_shapes[0]
-        self.means = np.zeros((self.shape[-1]))
-        self.stds = np.zeros((self.shape[-1]))
-        self.n_batches = n_batches
-        self.temporal_coarsening_method = temporal_coarsening_method
-        self.current_batch_indices = None
-        self.current_handler_index = None
-
-        if norm:
-            self.normalize(means, stds)
-
-        self.val_data = ValidationData(
-            data_handlers, batch_size=batch_size,
-            spatial_res=spatial_res, temporal_res=temporal_res,
-            temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind)
-
-    def __len__(self):
-        """Use user input of n_batches to specify length
-
-        Returns
-        -------
-        self.n_batches : int
-            Number of batches possible to iterate over
-        """
-        return self.n_batches
-
-    @property
-    def training_features(self):
-        """Get the ordered list of feature names held in this object's
-        data handlers"""
-        return self.data_handlers[0].features
-
-    @property
-    def output_features(self):
-        """Get the ordered list of feature names held in this object's
-        data handlers"""
-        return self.data_handlers[0].output_features
-
-    @property
-    def output_features_ind(self):
-        """Get the feature channel indices that should be used for the
-        generated output features"""
-        if self.training_features == self.output_features:
-            return None
-        else:
-            out = [i for i, feature in enumerate(self.training_features)
-                   if feature in self.output_features]
-            return out
-
-    @staticmethod
-    def get_source_type(file_paths):
-        """Get data file type to use
-        in source_type checking
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        Returns
-        -------
-        source_type : str
-            data file extension
-        """
-        if not isinstance(file_paths, list):
-            file_paths = [file_paths]
-
-        _, source_type = os.path.splitext(file_paths[0])
-        if source_type == '.h5':
-            return 'h5'
-        else:
-            return 'nc'
-
-    @staticmethod
-    def chunk_file_paths(file_paths, list_chunk_size=None):
-        """Split list of file paths into chunks
-        of size list_chunk_size
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-        list_chunk_size : int, optional
-            Size of file path liist chunk, by default None
-
-        Returns
-        -------
-        list
-            List of file path chunks
-        """
-
-        if isinstance(file_paths, list) and list_chunk_size is not None:
-            file_paths = sorted(file_paths)
-            n_chunks = int(np.ceil(len(file_paths) / list_chunk_size))
-            file_paths = list(np.array_split(file_paths, n_chunks))
-            file_paths = [list(fps) for fps in file_paths]
-        return file_paths
-
-    @staticmethod
-    def get_handler_class(file_paths):
-        """Method to get source type specific
-        DataHandler class
-
-        Parameters
-        ----------
-        file_paths : list
-            list of file paths
-
-        Returns
-        -------
-        DataHandler
-            Either DataHandlerNC or DataHandlerH5
-
-        """
-        if BatchHandler.get_source_type(file_paths) == 'h5':
-            HandlerClass = DataHandlerH5
-        else:
-            HandlerClass = DataHandlerNC
-        return HandlerClass
-
-    @classmethod
-    def make(cls, file_paths, features,
-             targets=None, shape=None, val_split=0.2,
-             spatial_sample_shape=(10, 10),
-             temporal_sample_shape=10,
-             spatial_res=3, temporal_res=2,
-             max_delta=20, norm=True,
-             raster_files=None, time_pruning=1,
-             batch_size=8, n_batches=10,
-             means=None, stds=None,
-             temporal_coarsening_method='subsample',
-             list_chunk_size=None,
-             max_extract_workers=None,
-             max_compute_workers=None,
-             time_chunk_size=100,
-             cache_file_paths=None):
-
-        """Method to initialize both
-        data and batch handlers
-
-        Parameters
-        ----------
-        file_paths : list
-            list of file paths
-        targets : tuple
-            List of several (lat, lon) lower left corner of raster. Either need
-            target+shape or raster_file.
-        shape : tuple
-            (rows, cols) grid size
-        features : list
-            list of features to extract
-        val_split : float32
-            fraction of data to reserve for validation
-        batch_size : int
-            number of observations in a batch
-        spatial_sample_shape : tuple
-            size of spatial slices used for spatial batching
-        temporal_sample_shape : int
-            size of time slices used for temporal batching
-        spatial_res: int
-            factor by which to coarsen spatial dimensions
-        temporal_res: int
-            factor by which to coarsen temporal dimension
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
-        raster_files : list | str | None
-            Files for raster_index array for the corresponding targets and
-            shape. If a list these can be different files for different
-            targets. If a string the same file will be used for all
-            targets. If None raster_index will be calculated directly.
-        norm : bool
-            Wether to normalize data using means/stds calulcated across
-            all handlers
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        n_batches : int
-            Number of batches to iterate through
-        temporal_coarsening_method : str
-            [subsample, average, total]
-            Subsample will take every temporal_res-th time step,
-            average will average over temporal_res time steps,
-            total will sum over temporal_res time steps
-        list_chunk_size : int
-            Size of chunks to split file_paths into if a list of files
-            is passed. If None no splitting will be performed.
-        max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for data extraction
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
-
-        Returns
-        -------
-        batchHandler : BatchHandler
-            batchHandler with dataHandler attribute
-        """
-
-        check = ((targets is not None and shape is not None)
-                 or raster_files is not None)
-        msg = ('You must either provide the targets+shape inputs '
-               'or the raster_files input.')
-        assert check, msg
-
-        HandlerClass = cls.get_handler_class(file_paths)
-        file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
-
-        data_handlers = []
-        for i, f in enumerate(file_paths):
-            if cache_file_paths is None or cache_file_paths is False:
-                cache_file_path = None
-            elif cache_file_paths is True:
-                cache_file_path = os.path.join(
-                    tempfile.gettempdir(), f'cached_features_{i}.npy')
-            else:
-                cache_file_path = cache_file_paths[i]
-            if raster_files is None:
-                raster_file = None
-            else:
-                if not isinstance(raster_files, list):
-                    raster_file = raster_files
-                else:
-                    raster_file = raster_files[i]
-            if not isinstance(targets, list):
-                target = targets
-            else:
-                target = targets[i]
-            data_handlers.append(
-                HandlerClass(
-                    f, features, target=target,
-                    shape=shape, max_delta=max_delta,
-                    raster_file=raster_file, val_split=val_split,
-                    spatial_sample_shape=spatial_sample_shape,
-                    temporal_sample_shape=temporal_sample_shape,
-                    time_pruning=time_pruning,
-                    max_extract_workers=max_extract_workers,
-                    max_compute_workers=max_compute_workers,
-                    time_chunk_size=time_chunk_size,
-                    cache_file_path=cache_file_path))
-        batch_handler = BatchHandler(
-            data_handlers, spatial_res=spatial_res,
-            temporal_res=temporal_res, batch_size=batch_size,
-            norm=norm, means=means, stds=stds, n_batches=n_batches,
-            temporal_coarsening_method=temporal_coarsening_method)
-        return batch_handler
-
-    @property
-    def shape(self):
-        """Shape of full dataset across all handlers
-
-        Returns
-        -------
-        shape : tuple
-            (spatial_1, spatial_2, temporal, features)
-            With temporal extent equal to the sum across
-            all data handlers time dimension
-        """
-        time_steps = 0
-        for h in self.data_handlers:
-            time_steps += h.shape[2]
-        return (self.data_handlers[0].shape[0],
-                self.data_handlers[0].shape[1],
-                time_steps,
-                self.data_handlers[0].shape[3])
-
-    def _get_stats(self):
-        """Get standard deviations and means
-        for all data features
-
-        Returns
-        -------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        """
-
-        for i in range(self.shape[-1]):
-            n_elems = 0
-            for data_handler in self.data_handlers:
-                self.means[i] += np.sum(data_handler.data[:, :, :, i])
-                n_elems += \
-                    data_handler.shape[0] \
-                    * data_handler.shape[1] \
-                    * data_handler.shape[2]
-            self.means[i] = self.means[i] / n_elems
-            for data_handler in self.data_handlers:
-                self.stds[i] += \
-                    np.sum((data_handler.data[:, :, :, i] - self.means[i])**2)
-            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
-
-    def normalize(self, means=None, stds=None):
-        """Compute means and stds for each feature
-        across all datasets and normalize each data handler dataset.
-        Checks if input means and stds are different from stored
-        means and stds and renormalizes if they are new
-        """
-        if means is None or stds is None:
-            self._get_stats()
-        elif means is not None and stds is not None:
-            if (not np.array_equal(means, self.means)
-                    or not np.array_equal(stds, self.stds)):
-                self.unnormalize()
-            self.means = means
-            self.stds = stds
-        for d in self.data_handlers:
-            d.normalize(self.means, self.stds)
-
-    def unnormalize(self):
-        """Remove normalization from stored means and stds"""
-        for d in self.data_handlers:
-            d.unnormalize(self.means, self.stds)
-
-    def __iter__(self):
-        self._i = 0
-        return self
-
-    def __next__(self):
-        self.current_batch_indices = []
-        if self._i <= self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size,
-                                 self.spatial_sample_shape[0],
-                                 self.spatial_sample_shape[1],
-                                 self.temporal_sample_shape,
-                                 self.shape[-1]))
-            for i in range(self.batch_size):
-                high_res[i, :, :, :, :] = handler.get_next()
-                self.current_batch_indices.append(handler.current_obs_index)
-
-            batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
-                temporal_res=self.temporal_res,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
-
-            self._i += 1
-            return batch
-        else:
-            raise StopIteration
-
-
-class SpatialBatchHandler(BatchHandler):
-    """Sup3r spatial batch handling class"""
-
-    def __init__(self, data_handlers,
-                 batch_size=8, spatial_res=3,
-                 means=None, stds=None,
-                 norm=True, n_batches=10):
-        """
-        Parameters
-        ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances
-        batch_size : int
-            Number of observations in a batch
-        spatial_res : int
-            Factor by which to coarsen spatial dimensions to generate
-            low res data
-        norm : bool
-            Whether to normalize the data or not
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used for normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features. If not None
-            and norm is True these will be used form normalization
-        """
-        super().__init__(data_handlers, batch_size=batch_size,
-                         spatial_res=spatial_res, temporal_res=1,
-                         norm=norm, n_batches=n_batches,
-                         means=means, stds=stds)
-
-    @classmethod
-    def make(cls, file_paths, features,
-             targets=None, shape=None,
-             val_split=0.2, batch_size=8,
-             spatial_sample_shape=(10, 10),
-             spatial_res=3, max_delta=20,
-             norm=True, raster_files=None,
-             time_pruning=1, means=None,
-             n_batches=10,
-             stds=None,
-             list_chunk_size=None,
-             max_extract_workers=None,
-             max_compute_workers=None,
-             time_chunk_size=100,
-             cache_file_paths=None):
-
-        """Method to initialize both
-        data and batch handlers
-
-        Parameters
-        ----------
-        file_paths : list
-            list of file paths to wind data files
-        features : list
-            list of features to extract
-        targets : tuple
-            List of several (lat, lon) lower left corner of raster. Either need
-            target+shape or raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        val_split : float32
-            fraction of data to reserve for validation
-        batch_size : int
-            number of observations in a batch
-        spatial_sample_shape : tuple
-            size of spatial slices used for spatial batching
-        spatial_res: int
-            factor by which to coarsen spatial dimensions
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
-        raster_files : list | str | None
-            Files for raster_index array for the corresponding targets and
-            shape. If a list these can be different files for different
-            targets. If a string the same file will be used for all
-            targets. If None raster_index will be calculated directly. Either
-            need target+shape or raster_file.
-        norm : bool
-            Wether to normalize data using means/stds calulcated across
-            all handlers
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features
-            with same ordering as data features
-        n_batches : int
-            Number of batches to iterate through
-        list_chunk_size : int
-            Size of chunks to split file_paths into if a list of files
-            is passed. If None no splitting will be performed.
-        max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for data extraction
-        cache_file_paths : list | None | bool
-            Files for cached feature data. If None then feature data will be
-            stored in memory while other features are being computed/extracted.
-            If True then features will be cached using default file names.
-
-        Returns
-        -------
-        batchHandler : SpatialBatchHandler
-            batchHandler with dataHandler attribute
-        """
-
-        check = ((targets is not None and shape is not None)
-                 or raster_files is not None)
-        msg = ('You must either provide the targets+shape inputs '
-               'or the raster_files input.')
-        assert check, msg
-
-        HandlerClass = cls.get_handler_class(file_paths)
-        file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
-
-        data_handlers = []
-        for i, f in enumerate(file_paths):
-            if cache_file_paths is None or cache_file_paths is False:
-                cache_file_path = None
-            elif cache_file_paths is True:
-                cache_file_path = os.path.join(
-                    tempfile.gettempdir(), f'cached_features_{i}.npy')
-            else:
-                cache_file_path = cache_file_paths[i]
-            if raster_files is None:
-                raster_file = None
-            else:
-                if not isinstance(raster_files, list):
-                    raster_file = raster_files
-                else:
-                    raster_file = raster_files[i]
-            if not isinstance(targets, list):
-                target = targets
-            else:
-                target = targets[i]
-            data_handlers.append(
-                HandlerClass(
-                    f, features,
-                    target=target, shape=shape,
-                    max_delta=max_delta,
-                    raster_file=raster_file,
-                    val_split=val_split,
-                    spatial_sample_shape=spatial_sample_shape,
-                    temporal_sample_shape=1,
-                    time_pruning=time_pruning,
-                    max_extract_workers=max_extract_workers,
-                    max_compute_workers=max_compute_workers,
-                    time_chunk_size=time_chunk_size,
-                    cache_file_path=cache_file_path))
-        batch_handler = SpatialBatchHandler(
-            data_handlers, spatial_res=spatial_res,
-            batch_size=batch_size, norm=norm, means=means,
-            stds=stds, n_batches=n_batches)
-        return batch_handler
-
-    def __next__(self):
-        if self._i <= self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
-            handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size,
-                                 self.spatial_sample_shape[0],
-                                 self.spatial_sample_shape[1],
-                                 self.shape[-1]), dtype=np.float32)
-            for i in range(self.batch_size):
-                high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
-
-            batch = Batch.get_coarse_batch(
-                high_res, self.spatial_res,
-                output_features_ind=self.output_features_ind)
-
-            self._i += 1
-            return batch
-        else:
-            raise StopIteration
