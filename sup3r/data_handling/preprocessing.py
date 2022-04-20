@@ -927,11 +927,11 @@ class DataHandler(FeatureHandler):
                 max_compute_workers=max_compute_workers,
                 time_chunk_size=time_chunk_size)
 
-        if cache_file_path is None:
-            self.data, self.val_data = self.split_data(self.data)
-        else:
-            self.cache_data(cache_file_path)
-            self.data = None
+            if cache_file_path is None:
+                self.data, self.val_data = self.split_data(self.data)
+            else:
+                self.cache_data(cache_file_path)
+                self.data = None
 
         msg = ('The temporal_sample_shape cannot '
                'be larger than the number of time steps in the raw data.')
@@ -1148,7 +1148,7 @@ class DataHandler(FeatureHandler):
             else:
                 logger.warning(
                     f'Called cache_data but {cache_file_path} '
-                    'already exists')
+                    'already exists. Delete this file to overwrite.')
 
     def load_cached_data(self):
         """Load data from cache files and split into
