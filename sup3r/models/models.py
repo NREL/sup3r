@@ -211,6 +211,30 @@ class BaseModel(ABC):
         logger.info('Set data normalization stdev values: {}'
                     .format(self._stdevs))
 
+    def set_feature_names(self, batch_handler):
+        """Set the list of feature names input/output to/from the generative
+        model and the discriminator(s)"""
+
+        if self.training_features is None:
+            self.meta['training_features'] = batch_handler.training_features
+        elif self.training_features != batch_handler.training_features:
+            msg = ('GAN was previously trained on feature list {} but '
+                   'received new features {}'
+                   .format(self.training_features,
+                           batch_handler.training_features))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        if self.output_features is None:
+            self.meta['output_features'] = batch_handler.output_features
+        elif self.output_features != batch_handler.output_features:
+            msg = ('GAN was previously trained to output features {} but '
+                   'received data to output new features {}'
+                   .format(self.output_features,
+                           batch_handler.output_features))
+            logger.error(msg)
+            raise KeyError(msg)
+
     @staticmethod
     def seed(s=0):
         """
@@ -244,7 +268,7 @@ class BaseModel(ABC):
         return self.generator.weights
 
     @tf.function
-    def generate(self, low_res, norm_in=False, un_norm_out=False):
+    def generate(self, low_res, norm_in=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -255,10 +279,6 @@ class BaseModel(ABC):
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
             received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-            Flag to un-normalize synthetically generated high_res output data
-            back to physical units if the self._means, self._stdevs attributes
-            are available.
 
         Returns
         -------
@@ -267,20 +287,44 @@ class BaseModel(ABC):
         """
 
         if norm_in and self._means is not None:
-            low_res = (low_res if isinstance(low_res, tf.Tensor)
-                       else low_res.copy())
+            if isinstance(low_res, tf.Tensor):
+                msg = 'Cannot normalize tensor input, must be array'
+                logger.error(msg)
+                raise TypeError(msg)
+
+            low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
-                low_res[islice] = (low_res[islice] - m) / s
+                low_res[..., i] = (low_res[..., i] - m) / s
 
         hi_res = self.generator.layers[0](low_res)
         for layer in self.generator.layers[1:]:
             hi_res = layer(hi_res)
 
-        if un_norm_out and self._means is not None:
-            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                islice = tuple([slice(None)] * (len(low_res.shape) - 1) + [i])
-                hi_res[islice] = (hi_res[islice] * s) + m
+        return hi_res
+
+    def un_norm_output(self, hi_res):
+        """Un-normalize synthetically generated output data to physical units
+
+        Parameters
+        ----------
+        hi_res : tf.Tensor | np.ndarray
+            Synthetically generated high-resolution data
+
+        Returns
+        -------
+        hi_res : np.ndarray
+            Synthetically generated high-resolution data
+        """
+        if self._means is not None:
+            if isinstance(hi_res, tf.Tensor):
+                hi_res = hi_res.numpy()
+
+            for i, feature in enumerate(self.training_features):
+                if feature in self.output_features:
+                    m = self._means[i]
+                    s = self._stdevs[i]
+                    j = self.output_features.index(feature)
+                    hi_res[..., j] = (hi_res[..., j] * s) + m
 
         return hi_res
 
@@ -339,6 +383,18 @@ class BaseModel(ABC):
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
         return self._meta
+
+    @property
+    def training_features(self):
+        """Get the list of input feature names that the generative model was
+        trained on."""
+        return self.meta.get('training_features', None)
+
+    @property
+    def output_features(self):
+        """Get the list of output feature names that the generative model
+        outputs and that the discriminator predicts on."""
+        return self.meta.get('output_features', None)
 
     @property
     def model_params(self):
@@ -1073,6 +1129,7 @@ class SpatialGan(BaseModel):
         """
 
         self.set_norm_stats(batch_handler)
+        self.set_feature_names(batch_handler)
 
         epochs = list(range(n_epoch))
 
@@ -1413,8 +1470,8 @@ class SpatioTemporalGan(BaseModel):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.SpatialBatchHandler
-            SpatialBatchHandler object to iterate through
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
         weight_gen_advers_s : float
             Weight factor for the adversarial loss component of the generator
             vs. the spatial discriminator.
@@ -1453,8 +1510,8 @@ class SpatioTemporalGan(BaseModel):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.SpatialBatchHandler
-            SpatialBatchHandler object to iterate through
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
         weight_gen_advers_s : float
             Weight factor for the adversarial loss component of the generator
             vs. the spatial discriminator.
@@ -1542,7 +1599,7 @@ class SpatioTemporalGan(BaseModel):
                                  loss_details['train_loss_disc_t'],
                                  trained_gen, trained_disc_s, trained_disc_t))
 
-            if all([trained_gen, trained_disc_s, trained_disc_t]):
+            if all([not trained_gen, not trained_disc_s, not trained_disc_t]):
                 msg = ('For some reason none of the GAN networks trained '
                        'during batch {} out of {}!'
                        .format(ib, len(batch_handler)))
@@ -1562,8 +1619,8 @@ class SpatioTemporalGan(BaseModel):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.SpatialBatchHandler
-            SpatialBatchHandler object to iterate through
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
         n_epoch : int
             Number of epochs to train on
         weight_gen_advers_s : float
@@ -1609,6 +1666,7 @@ class SpatioTemporalGan(BaseModel):
         """
 
         self.set_norm_stats(batch_handler)
+        self.set_feature_names(batch_handler)
 
         epochs = list(range(n_epoch))
 
