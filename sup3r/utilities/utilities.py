@@ -4,10 +4,22 @@ training data"""
 
 import numpy as np
 import logging
+from scipy import ndimage as nd
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def get_raster_shape(raster_index):
+    """method to get shape of raster_index"""
+
+    if any(isinstance(r, slice) for r in raster_index):
+        shape = (raster_index[0].stop - raster_index[0].start,
+                 raster_index[1].stop - raster_index[1].start)
+    else:
+        shape = raster_index.shape
+    return shape
 
 
 def uniform_box_sampler(data, shape):
@@ -615,7 +627,7 @@ def MO_length(ws_friction, PT_mean, PT_surface_flux):
     return numer / denom
 
 
-def BVF_squared(T_top, T_bottom,
+def bvf_squared(T_top, T_bottom,
                 P_top, P_bottom,
                 delta_h):
     """
@@ -649,13 +661,13 @@ def BVF_squared(T_top, T_bottom,
         Squared Brunt Vaisala Frequency
     """
 
-    bvf_squared = np.float32(9.81 / delta_h)
-    bvf_squared *= potential_temperature_difference(
+    bvf2 = np.float32(9.81 / delta_h)
+    bvf2 *= potential_temperature_difference(
         T_top, P_top, T_bottom, P_bottom)
-    bvf_squared /= potential_temperature_average(
+    bvf2 /= potential_temperature_average(
         T_top, P_top, T_bottom, P_bottom)
 
-    return bvf_squared
+    return bvf2
 
 
 def gradient_richardson_number(T_top, T_bottom, P_top,
@@ -713,7 +725,25 @@ def gradient_richardson_number(T_top, T_bottom, P_top,
     ws_grad += (V_top - V_bottom) ** 2
     ws_grad /= delta_h ** 2
     ws_grad[ws_grad < 1e-6] = 1e-6
-    Ri = BVF_squared(
+    Ri = bvf_squared(
         T_top, T_bottom, P_top, P_bottom, delta_h) / ws_grad
     del ws_grad
     return Ri
+
+
+def nn_fill_array(array):
+    """Fill any NaN values in an np.ndarray from the nearest non-nan values.
+    Parameters
+    ----------
+    array : np.ndarray
+        Input array with NaN values
+    Returns
+    -------
+    array : np.ndarray
+        Output array with NaN values filled
+    """
+    nan_mask = np.isnan(array)
+    indices = nd.distance_transform_edt(nan_mask, return_distances=False,
+                                        return_indices=True)
+    array = array[tuple(indices)]
+    return array
