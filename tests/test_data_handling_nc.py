@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import tempfile
 
 from sup3r import TEST_DATA_DIR
-from sup3r.data_handling.preprocessing import DataHandlerNC
-from sup3r.data_handling.batch_handling import (BatchHandler,
+from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
 

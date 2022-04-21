@@ -5,6 +5,11 @@ training data"""
 import numpy as np
 import logging
 from scipy import ndimage as nd
+from fnmatch import fnmatch
+import os
+import xarray as xr
+
+from rex import WindX
 
 np.random.seed(42)
 
@@ -747,3 +752,90 @@ def nn_fill_array(array):
                                         return_indices=True)
     array = array[tuple(indices)]
     return array
+
+
+def ignore_case_path_check(fp):
+    """Check if fp exists with any
+    case usage
+
+    Parameters
+    ----------
+    fp : str
+        file path
+
+    Returns
+    -------
+    bool
+        Whether or not fp exists
+    """
+
+    dirname = os.path.dirname(fp)
+    basename = os.path.basename(fp)
+    for file in os.listdir(dirname):
+        if fnmatch(file.lower(), basename.lower()):
+            return True
+    return False
+
+
+def ignore_case_path_fetch(fp):
+    """Get file path which matches fp
+    while ignoring case
+
+    Parameters
+    ----------
+    fp : str
+        file path
+
+    Returns
+    -------
+    str
+        existing file which matches fp
+    """
+
+    dirname = os.path.dirname(fp)
+    basename = os.path.basename(fp)
+    for file in os.listdir(dirname):
+        if fnmatch(file.lower(), basename.lower()):
+            return os.path.join(dirname, file)
+    return None
+
+
+def get_source_type(file_paths):
+    """Get data source type
+    ----------
+    file_paths : list
+        path to data file
+    Returns
+    -------
+    source_type : str
+        Either h5 or nc
+    """
+    if not isinstance(file_paths, list):
+        file_paths = [file_paths]
+
+    _, source_type = os.path.splitext(file_paths[0])
+    if source_type == '.h5':
+        return 'h5'
+    else:
+        return 'nc'
+
+
+def get_time_index(file_paths):
+    """Get data file handle
+    based on file type
+    ----------
+    file_paths : list
+        path to data file
+    Returns
+    -------
+    handle : xarray | WindX
+        data file extension
+    """
+    if get_source_type(file_paths) == 'h5':
+        with WindX(file_paths[0], hsds=False) as handle:
+            time_index = handle.time_index
+    else:
+        with xr.open_mfdataset(file_paths, combine='nested',
+                               concat_dim='Time') as handle:
+            time_index = handle['Times']
+    return time_index
