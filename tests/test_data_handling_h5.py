@@ -134,7 +134,7 @@ def test_feature_handler():
     assert pt_diff.dtype == np.dtype(np.float32)
     assert pt_mid.dtype == np.dtype(np.float32)
 
-    bvf_squared = utilities.BVF_squared(
+    bvf_squared = utilities.bvf_squared(
         vars['T_top'], vars['T_bottom'], vars['P_top'], vars['P_bottom'], 100)
     assert bvf_squared.dtype == np.dtype(np.float32)
 

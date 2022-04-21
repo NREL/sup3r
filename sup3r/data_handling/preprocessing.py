@@ -4,24 +4,31 @@ Sup3r preprocessing module.
 """
 from abc import abstractmethod
 from fnmatch import fnmatch
-from concurrent.futures import as_completed
 import logging
 import xarray as xr
 import numpy as np
 import os
-import re
 from datetime import datetime as dt
 from collections import defaultdict
 import pickle
 
 from rex import WindX
 from rex.utilities import log_mem
-from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
                                        interp_var,
-                                       transform_rotate_wind,
-                                       BVF_squared)
+                                       get_raster_shape)
+from sup3r.data_handling.feature_handling import (FeatureHandler,
+                                                  Feature,
+                                                  BVFreqMonH5,
+                                                  BVFreqMonNC,
+                                                  BVFreqSquaredH5,
+                                                  BVFreqSquaredNC,
+                                                  UWindH5,
+                                                  VWindH5,
+                                                  LatLonH5,
+                                                  ClearSkyRatioH5,
+                                                  CloudMaskH5)
 
 from sup3r import __version__
 
@@ -71,17 +78,6 @@ def get_time_index(file_paths):
     return time_index
 
 
-def get_raster_shape(raster_index):
-    """method to get shape of raster_index"""
-
-    if any(isinstance(r, slice) for r in raster_index):
-        shape = (raster_index[0].stop - raster_index[0].start,
-                 raster_index[1].stop - raster_index[1].start)
-    else:
-        shape = raster_index.shape
-    return shape
-
-
 def get_handler_class(file_paths):
     """Method to get source type specific
     DataHandler class
@@ -104,759 +100,6 @@ def get_handler_class(file_paths):
     return HandlerClass
 
 
-class Feature:
-    """Class to simplify feature
-    computations. Stores alternative names,
-    feature height, feature basename, name of
-    feature in handle"""
-
-    def __init__(self, feature, handle):
-        """Takes a feature (e.g. U_100m) and
-        gets the height (100), basename (U) and
-        determines whether the feature is found in
-        the data handle
-
-        Parameters
-        ----------
-        feature : str
-            Raw feature name e.g. U_100m
-        handle : WindX | xarray
-            handle for data file
-        """
-        self.alternative_names = {
-            'temperature': 'T',
-            'pressure': 'P',
-            'T': 'temperature',
-            'P': 'pressure'
-        }
-        self.raw_name = feature
-        self.height = self.get_feature_height(feature)
-        self.basename = self.get_feature_basename(feature)
-        self.alt_name = self.check_renamed_feature(handle, feature)
-        if self.raw_name in handle:
-            self.handle_input = self.raw_name
-        elif self.basename in handle:
-            self.handle_input = self.basename
-        else:
-            self.handle_input = None
-
-    @staticmethod
-    def get_feature_basename(feature):
-        """Get basename of feature. e.g.
-        temperature from temperature_100m
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100m
-
-        Returns
-        -------
-        str
-            feature basename
-        """
-
-        height = Feature.get_feature_height(feature)
-        if height is not None:
-            suffix = feature.split('_')[-1]
-            basename = feature.strip(f'_{suffix}')
-        else:
-            basename = feature
-        return basename
-
-    @staticmethod
-    def get_feature_height(feature):
-        """Get height from feature name
-        to use in height interpolation
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100m
-
-        Returns
-        -------
-        float | None
-            height to use for interpolation
-            in meters
-        """
-        height = feature.split('_')[-1].strip('m')
-        if not height.isdigit():
-            height = None
-        return height
-
-    def check_renamed_feature(self, handle, feature):
-        """Method to account for possible alternative
-        feature names. e.g. T for temperature
-
-        Parameters
-        ----------
-        handle : WindX | xarray
-            handle pointing to file data
-        feature : str
-            Feature name. e.g. temperature_100m
-
-        Returns
-        -------
-        renamed_feature : str
-            New feature name. e.g. T_100m
-        """
-
-        for k, v in self.alternative_names.items():
-            if k in feature:
-                renamed_feature = feature.replace(k, v)
-                handle_basenames = [
-                    self.get_feature_basename(f) for f in handle]
-                if v in handle_basenames:
-                    return renamed_feature
-        return None
-
-
-class FeatureHandler:
-    """Feature Handler with cache
-    for previously loaded features used
-    in other calculations
-    """
-
-    TIME_IND_FEATURES = ('lat_lon',)
-
-    @classmethod
-    def pop_old_data(cls, data, chunk_number, all_features):
-        """Remove input feature data if no longer needed for
-        requested features
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        chunk_number : int
-            time chunk index to check
-        all_features : list
-            list of all requested features including those
-            requiring derivation from input features
-
-        """
-        old_keys = [f for f in data[chunk_number]
-                    if f not in all_features]
-        for k in old_keys:
-            data[chunk_number].pop(k)
-
-    @classmethod
-    def serial_extract(cls, file_path, data, raster_index, time_chunks,
-                       input_features):
-
-        """Extract features in series
-
-        Parameters
-        ----------
-        file_path : list
-            list of file paths
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features. Empty unless
-            data has been stored for future computations.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        raster_index : ndarray
-            raster index for spatial domain
-        time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
-        input_features : list
-            list of input feature strings
-
-        Returns
-        -------
-        dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        """
-
-        time_dep_features = [f for f in input_features
-                             if f not in cls.TIME_IND_FEATURES]
-        time_ind_features = [f for f in input_features
-                             if f in cls.TIME_IND_FEATURES]
-
-        for t, t_slice in enumerate(time_chunks):
-            for f in time_dep_features:
-                data[t][f] = cls.extract_feature(
-                    file_path, raster_index, f, t_slice)
-        for f in time_ind_features:
-            data[-1][f] = cls.extract_feature(
-                file_path, raster_index, f)
-
-        return data
-
-    @classmethod
-    def parallel_extract(cls, file_path, data, raster_index, time_chunks,
-                         input_features, max_workers=None):
-
-        """Extract features using parallel subprocesses
-
-        Parameters
-        ----------
-        file_path : list
-            list of file paths
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features. Empty unless
-            data has been stored for future computations.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        raster_index : ndarray
-            raster index for spatial domain
-        time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
-        input_features : list
-            list of input feature strings
-        max_workers : int | None
-            Number of max workers to use for extraction.
-            If equal to 1 then method is run in serial
-
-        Returns
-        -------
-        dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        """
-
-        logger.info(f'Extracting {input_features}')
-
-        futures = {}
-        now = dt.now()
-
-        time_dep_features = [f for f in input_features
-                             if f not in cls.TIME_IND_FEATURES]
-        time_ind_features = [f for f in input_features
-                             if f in cls.TIME_IND_FEATURES]
-
-        if max_workers == 1:
-            return cls.serial_extract(
-                file_path, data, raster_index, time_chunks, input_features)
-        else:
-            with SpawnProcessPool(max_workers=max_workers) as exe:
-                for t, t_slice in enumerate(time_chunks):
-                    for f in time_dep_features:
-                        future = exe.submit(cls.extract_feature,
-                                            file_path=file_path,
-                                            raster_index=raster_index,
-                                            feature=f,
-                                            time_slice=t_slice)
-                        meta = {'feature': f,
-                                'chunk': t}
-                        futures[future] = meta
-
-                for f in time_ind_features:
-                    future = exe.submit(cls.extract_feature,
-                                        file_path=file_path,
-                                        raster_index=raster_index,
-                                        feature=f)
-                    meta = {'feature': f,
-                            'chunk': -1}
-                    futures[future] = meta
-
-                shape = get_raster_shape(raster_index)
-                logger.info(
-                    f'Started extracting {input_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_chunks[0].stop - time_chunks[0].start}) '
-                    f'for {len(input_features)} features')
-
-                for i, future in enumerate(as_completed(futures)):
-                    v = futures[future]
-                    data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} feature '
-                                     'chunks extracted.')
-
-        return data
-
-    @classmethod
-    def serial_compute(cls, data, time_chunks,
-                       input_features, all_features):
-
-        """Compute features in series
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        raster_index : ndarray
-            raster index for spatial domain
-        time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
-        input_features : list
-            list of input feature strings
-        all_features : list
-            list of all features including those requiring
-            derivation from input features
-        max_workers : int | None
-            Number of max workers to use for extraction.
-            If equal to 1 then method is run in serial
-
-        Returns
-        -------
-        data : dict
-            dictionary of feature arrays, including computed
-            features, with integer keys for chunks and str
-            keys for features. Includes
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        """
-
-        derived_features = [f for f in all_features if f not in input_features]
-
-        for t, _ in enumerate(time_chunks):
-            for _, f in enumerate(derived_features):
-                method = cls.lookup_method(f)
-                height = Feature.get_feature_height(f)
-                tmp = cls.get_input_arrays(data, t, f)
-                data[t][f] = method(tmp, height)
-            cls.pop_old_data(data, t, all_features)
-
-        return data
-
-    @classmethod
-    def parallel_compute(cls, data, raster_index, time_chunks,
-                         input_features, all_features,
-                         max_workers=None):
-
-        """Compute features using parallel subprocesses
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        data_array : ndarray
-            Array to fill with feature data
-            (spatial_1, spatial_2, temporal, features)
-        raster_index : ndarray
-            raster index for spatial domain
-        time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
-        input_features : list
-            list of input feature strings
-        all_features : list
-            list of all features including those requiring
-            derivation from input features
-        max_workers : int | None
-            Number of max workers to use for computation.
-            If equal to 1 then method is run in serial
-
-        Returns
-        -------
-        data : dict
-            dictionary of feature arrays, including computed
-            features, with integer keys for chunks and str
-            keys for features. Includes
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
-        """
-
-        derived_features = [f for f in all_features if f not in input_features]
-        logger.info(f'Computing {derived_features}')
-
-        futures = {}
-        now = dt.now()
-        if max_workers == 1:
-            return cls.serial_compute(
-                data, time_chunks, input_features, all_features)
-        else:
-            with SpawnProcessPool(max_workers=max_workers) as exe:
-                for t, _ in enumerate(time_chunks):
-                    for f in derived_features:
-                        method = cls.lookup_method(f)
-                        height = Feature.get_feature_height(f)
-                        tmp = cls.get_input_arrays(data, t, f)
-                        future = exe.submit(
-                            method, data=tmp, height=height)
-
-                        meta = {'feature': f,
-                                'chunk': t}
-
-                        futures[future] = meta
-
-                    cls.pop_old_data(
-                        data, t, all_features)
-
-                shape = get_raster_shape(raster_index)
-                logger.info(
-                    f'Started computing {derived_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_chunks[0].stop - time_chunks[0].start}) '
-                    f'for {len(derived_features)} features')
-
-                for i, future in enumerate(as_completed(futures)):
-                    v = futures[future]
-                    data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} feature '
-                                     'chunks computed')
-
-        return data
-
-    @classmethod
-    def get_input_arrays(cls, data, chunk_number, f):
-        """Get only arrays needed for computations
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of feature arrays
-        chunk_number :
-            time chunk for which to get input arrays
-        f : str
-            feature to compute using input arrays
-
-        Returns
-        -------
-        dict
-            Dictionary of arrays with only needed features
-        """
-        inputs = cls.lookup_inputs(f)
-        tmp = {}
-        for r in inputs(f):
-            if r in data[chunk_number]:
-                tmp[r] = data[chunk_number][r]
-            else:
-                tmp[r] = data[-1][r]
-        return tmp
-
-    @classmethod
-    def method_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'BVF_squared_(.*)': cls.get_bvf_squared,
-            'BVF_MO_(.*)': cls.get_bvf_mo,
-            'U_(.*)m': cls.get_u,
-            'V_(.*)m': cls.get_v,
-            'lat_lon': cls.get_lat_lon}
-        return registry
-
-    @classmethod
-    def input_registry(cls):
-        """Registry of inputs for computing features
-
-        Returns
-        -------
-        dict
-            Input registry
-        """
-        registry = {
-            'BVF_squared_(.*)': cls.get_bvf_inputs,
-            'BVF_MO_(.*)': cls.get_bvf_mo_inputs,
-            'U_(.*)m': cls.get_u_inputs,
-            'V_(.*)m': cls.get_v_inputs}
-        return registry
-
-    @classmethod
-    @abstractmethod
-    def get_bvf_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_squared_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_squared
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_bvf_mo_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf_mo calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_mo
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_u_inputs(cls, feature):
-        """Get list of raw features used
-        in u calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. U_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute U
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_v_inputs(cls, feature):
-        """Get list of raw features used
-        in v calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. V_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute V
-        """
-
-    @classmethod
-    def lookup_inputs(cls, feature):
-        """Lookup feature in feature registry
-
-        Parameters
-        ----------
-        feature : str
-            Feature to lookup in registry
-
-        Returns
-        -------
-        method | None
-            Method to use for computing feature
-        """
-
-        input_registry = cls.input_registry()
-        for k, v in input_registry.items():
-            if re.match(k, feature):
-                return v
-        return None
-
-    @classmethod
-    def lookup_method(cls, feature):
-        """Lookup method to compute feature
-
-        Parameters
-        ----------
-        feature : str
-            Feature to lookup in registry
-
-        Returns
-        -------
-        method | None
-            Method to use for computing feature
-        """
-
-        method_registry = cls.method_registry()
-        for k, v in method_registry.items():
-            if re.match(k, feature):
-                return v
-        return None
-
-    @classmethod
-    def get_raw_feature_list(cls, features):
-        """Lookup inputs needed to compute feature
-
-        Parameters
-        ----------
-        feature : str
-            Feature to lookup in registry
-
-        Returns
-        -------
-        list
-            List of input features
-        """
-        raw_features = []
-        for f in features:
-            method = cls.lookup_inputs(f)
-            if method is not None:
-                for r in method(f):
-                    if r not in raw_features:
-                        raw_features.append(r)
-            else:
-                if f not in raw_features:
-                    raw_features.append(f)
-
-        return raw_features
-
-    @classmethod
-    @abstractmethod
-    def extract_feature(
-            cls, file_path, raster_index,
-            feature, time_slice=slice(None)) -> np.dtype(np.float32):
-        """Extract single feature from data source
-
-        Parameters
-        ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
-        time_slice : slice
-            slice of time to extract
-        feature : str
-            Feature to extract from data
-
-        Returns
-        -------
-        ndarray
-            Data array for extracted feature
-            (spatial_1, spatial_2, temporal)
-        """
-
-    @classmethod
-    def get_u(cls, data, height) -> np.dtype(np.float32):
-        """Compute U wind component
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str | int
-            Height of U/V to extract in meters.
-            e.g. 100
-
-        Returns
-        -------
-        U : ndarray
-            array of U wind component
-        """
-
-        u, _ = cls.get_uv(data, height)
-        return u
-
-    @classmethod
-    def get_v(cls, data, height) -> np.dtype(np.float32):
-        """Compute V wind component
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str | int
-            Height of U/V to extract in meters.
-            e.g. 100
-
-        Returns
-        -------
-        V : ndarray
-            array of V wind component
-        """
-
-        _, v = cls.get_uv(data, height)
-        return v
-
-    @classmethod
-    @abstractmethod
-    def get_bvf_squared(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_bvf_mo(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF_squared times monin obukhov length
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF_MO array
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_uv(cls, data, height):
-        """Compute U and V wind components
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str | int
-            Height of U/V to extract in meters.
-            e.g. 100
-
-        Returns
-        -------
-        U : ndarray
-            array of U wind component
-        V : ndarray
-            array of V wind component
-        """
-
-    @classmethod
-    @abstractmethod
-    def get_lat_lon(cls, file_path, raster_index):
-        """Get lats and lons corresponding to raster
-        for use in windspeed/direction -> u/v mapping
-
-        Parameters
-        ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            lat lon array
-            (spatial_1, spatial_2, 2)
-        """
-
-
 class DataHandler(FeatureHandler):
     """Sup3r data handling and extraction"""
 
@@ -864,7 +107,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninbukhovlength_*')
+    TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
                  max_delta=20, time_pruning=1, val_split=0.1,
@@ -959,13 +202,18 @@ class DataHandler(FeatureHandler):
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
-        self.cache_files = [f'{cache_file_prefix}_{f}.npy' for f in features]
         self.overwrite_cache = overwrite_cache
+
+        if cache_file_prefix is not None:
+            self.cache_files = [
+                f'{cache_file_prefix}_{f}.npy' for f in features]
+        else:
+            self.cache_files = None
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):
-            logger.info(f'{self.cache_files} exists. Loading data from cache '
-                        f'instead of extracting from {file_path}')
+            logger.info(f'All {self.cache_files} exist. Loading data from '
+                        f'cache instead of extracting from {file_path}')
             self.load_cached_data()
 
         else:
@@ -979,7 +227,9 @@ class DataHandler(FeatureHandler):
                 self.features, self.time_pruning,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
-                time_chunk_size=time_chunk_size)
+                time_chunk_size=time_chunk_size,
+                cache_files=self.cache_files,
+                overwrite_cache=self.overwrite_cache)
 
             if cache_file_prefix is None:
                 self.data, self.val_data = self.split_data(self.data)
@@ -1186,7 +436,7 @@ class DataHandler(FeatureHandler):
 
         Parameters
         ----------
-        cache_file_path : str | None
+        cache_file_paths : str | None
             Path to file for saving feature data
         """
 
@@ -1239,7 +489,9 @@ class DataHandler(FeatureHandler):
                      time_index, features, time_pruning,
                      max_extract_workers=None,
                      max_compute_workers=None,
-                     time_chunk_size=100):
+                     time_chunk_size=100,
+                     cache_files=None,
+                     overwrite_cache=False):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -1268,6 +520,10 @@ class DataHandler(FeatureHandler):
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller
             data extractions
+        cache_files : list | None
+            Path to files with saved feature data
+        overwrite_cache : bool
+            Whether to overwrite cached files
 
         Returns
         -------
@@ -1294,32 +550,60 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
+        extract_features = []
+
+        # check if any features can be loaded from cache
+        if cache_files is not None:
+            for i, f in enumerate(features):
+                if os.path.exists(cache_files[i]) and f in cache_files[i]:
+                    if not overwrite_cache:
+                        logger.info(
+                            f'{f} found in cache file {cache_files[i]}. '
+                            'Loading from cache instead of extracting '
+                            f'from {file_path}')
+                    else:
+                        logger.info(
+                            f'{cache_files[i]} exists but overwrite_cache is '
+                            'set to True. Proceeding with extraction.')
+                        extract_features.append(f)
+                else:
+                    extract_features.append(f)
+        else:
+            extract_features = features
+
         raw_data = defaultdict(dict)
-        raw_features = cls.get_raw_feature_list(features)
+        raw_features = cls.get_raw_feature_list(extract_features)
 
         log_mem(logger)
-        logger.info(f'Starting {features} extraction from {file_path}')
+        logger.info(f'Starting {extract_features} extraction from {file_path}')
 
         raw_data = cls.parallel_extract(
             file_path, raw_data, raster_index, time_chunks,
             raw_features, max_extract_workers)
 
         log_mem(logger)
-        logger.info(f'Finished extracting {features}')
+        logger.info(f'Finished extracting {extract_features}')
 
         raw_data = cls.parallel_compute(
             raw_data, raster_index, time_chunks,
-            raw_features, features, max_compute_workers)
+            raw_features, extract_features, max_compute_workers)
 
         log_mem(logger)
-        logger.info(f'Finished computing {features}')
+        logger.info(f'Finished computing {extract_features}')
 
         for t, t_slice in enumerate(time_chunks):
-            for i, f in enumerate(features):
-                data_array[:, :, t_slice, i] = raw_data[t][f]
+            for _, f in enumerate(extract_features):
+                f_index = features.index(f)
+                data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
         data_array = data_array[:, :, ::time_pruning, :]
+
+        for f in [f for f in features if f not in extract_features]:
+            f_index = features.index(f)
+            with open(cache_files[f_index], 'rb') as fh:
+                data_array[:, :, :, f_index] = pickle.load(fh)
+
         logger.info('Finished extracting data from '
                     f'{file_path} in {dt.now() - now}')
 
@@ -1351,6 +635,20 @@ class DataHandler(FeatureHandler):
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'BVF_squared_(.*)': BVFreqSquaredNC,
+            'BVF_MO_(.*)': BVFreqMonNC}
+        return registry
 
     @classmethod
     def extract_feature(
@@ -1447,9 +745,11 @@ class DataHandlerNC(DataHandler):
                          f'for shape {shape} and target {target}')
             with xr.open_mfdataset(file_path, combine='nested',
                                    concat_dim='Time') as handle:
-                lat_diff = list(handle['XLAT'][0, :, 0] - target[0])
+                lats = handle['XLAT'].values[0, :, 0]
+                lons = handle['XLONG'].values[0, 0, :]
+                lat_diff = list(lats - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
-                lon_diff = list(handle['XLONG'][0, 0, :] - target[1])
+                lon_diff = list(lons - target[1])
                 lon_idx = np.argmin(np.abs(lon_diff))
                 raster_index = [slice(lat_idx, lat_idx + shape[0]),
                                 slice(lon_idx, lon_idx + shape[1])]
@@ -1460,213 +760,35 @@ class DataHandlerNC(DataHandler):
                         f'Invalid target {target} and shape {shape} for '
                         f'data domain of size ({len(lat_diff)}, '
                         f'{len(lon_diff)}) with lower left corner '
-                        f'({np.min(handle["XLAT"][0, :, 0].values)}, '
-                        f'{np.min(handle["XLONG"][0, 0, :].values)})')
+                        f'({np.min(lats)}, {np.min(lons)})')
 
                 if self.raster_file is not None:
                     logger.debug(f'Saving raster index: {self.raster_file}')
                     np.save(self.raster_file, raster_index)
         return raster_index
 
-    @classmethod
-    def get_bvf_mo_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf_mo calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_mo
-        """
-
-        height = Feature.get_feature_height(feature)
-        return [f'T_{height}m', f'T_{int(height) - 100}m',
-                f'RMOL_{height}m']
-
-    @classmethod
-    def get_bvf_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_squared_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_squared
-        """
-
-        height = Feature.get_feature_height(feature)
-        return [f'T_{height}m', f'T_{int(height) - 100}m']
-
-    @classmethod
-    @abstractmethod
-    def get_u_inputs(cls, feature):
-        """Get list of raw features used
-        in u calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. U_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute U
-        """
-
-        height = Feature.get_feature_height(feature)
-        return [f'U_{height}m']
-
-    @classmethod
-    @abstractmethod
-    def get_v_inputs(cls, feature):
-        """Get list of raw features used
-        in v calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. V_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute V
-        """
-
-        height = Feature.get_feature_height(feature)
-        return [f'V_{height}m']
-
-    @classmethod
-    def get_bvf_squared(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-        """
-
-        if height is None:
-            height = 200
-
-        # T is perturbation potential temperature for wrf and the
-        # base potential temperature is 300K
-        bvf_squared = np.float32(9.81 / 100)
-        bvf_squared *= (data[f'T_{height}m']
-                        - data[f'T_{int(height) - 100}m'])
-        bvf_squared /= (data[f'T_{height}m']
-                        + data[f'T_{int(height) - 100}m'])
-        bvf_squared /= np.float32(2)
-        return bvf_squared
-
-    @classmethod
-    def get_bvf_mo(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF squared times monin obukhov length
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF_MO array
-        """
-
-        if height is None:
-            height = 200
-
-        # T is perturbation potential temperature for wrf and the
-        # base potential temperature is 300K
-        bvf_mo = np.float32(9.81 / 100)
-        bvf_mo *= (data[f'T_{height}m']
-                   - data[f'T_{int(height) - 100}m'])
-        bvf_mo /= (data[f'T_{height}m']
-                   + data[f'T_{int(height) - 100}m'])
-        bvf_mo /= np.float32(2)
-        bvf_mo /= data[f'RMOL_{height}m']
-
-        # making this zero when not both bvf and mo are negative
-        bvf_mo[data[f'RMOL_{height}m'] >= 0] = 0
-        bvf_mo[bvf_mo < 0] = 0
-
-        return bvf_mo
-
-    @classmethod
-    def get_uv(cls, data, height):
-        """Compute U and V wind components
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str | int
-            Height of U/V to extract in meters.
-            e.g. 100
-
-        Returns
-        -------
-        U : ndarray
-            array of U wind component
-        V : ndarray
-            array of V wind component
-        """
-
-        return data[f'U_{height}m'], data[f'V_{height}m']
-
-    @classmethod
-    def get_lat_lon(cls, file_path, raster_index):
-        """Get lats and lons corresponding to raster
-        for use in windspeed/direction -> u/v mapping
-
-        Parameters
-        ----------
-        file_path : list
-            path to data files
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            lat lon array
-            (spatial_1, spatial_2, 2)
-        """
-
-        lat = cls.extract_feature(
-            file_path, raster_index, 'XLAT', time_slice=slice(0, 1))
-        lon = cls.extract_feature(
-            file_path, raster_index, 'XLONG', time_slice=slice(0, 1))
-        lat_lon = np.concatenate([lat, lon], axis=2)
-
-        return lat_lon
-
 
 class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'BVF_squared_(.*)': BVFreqSquaredH5,
+            'BVF_MO_(.*)': BVFreqMonH5,
+            'U_(.*)m': UWindH5,
+            'V_(.*)m': VWindH5,
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
 
     @classmethod
     def extract_feature(
@@ -1751,207 +873,3 @@ class DataHandlerH5(DataHandler):
                     f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
-
-    @classmethod
-    def get_bvf_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_squared_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_squared
-        """
-        height = Feature.get_feature_height(feature)
-        features = [f'temperature_{height}m',
-                    f'temperature_{int(height) - 100}m',
-                    f'pressure_{height}m',
-                    f'pressure_{int(height) - 100}m']
-
-        return features
-
-    @classmethod
-    def get_bvf_mo_inputs(cls, feature):
-        """Get list of raw features used
-        in bvf_mo calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute bvf_mo
-        """
-        height = Feature.get_feature_height(feature)
-        features = [f'temperature_{height}m',
-                    f'temperature_{int(height) - 100}m',
-                    f'pressure_{height}m',
-                    f'pressure_{int(height) - 100}m',
-                    'inversemoninobukhovlength_2m']
-
-        return features
-
-    @classmethod
-    def get_u_inputs(cls, feature):
-        """Get list of raw features used
-        in u calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. U_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute U
-        """
-
-        height = Feature.get_feature_height(feature)
-        features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m',
-                    'lat_lon']
-        return features
-
-    @classmethod
-    def get_v_inputs(cls, feature):
-        """Get list of raw features used
-        in v calculation
-
-        Parameters
-        ----------
-        feature : str
-            name of feature. e.g. V_100m
-
-        Returns
-        -------
-        list
-            list of features used to compute V
-        """
-
-        height = Feature.get_feature_height(feature)
-        features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m',
-                    'lat_lon']
-        return features
-
-    @classmethod
-    def get_bvf_squared(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF squared
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF squared array
-        """
-
-        if height is None:
-            height = 200
-
-        return BVF_squared(
-            data[f'temperature_{height}m'],
-            data[f'temperature_{int(height) - 100}m'],
-            data[f'pressure_{height}m'],
-            data[f'pressure_{int(height) - 100}m'],
-            100)
-
-    @classmethod
-    def get_bvf_mo(
-            cls, data, height) -> np.dtype(np.float32):
-        """Compute BVF squared times monin obukhov length
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str
-            Height of top level in meters
-
-        Returns
-        -------
-        ndarray
-            BVF_MO array
-        """
-
-        if height is None:
-            height = 200
-
-        bvf_mo = BVF_squared(
-            data[f'temperature_{height}m'],
-            data[f'temperature_{int(height) - 100}m'],
-            data[f'pressure_{height}m'],
-            data[f'pressure_{int(height) - 100}m'],
-            100) / data['inversemoninobukhovlength_2m']
-
-        # making this zero when not both bvf and mo are negative
-        bvf_mo[data['inversemoninobukhovlength_2m'] >= 0] = 0
-        bvf_mo[bvf_mo < 0] = 0
-        return bvf_mo
-
-    @classmethod
-    def get_uv(cls, data, height):
-        """Compute U and V wind components
-
-        Parameters
-        ----------
-        data : dict
-            dictionary of feature arrays used for this compuation
-        height : str | int
-            Height of U/V to extract in meters.
-            e.g. 100
-
-        Returns
-        -------
-        U : ndarray
-            array of U wind component
-        V : ndarray
-            array of V wind component
-        """
-
-        return transform_rotate_wind(
-            data[f'windspeed_{height}m'],
-            data[f'winddirection_{height}m'],
-            data['lat_lon'])
-
-    @classmethod
-    def get_lat_lon(cls, file_path, raster_index):
-        """Get lats and lons corresponding to raster
-        for use in windspeed/direction -> u/v mapping
-
-        Parameters
-        ----------
-        file_path : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
-
-        Returns
-        -------
-        ndarray
-            lat lon array
-            (spatial_1, spatial_2, 2)
-        """
-
-        with WindX(file_path[0], hsds=False) as handle:
-            lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
-            lat_lon = lat_lon.reshape(
-                (raster_index.shape[0],
-                 raster_index.shape[1], 2))
-
-        return lat_lon
