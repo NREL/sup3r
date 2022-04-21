@@ -3,6 +3,7 @@
 Sup3r feature handling module.
 """
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from concurrent.futures import as_completed
 import logging
 import numpy as np
@@ -68,7 +69,7 @@ class ClearSkyRatioH5(DerivedFeature):
             dictionary of feature arrays used for this compuation, must include
             clearsky_ghi and ghi
         height : str | int
-            Placeholder to match interface with other get_* methods
+            Placeholder to match interface with other compute methods
         Returns
         -------
         cs_ratio : ndarray
@@ -112,7 +113,7 @@ class CloudMaskH5(DerivedFeature):
             dictionary of feature arrays used for this compuation, must include
             clearsky_ghi and ghi
         height : str | int
-            Placeholder to match interface with other get_* methods
+            Placeholder to match interface with other compute methods
         Returns
         -------
         cloud_mask : ndarray
@@ -606,7 +607,7 @@ class FeatureHandler:
             data[chunk_number].pop(k)
 
     @classmethod
-    def serial_extract(cls, file_path, data, raster_index, time_chunks,
+    def serial_extract(cls, file_path, raster_index, time_chunks,
                        input_features):
 
         """Extract features in series
@@ -615,12 +616,6 @@ class FeatureHandler:
         ----------
         file_path : list
             list of file paths
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features. Empty unless
-            data has been stored for future computations.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -643,6 +638,8 @@ class FeatureHandler:
         time_ind_features = [f for f in input_features
                              if f in cls.TIME_IND_FEATURES]
 
+        data = defaultdict(dict)
+
         for t, t_slice in enumerate(time_chunks):
             for f in time_dep_features:
                 data[t][f] = cls.extract_feature(
@@ -654,7 +651,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_extract(cls, file_path, data, raster_index, time_chunks,
+    def parallel_extract(cls, file_path, raster_index, time_chunks,
                          input_features, max_workers=None):
 
         """Extract features using parallel subprocesses
@@ -663,12 +660,6 @@ class FeatureHandler:
         ----------
         file_path : list
             list of file paths
-        data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features. Empty unless
-            data has been stored for future computations.
-            e.g. data[chunk_number][feature] = array.
-            (spatial_1, spatial_2, temporal)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -699,9 +690,11 @@ class FeatureHandler:
         time_ind_features = [f for f in input_features
                              if f in cls.TIME_IND_FEATURES]
 
+        data = defaultdict(dict)
+
         if max_workers == 1:
             return cls.serial_extract(
-                file_path, data, raster_index, time_chunks, input_features)
+                file_path, raster_index, time_chunks, input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
@@ -929,7 +922,7 @@ class FeatureHandler:
 
         input_registry = cls.feature_registry()
         for k, v in input_registry.items():
-            if re.match(k, feature):
+            if re.match(k.lower(), feature.lower()):
                 method = getattr(v, "inputs", None)
                 if method is not None:
                     return method
@@ -952,7 +945,7 @@ class FeatureHandler:
 
         method_registry = cls.feature_registry()
         for k, v in method_registry.items():
-            if re.match(k, feature):
+            if re.match(k.lower(), feature.lower()):
                 method = getattr(v, "compute", None)
                 if method is not None:
                     return method

@@ -9,7 +9,6 @@ import xarray as xr
 import numpy as np
 import os
 from datetime import datetime as dt
-from collections import defaultdict
 import pickle
 
 from rex import WindX
@@ -116,7 +115,8 @@ class DataHandler(FeatureHandler):
                  max_extract_workers=None, max_compute_workers=None,
                  time_chunk_size=100,
                  cache_file_prefix=None,
-                 overwrite_cache=False):
+                 overwrite_cache=False,
+                 load_cached=False):
 
         """Data handling and extraction
 
@@ -173,7 +173,10 @@ class DataHandler(FeatureHandler):
             and not stored in self.data until load_cached_data is called.
         overwrite_cache : bool
             Whether to overwrite any previously saved cache files.
+        load_cached : bool
+            Whether to load data from cache files
         """
+
         logger.info(
             f'Initializing DataHandler from source files: {file_path}')
 
@@ -203,6 +206,7 @@ class DataHandler(FeatureHandler):
         self.raster_index = self.get_raster_index(
             self.file_path, self.target, self.grid_shape)
         self.overwrite_cache = overwrite_cache
+        self.load_cached = load_cached
 
         if cache_file_prefix is not None:
             self.cache_files = [
@@ -212,9 +216,17 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):
-            logger.info(f'All {self.cache_files} exist. Loading data from '
-                        f'cache instead of extracting from {file_path}')
-            self.load_cached_data()
+            if self.load_cached:
+                logger.info(
+                    f'All {self.cache_files} exist. Loading from cache '
+                    f'instead of extracting from {self.file_path}')
+                self.load_cached_data()
+            else:
+                logger.info(
+                    f'All {self.cache_files} exist. Call the '
+                    'load_cached_data() method or use '
+                    'load_cache=True to load this data.')
+                self.data = None
 
         else:
             if self.overwrite_cache:
@@ -485,13 +497,69 @@ class DataHandler(FeatureHandler):
         self.data, self.val_data = self.split_data(self.data)
 
     @classmethod
+    def check_cached_features(cls, file_path, features, cache_files=None,
+                              overwrite_cache=False, load_cached=False):
+        """Check which features have been cached and check flags to determine
+        whether to load or extract this features again
+
+        Parameters
+        ----------
+        file_path : str | list
+            path to data file
+        features : list
+            list of features to extract
+        cache_files : list | None
+            Path to files with saved feature data
+        overwrite_cache : bool
+            Whether to overwrite cached files
+        load_cached : bool
+            Whether to load data from cache files
+
+        Returns
+        -------
+        list
+            List of features to extract. Might not include features which
+            have cache files.
+        """
+
+        extract_features = []
+
+        # check if any features can be loaded from cache
+        if cache_files is not None:
+            for i, f in enumerate(features):
+                if os.path.exists(cache_files[i]) and f in cache_files[i]:
+                    if not overwrite_cache:
+                        if load_cached:
+                            logger.info(
+                                f'{f} found in cache file {cache_files[i]}. '
+                                'Loading from cache instead of extracting '
+                                f'from {file_path}')
+                        else:
+                            logger.info(
+                                f'{f} found in cache file {cache_files[i]}. '
+                                'Call load_cached_data() or use '
+                                'load_cached=True to load this data.')
+                    else:
+                        logger.info(
+                            f'{cache_files[i]} exists but overwrite_cache is '
+                            'set to True. Proceeding with extraction.')
+                        extract_features.append(f)
+                else:
+                    extract_features.append(f)
+        else:
+            extract_features = features
+
+        return extract_features
+
+    @classmethod
     def extract_data(cls, file_path, raster_index,
                      time_index, features, time_pruning,
                      max_extract_workers=None,
                      max_compute_workers=None,
                      time_chunk_size=100,
                      cache_files=None,
-                     overwrite_cache=False):
+                     overwrite_cache=False,
+                     load_cached=False):
         """Building base 4D data array. Can
         handle multiple files but assumes each
         file has the same spatial domain
@@ -524,6 +592,8 @@ class DataHandler(FeatureHandler):
             Path to files with saved feature data
         overwrite_cache : bool
             Whether to overwrite cached files
+        load_cached : bool
+            Whether to load data from cache files
 
         Returns
         -------
@@ -550,45 +620,27 @@ class DataHandler(FeatureHandler):
         time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
-        extract_features = []
+        extract_features = cls.check_cached_features(
+            file_path, features, cache_files=cache_files,
+            overwrite_cache=overwrite_cache, load_cached=load_cached)
 
-        # check if any features can be loaded from cache
-        if cache_files is not None:
-            for i, f in enumerate(features):
-                if os.path.exists(cache_files[i]) and f in cache_files[i]:
-                    if not overwrite_cache:
-                        logger.info(
-                            f'{f} found in cache file {cache_files[i]}. '
-                            'Loading from cache instead of extracting '
-                            f'from {file_path}')
-                    else:
-                        logger.info(
-                            f'{cache_files[i]} exists but overwrite_cache is '
-                            'set to True. Proceeding with extraction.')
-                        extract_features.append(f)
-                else:
-                    extract_features.append(f)
-        else:
-            extract_features = features
-
-        raw_data = defaultdict(dict)
         raw_features = cls.get_raw_feature_list(extract_features)
 
-        log_mem(logger)
+        log_mem(logger, log_level='DEBUG')
         logger.info(f'Starting {extract_features} extraction from {file_path}')
 
         raw_data = cls.parallel_extract(
-            file_path, raw_data, raster_index, time_chunks,
+            file_path, raster_index, time_chunks,
             raw_features, max_extract_workers)
 
-        log_mem(logger)
+        log_mem(logger, log_level='DEBUG')
         logger.info(f'Finished extracting {extract_features}')
 
         raw_data = cls.parallel_compute(
             raw_data, raster_index, time_chunks,
             raw_features, extract_features, max_compute_workers)
 
-        log_mem(logger)
+        log_mem(logger, log_level='DEBUG')
         logger.info(f'Finished computing {extract_features}')
 
         for t, t_slice in enumerate(time_chunks):
@@ -599,10 +651,11 @@ class DataHandler(FeatureHandler):
 
         data_array = data_array[:, :, ::time_pruning, :]
 
-        for f in [f for f in features if f not in extract_features]:
-            f_index = features.index(f)
-            with open(cache_files[f_index], 'rb') as fh:
-                data_array[:, :, :, f_index] = pickle.load(fh)
+        if load_cached:
+            for f in [f for f in features if f not in extract_features]:
+                f_index = features.index(f)
+                with open(cache_files[f_index], 'rb') as fh:
+                    data_array[:, :, :, f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data from '
                     f'{file_path} in {dt.now() - now}')
