@@ -52,6 +52,7 @@ class ClearSkyRatioH5(DerivedFeature):
         ----------
         feature : str
             Clearsky ratio feature name, needs to be "clearsky_ratio"
+
         Returns
         -------
         list
@@ -71,13 +72,18 @@ class ClearSkyRatioH5(DerivedFeature):
             clearsky_ghi and ghi
         height : str | int
             Placeholder to match interface with other compute methods
+
         Returns
         -------
         cs_ratio : ndarray
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. Nighttime
             data is gap filled from nearest valid data.
         """
-        night_mask = data['clearsky_ghi'] == 0
+
+        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # in integer format and weird binning patterns happen in the clearsky
+        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 2
         data['clearsky_ghi'][night_mask] = np.nan
         cs_ratio = data['ghi'] / data['clearsky_ghi']
         cs_ratio = nn_fill_array(cs_ratio)
@@ -96,6 +102,7 @@ class CloudMaskH5(DerivedFeature):
         ----------
         feature : str
             Cloud mask feature name, needs to be "cloud_mask"
+
         Returns
         -------
         list
@@ -115,16 +122,21 @@ class CloudMaskH5(DerivedFeature):
             clearsky_ghi and ghi
         height : str | int
             Placeholder to match interface with other compute methods
+
         Returns
         -------
         cloud_mask : ndarray
             Cloud mask, e.g. 1 where cloudy, 0 where clear. Data is float32 so
             it can be normalized without any integer weirdness.
         """
-        night_mask = data['clearsky_ghi'] == 0
-        data['clearsky_ghi'][night_mask] = np.nan
+
+        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # in integer format and weird binning patterns happen in the clearsky
+        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 2
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
+        cloud_mask[night_mask] = np.nan
         cloud_mask = nn_fill_array(cloud_mask)
         cloud_mask = cloud_mask.astype(np.float32)
         return cloud_mask
