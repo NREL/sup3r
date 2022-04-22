@@ -122,9 +122,6 @@ def daily_time_sampler(data, shape, time_index):
                               & (time_index.minute == 0)
                               & (time_index.second == 0))[0]
 
-    if midnight_ilocs[-1] == len(time_index) - 1:
-        midnight_ilocs = midnight_ilocs[:-1]
-
     if data.shape[2] <= shape:
         start = 0
         stop = data.shape[2]
