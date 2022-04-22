@@ -16,6 +16,19 @@ SHAPE = (20, 20)
 FEATURES = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 
 
+def coarsen_alternate_calc(batch, s_enhance):
+    """alternate calculation to coarsen solar daily data"""
+    night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
+    truth = batch.high_res[0, :, :, :, 0].copy()
+    truth[night_mask] = np.nan
+    truth = np.nansum(truth, axis=2) / 24
+    if s_enhance > 1:
+        truth = truth.reshape(truth.shape[0] // s_enhance, s_enhance,
+                              truth.shape[1] // s_enhance, s_enhance,
+                              ).sum((1, 3)) / s_enhance**2
+    return truth
+
+
 def test_handler(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime."""
@@ -92,10 +105,7 @@ def test_batching(plot=False):
                                 temporal_coarsening_method='average')
 
     for batch in batcher:
-        night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
-        truth = batch.high_res[0, :, :, :, 0].copy()
-        truth[night_mask] = np.nan
-        truth = np.nansum(truth, axis=-1) / 24
+        truth = coarsen_alternate_calc(batch, 1)
         assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
 
     batcher = NsrdbBatchHandler([handler],
@@ -104,26 +114,13 @@ def test_batching(plot=False):
                                 temporal_coarsening_method='average')
 
     for batch in batcher:
-        night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
-        truth = batch.high_res[0, :, :, :, 0].copy()
-        truth[night_mask] = np.nan
-        truth = np.nansum(truth, axis=2) / 24
-        truth = truth.reshape(truth.shape[0] // 2, 2,
-                              truth.shape[1] // 2, 2,
-                              ).sum((1, 3)) / 2**2
+        truth = coarsen_alternate_calc(batch, 2)
         assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
 
     if plot:
         for batch in batcher:
+            truth = coarsen_alternate_calc(batch, 2)
             for i in range(batch.high_res.shape[3]):
-                night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
-                truth = batch.high_res[0, :, :, :, 0].copy()
-                truth[night_mask] = np.nan
-                truth = np.nansum(truth, axis=2) / 24
-                truth = truth.reshape(truth.shape[0] // 2, 2,
-                                      truth.shape[1] // 2, 2,
-                                      ).sum((1, 3)) / 2**2
-
                 _, axes = plt.subplots(1, 5, figsize=(25, 4))
 
                 a = axes[0].imshow(batch.high_res[0, :, :, i, 0]
@@ -159,3 +156,39 @@ def test_batching(plot=False):
                 plt.savefig('./test_nsrdb_batch_{}.png'.format(i), dpi=300,
                             bbox_inches='tight')
                 plt.close()
+
+
+def test_val_data():
+    """Test basic properties of the nsrdb validation dataset"""
+    handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                               target=TARGET, shape=SHAPE,
+                               time_pruning=2,
+                               time_roll=-7,
+                               val_split=0.1,
+                               temporal_sample_shape=24,
+                               spatial_sample_shape=(20, 20),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    batcher = NsrdbBatchHandler([handler],
+                                batch_size=1, n_batches=10,
+                                s_enhance=2, t_enhance=24,
+                                temporal_coarsening_method='average')
+
+    for batch in batcher.val_data:
+
+        obs = batch.high_res[0]
+        cs_ratio_profile = obs[0, 0, :, 0] * batcher.stds[0] + batcher.means[0]
+        cs_ghi_profile = obs[0, 0, :, 2] * batcher.stds[2] + batcher.means[2]
+        assert np.isnan(cs_ghi_profile[0]) & np.isnan(cs_ghi_profile[-1])
+
+        nan_mask = np.isnan(cs_ratio_profile)
+        assert all((cs_ratio_profile <= 1)[~nan_mask])
+        assert all((cs_ratio_profile >= 0)[~nan_mask])
+
+        nan_mask = np.isnan(cs_ghi_profile)
+        assert all((cs_ghi_profile <= 1200)[~nan_mask])
+        assert all((cs_ghi_profile >= 0)[~nan_mask])
+
+        truth = coarsen_alternate_calc(batch, 2)
+        assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)

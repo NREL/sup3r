@@ -6,7 +6,7 @@ import logging
 import numpy as np
 
 from rex.utilities import log_mem
-from sup3r.utilities.utilities import (spatial_coarsening,
+from sup3r.utilities.utilities import (daily_time_sampler, spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
@@ -19,13 +19,187 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+class Batch:
+    """Batch of low_res and high_res data"""
+
+    def __init__(self, low_res, high_res):
+        """Stores low and high res data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        """
+        self._low_res = low_res
+        self._high_res = high_res
+
+    def __len__(self):
+        """Get the number of observations in this batch."""
+        return len(self._low_res)
+
+    @property
+    def shape(self):
+        """Get the (low_res_shape, high_res_shape) shapes."""
+        return (self._low_res.shape, self._high_res.shape)
+
+    @property
+    def low_res(self):
+        """Get the low-resolution data for the batch."""
+        return self._low_res
+
+    @property
+    def high_res(self):
+        """Get the high-resolution data for the batch."""
+        return self._high_res
+
+    @staticmethod
+    def reduce_features(high_res, output_features_ind=None):
+        """Remove any feature channels that are only intended for the low-res
+        training input.
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        if output_features_ind is None:
+            return high_res
+        else:
+            return high_res[..., output_features_ind]
+
+    # pylint: disable=W0613
+    @classmethod
+    def get_coarse_batch(cls, high_res,
+                         s_enhance, t_enhance=1,
+                         temporal_coarsening_method='subsample',
+                         output_features_ind=None,
+                         output_features=None):
+        """Coarsen high res data and return Batch with
+        high res and low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int
+            factor by which to coarsen spatial dimensions of the
+            high resolution data
+        t_enhance : int
+            factor by which to coarsen temporal dimension of the
+            high resolution data
+        temporal_coarsening_method : str
+            method to use for temporal coarsening.
+            can be subsample, average, or total
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+        low_res = spatial_coarsening(
+            high_res, s_enhance)
+
+        if t_enhance != 1:
+            low_res = temporal_coarsening(
+                low_res, t_enhance,
+                temporal_coarsening_method)
+
+        high_res = cls.reduce_features(high_res, output_features_ind)
+        batch = cls(low_res, high_res)
+
+        return batch
+
+
+class NsrdbBatch(Batch):
+    """Special batch handler for NSRDB data"""
+
+    @classmethod
+    def get_coarse_batch(cls, high_res,
+                         s_enhance, t_enhance=1,
+                         temporal_coarsening_method='subsample',
+                         output_features_ind=None,
+                         output_features=None):
+        """Coarsen high res data and return Batch with
+        high res and low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int
+            factor by which to coarsen spatial dimensions of the
+            high resolution data
+        t_enhance : int
+            factor by which to coarsen temporal dimension of the
+            high resolution data
+        temporal_coarsening_method : str
+            method to use for temporal coarsening.
+            can be subsample, average, or total
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+
+        # for nsrdb, do temporal avg first so you dont have to do spatial agg
+        # across NaNs
+        low_res = temporal_coarsening(
+            high_res, t_enhance,
+            temporal_coarsening_method)
+
+        low_res = spatial_coarsening(
+            low_res, s_enhance)
+
+        high_res = cls.reduce_features(high_res, output_features_ind)
+
+        if (output_features is not None
+                and 'clearsky_ratio' in output_features):
+            cs_ind = output_features.index('clearsky_ratio')
+            if np.isnan(high_res[..., cs_ind]).any():
+                high_res[..., cs_ind] = nn_fill_array(high_res[..., cs_ind])
+
+        batch = cls(low_res, high_res)
+
+        return batch
+
+
 class ValidationData:
     """Iterator for validation data"""
+
+    # Classes to use for handling an individual batch obj.
+    BATCH_CLASS = Batch
 
     def __init__(self, data_handlers, batch_size=8,
                  s_enhance=3, t_enhance=1,
                  temporal_coarsening_method='subsample',
-                 output_features_ind=None):
+                 output_features_ind=None,
+                 output_features=None):
         """
         Parameters
         ----------
@@ -47,6 +221,8 @@ class ValidationData:
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
         """
 
         spatial_shapes = np.array(
@@ -69,6 +245,7 @@ class ValidationData:
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
         self.output_features_ind = output_features_ind
+        self.output_features = output_features
 
     def _get_val_indices(self):
         """List of dicts to index each validation data
@@ -164,185 +341,61 @@ class ValidationData:
 
             if self.temporal_sample_shape == 1:
                 high_res = high_res[:, :, :, 0, :]
-            batch = Batch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features)
             self._i += 1
             return batch
         else:
             raise StopIteration
 
 
-class Batch:
-    """Batch of low_res and high_res data"""
+class NsrdbValidationData(ValidationData):
+    """Iterator for daily NSRDB validation data"""
 
-    def __init__(self, low_res, high_res):
-        """Stores low and high res data
+    # Classes to use for handling an individual batch obj.
+    BATCH_CLASS = NsrdbBatch
 
-        Parameters
-        ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        """
-        self._low_res = low_res
-        self._high_res = high_res
-
-    def __len__(self):
-        """Get the number of observations in this batch."""
-        return len(self._low_res)
-
-    @property
-    def shape(self):
-        """Get the (low_res_shape, high_res_shape) shapes."""
-        return (self._low_res.shape, self._high_res.shape)
-
-    @property
-    def low_res(self):
-        """Get the low-resolution data for the batch."""
-        return self._low_res
-
-    @property
-    def high_res(self):
-        """Get the high-resolution data for the batch."""
-        return self._high_res
-
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
-        """Remove any feature channels that are only intended for the low-res
-        training input.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-        if output_features_ind is None:
-            return high_res
-        else:
-            return high_res[..., output_features_ind]
-
-    @classmethod
-    def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=1,
-                         temporal_coarsening_method='subsample',
-                         output_features_ind=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            factor by which to coarsen spatial dimensions of the
-            high resolution data
-        t_enhance : int
-            factor by which to coarsen temporal dimension of the
-            high resolution data
-        temporal_coarsening_method : str
-            method to use for temporal coarsening.
-            can be subsample, average, or total
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
+    def _get_val_indices(self):
+        """List of dicts to index each validation data
+        observation across all handlers
 
         Returns
         -------
-        Batch
-            Batch instance with low and high res data
-        """
-        low_res = spatial_coarsening(
-            high_res, s_enhance)
+        val_indices : list[dict]
+            List of dicts with handler_index and tuple_index.
+            The tuple index is used to get validation data observation
+            with data[tuple_index]"""
 
-        if t_enhance != 1:
-            low_res = temporal_coarsening(
-                low_res, t_enhance,
-                temporal_coarsening_method)
+        val_indices = []
+        for i, h in enumerate(self.handlers):
+            for _ in range(h.val_data.shape[2]):
 
-        high_res = cls.reduce_features(high_res, output_features_ind)
-        batch = cls(low_res, high_res)
+                spatial_slice = uniform_box_sampler(h.val_data,
+                                                    self.spatial_sample_shape)
 
-        return batch
+                temporal_slice = daily_time_sampler(h.val_data,
+                                                    self.temporal_sample_shape,
+                                                    h.val_time_index)
+                tuple_index = tuple(spatial_slice
+                                    + [temporal_slice]
+                                    + [np.arange(h.val_data.shape[-1])])
 
+                val_indices.append({'handler_index': i,
+                                    'tuple_index': tuple_index})
 
-class NsrdbBatch(Batch):
-    """Special batch handler for NSRDB data"""
-
-    @classmethod
-    def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=1,
-                         temporal_coarsening_method='subsample',
-                         output_features_ind=None,
-                         output_features=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            factor by which to coarsen spatial dimensions of the
-            high resolution data
-        t_enhance : int
-            factor by which to coarsen temporal dimension of the
-            high resolution data
-        temporal_coarsening_method : str
-            method to use for temporal coarsening.
-            can be subsample, average, or total
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        output_features : list
-            List of output feature names
-
-        Returns
-        -------
-        Batch
-            Batch instance with low and high res data
-        """
-
-        # for nsrdb, do temporal avg first so you dont have to do spatial agg
-        # across NaNs
-        low_res = temporal_coarsening(
-            high_res, t_enhance,
-            temporal_coarsening_method)
-
-        low_res = spatial_coarsening(
-            low_res, s_enhance)
-
-        high_res = cls.reduce_features(high_res, output_features_ind)
-
-        if (output_features is not None
-                and 'clearsky_ratio' in output_features):
-            cs_ind = output_features.index('clearsky_ratio')
-            if np.isnan(high_res[..., cs_ind]).any():
-                high_res[..., cs_ind] = nn_fill_array(high_res[..., cs_ind])
-
-        batch = cls(low_res, high_res)
-
-        return batch
+        return val_indices
 
 
 class BatchHandler:
     """Sup3r base batch handling class"""
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
 
     def __init__(self, data_handlers, batch_size=8,
                  s_enhance=3, t_enhance=2,
@@ -418,11 +471,12 @@ class BatchHandler:
         if norm:
             self.normalize(means, stds)
 
-        self.val_data = ValidationData(
+        self.val_data = self.VAL_CLASS(
             data_handlers, batch_size=batch_size,
             s_enhance=s_enhance, t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind)
+            output_features_ind=self.output_features_ind,
+            output_features=self.output_features)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -868,40 +922,7 @@ class BatchHandler:
                 high_res[i, :, :, :, :] = obs
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            batch = Batch.get_coarse_batch(
-                high_res, self.s_enhance,
-                t_enhance=self.t_enhance,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
-
-            self._i += 1
-            return batch
-        else:
-            raise StopIteration
-
-
-class NsrdbBatchHandler(BatchHandler):
-    """Sup3r base batch handling class"""
-    # Class to use for handling an individual batch obj.
-
-    def __next__(self):
-        self.current_batch_indices = []
-        if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size,
-                                 self.spatial_sample_shape[0],
-                                 self.spatial_sample_shape[1],
-                                 self.temporal_sample_shape,
-                                 self.shape[-1]), dtype=np.float32)
-            for i in range(self.batch_size):
-                obs = handler.get_next()
-                high_res[i, :, :, :, :] = obs
-                self.current_batch_indices.append(handler.current_obs_index)
-
-            # use special NSRDBBatch object
-            batch = NsrdbBatch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
@@ -912,6 +933,14 @@ class NsrdbBatchHandler(BatchHandler):
             return batch
         else:
             raise StopIteration
+
+
+class NsrdbBatchHandler(BatchHandler):
+    """Sup3r base batch handling class"""
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = NsrdbValidationData
+    BATCH_CLASS = NsrdbBatch
 
 
 class SpatialBatchHandler(BatchHandler):
@@ -1046,7 +1075,7 @@ class SpatialBatchHandler(BatchHandler):
             for i in range(self.batch_size):
                 high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
 
-            batch = Batch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 output_features_ind=self.output_features_ind)
 
