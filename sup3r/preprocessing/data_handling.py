@@ -16,8 +16,13 @@ from rex.utilities import log_mem
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
                                        interp_var,
-                                       get_raster_shape)
-from sup3r.data_handling.feature_handling import (FeatureHandler,
+                                       get_raster_shape,
+                                       ignore_case_path_check,
+                                       ignore_case_path_fetch,
+                                       get_time_index,
+                                       get_source_type
+                                       )
+from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
                                                   BVFreqMonH5,
                                                   BVFreqMonNC,
@@ -34,47 +39,6 @@ from sup3r import __version__
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-def get_source_type(file_paths):
-    """Get data source type
-    ----------
-    file_paths : list
-        path to data file
-    Returns
-    -------
-    source_type : str
-        Either h5 or nc
-    """
-    if not isinstance(file_paths, list):
-        file_paths = [file_paths]
-
-    _, source_type = os.path.splitext(file_paths[0])
-    if source_type == '.h5':
-        return 'h5'
-    else:
-        return 'nc'
-
-
-def get_time_index(file_paths):
-    """Get data file handle
-    based on file type
-    ----------
-    file_paths : list
-        path to data file
-    Returns
-    -------
-    handle : xarray | WindX
-        data file extension
-    """
-    if get_source_type(file_paths) == 'h5':
-        with WindX(file_paths[0], hsds=False) as handle:
-            time_index = handle.time_index
-    else:
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-            time_index = handle['Times']
-    return time_index
 
 
 def get_handler_class(file_paths):
@@ -210,12 +174,12 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None:
             self.cache_files = [
-                f'{cache_file_prefix}_{f}.npy' for f in features]
+                f'{cache_file_prefix}_{f.lower()}.npy' for f in features]
         else:
             self.cache_files = None
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
-                os.path.exists(fp) for fp in self.cache_files):
+                ignore_case_path_check(fp) for fp in self.cache_files):
             if self.load_cached:
                 logger.info(
                     f'All {self.cache_files} exist. Loading from cache '
@@ -475,10 +439,12 @@ class DataHandler(FeatureHandler):
 
         feature_arrays = []
         for i, fp in enumerate(self.cache_files):
-            assert self.features[i] in fp
-            logger.info(f'Loading {self.features[i]} from {fp}')
 
-            with open(fp, 'rb') as fh:
+            fp_ignore_case = ignore_case_path_fetch(fp)
+            assert self.features[i].lower() in fp.lower()
+            logger.info(f'Loading {self.features[i]} from {fp_ignore_case}')
+
+            with open(fp_ignore_case, 'rb') as fh:
                 feature_arrays.append(
                     np.array(pickle.load(fh)[:, :, :, np.newaxis],
                              dtype=np.float32))
@@ -527,7 +493,8 @@ class DataHandler(FeatureHandler):
         # check if any features can be loaded from cache
         if cache_files is not None:
             for i, f in enumerate(features):
-                if os.path.exists(cache_files[i]) and f in cache_files[i]:
+                if (ignore_case_path_check(cache_files[i])
+                        and f.lower() in cache_files[i].lower()):
                     if not overwrite_cache:
                         if load_cached:
                             logger.info(
@@ -654,7 +621,8 @@ class DataHandler(FeatureHandler):
         if load_cached:
             for f in [f for f in features if f not in extract_features]:
                 f_index = features.index(f)
-                with open(cache_files[f_index], 'rb') as fh:
+                with open(ignore_case_path_fetch(
+                        cache_files[f_index]), 'rb') as fh:
                     data_array[:, :, :, f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data from '

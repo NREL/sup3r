@@ -10,7 +10,7 @@ from sup3r.utilities.utilities import (spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
                                        uniform_time_sampler)
-from sup3r.data_handling.preprocessing import get_handler_class
+from sup3r.preprocessing.data_handling import get_handler_class
 from sup3r import __version__
 
 np.random.seed(42)
