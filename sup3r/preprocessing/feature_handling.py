@@ -1011,6 +1011,42 @@ class FeatureHandler:
         return None
 
     @classmethod
+    def get_raw_feature_list_from_handle(cls, features, handle):
+        """Lookup inputs needed to compute feature
+
+        Parameters
+        ----------
+        features : list
+            Features for which to get needed inputs for derivation
+        handle : WindX | xarray
+            File handle to use for checking whether features can be extracted
+
+        Returns
+        -------
+        list
+            List of input features
+        """
+
+        raw_features = []
+        for f in features:
+            method = cls.lookup(f, 'inputs')
+            if method is not None:
+                if cls.valid_input_features(method(f), handle):
+                    for r in method(f):
+                        if r not in raw_features:
+                            raw_features.append(r)
+                else:
+                    method = cls.lookup(f, 'alternative_inputs')
+                    for r in method(f):
+                        if r not in raw_features:
+                            raw_features.append(r)
+            else:
+                if f not in raw_features:
+                    raw_features.append(f)
+
+        return raw_features
+
+    @classmethod
     @abstractmethod
     def feature_registry(cls):
         """Registry of methods for computing features

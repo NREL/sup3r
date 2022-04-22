@@ -643,25 +643,9 @@ class DataHandlerNC(DataHandler):
 
         with xr.open_mfdataset(file_path, combine='nested',
                                concat_dim='Time') as handle:
-
-            raw_features = []
-            for f in features:
-                method = cls.lookup(f, 'inputs')
-                if method is not None:
-                    if cls.valid_input_features(method(f), handle):
-                        for r in method(f):
-                            if r not in raw_features:
-                                raw_features.append(r)
-                    else:
-                        method = cls.lookup(f, 'alternative_inputs')
-                        for r in method(f):
-                            if r not in raw_features:
-                                raw_features.append(r)
-                else:
-                    if f not in raw_features:
-                        raw_features.append(f)
-
-            return raw_features
+            input_features = cls.get_raw_feature_list_from_handle(
+                features, handle)
+        return input_features
 
     @classmethod
     def extract_feature(
@@ -819,25 +803,9 @@ class DataHandlerH5(DataHandler):
         """
 
         with WindX(file_path[0], hsds=False) as handle:
-
-            raw_features = []
-            for f in features:
-                method = cls.lookup(f, 'inputs')
-                if method is not None:
-                    if cls.valid_input_features(method(f), handle):
-                        for r in method(f):
-                            if r not in raw_features:
-                                raw_features.append(r)
-                    else:
-                        method = cls.lookup(f, 'alternative_inputs')
-                        for r in method(f):
-                            if r not in raw_features:
-                                raw_features.append(r)
-                else:
-                    if f not in raw_features:
-                        raw_features.append(f)
-
-            return raw_features
+            input_features = cls.get_raw_feature_list_from_handle(
+                features, handle)
+        return input_features
 
     @classmethod
     def extract_feature(
