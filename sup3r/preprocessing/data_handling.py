@@ -166,7 +166,6 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
         self.features = features
         self.grid_shape = shape
-        self.time_index = get_time_index(self.file_path)
         self.val_time_index = None
         self.target = target
         self.max_delta = max_delta
@@ -176,6 +175,8 @@ class DataHandler(FeatureHandler):
         self.temporal_sample_shape = temporal_sample_shape
         self.time_pruning = time_pruning
         self.time_roll = time_roll
+        self.time_index = get_time_index(self.file_path)
+        self.time_index = self.time_index[::self.time_pruning]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
@@ -209,8 +210,8 @@ class DataHandler(FeatureHandler):
                     f'{self.cache_files} exists but overwrite_cache is '
                     'set to True. Proceeding with extraction.')
 
-            self.data, self.time_index = self.extract_data(
-                self.file_path, self.raster_index, self.time_index,
+            self.data = self.extract_data(
+                self.file_path, self.raster_index,
                 self.features,
                 time_pruning=self.time_pruning,
                 time_roll=self.time_roll,
@@ -426,8 +427,7 @@ class DataHandler(FeatureHandler):
         self.data = np.concatenate(feature_arrays, axis=-1)
 
         shape = get_raster_shape(self.raster_index)
-        requested_shape = (shape[0], shape[1],
-                           len(self.time_index[::self.time_pruning]),
+        requested_shape = (shape[0], shape[1], len(self.time_index),
                            len(self.features))
         msg = (f'Data loaded from cache {self.data.shape} '
                f'does not match the requested shape {requested_shape}')
@@ -494,7 +494,7 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def extract_data(cls, file_path, raster_index,
-                     time_index, features,
+                     features,
                      time_pruning=1,
                      time_roll=0,
                      max_extract_workers=None,
@@ -514,9 +514,6 @@ class DataHandler(FeatureHandler):
         raster_index : np.ndarray
             2D array of grid indices for H5 or list of
             slices for NETCDF
-        time_index : list
-            List of time indices specifying selection
-            along the time dimensions
         features : list
             list of features to extract
         time_pruning : int
@@ -549,9 +546,6 @@ class DataHandler(FeatureHandler):
         data : np.ndarray
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
-        time_index : list
-            List of time indices specifying selection along the time
-            dimensions. Updated based on time_pruning
         """
 
         now = dt.now()
@@ -561,6 +555,9 @@ class DataHandler(FeatureHandler):
         shape = get_raster_shape(raster_index)
         logger.debug(
             f'Loading data for raster of shape {shape}')
+
+        # get the file-native time index without pruning
+        time_index = get_time_index(file_path)
 
         data_array = np.zeros(
             (shape[0], shape[1], len(time_index), len(features)),
@@ -601,7 +598,6 @@ class DataHandler(FeatureHandler):
                 data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        time_index = time_index[::time_pruning]
         data_array = data_array[:, :, ::time_pruning, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
@@ -615,7 +611,7 @@ class DataHandler(FeatureHandler):
         logger.info('Finished extracting data from '
                     f'{file_path} in {dt.now() - now}')
 
-        return data_array, time_index
+        return data_array
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):

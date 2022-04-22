@@ -105,7 +105,7 @@ def test_feature_handler():
                             max_delta=max_delta, raster_file=raster_file)
 
     tmp = handler.extract_data(
-        input_file, handler.raster_index, handler.time_index,
+        input_file, handler.raster_index,
         features, time_pruning)
     assert tmp.dtype == np.dtype(np.float32)
 
@@ -530,7 +530,7 @@ def test_val_data_storage():
                                 val_split=val_split,
                                 time_pruning=time_pruning)
         data = handler.extract_data(
-            f, handler.raster_index, handler.time_index,
+            f, handler.raster_index,
             features, time_pruning)
         n_observations += data.shape[2]
 
@@ -544,11 +544,15 @@ def test_spatial_coarsening(s_enhance, plot=False):
     """Test spatial coarsening"""
 
     handler = DataHandlerH5(input_file, features, target=target,
-                            shape=shape, max_delta=20)
+                            shape=shape, max_delta=20,
+                            max_extract_workers=1,
+                            max_compute_workers=1)
 
     handler_data = handler.extract_data(
-        input_file, handler.raster_index, handler.time_index,
-        features, time_pruning)
+        input_file, handler.raster_index,
+        features, time_pruning,
+        max_extract_workers=1,
+        max_compute_workers=1)
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, s_enhance)
     direct_avg = np.zeros(coarse_data.shape)
