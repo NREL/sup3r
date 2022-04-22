@@ -423,7 +423,9 @@ class BatchHandler:
                            spatial_sample_shape=(10, 10),
                            temporal_sample_shape=10,
                            max_delta=20,
-                           raster_files=None, time_pruning=1,
+                           raster_files=None,
+                           time_pruning=1,
+                           time_roll=0,
                            list_chunk_size=None,
                            max_extract_workers=None,
                            max_compute_workers=None,
@@ -465,7 +467,13 @@ class BatchHandler:
             targets. If None raster_index will be calculated directly.
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
@@ -511,6 +519,7 @@ class BatchHandler:
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
                     time_pruning=time_pruning,
+                    time_roll=time_roll,
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
                     time_chunk_size=time_chunk_size,
@@ -577,7 +586,8 @@ class BatchHandler:
              temporal_sample_shape=10,
              s_enhance=3, t_enhance=2,
              max_delta=20, norm=True,
-             raster_files=None, time_pruning=1,
+             raster_files=None,
+             time_pruning=1, time_roll=0,
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
@@ -631,7 +641,13 @@ class BatchHandler:
             all handlers
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         means : np.ndarray
             dimensions (features)
             array of means for all features
@@ -679,6 +695,7 @@ class BatchHandler:
             max_delta=max_delta,
             raster_files=raster_files,
             time_pruning=time_pruning,
+            time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
@@ -807,7 +824,8 @@ class SpatialBatchHandler(BatchHandler):
              spatial_sample_shape=(10, 10),
              s_enhance=3, max_delta=20,
              norm=True, raster_files=None,
-             time_pruning=1, means=None,
+             time_pruning=1, time_roll=0,
+             means=None,
              n_batches=10,
              stds=None,
              list_chunk_size=None,
@@ -854,7 +872,13 @@ class SpatialBatchHandler(BatchHandler):
             all handlers
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         means : np.ndarray
             dimensions (features)
             array of means for all features
@@ -896,6 +920,7 @@ class SpatialBatchHandler(BatchHandler):
             max_delta=max_delta,
             raster_files=raster_files,
             time_pruning=time_pruning,
+            time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,

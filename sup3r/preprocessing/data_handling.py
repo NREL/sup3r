@@ -73,7 +73,7 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_pruning=1, val_split=0.1,
+                 max_delta=20, time_pruning=1, time_roll=0, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None, max_compute_workers=None,
@@ -117,7 +117,13 @@ class DataHandler(FeatureHandler):
             temporal batching
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         max_compute_workers : int | None
@@ -165,6 +171,7 @@ class DataHandler(FeatureHandler):
         self.spatial_sample_shape = spatial_sample_shape
         self.temporal_sample_shape = temporal_sample_shape
         self.time_pruning = time_pruning
+        self.time_roll = time_roll
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
@@ -200,7 +207,9 @@ class DataHandler(FeatureHandler):
 
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.time_index,
-                self.features, self.time_pruning,
+                self.features,
+                time_pruning=self.time_pruning,
+                time_roll=self.time_roll,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
                 time_chunk_size=time_chunk_size,
@@ -478,7 +487,9 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def extract_data(cls, file_path, raster_index,
-                     time_index, features, time_pruning,
+                     time_index, features,
+                     time_pruning=1,
+                     time_roll=0,
                      max_extract_workers=None,
                      max_compute_workers=None,
                      time_chunk_size=100,
@@ -503,7 +514,13 @@ class DataHandler(FeatureHandler):
             list of features to extract
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         max_compute_workers : int | None
             max number of workers to use for computing features.
             If max_compute_workers == 1 then extraction will be serialized.
@@ -575,6 +592,7 @@ class DataHandler(FeatureHandler):
             raw_data.pop(t)
 
         data_array = data_array[:, :, ::time_pruning, :]
+        data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:
             for f in [f for f in features if f not in extract_features]:
