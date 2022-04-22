@@ -318,13 +318,15 @@ class NsrdbBatch(Batch):
         Batch
             Batch instance with low and high res data
         """
-        low_res = spatial_coarsening(
-            high_res, s_enhance)
 
-        if t_enhance != 1:
-            low_res = temporal_coarsening(
-                low_res, t_enhance,
-                temporal_coarsening_method)
+        # for nsrdb, do temporal avg first so you dont have to do spatial agg
+        # across NaNs
+        low_res = temporal_coarsening(
+            high_res, t_enhance,
+            temporal_coarsening_method)
+
+        low_res = spatial_coarsening(
+            low_res, s_enhance)
 
         high_res = cls.reduce_features(high_res, output_features_ind)
 
@@ -852,7 +854,7 @@ class BatchHandler:
 
     def __next__(self):
         self.current_batch_indices = []
-        if self._i <= self.n_batches:
+        if self._i < self.n_batches:
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
@@ -884,7 +886,7 @@ class NsrdbBatchHandler(BatchHandler):
 
     def __next__(self):
         self.current_batch_indices = []
-        if self._i <= self.n_batches:
+        if self._i < self.n_batches:
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
@@ -1033,7 +1035,7 @@ class SpatialBatchHandler(BatchHandler):
         return batch_handler
 
     def __next__(self):
-        if self._i <= self.n_batches:
+        if self._i < self.n_batches:
             handler_index = np.random.randint(
                 0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]

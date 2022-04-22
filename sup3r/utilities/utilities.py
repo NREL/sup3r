@@ -249,6 +249,7 @@ def spatial_coarsening(data, s_enhance=2):
             msg += f'Received s_enhance: {s_enhance} '
             msg += f'with grid size: ({data.shape[1]}, '
             msg += f'{data.shape[2]})'
+            logger.error(msg)
             raise ValueError(msg)
 
         if len(data.shape) == 5:
@@ -261,13 +262,19 @@ def spatial_coarsening(data, s_enhance=2):
                                        data.shape[4]).sum((2, 4)) \
                 / (s_enhance * s_enhance)
 
-        else:
+        elif len(data.shape) == 4:
             coarse_data = data.reshape(data.shape[0], -1,
                                        s_enhance,
                                        data.shape[1] // s_enhance,
                                        s_enhance,
                                        data.shape[3]).sum((2, 4)) \
                 / (s_enhance * s_enhance)
+
+        else:
+            msg = ('Data must be 4D or 5D to do spatial coarsening, but '
+                   'received: {}'.format(data.shape))
+            logger.error(msg)
+            raise ValueError(msg)
 
     else:
         coarse_data = data

@@ -29,6 +29,7 @@ def test_handler(plot=False):
                                max_extract_workers=1,
                                max_compute_workers=1)
 
+    assert handler.data.shape[2] % 24 == 0
     assert handler.val_data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
@@ -68,6 +69,93 @@ def test_handler(plot=False):
             axes[2].set_title('Clearsky GHI')
 
             plt.title(i)
-            plt.savefig('./test_fig_{}.png'.format(i), dpi=300,
+            plt.savefig('./test_nsrdb_handler_{}.png'.format(i), dpi=300,
                         bbox_inches='tight')
             plt.close()
+
+
+def test_batching(plot=False):
+    """Test batching of nsrdb data against hand-calc coarsening"""
+    handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                               target=TARGET, shape=SHAPE,
+                               time_pruning=2,
+                               time_roll=-7,
+                               val_split=0.1,
+                               temporal_sample_shape=24,
+                               spatial_sample_shape=(20, 20),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    batcher = NsrdbBatchHandler([handler],
+                                batch_size=1, n_batches=10,
+                                s_enhance=1, t_enhance=24,
+                                temporal_coarsening_method='average')
+
+    for batch in batcher:
+        night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
+        truth = batch.high_res[0, :, :, :, 0].copy()
+        truth[night_mask] = np.nan
+        truth = np.nansum(truth, axis=-1) / 24
+        assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
+
+    batcher = NsrdbBatchHandler([handler],
+                                batch_size=1, n_batches=10,
+                                s_enhance=2, t_enhance=24,
+                                temporal_coarsening_method='average')
+
+    for batch in batcher:
+        night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
+        truth = batch.high_res[0, :, :, :, 0].copy()
+        truth[night_mask] = np.nan
+        truth = np.nansum(truth, axis=2) / 24
+        truth = truth.reshape(truth.shape[0] // 2, 2,
+                              truth.shape[1] // 2, 2,
+                              ).sum((1, 3)) / 2**2
+        assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
+
+    if plot:
+        for batch in batcher:
+            for i in range(batch.high_res.shape[3]):
+                night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
+                truth = batch.high_res[0, :, :, :, 0].copy()
+                truth[night_mask] = np.nan
+                truth = np.nansum(truth, axis=2) / 24
+                truth = truth.reshape(truth.shape[0] // 2, 2,
+                                      truth.shape[1] // 2, 2,
+                                      ).sum((1, 3)) / 2**2
+
+                _, axes = plt.subplots(1, 5, figsize=(25, 4))
+
+                a = axes[0].imshow(batch.high_res[0, :, :, i, 0]
+                                   * batcher.stds[0] + batcher.means[0],
+                                   vmin=0, vmax=1)
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Batch high res')
+
+                a = axes[1].imshow(batch.low_res[0, :, :, 0, 0]
+                                   * batcher.stds[0] + batcher.means[0],
+                                   vmin=0, vmax=1)
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Batch low res')
+
+                a = axes[2].imshow(truth
+                                   * batcher.stds[0] + batcher.means[0],
+                                   vmin=0, vmax=1)
+                plt.colorbar(a, ax=axes[2])
+                axes[2].set_title('Hand calc low res')
+
+                a = axes[3].imshow(batch.high_res[0, :, :, i, 1]
+                                   * batcher.stds[1] + batcher.means[1],
+                                   vmin=0, vmax=1100)
+                plt.colorbar(a, ax=axes[3])
+                axes[3].set_title('GHI')
+
+                a = axes[4].imshow(batch.high_res[0, :, :, i, 2]
+                                   * batcher.stds[2] + batcher.means[2],
+                                   vmin=0, vmax=1100)
+                plt.colorbar(a, ax=axes[4])
+                axes[4].set_title('Clear GHI')
+
+                plt.savefig('./test_nsrdb_batch_{}.png'.format(i), dpi=300,
+                            bbox_inches='tight')
+                plt.close()
