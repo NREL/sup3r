@@ -21,7 +21,7 @@ from sup3r.utilities.utilities import (uniform_box_sampler,
                                        ignore_case_path_check,
                                        ignore_case_path_fetch,
                                        get_time_index,
-                                       get_source_type
+                                       get_source_type,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -167,6 +167,7 @@ class DataHandler(FeatureHandler):
         self.features = features
         self.grid_shape = shape
         self.time_index = get_time_index(self.file_path)
+        self.val_time_index = None
         self.target = target
         self.max_delta = max_delta
         self.raster_file = raster_file
@@ -362,6 +363,9 @@ class DataHandler(FeatureHandler):
 
         val_data = data[:, :, val_indices, :]
         train_data = data[:, :, training_indices, :]
+
+        self.val_time_index = self.time_index[val_indices]
+        self.time_index = self.time_index[training_indices]
 
         return train_data, val_data
 
@@ -979,5 +983,8 @@ class DataHandlerNsrdb(DataHandlerH5):
 
         self.val_data = data[:, :, slice(None, val_split_index), :]
         self.data = data[:, :, slice(val_split_index, None), :]
+
+        self.val_time_index = self.time_index[slice(None, val_split_index)]
+        self.time_index = self.time_index[slice(val_split_index, None)]
 
         return self.data, self.val_data

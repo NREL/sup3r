@@ -15,7 +15,6 @@ from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (transform_rotate_wind,
                                        bvf_squared,
                                        get_raster_shape,
-                                       nn_fill_array,
                                        inverse_mo_length)
 
 from sup3r import __version__
@@ -76,8 +75,8 @@ class ClearSkyRatioH5(DerivedFeature):
         Returns
         -------
         cs_ratio : ndarray
-            Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. Nighttime
-            data is gap filled from nearest valid data.
+            Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. NaN where
+            nighttime.
         """
 
         # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
@@ -86,7 +85,6 @@ class ClearSkyRatioH5(DerivedFeature):
         night_mask = data['clearsky_ghi'] <= 2
         data['clearsky_ghi'][night_mask] = np.nan
         cs_ratio = data['ghi'] / data['clearsky_ghi']
-        cs_ratio = nn_fill_array(cs_ratio)
         cs_ratio = cs_ratio.astype(np.float32)
         return cs_ratio
 
@@ -126,8 +124,9 @@ class CloudMaskH5(DerivedFeature):
         Returns
         -------
         cloud_mask : ndarray
-            Cloud mask, e.g. 1 where cloudy, 0 where clear. Data is float32 so
-            it can be normalized without any integer weirdness.
+            Cloud mask, e.g. 1 where cloudy, 0 where clear. NaN where
+            nighttime. Data is float32 so it can be normalized without any
+            integer weirdness.
         """
 
         # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
@@ -137,7 +136,6 @@ class CloudMaskH5(DerivedFeature):
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
-        cloud_mask = nn_fill_array(cloud_mask)
         cloud_mask = cloud_mask.astype(np.float32)
         return cloud_mask
 
