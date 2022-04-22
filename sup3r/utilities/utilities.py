@@ -9,7 +9,7 @@ from fnmatch import fnmatch
 import os
 import xarray as xr
 
-from rex import WindX
+from rex import Resource
 
 np.random.seed(42)
 
@@ -89,6 +89,48 @@ def uniform_time_sampler(data, shape):
         stop = data.shape[2]
     else:
         start = np.random.randint(0, data.shape[2] - shape)
+        stop = start + shape
+    return slice(start, stop)
+
+
+def daily_time_sampler(data, shape, time_index):
+    """
+    Extracts a temporal slice from data starting at midnight of a random day
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (time_steps) Size of time slice to sample from data, must be an integer
+        multiple of 24.
+    time_index : pd.Datetimeindex
+        Time index that matches the data axis=2
+
+    Returns:
+    --------
+    slice : slice
+        time slice with size shape of data starting at the beginning of the day
+    """
+
+    msg = ('data {} and time index ({}) shapes do not match, cannot sample '
+           'daily data.'.format(data.shape, len(time_index)))
+    assert data.shape[2] == len(time_index), msg
+
+    midnight_ilocs = np.where((time_index.hour == 0)
+                              & (time_index.minute == 0)
+                              & (time_index.second == 0))[0]
+
+    if midnight_ilocs[-1] == len(time_index) - 1:
+        midnight_ilocs = midnight_ilocs[:-1]
+
+    if data.shape[2] <= shape:
+        start = 0
+        stop = data.shape[2]
+    else:
+        start = np.random.randint(0, len(midnight_ilocs))
+        start = midnight_ilocs[start]
         stop = start + shape
     return slice(start, stop)
 
@@ -744,13 +786,14 @@ def get_time_index(file_paths):
     ----------
     file_paths : list
         path to data file
+
     Returns
     -------
-    handle : xarray | WindX
-        data file extension
+    time_index : pd.DateTimeIndex | np.ndarray
+        Time index from h5 or nc source file(s)
     """
     if get_source_type(file_paths) == 'h5':
-        with WindX(file_paths[0], hsds=False) as handle:
+        with Resource(file_paths[0], hsds=False) as handle:
             time_index = handle.time_index
     else:
         with xr.open_mfdataset(file_paths, combine='nested',

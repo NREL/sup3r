@@ -11,10 +11,11 @@ import os
 from datetime import datetime as dt
 import pickle
 
-from rex import WindX
+from rex import WindX, NSRDBX
 from rex.utilities import log_mem
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
+                                       daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
                                        ignore_case_path_check,
@@ -53,11 +54,13 @@ def get_handler_class(file_paths):
     Returns
     -------
     DataHandler
-        Either DataHandlerNC or DataHandlerH5
+        Either DataHandlerNC, DataHandlerH5, DataHandlerNsrdb
 
     """
     if get_source_type(file_paths) == 'h5':
         HandlerClass = DataHandlerH5
+        if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
+            HandlerClass = DataHandlerNsrdb
     else:
         HandlerClass = DataHandlerNC
     return HandlerClass
@@ -205,7 +208,7 @@ class DataHandler(FeatureHandler):
                     f'{self.cache_files} exists but overwrite_cache is '
                     'set to True. Proceeding with extraction.')
 
-            self.data = self.extract_data(
+            self.data, self.time_index = self.extract_data(
                 self.file_path, self.raster_index, self.time_index,
                 self.features,
                 time_pruning=self.time_pruning,
@@ -542,6 +545,9 @@ class DataHandler(FeatureHandler):
         data : np.ndarray
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
+        time_index : list
+            List of time indices specifying selection along the time
+            dimensions. Updated based on time_pruning
         """
 
         now = dt.now()
@@ -591,6 +597,7 @@ class DataHandler(FeatureHandler):
                 data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
+        time_index = time_index[::time_pruning]
         data_array = data_array[:, :, ::time_pruning, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
@@ -604,7 +611,7 @@ class DataHandler(FeatureHandler):
         logger.info('Finished extracting data from '
                     f'{file_path} in {dt.now() - now}')
 
-        return data_array
+        return data_array, time_index
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):
@@ -789,6 +796,9 @@ class DataHandlerNC(DataHandler):
 class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
+    # the handler from rex to open h5 data.
+    REX_HANDLER = WindX
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features
@@ -852,7 +862,7 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with WindX(file_path[0], hsds=False) as handle:
+        with cls.REX_HANDLER(file_path[0], hsds=False) as handle:
 
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
@@ -903,7 +913,7 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with WindX(file_path[0], hsds=False) as handle:
+            with self.REX_HANDLER(file_path[0], hsds=False) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             if self.raster_file is not None:
@@ -911,3 +921,30 @@ class DataHandlerH5(DataHandler):
                     f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
+
+
+class DataHandlerNsrdb(DataHandlerH5):
+    """Special data handling and batch sampling for NSRDB solar data"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = NSRDBX
+
+    def get_observation_index(self):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice,
+            and features indices. Used to get single observation
+            like self.data[observation_index]
+        """
+        spatial_slice = uniform_box_sampler(self.data,
+                                            self.spatial_sample_shape)
+        temporal_slice = daily_time_sampler(self.data,
+                                            self.temporal_sample_shape,
+                                            self.time_index)
+        obs_index = tuple(spatial_slice
+                          + [temporal_slice]
+                          + [np.arange(len(self.features))])
+        return obs_index

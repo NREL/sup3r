@@ -789,8 +789,7 @@ class BatchHandler:
     def __next__(self):
         self.current_batch_indices = []
         if self._i <= self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
+            handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,

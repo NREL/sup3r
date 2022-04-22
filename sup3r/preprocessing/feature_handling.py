@@ -10,7 +10,7 @@ import numpy as np
 import re
 from datetime import datetime as dt
 
-from rex import WindX
+from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (transform_rotate_wind,
                                        bvf_squared,
@@ -530,11 +530,11 @@ class LatLonH5:
             (spatial_1, spatial_2, 2)
         """
 
-        with WindX(file_path[0], hsds=False) as handle:
+        with Resource(file_path[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
-            lat_lon = lat_lon.reshape(
-                (raster_index.shape[0],
-                 raster_index.shape[1], 2))
+            lat_lon = lat_lon.reshape((raster_index.shape[0],
+                                       raster_index.shape[1],
+                                       2))
 
         return lat_lon
 
@@ -555,7 +555,7 @@ class Feature:
         ----------
         feature : str
             Raw feature name e.g. U_100m
-        handle : WindX | xarray
+        handle : WindX | NSRDBX | xarray
             handle for data file
         """
         self.alternative_names = {
@@ -626,7 +626,7 @@ class Feature:
 
         Parameters
         ----------
-        handle : WindX | xarray
+        handle : WindX | NSRDBX | xarray
             handle pointing to file data
         feature : str
             Feature name. e.g. temperature_100m
