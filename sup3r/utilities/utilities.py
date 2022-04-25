@@ -318,7 +318,7 @@ def calc_height(data):
     Returns
     ---------
     height_arr : ndarray
-        (spatial_1, spatial_2, vertical_level, temporal)
+        (temporal, vertical_level, spatial_1, spatial_2)
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
@@ -346,7 +346,7 @@ def interp3D(var_array, h_array, heights):
     var_array : ndarray
         Array of variable values
     h_array : ndarray
-        Array of heigh values corresponding to the wrf source data
+        Array of height values corresponding to the wrf source data
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
     Returns
@@ -360,7 +360,8 @@ def interp3D(var_array, h_array, heights):
            f'\nh_array: {h_array.shape}')
     assert var_array.shape == h_array.shape, msg
 
-    heights = [heights] if isinstance(heights, (int, float)) else heights
+    heights = [heights] if isinstance(
+        heights, (int, float, np.float32)) else heights
     h_min = np.nanmin(h_array)
     h_max = np.nanmax(h_array)
     height_check = (h_min < min(heights) and max(heights) < h_max)
@@ -385,11 +386,12 @@ def interp3D(var_array, h_array, heights):
                                    np.product(array_shape[2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    time_arrays = [np.array([np.interp(heights, h, var) for h, var
-                             in zip(h_array[:, :, i], var_array[:, :, i])],
-                            np.float32) for i in range(array_shape[0])]
+    time_steps = [np.array(
+        [np.interp(heights, h, var) for h, var
+         in zip(h_array[:, :, i], var_array[:, :, i])],
+        np.float32)[np.newaxis, :, :] for i in range(array_shape[0])]
 
-    out_array = np.concatenate(time_arrays)
+    out_array = np.concatenate(time_steps, axis=0)
 
     if isinstance(heights, (int, float)) or len(heights) == 1:
         out_array = out_array.T.reshape((array_shape[0], array_shape[2],

@@ -338,17 +338,20 @@ class DataHandler(FeatureHandler):
             Validation data fraction of initial data array.
         """
 
-        n_observations = self.shape[2]
+        n_observations = data.shape[2]
         all_indices = np.arange(n_observations)
         if self.shuffle_time:
             np.random.shuffle(all_indices)
 
         n_val_obs = int(self.val_split * n_observations)
+
         val_indices = all_indices[:n_val_obs]
         training_indices = all_indices[n_val_obs:]
-        self.val_data = data[:, :, val_indices, :]
-        self.data = data[:, :, training_indices, :]
-        return self.data, self.val_data
+
+        val_data = data[:, :, val_indices, :]
+        train_data = data[:, :, training_indices, :]
+
+        return train_data, val_data
 
     @property
     def shape(self):
@@ -695,7 +698,7 @@ class DataHandlerNC(DataHandler):
                                 f'Interpolating {basename}'
                                 f' at height {interp_height}m')
                             fdata = interp_var(
-                                handle, basename, float(interp_height))
+                                handle, basename, np.float32(interp_height))
                             fdata = fdata[
                                 tuple([time_slice] + raster_index)]
                     else:
