@@ -18,7 +18,6 @@ from sup3r.utilities.utilities import (uniform_box_sampler,
                                        daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
-                                       ignore_case_path_check,
                                        ignore_case_path_fetch,
                                        get_time_index,
                                        get_source_type,
@@ -188,12 +187,16 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None:
             self.cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.pkl' for f in features]
+                f'{cache_file_prefix}_{f.lower()}.npy' for f in features]
+            for i, fp in enumerate(self.cache_files):
+                fp_check = ignore_case_path_fetch(fp)
+                if fp_check is not None:
+                    self.cache_files[i] = fp_check
         else:
             self.cache_files = None
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
-                ignore_case_path_check(fp) for fp in self.cache_files):
+                os.path.exists(fp) for fp in self.cache_files):
             if self.load_cached:
                 logger.info(
                     f'All {self.cache_files} exist. Loading from cache '
@@ -468,7 +471,7 @@ class DataHandler(FeatureHandler):
         # check if any features can be loaded from cache
         if cache_files is not None:
             for i, f in enumerate(features):
-                if (ignore_case_path_check(cache_files[i])
+                if (os.path.exists(cache_files[i])
                         and f.lower() in cache_files[i].lower()):
                     if not overwrite_cache:
                         if load_cached:
@@ -605,8 +608,7 @@ class DataHandler(FeatureHandler):
         if load_cached:
             for f in [f for f in features if f not in extract_features]:
                 f_index = features.index(f)
-                with open(ignore_case_path_fetch(
-                        cache_files[f_index]), 'rb') as fh:
+                with open(cache_files[f_index], 'rb') as fh:
                     data_array[:, :, :, f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data from '

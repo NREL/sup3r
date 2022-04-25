@@ -720,29 +720,6 @@ def nn_fill_array(array):
     return array
 
 
-def ignore_case_path_check(fp):
-    """Check if fp exists with any
-    case usage
-
-    Parameters
-    ----------
-    fp : str
-        file path
-
-    Returns
-    -------
-    bool
-        Whether or not fp exists
-    """
-
-    dirname = os.path.dirname(fp)
-    basename = os.path.basename(fp)
-    for file in os.listdir(dirname):
-        if fnmatch(file.lower(), basename.lower()):
-            return True
-    return False
-
-
 def ignore_case_path_fetch(fp):
     """Get file path which matches fp
     while ignoring case
