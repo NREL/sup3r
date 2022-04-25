@@ -524,9 +524,7 @@ class UWindNsrdb(DerivedFeature):
         list
             List of required features for computing U
         """
-        features = [f'wind_speed',
-                    f'wind_direction',
-                    'lat_lon']
+        features = ['wind_speed', 'wind_direction', 'lat_lon']
         return features
 
     @classmethod
@@ -546,10 +544,9 @@ class UWindNsrdb(DerivedFeature):
             Derived feature array
 
         """
-        u, _ = transform_rotate_wind(
-            data[f'wind_speed'],
-            data[f'wind_direction'],
-            data['lat_lon'])
+        u, _ = transform_rotate_wind(data['wind_speed'],
+                                     data['wind_direction'],
+                                     data['lat_lon'])
         return u
 
 
@@ -571,9 +568,7 @@ class VWindNsrdb(DerivedFeature):
         list
             List of required features for computing V
         """
-        features = [f'wind_speed',
-                    f'wind_direction',
-                    'lat_lon']
+        features = ['wind_speed', 'wind_direction', 'lat_lon']
         return features
 
     @classmethod
@@ -593,10 +588,9 @@ class VWindNsrdb(DerivedFeature):
             Derived feature array
 
         """
-        _, v = transform_rotate_wind(
-            data[f'wind_speed'],
-            data[f'wind_direction'],
-            data['lat_lon'])
+        _, v = transform_rotate_wind(data['wind_speed'],
+                                     data['wind_direction'],
+                                     data['lat_lon'])
         return v
 
 

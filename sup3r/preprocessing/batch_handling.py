@@ -917,6 +917,7 @@ class BatchHandler:
                                  self.spatial_sample_shape[1],
                                  self.temporal_sample_shape,
                                  self.shape[-1]), dtype=np.float32)
+
             for i in range(self.batch_size):
                 obs = handler.get_next()
                 high_res[i, :, :, :, :] = obs

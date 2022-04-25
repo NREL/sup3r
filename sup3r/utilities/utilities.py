@@ -118,9 +118,10 @@ def daily_time_sampler(data, shape, time_index):
            'daily data.'.format(data.shape, len(time_index)))
     assert data.shape[2] == len(time_index), msg
 
-    midnight_ilocs = np.where((time_index.hour == 0)
-                              & (time_index.minute == 0)
-                              & (time_index.second == 0))[0]
+    ti_short = time_index[:-shape]
+    midnight_ilocs = np.where((ti_short.hour == 0)
+                              & (ti_short.minute == 0)
+                              & (ti_short.second == 0))[0]
 
     if data.shape[2] <= shape:
         start = 0
