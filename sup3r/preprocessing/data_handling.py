@@ -338,17 +338,20 @@ class DataHandler(FeatureHandler):
             Validation data fraction of initial data array.
         """
 
-        n_observations = self.shape[2]
+        n_observations = data.shape[2]
         all_indices = np.arange(n_observations)
         if self.shuffle_time:
             np.random.shuffle(all_indices)
 
         n_val_obs = int(self.val_split * n_observations)
+
         val_indices = all_indices[:n_val_obs]
         training_indices = all_indices[n_val_obs:]
-        self.val_data = data[:, :, val_indices, :]
-        self.data = data[:, :, training_indices, :]
-        return self.data, self.val_data
+
+        val_data = data[:, :, val_indices, :]
+        train_data = data[:, :, training_indices, :]
+
+        return train_data, val_data
 
     @property
     def shape(self):
@@ -361,51 +364,6 @@ class DataHandler(FeatureHandler):
             (spatial_1, spatial_2, temporal, features)
         """
         return self.data.shape
-
-    @classmethod
-    def computed_features(cls, f_list, previously_computed=None):
-        """Keep track of computed features for deleting
-        old data
-
-        Parameters
-        ----------
-        f_list : list
-            list of features that have been requested
-        previously_computed : list, optional
-            previous list of computed features, by default []
-
-        Returns
-        -------
-        list
-            new list of computed features
-        """
-
-        if previously_computed is None:
-            previously_computed = []
-        for f in f_list:
-            if f not in previously_computed:
-                previously_computed.append(f)
-        return previously_computed
-
-    @classmethod
-    def needed_features(cls, f_list, computed_features):
-        """Keep track of needed features for deleting
-        old data
-
-        Parameters
-        ----------
-        f_list : list
-            list of features that have been requested
-        computed_features : list, optional
-            list of computed features
-
-        Returns
-        -------
-        list
-            new list of needed features
-        """
-        return cls.get_raw_feature_list(
-            set(f_list) - set(computed_features))
 
     def cache_data(self, cache_file_paths):
         """Cache feature data to file and delete from memory
@@ -591,7 +549,7 @@ class DataHandler(FeatureHandler):
             file_path, features, cache_files=cache_files,
             overwrite_cache=overwrite_cache, load_cached=load_cached)
 
-        raw_features = cls.get_raw_feature_list(extract_features)
+        raw_features = cls.get_raw_feature_list(file_path, extract_features)
 
         log_mem(logger, log_level='DEBUG')
         logger.info(f'Starting {extract_features} extraction from {file_path}')
@@ -672,6 +630,27 @@ class DataHandlerNC(DataHandler):
         return registry
 
     @classmethod
+    def get_raw_feature_list(cls, file_path, features):
+        """Lookup inputs needed to compute feature
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        list
+            List of input features
+        """
+
+        with xr.open_mfdataset(file_path, combine='nested',
+                               concat_dim='Time') as handle:
+            input_features = cls.get_raw_feature_list_from_handle(
+                features, handle)
+        return input_features
+
+    @classmethod
     def extract_feature(
             cls, file_path, raster_index,
             feature, time_slice=slice(None)) -> np.dtype(np.float32):
@@ -702,7 +681,7 @@ class DataHandlerNC(DataHandler):
             interp_height = f_info.height
             basename = f_info.basename
 
-            method = cls.lookup_method(feature)
+            method = cls.lookup(feature, 'compute')
             if method is not None and basename not in handle:
                 return method(file_path, raster_index)
 
@@ -719,7 +698,7 @@ class DataHandlerNC(DataHandler):
                                 f'Interpolating {basename}'
                                 f' at height {interp_height}m')
                             fdata = interp_var(
-                                handle, basename, float(interp_height))
+                                handle, basename, np.float32(interp_height))
                             fdata = fdata[
                                 tuple([time_slice] + raster_index)]
                     else:
@@ -812,6 +791,26 @@ class DataHandlerH5(DataHandler):
         return registry
 
     @classmethod
+    def get_raw_feature_list(cls, file_path, features):
+        """Lookup inputs needed to compute feature
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        list
+            List of input features
+        """
+
+        with WindX(file_path[0], hsds=False) as handle:
+            input_features = cls.get_raw_feature_list_from_handle(
+                features, handle)
+        return input_features
+
+    @classmethod
     def extract_feature(
             cls, file_path, raster_index,
             feature, time_slice=slice(None)) -> np.dtype(np.float32):
@@ -837,7 +836,7 @@ class DataHandlerH5(DataHandler):
 
         with WindX(file_path[0], hsds=False) as handle:
 
-            method = cls.lookup_method(feature)
+            method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
                 return method(file_path, raster_index)
 

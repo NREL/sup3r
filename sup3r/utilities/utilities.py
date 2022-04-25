@@ -318,7 +318,7 @@ def calc_height(data):
     Returns
     ---------
     height_arr : ndarray
-        (spatial_1, spatial_2, vertical_level, temporal)
+        (temporal, vertical_level, spatial_1, spatial_2)
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
@@ -346,7 +346,7 @@ def interp3D(var_array, h_array, heights):
     var_array : ndarray
         Array of variable values
     h_array : ndarray
-        Array of heigh values corresponding to the wrf source data
+        Array of height values corresponding to the wrf source data
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
     Returns
@@ -360,7 +360,8 @@ def interp3D(var_array, h_array, heights):
            f'\nh_array: {h_array.shape}')
     assert var_array.shape == h_array.shape, msg
 
-    heights = [heights] if isinstance(heights, (int, float)) else heights
+    heights = [heights] if isinstance(
+        heights, (int, float, np.float32)) else heights
     h_min = np.nanmin(h_array)
     h_max = np.nanmax(h_array)
     height_check = (h_min < min(heights) and max(heights) < h_max)
@@ -378,28 +379,26 @@ def interp3D(var_array, h_array, heights):
 
     array_shape = var_array.shape
 
-    # Reduce h_array and var_array shape to accomodate interpolation
-    if len(array_shape) == 4:
-        h_array = h_array[0]
-        var_array = var_array[0]
+    h_array = h_array.reshape((array_shape[0], array_shape[1],
+                               np.product(array_shape[2:]))).T
 
-    # Flatten h_array and var_array along lat, long axis
-    h_array = h_array.reshape((array_shape[-3],
-                               np.product(array_shape[-2:]))).T
-    var_array = var_array.reshape((array_shape[-3],
-                                   np.product(array_shape[-2:]))).T
+    var_array = var_array.reshape((array_shape[0], array_shape[1],
+                                   np.product(array_shape[2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    out_array = np.array(
-        [np.interp(heights, h, var) for h, var in zip(h_array, var_array)],
-        np.float32)
-    # Reshape out_array
-    if isinstance(heights, (float, int)):
-        out_array = out_array.T.reshape((1, array_shape[-2],
-                                         array_shape[-1]))
+    time_steps = [np.array(
+        [np.interp(heights, h, var) for h, var
+         in zip(h_array[:, :, i], var_array[:, :, i])],
+        np.float32)[np.newaxis, :, :] for i in range(array_shape[0])]
+
+    out_array = np.concatenate(time_steps, axis=0)
+
+    if isinstance(heights, (int, float)) or len(heights) == 1:
+        out_array = out_array.T.reshape((array_shape[0], array_shape[2],
+                                         array_shape[3]))
     else:
-        out_array = out_array.T.reshape((len(heights), array_shape[-2],
-                                         array_shape[-1]))
+        out_array = out_array.T.reshape((array_shape[0], len(heights),
+                                         array_shape[2], array_shape[3]))
 
     return out_array
 
@@ -424,10 +423,7 @@ def interp_var(data, var, heights):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-    return interp3D(
-        unstagger_var(data, var),
-        calc_height(data),
-        heights)
+    return interp3D(unstagger_var(data, var), calc_height(data), heights)
 
 
 def potential_temperature(T, P):
@@ -517,108 +513,23 @@ def potential_temperature_average(T_top, P_top,
             + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
 
 
-def virtual_var(var, mixing_ratio):
-    """Formula for virtual variable
-    e.g. virtual temperature, virtual
-    potential temperature
+def inverse_mo_length(U_surf, V_surf, W_surf, PT_surf):
+    """Inverse Monin - Obukhov Length
 
     Parameters
     ----------
-    var : ndarray
-        Variable array (e.g. temperature
-        array or potential temperature array)
-    mixing_ratio : ndarray
-        Ratio of the mass of water vapor to the
-        mass of dry air
-
-    Returns
-    -------
-    ndarray
-        Virtual quantity (e.g. virtual temperature
-        or virtual potential temperature, for use in
-        Richardson number calculation)
-    """
-    return var * (1 + 0.61 * mixing_ratio)
-
-
-def saturation_vapor_pressure(T):
-    """Saturation Vapor pressure calculation
-    using Tetens equation
-
-    Parameters
-    ----------
-    T : ndarray
-        Temperature in celsius
-
-    Returns
-    -------
-    ndarray
-        Pressure in kPa
-    """
-
-    Es = T
-    Es[T > 0] = 0.61078 * np.exp(
-        17.27 * T[T > 0] / (T[T > 0] + 237.3))
-    Es[T <= 0] = 0.61078 * np.exp(
-        21.875 * T[T <= 0] / (T[T <= 0] + 265.5))
-    return Es
-
-
-def vapor_pressure(T, RH):
-    """
-    Parameters
-    ----------
-    T : ndarray
-        Temperature in celsius
-    RH : ndarray
-        Relative humidity
-
-    Returns
-    -------
-    ndarray
-        Pressure in kPa
-    """
-    Es = saturation_vapor_pressure(T)
-    E = RH * Es / 100
-    return E
-
-
-def mixing_ratio(P, T, RH):
-    """Mixing ratio calculation for
-    use in richardson number calculation
-
-    Parameters
-    ----------
-    P : ndarray
-        Pressure in kPa
-    T : ndarray
-        Temperature in celsius
-    RH : ndarray
-        Relative humidity
-
-    Returns
-    -------
-    ndarray
-        Mixing ratio
-    """
-    vapor_p = vapor_pressure(T, RH)
-    return 0.622 * vapor_p / (P - vapor_p)
-
-
-def MO_length(ws_friction, PT_mean, PT_surface_flux):
-    """Monin - Obukhov Length
-
-    Parameters
-    ----------
-    ws_friction : ndarray
+    U_surf : ndarray
         (spatial_1, spatial_2, temporal)
-        Frictional windspeed
-    PT_mean : ndarray
+        Surface U wind component
+    V_surf : ndarray
         (spatial_1, spatial_2, temporal)
-        Vertical average of potential temperature
-    PT_surface_flux : ndarray
+        Surface V wind component
+    W_surf : ndarray
         (spatial_1, spatial_2, temporal)
-        Potential temperature flux at the surface
+        Surface W wind component
+    PT_surf : ndarray
+        (spatial_1, spatial_2, temporal)
+        Surface potential temperature
 
     Returns
     -------
@@ -627,8 +538,15 @@ def MO_length(ws_friction, PT_mean, PT_surface_flux):
         Monin - Obukhov Length
     """
 
-    numer = -ws_friction ** 3 * PT_mean
-    denom = (0.41 * 9.81 * PT_surface_flux)
+    U_eddy = U_surf - np.mean(U_surf, axis=2)[:, :, np.newaxis]
+    V_eddy = V_surf - np.mean(V_surf, axis=2)[:, :, np.newaxis]
+    W_eddy = W_surf - np.mean(W_surf, axis=2)[:, :, np.newaxis]
+
+    PT_flux = W_eddy * (PT_surf - np.mean(PT_surf, axis=2)[:, :, np.newaxis])
+
+    ws_friction = ((U_eddy * W_eddy) ** 2 + (V_eddy * W_eddy) ** 2) ** 0.25
+    denom = -ws_friction ** 3 * PT_surf
+    numer = (0.41 * 9.81 * PT_flux)
     return numer / denom
 
 
