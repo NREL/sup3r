@@ -5,6 +5,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+from rex import Resource
+
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
 from sup3r.preprocessing.batch_handling import NsrdbBatchHandler
@@ -192,3 +194,43 @@ def test_val_data():
 
         truth = coarsen_alternate_calc(batch, 2)
         assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
+
+
+def test_ancillary_vars():
+    """Test the handling of the "final" feature set from the NSRDB including
+    windspeed components and air temperature near the surface."""
+    features = ['clearsky_ratio', 'U', 'V', 'air_temperature']
+    handler = DataHandlerNsrdb(INPUT_FILE, features,
+                               target=TARGET, shape=SHAPE,
+                               time_pruning=2,
+                               time_roll=-7,
+                               val_split=0.0,
+                               temporal_sample_shape=24,
+                               spatial_sample_shape=(20, 20),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    assert handler.data.shape[-1] == 4
+
+    assert np.allclose(np.min(handler.data[:, :, :, 1]), -9.3, atol=1)
+    assert np.allclose(np.max(handler.data[:, :, :, 1]), 9.7, atol=1)
+
+    assert np.allclose(np.min(handler.data[:, :, :, 2]), -9.8, atol=1)
+    assert np.allclose(np.max(handler.data[:, :, :, 2]), 6.1, atol=1)
+
+    assert np.allclose(np.min(handler.data[:, :, :, 3]), -18.3, atol=1)
+    assert np.allclose(np.max(handler.data[:, :, :, 3]), 22.9, atol=1)
+
+    with Resource(INPUT_FILE) as res:
+        ws_source = res['wind_speed']
+
+    ws_true = np.roll(ws_source[::2, 0], -7, axis=0)
+    ws_test = np.sqrt(handler.data[0, 0, :, 1]**2
+                      + handler.data[0, 0, :, 2]**2)
+    assert np.allclose(ws_true, ws_test)
+
+    ws_true = np.roll(ws_source[::2], -7, axis=0)
+    ws_true = np.mean(ws_true, axis=1)
+    ws_test = np.sqrt(handler.data[..., 1]**2 + handler.data[..., 2]**2)
+    ws_test = np.mean(ws_test, axis=(0, 1))
+    assert np.allclose(ws_true, ws_test)

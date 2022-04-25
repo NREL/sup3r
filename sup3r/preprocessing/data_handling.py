@@ -31,6 +31,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   UWindH5,
                                                   VWindH5,
+                                                  UWindNsrdb,
+                                                  VWindNsrdb,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5)
@@ -813,9 +815,7 @@ class DataHandlerH5(DataHandler):
             'BVF_MO_(.*)': BVFreqMonH5,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+            'lat_lon': LatLonH5}
         return registry
 
     @classmethod
@@ -928,6 +928,23 @@ class DataHandlerNsrdb(DataHandlerH5):
 
     # the handler from rex to open h5 data.
     REX_HANDLER = NSRDBX
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U': UWindNsrdb,
+            'V': VWindNsrdb,
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
 
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample

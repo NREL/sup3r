@@ -506,6 +506,100 @@ class VWindH5(DerivedFeature):
         return v
 
 
+class UWindNsrdb(DerivedFeature):
+    """U wind component feature class with needed inputs
+    method and compute method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing U wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. U
+
+        Returns
+        -------
+        list
+            List of required features for computing U
+        """
+        features = [f'wind_speed',
+                    f'wind_direction',
+                    'lat_lon']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute U wind component from H5 data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        u, _ = transform_rotate_wind(
+            data[f'wind_speed'],
+            data[f'wind_direction'],
+            data['lat_lon'])
+        return u
+
+
+class VWindNsrdb(DerivedFeature):
+    """V wind component feature class with needed inputs
+    method and compute method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing V wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. V_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing V
+        """
+        features = [f'wind_speed',
+                    f'wind_direction',
+                    'lat_lon']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute V wind component from H5 data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        _, v = transform_rotate_wind(
+            data[f'wind_speed'],
+            data[f'wind_direction'],
+            data['lat_lon'])
+        return v
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
