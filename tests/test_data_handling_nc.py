@@ -57,8 +57,8 @@ def test_height_interpolation():
     U_tmp = utilities.unstagger_var(tmp, 'U')
 
     data = handler.extract_data(
-        input_files, raster_index, handler.time_index,
-        features, time_pruning,
+        input_files, raster_index, features,
+        time_pruning=time_pruning,
         max_extract_workers=None,
         max_compute_workers=None,
         time_chunk_size=100)
