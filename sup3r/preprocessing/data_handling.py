@@ -188,7 +188,7 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None:
             self.cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.npy' for f in features]
+                f'{cache_file_prefix}_{f.lower()}.pkl' for f in features]
         else:
             self.cache_files = None
 
