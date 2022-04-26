@@ -187,7 +187,7 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None:
             self.cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.npy' for f in features]
+                f'{cache_file_prefix}_{f.lower()}.pkl' for f in features]
             for i, fp in enumerate(self.cache_files):
                 fp_check = ignore_case_path_fetch(fp)
                 if fp_check is not None:
