@@ -395,9 +395,8 @@ class DataHandler(FeatureHandler):
 
         for i, fp in enumerate(cache_file_paths):
             if not os.path.exists(fp) or self.overwrite_cache:
-                if self.overwrite_cache:
-                    logger.info(
-                        f'Overwriting. Saving {self.features[i]} to {fp}')
+                if self.overwrite_cache and os.path.exists(fp):
+                    logger.info(f'Overwriting {self.features[i]} to {fp}')
                 else:
                     logger.info(f'Saving {self.features[i]} to {fp}')
 
