@@ -39,7 +39,8 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             spatial_sample_shape=sample_shape,
-                            time_pruning=10, max_extract_workers=1,
+                            time_shape=slice(None, None, 10),
+                            max_extract_workers=1,
                             max_compute_workers=1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
@@ -105,7 +106,8 @@ def test_train_st(n_epoch=4, log=False):
                             shape=(20, 20),
                             temporal_sample_shape=24,
                             spatial_sample_shape=(18, 18),
-                            time_pruning=1, val_split=0.005,
+                            time_shape=slice(None, None, 1),
+                            val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)
 

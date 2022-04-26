@@ -26,7 +26,7 @@ s_enhance = 5
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_h5.txt')
-time_pruning = 3
+time_shape = slice(None, None, 3)
 n_batches = 20
 temporal_sample_shape = 12
 t_enhance = 2
@@ -58,7 +58,7 @@ def test_spatiotemporal_batch_caching(spatial_sample_shape,
             t_enhance=t_enhance,
             max_delta=max_delta,
             val_split=val_split,
-            time_pruning=time_pruning,
+            time_shape=time_shape,
             n_batches=n_batches,
             cache_file_prefixes=cache_prefixes)
 
@@ -106,7 +106,7 @@ def test_feature_handler():
 
     tmp = handler.extract_data(
         input_file, handler.raster_index,
-        features, time_pruning)
+        features, time_shape)
     assert tmp.dtype == np.dtype(np.float32)
 
     vars = {}
@@ -169,7 +169,7 @@ def test_normalization():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     stacked_data = \
@@ -198,7 +198,7 @@ def test_spatiotemporal_normalization():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     stacked_data = \
@@ -236,7 +236,7 @@ def test_validation_batching():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     for batch in batch_handler.val_data:
@@ -269,7 +269,7 @@ def test_temporal_coarsening(method, t_enhance):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         temporal_coarsening_method=method)
 
@@ -305,7 +305,7 @@ def test_spatiotemporal_validation_batching(method):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         temporal_coarsening_method=method)
 
@@ -343,7 +343,7 @@ def test_spatiotemporal_batch_observations(spatial_sample_shape,
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     for batch in spatiotemporal_batch_handler:
@@ -382,7 +382,7 @@ def test_spatiotemporal_batch_indices(spatial_sample_shape,
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     all_spatial_tuples = []
@@ -425,7 +425,7 @@ def test_spatiotemporal_batch_handling(plot=False):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     for batch in spatiotemporal_batch_handler:
@@ -468,7 +468,7 @@ def test_batch_handling(plot=False):
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     for batch in batch_handler:
@@ -511,7 +511,7 @@ def test_val_data_storage():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches)
 
     val_observations = 0
@@ -528,10 +528,10 @@ def test_val_data_storage():
         handler = DataHandlerH5(f, features, target, shape,
                                 max_delta, raster_file=raster_file,
                                 val_split=val_split,
-                                time_pruning=time_pruning)
+                                time_shape=time_shape)
         data = handler.extract_data(
             f, handler.raster_index,
-            features, time_pruning)
+            features, time_shape)
         n_observations += data.shape[2]
 
     assert val_observations == int(val_split * n_observations)
@@ -550,7 +550,7 @@ def test_spatial_coarsening(s_enhance, plot=False):
 
     handler_data = handler.extract_data(
         input_file, handler.raster_index,
-        features, time_pruning,
+        features, time_shape,
         max_extract_workers=1,
         max_compute_workers=1)
     handler_data = handler_data.transpose((2, 0, 1, 3))

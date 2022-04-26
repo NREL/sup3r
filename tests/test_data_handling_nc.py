@@ -34,7 +34,7 @@ s_enhance = 2
 max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
-time_pruning = 1
+time_shape = slice(None, None, 1)
 n_batches = 20
 temporal_sample_shape = 6
 t_enhance = 2
@@ -58,7 +58,7 @@ def test_height_interpolation():
 
     data = handler.extract_data(
         input_files, raster_index, features,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         max_extract_workers=None,
         max_compute_workers=None,
         time_chunk_size=100)
@@ -127,7 +127,7 @@ def test_spatiotemporal_batch_caching(spatial_sample_shape,
             t_enhance=t_enhance,
             max_delta=max_delta,
             val_split=val_split,
-            time_pruning=time_pruning,
+            time_shape=time_shape,
             n_batches=n_batches,
             list_chunk_size=list_chunk_size,
             cache_file_prefixes=cache_prefixes)
@@ -174,7 +174,7 @@ def test_feature_handler():
                             max_delta=max_delta)
     tmp = handler.extract_data(
         input_files, handler.raster_index,
-        features, time_pruning)
+        features, time_shape)
     assert tmp.dtype == np.dtype(np.float32)
 
     var_names = {'T_bottom': ['T', 100],
@@ -217,7 +217,7 @@ def test_normalization():
         s_enhance=s_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -247,7 +247,7 @@ def test_spatiotemporal_normalization():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -285,7 +285,7 @@ def test_validation_batching():
         s_enhance=s_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         spatial_sample_shape=spatial_sample_shape,
         list_chunk_size=list_chunk_size)
@@ -319,7 +319,7 @@ def test_temporal_coarsening(method, t_enhance):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         temporal_coarsening_method=method,
         list_chunk_size=list_chunk_size)
@@ -356,7 +356,7 @@ def test_spatiotemporal_validation_batching(method):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         temporal_coarsening_method=method,
         list_chunk_size=list_chunk_size)
@@ -395,7 +395,7 @@ def test_spatiotemporal_batch_observations(spatial_sample_shape,
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -435,7 +435,7 @@ def test_spatiotemporal_batch_indices(spatial_sample_shape,
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -479,7 +479,7 @@ def test_spatiotemporal_batch_handling(plot=False):
         t_enhance=t_enhance,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -523,7 +523,7 @@ def test_batch_handling(plot=False):
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -567,7 +567,7 @@ def test_val_data_storage():
         spatial_sample_shape=spatial_sample_shape,
         max_delta=max_delta,
         val_split=val_split,
-        time_pruning=time_pruning,
+        time_shape=time_shape,
         n_batches=n_batches,
         list_chunk_size=list_chunk_size)
 
@@ -585,10 +585,10 @@ def test_val_data_storage():
         handler = DataHandlerNC(f, features, target, shape,
                                 max_delta, raster_file=raster_file,
                                 val_split=val_split,
-                                time_pruning=time_pruning)
+                                time_shape=time_shape)
         data = handler.extract_data(
             input_file, handler.raster_index,
-            features, time_pruning)
+            features, time_shape)
         n_observations += data.shape[2]
 
     assert val_observations == int(val_split * n_observations)
@@ -605,7 +605,7 @@ def test_spatial_coarsening(s_enhance, plot=False):
 
     handler_data = handler.extract_data(
         input_file, handler.raster_index,
-        features, time_pruning)
+        features, time_shape)
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, s_enhance)
     direct_avg = np.zeros(coarse_data.shape)

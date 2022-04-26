@@ -19,7 +19,7 @@ FEATURES = ['clearsky_ratio', 'U', 'V', 'air_temperature']
 
 handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                            target=TARGET, shape=SHAPE,
-                           time_pruning=2,
+                           time_shape=slice(None, None, 2),
                            time_roll=-7,
                            val_split=0.05,
                            temporal_sample_shape=24,

@@ -77,10 +77,13 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_pruning=1, time_roll=0, val_split=0.1,
-                 temporal_sample_shape=1, spatial_sample_shape=(10, 10),
+                 max_delta=20, time_shape=slice(None, None, 1),
+                 time_roll=0, val_split=0.1,
+                 temporal_sample_shape=1,
+                 spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
-                 max_extract_workers=None, max_compute_workers=None,
+                 max_extract_workers=None,
+                 max_compute_workers=None,
                  time_chunk_size=100,
                  cache_file_prefix=None,
                  overwrite_cache=False,
@@ -119,10 +122,10 @@ class DataHandler(FeatureHandler):
         temporal_sample_shape : int
             Number of time slices used in a single high-res observation for
             temporal batching
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped. This is an interval value, e.g. slice(None,
-            None, time_pruning)
+        time_shape : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to
+            slice(None, None, 1) the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -174,10 +177,10 @@ class DataHandler(FeatureHandler):
         self.val_split = val_split
         self.spatial_sample_shape = spatial_sample_shape
         self.temporal_sample_shape = temporal_sample_shape
-        self.time_pruning = time_pruning
+        self.time_shape = time_shape
         self.time_roll = time_roll
         self.time_index = get_time_index(self.file_path)
-        self.time_index = self.time_index[::self.time_pruning]
+        self.time_index = self.time_index[time_shape]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
@@ -218,7 +221,7 @@ class DataHandler(FeatureHandler):
             self.data = self.extract_data(
                 self.file_path, self.raster_index,
                 self.features,
-                time_pruning=self.time_pruning,
+                time_shape=self.time_shape,
                 time_roll=self.time_roll,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
@@ -499,7 +502,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      features,
-                     time_pruning=1,
+                     time_shape=slice(None, None, 1),
                      time_roll=0,
                      max_extract_workers=None,
                      max_compute_workers=None,
@@ -520,10 +523,10 @@ class DataHandler(FeatureHandler):
             slices for NETCDF
         features : list
             list of features to extract
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped. This is an interval value, e.g. slice(None,
-            None, time_pruning)
+        time_shape : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to
+            slice(None, None, 1) the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -602,7 +605,7 @@ class DataHandler(FeatureHandler):
                 data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = data_array[:, :, ::time_pruning, :]
+        data_array = data_array[:, :, time_shape, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:

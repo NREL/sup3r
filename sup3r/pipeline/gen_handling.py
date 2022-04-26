@@ -4,8 +4,19 @@ Sup3r forward pass handling module.
 """
 
 import numpy as np
+import logging
+from concurrent.futures import as_completed
+from datetime import datetime as dt
+
+from rex.utilities.execution import SpawnProcessPool
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.models.models import SpatioTemporalGan
+from sup3r import __version__
+
+np.random.seed(42)
+
+logger = logging.getLogger(__name__)
 
 
 class ForwardPassHandler:
@@ -15,9 +26,9 @@ class ForwardPassHandler:
     """
 
     def __init__(self, file_paths, file_path_chunk_size,
-                 features, model, target=None, shape=None,
-                 raster_file=None, s_enhance=3,
-                 t_enhance=4, spatial_chunk_size=(10, 10),
+                 features, model_path, target=None, shape=None,
+                 raster_file=None,
+                 spatial_chunk_size=(10, 10),
                  temporal_chunk_size=24,
                  temporal_shape=slice(None, None, 1),
                  max_workers=None):
@@ -35,8 +46,8 @@ class ForwardPassHandler:
             data extraction and forward pass
         features : list
             list of features to extract
-        model : SpatioTemporalGan
-            SpatioTemporalGan used to generate high resolution data
+        model_path : str
+            Path to SpatioTemporalGan used to generate high resolution data
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -48,12 +59,6 @@ class ForwardPassHandler:
             if it exists or written to the file if it does not yet exist.
             If None raster_index will be calculated directly. Either need
             target+shape or raster_file.
-        t_enhance : int
-            Factor by which to enhance temporal dimension
-            of the low resolution data
-        s_enhance : int
-            Factor by which to enhance spatial dimensions
-            of the low resolution data
         spatial_chunk_size : tuple
             Max size of a spatial domain to pass through generator during
             subprocesses. The full spatial domain (shape) will be chunked into
@@ -80,45 +85,41 @@ class ForwardPassHandler:
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
-        self.s_enhance = s_enhance
-        self.t_enhance = t_enhance
         self.spatial_chunk_size = spatial_chunk_size
         self.temporal_chunk_size = temporal_chunk_size
         self.temporal_shape = temporal_shape
         self.max_workers = max_workers
-        self.model = model
+        self.model_path = model_path
 
-    def kick_off_node(self, file_paths, file_chunk, features, raster_file=None,
-                      target=None, shape=None, s_enhance=3, t_enhance=4,
-                      spatial_chunk_size=(10, 10), temporal_chunk_size=24,
-                      temporal_shape=slice(None, None, 1),
+    @classmethod
+    def kick_off_node(cls, file_paths, file_chunk, model_path, features,
+                      spatial_1_shape=slice(0, 100),
+                      spatial_2_shape=slice(0, 100),
+                      spatial_chunk_size=(10, 10),
+                      temporal_chunk_size=24,
+                      temporal_shape=slice(0, 100, 1),
                       max_workers=None):
         """
+        Routine to run forward pass on all data chunks associated with the
+        files in file_paths
+
+        Parameters
+        ----------
+
         file_paths : list
             A list of NETCDF files to extract raster data from
         file_chunk : int
             Slice indicating which set of files to extract. e.g. if file_chunk
             equals slice(0, 4) then the first four files will be extract on
             this node.
+        model_path : str
+            Path to SpatioTemporalGan used to generate high resolution data
         features : list
             list of features to extract
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. Either need
-            target+shape or raster_file.
-        t_enhance : int
-            Factor by which to enhance temporal dimension
-            of the low resolution data
-        s_enhance : int
-            Factor by which to enhance spatial dimensions
-            of the low resolution data
+        spatial_1_shape : slice
+            Slice specifying spatial extent of spatial_1 for full domain.
+        spatial_2_shape : slice
+            Slice specifying spatial extent of spatial_2 for full domain.
         spatial_chunk_size : tuple
             Max size of a spatial domain to pass through generator during
             subprocesses. The full spatial domain (shape) will be chunked into
@@ -137,10 +138,77 @@ class ForwardPassHandler:
             each node.
         """
 
-        raise NotImplementedError
+        s1_slices = np.arange(
+            spatial_1_shape.start, spatial_1_shape.stop)
+        n_chunks = int(np.ceil(len(s1_slices) / spatial_chunk_size[0]))
+        s1_slices = np.array_split(s1_slices, n_chunks)
+        s1_slices = [slice(s1[0], s1[-1] + 1) for s1 in s1_slices]
+
+        s2_slices = np.arange(
+            spatial_2_shape.start, spatial_2_shape.stop)
+        n_chunks = int(np.ceil(len(s2_slices) / spatial_chunk_size[1]))
+        s2_slices = np.array_split(s2_slices, n_chunks)
+        s2_slices = [slice(s2[0], s2[-1] + 1) for s2 in s2_slices]
+
+        temporal_slices = np.arange(
+            temporal_shape.start, temporal_shape.stop, temporal_shape.step)
+        n_chunks = int(np.ceil(len(temporal_slices) / temporal_chunk_size))
+        temporal_slices = np.array_split(temporal_slices, n_chunks)
+        temporal_slices = [slice(t[0], t[-1] + 1) for t in temporal_slices]
+
+        spatiotemporal_slices = []
+
+        data = np.zeros(((spatial_1_shape.stop - spatial_1_shape.start + 1),
+                         (spatial_2_shape.stop - spatial_2_shape.start + 1),
+                         (temporal_shape.stop - temporal_shape.start + 1), 2),
+                        dtype=np.float32)
+
+        for s1 in s1_slices:
+            for s2 in s2_slices:
+                for t in temporal_slices:
+                    spatiotemporal_slices.append([s1, s2, t])
+
+        if max_workers == 1:
+            for slices in spatiotemporal_slices:
+                s1 = slices[0]
+                s2 = slices[1]
+                t = slices[2]
+                data[s1, s2, t, :] = cls.forward_pass_chunk(
+                    file_paths=file_paths[file_chunk], features=features,
+                    model_path=model_path, spatial_slice=[s1, s2])
+            return data
+
+        futures = {}
+        now = dt.now()
+        with SpawnProcessPool(max_workers=max_workers) as exe:
+            for slices in spatiotemporal_slices:
+                future = exe.submit(cls.forward_pass_chunk,
+                                    file_paths=file_paths[file_chunk],
+                                    features=features,
+                                    model_path=model_path,
+                                    spatial_slice=[slices[0], slices[1]])
+                meta = {'slices': slices}
+                futures[future] = meta
+
+            logger.info(
+                f'Started forward pass for {len(spatiotemporal_slices)} '
+                f'chunks in {dt.now() - now}.')
+
+            for i, future in enumerate(as_completed(futures)):
+                slices = futures[future]
+                s1 = slices[0]
+                s2 = slices[1]
+                t = slices[2]
+                data[s1, s2, t, :] = future.result()
+
+                if i % (len(futures) // 10 + 1) == 0:
+                    logger.debug(f'{i+1} out of {len(futures)} forward passes '
+                                 'completed.')
+
+        return data
 
     @staticmethod
-    def forward_pass_chunk(file_paths, features, model,
+    def forward_pass_chunk(file_paths, features, model_path,
                            spatial_slice, temporal_slice):
 
         """Run forward pass on smallest data chunk
@@ -166,13 +234,10 @@ class ForwardPassHandler:
         """
 
         data = DataHandlerNC.extract_data(
-            file_paths, spatial_slice, features, time_pruning=1)
-        data = data[tuple(spatial_slice + [temporal_slice] + [slice(None)])]
+            file_paths, spatial_slice, features,
+            time_shape=temporal_slice)
 
+        model = SpatioTemporalGan(model_path)
         high_res = model.generate(np.expand_dims(data, axis=0))
 
         return high_res[0]
-
-
-
-

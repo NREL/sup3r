@@ -543,7 +543,7 @@ class BatchHandler:
                            temporal_sample_shape=10,
                            max_delta=20,
                            raster_files=None,
-                           time_pruning=1,
+                           time_shape=slice(None, None, 1),
                            time_roll=0,
                            list_chunk_size=None,
                            max_extract_workers=None,
@@ -584,10 +584,10 @@ class BatchHandler:
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all
             targets. If None raster_index will be calculated directly.
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped. This is an interval value, e.g. slice(None,
-            None, time_pruning)
+        time_shape : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to
+            slice(None, None, 1) the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -637,7 +637,7 @@ class BatchHandler:
                     raster_file=raster_file, val_split=val_split,
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
-                    time_pruning=time_pruning,
+                    time_shape=time_shape,
                     time_roll=time_roll,
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
@@ -706,7 +706,8 @@ class BatchHandler:
              s_enhance=3, t_enhance=2,
              max_delta=20, norm=True,
              raster_files=None,
-             time_pruning=1, time_roll=0,
+             time_shape=slice(None, None, 1),
+             time_roll=0,
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
@@ -758,10 +759,10 @@ class BatchHandler:
         norm : bool
             Wether to normalize data using means/stds calulcated across
             all handlers
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped. This is an interval value, e.g. slice(None,
-            None, time_pruning)
+        time_shape : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to
+            slice(None, None, 1) the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -813,7 +814,7 @@ class BatchHandler:
             temporal_sample_shape=temporal_sample_shape,
             max_delta=max_delta,
             raster_files=raster_files,
-            time_pruning=time_pruning,
+            time_shape=time_shape,
             time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
@@ -954,7 +955,8 @@ class SpatialBatchHandler(BatchHandler):
              spatial_sample_shape=(10, 10),
              s_enhance=3, max_delta=20,
              norm=True, raster_files=None,
-             time_pruning=1, time_roll=0,
+             time_shape=slice(None, None, 1),
+             time_roll=0,
              means=None,
              n_batches=10,
              stds=None,
@@ -1000,10 +1002,10 @@ class SpatialBatchHandler(BatchHandler):
         norm : bool
             Wether to normalize data using means/stds calulcated across
             all handlers
-        time_pruning : int
-            Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped. This is an interval value, e.g. slice(None,
-            None, time_pruning)
+        time_shape : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to
+            slice(None, None, 1) the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -1049,7 +1051,7 @@ class SpatialBatchHandler(BatchHandler):
             temporal_sample_shape=1,
             max_delta=max_delta,
             raster_files=raster_files,
-            time_pruning=time_pruning,
+            time_shape=time_shape,
             time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,

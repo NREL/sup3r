@@ -36,7 +36,7 @@ def test_handler(plot=False):
     with NaN values for nighttime."""
     handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                                target=TARGET, shape=SHAPE,
-                               time_pruning=2,
+                               time_shape=slice(None, None, 2),
                                time_roll=-7,
                                val_split=0.1,
                                temporal_sample_shape=24,
@@ -93,7 +93,7 @@ def test_batching(plot=False):
     """Test batching of nsrdb data against hand-calc coarsening"""
     handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                                target=TARGET, shape=SHAPE,
-                               time_pruning=2,
+                               time_shape=slice(None, None, 2),
                                time_roll=-7,
                                val_split=0.1,
                                temporal_sample_shape=24,
@@ -164,7 +164,7 @@ def test_val_data():
     """Test basic properties of the nsrdb validation dataset"""
     handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                                target=TARGET, shape=SHAPE,
-                               time_pruning=2,
+                               time_shape=slice(None, None, 2),
                                time_roll=-7,
                                val_split=0.1,
                                temporal_sample_shape=24,
@@ -202,7 +202,7 @@ def test_ancillary_vars():
     features = ['clearsky_ratio', 'U', 'V', 'air_temperature']
     handler = DataHandlerNsrdb(INPUT_FILE, features,
                                target=TARGET, shape=SHAPE,
-                               time_pruning=2,
+                               time_shape=slice(None, None, 2),
                                time_roll=-7,
                                val_split=0.0,
                                temporal_sample_shape=24,
