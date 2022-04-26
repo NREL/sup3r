@@ -10,12 +10,11 @@ import numpy as np
 import re
 from datetime import datetime as dt
 
-from rex import WindX
+from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (transform_rotate_wind,
                                        bvf_squared,
                                        get_raster_shape,
-                                       nn_fill_array,
                                        inverse_mo_length)
 
 from sup3r import __version__
@@ -52,6 +51,7 @@ class ClearSkyRatioH5(DerivedFeature):
         ----------
         feature : str
             Clearsky ratio feature name, needs to be "clearsky_ratio"
+
         Returns
         -------
         list
@@ -71,16 +71,20 @@ class ClearSkyRatioH5(DerivedFeature):
             clearsky_ghi and ghi
         height : str | int
             Placeholder to match interface with other compute methods
+
         Returns
         -------
         cs_ratio : ndarray
-            Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. Nighttime
-            data is gap filled from nearest valid data.
+            Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. NaN where
+            nighttime.
         """
-        night_mask = data['clearsky_ghi'] == 0
+
+        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # in integer format and weird binning patterns happen in the clearsky
+        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 2
         data['clearsky_ghi'][night_mask] = np.nan
         cs_ratio = data['ghi'] / data['clearsky_ghi']
-        cs_ratio = nn_fill_array(cs_ratio)
         cs_ratio = cs_ratio.astype(np.float32)
         return cs_ratio
 
@@ -96,6 +100,7 @@ class CloudMaskH5(DerivedFeature):
         ----------
         feature : str
             Cloud mask feature name, needs to be "cloud_mask"
+
         Returns
         -------
         list
@@ -115,17 +120,22 @@ class CloudMaskH5(DerivedFeature):
             clearsky_ghi and ghi
         height : str | int
             Placeholder to match interface with other compute methods
+
         Returns
         -------
         cloud_mask : ndarray
-            Cloud mask, e.g. 1 where cloudy, 0 where clear. Data is float32 so
-            it can be normalized without any integer weirdness.
+            Cloud mask, e.g. 1 where cloudy, 0 where clear. NaN where
+            nighttime. Data is float32 so it can be normalized without any
+            integer weirdness.
         """
-        night_mask = data['clearsky_ghi'] == 0
-        data['clearsky_ghi'][night_mask] = np.nan
+
+        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # in integer format and weird binning patterns happen in the clearsky
+        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 2
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
-        cloud_mask = nn_fill_array(cloud_mask)
+        cloud_mask[night_mask] = np.nan
         cloud_mask = cloud_mask.astype(np.float32)
         return cloud_mask
 
@@ -496,6 +506,94 @@ class VWindH5(DerivedFeature):
         return v
 
 
+class UWindNsrdb(DerivedFeature):
+    """U wind component feature class with needed inputs
+    method and compute method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing U wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. U
+
+        Returns
+        -------
+        list
+            List of required features for computing U
+        """
+        features = ['wind_speed', 'wind_direction', 'lat_lon']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute U wind component from H5 data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        u, _ = transform_rotate_wind(data['wind_speed'],
+                                     data['wind_direction'],
+                                     data['lat_lon'])
+        return u
+
+
+class VWindNsrdb(DerivedFeature):
+    """V wind component feature class with needed inputs
+    method and compute method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing V wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. V_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing V
+        """
+        features = ['wind_speed', 'wind_direction', 'lat_lon']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute V wind component from H5 data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        _, v = transform_rotate_wind(data['wind_speed'],
+                                     data['wind_direction'],
+                                     data['lat_lon'])
+        return v
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
@@ -518,11 +616,11 @@ class LatLonH5:
             (spatial_1, spatial_2, 2)
         """
 
-        with WindX(file_path[0], hsds=False) as handle:
+        with Resource(file_path[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
-            lat_lon = lat_lon.reshape(
-                (raster_index.shape[0],
-                 raster_index.shape[1], 2))
+            lat_lon = lat_lon.reshape((raster_index.shape[0],
+                                       raster_index.shape[1],
+                                       2))
 
         return lat_lon
 
@@ -543,7 +641,7 @@ class Feature:
         ----------
         feature : str
             Raw feature name e.g. U_100m
-        handle : WindX | xarray
+        handle : WindX | NSRDBX | xarray
             handle for data file
         """
         self.alternative_names = {
@@ -614,7 +712,7 @@ class Feature:
 
         Parameters
         ----------
-        handle : WindX | xarray
+        handle : WindX | NSRDBX | xarray
             handle pointing to file data
         feature : str
             Feature name. e.g. temperature_100m

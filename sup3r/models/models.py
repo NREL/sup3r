@@ -297,8 +297,14 @@ class BaseModel(ABC):
                 low_res[..., i] = (low_res[..., i] - m) / s
 
         hi_res = self.generator.layers[0](low_res)
-        for layer in self.generator.layers[1:]:
-            hi_res = layer(hi_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
 
         return hi_res
 
@@ -912,8 +918,14 @@ class SpatialGan(BaseModel):
                 hi_res[islice] = (hi_res[islice] - m) / s
 
         out = self.disc.layers[0](hi_res)
-        for layer in self.disc.layers[1:]:
-            out = layer(out)
+        for i, layer in enumerate(self.disc.layers[1:]):
+            try:
+                out = layer(out)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, out.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
 
         return out
 
@@ -1347,8 +1359,14 @@ class SpatioTemporalGan(BaseModel):
                 hi_res[islice] = (hi_res[islice] - m) / s
 
         out = self.disc_spatial.layers[0](hi_res)
-        for layer in self.disc_spatial.layers[1:]:
-            out = layer(out)
+        for i, layer in enumerate(self.disc_spatial.layers[1:]):
+            try:
+                out = layer(out)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, out.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
 
         return out
 
@@ -1378,8 +1396,14 @@ class SpatioTemporalGan(BaseModel):
                 hi_res[islice] = (hi_res[islice] - m) / s
 
         out = self.disc_temporal.layers[0](hi_res)
-        for layer in self.disc_temporal.layers[1:]:
-            out = layer(out)
+        for i, layer in enumerate(self.disc_temporal.layers[1:]):
+            try:
+                out = layer(out)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, out.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
 
         return out
 

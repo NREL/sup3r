@@ -9,7 +9,7 @@ from fnmatch import fnmatch
 import os
 import xarray as xr
 
-from rex import WindX
+from rex import Resource
 
 np.random.seed(42)
 
@@ -93,6 +93,46 @@ def uniform_time_sampler(data, shape):
     return slice(start, stop)
 
 
+def daily_time_sampler(data, shape, time_index):
+    """
+    Extracts a temporal slice from data starting at midnight of a random day
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (time_steps) Size of time slice to sample from data, must be an integer
+        multiple of 24.
+    time_index : pd.Datetimeindex
+        Time index that matches the data axis=2
+
+    Returns:
+    --------
+    slice : slice
+        time slice with size shape of data starting at the beginning of the day
+    """
+
+    msg = ('data {} and time index ({}) shapes do not match, cannot sample '
+           'daily data.'.format(data.shape, len(time_index)))
+    assert data.shape[2] == len(time_index), msg
+
+    ti_short = time_index[:-shape]
+    midnight_ilocs = np.where((ti_short.hour == 0)
+                              & (ti_short.minute == 0)
+                              & (ti_short.second == 0))[0]
+
+    if data.shape[2] <= shape:
+        start = 0
+        stop = data.shape[2]
+    else:
+        start = np.random.randint(0, len(midnight_ilocs))
+        start = midnight_ilocs[start]
+        stop = start + shape
+    return slice(start, stop)
+
+
 def transform_rotate_wind(ws, wd, lat_lon):
     """Transform windspeed/direction to
     u and v and align u and v with grid
@@ -132,8 +172,8 @@ def transform_rotate_wind(ws, wd, lat_lon):
     return u_rot, v_rot
 
 
-def temporal_coarsening(data, temporal_res=2, method='subsample'):
-    """"Coarsen data according to temporal_res resolution
+def temporal_coarsening(data, t_enhance=2, method='subsample'):
+    """"Coarsen data according to t_enhance resolution
 
     Parameters
     ----------
@@ -141,14 +181,14 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
 
-    temporal_res : int
+    t_enhance : int
         factor by which to coarsen temporal dimension
 
     method : str
         accepted options: [subsample, average, total]
-        Subsample will take every temporal_res-th time step,
-        average will average over temporal_res time steps,
-        total will sum over temporal_res time steps
+        Subsample will take every t_enhance-th time step,
+        average will average over t_enhance time steps,
+        total will sum over t_enhance time steps
 
     Returns
     -------
@@ -157,20 +197,21 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
         with new coarse resolution
     """
 
-    if temporal_res is not None and len(data.shape) == 5:
+    if t_enhance is not None and len(data.shape) == 5:
         if method == 'subsample':
-            coarse_data = data[:, :, :, ::temporal_res, :]
+            coarse_data = data[:, :, :, ::t_enhance, :]
         if method == 'average':
-            coarse_data = np.average(
+            coarse_data = np.nansum(
                 data.reshape(
                     (data.shape[0], data.shape[1],
-                     data.shape[2], -1, temporal_res,
+                     data.shape[2], -1, t_enhance,
                      data.shape[4])), axis=4)
+            coarse_data /= t_enhance
         if method == 'total':
-            coarse_data = np.sum(
+            coarse_data = np.nansum(
                 data.reshape(
                     (data.shape[0], data.shape[1],
-                     data.shape[2], -1, temporal_res,
+                     data.shape[2], -1, t_enhance,
                      data.shape[4])), axis=4)
 
     else:
@@ -179,8 +220,8 @@ def temporal_coarsening(data, temporal_res=2, method='subsample'):
     return coarse_data
 
 
-def spatial_coarsening(data, spatial_res=2):
-    """"Coarsen data according to spatial_res resolution
+def spatial_coarsening(data, s_enhance=2):
+    """"Coarsen data according to s_enhance resolution
 
     Parameters
     ----------
@@ -192,7 +233,7 @@ def spatial_coarsening(data, spatial_res=2):
         2D array with dimensions
         (spatial_1, spatial_2)
 
-    spatial_res : int
+    s_enhance : int
         factor by which to coarsen spatial dimensions
 
     Returns
@@ -202,32 +243,39 @@ def spatial_coarsening(data, spatial_res=2):
         with new coarse resolution
     """
 
-    if spatial_res is not None:
-        if (data.shape[1] % spatial_res != 0
-                or data.shape[2] % spatial_res != 0):
-            msg = 'spatial_res must evenly divide grid size. '
-            msg += f'Received spatial_res: {spatial_res} '
+    if s_enhance is not None:
+        if (data.shape[1] % s_enhance != 0
+                or data.shape[2] % s_enhance != 0):
+            msg = 's_enhance must evenly divide grid size. '
+            msg += f'Received s_enhance: {s_enhance} '
             msg += f'with grid size: ({data.shape[1]}, '
             msg += f'{data.shape[2]})'
+            logger.error(msg)
             raise ValueError(msg)
 
         if len(data.shape) == 5:
             coarse_data = data.reshape(data.shape[0],
                                        -1,
-                                       spatial_res,
-                                       data.shape[1] // spatial_res,
-                                       spatial_res,
+                                       s_enhance,
+                                       data.shape[1] // s_enhance,
+                                       s_enhance,
                                        data.shape[3],
                                        data.shape[4]).sum((2, 4)) \
-                / (spatial_res * spatial_res)
+                / (s_enhance * s_enhance)
+
+        elif len(data.shape) == 4:
+            coarse_data = data.reshape(data.shape[0], -1,
+                                       s_enhance,
+                                       data.shape[1] // s_enhance,
+                                       s_enhance,
+                                       data.shape[3]).sum((2, 4)) \
+                / (s_enhance * s_enhance)
 
         else:
-            coarse_data = data.reshape(data.shape[0], -1,
-                                       spatial_res,
-                                       data.shape[1] // spatial_res,
-                                       spatial_res,
-                                       data.shape[3]).sum((2, 4)) \
-                / (spatial_res * spatial_res)
+            msg = ('Data must be 4D or 5D to do spatial coarsening, but '
+                   'received: {}'.format(data.shape))
+            logger.error(msg)
+            raise ValueError(msg)
 
     else:
         coarse_data = data
@@ -235,8 +283,8 @@ def spatial_coarsening(data, spatial_res=2):
     return coarse_data
 
 
-def lat_lon_coarsening(lat_lon, spatial_res=2):
-    """"Coarsen lat_lon according to spatial_res resolution
+def lat_lon_coarsening(lat_lon, s_enhance=2):
+    """"Coarsen lat_lon according to s_enhance resolution
 
     Parameters
     ----------
@@ -244,7 +292,7 @@ def lat_lon_coarsening(lat_lon, spatial_res=2):
         2D array with dimensions
         (spatial_1, spatial_2)
 
-    spatial_res : int
+    s_enhance : int
         factor by which to coarsen spatial dimensions
 
     Returns
@@ -253,10 +301,10 @@ def lat_lon_coarsening(lat_lon, spatial_res=2):
         2D array with same dimensions as lat_lon
         with new coarse resolution
     """
-    coarse_lat_lon = lat_lon.reshape(-1, spatial_res,
-                                     lat_lon.shape[1] // spatial_res,
-                                     spatial_res, 2).sum((3, 1)) \
-        / (spatial_res * spatial_res)
+    coarse_lat_lon = lat_lon.reshape(-1, s_enhance,
+                                     lat_lon.shape[1] // s_enhance,
+                                     s_enhance, 2).sum((3, 1))
+    coarse_lat_lon /= (s_enhance * s_enhance)
     return coarse_lat_lon
 
 
@@ -744,13 +792,14 @@ def get_time_index(file_paths):
     ----------
     file_paths : list
         path to data file
+
     Returns
     -------
-    handle : xarray | WindX
-        data file extension
+    time_index : pd.DateTimeIndex | np.ndarray
+        Time index from h5 or nc source file(s)
     """
     if get_source_type(file_paths) == 'h5':
-        with WindX(file_paths[0], hsds=False) as handle:
+        with Resource(file_paths[0], hsds=False) as handle:
             time_index = handle.time_index
     else:
         with xr.open_mfdataset(file_paths, combine='nested',

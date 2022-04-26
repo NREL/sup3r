@@ -6,10 +6,11 @@ import logging
 import numpy as np
 
 from rex.utilities import log_mem
-from sup3r.utilities.utilities import (spatial_coarsening,
+from sup3r.utilities.utilities import (daily_time_sampler, spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
-                                       uniform_time_sampler)
+                                       uniform_time_sampler,
+                                       nn_fill_array)
 from sup3r.preprocessing.data_handling import get_handler_class
 from sup3r import __version__
 
@@ -18,13 +19,187 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+class Batch:
+    """Batch of low_res and high_res data"""
+
+    def __init__(self, low_res, high_res):
+        """Stores low and high res data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        """
+        self._low_res = low_res
+        self._high_res = high_res
+
+    def __len__(self):
+        """Get the number of observations in this batch."""
+        return len(self._low_res)
+
+    @property
+    def shape(self):
+        """Get the (low_res_shape, high_res_shape) shapes."""
+        return (self._low_res.shape, self._high_res.shape)
+
+    @property
+    def low_res(self):
+        """Get the low-resolution data for the batch."""
+        return self._low_res
+
+    @property
+    def high_res(self):
+        """Get the high-resolution data for the batch."""
+        return self._high_res
+
+    @staticmethod
+    def reduce_features(high_res, output_features_ind=None):
+        """Remove any feature channels that are only intended for the low-res
+        training input.
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        if output_features_ind is None:
+            return high_res
+        else:
+            return high_res[..., output_features_ind]
+
+    # pylint: disable=W0613
+    @classmethod
+    def get_coarse_batch(cls, high_res,
+                         s_enhance, t_enhance=1,
+                         temporal_coarsening_method='subsample',
+                         output_features_ind=None,
+                         output_features=None):
+        """Coarsen high res data and return Batch with
+        high res and low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int
+            factor by which to coarsen spatial dimensions of the
+            high resolution data
+        t_enhance : int
+            factor by which to coarsen temporal dimension of the
+            high resolution data
+        temporal_coarsening_method : str
+            method to use for temporal coarsening.
+            can be subsample, average, or total
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+        low_res = spatial_coarsening(
+            high_res, s_enhance)
+
+        if t_enhance != 1:
+            low_res = temporal_coarsening(
+                low_res, t_enhance,
+                temporal_coarsening_method)
+
+        high_res = cls.reduce_features(high_res, output_features_ind)
+        batch = cls(low_res, high_res)
+
+        return batch
+
+
+class NsrdbBatch(Batch):
+    """Special batch handler for NSRDB data"""
+
+    @classmethod
+    def get_coarse_batch(cls, high_res,
+                         s_enhance, t_enhance=1,
+                         temporal_coarsening_method='subsample',
+                         output_features_ind=None,
+                         output_features=None):
+        """Coarsen high res data and return Batch with
+        high res and low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int
+            factor by which to coarsen spatial dimensions of the
+            high resolution data
+        t_enhance : int
+            factor by which to coarsen temporal dimension of the
+            high resolution data
+        temporal_coarsening_method : str
+            method to use for temporal coarsening.
+            can be subsample, average, or total
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+
+        # for nsrdb, do temporal avg first so you dont have to do spatial agg
+        # across NaNs
+        low_res = temporal_coarsening(
+            high_res, t_enhance,
+            temporal_coarsening_method)
+
+        low_res = spatial_coarsening(
+            low_res, s_enhance)
+
+        high_res = cls.reduce_features(high_res, output_features_ind)
+
+        if (output_features is not None
+                and 'clearsky_ratio' in output_features):
+            cs_ind = output_features.index('clearsky_ratio')
+            if np.isnan(high_res[..., cs_ind]).any():
+                high_res[..., cs_ind] = nn_fill_array(high_res[..., cs_ind])
+
+        batch = cls(low_res, high_res)
+
+        return batch
+
+
 class ValidationData:
     """Iterator for validation data"""
+
+    # Classes to use for handling an individual batch obj.
+    BATCH_CLASS = Batch
 
     def __init__(self, data_handlers, batch_size=8,
                  s_enhance=3, t_enhance=1,
                  temporal_coarsening_method='subsample',
-                 output_features_ind=None):
+                 output_features_ind=None,
+                 output_features=None):
         """
         Parameters
         ----------
@@ -46,6 +221,8 @@ class ValidationData:
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
+        output_features : list
+            List of Generative model output feature names
         """
 
         spatial_shapes = np.array(
@@ -68,6 +245,7 @@ class ValidationData:
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
         self.output_features_ind = output_features_ind
+        self.output_features = output_features
 
     def _get_val_indices(self):
         """List of dicts to index each validation data
@@ -163,124 +341,61 @@ class ValidationData:
 
             if self.temporal_sample_shape == 1:
                 high_res = high_res[:, :, :, 0, :]
-            batch = Batch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features)
             self._i += 1
             return batch
         else:
             raise StopIteration
 
 
-class Batch:
-    """Batch of low_res and high_res data"""
+class NsrdbValidationData(ValidationData):
+    """Iterator for daily NSRDB validation data"""
 
-    def __init__(self, low_res, high_res):
-        """Stores low and high res data
+    # Classes to use for handling an individual batch obj.
+    BATCH_CLASS = NsrdbBatch
 
-        Parameters
-        ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        """
-        self._low_res = low_res
-        self._high_res = high_res
-
-    def __len__(self):
-        """Get the number of observations in this batch."""
-        return len(self._low_res)
-
-    @property
-    def shape(self):
-        """Get the (low_res_shape, high_res_shape) shapes."""
-        return (self._low_res.shape, self._high_res.shape)
-
-    @property
-    def low_res(self):
-        """Get the low-resolution data for the batch."""
-        return self._low_res
-
-    @property
-    def high_res(self):
-        """Get the high-resolution data for the batch."""
-        return self._high_res
-
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
-        """Remove any feature channels that are only intended for the low-res
-        training input.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-        if output_features_ind is None:
-            return high_res
-        else:
-            return high_res[..., output_features_ind]
-
-    @classmethod
-    def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=1,
-                         temporal_coarsening_method='subsample',
-                         output_features_ind=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            factor by which to coarsen spatial dimensions of the
-            high resolution data
-        t_enhance : int
-            factor by which to coarsen temporal dimension of the
-            high resolution data
-        temporal_coarsening_method : str
-            method to use for temporal coarsening.
-            can be subsample, average, or total
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
+    def _get_val_indices(self):
+        """List of dicts to index each validation data
+        observation across all handlers
 
         Returns
         -------
-        Batch
-            Batch instance with low and high res data
-        """
-        low_res = spatial_coarsening(
-            high_res, s_enhance)
+        val_indices : list[dict]
+            List of dicts with handler_index and tuple_index.
+            The tuple index is used to get validation data observation
+            with data[tuple_index]"""
 
-        if t_enhance != 1:
-            low_res = temporal_coarsening(
-                low_res, t_enhance,
-                temporal_coarsening_method)
+        val_indices = []
+        for i, h in enumerate(self.handlers):
+            for _ in range(h.val_data.shape[2]):
 
-        high_res = cls.reduce_features(high_res, output_features_ind)
+                spatial_slice = uniform_box_sampler(h.val_data,
+                                                    self.spatial_sample_shape)
 
-        batch = cls(low_res, high_res)
-        return batch
+                temporal_slice = daily_time_sampler(h.val_data,
+                                                    self.temporal_sample_shape,
+                                                    h.val_time_index)
+                tuple_index = tuple(spatial_slice
+                                    + [temporal_slice]
+                                    + [np.arange(h.val_data.shape[-1])])
+
+                val_indices.append({'handler_index': i,
+                                    'tuple_index': tuple_index})
+
+        return val_indices
 
 
 class BatchHandler:
     """Sup3r base batch handling class"""
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
 
     def __init__(self, data_handlers, batch_size=8,
                  s_enhance=3, t_enhance=2,
@@ -300,8 +415,6 @@ class BatchHandler:
         t_enhance : int
             Factor by which to coarsen temporal dimension of the high
             resolution data to generate low res data
-        norm : bool
-            Whether to normalize the data or not
         means : np.ndarray
             dimensions (features)
             array of means for all features
@@ -312,6 +425,11 @@ class BatchHandler:
             array of means for all features
             with same ordering as data features. If not None
             and norm is True these will be used form normalization
+        norm : bool
+            Whether to normalize the data or not
+        n_batches : int
+            Number of batches in an epoch, this sets the iteration limit for
+            this object.
         temporal_coarsening_method : str
             [subsample, average, total]
             Subsample will take every t_enhance-th time step,
@@ -353,11 +471,12 @@ class BatchHandler:
         if norm:
             self.normalize(means, stds)
 
-        self.val_data = ValidationData(
+        self.val_data = self.VAL_CLASS(
             data_handlers, batch_size=batch_size,
             s_enhance=s_enhance, t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind)
+            output_features_ind=self.output_features_ind,
+            output_features=self.output_features)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -423,7 +542,9 @@ class BatchHandler:
                            spatial_sample_shape=(10, 10),
                            temporal_sample_shape=10,
                            max_delta=20,
-                           raster_files=None, time_pruning=1,
+                           raster_files=None,
+                           time_pruning=1,
+                           time_roll=0,
                            list_chunk_size=None,
                            max_extract_workers=None,
                            max_compute_workers=None,
@@ -465,7 +586,13 @@ class BatchHandler:
             targets. If None raster_index will be calculated directly.
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         list_chunk_size : int
             Size of chunks to split file_paths into if a list of files
             is passed. If None no splitting will be performed.
@@ -511,6 +638,7 @@ class BatchHandler:
                     spatial_sample_shape=spatial_sample_shape,
                     temporal_sample_shape=temporal_sample_shape,
                     time_pruning=time_pruning,
+                    time_roll=time_roll,
                     max_extract_workers=max_extract_workers,
                     max_compute_workers=max_compute_workers,
                     time_chunk_size=time_chunk_size,
@@ -577,7 +705,8 @@ class BatchHandler:
              temporal_sample_shape=10,
              s_enhance=3, t_enhance=2,
              max_delta=20, norm=True,
-             raster_files=None, time_pruning=1,
+             raster_files=None,
+             time_pruning=1, time_roll=0,
              batch_size=8, n_batches=10,
              means=None, stds=None,
              temporal_coarsening_method='subsample',
@@ -631,7 +760,13 @@ class BatchHandler:
             all handlers
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         means : np.ndarray
             dimensions (features)
             array of means for all features
@@ -679,6 +814,7 @@ class BatchHandler:
             max_delta=max_delta,
             raster_files=raster_files,
             time_pruning=time_pruning,
+            time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
@@ -732,7 +868,7 @@ class BatchHandler:
         for i in range(self.shape[-1]):
             n_elems = 0
             for data_handler in self.data_handlers:
-                self.means[i] += np.sum(data_handler.data[:, :, :, i])
+                self.means[i] += np.nansum(data_handler.data[:, :, :, i])
                 n_elems += \
                     data_handler.shape[0] \
                     * data_handler.shape[1] \
@@ -740,7 +876,8 @@ class BatchHandler:
             self.means[i] = self.means[i] / n_elems
             for data_handler in self.data_handlers:
                 self.stds[i] += \
-                    np.sum((data_handler.data[:, :, :, i] - self.means[i])**2)
+                    np.nansum((data_handler.data[:, :, :, i]
+                               - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     def normalize(self, means=None, stds=None):
@@ -771,9 +908,8 @@ class BatchHandler:
 
     def __next__(self):
         self.current_batch_indices = []
-        if self._i <= self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size,
@@ -781,20 +917,31 @@ class BatchHandler:
                                  self.spatial_sample_shape[1],
                                  self.temporal_sample_shape,
                                  self.shape[-1]), dtype=np.float32)
+
             for i in range(self.batch_size):
-                high_res[i, :, :, :, :] = handler.get_next()
+                obs = handler.get_next()
+                high_res[i, :, :, :, :] = obs
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            batch = Batch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind)
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features)
 
             self._i += 1
             return batch
         else:
             raise StopIteration
+
+
+class NsrdbBatchHandler(BatchHandler):
+    """Sup3r base batch handling class"""
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = NsrdbValidationData
+    BATCH_CLASS = NsrdbBatch
 
 
 class SpatialBatchHandler(BatchHandler):
@@ -807,7 +954,8 @@ class SpatialBatchHandler(BatchHandler):
              spatial_sample_shape=(10, 10),
              s_enhance=3, max_delta=20,
              norm=True, raster_files=None,
-             time_pruning=1, means=None,
+             time_pruning=1, time_roll=0,
+             means=None,
              n_batches=10,
              stds=None,
              list_chunk_size=None,
@@ -854,7 +1002,13 @@ class SpatialBatchHandler(BatchHandler):
             all handlers
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         means : np.ndarray
             dimensions (features)
             array of means for all features
@@ -896,6 +1050,7 @@ class SpatialBatchHandler(BatchHandler):
             max_delta=max_delta,
             raster_files=raster_files,
             time_pruning=time_pruning,
+            time_roll=time_roll,
             list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
@@ -910,7 +1065,7 @@ class SpatialBatchHandler(BatchHandler):
         return batch_handler
 
     def __next__(self):
-        if self._i <= self.n_batches:
+        if self._i < self.n_batches:
             handler_index = np.random.randint(
                 0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
@@ -921,7 +1076,7 @@ class SpatialBatchHandler(BatchHandler):
             for i in range(self.batch_size):
                 high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
 
-            batch = Batch.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 output_features_ind=self.output_features_ind)
 

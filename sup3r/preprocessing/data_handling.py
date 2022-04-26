@@ -11,16 +11,17 @@ import os
 from datetime import datetime as dt
 import pickle
 
-from rex import WindX
+from rex import WindX, NSRDBX
 from rex.utilities import log_mem
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
+                                       daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
                                        ignore_case_path_check,
                                        ignore_case_path_fetch,
                                        get_time_index,
-                                       get_source_type
+                                       get_source_type,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -30,6 +31,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   UWindH5,
                                                   VWindH5,
+                                                  UWindNsrdb,
+                                                  VWindNsrdb,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5)
@@ -53,11 +56,13 @@ def get_handler_class(file_paths):
     Returns
     -------
     DataHandler
-        Either DataHandlerNC or DataHandlerH5
+        Either DataHandlerNC, DataHandlerH5, DataHandlerNsrdb
 
     """
     if get_source_type(file_paths) == 'h5':
         HandlerClass = DataHandlerH5
+        if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
+            HandlerClass = DataHandlerNsrdb
     else:
         HandlerClass = DataHandlerNC
     return HandlerClass
@@ -73,7 +78,7 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_pruning=1, val_split=0.1,
+                 max_delta=20, time_pruning=1, time_roll=0, val_split=0.1,
                  temporal_sample_shape=1, spatial_sample_shape=(10, 10),
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None, max_compute_workers=None,
@@ -117,7 +122,13 @@ class DataHandler(FeatureHandler):
             temporal batching
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         max_compute_workers : int | None
@@ -157,7 +168,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
         self.features = features
         self.grid_shape = shape
-        self.time_index = get_time_index(self.file_path)
+        self.val_time_index = None
         self.target = target
         self.max_delta = max_delta
         self.raster_file = raster_file
@@ -165,6 +176,9 @@ class DataHandler(FeatureHandler):
         self.spatial_sample_shape = spatial_sample_shape
         self.temporal_sample_shape = temporal_sample_shape
         self.time_pruning = time_pruning
+        self.time_roll = time_roll
+        self.time_index = get_time_index(self.file_path)
+        self.time_index = self.time_index[::self.time_pruning]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.raster_index = self.get_raster_index(
@@ -174,7 +188,7 @@ class DataHandler(FeatureHandler):
 
         if cache_file_prefix is not None:
             self.cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.npy' for f in features]
+                f'{cache_file_prefix}_{f.lower()}.pkl' for f in features]
         else:
             self.cache_files = None
 
@@ -199,8 +213,10 @@ class DataHandler(FeatureHandler):
                     'set to True. Proceeding with extraction.')
 
             self.data = self.extract_data(
-                self.file_path, self.raster_index, self.time_index,
-                self.features, self.time_pruning,
+                self.file_path, self.raster_index,
+                self.features,
+                time_pruning=self.time_pruning,
+                time_roll=self.time_roll,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
                 time_chunk_size=time_chunk_size,
@@ -351,6 +367,9 @@ class DataHandler(FeatureHandler):
         val_data = data[:, :, val_indices, :]
         train_data = data[:, :, training_indices, :]
 
+        self.val_time_index = self.time_index[val_indices]
+        self.time_index = self.time_index[training_indices]
+
         return train_data, val_data
 
     @property
@@ -410,8 +429,7 @@ class DataHandler(FeatureHandler):
         self.data = np.concatenate(feature_arrays, axis=-1)
 
         shape = get_raster_shape(self.raster_index)
-        requested_shape = (shape[0], shape[1],
-                           len(self.time_index[::self.time_pruning]),
+        requested_shape = (shape[0], shape[1], len(self.time_index),
                            len(self.features))
         msg = (f'Data loaded from cache {self.data.shape} '
                f'does not match the requested shape {requested_shape}')
@@ -478,7 +496,9 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def extract_data(cls, file_path, raster_index,
-                     time_index, features, time_pruning,
+                     features,
+                     time_pruning=1,
+                     time_roll=0,
                      max_extract_workers=None,
                      max_compute_workers=None,
                      time_chunk_size=100,
@@ -496,14 +516,17 @@ class DataHandler(FeatureHandler):
         raster_index : np.ndarray
             2D array of grid indices for H5 or list of
             slices for NETCDF
-        time_index : list
-            List of time indices specifying selection
-            along the time dimensions
         features : list
             list of features to extract
         time_pruning : int
             Number of timesteps to downsample. If time_pruning=1 no time
-            steps will be skipped.
+            steps will be skipped. This is an interval value, e.g. slice(None,
+            None, time_pruning)
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
         max_compute_workers : int | None
             max number of workers to use for computing features.
             If max_compute_workers == 1 then extraction will be serialized.
@@ -534,6 +557,9 @@ class DataHandler(FeatureHandler):
         shape = get_raster_shape(raster_index)
         logger.debug(
             f'Loading data for raster of shape {shape}')
+
+        # get the file-native time index without pruning
+        time_index = get_time_index(file_path)
 
         data_array = np.zeros(
             (shape[0], shape[1], len(time_index), len(features)),
@@ -575,6 +601,7 @@ class DataHandler(FeatureHandler):
             raw_data.pop(t)
 
         data_array = data_array[:, :, ::time_pruning, :]
+        data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:
             for f in [f for f in features if f not in extract_features]:
@@ -771,6 +798,9 @@ class DataHandlerNC(DataHandler):
 class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
+    # the handler from rex to open h5 data.
+    REX_HANDLER = WindX
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features
@@ -785,9 +815,7 @@ class DataHandlerH5(DataHandler):
             'BVF_MO_(.*)': BVFreqMonH5,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+            'lat_lon': LatLonH5}
         return registry
 
     @classmethod
@@ -834,7 +862,7 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with WindX(file_path[0], hsds=False) as handle:
+        with cls.REX_HANDLER(file_path[0], hsds=False) as handle:
 
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
@@ -885,7 +913,7 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with WindX(file_path[0], hsds=False) as handle:
+            with self.REX_HANDLER(file_path[0], hsds=False) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             if self.raster_file is not None:
@@ -893,3 +921,83 @@ class DataHandlerH5(DataHandler):
                     f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
+
+
+class DataHandlerNsrdb(DataHandlerH5):
+    """Special data handling and batch sampling for NSRDB solar data"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = NSRDBX
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U': UWindNsrdb,
+            'V': VWindNsrdb,
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
+
+    def get_observation_index(self):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice,
+            and features indices. Used to get single observation
+            like self.data[observation_index]
+        """
+        spatial_slice = uniform_box_sampler(self.data,
+                                            self.spatial_sample_shape)
+        temporal_slice = daily_time_sampler(self.data,
+                                            self.temporal_sample_shape,
+                                            self.time_index)
+        obs_index = tuple(spatial_slice
+                          + [temporal_slice]
+                          + [np.arange(len(self.features))])
+        return obs_index
+
+    def split_data(self, data):
+        """Splits time dimension into set of training indices and validation
+        indices. For NSRDB it makes sure that the splits happen at midnight.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            4D array of high res data
+            (spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Training data fraction of initial data array. Initial
+            data array is overwritten by this new data array.
+        val_data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Validation data fraction of initial data array.
+        """
+
+        midnight_ilocs = np.where((self.time_index.hour == 0)
+                                  & (self.time_index.minute == 0)
+                                  & (self.time_index.second == 0))[0]
+
+        n_val_obs = int(np.round(self.val_split * len(midnight_ilocs)))
+        val_split_index = midnight_ilocs[n_val_obs]
+
+        self.val_data = data[:, :, slice(None, val_split_index), :]
+        self.data = data[:, :, slice(val_split_index, None), :]
+
+        self.val_time_index = self.time_index[slice(None, val_split_index)]
+        self.time_index = self.time_index[slice(val_split_index, None)]
+
+        return self.data, self.val_data
