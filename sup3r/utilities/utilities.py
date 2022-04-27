@@ -8,6 +8,7 @@ from scipy import ndimage as nd
 from fnmatch import fnmatch
 import os
 import xarray as xr
+import re
 
 from rex import Resource
 
@@ -25,6 +26,29 @@ def get_raster_shape(raster_index):
     else:
         shape = raster_index.shape
     return shape
+
+
+def get_wrf_date_range(files):
+    """Get wrf date range for cleaner log output
+
+    Parameters
+    ----------
+    files : list
+        List of wrf file paths
+
+    Returns
+    -------
+    date_start : str
+        start date
+    date_end : str
+        end date
+    """
+
+    date_start = re.search(r'(\d+(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                           files[0])
+    date_end = re.search(r'(\d+(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                         files[-1])
+    return date_start, date_end
 
 
 def uniform_box_sampler(data, shape):
@@ -394,7 +418,7 @@ def interp3D(var_array, h_array, heights):
     var_array : ndarray
         Array of variable values
     h_array : ndarray
-        Array of height values corresponding to the wrf source data
+        Array of heigh values corresponding to the wrf source data
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
     Returns
@@ -404,8 +428,8 @@ def interp3D(var_array, h_array, heights):
     """
 
     msg = ('Input arrays must be the same shape.'
-           f'\nvar_array: {var_array.shape}'
-           f'\nh_array: {h_array.shape}')
+           '\nvar_array: {}\nh_array: {}'
+           .format(var_array.shape, h_array.shape))
     assert var_array.shape == h_array.shape, msg
 
     heights = [heights] if isinstance(
@@ -420,38 +444,40 @@ def interp3D(var_array, h_array, heights):
         raise RuntimeError(msg)
 
     if not height_check:
-        msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
-               f'({h_min}, {h_max})')
+        msg = ('Heights {} exceed the bounds of the pressure levels: '
+               '({}, {})'.format(heights, h_min, h_max))
         logger.error(msg)
         raise RuntimeError(msg)
 
     array_shape = var_array.shape
 
-    h_array = h_array.reshape((array_shape[0], array_shape[1],
-                               np.product(array_shape[2:]))).T
+    # Reduce h_array and var_array shape to accomodate interpolation
+    if len(array_shape) == 4:
+        h_array = h_array[0]
+        var_array = var_array[0]
 
-    var_array = var_array.reshape((array_shape[0], array_shape[1],
-                                   np.product(array_shape[2:]))).T
+    # Flatten h_array and var_array along lat, long axis
+    h_array = h_array.reshape((array_shape[-3],
+                               np.product(array_shape[-2:]))).T
+    var_array = var_array.reshape((array_shape[-3],
+                                   np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    time_steps = [np.array(
-        [np.interp(heights, h, var) for h, var
-         in zip(h_array[:, :, i], var_array[:, :, i])],
-        np.float32)[np.newaxis, :, :] for i in range(array_shape[0])]
-
-    out_array = np.concatenate(time_steps, axis=0)
-
-    if isinstance(heights, (int, float)) or len(heights) == 1:
-        out_array = out_array.T.reshape((array_shape[0], array_shape[2],
-                                         array_shape[3]))
+    out_array = np.array([np.interp(heights, h, var)
+                          for h, var in zip(h_array, var_array)])
+    # Reshape out_array
+    if isinstance(heights, (float, np.float32, int)):
+        out_array = out_array.T.reshape((1, array_shape[-2],
+                                         array_shape[-1]))
     else:
-        out_array = out_array.T.reshape((array_shape[0], len(heights),
-                                         array_shape[2], array_shape[3]))
+        out_array = out_array.T.reshape((len(heights), array_shape[-2],
+                                         array_shape[-1]))
 
     return out_array
 
 
 def interp_var(data, var, heights):
+
     """
     Interpolate var_array to given level(s) based on h_array.
     Interpolation is linear and done for every 'z' column of [var, h] data.
@@ -471,7 +497,12 @@ def interp_var(data, var, heights):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-    return interp3D(unstagger_var(data, var), calc_height(data), heights)
+
+    time_steps = [interp3D(
+        unstagger_var(data, var)[i],
+        calc_height(data)[i],
+        heights) for i in range(len(data['Time']))]
+    return np.concatenate(time_steps, axis=0)
 
 
 def potential_temperature(T, P):

@@ -24,6 +24,7 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
+input_files = sorted(input_files)
 target = (19, -125)
 targets = target
 shape = (8, 8)
@@ -45,59 +46,44 @@ def test_height_interpolation():
     """Make sure height interpolation is working as expected.
     Specifically that it is returning the correct number of time steps"""
 
-    height = 250
+    height = 100
     features = [f'U_{height}m']
     handler = DataHandlerNC(input_files, features, target=target,
-                            shape=shape, max_delta=20)
+                            shape=shape, max_delta=20, val_split=0.0)
 
     raster_index = handler.raster_index
 
+    data = handler.data
+
     tmp = xr.open_mfdataset(
         input_files, concat_dim='Time', combine='nested')
+
     U_tmp = utilities.unstagger_var(tmp, 'U')
-
-    data = handler.extract_data(
-        input_files, raster_index, features,
-        time_shape=time_shape,
-        max_extract_workers=None,
-        max_compute_workers=None,
-        time_chunk_size=100)
-    train_data, val_data = handler.split_data(data)
-
-    print(data.shape)
-
-    assert np.array_equal(
-        data, np.concatenate([val_data, train_data], axis=2))
+    U_tmp = U_tmp[:, :, raster_index[0], raster_index[1]]
 
     h_array = utilities.calc_height(tmp)
 
-    arrs = []
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            for t in range(data.shape[2]):
 
-    h_array = h_array.reshape((U_tmp.shape[0], U_tmp.shape[1],
-                               np.product(U_tmp.shape[2:]))).T
+                val = data[i, j, t, :]
 
-    var_array = U_tmp.reshape((U_tmp.shape[0], U_tmp.shape[1],
-                               np.product(U_tmp.shape[2:]))).T
+                # get closest U value
+                for h, _ in enumerate(h_array[t, :, i, j][:-1]):
+                    lower_hgt = h_array[t, h, i, j]
+                    higher_hgt = h_array[t, h + 1, i, j]
+                    if lower_hgt <= height <= higher_hgt:
+                        alpha = (height - lower_hgt) / (higher_hgt - lower_hgt)
+                        lower_val = U_tmp[t, h, i, j]
+                        higher_val = U_tmp[t, h + 1, i, j]
+                        compare_val = lower_val * (1 - alpha)
+                        compare_val += higher_val * alpha
 
-    # Interpolate each column of height and var to specified levels
-    for t in range(U_tmp.shape[0]):
+                # get vertical standard deviation of U
+                stdev = np.std(U_tmp[t, :, i, j])
 
-        arrs.append(np.array(
-            [np.interp([height], h, var) for h, var
-             in zip(h_array[:, :, t], var_array[:, :, t])],
-            np.float32)[np.newaxis, :, :])
-
-    arrs = np.concatenate(arrs, axis=0)
-
-    arrs = arrs.T.reshape(
-        (U_tmp.shape[0], U_tmp.shape[2], U_tmp.shape[3]))
-
-    arrs = arrs[tuple([slice(None)] + raster_index)]
-    arrs = np.transpose(arrs, (1, 2, 0))
-
-    assert data.shape[2] == arrs.shape[2]
-
-    assert np.array_equal(data, arrs[:, :, :, np.newaxis])
+                assert compare_val - stdev <= val <= compare_val + stdev
 
 
 @pytest.mark.parametrize(

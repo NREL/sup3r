@@ -21,6 +21,7 @@ from sup3r.utilities.utilities import (uniform_box_sampler,
                                        ignore_case_path_fetch,
                                        get_time_index,
                                        get_source_type,
+                                       get_wrf_date_range
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -154,9 +155,6 @@ class DataHandler(FeatureHandler):
             Whether to load data from cache files
         """
 
-        logger.info(
-            f'Initializing DataHandler from source files: {file_path}')
-
         check = ((target is not None and shape is not None)
                  or (raster_file is not None and os.path.exists(raster_file)))
         msg = ('You must either provide the target+shape inputs '
@@ -168,6 +166,11 @@ class DataHandler(FeatureHandler):
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
         self.file_path = sorted(self.file_path)
+
+        logger.info(
+            'Initializing DataHandler for files from '
+            f'{self.file_info_logging(self.file_path)}')
+
         self.features = features
         self.grid_shape = shape
         self.val_time_index = None
@@ -183,20 +186,9 @@ class DataHandler(FeatureHandler):
         self.time_index = self.time_index[time_shape]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
-        self.raster_index = self.get_raster_index(
-            self.file_path, self.target, self.grid_shape)
         self.overwrite_cache = overwrite_cache
         self.load_cached = load_cached
-
-        if cache_file_prefix is not None:
-            self.cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.pkl' for f in features]
-            for i, fp in enumerate(self.cache_files):
-                fp_check = ignore_case_path_fetch(fp)
-                if fp_check is not None:
-                    self.cache_files[i] = fp_check
-        else:
-            self.cache_files = None
+        self.cache_files = self.get_cache_file_names(cache_file_prefix)
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):
@@ -218,6 +210,8 @@ class DataHandler(FeatureHandler):
                     f'{self.cache_files} exists but overwrite_cache is '
                     'set to True. Proceeding with extraction.')
 
+            self.raster_index = self.get_raster_index(
+                self.file_path, self.target, self.grid_shape)
             self.data = self.extract_data(
                 self.file_path, self.raster_index,
                 self.features,
@@ -229,9 +223,9 @@ class DataHandler(FeatureHandler):
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
-            if cache_file_prefix is None:
+            if cache_file_prefix is None and val_split > 0:
                 self.data, self.val_data = self.split_data(self.data)
-            else:
+            elif cache_file_prefix is not None:
                 self.cache_data(self.cache_files)
                 self.data = None
 
@@ -241,6 +235,48 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    def get_cache_file_names(self, cache_file_prefix):
+        """Get names of cache files from cache_file_prefix
+        and feature names
+
+        Parameters
+        ----------
+        cache_file_prefix : str
+            Prefix to use for cache file names
+
+        Returns
+        -------
+        list
+            List of cache file names
+        """
+
+        if cache_file_prefix is not None:
+            basedir = os.path.dirname(cache_file_prefix)
+            if not os.path.exists(basedir):
+                os.makedirs(basedir)
+
+            cache_files = [
+                f'{cache_file_prefix}_{f.lower()}.pkl'
+                for f in self.features]
+            for i, fp in enumerate(cache_files):
+                fp_check = ignore_case_path_fetch(fp)
+                if fp_check is not None:
+                    cache_files[i] = fp_check
+        else:
+            cache_files = None
+
+        return cache_files
+
+    @classmethod
+    def file_info_logging(cls, file_path):
+        """Method to provide info about files in log output. Since
+        NETCDF files have single time slices printing out all the file
+        paths is just a text dump without much info.
+        """
+
+        msg = (f'source files: {file_path}')
+        return msg
 
     @property
     def output_features(self):
@@ -414,10 +450,46 @@ class DataHandler(FeatureHandler):
                     'already exists. Set to overwrite_cache to True to '
                     'overwrite.')
 
+    @staticmethod
+    def load_single_cached_feature(cache_files, feature):
+        """Load data for a single feature from cache
+
+        Parameters
+        ----------
+
+        cache_files : list
+            List of cache files containing feature data
+        feature : str
+            Name of feature to extract from cache
+
+        Returns
+        -------
+        ndarray
+            Array of feature data
+        """
+
+        for _, fp in enumerate(cache_files):
+
+            fp_ignore_case = ignore_case_path_fetch(fp)
+            if feature.lower() in fp.lower():
+                logger.info(f'Loading {feature} from {fp_ignore_case}')
+
+                with open(fp_ignore_case, 'rb') as fh:
+                    data = np.array(
+                        pickle.load(fh), dtype=np.float32)
+                    return data
+        msg = (f'{feature} not found in {cache_files}')
+        raise ValueError(msg)
+
     def load_cached_data(self):
         """Load data from cache files and split into
         training and validation
         """
+
+        self.raster_index = getattr(self, 'raster_index', None)
+        if self.raster_index is None:
+            self.raster_index = self.get_raster_index(
+                self.file_path, self.target, self.grid_shape)
 
         feature_arrays = []
         for i, fp in enumerate(self.cache_files):
@@ -573,7 +645,9 @@ class DataHandler(FeatureHandler):
         # split time dimension into smaller slices which can be
         # extracted in parallel
         n_chunks = int(np.ceil(len(time_index) / time_chunk_size))
-        time_chunks = np.array_split(np.arange(0, len(time_index)), n_chunks)
+        time_indices = np.arange(0, len(time_index))
+        time_indices = time_indices[time_shape.start:time_shape.stop]
+        time_chunks = np.array_split(time_indices, n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
         extract_features = cls.check_cached_features(
@@ -583,7 +657,10 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(file_path, extract_features)
 
         log_mem(logger, log_level='DEBUG')
-        logger.info(f'Starting {extract_features} extraction from {file_path}')
+
+        logger.info(
+            f'Starting {extract_features} extraction from '
+            f'{cls.file_info_logging(file_path)}')
 
         raw_data = cls.parallel_extract(
             file_path, raster_index, time_chunks,
@@ -605,7 +682,7 @@ class DataHandler(FeatureHandler):
                 data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = data_array[:, :, time_shape, :]
+        data_array = data_array[:, :, ::time_shape.step, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:
@@ -614,8 +691,10 @@ class DataHandler(FeatureHandler):
                 with open(cache_files[f_index], 'rb') as fh:
                     data_array[:, :, :, f_index] = pickle.load(fh)
 
-        logger.info('Finished extracting data from '
-                    f'{file_path} in {dt.now() - now}')
+        logger.info(
+            'Finished extracting data for files from '
+            f'{cls.file_info_logging(file_path)}'
+            f'in {dt.now() - now}')
 
         return data_array
 
@@ -645,6 +724,22 @@ class DataHandler(FeatureHandler):
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
+
+    @classmethod
+    def file_info_logging(cls, file_path):
+        """More concise file info about NETCDF files
+
+        Returns
+        -------
+        str
+            message to append to log output that does not
+            include a huge info dump of file paths
+        """
+
+        dirname = os.path.dirname(file_path[0])
+        date_start, date_end = get_wrf_date_range(file_path)
+        msg = (f'from {dirname} with date range: {date_start} - {date_end}')
+        return msg
 
     @classmethod
     def feature_registry(cls):
@@ -837,7 +932,7 @@ class DataHandlerH5(DataHandler):
             List of input features
         """
 
-        with WindX(file_path[0], hsds=False) as handle:
+        with cls.REX_HANDLER(file_path[0], hsds=False) as handle:
             input_features = cls.get_raw_feature_list_from_handle(
                 features, handle)
         return input_features
