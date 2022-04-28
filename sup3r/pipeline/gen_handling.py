@@ -13,6 +13,7 @@ import os
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.hpc import SLURM
+from rex.utilities.loggers import init_logger
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.models.models import SpatioTemporalGan
@@ -33,7 +34,7 @@ class ForwardPassHandler:
                  features, model_path,
                  target=None, shape=None,
                  temporal_shape=slice(None, None, 1),
-                 temporal_chunk_size=100,
+                 temporal_pass_chunk_size=100,
                  spatial_chunk_size=(100, 100),
                  raster_file=None,
                  s_enhance=3,
@@ -41,7 +42,7 @@ class ForwardPassHandler:
                  max_extract_workers=None,
                  max_compute_workers=None,
                  max_pass_workers=None,
-                 time_chunk_size=100,
+                 temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
                  out_file_prefix=None,
                  overwrite_cache=True,
@@ -91,7 +92,11 @@ class ForwardPassHandler:
             Slice defining size of full temporal domain. e.g. If shape is
             (100, 100) and temporal_shape is slice(0, 101, 1) then the full
             spatiotemporal data volume will be (100, 100, 100).
-        temporal_chunk_size : int
+        temporal_extract_chunk_size : int
+            Size of chunks to split time dimension into for parallel data
+            extraction. If running in serial this can be set to the size
+            of the full time index for best performance.
+        temporal_pass_chunk_size : int
             Max size of a temporal chunk to pass through the generator. e.g.
             If spatial_chunk_size is (10, 10) and temporal chunk size is 10
             then the spatiotemporal shape of each data chunk passed through
@@ -132,7 +137,7 @@ class ForwardPassHandler:
         self.target = target
         self.shape = shape
         self.spatial_chunk_size = spatial_chunk_size
-        self.temporal_chunk_size = temporal_chunk_size
+        self.temporal_pass_chunk_size = temporal_pass_chunk_size
         self.temporal_shape = temporal_shape
         self.max_pass_workers = max_pass_workers
         self.max_extract_workers = max_extract_workers
@@ -140,7 +145,7 @@ class ForwardPassHandler:
         self.model_path = model_path
         self.cache_file_prefix = cache_file_prefix
         self.out_file_prefix = out_file_prefix
-        self.time_chunk_size = time_chunk_size
+        self.temporal_extract_chunk_size = temporal_extract_chunk_size
         self.overwrite_cache = overwrite_cache
         self.t_enhance = t_enhance
         self.s_enhance = s_enhance
@@ -158,11 +163,14 @@ class ForwardPassHandler:
 
         slurm_manager = SLURM()
 
+        init_logger('sup3r.cli', log_level='DEBUG')
+
         default_kwargs = {"alloc": 'seasiawind',
                           "memory": 83,
-                          "walltime": 40,
+                          "walltime": 1,
                           "basename": 'sup3r',
-                          "feature": '--qos=high'}
+                          "feature": '--qos=high',
+                          "stdout": './'}
 
         user_input = copy.deepcopy(default_kwargs)
         user_input.update(kwargs)
@@ -184,7 +192,10 @@ class ForwardPassHandler:
                       'raster_file': self.raster_file,
                       'max_extract_workers': self.max_extract_workers,
                       'max_compute_workers': self.max_compute_workers,
-                      'time_chunk_size': self.time_chunk_size,
+                      'temporal_extract_chunk_size':
+                          self.temporal_extract_chunk_size,
+                      'temporal_pass_chunk_size':
+                          self.temporal_pass_chunk_size,
                       'cache_file_prefix': self.cache_file_prefix,
                       'max_pass_workers': self.max_pass_workers,
                       's_enhance': self.s_enhance,
@@ -221,8 +232,7 @@ class ForwardPassHandler:
             print(msg)
 
     @classmethod
-    def get_chunk_slices(cls,
-                         data_shape=None,
+    def get_chunk_slices(cls, data_shape=None,
                          temporal_chunk_size=24,
                          spatial_chunk_size=(10, 10),
                          s_enhance=3, t_enhance=4,
@@ -421,6 +431,13 @@ class ForwardPassHandler:
                 spatial_overlap=spatial_overlap,
                 temporal_overlap=temporal_overlap)
 
+        logger.info(
+            f'Starting forward passes. Using {len(high_res_slices)} chunks '
+            f'each with shape of ({spatial_chunk_size[0]}, '
+            f'{spatial_chunk_size[1]}, {temporal_pass_chunk_size}), '
+            f'spatial_overlap of {spatial_overlap} and temporal_overlap '
+            f'of {temporal_overlap}')
+
         data = np.zeros(
             (s_enhance * data_shape[0], s_enhance * data_shape[1],
              t_enhance * data_shape[2], 2),
@@ -466,6 +483,8 @@ class ForwardPassHandler:
                             f'{i+1} out of {len(futures)} forward passes '
                             'completed.')
 
+        logger.info('All forward passes are complete.')
+
         if out_file is not None:
             with open(out_file, 'wb') as fh:
                 logger.info(f'Saving forward pass output to {out_file}.')
@@ -501,9 +520,18 @@ class ForwardPassHandler:
 
         model = SpatioTemporalGan.load(model_path)
         data_chunk = np.expand_dims(data_chunk, axis=0)
-        high_res = model.generate(data_chunk)
 
-        return high_res[0][tuple(crop_slices + [slice(None)])]
+        hi_res = model.generator.layers[0](data_chunk)
+        for i, layer in enumerate(model.generator.layers[1:]):
+            try:
+                hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        return hi_res[0][tuple(crop_slices + [slice(None)])]
 
     @staticmethod
     def pad_slices(slices, ends, spatial_overlap=15, temporal_overlap=15):
