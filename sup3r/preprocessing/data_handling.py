@@ -223,9 +223,9 @@ class DataHandler(FeatureHandler):
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
-            if cache_file_prefix is None and val_split > 0:
+            if cache_file_prefix is None:
                 self.data, self.val_data = self.split_data(self.data)
-            elif cache_file_prefix is not None:
+            else:
                 self.cache_data(self.cache_files)
                 self.data = None
 
@@ -486,34 +486,36 @@ class DataHandler(FeatureHandler):
         training and validation
         """
 
-        self.raster_index = getattr(self, 'raster_index', None)
-        if self.raster_index is None:
-            self.raster_index = self.get_raster_index(
-                self.file_path, self.target, self.grid_shape)
+        if self.data is None:
+            self.raster_index = getattr(self, 'raster_index', None)
+            if self.raster_index is None:
+                self.raster_index = self.get_raster_index(
+                    self.file_path, self.target, self.grid_shape)
 
-        feature_arrays = []
-        for i, fp in enumerate(self.cache_files):
+            feature_arrays = []
+            for i, fp in enumerate(self.cache_files):
 
-            fp_ignore_case = ignore_case_path_fetch(fp)
-            assert self.features[i].lower() in fp.lower()
-            logger.info(f'Loading {self.features[i]} from {fp_ignore_case}')
+                fp_ignore_case = ignore_case_path_fetch(fp)
+                assert self.features[i].lower() in fp.lower()
+                logger.info(
+                    f'Loading {self.features[i]} from {fp_ignore_case}')
 
-            with open(fp_ignore_case, 'rb') as fh:
-                feature_arrays.append(
-                    np.array(pickle.load(fh)[:, :, :, np.newaxis],
-                             dtype=np.float32))
+                with open(fp_ignore_case, 'rb') as fh:
+                    feature_arrays.append(
+                        np.array(pickle.load(fh)[:, :, :, np.newaxis],
+                                 dtype=np.float32))
 
-        self.data = np.concatenate(feature_arrays, axis=-1)
+            self.data = np.concatenate(feature_arrays, axis=-1)
 
-        shape = get_raster_shape(self.raster_index)
-        requested_shape = (shape[0], shape[1], len(self.time_index),
-                           len(self.features))
-        msg = (f'Data loaded from cache {self.data.shape} '
-               f'does not match the requested shape {requested_shape}')
-        assert self.data.shape == requested_shape, msg
+            shape = get_raster_shape(self.raster_index)
+            requested_shape = (shape[0], shape[1], len(self.time_index),
+                               len(self.features))
+            msg = (f'Data loaded from cache {self.data.shape} '
+                   f'does not match the requested shape {requested_shape}')
+            assert self.data.shape == requested_shape, msg
 
-        del feature_arrays
-        self.data, self.val_data = self.split_data(self.data)
+            del feature_arrays
+            self.data, self.val_data = self.split_data(self.data)
 
     @classmethod
     def check_cached_features(cls, file_path, features, cache_files=None,

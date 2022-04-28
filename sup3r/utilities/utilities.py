@@ -44,10 +44,10 @@ def get_wrf_date_range(files):
         end date
     """
 
-    date_start = re.search(r'(\d+(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                           files[0])
-    date_end = re.search(r'(\d+(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                         files[-1])
+    date_start = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                           files[0])[0]
+    date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                         files[-1])[0]
     return date_start, date_end
 
 
