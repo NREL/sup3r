@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Sup3r forward pass handling module.
+
+@author: bbenton
 """
 
 import numpy as np
@@ -8,12 +10,10 @@ import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
 import pickle
-import copy
 import os
+import xarray as xr
 
 from rex.utilities.execution import SpawnProcessPool
-from rex.utilities.hpc import SLURM
-from rex.utilities.loggers import init_logger
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.models.models import SpatioTemporalGan
@@ -28,9 +28,22 @@ class ForwardPassHandler:
     """Class to handle parallel forward
     passes through the generator with multiple
     data files.
+
+    A full file list of contiguous times is provided.
+    This file list is split up into chunks each of which
+    is passed to a different node. These chunks can overlap
+    in time.
+
+    On each node the file list chunk is further split up into
+    temporal and spatial chunks which can also overlap. Each of
+    these chunks is passed through the GAN generator to produce
+    high resolution output. These high resolution chunks
+    are then stitched back together, accounting for possible
+    overlap. The stitched output is saved or returned in an array.
     """
 
-    def __init__(self, file_paths, file_path_chunk_size,
+    def __init__(self, file_paths,
+                 file_path_chunk_size,
                  features, model_path,
                  target=None, shape=None,
                  temporal_shape=slice(None, None, 1),
@@ -45,7 +58,7 @@ class ForwardPassHandler:
                  temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
                  out_file_prefix=None,
-                 overwrite_cache=True,
+                 overwrite_cache=False,
                  spatial_overlap=15,
                  temporal_overlap=15):
 
@@ -57,7 +70,8 @@ class ForwardPassHandler:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from
+            A list of NETCDF files to extract raster data from. Each file must
+            have the same number of timesteps.
         file_path_chunk_size : int
             Number of file paths to pass to each node for subsequent
             data extraction and forward pass
@@ -128,10 +142,10 @@ class ForwardPassHandler:
             for subsequent temporal stitching
         """
 
-        n_chunks = int(np.ceil(len(file_paths) / file_path_chunk_size))
-        file_chunks = np.array_split(np.arange(len(file_paths)), n_chunks)
+        with xr.open_dataset(file_paths[0]) as handle:
+            self.file_t_steps = len(handle['Time'])
+
         self.file_paths = sorted(file_paths)
-        self.file_chunks = [slice(f[0], f[-1] + 1) for f in file_chunks]
         self.features = features
         self.raster_file = raster_file
         self.target = target
@@ -151,85 +165,96 @@ class ForwardPassHandler:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
+        self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
+        self.file_chunks, self.padded_file_chunks, \
+            self.file_crop_slices, self.time_shapes = self.get_file_slices(
+                self.file_paths, file_path_chunk_size=file_path_chunk_size,
+                file_overlap=self.file_overlap, file_t_steps=self.file_t_steps,
+                time_shape=self.temporal_shape)
 
+        self.out_files = []
+        self.file_ids = [f'{chunk.start}_{chunk.stop}'
+                         for chunk in self.file_chunks]
         if self.out_file_prefix is not None:
             dirname = os.path.dirname(self.out_file_prefix)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
+            for file_ids in self.file_ids:
+                self.out_files.append(
+                    os.path.join(dirname, f'output_{file_ids}.pkl'))
 
-    def run(self, **kwargs):
-        """Run forward pass eagle jobs
+        msg = (f'Using a larger temporal_overlap {temporal_overlap} '
+               f'than temporal_chunk_size {temporal_pass_chunk_size}.')
+        if temporal_overlap > temporal_pass_chunk_size:
+            logger.warning(msg)
+
+        msg = (f'Using a larger spatial_overlap {spatial_overlap} '
+               f'than spatial_chunk_size {spatial_chunk_size}.')
+        if any(spatial_overlap > sc for sc in spatial_chunk_size):
+            logger.warning(msg)
+
+    @classmethod
+    def get_file_slices(cls, file_paths, file_path_chunk_size,
+                        file_overlap, file_t_steps, time_shape):
+        """
+        file_paths : list
+            A list of NETCDF files to extract raster data from
+        file_path_chunk_size : int
+            Number of file paths to pass to each node for subsequent
+            data extraction and forward pass
+        file_overlap : int
+            Number of files to pad file chunks with so that we have
+            temporal overlap between file sets passed to each node
+        file_t_steps : int
+            Number of time steps in a single file.
+        time_shape : slice
+            Slice describing full temporal domain across all files
+
+        Returns
+        -------
+        file_slices : list
+            List of file slices
+        padded_file_slices : list
+            List of file slices including specified file overlap
+        file_crop_slices : list
+            List of temporal slices used to crop the overlap associated
+            with the file slice padding
+        time_shapes : list
+            List of slices used to specify requested temporal extent
+            for file set passed to data handler.
         """
 
-        slurm_manager = SLURM()
+        file_crop_slices = []
+        padded_file_slices = []
 
-        init_logger('sup3r.cli', log_level='DEBUG')
+        n_chunks = int(np.ceil(len(file_paths) / file_path_chunk_size))
+        file_chunks = np.array_split(np.arange(len(file_paths)), n_chunks)
+        file_slices = [slice(f[0], f[-1] + 1) for f in file_chunks]
 
-        default_kwargs = {"alloc": 'seasiawind',
-                          "memory": 83,
-                          "walltime": 1,
-                          "basename": 'sup3r',
-                          "feature": '--qos=high',
-                          "stdout": './'}
+        for f in file_chunks:
+            start = max(f[0] - file_overlap, 0)
+            stop = min(f[-1] + file_overlap + 1, len(file_paths))
+            padded_file_slices.append(slice(start, stop))
 
-        user_input = copy.deepcopy(default_kwargs)
-        user_input.update(kwargs)
-        stdout_path = user_input.get('stdout', './')
+        for fs, fs_p in zip(file_slices, padded_file_slices):
+            start = file_t_steps * (fs.start - fs_p.start)
+            if start <= 0:
+                start = None
 
-        for chunk in self.file_chunks:
-            file_id_range = [str(chunk.start), str(chunk.stop - 1)]
-            cache_file_prefix = self.cache_file_prefix
-            cache_file_prefix += f'_{"-".join(file_id_range)}'
-            out_file = self.out_file_prefix
-            out_file += f'fwd_pass_output_{"-".join(file_id_range)}.pkl'
-            kwargs = {'file_paths': self.file_paths[chunk],
-                      'model_path': self.model_path,
-                      'features': self.features,
-                      'target': self.target,
-                      'shape': self.shape,
-                      'temporal_shape': self.temporal_shape,
-                      'spatial_chunk_size': self.spatial_chunk_size,
-                      'raster_file': self.raster_file,
-                      'max_extract_workers': self.max_extract_workers,
-                      'max_compute_workers': self.max_compute_workers,
-                      'temporal_extract_chunk_size':
-                          self.temporal_extract_chunk_size,
-                      'temporal_pass_chunk_size':
-                          self.temporal_pass_chunk_size,
-                      'cache_file_prefix': self.cache_file_prefix,
-                      'max_pass_workers': self.max_pass_workers,
-                      's_enhance': self.s_enhance,
-                      't_enhance': self.t_enhance,
-                      'out_file': out_file,
-                      'overwrite_cache': self.overwrite_cache,
-                      'spatial_overlap': self.spatial_overlap,
-                      'temporal_overlap': self.temporal_overlap}
+            stop = -file_t_steps * (fs_p.stop - fs.stop)
+            if stop >= 0:
+                stop = None
+            file_crop_slices.append(slice(start, stop))
 
-            node_name = f'{user_input["basename"]}_'
-            node_name += f'fwd_pass_{"-".join(file_id_range)}'
+        time_shapes = [slice(None, None, time_shape.step)] * n_chunks
+        time_shapes[0] = slice(time_shape.start, None, time_shape.step)
+        stop = time_shape.stop
+        if stop is not None and stop > 0:
+            stop = stop % file_t_steps
+        time_shapes[-1] = slice(None, stop, time_shape.step)
 
-            cmd = ("python -c \"from sup3r.pipeline.gen_handling "
-                   "import ForwardPassHandler;"
-                   f"ForwardPassHandler.kick_off_node(**{kwargs})\"")
-            out = slurm_manager.sbatch(
-                cmd, alloc=user_input["alloc"],
-                memory=user_input["memory"],
-                walltime=user_input["walltime"],
-                feature=user_input["feature"],
-                name=node_name,
-                stdout_path=stdout_path)[0]
-
-            print(f'\ncmd:\n{cmd}\n')
-
-            if out:
-                msg = (f'Kicked off job "{node_name}" '
-                       f'(SLURM jobid #{out}) on '
-                       f'Eagle with {user_input}')
-            else:
-                msg = (f'Was unable to kick off job '
-                       f'"{node_name}". Please see the '
-                       'stdout error messages')
-            print(msg)
+        return file_slices, padded_file_slices, \
+            file_crop_slices, time_shapes
 
     @classmethod
     def get_chunk_slices(cls, data_shape=None,
@@ -283,21 +308,18 @@ class ForwardPassHandler:
             when forward passes are performed on overlapping chunks
         """
 
-        s1_slices = np.arange(0, data_shape[0])
-        n_chunks = int(np.ceil(len(s1_slices) / spatial_chunk_size[0]))
-        s1_slices = np.array_split(s1_slices, n_chunks)
+        n_chunks = int(np.ceil(data_shape[0] / spatial_chunk_size[0]))
+        s1_slices = np.array_split(np.arange(data_shape[0]), n_chunks)
         s1_slices = [slice(s1[0], s1[-1] + 1) for s1 in s1_slices]
 
-        s2_slices = np.arange(0, data_shape[1])
-        n_chunks = int(np.ceil(len(s2_slices) / spatial_chunk_size[1]))
-        s2_slices = np.array_split(s2_slices, n_chunks)
+        n_chunks = int(np.ceil(data_shape[1] / spatial_chunk_size[1]))
+        s2_slices = np.array_split(np.arange(data_shape[1]), n_chunks)
         s2_slices = [slice(s2[0], s2[-1] + 1) for s2 in s2_slices]
 
         temporal_chunk_size = np.min(
             [temporal_chunk_size, data_shape[2]])
-        temporal_slices = np.arange(0, data_shape[2])
-        n_chunks = int(np.ceil(len(temporal_slices) / temporal_chunk_size))
-        temporal_slices = np.array_split(temporal_slices, n_chunks)
+        n_chunks = int(np.ceil(data_shape[2] / temporal_chunk_size))
+        temporal_slices = np.array_split(np.arange(data_shape[2]), n_chunks)
         temporal_slices = [slice(t[0], t[-1] + 1) for t in temporal_slices]
 
         low_res_pad_slices = []
@@ -326,9 +348,6 @@ class ForwardPassHandler:
                         s_enhance=s_enhance, t_enhance=t_enhance)
                     high_res_crop_slices.append([s1_c, s2_c, t_c])
 
-                    # pad spatial and temporal slices
-                    # for chunk overlap
-
         return low_res_pad_slices, \
             high_res_slices, high_res_crop_slices
 
@@ -347,9 +366,11 @@ class ForwardPassHandler:
                       max_pass_workers=None,
                       s_enhance=3, t_enhance=4,
                       out_file=None,
-                      overwrite_cache=True,
+                      overwrite_cache=False,
                       spatial_overlap=15,
-                      temporal_overlap=15):
+                      temporal_overlap=15,
+                      crop_slice=slice(None),
+                      log_file=None):
         """
         Routine to run forward pass on all data chunks associated with the
         files in file_paths
@@ -406,6 +427,9 @@ class ForwardPassHandler:
         temporal_overlap : int
             Size of temporal overlap between chunks passed to forward passes
             for subsequent temporal stitching
+        crop_slice : slice
+            Slice to crop temporal output if there is temporal overlap between
+            file chunks passed to each node.
         """
 
         handler = DataHandlerNC(file_paths, features,
@@ -417,7 +441,7 @@ class ForwardPassHandler:
                                 cache_file_prefix=cache_file_prefix,
                                 time_chunk_size=temporal_extract_chunk_size,
                                 overwrite_cache=overwrite_cache,
-                                val_split=0.0)
+                                val_split=0.0, log_file=log_file)
         handler.load_cached_data()
 
         data_shape = (shape[0], shape[1], len(handler.time_index))
@@ -484,6 +508,8 @@ class ForwardPassHandler:
                             'completed.')
 
         logger.info('All forward passes are complete.')
+
+        data = data[:, :, crop_slice, :]
 
         if out_file is not None:
             with open(out_file, 'wb') as fh:

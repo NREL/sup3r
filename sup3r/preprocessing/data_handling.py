@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Sup3r preprocessing module.
+
+@author: bbenton
 """
+
 from abc import abstractmethod
 from fnmatch import fnmatch
 import logging
@@ -13,6 +16,8 @@ import pickle
 
 from rex import WindX, NSRDBX
 from rex.utilities import log_mem
+from rex.utilities.loggers import init_logger
+
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
                                        daily_time_sampler,
@@ -88,7 +93,8 @@ class DataHandler(FeatureHandler):
                  time_chunk_size=100,
                  cache_file_prefix=None,
                  overwrite_cache=False,
-                 load_cached=False):
+                 load_cached=False,
+                 log_file=None):
 
         """Data handling and extraction
 
@@ -166,6 +172,8 @@ class DataHandler(FeatureHandler):
         if not isinstance(self.file_path, list):
             self.file_path = [self.file_path]
         self.file_path = sorted(self.file_path)
+
+        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
 
         logger.info(
             'Initializing DataHandler for files from '

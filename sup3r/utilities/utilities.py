@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Utilities module for preparing
-training data"""
+training data
+
+@author: bbenton
+"""
 
 import numpy as np
 import logging

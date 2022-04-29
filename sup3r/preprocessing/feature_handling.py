@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Sup3r feature handling module.
+
+@author: bbenton
 """
+
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from concurrent.futures import as_completed

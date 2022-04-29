@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Sup3r batch_handling module.
+
+@author: bbenton
 """
 import logging
 import numpy as np

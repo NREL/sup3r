@@ -34,7 +34,7 @@ raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
 time_shape = slice(None, None, 1)
 temporal_sample_shape = 6
 list_chunk_size = 10
-temporal_chunk_size = 10
+temporal_pass_chunk_size = 10
 
 
 def test_fwd_pass_handler():
@@ -73,12 +73,12 @@ def test_fwd_pass_handler():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        print(cache_file_prefix)
         pass_handler = ForwardPassHandler(
             input_files, list_chunk_size, FEATURES,
             raster_file=raster_file, model_path=out_dir,
-            target=target, shape=shape, temporal_shape=time_shape,
-            temporal_chunk_size=temporal_chunk_size,
+            target=target, shape=shape,
+            temporal_shape=time_shape,
+            temporal_pass_chunk_size=temporal_pass_chunk_size,
             spatial_chunk_size=spatial_chunk_size,
             cache_file_prefix=cache_file_prefix,
             s_enhance=3, t_enhance=4)
@@ -87,7 +87,7 @@ def test_fwd_pass_handler():
             input_files, model_path=out_dir, features=FEATURES,
             target=target, shape=shape,
             temporal_shape=time_shape,
-            temporal_chunk_size=temporal_chunk_size,
+            temporal_pass_chunk_size=temporal_pass_chunk_size,
             spatial_chunk_size=spatial_chunk_size,
             raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
