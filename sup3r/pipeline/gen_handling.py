@@ -14,8 +14,10 @@ import os
 import xarray as xr
 
 from rex.utilities.execution import SpawnProcessPool
+from rex import init_logger
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.utilities.utilities import get_wrf_date_range
 from sup3r.models.models import SpatioTemporalGan
 from sup3r import __version__
 
@@ -60,7 +62,8 @@ class ForwardPassHandler:
                  out_file_prefix=None,
                  overwrite_cache=False,
                  spatial_overlap=15,
-                 temporal_overlap=15):
+                 temporal_overlap=15,
+                 log_file=None):
 
         """Use these inputs to initialize data handlers
         on different nodes and to define the size of
@@ -142,6 +145,8 @@ class ForwardPassHandler:
             for subsequent temporal stitching
         """
 
+        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
+
         with xr.open_dataset(file_paths[0]) as handle:
             self.file_t_steps = len(handle['Time'])
 
@@ -173,8 +178,7 @@ class ForwardPassHandler:
                 time_shape=self.temporal_shape)
 
         self.out_files = []
-        self.file_ids = [f'{chunk.start}_{chunk.stop}'
-                         for chunk in self.file_chunks]
+        self.file_ids = self.get_file_ids(self.file_paths, self.file_chunks)
         if self.out_file_prefix is not None:
             dirname = os.path.dirname(self.out_file_prefix)
             if not os.path.exists(dirname):
@@ -192,6 +196,28 @@ class ForwardPassHandler:
                f'than spatial_chunk_size {spatial_chunk_size}.')
         if any(spatial_overlap > sc for sc in spatial_chunk_size):
             logger.warning(msg)
+
+    @classmethod
+    def get_file_ids(cls, file_paths, file_chunks):
+        """Get file ids for naming logs, cache_files, and output files
+
+        Parameters
+        ----------
+        file_paths : list
+            A list of NETCDF files to extract raster data from
+        file_chunks : list
+            List of slices specifying file chunks sent to different nodes
+
+        Returns
+        -------
+        list
+            List of file_ids for naming corresponding logs, outputs, and cache
+        """
+        file_ids = []
+        for chunk in file_chunks:
+            start, end = get_wrf_date_range(file_paths[chunk])
+            file_ids.append(f'{start}_{end}')
+        return file_ids
 
     @classmethod
     def get_file_slices(cls, file_paths, file_path_chunk_size,
@@ -431,6 +457,8 @@ class ForwardPassHandler:
             Slice to crop temporal output if there is temporal overlap between
             file chunks passed to each node.
         """
+
+        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
 
         handler = DataHandlerNC(file_paths, features,
                                 target=target, shape=shape,
