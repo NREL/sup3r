@@ -23,9 +23,9 @@ class SUP3R:
 
     @staticmethod
     def _log_version():
-        """Check NSRDB and python version and 64-bit and print to logger."""
+        """Check SUP3R and python version and 64-bit and print to logger."""
 
-        logger.info('Running NSRDB version: {}'.format(__version__))
+        logger.info('Running SUP3R version: {}'.format(__version__))
         logger.info('Running python version: {}'.format(sys.version_info))
 
         is_64bits = sys.maxsize > 2 ** 32
@@ -41,24 +41,26 @@ class SUP3R:
         """Run forward pass eagle jobs
 
         kwargs: dict
-            file_paths, file_path_chunk_size,
-            features, model_path,
-            target=None, shape=None,
-            temporal_shape=slice(None, None, 1),
-            temporal_pass_chunk_size=100,
-            spatial_chunk_size=(100, 100),
-            raster_file=None,
-            s_enhance=3,
-            t_enhance=4,
-            max_extract_workers=None,
-            max_compute_workers=None,
-            max_pass_workers=None,
-            temporal_extract_chunk_size=100,
-            cache_file_prefix=None,
-            out_file_prefix=None,
-            overwrite_cache=True,
-            spatial_overlap=15,
-            temporal_overlap=15
+            Required inputs:
+                file_paths, file_path_chunk_size,
+                features, model_path
+            Default inputs:
+                target=None, shape=None,
+                temporal_shape=slice(None, None, 1),
+                temporal_pass_chunk_size=100,
+                spatial_chunk_size=(100, 100),
+                raster_file=None,
+                s_enhance=3,
+                t_enhance=4,
+                max_extract_workers=None,
+                max_compute_workers=None,
+                max_pass_workers=None,
+                temporal_extract_chunk_size=100,
+                cache_file_prefix=None,
+                out_file_prefix=None,
+                overwrite_cache=True,
+                spatial_overlap=15,
+                temporal_overlap=15
         """
 
         slurm_manager = SLURM()
