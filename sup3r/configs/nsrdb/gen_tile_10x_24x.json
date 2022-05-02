@@ -1,6 +1,7 @@
 {
   "hidden_layers": [
     {"class": "TileLayer", "multiples": [1, 1, 1, 4, 1]},
+    {"class": "GaussianNoiseAxis", "axis": 3, "mean": 1, "stddev": 0.1},
     {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
     {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"class": "Cropping3D", "cropping": 2},

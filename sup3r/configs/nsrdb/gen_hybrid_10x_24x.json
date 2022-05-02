@@ -23,6 +23,7 @@
     {"class": "SkipConnection", "name": "a"},
     {"class": "ExpandDims", "axis": 3},
     {"class": "SpatioTemporalExpansion", "spatial_mult": 1, "temporal_mult": 24},
+    {"class": "GaussianNoiseAxis", "axis": 3, "mean": 1, "stddev": 0.1},
 
     {"n": 8, "repeat": [
         {"class": "SkipConnection", "name": "c"},
