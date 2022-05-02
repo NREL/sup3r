@@ -77,7 +77,7 @@ def test_fwd_pass_handler():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data = ForwardPassHandler.kick_off_node(
+        data = ForwardPassHandler.forward_pass_file_chunk(
             input_files, model_path=out_dir, features=FEATURES,
             target=target, shape=shape,
             temporal_shape=time_shape,
@@ -132,7 +132,7 @@ def test_fwd_pass_chunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data_chunked = ForwardPassHandler.kick_off_node(
+        data_chunked = ForwardPassHandler.forward_pass_file_chunk(
             input_files, model_path=out_dir, features=FEATURES,
             target=target, shape=shape,
             temporal_shape=time_shape,
@@ -193,7 +193,7 @@ def test_fwd_pass_nochunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data_chunked = ForwardPassHandler.kick_off_node(
+        data_chunked = ForwardPassHandler.forward_pass_file_chunk(
             input_files, model_path=out_dir, features=FEATURES,
             target=target, shape=shape,
             temporal_shape=time_shape,

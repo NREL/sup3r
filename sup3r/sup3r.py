@@ -13,6 +13,7 @@ from rex.utilities.hpc import SLURM
 
 from sup3r.pipeline.gen_handling import ForwardPassHandler
 from sup3r import __version__
+from sup3r.utilities.utilities import get_wrf_date_range
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,86 @@ class SUP3R:
         else:
             logger.warning(
                 f'Running 32-bit python, sys.maxsize: {sys.maxsize}')
+
+    @staticmethod
+    def run_forward_passes_single_node(kwargs):
+        """Run forward passes on single node
+
+        kwargs: dict
+            Required inputs:
+                file_paths, file_path_chunk_size,
+                features, model_path
+            Default inputs:
+                target=None, shape=None,
+                temporal_shape=slice(None, None, 1),
+                temporal_pass_chunk_size=100,
+                spatial_chunk_size=(100, 100),
+                raster_file=None,
+                s_enhance=3,
+                t_enhance=4,
+                max_extract_workers=None,
+                max_compute_workers=None,
+                max_pass_workers=None,
+                temporal_extract_chunk_size=100,
+                cache_file_prefix=None,
+                out_file_prefix=None,
+                overwrite_cache=True,
+                spatial_overlap=15,
+                temporal_overlap=15,
+                log_file='./super_fwd_pass.log'
+        """
+
+        default_kwargs = {"basename": 'sup3r_fwd_pass',
+                          "stdout": './'}
+
+        user_input = copy.deepcopy(default_kwargs)
+        stdout_path = user_input.get('stdout')
+        base_log_file = kwargs.get('log_file', os.path.join(
+            stdout_path, f'{user_input["basename"]}.log'))
+        handler = ForwardPassHandler(**kwargs)
+
+        for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
+                handler.padded_file_chunks,
+                handler.file_crop_slices,
+                handler.time_shapes, handler.out_files,
+                handler.file_ids):
+
+            log_file = base_log_file.replace('.log', f'_{file_ids}.log')
+
+            user_input.update({'log_file': log_file})
+
+            cache_file_prefix = handler.cache_file_prefix
+            cache_file_prefix += f'_{file_ids}'
+            kwargs = {'file_paths': handler.file_paths[chunk],
+                      'model_path': handler.model_path,
+                      'features': handler.features,
+                      'target': handler.target,
+                      'shape': handler.shape,
+                      'temporal_shape': time_shape,
+                      'spatial_chunk_size': handler.spatial_chunk_size,
+                      'raster_file': handler.raster_file,
+                      'max_extract_workers': handler.max_extract_workers,
+                      'max_compute_workers': handler.max_compute_workers,
+                      'temporal_extract_chunk_size':
+                          handler.temporal_extract_chunk_size,
+                      'temporal_pass_chunk_size':
+                          handler.temporal_pass_chunk_size,
+                      'cache_file_prefix': cache_file_prefix,
+                      'max_pass_workers': handler.max_pass_workers,
+                      's_enhance': handler.s_enhance,
+                      't_enhance': handler.t_enhance,
+                      'out_file': out_file,
+                      'overwrite_cache': handler.overwrite_cache,
+                      'spatial_overlap': handler.spatial_overlap,
+                      'temporal_overlap': handler.temporal_overlap,
+                      'crop_slice': chunk_crop,
+                      'log_file': log_file}
+
+            start_date, end_date = get_wrf_date_range(
+                handler.file_paths[chunk])
+            logger.info('Running forward passes on files with data range '
+                        f' {start_date} - {end_date}')
+            ForwardPassHandler.forward_pass_file_chunk(**kwargs)
 
     @staticmethod
     def run_forward_passes(kwargs, eagle_args):
@@ -128,10 +209,15 @@ class SUP3R:
             node_name = f'{user_input["basename"]}_'
             node_name += f'{file_ids}'
 
-            cmd = ("python -c \"from sup3r.pipeline.gen_handling "
-                   "import ForwardPassHandler;"
-                   f"ForwardPassHandler.kick_off_node(**{kwargs})\"")
+            cmd = (
+                "python -c \"from sup3r.pipeline.gen_handling "
+                "import ForwardPassHandler;"
+                f"ForwardPassHandler.forward_pass_file_chunk(**{kwargs})\"")
 
+            start_date, end_date = get_wrf_date_range(
+                handler.file_paths[chunk])
+            logger.info('Running forward passes on files with data range '
+                        f' {start_date} - {end_date}')
             out = slurm_manager.sbatch(
                 cmd, alloc=user_input["alloc"],
                 memory=user_input["memory"],
@@ -154,7 +240,7 @@ class SUP3R:
 
     @staticmethod
     def combine_node_output(kwargs, eagle_args):
-        """Run forward pass eagle jobs
+        """Combine foward pass output from all nodes.
 
         kwargs: dict
             Required inputs:

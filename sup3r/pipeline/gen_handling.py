@@ -399,25 +399,25 @@ class ForwardPassHandler:
             high_res_slices, high_res_crop_slices
 
     @classmethod
-    def kick_off_node(cls, file_paths=None, model_path=None,
-                      features=None,
-                      target=None, shape=None,
-                      temporal_shape=slice(None, None, 1),
-                      temporal_pass_chunk_size=24,
-                      spatial_chunk_size=(10, 10),
-                      raster_file=None,
-                      max_extract_workers=None,
-                      max_compute_workers=None,
-                      temporal_extract_chunk_size=100,
-                      cache_file_prefix=None,
-                      max_pass_workers=None,
-                      s_enhance=3, t_enhance=4,
-                      out_file=None,
-                      overwrite_cache=False,
-                      spatial_overlap=15,
-                      temporal_overlap=15,
-                      crop_slice=slice(None),
-                      log_file=None):
+    def forward_pass_file_chunk(cls, file_paths=None, model_path=None,
+                                features=None,
+                                target=None, shape=None,
+                                temporal_shape=slice(None, None, 1),
+                                temporal_pass_chunk_size=24,
+                                spatial_chunk_size=(10, 10),
+                                raster_file=None,
+                                max_extract_workers=None,
+                                max_compute_workers=None,
+                                temporal_extract_chunk_size=100,
+                                cache_file_prefix=None,
+                                max_pass_workers=None,
+                                s_enhance=3, t_enhance=4,
+                                out_file=None,
+                                overwrite_cache=False,
+                                spatial_overlap=15,
+                                temporal_overlap=15,
+                                crop_slice=slice(None),
+                                log_file=None):
         """
         Routine to run forward pass on all data chunks associated with the
         files in file_paths
