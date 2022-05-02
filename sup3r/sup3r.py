@@ -151,3 +151,60 @@ class SUP3R:
                        f'"{node_name}". Please see the '
                        'stdout error messages')
             print(msg)
+
+    @staticmethod
+    def combine_node_output(kwargs, eagle_args):
+        """Run forward pass eagle jobs
+
+        kwargs: dict
+            Required inputs:
+                file_paths, file_path_chunk_size,
+                out_file_prefix, fp_out
+        eagle_args : dict
+            Default inputs:
+                {"alloc": 'seasiawind',
+                 "memory": 83,
+                 "walltime": 1,
+                 "basename": 'sup3r',
+                 "feature": '--qos=high',
+                 "stdout": './'}
+        """
+
+        slurm_manager = SLURM()
+
+        default_kwargs = {"alloc": 'seasiawind',
+                          "memory": 83,
+                          "walltime": 1,
+                          "basename": 'sup3r',
+                          "feature": '--qos=high',
+                          "stdout": './'}
+
+        user_input = copy.deepcopy(default_kwargs)
+        user_input.update(eagle_args)
+        stdout_path = user_input.get('stdout')
+
+        node_name = f'{user_input["basename"]}_combine_node_output'
+
+        cmd = ("python -c \"from sup3r.pipeline.gen_handling "
+               "import ForwardPassHandler;"
+               f"ForwardPassHandler.combine_output_files(**{kwargs})\"")
+
+        out = slurm_manager.sbatch(
+            cmd, alloc=user_input["alloc"],
+            memory=user_input["memory"],
+            walltime=user_input["walltime"],
+            feature=user_input["feature"],
+            name=node_name,
+            stdout_path=stdout_path)[0]
+
+        print(f'\ncmd:\n{cmd}\n')
+
+        if out:
+            msg = (f'Kicked off job "{node_name}" '
+                   f'(SLURM jobid #{out}) on '
+                   f'Eagle with {user_input}')
+        else:
+            msg = (f'Was unable to kick off job '
+                   f'"{node_name}". Please see the '
+                   'stdout error messages')
+        print(msg)

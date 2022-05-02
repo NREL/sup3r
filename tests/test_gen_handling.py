@@ -122,7 +122,6 @@ def test_fwd_pass_chunking():
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-        td = tempfile.gettempdir()
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
                     train_gen=True, train_disc_s=False, train_disc_t=False,
@@ -184,7 +183,6 @@ def test_fwd_pass_nochunking():
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-        td = tempfile.gettempdir()
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
                     train_gen=True, train_disc_s=False, train_disc_t=False,

@@ -173,7 +173,8 @@ class DataHandler(FeatureHandler):
             self.file_path = [self.file_path]
         self.file_path = sorted(self.file_path)
 
-        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
+        logger = init_logger(__name__, log_level='DEBUG',
+                             log_file=log_file)
 
         logger.info(
             'Initializing DataHandler for files from '

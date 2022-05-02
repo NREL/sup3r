@@ -177,15 +177,10 @@ class ForwardPassHandler:
                 file_overlap=self.file_overlap, file_t_steps=self.file_t_steps,
                 time_shape=self.temporal_shape)
 
-        self.out_files = []
-        self.file_ids = self.get_file_ids(self.file_paths, self.file_chunks)
-        if self.out_file_prefix is not None:
-            dirname = os.path.dirname(self.out_file_prefix)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            for file_ids in self.file_ids:
-                self.out_files.append(
-                    os.path.join(dirname, f'output_{file_ids}.pkl'))
+        self.file_ids = self.get_file_ids(
+            file_paths=file_paths, file_chunks=self.file_chunks)
+        self.out_files = self.get_output_file_names(
+            out_file_prefix=out_file_prefix, file_ids=self.file_ids)
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} '
                f'than temporal_chunk_size {temporal_pass_chunk_size}.')
@@ -196,6 +191,32 @@ class ForwardPassHandler:
                f'than spatial_chunk_size {spatial_chunk_size}.')
         if any(spatial_overlap > sc for sc in spatial_chunk_size):
             logger.warning(msg)
+
+    @classmethod
+    def get_output_file_names(cls, out_file_prefix, file_ids):
+        """Get output file names for each file chunk forward pass
+
+        Parameters
+        ----------
+        out_file_prefix : str
+            Prefix of output file names
+        file_ids : list
+            List of file ids for each output file. e.g. date range
+
+        Returns
+        -------
+        list
+            List of output file names
+        """
+        out_files = []
+        if out_file_prefix is not None:
+            dirname = os.path.dirname(out_file_prefix)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            for file_id in file_ids:
+                out_files.append(
+                    f'{out_file_prefix}_{file_id}.pkl')
+        return out_files
 
     @classmethod
     def get_file_ids(cls, file_paths, file_chunks):
@@ -730,3 +751,50 @@ class ForwardPassHandler:
         t = slice(t_start, t_stop)
 
         return s1, s2, t
+
+    @classmethod
+    def combine_out_files(cls, file_paths, file_path_chunk_size,
+                          out_file_prefix, fp_out=None):
+        """Combine the output of each file_set passed to a
+        different node
+
+        Parameters
+        ----------
+        file_paths : list
+            A list of NETCDF files to extract raster data from. Each file must
+            have the same number of timesteps.
+        file_path_chunk_size : int
+            Number of file paths to pass to each node for subsequent
+            data extraction and forward pass
+        out_file_prefix : str
+            Prefix of path to forward pass output files. If None then data
+            will be returned in an array and not saved.
+        fp_out : str, optional
+            Combined output file name, by default None
+
+        Returns
+        -------
+        ndarray
+            Array of combined output
+            (spatial_1, spatial_2, temporal, 2)
+        """
+
+        n_chunks = int(np.ceil(len(file_paths) / file_path_chunk_size))
+        file_chunks = np.array_split(np.arange(len(file_paths)), n_chunks)
+        file_slices = [slice(f[0], f[-1] + 1) for f in file_chunks]
+
+        file_ids = cls.get_file_ids(file_paths, file_slices)
+        out_files = cls.get_output_file_names(out_file_prefix, file_ids)
+
+        out = []
+        for fp in out_files:
+            with open(fp, 'rb') as fh:
+                out.append(pickle.load(fh))
+
+        out = np.concatenate(out, axis=-1)
+
+        if fp_out is not None:
+            with open(fp_out, 'wb') as fh:
+                pickle.dump(out, fh)
+
+        return out
