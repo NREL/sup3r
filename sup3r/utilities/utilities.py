@@ -145,8 +145,8 @@ def daily_time_sampler(data, shape, time_index):
         time slice with size shape of data starting at the beginning of the day
     """
 
-    msg = ('data {} and time index ({}) shapes do not match, cannot sample '
-           'daily data.'.format(data.shape, len(time_index)))
+    msg = (f'data {data.shape} and time index ({len(time_index)}) '
+           'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
     ti_short = time_index[:-shape]
@@ -304,7 +304,7 @@ def spatial_coarsening(data, s_enhance=2):
 
         else:
             msg = ('Data must be 4D or 5D to do spatial coarsening, but '
-                   'received: {}'.format(data.shape))
+                   f'received: {data.shape}')
             logger.error(msg)
             raise ValueError(msg)
 
@@ -435,8 +435,8 @@ def interp3D(var_array, h_array, heights):
     """
 
     msg = ('Input arrays must be the same shape.'
-           '\nvar_array: {}\nh_array: {}'
-           .format(var_array.shape, h_array.shape))
+           f'\nvar_array: {var_array.shape}'
+           f'\nh_array: {h_array.shape}')
     assert var_array.shape == h_array.shape, msg
 
     heights = [heights] if isinstance(
@@ -451,8 +451,8 @@ def interp3D(var_array, h_array, heights):
         raise RuntimeError(msg)
 
     if not height_check:
-        msg = ('Heights {} exceed the bounds of the pressure levels: '
-               '({}, {})'.format(heights, h_min, h_max))
+        msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
+               f'({h_min}, {h_max})')
         logger.error(msg)
         raise RuntimeError(msg)
 

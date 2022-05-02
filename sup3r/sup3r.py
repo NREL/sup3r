@@ -24,16 +24,16 @@ class SUP3R:
     def _log_version():
         """Check SUP3R and python version and 64-bit and print to logger."""
 
-        logger.info('Running SUP3R version: {}'.format(__version__))
-        logger.info('Running python version: {}'.format(sys.version_info))
+        logger.info(f'Running SUP3R version: {__version__}')
+        logger.info(f'Running python version: {sys.version_info}')
 
         is_64bits = sys.maxsize > 2 ** 32
         if is_64bits:
-            logger.info('Running on 64-bit python, sys.maxsize: {}'
-                        .format(sys.maxsize))
+            logger.info(
+                f'Running on 64-bit python, sys.maxsize: {sys.maxsize}')
         else:
-            logger.warning('Running 32-bit python, sys.maxsize: {}'
-                           .format(sys.maxsize))
+            logger.warning(
+                f'Running 32-bit python, sys.maxsize: {sys.maxsize}')
 
     @staticmethod
     def run_forward_passes(kwargs, eagle_args):

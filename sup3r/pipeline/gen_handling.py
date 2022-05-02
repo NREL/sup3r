@@ -601,8 +601,8 @@ class ForwardPassHandler:
             try:
                 hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = (f'Could not run layer #{i + 1} "{layer}" '
+                       f'on tensor of shape {hi_res.shape}')
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
