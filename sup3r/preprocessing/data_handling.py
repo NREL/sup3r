@@ -197,6 +197,8 @@ class DataHandler(FeatureHandler):
         self.overwrite_cache = overwrite_cache
         self.load_cached = load_cached
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
+        self.data = None
+        self.val_data = None
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):

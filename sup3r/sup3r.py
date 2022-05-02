@@ -84,10 +84,8 @@ class SUP3R:
         user_input = copy.deepcopy(default_kwargs)
         user_input.update(eagle_args)
         stdout_path = user_input.get('stdout')
-        log_file = kwargs.get(
-            'log_file', os.path.join(
-                stdout_path, f'{user_input["basename"]}.log'))
-
+        base_log_file = kwargs.get('log_file', os.path.join(
+            stdout_path, f'{user_input["basename"]}.log'))
         handler = ForwardPassHandler(**kwargs)
 
         for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
@@ -96,7 +94,8 @@ class SUP3R:
                 handler.time_shapes, handler.out_files,
                 handler.file_ids):
 
-            log_file = log_file.replace('.log', f'_{file_ids}.log')
+            log_file = base_log_file.replace('.log', f'_{file_ids}.log')
+
             user_input.update({'log_file': log_file})
 
             cache_file_prefix = handler.cache_file_prefix

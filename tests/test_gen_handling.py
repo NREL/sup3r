@@ -3,9 +3,10 @@
 
 import os
 import tempfile
+import numpy as np
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
-from sup3r.preprocessing.data_handling import DataHandlerH5
+from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.gen_handling import ForwardPassHandler
 from sup3r.models.models import SpatioTemporalGan
@@ -35,6 +36,8 @@ time_shape = slice(None, None, 1)
 temporal_sample_shape = 6
 list_chunk_size = 10
 temporal_pass_chunk_size = 10
+s_enhance = 3
+t_enhance = 4
 
 
 def test_fwd_pass_handler():
@@ -59,7 +62,8 @@ def test_fwd_pass_handler():
                             max_compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=3, t_enhance=4,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
@@ -73,17 +77,7 @@ def test_fwd_pass_handler():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        pass_handler = ForwardPassHandler(
-            input_files, list_chunk_size, FEATURES,
-            raster_file=raster_file, model_path=out_dir,
-            target=target, shape=shape,
-            temporal_shape=time_shape,
-            temporal_pass_chunk_size=temporal_pass_chunk_size,
-            spatial_chunk_size=spatial_chunk_size,
-            cache_file_prefix=cache_file_prefix,
-            s_enhance=3, t_enhance=4)
-
-        data = pass_handler.kick_off_node(
+        data = ForwardPassHandler.kick_off_node(
             input_files, model_path=out_dir, features=FEATURES,
             target=target, shape=shape,
             temporal_shape=time_shape,
@@ -94,7 +88,139 @@ def test_fwd_pass_handler():
             out_file=None,
             overwrite_cache=True)
 
-        assert data.shape == (pass_handler.s_enhance * shape[0],
-                              pass_handler.s_enhance * shape[1],
-                              pass_handler.t_enhance * len(input_files),
+        assert data.shape == (s_enhance * shape[0],
+                              s_enhance * shape[1],
+                              t_enhance * len(input_files),
                               2)
+
+
+def test_fwd_pass_chunking():
+    """Test forward pass chunking. Make sure chunking agrees closely
+    with non chunking forward pass.
+    """
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    SpatioTemporalGan.seed()
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                              learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            temporal_sample_shape=24,
+                            spatial_sample_shape=(18, 18),
+                            time_shape=slice(None, None, 1),
+                            val_split=0.005,
+                            max_extract_workers=1,
+                            max_compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+        td = tempfile.gettempdir()
+        model.train(batch_handler, n_epoch=1,
+                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
+                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        cache_file_prefix = os.path.join(td, 'cache')
+        data_chunked = ForwardPassHandler.kick_off_node(
+            input_files, model_path=out_dir, features=FEATURES,
+            target=target, shape=shape,
+            temporal_shape=time_shape,
+            temporal_pass_chunk_size=temporal_pass_chunk_size,
+            spatial_chunk_size=spatial_chunk_size,
+            raster_file=raster_file,
+            cache_file_prefix=cache_file_prefix,
+            out_file=None,
+            overwrite_cache=True)
+
+        handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
+                                  val_split=0.0, shape=shape,
+                                  raster_file=raster_file)
+
+        data_nochunk = model.generate(
+            np.expand_dims(handlerNC.data, axis=0))[0]
+
+        assert np.mean(
+            (np.abs(data_chunked - data_nochunk)
+             / np.product(data_chunked.shape))) < 0.01
+
+
+def test_fwd_pass_nochunking():
+    """Test forward pass without chunking. Make sure using a single chunk
+    (a.k.a nochunking) matches direct forward pass of full dataset.
+    """
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    SpatioTemporalGan.seed()
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                              learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            temporal_sample_shape=24,
+                            spatial_sample_shape=(18, 18),
+                            time_shape=slice(None, None, 1),
+                            val_split=0.005,
+                            max_extract_workers=1,
+                            max_compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+        td = tempfile.gettempdir()
+        model.train(batch_handler, n_epoch=1,
+                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
+                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        cache_file_prefix = os.path.join(td, 'cache')
+        data_chunked = ForwardPassHandler.kick_off_node(
+            input_files, model_path=out_dir, features=FEATURES,
+            target=target, shape=shape,
+            temporal_shape=time_shape,
+
+            # use chunk sizes equal to full extent
+            temporal_pass_chunk_size=list_chunk_size,
+            spatial_chunk_size=shape,
+
+            raster_file=raster_file,
+            cache_file_prefix=cache_file_prefix,
+            out_file=None,
+            overwrite_cache=True)
+
+        handlerNC = DataHandlerNC(input_files, FEATURES,
+                                  target=target, shape=shape,
+                                  time_shape=time_shape,
+                                  raster_file=raster_file,
+                                  max_extract_workers=None,
+                                  max_compute_workers=None,
+                                  cache_file_prefix=None,
+                                  time_chunk_size=100,
+                                  overwrite_cache=True,
+                                  val_split=0.0, log_file=None)
+
+        data_nochunk = model.generate(
+            np.expand_dims(handlerNC.data, axis=0))[0]
+
+        assert np.array_equal(data_chunked, data_nochunk)

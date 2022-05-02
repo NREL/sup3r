@@ -51,6 +51,10 @@ def get_wrf_date_range(files):
                            files[0])[0]
     date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
                          files[-1])[0]
+
+    date_start = date_start.replace(':', '_')
+    date_end = date_end.replace(':', '_')
+
     return date_start, date_end
 
 
