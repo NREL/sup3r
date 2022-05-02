@@ -193,6 +193,24 @@ class ForwardPassHandler:
             logger.warning(msg)
 
     @classmethod
+    def file_info_logging(cls, file_path):
+        """More concise file info about NETCDF files
+
+        Parameters
+        ----------
+        file_path : list
+            List of file paths
+
+        Returns
+        -------
+        str
+            message to append to log output that does not
+            include a huge info dump of file paths
+        """
+
+        return DataHandlerNC.file_info_logging(file_path)
+
+    @classmethod
     def get_output_file_names(cls, out_file_prefix, file_ids):
         """Get output file names for each file chunk forward pass
 
@@ -778,6 +796,10 @@ class ForwardPassHandler:
             Array of combined output
             (spatial_1, spatial_2, temporal, 2)
         """
+
+        logger.info(
+            'Combining forward pass output '
+            f'{cls.file_info_logging(file_paths)}')
 
         n_chunks = int(np.ceil(len(file_paths) / file_path_chunk_size))
         file_chunks = np.array_split(np.arange(len(file_paths)), n_chunks)

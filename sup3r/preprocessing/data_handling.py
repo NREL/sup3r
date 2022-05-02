@@ -177,7 +177,7 @@ class DataHandler(FeatureHandler):
                              log_file=log_file)
 
         logger.info(
-            'Initializing DataHandler for files from '
+            'Initializing DataHandler '
             f'{self.file_info_logging(self.file_path)}')
 
         self.features = features
@@ -284,6 +284,17 @@ class DataHandler(FeatureHandler):
         """Method to provide info about files in log output. Since
         NETCDF files have single time slices printing out all the file
         paths is just a text dump without much info.
+
+        Parameters
+        ----------
+        file_path : list
+            List of file paths
+
+        Returns
+        -------
+        str
+            message to append to log output that does not
+            include a huge info dump of file paths
         """
 
         msg = (f'source files: {file_path}')
@@ -672,7 +683,7 @@ class DataHandler(FeatureHandler):
         log_mem(logger, log_level='DEBUG')
 
         logger.info(
-            f'Starting {extract_features} extraction from '
+            f'Starting {extract_features} extraction '
             f'{cls.file_info_logging(file_path)}')
 
         raw_data = cls.parallel_extract(
@@ -705,7 +716,7 @@ class DataHandler(FeatureHandler):
                     data_array[:, :, :, f_index] = pickle.load(fh)
 
         logger.info(
-            'Finished extracting data for files from '
+            'Finished extracting data '
             f'{cls.file_info_logging(file_path)}'
             f'in {dt.now() - now}')
 
@@ -742,6 +753,11 @@ class DataHandlerNC(DataHandler):
     def file_info_logging(cls, file_path):
         """More concise file info about NETCDF files
 
+        Parameters
+        ----------
+        file_path : list
+            List of file paths
+
         Returns
         -------
         str
@@ -751,7 +767,8 @@ class DataHandlerNC(DataHandler):
 
         dirname = os.path.dirname(file_path[0])
         date_start, date_end = get_wrf_date_range(file_path)
-        msg = (f'from {dirname} with date range: {date_start} - {date_end}')
+        msg = (f'for {len(file_path)} files from {dirname} '
+               f'with date range: {date_start} - {date_end}')
         return msg
 
     @classmethod

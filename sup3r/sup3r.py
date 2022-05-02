@@ -13,7 +13,7 @@ from rex.utilities.hpc import SLURM
 
 from sup3r.pipeline.gen_handling import ForwardPassHandler
 from sup3r import __version__
-from sup3r.utilities.utilities import get_wrf_date_range
+
 
 logger = logging.getLogger(__name__)
 
@@ -110,10 +110,9 @@ class SUP3R:
                       'crop_slice': chunk_crop,
                       'log_file': log_file}
 
-            start_date, end_date = get_wrf_date_range(
-                handler.file_paths[chunk])
-            logger.info('Running forward passes on files with data range '
-                        f' {start_date} - {end_date}')
+            logger.info(
+                'Running forward passes '
+                f'{handler.file_info_logging(handler.file_paths[chunk])} ')
             ForwardPassHandler.forward_pass_file_chunk(**kwargs)
 
     @staticmethod
@@ -214,10 +213,9 @@ class SUP3R:
                 "import ForwardPassHandler;"
                 f"ForwardPassHandler.forward_pass_file_chunk(**{kwargs})\"")
 
-            start_date, end_date = get_wrf_date_range(
-                handler.file_paths[chunk])
-            logger.info('Running forward passes on files with data range '
-                        f' {start_date} - {end_date}')
+            logger.info(
+                'Running forward passes '
+                f'{handler.file_info_logging(handler.file_paths[chunk])} ')
             out = slurm_manager.sbatch(
                 cmd, alloc=user_input["alloc"],
                 memory=user_input["memory"],
