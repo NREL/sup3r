@@ -10,6 +10,8 @@ import logging
 import sys
 
 from rex.utilities.hpc import SLURM
+from rex import init_logger
+from rex.utilities.loggers import create_dirs
 
 from sup3r.pipeline.gen_handling import ForwardPassHandler
 from sup3r import __version__
@@ -20,6 +22,71 @@ logger = logging.getLogger(__name__)
 
 class SUP3R:
     """Entry point for sup3r pipeline execution"""
+
+    def __init__(self, out_dir, make_out_dirs=True):
+        """
+        Parameters
+        ----------
+        out_dir : str
+            Project directory.
+        year : int | str
+            Processing year.
+        make_out_dirs : bool
+            Flag to make output directories for logs, output, cache
+        """
+
+        self._out_dir = out_dir
+        self._log_dir = os.path.join(out_dir, 'logs/')
+        self._output_dir = os.path.join(out_dir, 'output/')
+        self._cache_dir = os.path.join(out_dir, 'cache/')
+        self._std_out_dir = os.path.join(out_dir, 'stdout/')
+
+        if make_out_dirs:
+            self.make_out_dirs()
+
+    def make_out_dirs(self):
+        """Ensure that all output directories exist"""
+        all_dirs = [self._out_dir, self._log_dir, self._cache_dir,
+                    self._output_dir]
+        for d in all_dirs:
+            create_dirs(d)
+
+    def _init_loggers(self, loggers=None, log_file='sup3r.log',
+                      log_level='DEBUG', log_version=True,
+                      use_log_dir=True):
+        """Initialize sup3r loggers.
+
+        Parameters
+        ----------
+        loggers : None | list | tuple
+            List of logger names to initialize. None defaults to all NSRDB
+            loggers.
+        log_file : str
+            Log file name. Will be placed in the sup3r out dir.
+        log_level : str | None
+            Logging level (DEBUG, INFO). If None, no logging will be
+            initialized.
+        date : None | datetime
+            Optional date to put in the log file name.
+        use_log_dir : bool
+            Flag to use the class log directory (self._log_dir = ./logs/)
+        """
+
+        if log_level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+
+            if loggers is None:
+                loggers = ('sup3r.sup3r', 'sup3r.forward_pass',
+                           'sup3r.combine_nodes')
+
+            if log_file is not None and use_log_dir:
+                log_file = os.path.join(self._log_dir, log_file)
+                create_dirs(os.path.dirname(log_file))
+
+            for name in loggers:
+                init_logger(name, log_level=log_level, log_file=log_file)
+
+        if log_version:
+            self._log_version()
 
     @staticmethod
     def _log_version():
@@ -36,8 +103,8 @@ class SUP3R:
             logger.warning(
                 f'Running 32-bit python, sys.maxsize: {sys.maxsize}')
 
-    @staticmethod
-    def run_forward_passes_single_node(kwargs):
+    @classmethod
+    def run_forward_passes_single_node(cls, kwargs):
         """Run forward passes on single node
 
         kwargs: dict
@@ -56,21 +123,18 @@ class SUP3R:
                 max_compute_workers=None,
                 max_pass_workers=None,
                 temporal_extract_chunk_size=100,
-                cache_file_prefix=None,
-                out_file_prefix=None,
                 overwrite_cache=True,
                 spatial_overlap=15,
                 temporal_overlap=15,
-                log_file='./super_fwd_pass.log'
+                out_dir='./'
         """
 
-        default_kwargs = {"basename": 'sup3r_fwd_pass',
-                          "stdout": './'}
+        out_dir = kwargs.pop('out_dir', './')
+        sup3r = cls(out_dir)
+        base_log_file = os.path.join(sup3r._log_dir, 'sup3r_fwd_pass.log')
+        kwargs['cache_file_prefix'] = os.path.join(sup3r._cache_dir, 'cache')
+        kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
 
-        user_input = copy.deepcopy(default_kwargs)
-        stdout_path = user_input.get('stdout')
-        base_log_file = kwargs.get('log_file', os.path.join(
-            stdout_path, f'{user_input["basename"]}.log'))
         handler = ForwardPassHandler(**kwargs)
 
         for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
@@ -81,7 +145,7 @@ class SUP3R:
 
             log_file = base_log_file.replace('.log', f'_{file_ids}.log')
 
-            user_input.update({'log_file': log_file})
+            sup3r._init_loggers(log_file=log_file)
 
             cache_file_prefix = handler.cache_file_prefix
             cache_file_prefix += f'_{file_ids}'
@@ -107,16 +171,15 @@ class SUP3R:
                       'overwrite_cache': handler.overwrite_cache,
                       'spatial_overlap': handler.spatial_overlap,
                       'temporal_overlap': handler.temporal_overlap,
-                      'crop_slice': chunk_crop,
-                      'log_file': log_file}
+                      'crop_slice': chunk_crop}
 
             logger.info(
                 'Running forward passes '
                 f'{handler.file_info_logging(handler.file_paths[chunk])} ')
             ForwardPassHandler.forward_pass_file_chunk(**kwargs)
 
-    @staticmethod
-    def run_forward_passes(kwargs, eagle_args):
+    @classmethod
+    def run_forward_passes(cls, kwargs, eagle_args):
         """Run forward pass eagle jobs
 
         kwargs: dict
@@ -135,18 +198,14 @@ class SUP3R:
                 max_compute_workers=None,
                 max_pass_workers=None,
                 temporal_extract_chunk_size=100,
-                cache_file_prefix=None,
-                out_file_prefix=None,
                 overwrite_cache=True,
                 spatial_overlap=15,
                 temporal_overlap=15,
-                log_file='./super_fwd_pass.log'
         eagle_args : dict
             Default inputs:
                 {"alloc": 'seasiawind',
                  "memory": 83,
                  "walltime": 1,
-                 "basename": 'sup3r_fwd_pass',
                  "feature": '--qos=high',
                  "stdout": './'}
 
@@ -157,15 +216,18 @@ class SUP3R:
         default_kwargs = {"alloc": 'seasiawind',
                           "memory": 83,
                           "walltime": 1,
-                          "basename": 'sup3r_fwd_pass',
-                          "feature": '--qos=high',
-                          "stdout": './'}
+                          "feature": '--qos=high'}
 
         user_input = copy.deepcopy(default_kwargs)
         user_input.update(eagle_args)
-        stdout_path = user_input.get('stdout')
-        base_log_file = kwargs.get('log_file', os.path.join(
-            stdout_path, f'{user_input["basename"]}.log'))
+
+        out_dir = kwargs.pop('out_dir', './')
+        sup3r = cls(out_dir)
+        stdout_path = sup3r._std_out_dir
+        base_log_file = os.path.join(sup3r._log_dir, 'sup3r_fwd_pass.log')
+        kwargs['cache_file_prefix'] = os.path.join(sup3r._cache_dir, 'cache')
+        kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
+
         handler = ForwardPassHandler(**kwargs)
 
         for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
@@ -175,6 +237,8 @@ class SUP3R:
                 handler.file_ids):
 
             log_file = base_log_file.replace('.log', f'_{file_ids}.log')
+
+            sup3r._init_loggers(log_file=log_file)
 
             user_input.update({'log_file': log_file})
 
@@ -202,11 +266,9 @@ class SUP3R:
                       'overwrite_cache': handler.overwrite_cache,
                       'spatial_overlap': handler.spatial_overlap,
                       'temporal_overlap': handler.temporal_overlap,
-                      'crop_slice': chunk_crop,
-                      'log_file': log_file}
+                      'crop_slice': chunk_crop}
 
-            node_name = f'{user_input["basename"]}_'
-            node_name += f'{file_ids}'
+            node_name += f'sup3r_fwd_pass_{file_ids}'
 
             cmd = (
                 "python -c \"from sup3r.pipeline.gen_handling "
@@ -236,14 +298,14 @@ class SUP3R:
                        'stdout error messages')
             print(msg)
 
-    @staticmethod
-    def combine_node_output(kwargs, eagle_args):
+    @classmethod
+    def combine_node_output(cls, kwargs, eagle_args):
         """Combine foward pass output from all nodes.
 
         kwargs: dict
             Required inputs:
                 file_paths, file_path_chunk_size,
-                out_file_prefix, fp_out
+                fp_out
         eagle_args : dict
             Default inputs:
                 {"alloc": 'seasiawind',
@@ -265,7 +327,14 @@ class SUP3R:
 
         user_input = copy.deepcopy(default_kwargs)
         user_input.update(eagle_args)
-        stdout_path = user_input.get('stdout')
+
+        out_dir = kwargs.pop('out_dir', './')
+        sup3r = cls(out_dir)
+        stdout_path = sup3r._std_out_dir
+        log_file = os.path.join(sup3r._log_dir, 'sup3r_fwd_pass.log')
+        kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
+
+        sup3r._init_loggers(log_file=log_file)
 
         node_name = f'{user_input["basename"]}_combine_node_output'
 

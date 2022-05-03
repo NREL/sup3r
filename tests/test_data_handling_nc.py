@@ -46,11 +46,10 @@ def test_height_interpolation():
     """Make sure height interpolation is working as expected.
     Specifically that it is returning the correct number of time steps"""
 
-    height = 100
+    height = 250
     features = [f'U_{height}m']
     handler = DataHandlerNC(input_files, features, target=target,
                             shape=shape, max_delta=20, val_split=0.0)
-
     raster_index = handler.raster_index
 
     data = handler.data
@@ -58,10 +57,9 @@ def test_height_interpolation():
     tmp = xr.open_mfdataset(
         input_files, concat_dim='Time', combine='nested')
 
-    U_tmp = utilities.unstagger_var(tmp, 'U')
-    U_tmp = U_tmp[:, :, raster_index[0], raster_index[1]]
+    U_tmp = utilities.unstagger_var(tmp, 'U', raster_index)
 
-    h_array = utilities.calc_height(tmp)
+    h_array = utilities.calc_height(tmp, raster_index)
 
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):

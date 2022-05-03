@@ -848,7 +848,7 @@ class FeatureHandler:
         ----------
         file_path : list
             list of file paths
-        raster_index : ndarray
+        raster_index : ndarray | list
             raster index for spatial domain
         time_chunks : list
             List of slices to chunk data feature extraction

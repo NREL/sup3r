@@ -14,7 +14,6 @@ import os
 import xarray as xr
 
 from rex.utilities.execution import SpawnProcessPool
-from rex import init_logger
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.utilities import get_wrf_date_range
@@ -62,8 +61,7 @@ class ForwardPassHandler:
                  out_file_prefix=None,
                  overwrite_cache=False,
                  spatial_overlap=15,
-                 temporal_overlap=15,
-                 log_file=None):
+                 temporal_overlap=15):
 
         """Use these inputs to initialize data handlers
         on different nodes and to define the size of
@@ -144,8 +142,6 @@ class ForwardPassHandler:
             Size of temporal overlap between chunks passed to forward passes
             for subsequent temporal stitching
         """
-
-        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
 
         with xr.open_dataset(file_paths[0]) as handle:
             self.file_t_steps = len(handle['Time'])
@@ -434,8 +430,7 @@ class ForwardPassHandler:
                                 overwrite_cache=False,
                                 spatial_overlap=15,
                                 temporal_overlap=15,
-                                crop_slice=slice(None),
-                                log_file=None):
+                                crop_slice=slice(None)):
         """
         Routine to run forward pass on all data chunks associated with the
         files in file_paths
@@ -497,8 +492,6 @@ class ForwardPassHandler:
             file chunks passed to each node.
         """
 
-        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
-
         handler = DataHandlerNC(file_paths, features,
                                 target=target, shape=shape,
                                 time_shape=temporal_shape,
@@ -508,7 +501,7 @@ class ForwardPassHandler:
                                 cache_file_prefix=cache_file_prefix,
                                 time_chunk_size=temporal_extract_chunk_size,
                                 overwrite_cache=overwrite_cache,
-                                val_split=0.0, log_file=log_file)
+                                val_split=0.0)
         handler.load_cached_data()
 
         data_shape = (shape[0], shape[1], len(handler.time_index))
@@ -523,7 +516,8 @@ class ForwardPassHandler:
                 temporal_overlap=temporal_overlap)
 
         logger.info(
-            f'Starting forward passes. Using {len(high_res_slices)} chunks '
+            f'Starting forward passes on data shape {data_shape}. '
+            f'Using {len(high_res_slices)} chunks '
             f'each with shape of ({spatial_chunk_size[0]}, '
             f'{spatial_chunk_size[1]}, {temporal_pass_chunk_size}), '
             f'spatial_overlap of {spatial_overlap} and temporal_overlap '

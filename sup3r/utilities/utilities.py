@@ -355,7 +355,7 @@ def forward_average(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def unstagger_var(data, var):
+def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     """
     Unstagger WRF variable values.
     Some variables use a staggered grid with values
@@ -368,6 +368,10 @@ def unstagger_var(data, var):
         netcdf data object
     var : str
         Name of variable to be unstaggered
+    time_slice : slice
+        slice of time to extract
+    raster_index : list
+        List of slices for raster index of spatial domain
 
     Returns
     -------
@@ -378,21 +382,46 @@ def unstagger_var(data, var):
     # Import Variable values from nc database instance
     array_in = np.array(data[var], np.float32)
 
-    for i, d in enumerate(data[var].dims):
-        if 'stag' in d:
-            array_in = np.apply_along_axis(
-                forward_average, i, array_in
-            )
+    if all('stag' not in d for d in data[var].dims):
+        array_in = array_in[
+            tuple([time_slice] + [slice(None)] + raster_index)]
+
+    else:
+        for i, d in enumerate(data[var].dims):
+            if 'stag' in d:
+                if 'south_north' in d:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + [slice(raster_index[0].start,
+                                 raster_index[0].stop + 1)]
+                        + [raster_index[1]])
+                    array_in = array_in[idx]
+                elif 'west_east' in d:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + [raster_index[0]]
+                        + [slice(raster_index[1].start,
+                                 raster_index[1].stop + 1)])
+                    array_in = array_in[idx]
+                else:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + raster_index)
+                    array_in = array_in[idx]
+                array_in = np.apply_along_axis(
+                    forward_average, i, array_in)
     return array_in
 
 
-def calc_height(data):
+def calc_height(data, raster_index, time_slice=slice(None)):
     """
     Calculate height from the ground
     Parameters
     ----------
     data : xarray
         netcdf data object
+    time_slice : slice
+        slice of time to extract
 
     Returns
     ---------
@@ -401,11 +430,11 @@ def calc_height(data):
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
-    phb = unstagger_var(data, 'PHB')
+    phb = unstagger_var(data, 'PHB', raster_index, time_slice)
     # Perturbation Geopotential (m^2/s^2)
-    ph = unstagger_var(data, 'PH')
+    ph = unstagger_var(data, 'PH', raster_index, time_slice)
     # Terrain Height (m)
-    hgt = data['HGT']
+    hgt = data['HGT'][tuple([time_slice] + raster_index)]
 
     if phb.shape != hgt.shape:
         hgt = np.expand_dims(hgt, axis=1)
@@ -458,32 +487,34 @@ def interp3D(var_array, h_array, heights):
 
     array_shape = var_array.shape
 
-    # Reduce h_array and var_array shape to accomodate interpolation
-    if len(array_shape) == 4:
-        h_array = h_array[0]
-        var_array = var_array[0]
-
     # Flatten h_array and var_array along lat, long axis
-    h_array = h_array.reshape((array_shape[-3],
-                               np.product(array_shape[-2:]))).T
-    var_array = var_array.reshape((array_shape[-3],
-                                   np.product(array_shape[-2:]))).T
+    out_array = np.zeros(
+        (len(heights), array_shape[-4], np.product(array_shape[-2:]))).T
+
+    for i in range(array_shape[0]):
+        h_tmp = h_array[i].reshape(
+            (array_shape[-3], np.product(array_shape[-2:]))).T
+        var_tmp = var_array[i].reshape(
+            (array_shape[-3], np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    out_array = np.array([np.interp(heights, h, var)
-                          for h, var in zip(h_array, var_array)])
+        out_array[:, i, :] = np.array(
+            [np.interp(heights, h, var)
+             for h, var in zip(h_tmp, var_tmp)])
+
     # Reshape out_array
     if isinstance(heights, (float, np.float32, int)):
-        out_array = out_array.T.reshape((1, array_shape[-2],
-                                         array_shape[-1]))
+        out_array = out_array.T.reshape(
+            (1, array_shape[-4], array_shape[-2], array_shape[-1]))
     else:
-        out_array = out_array.T.reshape((len(heights), array_shape[-2],
-                                         array_shape[-1]))
+        out_array = out_array.T.reshape(
+            (len(heights), array_shape[-4],
+             array_shape[-2], array_shape[-1]))
 
     return out_array
 
 
-def interp_var(data, var, heights):
+def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
 
     """
     Interpolate var_array to given level(s) based on h_array.
@@ -495,6 +526,10 @@ def interp_var(data, var, heights):
         netcdf data object
     var : str
         Name of variable to be interpolated
+    time_slice : slice
+        slice of time to extract
+    raster_index : list
+        List of slices for raster index of spatial domain
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
     Returns
@@ -505,11 +540,10 @@ def interp_var(data, var, heights):
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
 
-    time_steps = [interp3D(
-        unstagger_var(data, var)[i],
-        calc_height(data)[i],
-        heights) for i in range(len(data['Time']))]
-    return np.concatenate(time_steps, axis=0)
+    return interp3D(
+        unstagger_var(data, var, raster_index, time_slice),
+        calc_height(data, raster_index, time_slice),
+        heights)[0]
 
 
 def potential_temperature(T, P):

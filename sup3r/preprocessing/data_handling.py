@@ -16,7 +16,6 @@ import pickle
 
 from rex import WindX, NSRDBX
 from rex.utilities import log_mem
-from rex.utilities.loggers import init_logger
 
 from sup3r.utilities.utilities import (uniform_box_sampler,
                                        uniform_time_sampler,
@@ -93,8 +92,7 @@ class DataHandler(FeatureHandler):
                  time_chunk_size=100,
                  cache_file_prefix=None,
                  overwrite_cache=False,
-                 load_cached=False,
-                 log_file=None):
+                 load_cached=False):
 
         """Data handling and extraction
 
@@ -173,9 +171,6 @@ class DataHandler(FeatureHandler):
             self.file_path = [self.file_path]
         self.file_path = sorted(self.file_path)
 
-        logger = init_logger(__name__, log_level='DEBUG',
-                             log_file=log_file)
-
         logger.info(
             'Initializing DataHandler '
             f'{self.file_info_logging(self.file_path)}')
@@ -216,7 +211,8 @@ class DataHandler(FeatureHandler):
                 self.data = None
 
         else:
-            if self.overwrite_cache:
+            if self.overwrite_cache and all(
+                    os.path.exists(fp) for fp in self.cache_files):
                 logger.info(
                     f'{self.cache_files} exists but overwrite_cache is '
                     'set to True. Proceeding with extraction.')
@@ -235,7 +231,7 @@ class DataHandler(FeatureHandler):
                 overwrite_cache=self.overwrite_cache)
 
             if cache_file_prefix is None:
-                self.data, self.val_data = self.split_data(self.data)
+                self.data, self.val_data = self.split_data()
             else:
                 self.cache_data(self.cache_files)
                 self.data = None
@@ -397,7 +393,7 @@ class DataHandler(FeatureHandler):
         observation = self.data[self.current_obs_index]
         return observation
 
-    def split_data(self, data):
+    def split_data(self, data=None):
         """Splits time dimension into set of training indices
         and validation indices
 
@@ -418,7 +414,10 @@ class DataHandler(FeatureHandler):
             Validation data fraction of initial data array.
         """
 
-        n_observations = data.shape[2]
+        if data is not None:
+            self.data = data
+
+        n_observations = self.data.shape[2]
         all_indices = np.arange(n_observations)
         if self.shuffle_time:
             np.random.shuffle(all_indices)
@@ -428,13 +427,13 @@ class DataHandler(FeatureHandler):
         val_indices = all_indices[:n_val_obs]
         training_indices = all_indices[n_val_obs:]
 
-        val_data = data[:, :, val_indices, :]
-        train_data = data[:, :, training_indices, :]
+        self.val_data = self.data[:, :, val_indices, :]
+        self.data = self.data[:, :, training_indices, :]
 
         self.val_time_index = self.time_index[val_indices]
         self.time_index = self.time_index[training_indices]
 
-        return train_data, val_data
+        return self.data, self.val_data
 
     @property
     def shape(self):
@@ -514,7 +513,10 @@ class DataHandler(FeatureHandler):
                 self.raster_index = self.get_raster_index(
                     self.file_path, self.target, self.grid_shape)
 
-            feature_arrays = []
+            shape = get_raster_shape(self.raster_index)
+            requested_shape = (shape[0], shape[1], len(self.time_index),
+                               len(self.features))
+            self.data = np.zeros(requested_shape, dtype=np.float32)
             for i, fp in enumerate(self.cache_files):
 
                 fp_ignore_case = ignore_case_path_fetch(fp)
@@ -523,21 +525,18 @@ class DataHandler(FeatureHandler):
                     f'Loading {self.features[i]} from {fp_ignore_case}')
 
                 with open(fp_ignore_case, 'rb') as fh:
-                    feature_arrays.append(
-                        np.array(pickle.load(fh)[:, :, :, np.newaxis],
-                                 dtype=np.float32))
 
-            self.data = np.concatenate(feature_arrays, axis=-1)
+                    tmp = np.array(pickle.load(fh), dtype=np.float32)
+                    msg = (f'Data loaded from cache {tmp.shape} '
+                           'does not match the requested shape '
+                           f'{self.data[:, :, :, i].shape}')
 
-            shape = get_raster_shape(self.raster_index)
-            requested_shape = (shape[0], shape[1], len(self.time_index),
-                               len(self.features))
-            msg = (f'Data loaded from cache {self.data.shape} '
-                   f'does not match the requested shape {requested_shape}')
-            assert self.data.shape == requested_shape, msg
+                    assert self.data[:, :, :, i].shape == tmp.shape, msg
+                    self.data[:, :, :, i] = tmp
+                    del tmp
+                log_mem(logger, log_level='DEBUG')
 
-            del feature_arrays
-            self.data, self.val_data = self.split_data(self.data)
+            self.data, self.val_data = self.split_data()
 
     @classmethod
     def check_cached_features(cls, file_path, features, cache_files=None,
@@ -854,9 +853,9 @@ class DataHandlerNC(DataHandler):
                                 f'Interpolating {basename}'
                                 f' at height {interp_height}m')
                             fdata = interp_var(
-                                handle, basename, np.float32(interp_height))
-                            fdata = fdata[
-                                tuple([time_slice] + raster_index)]
+                                handle, basename, raster_index,
+                                np.float32(interp_height),
+                                time_slice)
                     else:
                         fdata = np.array(
                             handle[feature][
