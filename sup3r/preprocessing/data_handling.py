@@ -1094,7 +1094,7 @@ class DataHandlerNsrdb(DataHandlerH5):
                           + [np.arange(len(self.features))])
         return obs_index
 
-    def split_data(self, data):
+    def split_data(self, data=None):
         """Splits time dimension into set of training indices and validation
         indices. For NSRDB it makes sure that the splits happen at midnight.
 
@@ -1114,6 +1114,9 @@ class DataHandlerNsrdb(DataHandlerH5):
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
         """
+
+        if data is not None:
+            self.data = data
 
         midnight_ilocs = np.where((self.time_index.hour == 0)
                                   & (self.time_index.minute == 0)
