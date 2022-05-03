@@ -1125,8 +1125,8 @@ class DataHandlerNsrdb(DataHandlerH5):
         n_val_obs = int(np.round(self.val_split * len(midnight_ilocs)))
         val_split_index = midnight_ilocs[n_val_obs]
 
-        self.val_data = data[:, :, slice(None, val_split_index), :]
-        self.data = data[:, :, slice(val_split_index, None), :]
+        self.val_data = self.data[:, :, slice(None, val_split_index), :]
+        self.data = self.data[:, :, slice(val_split_index, None), :]
 
         self.val_time_index = self.time_index[slice(None, val_split_index)]
         self.time_index = self.time_index[slice(val_split_index, None)]
