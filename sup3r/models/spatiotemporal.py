@@ -151,7 +151,7 @@ class SpatioTemporalGan(BaseModel):
         -------
         dict
         """
-        mps = super().model_params()
+        mps = super().model_params
         mps['optimizer_s'] = self.get_optimizer_config(self.optimizer_s)
         mps['optimizer_t'] = self.get_optimizer_config(self.optimizer_t)
 

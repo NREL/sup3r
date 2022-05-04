@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
 import os
+import json
 import numpy as np
 import pytest
 import tempfile
@@ -96,7 +97,9 @@ def test_train_st(n_epoch=4, log=False):
 
     SpatioTemporalGan.seed()
     model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                              learning_rate=1e-4)
+                              learning_rate=1e-4,
+                              learning_rate_s=2e-4,
+                              learning_rate_t=3e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
@@ -143,6 +146,16 @@ def test_train_st(n_epoch=4, log=False):
         model.save(out_dir)
         loaded = model.load(out_dir)
 
+        with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
+            model_params = json.load(f)
+
+        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
+        assert np.allclose(model_params['optimizer_s']['learning_rate'], 2e-4)
+        assert np.allclose(model_params['optimizer_t']['learning_rate'], 3e-4)
+        assert 'learning_rate_gen' in model.history
+        assert 'learning_rate_s' in model.history
+        assert 'learning_rate_t' in model.history
+
         assert 'config_generator' in loaded.meta
         assert 'config_spatial_disc' in loaded.meta
         assert 'config_temporal_disc' in loaded.meta
@@ -182,10 +195,27 @@ def test_optimizer_update():
 
     SpatioTemporalGan.seed()
     model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                              learning_rate=1e-4)
+                              learning_rate=1e-4, learning_rate_s=2e-4,
+                              learning_rate_t=4e-4)
 
-    updated_model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                                      learning_rate=1e-2)
-    updated_model.update_optimizer(learning_rate=1e-4)
+    assert model.optimizer.learning_rate == 1e-4
+    assert model.optimizer_s.learning_rate == 2e-4
+    assert model.optimizer_t.learning_rate == 4e-4
 
-    assert updated_model.optimizer_config == model.optimizer_config
+    model.update_optimizer(option='generator', learning_rate=2)
+
+    assert model.optimizer.learning_rate == 2
+    assert model.optimizer_s.learning_rate == 2e-4
+    assert model.optimizer_t.learning_rate == 4e-4
+
+    model.update_optimizer(option='temporal', learning_rate=0.4)
+
+    assert model.optimizer.learning_rate == 2
+    assert model.optimizer_s.learning_rate == 2e-4
+    assert model.optimizer_t.learning_rate == 0.4
+
+    model.update_optimizer(option='all', learning_rate=0.4)
+
+    assert model.optimizer.learning_rate == 0.4
+    assert model.optimizer_s.learning_rate == 0.4
+    assert model.optimizer_t.learning_rate == 0.4

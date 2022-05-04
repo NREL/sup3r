@@ -131,7 +131,7 @@ class SpatialGan(BaseModel):
         -------
         dict
         """
-        mps = super().model_params()
+        mps = super().model_params
         mps['optimizer_s'] = self.get_optimizer_config(self.optimizer_s)
 
         return mps
