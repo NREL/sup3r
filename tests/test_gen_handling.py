@@ -216,7 +216,7 @@ def test_fwd_pass_nochunking():
                                   cache_file_prefix=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
-                                  val_split=0.0, log_file=None)
+                                  val_split=0.0)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]

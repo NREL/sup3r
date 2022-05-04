@@ -44,7 +44,6 @@ class ForwardPassHandler:
     """
 
     def __init__(self, file_paths,
-                 file_path_chunk_size,
                  features, model_path,
                  target=None, shape=None,
                  temporal_shape=slice(None, None, 1),
@@ -167,10 +166,14 @@ class ForwardPassHandler:
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
         self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
+        self.file_path_chunk_size = int(np.ceil(
+            temporal_extract_chunk_size / self.file_t_steps))
         self.file_chunks, self.padded_file_chunks, \
             self.file_crop_slices, self.time_shapes = self.get_file_slices(
-                self.file_paths, file_path_chunk_size=file_path_chunk_size,
-                file_overlap=self.file_overlap, file_t_steps=self.file_t_steps,
+                self.file_paths,
+                file_path_chunk_size=self.file_path_chunk_size,
+                file_overlap=self.file_overlap,
+                file_t_steps=self.file_t_steps,
                 time_shape=self.temporal_shape)
 
         self.file_ids = self.get_file_ids(
@@ -384,12 +387,15 @@ class ForwardPassHandler:
         temporal_slices = [slice(t[0], t[-1] + 1) for t in temporal_slices]
 
         low_res_pad_slices = []
+        low_res_slices = []
         high_res_slices = []
         high_res_crop_slices = []
 
         for s1 in s1_slices:
             for s2 in s2_slices:
                 for t in temporal_slices:
+
+                    low_res_slices.append([s1, s2, t])
 
                     s1_h, s2_h, t_h = cls.high_res_slices(
                         [s1, s2, t],
@@ -409,7 +415,7 @@ class ForwardPassHandler:
                         s_enhance=s_enhance, t_enhance=t_enhance)
                     high_res_crop_slices.append([s1_c, s2_c, t_c])
 
-        return low_res_pad_slices, \
+        return low_res_slices, low_res_pad_slices, \
             high_res_slices, high_res_crop_slices
 
     @classmethod
@@ -506,8 +512,8 @@ class ForwardPassHandler:
 
         data_shape = (shape[0], shape[1], len(handler.time_index))
 
-        low_res_pad_slices, high_res_slices, \
-            high_res_crop_slices = cls.get_chunk_slices(
+        low_res_slices, low_res_pad_slices, \
+            high_res_slices, high_res_crop_slices = cls.get_chunk_slices(
                 data_shape=data_shape,
                 temporal_chunk_size=temporal_pass_chunk_size,
                 spatial_chunk_size=spatial_chunk_size,
@@ -515,13 +521,17 @@ class ForwardPassHandler:
                 spatial_overlap=spatial_overlap,
                 temporal_overlap=temporal_overlap)
 
+        chunk_shape = (
+            low_res_slices[0][0].stop - low_res_slices[0][0].start,
+            low_res_slices[0][1].stop - low_res_slices[0][1].start,
+            low_res_slices[0][2].stop - low_res_slices[0][2].start,
+        )
         logger.info(
             f'Starting forward passes on data shape {data_shape}. '
-            f'Using {len(high_res_slices)} chunks '
-            f'each with shape of ({spatial_chunk_size[0]}, '
-            f'{spatial_chunk_size[1]}, {temporal_pass_chunk_size}), '
-            f'spatial_overlap of {spatial_overlap} and temporal_overlap '
-            f'of {temporal_overlap}')
+            f'Using {len(low_res_slices)} chunks '
+            f'each with shape of {chunk_shape}, '
+            f'spatial_overlap of {spatial_overlap} '
+            f'and temporal_overlap of {temporal_overlap}')
 
         data = np.zeros(
             (s_enhance * data_shape[0], s_enhance * data_shape[1],

@@ -47,7 +47,7 @@ class SUP3R:
     def make_out_dirs(self):
         """Ensure that all output directories exist"""
         all_dirs = [self._out_dir, self._log_dir, self._cache_dir,
-                    self._output_dir]
+                    self._output_dir, self._std_out_dir]
         for d in all_dirs:
             create_dirs(d)
 
