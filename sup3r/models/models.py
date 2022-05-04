@@ -655,7 +655,7 @@ class BaseModel(ABC):
         return stop
 
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             **calc_loss_kwargs):
+                             optimizer=None, **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and adjust NN weights
 
@@ -672,6 +672,10 @@ class BaseModel(ABC):
         training_weights : list
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
+        optimizer : tf.keras.optimizers.Optimizer
+            Optimizer class to use to update weights. This can be different if
+            you're training just the generator or one of the discriminator
+            models. Defaults to the generator optimizer.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -691,7 +695,10 @@ class BaseModel(ABC):
 
             grad = tape.gradient(loss, training_weights)
 
-        self._optimizer.apply_gradients(zip(grad, training_weights))
+        if optimizer is None:
+            optimizer = self.optimizer
+
+        optimizer.apply_gradients(zip(grad, training_weights))
 
         return loss_details
 
@@ -1154,6 +1161,7 @@ class SpatialGan(BaseModel):
                 b_loss_details = self.run_gradient_descent(
                     batch.low_res, batch.high_res, self.generator_weights,
                     weight_gen_advers=weight_gen_advers,
+                    optimizer=self.optimizer,
                     train_gen=True, train_disc=False)
 
             if only_disc or (train_disc and not disc_too_good):
@@ -1161,6 +1169,7 @@ class SpatialGan(BaseModel):
                 b_loss_details = self.run_gradient_descent(
                     batch.low_res, batch.high_res, self.disc_weights,
                     weight_gen_advers=weight_gen_advers,
+                    optimizer=self.optimizer_s,
                     train_gen=False, train_disc=True)
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
@@ -1766,6 +1775,7 @@ class SpatioTemporalGan(BaseModel):
                     batch.low_res, batch.high_res, self.generator_weights,
                     weight_gen_advers_s=weight_gen_advers_s,
                     weight_gen_advers_t=weight_gen_advers_t,
+                    optimizer=self.optimizer,
                     train_gen=True, train_disc_s=False, train_disc_t=False)
 
             if only_disc_s or (train_disc_s and not disc_s_too_good):
@@ -1774,6 +1784,7 @@ class SpatioTemporalGan(BaseModel):
                     batch.low_res, batch.high_res, self.disc_spatial_weights,
                     weight_gen_advers_s=weight_gen_advers_s,
                     weight_gen_advers_t=weight_gen_advers_t,
+                    optimizer=self.optimizer_s,
                     train_gen=False, train_disc_s=True, train_disc_t=False)
 
             if only_disc_t or (train_disc_t and not disc_t_too_good):
@@ -1782,6 +1793,7 @@ class SpatioTemporalGan(BaseModel):
                     batch.low_res, batch.high_res, self.disc_temporal_weights,
                     weight_gen_advers_s=weight_gen_advers_s,
                     weight_gen_advers_t=weight_gen_advers_t,
+                    optimizer=self.optimizer_t,
                     train_gen=False, train_disc_s=False, train_disc_t=True)
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
