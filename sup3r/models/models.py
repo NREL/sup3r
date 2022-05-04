@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
 from abc import ABC, abstractmethod
+import copy
 import os
 import time
 import json
@@ -68,13 +69,34 @@ class BaseModel(ABC):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
-        self._optimizer = optimizer
+        self._optimizer = self.init_optimizer(optimizer, learning_rate)
+
+    @staticmethod
+    def init_optimizer(optimizer, learning_rate):
+        """Initialize keras optimizer object.
+
+        Parameters
+        ----------
+        optimizer : tensorflow.keras.optimizers | dict | None | str
+            Instantiated tf.keras.optimizers object or a dict optimizer config
+            from tf.keras.optimizers.get_config(). None defaults to Adam.
+        learning_rate : float, optional
+            Optimizer learning rate. Not used if optimizer input arg is a
+            pre-initialized object or if optimizer input arg is a config dict.
+
+        Returns
+        -------
+        optimizer : tensorflow.keras.optimizers.Optimizer
+            Initialized optimizer object.
+        """
         if isinstance(optimizer, dict):
             class_name = optimizer['name']
             OptimizerClass = getattr(optimizers, class_name)
-            self._optimizer = OptimizerClass.from_config(optimizer)
+            optimizer = OptimizerClass.from_config(optimizer)
         elif optimizer is None:
-            self._optimizer = optimizers.Adam(learning_rate=learning_rate)
+            optimizer = optimizers.Adam(learning_rate=learning_rate)
+
+        return optimizer
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
@@ -355,15 +377,21 @@ class BaseModel(ABC):
         """
         return self._optimizer
 
-    @property
-    def optimizer_config(self):
+    @staticmethod
+    def get_optimizer_config(optimizer):
         """Get a config that defines the current GAN optimizer
+
+        Parameters
+        ----------
+        optimizer : tf.keras.optimizers.Optimizer
+            TF-Keras optimizer object
 
         Returns
         -------
-        dict
+        config : dict
+            Optimizer config
         """
-        conf = self._optimizer.get_config()
+        conf = optimizer.get_config()
         for k, v in conf.items():
             # need to convert numpy dtypes to float/int for json.dump()
             if np.issubdtype(type(v), np.floating):
@@ -372,18 +400,18 @@ class BaseModel(ABC):
                 conf[k] = int(v)
         return conf
 
-    def update_optimizer(self, **kwargs):
+    @abstractmethod
+    def update_optimizer(self, option='generator', **kwargs):
         """Update optimizer by changing current configuration
 
         Parameters
+        ----------
+        option : str
+            Which optimizer to update. Can be "generator", "temporal",
+            "spatial", or "all".
         kwargs : dict
             kwargs to use for optimizer configuration update
-
         """
-        conf = self.optimizer_config
-        conf.update(**kwargs)
-        OptimizerClass = getattr(optimizers, conf['name'])
-        self._optimizer = OptimizerClass.from_config(conf)
 
     @property
     def meta(self):
@@ -418,7 +446,7 @@ class BaseModel(ABC):
 
         model_params = {'name': self.name,
                         'version_record': self.version_record,
-                        'optimizer': self.optimizer_config,
+                        'optimizer': self.get_optimizer_config(self.optimizer),
                         'means': means,
                         'stdevs': stdevs,
                         'meta': self.meta,
@@ -781,6 +809,7 @@ class SpatialGan(BaseModel):
 
     def __init__(self, gen_layers, disc_layers,
                  optimizer=None, learning_rate=1e-4,
+                 optimizer_s=None, learning_rate_s=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
@@ -802,6 +831,12 @@ class SpatialGan(BaseModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        optimizer_s : tensorflow.keras.optimizers | dict | None
+            Same as optimizer input, but if specified this makes a different
+            optimizer just for the spatial discriminator model.
+        learning_rate_s : float, optional
+            Same as learning_rate input, but if specified this makes a
+            different learning_rate just for the spatial discriminator model.
         history : pd.DataFrame | str | None
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
@@ -830,6 +865,10 @@ class SpatialGan(BaseModel):
 
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc = self.load_network(disc_layers, 'discriminator')
+
+        optimizer_s = optimizer_s or copy.deepcopy(optimizer)
+        learning_rate_s = learning_rate_s or learning_rate
+        self._optimizer_s = self.init_optimizer(optimizer_s, learning_rate_s)
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -871,6 +910,55 @@ class SpatialGan(BaseModel):
         params = cls._load_saved_params(out_dir)
 
         return cls(fp_gen, fp_disc, **params)
+
+    @property
+    def model_params(self):
+        """
+        Model parameters, used to save model to disc
+
+        Returns
+        -------
+        dict
+        """
+        mps = super().model_params()
+        mps['optimizer_s'] = self.get_optimizer_config(self.optimizer_s)
+
+        return mps
+
+    @property
+    def optimizer_s(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations for the spatial disc model.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer_s
+
+    def update_optimizer(self, option='generator', **kwargs):
+        """Update optimizer by changing current configuration
+
+        Parameters
+        ----------
+        option : str
+            Which optimizer to update. Can be "generator", "temporal",
+            "spatial", or "all".
+        kwargs : dict
+            kwargs to use for optimizer configuration update
+        """
+
+        if 'gen' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer = OptimizerClass.from_config(conf)
+
+        if 'spatial' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer_s)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer_s = OptimizerClass.from_config(conf)
 
     @property
     def disc(self):
@@ -1174,10 +1262,13 @@ class SpatialGan(BaseModel):
                                 loss_details['train_loss_disc'],
                                 loss_details['val_loss_disc']))
 
+            lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
+            lr_s = self.get_optimizer_config(self.optimizer_s)['learning_rate']
             extras = {'weight_gen_advers': weight_gen_advers,
                       'disc_loss_bound_0': disc_loss_bounds[0],
                       'disc_loss_bound_1': disc_loss_bounds[1],
-                      'learning_rate': self.optimizer_config['learning_rate']}
+                      'learning_rate_gen': lr_g,
+                      'learning_rate_s': lr_s}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
@@ -1191,6 +1282,8 @@ class SpatioTemporalGan(BaseModel):
 
     def __init__(self, gen_layers, disc_s_layers, disc_t_layers,
                  optimizer=None, learning_rate=1e-4,
+                 optimizer_s=None, learning_rate_s=None,
+                 optimizer_t=None, learning_rate_t=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
@@ -1217,6 +1310,18 @@ class SpatioTemporalGan(BaseModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        optimizer_s : tensorflow.keras.optimizers | dict | None
+            Same as optimizer input, but if specified this makes a different
+            optimizer just for the spatial discriminator model.
+        learning_rate_s : float, optional
+            Same as learning_rate input, but if specified this makes a
+            different learning_rate just for the spatial discriminator model.
+        optimizer_t : tensorflow.keras.optimizers | dict | None
+            Same as optimizer input, but if specified this makes a different
+            optimizer just for the temporal discriminator model.
+        learning_rate_t : float, optional
+            Same as learning_rate input, but if specified this makes a
+            different learning_rate just for the temporal discriminator model.
         history : pd.DataFrame | str | None
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
@@ -1246,6 +1351,13 @@ class SpatioTemporalGan(BaseModel):
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc_s = self.load_network(disc_s_layers, 'spatial_disc')
         self._disc_t = self.load_network(disc_t_layers, 'temporal_disc')
+
+        optimizer_s = optimizer_s or copy.deepcopy(optimizer)
+        optimizer_t = optimizer_t or copy.deepcopy(optimizer)
+        learning_rate_s = learning_rate_s or learning_rate
+        learning_rate_t = learning_rate_t or learning_rate
+        self._optimizer_s = self.init_optimizer(optimizer_s, learning_rate_s)
+        self._optimizer_t = self.init_optimizer(optimizer_t, learning_rate_t)
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -1290,6 +1402,73 @@ class SpatioTemporalGan(BaseModel):
         params = cls._load_saved_params(out_dir)
 
         return cls(fp_gen, fp_disc_s, fp_disc_t, **params)
+
+    @property
+    def model_params(self):
+        """
+        Model parameters, used to save model to disc
+
+        Returns
+        -------
+        dict
+        """
+        mps = super().model_params()
+        mps['optimizer_s'] = self.get_optimizer_config(self.optimizer_s)
+        mps['optimizer_t'] = self.get_optimizer_config(self.optimizer_t)
+
+        return mps
+
+    @property
+    def optimizer_s(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations for the spatial disc model.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer_s
+
+    @property
+    def optimizer_t(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations for the temporal disc model.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer_t
+
+    def update_optimizer(self, option='generator', **kwargs):
+        """Update optimizer by changing current configuration
+
+        Parameters
+        ----------
+        option : str
+            Which optimizer to update. Can be "generator", "temporal",
+            "spatial", or "all".
+        kwargs : dict
+            kwargs to use for optimizer configuration update
+        """
+
+        if 'gen' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer = OptimizerClass.from_config(conf)
+
+        if 'spatial' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer_s)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer_s = OptimizerClass.from_config(conf)
+
+        if 'temporal' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer_t)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer_t = OptimizerClass.from_config(conf)
 
     @property
     def disc_spatial(self):
@@ -1732,11 +1911,16 @@ class SpatioTemporalGan(BaseModel):
                                 loss_details['val_loss_disc_t'],
                                 ))
 
+            lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
+            lr_s = self.get_optimizer_config(self.optimizer_s)['learning_rate']
+            lr_t = self.get_optimizer_config(self.optimizer_t)['learning_rate']
             extras = {'weight_gen_advers_s': weight_gen_advers_s,
                       'weight_gen_advers_t': weight_gen_advers_t,
                       'disc_loss_bound_0': disc_loss_bounds[0],
                       'disc_loss_bound_1': disc_loss_bounds[1],
-                      'learning_rate': self.optimizer_config['learning_rate']}
+                      'learning_rate_gen': lr_g,
+                      'learning_rate_s': lr_s,
+                      'learning_rate_t': lr_t}
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
