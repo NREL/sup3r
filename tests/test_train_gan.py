@@ -11,7 +11,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models.models import SpatialGan, SpatioTemporalGan
+from sup3r.models import SpatialGan, SpatioTemporalGan
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
