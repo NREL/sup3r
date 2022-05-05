@@ -186,8 +186,8 @@ class DataHandler(FeatureHandler):
         self.temporal_sample_shape = temporal_sample_shape
         self.time_shape = time_shape
         self.time_roll = time_roll
-        self.time_index = get_time_index(self.file_path)
-        self.time_index = self.time_index[time_shape]
+        self.raw_time_index = get_time_index(self.file_path)
+        self.time_index = self.raw_time_index[time_shape]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
@@ -195,6 +195,19 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
+
+        msg = ('The temporal_sample_shape cannot '
+               'be larger than the number of time steps in the raw data.')
+        assert len(self.raw_time_index) >= temporal_sample_shape, msg
+
+        msg = (f'The requested time slice {time_shape} conflicts with the '
+               f'number of time steps ({len(self.raw_time_index)}) '
+               'in the raw data')
+        if time_shape.start is not None and time_shape.stop is not None:
+            assert ((time_shape.stop - time_shape.start
+                     <= len(self.raw_time_index))
+                    and time_shape.stop <= len(self.raw_time_index)
+                    and time_shape.start <= len(self.raw_time_index)), msg
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):
@@ -235,10 +248,6 @@ class DataHandler(FeatureHandler):
             else:
                 self.cache_data(self.cache_files)
                 self.data = None
-
-        msg = ('The temporal_sample_shape cannot '
-               'be larger than the number of time steps in the raw data.')
-        assert len(self.time_index) >= temporal_sample_shape, msg
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
