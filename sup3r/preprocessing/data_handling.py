@@ -507,7 +507,11 @@ class DataHandler(FeatureHandler):
         training and validation
         """
 
-        if self.data is None:
+        if self.data is not None:
+            logger.warning(
+                'Called load_cached_data() but self.data is not None')
+
+        elif self.data is None:
             self.raster_index = getattr(self, 'raster_index', None)
             if self.raster_index is None:
                 self.raster_index = self.get_raster_index(
