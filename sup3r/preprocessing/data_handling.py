@@ -211,7 +211,7 @@ class DataHandler(FeatureHandler):
                 self.data = None
 
         else:
-            if self.overwrite_cache and all(
+            if self.overwrite_cache and self.cache_files is not None and all(
                     os.path.exists(fp) for fp in self.cache_files):
                 logger.info(
                     f'{self.cache_files} exists but overwrite_cache is '

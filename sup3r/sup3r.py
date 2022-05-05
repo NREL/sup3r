@@ -109,8 +109,7 @@ class SUP3R:
 
         kwargs: dict
             Required inputs:
-                file_paths, file_path_chunk_size,
-                features, model_path
+                file_paths, features, model_path
             Default inputs:
                 target=None, shape=None,
                 temporal_shape=slice(None, None, 1),
@@ -136,6 +135,8 @@ class SUP3R:
         kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
 
         handler = ForwardPassHandler(**kwargs)
+        logger.info(
+            f'Running forward passes for {len(handler.file_ids)} file chunks')
 
         for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
                 handler.padded_file_chunks,
@@ -184,8 +185,7 @@ class SUP3R:
 
         kwargs: dict
             Required inputs:
-                file_paths, file_path_chunk_size,
-                features, model_path
+                file_paths, features, model_path
             Default inputs:
                 target=None, shape=None,
                 temporal_shape=slice(None, None, 1),
@@ -229,6 +229,8 @@ class SUP3R:
         kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
 
         handler = ForwardPassHandler(**kwargs)
+        logger.info(
+            f'Running forward passes for {len(handler.file_ids)} file chunks')
 
         for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
                 handler.padded_file_chunks,
@@ -304,8 +306,7 @@ class SUP3R:
 
         kwargs: dict
             Required inputs:
-                file_paths, file_path_chunk_size,
-                fp_out
+                file_paths, temporal_chunk_size, fp_out
         eagle_args : dict
             Default inputs:
                 {"alloc": 'seasiawind',

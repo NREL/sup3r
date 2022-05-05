@@ -11,12 +11,11 @@ from concurrent.futures import as_completed
 from datetime import datetime as dt
 import pickle
 import os
-import xarray as xr
 
 from rex.utilities.execution import SpawnProcessPool
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.utilities.utilities import get_wrf_date_range
+from sup3r.utilities.utilities import get_wrf_date_range, get_file_t_steps
 from sup3r.models.models import SpatioTemporalGan
 from sup3r import __version__
 
@@ -142,9 +141,7 @@ class ForwardPassHandler:
             for subsequent temporal stitching
         """
 
-        with xr.open_dataset(file_paths[0]) as handle:
-            self.file_t_steps = len(handle['Time'])
-
+        self.file_t_steps = get_file_t_steps(file_paths)
         self.file_paths = sorted(file_paths)
         self.features = features
         self.raster_file = raster_file
@@ -165,16 +162,18 @@ class ForwardPassHandler:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
-        self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
+        self.file_overlap = int(
+            np.ceil(temporal_overlap / self.file_t_steps))
         self.file_path_chunk_size = int(np.ceil(
-            temporal_extract_chunk_size / self.file_t_steps))
+            temporal_pass_chunk_size / self.file_t_steps))
         self.file_chunks, self.padded_file_chunks, \
             self.file_crop_slices, self.time_shapes = self.get_file_slices(
                 self.file_paths,
                 file_path_chunk_size=self.file_path_chunk_size,
                 file_overlap=self.file_overlap,
                 file_t_steps=self.file_t_steps,
-                time_shape=self.temporal_shape)
+                time_shape=self.temporal_shape,
+                t_enhance=t_enhance)
 
         self.file_ids = self.get_file_ids(
             file_paths=file_paths, file_chunks=self.file_chunks)
@@ -189,6 +188,15 @@ class ForwardPassHandler:
         msg = (f'Using a larger spatial_overlap {spatial_overlap} '
                f'than spatial_chunk_size {spatial_chunk_size}.')
         if any(spatial_overlap > sc for sc in spatial_chunk_size):
+            logger.warning(msg)
+
+        msg = ('Using a padded chunk size '
+               f'{temporal_pass_chunk_size + 2 * temporal_overlap} '
+               'larger than the full temporal domain '
+               f'{self.file_t_steps * len(file_paths)}. Should just '
+               'run without temporal chunking. ')
+        if (temporal_pass_chunk_size + 2 * temporal_overlap
+                >= self.file_t_steps * len(file_paths)):
             logger.warning(msg)
 
     @classmethod
@@ -259,7 +267,8 @@ class ForwardPassHandler:
 
     @classmethod
     def get_file_slices(cls, file_paths, file_path_chunk_size,
-                        file_overlap, file_t_steps, time_shape):
+                        file_overlap, file_t_steps, time_shape,
+                        t_enhance=4):
         """
         file_paths : list
             A list of NETCDF files to extract raster data from
@@ -301,11 +310,11 @@ class ForwardPassHandler:
             padded_file_slices.append(slice(start, stop))
 
         for fs, fs_p in zip(file_slices, padded_file_slices):
-            start = file_t_steps * (fs.start - fs_p.start)
+            start = file_t_steps * t_enhance * (fs.start - fs_p.start)
             if start <= 0:
                 start = None
 
-            stop = -file_t_steps * (fs_p.stop - fs.stop)
+            stop = -file_t_steps * t_enhance * (fs_p.stop - fs.stop)
             if stop >= 0:
                 stop = None
             file_crop_slices.append(slice(start, stop))
@@ -322,11 +331,13 @@ class ForwardPassHandler:
 
     @classmethod
     def get_chunk_slices(cls, data_shape=None,
-                         temporal_chunk_size=24,
                          spatial_chunk_size=(10, 10),
-                         s_enhance=3, t_enhance=4,
+                         temporal_chunk_size=24,
+                         s_enhance=3,
+                         t_enhance=4,
                          spatial_overlap=15,
-                         temporal_overlap=15):
+                         temporal_overlap=15,
+                         file_t_steps=1):
         """
         Get slices for small data chunks that are passed through generator
 
@@ -380,11 +391,12 @@ class ForwardPassHandler:
         s2_slices = np.array_split(np.arange(data_shape[1]), n_chunks)
         s2_slices = [slice(s2[0], s2[-1] + 1) for s2 in s2_slices]
 
-        temporal_chunk_size = np.min(
-            [temporal_chunk_size, data_shape[2]])
-        n_chunks = int(np.ceil(data_shape[2] / temporal_chunk_size))
-        temporal_slices = np.array_split(np.arange(data_shape[2]), n_chunks)
-        temporal_slices = [slice(t[0], t[-1] + 1) for t in temporal_slices]
+        if file_t_steps < temporal_chunk_size:
+            t_slices = [slice(None)]
+        else:
+            n_chunks = int(np.ceil(data_shape[2] / temporal_chunk_size))
+            t_slices = np.array_split(np.arange(data_shape[2]), n_chunks)
+            t_slices = [slice(t[0], t[-1] + 1) for t in t_slices]
 
         low_res_pad_slices = []
         low_res_slices = []
@@ -393,27 +405,28 @@ class ForwardPassHandler:
 
         for s1 in s1_slices:
             for s2 in s2_slices:
-                for t in temporal_slices:
+                for t in t_slices:
 
-                    low_res_slices.append([s1, s2, t])
+                    low_res_slices.append(
+                        tuple([s1, s2, t, slice(None)]))
 
                     s1_h, s2_h, t_h = cls.high_res_slices(
-                        [s1, s2, t],
-                        s_enhance=s_enhance,
-                        t_enhance=t_enhance)
-                    high_res_slices.append([s1_h, s2_h, t_h])
+                        [s1, s2, t], s_enhance=s_enhance, t_enhance=t_enhance)
+                    high_res_slices.append(
+                        tuple([s1_h, s2_h, t_h, slice(None)]))
 
                     s1_p, s2_p, t_p = cls.pad_slices(
-                        [s1, s2, t],
-                        ends=list(data_shape),
+                        [s1, s2, t], ends=list(data_shape),
                         spatial_overlap=spatial_overlap,
                         temporal_overlap=temporal_overlap)
-                    low_res_pad_slices.append([s1_p, s2_p, t_p])
+                    low_res_pad_slices.append(
+                        tuple([s1_p, s2_p, t_p, slice(None)]))
 
                     s1_c, s2_c, t_c = cls.cropped_slices(
                         [s1, s2, t], [s1_p, s2_p, t_p],
                         s_enhance=s_enhance, t_enhance=t_enhance)
-                    high_res_crop_slices.append([s1_c, s2_c, t_c])
+                    high_res_crop_slices.append(
+                        tuple([s1_c, s2_c, t_c, slice(None)]))
 
         return low_res_slices, low_res_pad_slices, \
             high_res_slices, high_res_crop_slices
@@ -423,8 +436,8 @@ class ForwardPassHandler:
                                 features=None,
                                 target=None, shape=None,
                                 temporal_shape=slice(None, None, 1),
-                                temporal_pass_chunk_size=24,
                                 spatial_chunk_size=(10, 10),
+                                temporal_pass_chunk_size=100,
                                 raster_file=None,
                                 max_extract_workers=None,
                                 max_compute_workers=None,
@@ -515,16 +528,17 @@ class ForwardPassHandler:
         low_res_slices, low_res_pad_slices, \
             high_res_slices, high_res_crop_slices = cls.get_chunk_slices(
                 data_shape=data_shape,
-                temporal_chunk_size=temporal_pass_chunk_size,
                 spatial_chunk_size=spatial_chunk_size,
+                temporal_chunk_size=temporal_pass_chunk_size,
                 s_enhance=s_enhance, t_enhance=t_enhance,
                 spatial_overlap=spatial_overlap,
-                temporal_overlap=temporal_overlap)
+                temporal_overlap=temporal_overlap,
+                file_t_steps=get_file_t_steps(file_paths))
 
         chunk_shape = (
             low_res_slices[0][0].stop - low_res_slices[0][0].start,
             low_res_slices[0][1].stop - low_res_slices[0][1].start,
-            low_res_slices[0][2].stop - low_res_slices[0][2].start,
+            data_shape[2]
         )
         logger.info(
             f'Starting forward passes on data shape {data_shape}. '
@@ -543,8 +557,8 @@ class ForwardPassHandler:
                     high_res_slices, low_res_pad_slices,
                     high_res_crop_slices):
 
-                data_chunk = handler.data[tuple(s_low_pad + [slice(None)])]
-                data[tuple(s_high + [slice(None)])] = cls.forward_pass_chunk(
+                data_chunk = handler.data[s_low_pad]
+                data[s_high] = cls.forward_pass_chunk(
                     data_chunk, crop_slices=s_high_crop,
                     model_path=model_path)
         else:
@@ -555,8 +569,7 @@ class ForwardPassHandler:
                         high_res_slices, low_res_pad_slices,
                         high_res_crop_slices):
 
-                    data_chunk = handler.data[
-                        tuple(s_low_pad + [slice(None)])]
+                    data_chunk = handler.data[s_low_pad]
                     future = exe.submit(
                         cls.forward_pass_chunk,
                         data_chunk=data_chunk,
@@ -571,8 +584,7 @@ class ForwardPassHandler:
 
                 for i, future in enumerate(as_completed(futures)):
                     slices = futures[future]
-                    data[tuple(slices['s_high']
-                               + [slice(None)])] = future.result()
+                    data[slices['s_high']] = future.result()
                     if i % (len(futures) // 10 + 1) == 0:
                         logger.debug(
                             f'{i+1} out of {len(futures)} forward passes '
@@ -628,7 +640,7 @@ class ForwardPassHandler:
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
-        return hi_res[0][tuple(crop_slices + [slice(None)])]
+        return hi_res[0][crop_slices]
 
     @staticmethod
     def pad_slices(slices, ends, spatial_overlap=15, temporal_overlap=15):
@@ -647,7 +659,6 @@ class ForwardPassHandler:
             for subsequent spatial stitching
         temporal_overlap : int
             Size of temporal overlap between chunks passed to forward passes
-            for subsequent temporal stitching
 
         Returns
         -------
@@ -657,15 +668,21 @@ class ForwardPassHandler:
             spatial_2 padded slice
         t : slice
             temporal padded slice
+
         """
 
         s1 = slice(max(slices[0].start - spatial_overlap, 0),
                    min(slices[0].stop + spatial_overlap, ends[0]))
         s2 = slice(max(slices[1].start - spatial_overlap, 0),
                    min(slices[1].stop + spatial_overlap, ends[1]))
+        t_start = slices[2].start
+        if t_start is not None:
+            t_start = max(t_start - temporal_overlap, 0)
+        t_end = slices[2].stop
+        if t_end is not None:
+            t_end = max(t_end + temporal_overlap, ends[2])
+        t = slice(t_start, t_end)
 
-        t = slice(max(slices[2].start - temporal_overlap, 0),
-                  min(slices[2].stop + temporal_overlap, ends[2]))
         return s1, s2, t
 
     @staticmethod
@@ -681,7 +698,6 @@ class ForwardPassHandler:
             data
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
-            data
 
         Returns
         -------
@@ -697,14 +713,19 @@ class ForwardPassHandler:
                    slices[0].stop * s_enhance)
         s2 = slice(slices[1].start * s_enhance,
                    slices[1].stop * s_enhance)
-        t = slice(slices[2].start * t_enhance,
-                  slices[2].stop * t_enhance)
+        t_start = slices[2].start
+        if t_start is not None:
+            t_start *= t_enhance
+        t_end = slices[2].stop
+        if t_end is not None:
+            t_end *= t_enhance
+        t = slice(t_start, t_end)
+
         return s1, s2, t
 
     @staticmethod
     def cropped_slices(low_res_slices, low_res_pad_slices,
-                       s_enhance=3,
-                       t_enhance=4):
+                       s_enhance=3, t_enhance=4):
         """Get cropped spatial and temporal slices for stitching
 
         Parameters
@@ -720,7 +741,6 @@ class ForwardPassHandler:
             data
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
-            data
 
         Returns
         -------
@@ -756,14 +776,16 @@ class ForwardPassHandler:
         else:
             s2_stop = None
 
-        if low_res_pad_slices[2].start < low_res_slices[2].start:
+        if (low_res_pad_slices[2].start is not None
+                and low_res_pad_slices[2].start < low_res_slices[2].start):
             t_start = t_enhance
             t_start *= (low_res_slices[2].start - low_res_pad_slices[2].start)
         else:
             t_start = None
 
-        if low_res_pad_slices[2].stop > low_res_slices[2].stop:
-            t_stop = -t_enhance
+        if (low_res_pad_slices[2].stop is not None
+                and low_res_pad_slices[2].stop > low_res_slices[2].stop):
+            t_stop = -s_enhance
             t_stop *= (low_res_pad_slices[2].stop - low_res_slices[2].stop)
         else:
             t_stop = None
@@ -775,7 +797,7 @@ class ForwardPassHandler:
         return s1, s2, t
 
     @classmethod
-    def combine_out_files(cls, file_paths, file_path_chunk_size,
+    def combine_out_files(cls, file_paths, temporal_chunk_size,
                           out_file_prefix, fp_out=None):
         """Combine the output of each file_set passed to a
         different node
@@ -785,9 +807,6 @@ class ForwardPassHandler:
         file_paths : list
             A list of NETCDF files to extract raster data from. Each file must
             have the same number of timesteps.
-        file_path_chunk_size : int
-            Number of file paths to pass to each node for subsequent
-            data extraction and forward pass
         out_file_prefix : str
             Prefix of path to forward pass output files. If None then data
             will be returned in an array and not saved.
@@ -805,6 +824,9 @@ class ForwardPassHandler:
             'Combining forward pass output '
             f'{cls.file_info_logging(file_paths)}')
 
+        file_t_steps = get_file_t_steps(file_paths)
+
+        file_path_chunk_size = int(np.ceil(temporal_chunk_size / file_t_steps))
         n_chunks = int(np.ceil(len(file_paths) / file_path_chunk_size))
         file_chunks = np.array_split(np.arange(len(file_paths)), n_chunks)
         file_slices = [slice(f[0], f[-1] + 1) for f in file_chunks]
@@ -817,10 +839,11 @@ class ForwardPassHandler:
             with open(fp, 'rb') as fh:
                 out.append(pickle.load(fh))
 
-        out = np.concatenate(out, axis=-1)
+        out = np.concatenate(out, axis=2)
 
         if fp_out is not None:
+            logger.info(f'Saving combined output: {fp_out}')
             with open(fp_out, 'wb') as fh:
                 pickle.dump(out, fh)
-
-        return out
+        else:
+            return out

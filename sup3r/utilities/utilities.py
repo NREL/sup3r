@@ -20,6 +20,26 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def get_file_t_steps(file_paths):
+    """Get number of time steps in each file. We assume
+    that each netcdf file in a file list passed to the handling
+    classes has the same number of time steps.
+
+    Parameters
+    ----------
+    file_paths : list
+        List of netcdf file paths
+
+    Returns
+    -------
+    int
+        Number of time steps in each file
+    """
+
+    with xr.open_dataset(file_paths[0]) as handle:
+        return len(handle['Time'])
+
+
 def get_raster_shape(raster_index):
     """method to get shape of raster_index"""
 
