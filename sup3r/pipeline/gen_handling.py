@@ -16,7 +16,7 @@ from rex.utilities.execution import SpawnProcessPool
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.utilities import get_wrf_date_range, get_file_t_steps
-from sup3r.models.models import SpatioTemporalGan
+from sup3r.models.spatiotemporal import SpatioTemporalGan
 from sup3r import __version__
 
 np.random.seed(42)

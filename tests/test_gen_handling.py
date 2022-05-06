@@ -9,7 +9,7 @@ from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.gen_handling import ForwardPassHandler
-from sup3r.models.models import SpatioTemporalGan
+from sup3r.models.spatiotemporal import SpatioTemporalGan
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
