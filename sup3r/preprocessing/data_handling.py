@@ -530,6 +530,7 @@ class DataHandler(FeatureHandler):
             requested_shape = (shape[0], shape[1], len(self.time_index),
                                len(self.features))
             self.data = np.zeros(requested_shape, dtype=np.float32)
+            log_mem(logger, log_level='DEBUG')
             for i, fp in enumerate(self.cache_files):
 
                 fp_ignore_case = ignore_case_path_fetch(fp)
@@ -547,7 +548,6 @@ class DataHandler(FeatureHandler):
                     assert self.data[:, :, :, i].shape == tmp.shape, msg
                     self.data[:, :, :, i] = tmp
                     del tmp
-                log_mem(logger, log_level='DEBUG')
 
             self.data, self.val_data = self.split_data()
 
