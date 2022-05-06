@@ -6,7 +6,7 @@ import pytest
 import tensorflow as tf
 
 from sup3r import CONFIG_DIR
-from sup3r.models.models import SpatialGan, SpatioTemporalGan
+from sup3r.models import SpatialGan, SpatioTemporalGan
 
 ST_CONFIG_DIR = os.path.join(CONFIG_DIR, 'spatiotemporal/')
 GEN_CONFIGS = [fn for fn in os.listdir(ST_CONFIG_DIR) if fn.startswith('gen')]

@@ -5,7 +5,7 @@ import tempfile
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models.models import SpatioTemporalGan
+from sup3r.models import SpatioTemporalGan
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
 from sup3r.preprocessing.batch_handling import NsrdbBatchHandler
 
