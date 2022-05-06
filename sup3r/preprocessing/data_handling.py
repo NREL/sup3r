@@ -729,7 +729,7 @@ class DataHandler(FeatureHandler):
 
         logger.info(
             'Finished extracting data '
-            f'{cls.file_info_logging(file_path)}'
+            f'{cls.file_info_logging(file_path)} '
             f'in {dt.now() - now}')
 
         return data_array
