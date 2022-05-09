@@ -555,13 +555,50 @@ class SpatioTemporalGan(BaseModel):
 
         return loss_details
 
+    @staticmethod
+    def update_adversarial_weight(loss_details, disc_type, disc_weight):
+        """Adaptive weight updating for discriminators
+
+        Parameters
+        ----------
+        loss_details : dict
+            Dictionary with information on how often discriminators
+            were trained
+        disc_type : str
+            temporal or spatial
+        disc_weight : float
+            current discriminator weight to update
+
+        Returns
+        -------
+        float
+            Updated discriminator weight
+
+        Raises
+        ------
+        ValueError
+            disc_type must be either temporal or spatial
+        """
+
+        if disc_type == 'temporal':
+            trained_frac = loss_details['disc_t_trained_frac']
+        elif disc_type == 'spatial':
+            trained_frac = loss_details['disc_s_trained_frac']
+        else:
+            raise ValueError('Disc must be either temporal or spatial')
+
+        if trained_frac < 0.5:
+            return 1.05 * disc_weight
+        else:
+            return disc_weight
+
     def train(self, batch_handler, n_epoch,
               weight_gen_advers_s=0.001, weight_gen_advers_t=0.001,
               train_gen=True, train_disc_s=True, train_disc_t=True,
               disc_loss_bounds=(0.45, 0.6),
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
-              early_stop_n_epoch=5):
+              early_stop_n_epoch=5, adaptive_weights=True):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -610,6 +647,8 @@ class SpatioTemporalGan(BaseModel):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
+        adaptive_weights : bool
+            Whether to adaptively update the discriminator weights
         """
 
         self.set_norm_stats(batch_handler)
@@ -669,5 +708,11 @@ class SpatioTemporalGan(BaseModel):
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
+            if adaptive_weights:
+                weight_gen_advers_s = self.update_adversarial_weight(
+                    loss_details, 'spatial', weight_gen_advers_s)
+                weight_gen_advers_t = self.update_adversarial_weight(
+                    loss_details, 'temporal', weight_gen_advers_t)
+
             if stop:
                 break
