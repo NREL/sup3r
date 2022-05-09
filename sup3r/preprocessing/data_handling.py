@@ -172,7 +172,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
 
         logger.info(
-            'Initializing DataHandler '
+            'Initializing DataHandler from'
             f'{self.file_info_logging(self.file_path)}')
 
         self.features = features
@@ -480,37 +480,6 @@ class DataHandler(FeatureHandler):
                     'already exists. Set to overwrite_cache to True to '
                     'overwrite.')
 
-    @staticmethod
-    def load_single_cached_feature(cache_files, feature):
-        """Load data for a single feature from cache
-
-        Parameters
-        ----------
-
-        cache_files : list
-            List of cache files containing feature data
-        feature : str
-            Name of feature to extract from cache
-
-        Returns
-        -------
-        ndarray
-            Array of feature data
-        """
-
-        for _, fp in enumerate(cache_files):
-
-            fp_ignore_case = ignore_case_path_fetch(fp)
-            if feature.lower() in fp.lower():
-                logger.info(f'Loading {feature} from {fp_ignore_case}')
-
-                with open(fp_ignore_case, 'rb') as fh:
-                    data = np.array(
-                        pickle.load(fh), dtype=np.float32)
-                    return data
-        msg = (f'{feature} not found in {cache_files}')
-        raise ValueError(msg)
-
     def load_cached_data(self):
         """Load data from cache files and split into
         training and validation
@@ -549,6 +518,7 @@ class DataHandler(FeatureHandler):
                     self.data[:, :, :, i] = tmp
                     del tmp
 
+            logger.debug('Splitting data into training and validation sets')
             self.data, self.val_data = self.split_data()
 
     @classmethod
