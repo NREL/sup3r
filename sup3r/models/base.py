@@ -469,6 +469,7 @@ class BaseModel(ABC):
         model_params = {'name': self.name,
                         'version_record': self.version_record,
                         'optimizer': self.get_optimizer_config(self.optimizer),
+                        'content_loss_metric': self.get_content_loss_metric,
                         'means': means,
                         'stdevs': stdevs,
                         'meta': self.meta,
