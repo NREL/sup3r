@@ -450,6 +450,8 @@ class BatchHandler:
             if d.data is None:
                 d.load_cached_data()
 
+        logger.debug('Finished loading data for BatchHandler')
+
         log_mem(logger)
 
         self.data_handlers = data_handlers
@@ -471,14 +473,18 @@ class BatchHandler:
         self.current_handler_index = None
 
         if norm:
+            logger.debug('Normalizing data for BatchHandler')
             self.normalize(means, stds)
 
+        logger.debug('Getting validation data for BatchHandler')
         self.val_data = self.VAL_CLASS(
             data_handlers, batch_size=batch_size,
             s_enhance=s_enhance, t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
             output_features_ind=self.output_features_ind,
             output_features=self.output_features)
+
+        logger.info('Finished initializing BatchHandler')
 
     def __len__(self):
         """Use user input of n_batches to specify length
