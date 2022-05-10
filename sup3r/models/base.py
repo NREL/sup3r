@@ -288,6 +288,52 @@ class BaseModel(ABC):
         """
         return self.generator.weights
 
+    def generate_hires(self, low_res, norm_in=True, un_norm=True):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
+        un_norm : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+
+        Returns
+        -------
+        hi_res : tf.Tensor
+            Synthetically generated high-resolution data
+        """
+
+        if norm_in and self._means is not None:
+            if isinstance(low_res, tf.Tensor):
+                msg = 'Cannot normalize tensor input, must be array'
+                logger.error(msg)
+                raise TypeError(msg)
+
+            low_res = low_res.copy()
+            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                low_res[..., i] = (low_res[..., i] - m) / s
+
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        if un_norm:
+            hi_res = self.un_norm_output(hi_res.numpy())
+
+        return hi_res
+
     @tf.function
     def generate(self, low_res, norm_in=False):
         """Use the generator model to generate high res data from los res input

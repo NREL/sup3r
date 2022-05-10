@@ -17,37 +17,32 @@ from rex.utilities.execution import SpawnProcessPool
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.utilities import get_wrf_date_range, get_file_t_steps
 from sup3r.models.spatiotemporal import SpatioTemporalGan
-from sup3r import __version__
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class ForwardPassHandler:
-    """Class to handle parallel forward
-    passes through the generator with multiple
-    data files.
+class ForwardPass:
+    """Class to handle parallel forward passes through the generator with
+    multiple data files.
 
-    A full file list of contiguous times is provided.
-    This file list is split up into chunks each of which
-    is passed to a different node. These chunks can overlap
-    in time.
+    A full file list of contiguous times is provided.  This file list is split
+    up into chunks each of which is passed to a different node. These chunks
+    can overlap in time.
 
-    On each node the file list chunk is further split up into
-    temporal and spatial chunks which can also overlap. Each of
-    these chunks is passed through the GAN generator to produce
-    high resolution output. These high resolution chunks
-    are then stitched back together, accounting for possible
+    On each node the file list chunk is further split up into temporal and
+    spatial chunks which can also overlap. Each of these chunks is passed
+    through the GAN generator to produce high resolution output. These high
+    resolution chunks are then stitched back together, accounting for possible
     overlap. The stitched output is saved or returned in an array.
     """
 
     def __init__(self, file_paths,
-                 features, model_path,
+                 model_path,
                  target=None, shape=None,
-                 temporal_shape=slice(None, None, 1),
-                 temporal_pass_chunk_size=100,
-                 spatial_chunk_size=(100, 100),
+                 temporal_slice=slice(None),
+                 forward_pass_chunk_shape=(100, 100, 100),
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
@@ -61,9 +56,8 @@ class ForwardPassHandler:
                  spatial_overlap=15,
                  temporal_overlap=15):
 
-        """Use these inputs to initialize data handlers
-        on different nodes and to define the size of
-        the data chunks that will be passed through the
+        """Use these inputs to initialize data handlers on different nodes and
+        to define the size of the data chunks that will be passed through the
         generator.
 
         Parameters
@@ -71,11 +65,6 @@ class ForwardPassHandler:
         file_paths : list
             A list of NETCDF files to extract raster data from. Each file must
             have the same number of timesteps.
-        file_path_chunk_size : int
-            Number of file paths to pass to each node for subsequent
-            data extraction and forward pass
-        features : list
-            list of features to extract
         model_path : str
             Path to SpatioTemporalGan used to generate high resolution data
         target : tuple
@@ -95,27 +84,18 @@ class ForwardPassHandler:
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
             data
-        spatial_chunk_size : tuple
-            Max size of a spatial domain to pass through generator during
-            subprocesses. The full spatial domain (shape) will be chunked into
-            pieces with max spatial extent equal to spatial_chunk_size. If
-            running in serial set equal to the full spatial domain for best
-            performance.
-        temporal_shape : slice
+        temporal_slice : slice
             Slice defining size of full temporal domain. e.g. If shape is
-            (100, 100) and temporal_shape is slice(0, 101, 1) then the full
+            (100, 100) and temporal_slice is slice(0, 101, 1) then the full
             spatiotemporal data volume will be (100, 100, 100).
         temporal_extract_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
             of the full time index for best performance.
-        temporal_pass_chunk_size : int
-            Max size of a temporal chunk to pass through the generator. e.g.
-            If spatial_chunk_size is (10, 10) and temporal chunk size is 10
-            then the spatiotemporal shape of each data chunk passed through
-            the generator will be a max shape of (10, 10, 10). If running
-            in serial set this equal to the length of the full time index
-            for best performance.
+        forward_pass_chunk_shape : tuple
+            Max shape of a chunk to pass through the generator. If running
+            in serial set this equal to the shape of the full data volume for
+            best performance.
         max_compute_workers : int | None
             max number of workers to use for computing features.
             If max_compute_workers == 1 then extraction will be serialized.
@@ -143,13 +123,13 @@ class ForwardPassHandler:
 
         self.file_t_steps = get_file_t_steps(file_paths)
         self.file_paths = sorted(file_paths)
-        self.features = features
+        self.features = SpatioTemporalGan.load(model_path).training_features
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
-        self.spatial_chunk_size = spatial_chunk_size
-        self.temporal_pass_chunk_size = temporal_pass_chunk_size
-        self.temporal_shape = temporal_shape
+        self.spatial_chunk_size = forward_pass_chunk_shape[:2]
+        self.temporal_pass_chunk_size = forward_pass_chunk_shape[-1]
+        self.temporal_slice = temporal_slice
         self.max_pass_workers = max_pass_workers
         self.max_extract_workers = max_extract_workers
         self.max_compute_workers = max_compute_workers
@@ -162,18 +142,16 @@ class ForwardPassHandler:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
-        self.file_overlap = int(
-            np.ceil(temporal_overlap / self.file_t_steps))
-        self.file_path_chunk_size = int(np.ceil(
-            temporal_pass_chunk_size / self.file_t_steps))
-        self.file_chunks, self.padded_file_chunks, \
-            self.file_crop_slices, self.time_shapes = self.get_file_slices(
-                self.file_paths,
-                file_path_chunk_size=self.file_path_chunk_size,
-                file_overlap=self.file_overlap,
-                file_t_steps=self.file_t_steps,
-                time_shape=self.temporal_shape,
-                t_enhance=t_enhance)
+        self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
+        self.file_path_chunk_size = int(np.ceil(self.temporal_pass_chunk_size
+                                                / self.file_t_steps))
+        out = self.get_file_slices(
+            self.file_paths, file_path_chunk_size=self.file_path_chunk_size,
+            file_overlap=self.file_overlap, file_t_steps=self.file_t_steps,
+            temporal_slice=self.temporal_slice, t_enhance=t_enhance)
+
+        self.file_chunks, self.padded_file_chunks = out[:2]
+        self.file_crop_slices, self.temporal_slices = out[2:]
 
         self.file_ids = self.get_file_ids(
             file_paths=file_paths, file_chunks=self.file_chunks)
@@ -181,21 +159,21 @@ class ForwardPassHandler:
             out_file_prefix=out_file_prefix, file_ids=self.file_ids)
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} '
-               f'than temporal_chunk_size {temporal_pass_chunk_size}.')
-        if temporal_overlap > temporal_pass_chunk_size:
+               f'than temporal_chunk_size {self.temporal_pass_chunk_size}.')
+        if temporal_overlap > self.temporal_pass_chunk_size:
             logger.warning(msg)
 
         msg = (f'Using a larger spatial_overlap {spatial_overlap} '
-               f'than spatial_chunk_size {spatial_chunk_size}.')
-        if any(spatial_overlap > sc for sc in spatial_chunk_size):
+               f'than spatial_chunk_size {self.spatial_chunk_size}.')
+        if any(spatial_overlap > sc for sc in self.spatial_chunk_size):
             logger.warning(msg)
 
         msg = ('Using a padded chunk size '
-               f'{temporal_pass_chunk_size + 2 * temporal_overlap} '
+               f'{self.temporal_pass_chunk_size + 2 * temporal_overlap} '
                'larger than the full temporal domain '
                f'{self.file_t_steps * len(file_paths)}. Should just '
                'run without temporal chunking. ')
-        if (temporal_pass_chunk_size + 2 * temporal_overlap
+        if (self.temporal_pass_chunk_size + 2 * temporal_overlap
                 >= self.file_t_steps * len(file_paths)):
             logger.warning(msg)
 
@@ -211,8 +189,8 @@ class ForwardPassHandler:
         Returns
         -------
         str
-            message to append to log output that does not
-            include a huge info dump of file paths
+            message to append to log output that does not include a huge info
+            dump of file paths
         """
 
         return DataHandlerNC.file_info_logging(file_path)
@@ -267,20 +245,26 @@ class ForwardPassHandler:
 
     @classmethod
     def get_file_slices(cls, file_paths, file_path_chunk_size,
-                        file_overlap, file_t_steps, time_shape,
+                        file_overlap, file_t_steps, temporal_slice,
                         t_enhance=4):
         """
+        Get slices for the provided file list. These sets of slices are used to
+        specify which files are passed to each node for data extraction and to
+        account for temporal overlap of files.
+
+        Parameters
+        ----------
         file_paths : list
             A list of NETCDF files to extract raster data from
         file_path_chunk_size : int
-            Number of file paths to pass to each node for subsequent
-            data extraction and forward pass
+            Number of file paths to pass to each node for subsequent data
+            extraction and forward pass
         file_overlap : int
-            Number of files to pad file chunks with so that we have
-            temporal overlap between file sets passed to each node
+            Number of files to pad file chunks with so that we have temporal
+            overlap between file sets passed to each node
         file_t_steps : int
             Number of time steps in a single file.
-        time_shape : slice
+        temporal_slice : slice
             Slice describing full temporal domain across all files
 
         Returns
@@ -290,11 +274,13 @@ class ForwardPassHandler:
         padded_file_slices : list
             List of file slices including specified file overlap
         file_crop_slices : list
-            List of temporal slices used to crop the overlap associated
-            with the file slice padding
-        time_shapes : list
-            List of slices used to specify requested temporal extent
-            for file set passed to data handler.
+            List of temporal slices used to crop the overlap associated with
+            the file slice padding
+        temporal_slices : list
+            List of slices used to specify requested temporal extent for file
+            set passed to data handler.
+        t_enhance : int
+            Factor by which to enhance the temporal resolution
         """
 
         file_crop_slices = []
@@ -319,15 +305,16 @@ class ForwardPassHandler:
                 stop = None
             file_crop_slices.append(slice(start, stop))
 
-        time_shapes = [slice(None, None, time_shape.step)] * n_chunks
-        time_shapes[0] = slice(time_shape.start, None, time_shape.step)
-        stop = time_shape.stop
+        temporal_slices = [slice(None, None, temporal_slice.step)] * n_chunks
+        temporal_slices[0] = slice(temporal_slice.start, None,
+                                   temporal_slice.step)
+        stop = temporal_slice.stop
         if stop is not None and stop > 0:
             stop = stop % file_t_steps
-        time_shapes[-1] = slice(None, stop, time_shape.step)
+        temporal_slices[-1] = slice(None, stop, temporal_slice.step)
 
-        return file_slices, padded_file_slices, \
-            file_crop_slices, time_shapes
+        return file_slices, padded_file_slices, file_crop_slices, \
+            temporal_slices
 
     @classmethod
     def get_chunk_slices(cls, data_shape=None,
@@ -410,46 +397,29 @@ class ForwardPassHandler:
                     low_res_slices.append(
                         tuple([s1, s2, t, slice(None)]))
 
-                    s1_h, s2_h, t_h = cls.high_res_slices(
+                    s1_h, s2_h, t_h = cls.get_high_res_slices(
                         [s1, s2, t], s_enhance=s_enhance, t_enhance=t_enhance)
                     high_res_slices.append(
                         tuple([s1_h, s2_h, t_h, slice(None)]))
 
-                    s1_p, s2_p, t_p = cls.pad_slices(
+                    s1_p, s2_p, t_p = cls.get_padded_slices(
                         [s1, s2, t], ends=list(data_shape),
                         spatial_overlap=spatial_overlap,
                         temporal_overlap=temporal_overlap)
                     low_res_pad_slices.append(
                         tuple([s1_p, s2_p, t_p, slice(None)]))
 
-                    s1_c, s2_c, t_c = cls.cropped_slices(
+                    s1_c, s2_c, t_c = cls.get_cropped_slices(
                         [s1, s2, t], [s1_p, s2_p, t_p],
                         s_enhance=s_enhance, t_enhance=t_enhance)
                     high_res_crop_slices.append(
                         tuple([s1_c, s2_c, t_c, slice(None)]))
 
-        return low_res_slices, low_res_pad_slices, \
-            high_res_slices, high_res_crop_slices
+        return low_res_slices, low_res_pad_slices, high_res_slices, \
+            high_res_crop_slices
 
-    @classmethod
-    def forward_pass_file_chunk(cls, file_paths=None, model_path=None,
-                                features=None,
-                                target=None, shape=None,
-                                temporal_shape=slice(None, None, 1),
-                                spatial_chunk_size=(10, 10),
-                                temporal_pass_chunk_size=100,
-                                raster_file=None,
-                                max_extract_workers=None,
-                                max_compute_workers=None,
-                                temporal_extract_chunk_size=100,
-                                cache_file_prefix=None,
-                                max_pass_workers=None,
-                                s_enhance=3, t_enhance=4,
-                                out_file=None,
-                                overwrite_cache=False,
-                                spatial_overlap=15,
-                                temporal_overlap=15,
-                                crop_slice=slice(None)):
+    def forward_pass_file_chunk(self, file_paths, temporal_slice=slice(None),
+                                crop_slice=slice(None), out_file=None):
         """
         Routine to run forward pass on all data chunks associated with the
         files in file_paths
@@ -459,122 +429,76 @@ class ForwardPassHandler:
 
         file_paths : list
             A list of NETCDF files to extract raster data from
-        model_path : str
-            Path to SpatioTemporalGan used to generate high resolution data
-        features : list
-            list of features to extract
-        data_shape : slice
-            Size of data volume corresponding to the spatial and temporal
-            extent of files in file_paths.
-        spatial_chunk_size : tuple
-            Max size of a spatial domain to pass through generator during
-            subprocesses. The full spatial domain (shape) will be chunked into
-            pieces with max spatial extent equal to spatial_chunk_size
-        temporal_pass_chunk_size : int
-            Max size of a temporal chunk to pass through the generator. e.g.
-            If spatial_chunk_size is (10, 10) and temporal chunk size is 10
-            then the spatiotemporal shape of each data chunk passed through
-            the generator will be a max shape of (10, 10, 10).
-        temporal_extract_chunk_size : int
-            Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size
-            of the full time index for best performance.
-        max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
-        max_pass_workers : int | None
-            Max number of workers to use for forward passes on each node.
-            If max_pass_workers == 1 then forward passes on chunks will be
-            serialized.
-        s_enhance : int
-            Factor by which to enhance spatial dimensions of low resolution
-            data
-        t_enhance : int
-            Factor by which to enhance temporal dimension of low resolution
-            data
         out_file : str | None
             File to store forward pass output. If None data will be returned in
             an array instead of saved.
-        overwrite_cache : bool
-            Whether to overwrite cache files
-        spatial_overlap : int
-            Size of spatial overlap between chunks passed to forward passes
-            for subsequent spatial stitching
-        temporal_overlap : int
-            Size of temporal overlap between chunks passed to forward passes
-            for subsequent temporal stitching
+        temporal_slice : slice
+            Slice used to select temporal extent from files
         crop_slice : slice
             Slice to crop temporal output if there is temporal overlap between
             file chunks passed to each node.
         """
 
-        handler = DataHandlerNC(file_paths, features,
-                                target=target, shape=shape,
-                                time_shape=temporal_shape,
-                                raster_file=raster_file,
-                                max_extract_workers=max_extract_workers,
-                                max_compute_workers=max_compute_workers,
-                                cache_file_prefix=cache_file_prefix,
-                                time_chunk_size=temporal_extract_chunk_size,
-                                overwrite_cache=overwrite_cache,
-                                val_split=0.0)
+        handler = DataHandlerNC(
+            file_paths, self.features, target=self.target, shape=self.shape,
+            temporal_slice=temporal_slice, raster_file=self.raster_file,
+            max_extract_workers=self.max_extract_workers,
+            max_compute_workers=self.max_compute_workers,
+            cache_file_prefix=self.cache_file_prefix,
+            time_chunk_size=self.temporal_extract_chunk_size,
+            overwrite_cache=self.overwrite_cache,
+            val_split=0.0)
         handler.load_cached_data()
 
-        data_shape = (shape[0], shape[1], len(handler.time_index))
+        data_shape = (self.shape[0], self.shape[1], len(handler.time_index))
 
-        low_res_slices, low_res_pad_slices, \
-            high_res_slices, high_res_crop_slices = cls.get_chunk_slices(
-                data_shape=data_shape,
-                spatial_chunk_size=spatial_chunk_size,
-                temporal_chunk_size=temporal_pass_chunk_size,
-                s_enhance=s_enhance, t_enhance=t_enhance,
-                spatial_overlap=spatial_overlap,
-                temporal_overlap=temporal_overlap,
-                file_t_steps=get_file_t_steps(file_paths))
+        out = self.get_chunk_slices(
+            data_shape=data_shape, spatial_chunk_size=self.spatial_chunk_size,
+            temporal_chunk_size=self.temporal_pass_chunk_size,
+            s_enhance=self.s_enhance, t_enhance=self.t_enhance,
+            spatial_overlap=self.spatial_overlap,
+            temporal_overlap=self.temporal_overlap,
+            file_t_steps=get_file_t_steps(file_paths))
 
-        chunk_shape = (
-            low_res_slices[0][0].stop - low_res_slices[0][0].start,
-            low_res_slices[0][1].stop - low_res_slices[0][1].start,
-            data_shape[2]
-        )
+        low_res_slices, low_res_pad_slices = out[:2]
+        high_res_slices, high_res_crop_slices = out[2:]
+
+        chunk_shape = (low_res_slices[0][0].stop - low_res_slices[0][0].start,
+                       low_res_slices[0][1].stop - low_res_slices[0][1].start,
+                       data_shape[2])
         logger.info(
             f'Starting forward passes on data shape {data_shape}. '
             f'Using {len(low_res_slices)} chunks '
             f'each with shape of {chunk_shape}, '
-            f'spatial_overlap of {spatial_overlap} '
-            f'and temporal_overlap of {temporal_overlap}')
+            f'spatial_overlap of {self.spatial_overlap} '
+            f'and temporal_overlap of {self.temporal_overlap}')
 
         data = np.zeros(
-            (s_enhance * data_shape[0], s_enhance * data_shape[1],
-             t_enhance * data_shape[2], 2),
-            dtype=np.float32)
+            (self.s_enhance * data_shape[0], self.s_enhance * data_shape[1],
+             self.t_enhance * data_shape[2], 2), dtype=np.float32)
 
-        if max_pass_workers == 1:
-            for s_high, s_low_pad, s_high_crop in zip(
-                    high_res_slices, low_res_pad_slices,
-                    high_res_crop_slices):
+        if self.max_pass_workers == 1:
+            for s_high, s_low_pad, s_high_crop in zip(high_res_slices,
+                                                      low_res_pad_slices,
+                                                      high_res_crop_slices):
 
                 data_chunk = handler.data[s_low_pad]
-                data[s_high] = cls.forward_pass_chunk(
+                data[s_high] = ForwardPass.forward_pass_chunk(
                     data_chunk, crop_slices=s_high_crop,
-                    model_path=model_path)
+                    model_path=self.model_path)
         else:
             futures = {}
             now = dt.now()
-            with SpawnProcessPool(max_workers=max_pass_workers) as exe:
+            with SpawnProcessPool(max_workers=self.max_pass_workers) as exe:
                 for s_high, s_low_pad, s_high_crop in zip(
                         high_res_slices, low_res_pad_slices,
                         high_res_crop_slices):
 
                     data_chunk = handler.data[s_low_pad]
-                    future = exe.submit(
-                        cls.forward_pass_chunk,
-                        data_chunk=data_chunk,
-                        crop_slices=s_high_crop,
-                        model_path=model_path)
+                    future = exe.submit(ForwardPass.forward_pass_chunk,
+                                        data_chunk=data_chunk,
+                                        crop_slices=s_high_crop,
+                                        model_path=self.model_path)
                     meta = {'s_high': s_high}
                     futures[future] = meta
 
@@ -604,7 +528,6 @@ class ForwardPassHandler:
 
     @staticmethod
     def forward_pass_chunk(data_chunk, crop_slices, model_path):
-
         """Run forward pass on smallest data chunk
 
         Parameters
@@ -613,13 +536,12 @@ class ForwardPassHandler:
             Data chunk to run through model generator
             (spatial_1, spatial_2, temporal, features)
         model_path : str
-            Path to file for SpatioTemporalGan used to
-            generate high resolution data
+            Path to file for SpatioTemporalGan used to generate high resolution
+            data
         crop_slices : list
-            List of slices for extracting cropped region
-            of interest from output. Output can include
-            an extra overlapping boundary to facilitate
-            stitching of chunks
+            List of slices for extracting cropped region of interest from
+            output. Output can include an extra overlapping boundary to
+            facilitate stitching of chunks
 
         Returns
         -------
@@ -630,20 +552,13 @@ class ForwardPassHandler:
         model = SpatioTemporalGan.load(model_path)
         data_chunk = np.expand_dims(data_chunk, axis=0)
 
-        hi_res = model.generator.layers[0](data_chunk)
-        for i, layer in enumerate(model.generator.layers[1:]):
-            try:
-                hi_res = layer(hi_res)
-            except Exception as e:
-                msg = (f'Could not run layer #{i + 1} "{layer}" '
-                       f'on tensor of shape {hi_res.shape}')
-                logger.error(msg)
-                raise RuntimeError(msg) from e
+        hi_res = model.generate_hires(data_chunk)
 
         return hi_res[0][crop_slices]
 
     @staticmethod
-    def pad_slices(slices, ends, spatial_overlap=15, temporal_overlap=15):
+    def get_padded_slices(slices, ends, spatial_overlap=15,
+                          temporal_overlap=15):
         """Pad slices for data chunk overlap
 
         Parameters
@@ -655,8 +570,8 @@ class ForwardPassHandler:
             List of max indices for spatial and temporal domains
             (spatial_1, spatial_2, temporal)
         spatial_overlap : int
-            Size of spatial overlap between chunks passed to forward passes
-            for subsequent spatial stitching
+            Size of spatial overlap between chunks passed to forward passes for
+            subsequent spatial stitching
         temporal_overlap : int
             Size of temporal overlap between chunks passed to forward passes
 
@@ -686,7 +601,7 @@ class ForwardPassHandler:
         return s1, s2, t
 
     @staticmethod
-    def high_res_slices(slices, s_enhance=3, t_enhance=4):
+    def get_high_res_slices(slices, s_enhance=3, t_enhance=4):
         """Get high res slices from low res slices
 
         Parameters
@@ -709,10 +624,8 @@ class ForwardPassHandler:
             temporal high res slice
         """
 
-        s1 = slice(slices[0].start * s_enhance,
-                   slices[0].stop * s_enhance)
-        s2 = slice(slices[1].start * s_enhance,
-                   slices[1].stop * s_enhance)
+        s1 = slice(slices[0].start * s_enhance, slices[0].stop * s_enhance)
+        s2 = slice(slices[1].start * s_enhance, slices[1].stop * s_enhance)
         t_start = slices[2].start
         if t_start is not None:
             t_start *= t_enhance
@@ -724,8 +637,8 @@ class ForwardPassHandler:
         return s1, s2, t
 
     @staticmethod
-    def cropped_slices(low_res_slices, low_res_pad_slices,
-                       s_enhance=3, t_enhance=4):
+    def get_cropped_slices(low_res_slices, low_res_pad_slices, s_enhance=3,
+                           t_enhance=4):
         """Get cropped spatial and temporal slices for stitching
 
         Parameters
@@ -799,8 +712,7 @@ class ForwardPassHandler:
     @classmethod
     def combine_out_files(cls, file_paths, temporal_chunk_size,
                           out_file_prefix, fp_out=None):
-        """Combine the output of each file_set passed to a
-        different node
+        """Combine the output of each file_set passed to a different node
 
         Parameters
         ----------
@@ -808,8 +720,8 @@ class ForwardPassHandler:
             A list of NETCDF files to extract raster data from. Each file must
             have the same number of timesteps.
         out_file_prefix : str
-            Prefix of path to forward pass output files. If None then data
-            will be returned in an array and not saved.
+            Prefix of path to forward pass output files. If None then data will
+            be returned in an array and not saved.
         fp_out : str, optional
             Combined output file name, by default None
 
@@ -820,9 +732,8 @@ class ForwardPassHandler:
             (spatial_1, spatial_2, temporal, 2)
         """
 
-        logger.info(
-            'Combining forward pass output '
-            f'{cls.file_info_logging(file_paths)}')
+        logger.info('Combining forward pass output '
+                    f'{cls.file_info_logging(file_paths)}')
 
         file_t_steps = get_file_t_steps(file_paths)
 

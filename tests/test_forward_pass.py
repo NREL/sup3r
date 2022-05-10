@@ -8,7 +8,7 @@ import numpy as np
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
-from sup3r.pipeline.gen_handling import ForwardPassHandler
+from sup3r.pipeline.forward_pass import ForwardPass
 from sup3r.models.spatiotemporal import SpatioTemporalGan
 
 
@@ -29,13 +29,11 @@ input_files = [
 target = (19, -125)
 targets = target
 shape = (8, 8)
-spatial_chunk_size = (8, 8)
-spatial_sample_shape = (8, 8)
+sample_shape = (8, 8, 6)
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
-time_shape = slice(None, None, 1)
-temporal_sample_shape = 6
+temporal_slice = slice(None, None, 1)
 list_chunk_size = 10
-temporal_pass_chunk_size = 10
+forward_pass_chunk_shape = (8, 8, 10)
 s_enhance = 3
 t_enhance = 4
 
@@ -54,9 +52,8 @@ def test_fwd_pass_handler():
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            temporal_sample_shape=24,
-                            spatial_sample_shape=(18, 18),
-                            time_shape=slice(None, None, 1),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)
@@ -77,16 +74,14 @@ def test_fwd_pass_handler():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data = ForwardPassHandler.forward_pass_file_chunk(
-            input_files, model_path=out_dir, features=FEATURES,
-            target=target, shape=shape,
-            temporal_shape=time_shape,
-            temporal_pass_chunk_size=temporal_pass_chunk_size,
-            spatial_chunk_size=spatial_chunk_size,
-            raster_file=raster_file,
+        forward_pass = ForwardPass(
+            input_files, out_dir, target=target, shape=shape,
+            temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
-            out_file=None,
+            forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
+        data = forward_pass.forward_pass_file_chunk(
+            input_files, temporal_slice=temporal_slice, out_file=None)
 
         assert data.shape == (s_enhance * shape[0],
                               s_enhance * shape[1],
@@ -109,9 +104,8 @@ def test_fwd_pass_chunking():
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            temporal_sample_shape=24,
-                            spatial_sample_shape=(18, 18),
-                            time_shape=slice(None, None, 1),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)
@@ -132,16 +126,14 @@ def test_fwd_pass_chunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data_chunked = ForwardPassHandler.forward_pass_file_chunk(
-            input_files, model_path=out_dir, features=FEATURES,
-            target=target, shape=shape,
-            temporal_shape=time_shape,
-            temporal_pass_chunk_size=temporal_pass_chunk_size,
-            spatial_chunk_size=spatial_chunk_size,
-            raster_file=raster_file,
+        forward_pass = ForwardPass(
+            input_files, out_dir, target=target, shape=shape,
+            temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
-            out_file=None,
+            forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
+        data_chunked = forward_pass.forward_pass_file_chunk(
+            input_files, temporal_slice=temporal_slice, out_file=None)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
                                   val_split=0.0, shape=shape,
@@ -170,9 +162,8 @@ def test_fwd_pass_nochunking():
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            temporal_sample_shape=24,
-                            spatial_sample_shape=(18, 18),
-                            time_shape=slice(None, None, 1),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)
@@ -193,23 +184,18 @@ def test_fwd_pass_nochunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        data_chunked = ForwardPassHandler.forward_pass_file_chunk(
-            input_files, model_path=out_dir, features=FEATURES,
-            target=target, shape=shape,
-            temporal_shape=time_shape,
-
-            # use chunk sizes equal to full extent
-            temporal_pass_chunk_size=list_chunk_size,
-            spatial_chunk_size=shape,
-
-            raster_file=raster_file,
+        forward_pass = ForwardPass(
+            input_files, out_dir, target=target, shape=shape,
+            temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
-            out_file=None,
+            forward_pass_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
+        data_chunked = forward_pass.forward_pass_file_chunk(
+            input_files, temporal_slice=temporal_slice, out_file=None)
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
-                                  time_shape=time_shape,
+                                  temporal_slice=temporal_slice,
                                   raster_file=raster_file,
                                   max_extract_workers=None,
                                   max_compute_workers=None,

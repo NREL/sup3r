@@ -82,10 +82,9 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_path, features, target=None, shape=None,
-                 max_delta=20, time_shape=slice(None, None, 1),
+                 max_delta=20, temporal_slice=slice(None),
                  time_roll=0, val_split=0.1,
-                 temporal_sample_shape=1,
-                 spatial_sample_shape=(10, 10),
+                 sample_shape=(10, 10, 1),
                  raster_file=None, shuffle_time=False,
                  max_extract_workers=None,
                  max_compute_workers=None,
@@ -121,13 +120,10 @@ class DataHandler(FeatureHandler):
             target+shape or raster_file.
         val_split : float32
             Fraction of data to store for validation
-        spatial_sample_shape : tuple
-            Size of spatial slice used in a single high-res observation for
-            spatial batching
-        temporal_sample_shape : int
-            Number of time slices used in a single high-res observation for
-            temporal batching
-        time_shape : slice
+        sample_shape : tuple
+            Size of spatial and temporal domain used in a single high-res
+            observation for batching
+        temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to
             slice(None, None, 1) the full time dimension is selected.
@@ -182,12 +178,11 @@ class DataHandler(FeatureHandler):
         self.max_delta = max_delta
         self.raster_file = raster_file
         self.val_split = val_split
-        self.spatial_sample_shape = spatial_sample_shape
-        self.temporal_sample_shape = temporal_sample_shape
-        self.time_shape = time_shape
+        self.sample_shape = sample_shape
+        self.temporal_slice = temporal_slice
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_path)
-        self.time_index = self.raw_time_index[time_shape]
+        self.time_index = self.raw_time_index[temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
@@ -196,18 +191,19 @@ class DataHandler(FeatureHandler):
         self.data = None
         self.val_data = None
 
-        msg = ('The temporal_sample_shape cannot '
-               'be larger than the number of time steps in the raw data.')
-        assert len(self.raw_time_index) >= temporal_sample_shape, msg
+        msg = ('sample_shape[2] cannot be larger than the number of time '
+               'steps in the raw data.')
+        assert len(self.raw_time_index) >= self.sample_shape[2], msg
 
-        msg = (f'The requested time slice {time_shape} conflicts with the '
+        msg = (f'The requested time slice {temporal_slice} conflicts with the '
                f'number of time steps ({len(self.raw_time_index)}) '
                'in the raw data')
-        if time_shape.start is not None and time_shape.stop is not None:
-            assert ((time_shape.stop - time_shape.start
+        if (temporal_slice.start is not None
+                and temporal_slice.stop is not None):
+            assert ((temporal_slice.stop - temporal_slice.start
                      <= len(self.raw_time_index))
-                    and time_shape.stop <= len(self.raw_time_index)
-                    and time_shape.start <= len(self.raw_time_index)), msg
+                    and temporal_slice.stop <= len(self.raw_time_index)
+                    and temporal_slice.start <= len(self.raw_time_index)), msg
 
         if cache_file_prefix is not None and not self.overwrite_cache and all(
                 os.path.exists(fp) for fp in self.cache_files):
@@ -235,7 +231,7 @@ class DataHandler(FeatureHandler):
             self.data = self.extract_data(
                 self.file_path, self.raster_index,
                 self.features,
-                time_shape=self.time_shape,
+                temporal_slice=self.temporal_slice,
                 time_roll=self.time_roll,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
@@ -381,9 +377,9 @@ class DataHandler(FeatureHandler):
             like self.data[observation_index]
         """
         spatial_slice = uniform_box_sampler(
-            self.data, self.spatial_sample_shape)
+            self.data, self.sample_shape[:2])
         temporal_slice = uniform_time_sampler(
-            self.data, self.temporal_sample_shape)
+            self.data, self.sample_shape[2])
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
@@ -518,7 +514,8 @@ class DataHandler(FeatureHandler):
                     self.data[:, :, :, i] = tmp
                     del tmp
 
-            logger.debug('Splitting data into training and validation sets')
+            logger.debug('Splitting data into training / validation sets '
+                         f'({1 - self.val_split}, {self.val_split})')
             self.data, self.val_data = self.split_data()
 
     @classmethod
@@ -580,7 +577,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_path, raster_index,
                      features,
-                     time_shape=slice(None, None, 1),
+                     temporal_slice=slice(None, None, 1),
                      time_roll=0,
                      max_extract_workers=None,
                      max_compute_workers=None,
@@ -601,7 +598,7 @@ class DataHandler(FeatureHandler):
             slices for NETCDF
         features : list
             list of features to extract
-        time_shape : slice
+        temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to
             slice(None, None, 1) the full time dimension is selected.
@@ -652,7 +649,7 @@ class DataHandler(FeatureHandler):
         # extracted in parallel
         n_chunks = int(np.ceil(len(time_index) / time_chunk_size))
         time_indices = np.arange(0, len(time_index))
-        time_indices = time_indices[time_shape.start:time_shape.stop]
+        time_indices = time_indices[temporal_slice.start:temporal_slice.stop]
         time_chunks = np.array_split(time_indices, n_chunks)
         time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
 
@@ -688,7 +685,7 @@ class DataHandler(FeatureHandler):
                 data_array[:, :, t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = data_array[:, :, ::time_shape.step, :]
+        data_array = data_array[:, :, ::temporal_slice.step, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:
@@ -1068,9 +1065,9 @@ class DataHandlerNsrdb(DataHandlerH5):
             like self.data[observation_index]
         """
         spatial_slice = uniform_box_sampler(self.data,
-                                            self.spatial_sample_shape)
+                                            self.sample_shape[:2])
         temporal_slice = daily_time_sampler(self.data,
-                                            self.temporal_sample_shape,
+                                            self.sample_shape[2],
                                             self.time_index)
         obs_index = tuple(spatial_slice
                           + [temporal_slice]

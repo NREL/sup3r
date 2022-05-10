@@ -38,8 +38,8 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
     # need to reduce the number of temporal examples to test faster
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
-                            spatial_sample_shape=sample_shape,
-                            time_shape=slice(None, None, 10),
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
                             max_extract_workers=1,
                             max_compute_workers=1)
 
@@ -104,9 +104,8 @@ def test_train_st(n_epoch=4, log=False):
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            temporal_sample_shape=24,
-                            spatial_sample_shape=(18, 18),
-                            time_shape=slice(None, None, 1),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)

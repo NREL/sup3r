@@ -8,12 +8,17 @@ import copy
 import os
 import logging
 import sys
+import tensorflow as tf
+import sklearn
+import pandas as pd
+import numpy as np
+import pprint
 
 from rex.utilities.hpc import SLURM
 from rex import init_logger
 from rex.utilities.loggers import create_dirs
 
-from sup3r.pipeline.gen_handling import ForwardPassHandler
+from sup3r.pipeline.forward_pass import ForwardPass
 from sup3r import __version__
 
 
@@ -75,8 +80,8 @@ class SUP3R:
         if log_level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
 
             if loggers is None:
-                loggers = ('sup3r.sup3r', 'sup3r.forward_pass',
-                           'sup3r.combine_nodes')
+                loggers = ('sup3r.sup3r', 'sup3r.pipeline.forward_pass',
+                           'sup3r.preprocessing.data_handling')
 
             if log_file is not None and use_log_dir:
                 log_file = os.path.join(self._log_dir, log_file)
@@ -89,11 +94,40 @@ class SUP3R:
             self._log_version()
 
     @staticmethod
+    def _parse_versions(version_record=None):
+        """Parse version record if not provided by init.
+        Parameters
+        ----------
+        version_record : dict | None
+            Optional record of import package versions. None (default) will
+            save active environment versions. A dictionary will be interpreted
+            as versions from a loaded model and will be saved as an attribute.
+        Returns
+        -------
+        version_record : dict
+            A record of important versions that this model was built with.
+        """
+        active_versions = {'sup3r': __version__,
+                           'tensorflow': tf.__version__,
+                           'sklearn': sklearn.__version__,
+                           'pandas': pd.__version__,
+                           'numpy': np.__version__,
+                           'python': sys.version,
+                           }
+        logger.info('Active python environment versions: \n{}'
+                    .format(pprint.pformat(active_versions, indent=4)))
+
+        if version_record is None:
+            version_record = active_versions
+
+        return version_record
+
+    @staticmethod
     def _log_version():
         """Check SUP3R and python version and 64-bit and print to logger."""
 
-        logger.info(f'Running SUP3R version: {__version__}')
-        logger.info(f'Running python version: {sys.version_info}')
+        logger.info('Active python environment versions: \n{}'
+                    .format(pprint.pformat(SUP3R._parse_versions(), indent=4)))
 
         is_64bits = sys.maxsize > 2 ** 32
         if is_64bits:
@@ -107,25 +141,69 @@ class SUP3R:
     def run_forward_passes_single_node(cls, kwargs):
         """Run forward passes on single node
 
-        kwargs: dict
-            Required inputs:
-                file_paths, features, model_path
-            Default inputs:
-                target=None, shape=None,
-                temporal_shape=slice(None, None, 1),
-                temporal_pass_chunk_size=100,
-                spatial_chunk_size=(100, 100),
-                raster_file=None,
-                s_enhance=3,
-                t_enhance=4,
-                max_extract_workers=None,
-                max_compute_workers=None,
-                max_pass_workers=None,
-                temporal_extract_chunk_size=100,
-                overwrite_cache=True,
-                spatial_overlap=15,
-                temporal_overlap=15,
-                out_dir='./'
+        Parameters
+        ----------
+        kwargs : dict
+            This dict provides the following keys:
+
+            file_paths : list
+                A list of NETCDF files to extract raster data from. Each file
+                must have the same number of timesteps.
+            model_path : str
+                Path to SpatioTemporalGan used to generate high resolution data
+            target : tuple
+                (lat, lon) lower left corner of raster. Either need
+                target+shape or raster_file.
+            shape : tuple
+                (rows, cols) grid size. Either need target+shape or
+                raster_file.
+            raster_file : str | None
+                File for raster_index array for the corresponding target and
+                shape. If specified the raster_index will be loaded from the
+                file if it exists or written to the file if it does not yet
+                exist.  If None raster_index will be calculated directly.
+                Either need target+shape or raster_file.
+            s_enhance : int
+                Factor by which to enhance spatial dimensions of low resolution
+                data
+            t_enhance : int
+                Factor by which to enhance temporal dimension of low resolution
+                data
+            temporal_slice : slice
+                Slice defining size of full temporal domain. e.g. If shape is
+                (100, 100) and temporal_slice is slice(0, 101, 1) then the full
+                spatiotemporal data volume will be (100, 100, 100).
+            temporal_extract_chunk_size : int
+                Size of chunks to split time dimension into for parallel data
+                extraction. If running in serial this can be set to the size
+                of the full time index for best performance.
+            forward_pass_chunk_shape : tuple
+                Max shape of a chunk to pass through the generator. If running
+                in serial set this equal to the shape of the full data volume
+                for best performance.
+            max_compute_workers : int | None
+                max number of workers to use for computing features.
+                If max_compute_workers == 1 then extraction will be serialized.
+            max_extract_workers : int | None
+                max number of workers to use for data extraction.
+                If max_extract_workers == 1 then extraction will be serialized.
+            max_pass_workers : int | None
+                Max number of workers to use for forward passes on each node.
+                If max_pass_workers == 1 then forward passes on chunks will be
+                serialized.
+            overwrite_cache : bool
+                Whether to overwrite cache files
+            cache_file_prefix : str
+                Prefix of path to cached feature data files
+            out_file_prefix : str
+                Prefix of path to forward pass output files. If None then data
+                will be returned in an array and not saved.
+            spatial_overlap : int
+                Size of spatial overlap between chunks passed to forward passes
+                for subsequent spatial stitching
+            temporal_overlap : int
+                Size of temporal overlap between chunks passed to forward
+                passes for subsequent temporal stitching
         """
 
         out_dir = kwargs.pop('out_dir', './')
@@ -134,15 +212,13 @@ class SUP3R:
         kwargs['cache_file_prefix'] = os.path.join(sup3r._cache_dir, 'cache')
         kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
 
-        handler = ForwardPassHandler(**kwargs)
+        handler = ForwardPass(**kwargs)
         logger.info(
             f'Running forward passes for {len(handler.file_ids)} file chunks')
 
-        for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
-                handler.padded_file_chunks,
-                handler.file_crop_slices,
-                handler.time_shapes, handler.out_files,
-                handler.file_ids):
+        for chunk, chunk_crop, temporal_slice, out_file, file_ids in zip(
+                handler.padded_file_chunks, handler.file_crop_slices,
+                handler.temporal_slices, handler.out_files, handler.file_ids):
 
             log_file = base_log_file.replace('.log', f'_{file_ids}.log')
 
@@ -151,56 +227,84 @@ class SUP3R:
             cache_file_prefix = handler.cache_file_prefix
             cache_file_prefix += f'_{file_ids}'
             kwargs = {'file_paths': handler.file_paths[chunk],
-                      'model_path': handler.model_path,
-                      'features': handler.features,
-                      'target': handler.target,
-                      'shape': handler.shape,
-                      'temporal_shape': time_shape,
-                      'spatial_chunk_size': handler.spatial_chunk_size,
-                      'raster_file': handler.raster_file,
-                      'max_extract_workers': handler.max_extract_workers,
-                      'max_compute_workers': handler.max_compute_workers,
-                      'temporal_extract_chunk_size':
-                          handler.temporal_extract_chunk_size,
-                      'temporal_pass_chunk_size':
-                          handler.temporal_pass_chunk_size,
-                      'cache_file_prefix': cache_file_prefix,
-                      'max_pass_workers': handler.max_pass_workers,
-                      's_enhance': handler.s_enhance,
-                      't_enhance': handler.t_enhance,
                       'out_file': out_file,
-                      'overwrite_cache': handler.overwrite_cache,
-                      'spatial_overlap': handler.spatial_overlap,
-                      'temporal_overlap': handler.temporal_overlap,
+                      'temporal_slice': temporal_slice,
                       'crop_slice': chunk_crop}
 
             logger.info(
                 'Running forward passes '
                 f'{handler.file_info_logging(handler.file_paths[chunk])} ')
-            ForwardPassHandler.forward_pass_file_chunk(**kwargs)
+
+            ForwardPass.forward_pass_file_chunk(**kwargs)
 
     @classmethod
     def run_forward_passes(cls, kwargs, eagle_args):
         """Run forward pass eagle jobs
 
-        kwargs: dict
-            Required inputs:
-                file_paths, features, model_path
-            Default inputs:
-                target=None, shape=None,
-                temporal_shape=slice(None, None, 1),
-                temporal_pass_chunk_size=100,
-                spatial_chunk_size=(100, 100),
-                raster_file=None,
-                s_enhance=3,
-                t_enhance=4,
-                max_extract_workers=None,
-                max_compute_workers=None,
-                max_pass_workers=None,
-                temporal_extract_chunk_size=100,
-                overwrite_cache=True,
-                spatial_overlap=15,
-                temporal_overlap=15,
+        Parameters
+        ----------
+        kwargs : dict
+            This dict provides the following keys:
+
+            file_paths : list
+                A list of NETCDF files to extract raster data from. Each file
+                must have the same number of timesteps.
+            model_path : str
+                Path to SpatioTemporalGan used to generate high resolution data
+            target : tuple
+                (lat, lon) lower left corner of raster. Either need
+                target+shape or raster_file.
+            shape : tuple
+                (rows, cols) grid size. Either need target+shape or
+                raster_file.
+            raster_file : str | None
+                File for raster_index array for the corresponding target and
+                shape. If specified the raster_index will be loaded from the
+                file if it exists or written to the file if it does not yet
+                exist.  If None raster_index will be calculated directly.
+                Either need target+shape or raster_file.
+            s_enhance : int
+                Factor by which to enhance spatial dimensions of low resolution
+                data
+            t_enhance : int
+                Factor by which to enhance temporal dimension of low resolution
+                data
+            temporal_slice : slice
+                Slice defining size of full temporal domain. e.g. If shape is
+                (100, 100) and temporal_slice is slice(0, 101, 1) then the full
+                spatiotemporal data volume will be (100, 100, 100).
+            temporal_extract_chunk_size : int
+                Size of chunks to split time dimension into for parallel data
+                extraction. If running in serial this can be set to the size
+                of the full time index for best performance.
+            forward_pass_chunk_shape : tuple
+                Max shape of a chunk to pass through the generator. If running
+                in serial set this equal to the shape of the full data volume
+                for best performance.
+            max_compute_workers : int | None
+                max number of workers to use for computing features.
+                If max_compute_workers == 1 then extraction will be serialized.
+            max_extract_workers : int | None
+                max number of workers to use for data extraction.
+                If max_extract_workers == 1 then extraction will be serialized.
+            max_pass_workers : int | None
+                Max number of workers to use for forward passes on each node.
+                If max_pass_workers == 1 then forward passes on chunks will be
+                serialized.
+            overwrite_cache : bool
+                Whether to overwrite cache files
+            cache_file_prefix : str
+                Prefix of path to cached feature data files
+            out_file_prefix : str
+                Prefix of path to forward pass output files. If None then data
+                will be returned in an array and not saved.
+            spatial_overlap : int
+                Size of spatial overlap between chunks passed to forward passes
+                for subsequent spatial stitching
+            temporal_overlap : int
+                Size of temporal overlap between chunks passed to forward
+                passes for subsequent temporal stitching
+
         eagle_args : dict
             Default inputs:
                 {"alloc": 'seasiawind',
@@ -208,7 +312,6 @@ class SUP3R:
                  "walltime": 1,
                  "feature": '--qos=high',
                  "stdout": './'}
-
         """
 
         slurm_manager = SLURM()
@@ -228,14 +331,13 @@ class SUP3R:
         kwargs['cache_file_prefix'] = os.path.join(sup3r._cache_dir, 'cache')
         kwargs['out_file_prefix'] = os.path.join(sup3r._output_dir, 'output')
 
-        handler = ForwardPassHandler(**kwargs)
+        handler = ForwardPass(**kwargs)
         logger.info(
             f'Running forward passes for {len(handler.file_ids)} file chunks')
 
-        for chunk, chunk_crop, time_shape, out_file, file_ids in zip(
-                handler.padded_file_chunks,
-                handler.file_crop_slices,
-                handler.time_shapes, handler.out_files,
+        for chunk, chunk_crop, temporal_slice, out_file, file_ids in zip(
+                handler.padded_file_chunks, handler.file_crop_slices,
+                handler.temporal_slices, handler.out_files,
                 handler.file_ids):
 
             log_file = base_log_file.replace('.log', f'_{file_ids}.log')
@@ -247,27 +349,8 @@ class SUP3R:
             cache_file_prefix = handler.cache_file_prefix
             cache_file_prefix += f'_{file_ids}'
             kwargs = {'file_paths': handler.file_paths[chunk],
-                      'model_path': handler.model_path,
-                      'features': handler.features,
-                      'target': handler.target,
-                      'shape': handler.shape,
-                      'temporal_shape': time_shape,
-                      'spatial_chunk_size': handler.spatial_chunk_size,
-                      'raster_file': handler.raster_file,
-                      'max_extract_workers': handler.max_extract_workers,
-                      'max_compute_workers': handler.max_compute_workers,
-                      'temporal_extract_chunk_size':
-                          handler.temporal_extract_chunk_size,
-                      'temporal_pass_chunk_size':
-                          handler.temporal_pass_chunk_size,
-                      'cache_file_prefix': cache_file_prefix,
-                      'max_pass_workers': handler.max_pass_workers,
-                      's_enhance': handler.s_enhance,
-                      't_enhance': handler.t_enhance,
                       'out_file': out_file,
-                      'overwrite_cache': handler.overwrite_cache,
-                      'spatial_overlap': handler.spatial_overlap,
-                      'temporal_overlap': handler.temporal_overlap,
+                      'temporal_slice': temporal_slice,
                       'crop_slice': chunk_crop}
 
             node_name += f'sup3r_fwd_pass_{file_ids}'
@@ -280,13 +363,12 @@ class SUP3R:
             logger.info(
                 'Running forward passes '
                 f'{handler.file_info_logging(handler.file_paths[chunk])} ')
-            out = slurm_manager.sbatch(
-                cmd, alloc=user_input["alloc"],
-                memory=user_input["memory"],
-                walltime=user_input["walltime"],
-                feature=user_input["feature"],
-                name=node_name,
-                stdout_path=stdout_path)[0]
+            out = slurm_manager.sbatch(cmd, alloc=user_input["alloc"],
+                                       memory=user_input["memory"],
+                                       walltime=user_input["walltime"],
+                                       feature=user_input["feature"],
+                                       name=node_name,
+                                       stdout_path=stdout_path)[0]
 
             print(f'\ncmd:\n{cmd}\n')
 
