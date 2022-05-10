@@ -23,8 +23,8 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF_squared_200m']
 
 
-def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
-                       n_epoch=6):
+def test_train_spatial(log=False, full_shape=(20, 20),
+                       sample_shape=(10, 10, 10), n_epoch=6):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')

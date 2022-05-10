@@ -317,6 +317,11 @@ class BaseModel(ABC):
 
             low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                if s == 0:
+                    s = 1
+                    logger.warning(
+                        'Standard deviation is zero for '
+                        f'{self.training_features[i]}')
                 low_res[..., i] = (low_res[..., i] - m) / s
 
         hi_res = self.generator.layers[0](low_res)
