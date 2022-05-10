@@ -87,6 +87,85 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
+def test_train_st_kld_update(n_epoch=2, log=False):
+    """Test loss content metric update after prior training."""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
+    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+
+    SpatioTemporalGan.seed()
+    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
+                              learning_rate=2e-5,
+                              learning_rate_s=2e-4,
+                              learning_rate_t=3e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            temporal_sample_shape=24,
+                            spatial_sample_shape=(18, 18),
+                            time_shape=slice(None, None, 1),
+                            val_split=0.005,
+                            max_extract_workers=1,
+                            max_compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=3, t_enhance=4,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+        # test that training works and reduces loss
+        model.train(batch_handler, n_epoch=n_epoch,
+                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
+                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        # test save/load functionality
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        loss_metric = tf.keras.metrics.kl_divergence
+        model = SpatioTemporalGan.load(out_dir)
+        model.update_content_loss_metric(loss_metric=loss_metric)
+
+        assert model.content_loss_metric == 'kl_divergence'
+
+        model.train(batch_handler, n_epoch=n_epoch,
+                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
+                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert 'config_generator' in model.meta
+        assert 'config_spatial_disc' in model.meta
+        assert 'config_temporal_disc' in model.meta
+        assert len(model.history) == n_epoch
+        assert all(model.history['train_gen_trained_frac'] == 1)
+        assert all(model.history['train_disc_s_trained_frac'] == 0)
+        assert all(model.history['train_disc_t_trained_frac'] == 0)
+        vlossg = model.history['val_loss_gen'].values
+        tlossg = model.history['train_loss_gen'].values
+        assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
+        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 1.5)
+        assert 'test_0' in os.listdir(td)
+        assert 'test_2' in os.listdir(td)
+        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
+        assert 'model_disc_s.pkl' in os.listdir(td + '/test_2')
+        assert 'model_disc_t.pkl' in os.listdir(td + '/test_2')
+
+        # test that a new shape can be passed through the generator
+        test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
+        y_test = model.generate(test_data)
+        assert y_test.shape[0] == test_data.shape[0]
+        assert y_test.shape[1] == test_data.shape[1] * 3
+        assert y_test.shape[2] == test_data.shape[2] * 3
+        assert y_test.shape[3] == test_data.shape[3] * 4
+        assert y_test.shape[4] == test_data.shape[4] - 1
+
+
 def test_train_st_kld(n_epoch=4, log=False):
     """Test basic spatiotemporal model using kl divergence for content loss."""
     if log:
