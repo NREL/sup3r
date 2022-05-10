@@ -581,9 +581,9 @@ class SpatioTemporalGan(BaseModel):
         """
 
         if disc_type == 'temporal':
-            trained_frac = loss_details['disc_t_trained_frac']
+            trained_frac = loss_details['train_disc_t_trained_frac']
         elif disc_type == 'spatial':
-            trained_frac = loss_details['disc_s_trained_frac']
+            trained_frac = loss_details['train_disc_s_trained_frac']
         else:
             raise ValueError('Disc must be either temporal or spatial')
 
@@ -709,10 +709,15 @@ class SpatioTemporalGan(BaseModel):
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
             if adaptive_weights:
-                weight_gen_advers_s = self.update_adversarial_weight(
-                    loss_details, 'spatial', weight_gen_advers_s)
-                weight_gen_advers_t = self.update_adversarial_weight(
-                    loss_details, 'temporal', weight_gen_advers_t)
+                if train_disc_s:
+                    weight_gen_advers_s = self.update_adversarial_weight(
+                        loss_details, 'spatial', weight_gen_advers_s)
+                if train_disc_t:
+                    weight_gen_advers_t = self.update_adversarial_weight(
+                        loss_details, 'temporal', weight_gen_advers_t)
+                logger.info(
+                    'New discriminator weights (disc_s/disc_t): '
+                    f'{weight_gen_advers_s}/{weight_gen_advers_s}')
 
             if stop:
                 break
