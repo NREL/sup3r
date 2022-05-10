@@ -131,7 +131,7 @@ def test_train_st_kld_update(n_epoch=2, log=False):
         model = SpatioTemporalGan.load(out_dir)
         model.update_content_loss_metric(loss_metric=loss_metric)
 
-        assert model.content_loss_metric == 'kl_divergence'
+        assert model.get_content_loss_metric == 'kl_divergence'
 
         model.train(batch_handler, n_epoch=n_epoch,
                     weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
