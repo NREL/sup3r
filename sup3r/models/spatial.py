@@ -19,7 +19,8 @@ class SpatialGan(BaseModel):
     """Spatial super resolution GAN model"""
 
     def __init__(self, gen_layers, disc_layers,
-                 optimizer=None, learning_rate=1e-4,
+                 optimizer=None,
+                 learning_rate=1e-4,
                  optimizer_s=None, learning_rate_s=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
