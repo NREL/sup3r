@@ -878,15 +878,11 @@ class BatchHandler:
             n_elems = 0
             for data_handler in self.data_handlers:
                 self.means[i] += np.nansum(data_handler.data[:, :, :, i])
-                n_elems += \
-                    data_handler.shape[0] \
-                    * data_handler.shape[1] \
-                    * data_handler.shape[2]
+                n_elems += np.product(data_handler.shape)
             self.means[i] = self.means[i] / n_elems
             for data_handler in self.data_handlers:
-                self.stds[i] += \
-                    np.nansum((data_handler.data[:, :, :, i]
-                               - self.means[i])**2)
+                self.stds[i] += np.nansum(
+                    (data_handler.data[:, :, :, i] - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     def normalize(self, means=None, stds=None):

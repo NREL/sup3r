@@ -19,8 +19,7 @@ class SpatialGan(BaseModel):
     """Spatial super resolution GAN model"""
 
     def __init__(self, gen_layers, disc_layers,
-                 optimizer=None,
-                 content_loss_metric=None, learning_rate=1e-4,
+                 optimizer=None, learning_rate=1e-4,
                  optimizer_s=None, learning_rate_s=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
@@ -40,9 +39,6 @@ class SpatialGan(BaseModel):
         optimizer : tensorflow.keras.optimizers | dict | None
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
-        content_loss_metric : tensorflow.keras.metrics | None
-            Method used to compute content loss. e.g. kl_divergence.
-            None defaults to mean_squared_error.
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
@@ -75,7 +71,6 @@ class SpatialGan(BaseModel):
         """
 
         super().__init__(optimizer=optimizer,
-                         content_loss_metric=content_loss_metric,
                          learning_rate=learning_rate,
                          history=history, version_record=version_record,
                          meta=meta, means=means, stdevs=stdevs, name=name)
@@ -275,7 +270,7 @@ class SpatialGan(BaseModel):
         disc_out_gen = self.discriminate(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(
-            hi_res_true, hi_res_gen, loss_metric=self.content_loss_metric)
+            hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)

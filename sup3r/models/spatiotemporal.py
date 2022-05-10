@@ -23,7 +23,6 @@ class SpatioTemporalGan(BaseModel):
                  optimizer=None, learning_rate=1e-4,
                  optimizer_s=None, learning_rate_s=None,
                  optimizer_t=None, learning_rate_t=None,
-                 content_loss_metric=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
@@ -62,9 +61,6 @@ class SpatioTemporalGan(BaseModel):
         learning_rate_t : float, optional
             Same as learning_rate input, but if specified this makes a
             different learning_rate just for the temporal discriminator model.
-        content_loss_metric : tensorflow.keras.metrics | None
-            Method used to compute content loss. e.g. kl_divergence.
-            None defaults to mean_squared_error.
         history : pd.DataFrame | str | None
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
@@ -88,7 +84,6 @@ class SpatioTemporalGan(BaseModel):
         """
 
         super().__init__(optimizer=optimizer,
-                         content_loss_metric=content_loss_metric,
                          learning_rate=learning_rate,
                          history=history, version_record=version_record,
                          meta=meta, means=means, stdevs=stdevs, name=name)
@@ -382,7 +377,7 @@ class SpatioTemporalGan(BaseModel):
         disc_out_temp_gen = self.discriminate_t(hi_res_gen)
 
         loss_gen_content = self.calc_loss_gen_content(
-            hi_res_true, hi_res_gen, loss_metric=self.content_loss_metric)
+            hi_res_true, hi_res_gen)
         loss_gen_advers_s = self.calc_loss_gen_advers(disc_out_spat_gen)
         loss_gen_advers_t = self.calc_loss_gen_advers(disc_out_temp_gen)
         loss_gen = (loss_gen_content
