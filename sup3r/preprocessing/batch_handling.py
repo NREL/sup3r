@@ -6,8 +6,13 @@ Sup3r batch_handling module.
 """
 import logging
 import numpy as np
+from concurrent.futures import as_completed
+from datetime import datetime as dt
+import threading
 
 from rex.utilities import log_mem
+from rex.utilities.execution import SpawnProcessPool
+
 from sup3r.utilities.utilities import (daily_time_sampler, spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
@@ -433,9 +438,21 @@ class BatchHandler:
             [d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
-        for d in data_handlers:
+        futures = {}
+        now = dt.now()
+        for i, d in enumerate(data_handlers):
             if d.data is None:
-                d.load_cached_data()
+                future = threading.Thread(target=d.load_cached_data)
+                futures[future] = i
+                future.start()
+        logger.info(
+            'Started loading all data handlers'
+            f' in {dt.now() - now}. ')
+
+        for i, future in enumerate(futures.keys()):
+            future.join()
+            logger.debug(
+                f'{i+1} out of {len(futures)} handlers loaded')
 
         logger.debug('Finished loading data for BatchHandler')
 
@@ -616,6 +633,9 @@ class BatchHandler:
         file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
 
         data_handlers = []
+        if not isinstance(file_paths, list):
+            file_paths = [file_paths]
+
         for i, f in enumerate(file_paths):
             cache_file_prefix, raster_file, target = cls.make_inputs(
                 cache_file_prefixes, raster_files, targets, i)
@@ -671,6 +691,8 @@ class BatchHandler:
         if cache_file_prefixes is None or cache_file_prefixes is False:
             cache_file_prefix = None
         else:
+            if not isinstance(cache_file_prefixes, list):
+                cache_file_prefixes = [cache_file_prefixes]
             cache_file_prefix = cache_file_prefixes[handler_index]
         if raster_files is None:
             raster_file = None

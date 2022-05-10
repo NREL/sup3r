@@ -167,7 +167,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
 
         logger.info(
-            'Initializing DataHandler for '
+            'Initializing DataHandler '
             f'{self.file_info_logging(self.file_path)}')
 
         self.features = features
@@ -294,7 +294,7 @@ class DataHandler(FeatureHandler):
             dump of file paths
         """
 
-        msg = (f'source files: {file_path}')
+        msg = (f'from source files: {file_path}')
         return msg
 
     @property
@@ -496,9 +496,9 @@ class DataHandler(FeatureHandler):
                     self.data[:, :, :, i] = tmp
                     del tmp
 
-            logger.debug('Splitting data into training / validation sets '
-                         f'({1 - self.val_split}, {self.val_split}) '
-                         f'for {self.file_info_logging(self.file_path)}')
+            logger.debug(
+                'Splitting data into training / validation sets ('
+                f'{1 - self.val_split} / {self.val_split})')
             self.data, self.val_data = self.split_data()
 
     @classmethod
