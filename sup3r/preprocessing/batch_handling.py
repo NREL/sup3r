@@ -878,7 +878,7 @@ class BatchHandler:
             n_elems = 0
             for data_handler in self.data_handlers:
                 self.means[i] += np.nansum(data_handler.data[:, :, :, i])
-                n_elems += np.product(data_handler.shape)
+                n_elems += np.product(data_handler.shape[:-1])
             self.means[i] = self.means[i] / n_elems
             for data_handler in self.data_handlers:
                 self.stds[i] += np.nansum(
