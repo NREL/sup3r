@@ -139,7 +139,7 @@ def test_fwd_pass_chunking():
                                   val_split=0.0, shape=shape,
                                   raster_file=raster_file)
 
-        data_nochunk = model.generate(
+        data_nochunk = model.generate_hires(
             np.expand_dims(handlerNC.data, axis=0))[0]
 
         assert np.mean(
@@ -204,7 +204,7 @@ def test_fwd_pass_nochunking():
                                   overwrite_cache=True,
                                   val_split=0.0)
 
-        data_nochunk = model.generate(
+        data_nochunk = model.generate_hires(
             np.expand_dims(handlerNC.data, axis=0))[0]
 
         assert np.array_equal(data_chunked, data_nochunk)
