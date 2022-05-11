@@ -111,17 +111,6 @@ class DataHandler(FeatureHandler):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
-        raster_file : str | None
-            File for raster_index array for the corresponding target and shape.
-            If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist.  If None
-            raster_index will be calculated directly. Either need target+shape
-            or raster_file.
-        val_split : float32
-            Fraction of data to store for validation
-        sample_shape : tuple
-            Size of spatial and temporal domain used in a single high-res
-            observation for batching
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
@@ -131,6 +120,17 @@ class DataHandler(FeatureHandler):
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
             time_pruning operation.
+        val_split : float32
+            Fraction of data to store for validation
+        sample_shape : tuple
+            Size of spatial and temporal domain used in a single high-res
+            observation for batching
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist.  If None
+            raster_index will be calculated directly. Either need target+shape
+            or raster_file.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         max_compute_workers : int | None
@@ -225,17 +225,15 @@ class DataHandler(FeatureHandler):
                     f'{self.cache_files} exists but overwrite_cache is set to '
                     'True. Proceeding with extraction.')
 
-            self.raster_index = self.get_raster_index(
-                self.file_path, self.target, self.grid_shape)
+            self.raster_index = self.get_raster_index(self.file_path,
+                                                      self.target,
+                                                      self.grid_shape)
             self.data = self.extract_data(
-                self.file_path, self.raster_index,
-                self.features,
-                temporal_slice=self.temporal_slice,
-                time_roll=self.time_roll,
+                self.file_path, self.raster_index, self.features,
+                temporal_slice=self.temporal_slice, time_roll=self.time_roll,
                 max_extract_workers=max_extract_workers,
                 max_compute_workers=max_compute_workers,
-                time_chunk_size=time_chunk_size,
-                cache_files=self.cache_files,
+                time_chunk_size=time_chunk_size, cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
             if cache_file_prefix is None:
@@ -314,11 +312,8 @@ class DataHandler(FeatureHandler):
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
         for i in range(self.shape[-1]):
-            self.val_data[:, :, :, i] = \
-                (self.val_data[:, :, :, i]) * stds[i] + means[i]
-
-            self.data[:, :, :, i] = \
-                (self.data[:, :, :, i]) * stds[i] + means[i]
+            self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
+            self.data[..., i] = self.data[..., i] * stds[i] + means[i]
 
     def normalize(self, means, stds):
         """Normalize all data features Parameters
@@ -348,17 +343,15 @@ class DataHandler(FeatureHandler):
             specificed standard deviation for associated feature
         """
 
-        if std == 0:
-            std = 1
-            logger.warning(
-                'Standard Deviation is zero for '
-                f'{self.features[feature_index]}')
+        self.val_data[..., feature_index] -= mean
+        self.data[..., feature_index] -= mean
 
-        self.val_data[:, :, :, feature_index] = \
-            (self.val_data[:, :, :, feature_index] - mean) / std
-
-        self.data[:, :, :, feature_index] = \
-            (self.data[:, :, :, feature_index] - mean) / std
+        if std > 0:
+            self.val_data[..., feature_index] /= std
+            self.data[..., feature_index] /= std
+        else:
+            logger.warning('Standard Deviation is zero for '
+                           f'{self.features[feature_index]}')
 
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
@@ -369,10 +362,8 @@ class DataHandler(FeatureHandler):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        spatial_slice = uniform_box_sampler(
-            self.data, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(
-            self.data, self.sample_shape[2])
+        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
+        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
@@ -567,8 +558,7 @@ class DataHandler(FeatureHandler):
         return extract_features
 
     @classmethod
-    def extract_data(cls, file_path, raster_index,
-                     features,
+    def extract_data(cls, file_path, raster_index, features,
                      temporal_slice=slice(None, None, 1),
                      time_roll=0,
                      max_extract_workers=None,
@@ -760,6 +750,8 @@ class DataHandlerNC(DataHandler):
 
         Parameters
         ----------
+        file_path : list
+            List of data file paths
         feature : str
             Feature to lookup in registry
 
@@ -776,9 +768,8 @@ class DataHandlerNC(DataHandler):
         return input_features
 
     @classmethod
-    def extract_feature(
-            cls, file_path, raster_index,
-            feature, time_slice=slice(None)) -> np.dtype(np.float32):
+    def extract_feature(cls, file_path, raster_index, feature,
+                        time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -787,10 +778,10 @@ class DataHandlerNC(DataHandler):
             path to data file
         raster_index : ndarray
             Raster index array
-        time_slice : slice
-            slice of time to extract
         feature : str
             Feature to extract from data
+        time_slice : slice
+            slice of time to extract
 
         Returns
         -------
@@ -936,9 +927,8 @@ class DataHandlerH5(DataHandler):
         return input_features
 
     @classmethod
-    def extract_feature(
-            cls, file_path, raster_index,
-            feature, time_slice=slice(None)) -> np.dtype(np.float32):
+    def extract_feature(cls, file_path, raster_index, feature,
+                        time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
@@ -947,10 +937,10 @@ class DataHandlerH5(DataHandler):
             path to data file
         raster_index : ndarray
             Raster index array
-        time_slice : slice
-            slice of time to extract
         feature : str
             Feature to extract from data
+        time_slice : slice
+            slice of time to extract
 
         Returns
         -------

@@ -902,8 +902,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def serial_compute(cls, data, time_chunks,
-                       input_features, all_features):
+    def serial_compute(cls, data, time_chunks, input_features, all_features):
         """Compute features in series
 
         Parameters
@@ -912,8 +911,6 @@ class FeatureHandler:
             dictionary of feature arrays with integer keys for chunks and str
             keys for features. e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
-        raster_index : ndarray
-            raster index for spatial domain
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
@@ -922,9 +919,6 @@ class FeatureHandler:
         all_features : list
             list of all features including those requiring derivation from
             input features
-        max_workers : int | None
-            Number of max workers to use for extraction. If equal to 1 then
-            method is run in serial
 
         Returns
         -------
@@ -949,8 +943,7 @@ class FeatureHandler:
 
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
-                         input_features, all_features,
-                         max_workers=None):
+                         input_features, all_features, max_workers=None):
 
         """Compute features using parallel subprocesses
 
@@ -961,9 +954,6 @@ class FeatureHandler:
             keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
-        data_array : ndarray
-            Array to fill with feature data
-            (spatial_1, spatial_2, temporal, features)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -1140,9 +1130,8 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def extract_feature(
-            cls, file_path, raster_index,
-            feature, time_slice=slice(None)) -> np.dtype(np.float32):
+    def extract_feature(cls, file_path, raster_index, feature,
+                        time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters

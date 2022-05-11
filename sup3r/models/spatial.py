@@ -310,7 +310,7 @@ class SpatialGan(BaseModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self.generate(val_batch.low_res)
+            high_res_gen = self._generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,

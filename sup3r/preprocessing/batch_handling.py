@@ -139,8 +139,8 @@ class NsrdbBatch(Batch):
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
                          output_features=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
+        """Coarsen high res data and return Batch with high res and low res
+        data
 
         Parameters
         ----------
@@ -197,8 +197,7 @@ class ValidationData:
     # Classes to use for handling an individual batch obj.
     BATCH_CLASS = Batch
 
-    def __init__(self, data_handlers, batch_size=8,
-                 s_enhance=3, t_enhance=1,
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  temporal_coarsening_method='subsample',
                  output_features_ind=None,
                  output_features=None):
@@ -209,11 +208,11 @@ class ValidationData:
             List of DataHandler instances
         batch_size : int
             Size of validation data batches
-        t_enhance : int
-            Factor by which to coarsen temporal dimension of the high
-            resolution data
         s_enhance : int
             Factor by which to coarsen spatial dimensions of the high
+            resolution data
+        t_enhance : int
+            Factor by which to coarsen temporal dimension of the high
             resolution data
         temporal_coarsening_method : str
             [subsample, average, total]
@@ -315,30 +314,27 @@ class ValidationData:
         """
         if self._remaining_observations > 0:
             if self._remaining_observations > self.batch_size:
-                high_res = np.zeros((
-                    self.batch_size,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
-                    self.sample_shape[2],
-                    self.handlers[0].shape[-1]),
-                    dtype=np.float32)
+                high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
             else:
-                high_res = np.zeros((
-                    self._remaining_observations,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
-                    self.sample_shape[2],
-                    self.handlers[0].shape[-1]),
-                    dtype=np.float32)
+                high_res = np.zeros((self._remaining_observations,
+                                     self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
-                high_res[i, :, :, :, :] = self.handlers[
+                high_res[i, ...] = self.handlers[
                     val_index['handler_index']].val_data[
-                        val_index['tuple_index']]
+                    val_index['tuple_index']]
                 self._remaining_observations -= 1
 
             if self.sample_shape[2] == 1:
-                high_res = high_res[:, :, :, 0, :]
+                high_res = high_res[..., 0, :]
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 t_enhance=self.t_enhance,
@@ -395,10 +391,8 @@ class BatchHandler:
     VAL_CLASS = ValidationData
     BATCH_CLASS = Batch
 
-    def __init__(self, data_handlers, batch_size=8,
-                 s_enhance=3, t_enhance=2,
-                 means=None, stds=None,
-                 norm=True, n_batches=10,
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
+                 means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample'):
         """
         Parameters
@@ -716,17 +710,15 @@ class BatchHandler:
         ----------
         file_paths : list
             list of file paths
+        features : list
+            list of features to extract
         targets : tuple
             List of several (lat, lon) lower left corner of raster. Either need
             target+shape or raster_file.
         shape : tuple
             (rows, cols) grid size
-        features : list
-            list of features to extract
         val_split : float32
             fraction of data to reserve for validation
-        batch_size : int
-            number of observations in a batch
         sample_shape : tuple
             size of spatial and temporal domain used for batching
         s_enhance: int
@@ -740,14 +732,14 @@ class BatchHandler:
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        norm : bool
+            Wether to normalize data using means/stds calulcated across all
+            handlers
         raster_files : list | str | None
             Files for raster_index array for the corresponding targets and
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all targets. If
             None raster_index will be calculated directly.
-        norm : bool
-            Wether to normalize data using means/stds calulcated across all
-            handlers
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
@@ -757,6 +749,10 @@ class BatchHandler:
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
             time_pruning operation.
+        batch_size : int
+            number of observations in a batch
+        n_batches : int
+            Number of batches to iterate through
         means : np.ndarray
             dimensions (features)
             array of means for all features with same ordering as data features
@@ -764,8 +760,6 @@ class BatchHandler:
             dimensions (features)
             array of means for all features
             with same ordering as data features
-        n_batches : int
-            Number of batches to iterate through
         temporal_coarsening_method : str
             [subsample, average, total]
             Subsample will take every t_enhance-th time step, average will
@@ -832,10 +826,8 @@ class BatchHandler:
         time_steps = 0
         for h in self.data_handlers:
             time_steps += h.shape[2]
-        return (self.data_handlers[0].shape[0],
-                self.data_handlers[0].shape[1],
-                time_steps,
-                self.data_handlers[0].shape[3])
+        return (self.data_handlers[0].shape[0], self.data_handlers[0].shape[1],
+                time_steps, self.data_handlers[0].shape[3])
 
     def _get_stats(self):
         """Get standard deviations and means for all data features
@@ -853,12 +845,12 @@ class BatchHandler:
         for i in range(self.shape[-1]):
             n_elems = 0
             for data_handler in self.data_handlers:
-                self.means[i] += np.nansum(data_handler.data[:, :, :, i])
+                self.means[i] += np.nansum(data_handler.data[..., i])
                 n_elems += np.product(data_handler.shape[:-1])
             self.means[i] = self.means[i] / n_elems
             for data_handler in self.data_handlers:
                 self.stds[i] += np.nansum(
-                    (data_handler.data[:, :, :, i] - self.means[i])**2)
+                    (data_handler.data[..., i] - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     def normalize(self, means=None, stds=None):
@@ -892,20 +884,16 @@ class BatchHandler:
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size,
-                                 self.sample_shape[0],
-                                 self.sample_shape[1],
-                                 self.sample_shape[2],
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.sample_shape[2],
                                  self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
-                obs = handler.get_next()
-                high_res[i, :, :, :, :] = obs
+                high_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance,
-                t_enhance=self.t_enhance,
+                high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
                 output_features=self.output_features)
@@ -928,21 +916,12 @@ class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 
     @classmethod
-    def make(cls, file_paths, features,
-             targets=None, shape=None,
-             val_split=0.2, batch_size=8,
-             sample_shape=(10, 10),
-             s_enhance=3, max_delta=20,
-             norm=True, raster_files=None,
-             temporal_slice=slice(None),
-             time_roll=0,
-             means=None,
-             n_batches=10,
-             stds=None,
-             list_chunk_size=None,
-             max_extract_workers=None,
-             max_compute_workers=None,
-             time_chunk_size=100,
+    def make(cls, file_paths, features, targets=None, shape=None,
+             val_split=0.2, batch_size=8, sample_shape=(10, 10), s_enhance=3,
+             max_delta=20, norm=True, raster_files=None,
+             temporal_slice=slice(None), time_roll=0, means=None, stds=None,
+             n_batches=10, list_chunk_size=None, max_extract_workers=None,
+             max_compute_workers=None, time_chunk_size=100,
              cache_file_prefixes=None):
         """Method to initialize both data and batch handlers
 
@@ -970,15 +949,15 @@ class SpatialBatchHandler(BatchHandler):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        norm : bool
+            Wether to normalize data using means/stds calulcated across
+            all handlers
         raster_files : list | str | None
             Files for raster_index array for the corresponding targets and
             shape. If a list these can be different files for different
             targets. If a string the same file will be used for all
             targets. If None raster_index will be calculated directly. Either
             need target+shape or raster_file.
-        norm : bool
-            Wether to normalize data using means/stds calulcated across
-            all handlers
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to
@@ -1047,12 +1026,11 @@ class SpatialBatchHandler(BatchHandler):
             handler_index = np.random.randint(
                 0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size,
-                                 self.sample_shape[0],
-                                 self.sample_shape[1],
-                                 self.shape[-1]), dtype=np.float32)
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
             for i in range(self.batch_size):
-                high_res[i, :, :, :] = handler.get_next()[:, :, 0, :]
+                high_res[i, ...] = handler.get_next()[..., 0, :]
 
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,

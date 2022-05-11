@@ -288,8 +288,9 @@ class BaseModel(ABC):
         """
         return self.generator.weights
 
-    def generate_hires(self, low_res, norm_in=True, un_norm=True):
-        """Use the generator model to generate high res data from los res input
+    def generate(self, low_res, norm_in=True, un_norm=True):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
 
         Parameters
         ----------
@@ -317,12 +318,12 @@ class BaseModel(ABC):
 
             low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                if s == 0:
-                    s = 1
-                    logger.warning(
-                        'Standard deviation is zero for '
-                        f'{self.training_features[i]}')
-                low_res[..., i] = (low_res[..., i] - m) / s
+                low_res[..., i] -= m
+                if s > 0:
+                    low_res[..., i] /= s
+                else:
+                    logger.warning('Standard deviation is zero for '
+                                   f'{self.training_features[i]}')
 
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
@@ -340,7 +341,7 @@ class BaseModel(ABC):
         return hi_res
 
     @tf.function
-    def generate(self, low_res, norm_in=False):
+    def _generate(self, low_res, norm_in=False):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -738,7 +739,7 @@ class BaseModel(ABC):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
-            hi_res_gen = self.generate(low_res)
+            hi_res_gen = self._generate(low_res)
             loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                       **calc_loss_kwargs)
             loss, loss_details = loss_out

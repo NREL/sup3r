@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_file_t_steps(file_paths):
-    """Get number of time steps in each file. We assume
-    that each netcdf file in a file list passed to the handling
-    classes has the same number of time steps.
+    """Get number of time steps in each file. We assume that each netcdf file
+    in a file list passed to the handling classes has the same number of time
+    steps.
 
     Parameters
     ----------
@@ -81,8 +81,7 @@ def get_wrf_date_range(files):
 
 
 def uniform_box_sampler(data, shape):
-    '''
-    Extracts a sample cut from data.
+    '''Extracts a sample cut from data.
 
     Parameters:
     -----------
@@ -119,8 +118,7 @@ def uniform_box_sampler(data, shape):
 
 
 def uniform_time_sampler(data, shape):
-    '''
-    Extracts a temporal slice from data.
+    '''Extracts a temporal slice from data.
 
     Parameters:
     -----------
@@ -232,7 +230,6 @@ def temporal_coarsening(data, t_enhance=2, method='subsample'):
     data : np.ndarray
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
-
     t_enhance : int
         factor by which to coarsen temporal dimension
 
@@ -278,11 +275,6 @@ def spatial_coarsening(data, s_enhance=2):
     data : np.ndarray
         4D | 5D array with dimensions
         (n_observations, spatial_1, spatial_2, temporal (optional), features)
-
-    lat_lon : np.ndarray
-        2D array with dimensions
-        (spatial_1, spatial_2)
-
     s_enhance : int
         factor by which to coarsen spatial dimensions
 
@@ -340,7 +332,6 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
     lat_lon : np.ndarray
         2D array with dimensions
         (spatial_1, spatial_2)
-
     s_enhance : int
         factor by which to coarsen spatial dimensions
 
@@ -357,14 +348,14 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
 
 
 def forward_average(array_in):
-    """
-    Average neighboring values in an array.  Used to unstagger WRF variable
+    """Average neighboring values in an array.  Used to unstagger WRF variable
     values.
 
     Parameters
     ----------
     array_in : ndarray
         Input array, or array axis
+
     Returns
     -------
     ndarray
@@ -384,10 +375,10 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
         netcdf data object
     var : str
         Name of variable to be unstaggered
-    time_slice : slice
-        slice of time to extract
     raster_index : list
         List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
 
     Returns
     -------
@@ -435,6 +426,8 @@ def calc_height(data, raster_index, time_slice=slice(None)):
     ----------
     data : xarray
         netcdf data object
+    raster_index : list
+        List of slices for raster index of spatial domain
     time_slice : slice
         slice of time to extract
 
@@ -541,12 +534,12 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
         netcdf data object
     var : str
         Name of variable to be interpolated
-    time_slice : slice
-        slice of time to extract
     raster_index : list
         List of slices for raster index of spatial domain
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
+    time_slice : slice
+        slice of time to extract
     Returns
     -------
     out_array : ndarray
@@ -555,10 +548,9 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
 
-    return interp3D(
-        unstagger_var(data, var, raster_index, time_slice),
-        calc_height(data, raster_index, time_slice),
-        heights)[0]
+    return interp3D(unstagger_var(data, var, raster_index, time_slice),
+                    calc_height(data, raster_index, time_slice),
+                    heights)[0]
 
 
 def potential_temperature(T, P):
@@ -581,8 +573,7 @@ def potential_temperature(T, P):
     return out
 
 
-def potential_temperature_difference(T_top, P_top,
-                                     T_bottom, P_bottom):
+def potential_temperature_difference(T_top, P_top, T_bottom, P_bottom):
     """Potential temp difference calculation
 
     Parameters
@@ -609,8 +600,7 @@ def potential_temperature_difference(T_top, P_top,
             - potential_temperature(T_bottom, P_bottom))
 
 
-def potential_temperature_average(T_top, P_top,
-                                  T_bottom, P_bottom):
+def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
     """Potential temp average calculation
 
     Parameters
@@ -675,9 +665,7 @@ def inverse_mo_length(U_surf, V_surf, W_surf, PT_surf):
     return numer / denom
 
 
-def bvf_squared(T_top, T_bottom,
-                P_top, P_bottom,
-                delta_h):
+def bvf_squared(T_top, T_bottom, P_top, P_bottom, delta_h):
     """
     Squared Brunt Vaisala Frequency
 
@@ -713,9 +701,8 @@ def bvf_squared(T_top, T_bottom,
     return bvf2
 
 
-def gradient_richardson_number(T_top, T_bottom, P_top,
-                               P_bottom, U_top, U_bottom,
-                               V_top, V_bottom, delta_h):
+def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
+                               U_bottom, V_top, V_bottom, delta_h):
     """Formula for the gradient richardson number - related to the bouyant
     production or consumption of turbulence divided by the shear production of
     turbulence. Used to indicate dynamic stability
