@@ -436,21 +436,27 @@ class BatchHandler:
             [d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
-        futures = {}
-        now = dt.now()
-        for i, d in enumerate(data_handlers):
-            if d.data is None:
-                future = threading.Thread(target=d.load_cached_data)
-                futures[future] = i
-                future.start()
-        logger.info(
-            'Started loading all data handlers'
-            f' in {dt.now() - now}. ')
+        n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
+        n_chunks = int(np.ceil(n_feature_arrays / 10))
+        handler_chunks = np.array_split(data_handlers, n_chunks)
 
-        for i, future in enumerate(futures.keys()):
-            future.join()
-            logger.debug(
-                f'{i+1} out of {len(futures)} handlers loaded')
+        for j, handler_chunk in enumerate(handler_chunks):
+            futures = {}
+            now = dt.now()
+            for i, d in enumerate(handler_chunk):
+                if d.data is None:
+                    future = threading.Thread(target=d.load_cached_data)
+                    futures[future] = i
+                    future.start()
+            logger.info(
+                'Started loading all data handlers'
+                f' for handler_chunk {j} in {dt.now() - now}. ')
+
+            for i, future in enumerate(futures.keys()):
+                future.join()
+                logger.debug(
+                    f'{i+1} out of {len(futures)} handlers for handler_chunk '
+                    f'{j} loaded.')
 
         logger.debug('Finished loading data for BatchHandler')
 
