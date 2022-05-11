@@ -640,30 +640,27 @@ class DataHandler(FeatureHandler):
 
         raw_features = cls.get_raw_feature_list(file_path, extract_features)
 
-        log_mem(logger, log_level='DEBUG')
-
         logger.info(
-            f'Starting {extract_features} extraction '
-            f'for {cls.file_info_logging(file_path)}')
+            f'Starting {extract_features} extraction for '
+            f'{cls.file_info_logging(file_path)}')
 
-        raw_data = cls.parallel_extract(
-            file_path, raster_index, time_chunks,
-            raw_features, max_extract_workers)
+        raw_data = cls.parallel_extract(file_path, raster_index, time_chunks,
+                                        raw_features, max_extract_workers)
 
-        log_mem(logger, log_level='DEBUG')
-        logger.info(f'Finished extracting {extract_features}')
+        logger.info(f'Finished extracting {extract_features} for '
+                    f'{cls.file_info_logging(file_path)}')
 
-        raw_data = cls.parallel_compute(
-            raw_data, raster_index, time_chunks,
-            raw_features, extract_features, max_compute_workers)
+        raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
+                                        raw_features, extract_features,
+                                        max_compute_workers)
 
-        log_mem(logger, log_level='DEBUG')
-        logger.info(f'Finished computing {extract_features}')
+        logger.info(f'Finished computing {extract_features} for '
+                    f'{cls.file_info_logging(file_path)}')
 
         for t, t_slice in enumerate(time_chunks):
             for _, f in enumerate(extract_features):
                 f_index = features.index(f)
-                data_array[:, :, t_slice, f_index] = raw_data[t][f]
+                data_array[..., t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
         data_array = data_array[:, :, ::temporal_slice.step, :]
@@ -673,7 +670,7 @@ class DataHandler(FeatureHandler):
             for f in [f for f in features if f not in extract_features]:
                 f_index = features.index(f)
                 with open(cache_files[f_index], 'rb') as fh:
-                    data_array[:, :, :, f_index] = pickle.load(fh)
+                    data_array[..., f_index] = pickle.load(fh)
 
         logger.info(
             'Finished extracting data for '
