@@ -407,16 +407,20 @@ class DataHandler(FeatureHandler):
 
         n_observations = self.data.shape[2]
         all_indices = np.arange(n_observations)
+        n_val_obs = int(self.val_split * n_observations)
+
         if self.shuffle_time:
             np.random.shuffle(all_indices)
-
-        n_val_obs = int(self.val_split * n_observations)
 
         val_indices = all_indices[:n_val_obs]
         training_indices = all_indices[n_val_obs:]
 
-        self.val_data = self.data[:, :, val_indices, :]
-        self.data = self.data[:, :, training_indices, :]
+        if not self.shuffle_time:
+            [self.val_data, self.data] = np.split(self.data, [n_val_obs],
+                                                  axis=2)
+        else:
+            self.val_data = self.data[:, :, val_indices, :]
+            self.data = self.data[:, :, training_indices, :]
 
         self.val_time_index = self.time_index[val_indices]
         self.time_index = self.time_index[training_indices]
@@ -477,6 +481,8 @@ class DataHandler(FeatureHandler):
             requested_shape = (shape[0], shape[1], len(self.time_index),
                                len(self.features))
             self.data = np.zeros(requested_shape, dtype=np.float32)
+            self.data[...] = np.nan
+
             for i, fp in enumerate(self.cache_files):
 
                 fp_ignore_case = ignore_case_path_fetch(fp)
@@ -486,14 +492,13 @@ class DataHandler(FeatureHandler):
 
                 with open(fp_ignore_case, 'rb') as fh:
 
-                    tmp = np.array(pickle.load(fh), dtype=np.float32)
-                    msg = (f'Data loaded from cache {tmp.shape} '
-                           'does not match the requested shape '
-                           f'{self.data[:, :, :, i].shape}')
+                    log_mem(logger)
+                    self.data[..., i] = np.array(pickle.load(fh),
+                                                 dtype=np.float32)
 
-                    assert self.data[:, :, :, i].shape == tmp.shape, msg
-                    self.data[:, :, :, i] = tmp
-                    del tmp
+            msg = ('Data loaded from cache does not match the requested shape'
+                   f' {self.data.shape}')
+            assert not np.isnan(self.data).any(), msg
 
             logger.debug('Splitting data into training / validation sets '
                          f'({1 - self.val_split}, {self.val_split}) '

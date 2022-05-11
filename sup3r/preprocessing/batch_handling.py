@@ -437,7 +437,7 @@ class BatchHandler:
         assert np.all(handler_shapes[0] == handler_shapes)
 
         n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
-        n_chunks = int(np.ceil(n_feature_arrays / 6))
+        n_chunks = int(np.ceil(n_feature_arrays / 10))
         handler_chunks = np.array_split(data_handlers, n_chunks)
 
         for j, handler_chunk in enumerate(handler_chunks):
@@ -448,8 +448,6 @@ class BatchHandler:
                     future = threading.Thread(target=d.load_cached_data)
                     futures[future] = i
                     future.start()
-
-                    log_mem(logger)
 
             logger.info(
                 'Started loading all data handlers'
@@ -462,7 +460,6 @@ class BatchHandler:
                     f'{j} loaded.')
 
         logger.debug('Finished loading data for BatchHandler')
-
         log_mem(logger)
 
         self.data_handlers = data_handlers
