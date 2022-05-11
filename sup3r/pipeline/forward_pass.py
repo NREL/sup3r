@@ -28,13 +28,10 @@ class ForwardPassHandler:
 
     A full file list of contiguous times is provided.  This file list is split
     up into chunks each of which is passed to a different node. These chunks
-    can overlap in time.
-
-    On each node the file list chunk is further split up into temporal and
-    spatial chunks which can also overlap. Each of these chunks is passed
-    through the GAN generator to produce high resolution output. These high
-    resolution chunks are then stitched back together, accounting for possible
-    overlap. The stitched output is saved or returned in an array.
+    can overlap in time. The file list chunk is further split up into temporal
+    and spatial chunks which can also overlap. This handler stores information
+    on these chunks, how they overlap, and how to crop generator output to
+    stich the chunks back togerther.
     """
 
     def __init__(self, file_paths,
@@ -81,34 +78,38 @@ class ForwardPassHandler:
             Factor by which to enhance temporal dimension of low resolution
             data
         temporal_slice : slice
-            Slice defining size of full temporal domain. e.g. If the shape
-            argument is (100, 100) and temporal_slice is slice(0, 101, 1) then
-            the full spatiotemporal data volume will be (100, 100, 100).
+            Slice defining size of full temporal domain. e.g. If we have 5
+            files each with 5 time steps then temporal_slice = slice(None) will
+            select all 25 time steps.
         temporal_extract_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
             of the full time index for best performance.
         forward_pass_chunk_shape : tuple
-            Max shape of a chunk to pass through the generator. If running
-            in serial set this equal to the shape of the full data volume for
-            best performance.
+            (spatial_1, spatial_2, temporal)
+            Max shape of a chunk to pass through the generator. If running in
+            serial set this equal to the shape of the full spatiotemporal data
+            volume for best performance.
         max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
+            max number of workers to use for computing features. If
+            max_compute_workers == 1 then extraction will be serialized.
         max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
+            max number of workers to use for data extraction. If
+            max_extract_workers == 1 then extraction will be serialized.
         max_pass_workers : int | None
-            Max number of workers to use for forward passes on each node.
-            If max_pass_workers == 1 then forward passes on chunks will be
+            Max number of workers to use for forward passes on each node. If
+            max_pass_workers == 1 then forward passes on chunks will be
             serialized.
         overwrite_cache : bool
-            Whether to overwrite cache files
+            Whether to overwrite cache files storing the computed/extracted
+            feature data
         cache_file_prefix : str
             Prefix of path to cached feature data files
         out_file_prefix : str
-            Prefix of path to forward pass output files. If None then data
-            will be returned in an array and not saved.
+            Prefix of path to save forward pass output files. e.g. If this is
+            /tmp/output then each output file will have path
+            /tmp/output_<file_id>.pkl. If None then data will be returned in an
+            array and not saved.
         spatial_overlap : int
             Size of spatial overlap between chunks passed to forward passes
             for subsequent spatial stitching
@@ -507,8 +508,8 @@ class ForwardPassHandler:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from. Each file must
-            have the same number of timesteps.
+            A list of all the NETCDF files previously run through the
+            generator. Each file must have the same number of timesteps.
         out_files : list
             Paths to forward pass output files.
         fp_out : str, optional
@@ -541,7 +542,9 @@ class ForwardPassHandler:
 
 class ForwardPass:
     """Class to run forward passes on all chunks provided by the given
-    ForwardPassHandler"""
+    ForwardPassHandler. The chunks provided by the handler are all passed
+    through the GAN generator to produce high resolution output.
+    """
 
     def __init__(self, handler, model_path):
         """Initialize ForwardPass with ForwardPassHandler. The handler provides
@@ -561,7 +564,8 @@ class ForwardPass:
 
     @staticmethod
     def forward_pass_chunk(data_chunk, crop_slices, model_path):
-        """Run forward pass on smallest data chunk
+        """Run forward pass on smallest data chunk. Each chunk has a maximum
+        shape given by self.handler.forward_pass_chunk_shape.
 
         Parameters
         ----------
@@ -593,7 +597,10 @@ class ForwardPass:
                                 crop_slice=slice(None), out_file=None):
         """
         Routine to run forward pass on all data chunks associated with the
-        files in file_paths
+        files in file_paths. To run forward passes on all files in
+        handler.file_paths this routine needs to be called for every file
+        chunk. e.g. for each handler.file_paths[file_slice]. This routine is
+        one higher level than forward_pass_chunk.
 
         Parameters
         ----------
@@ -604,7 +611,7 @@ class ForwardPass:
             Slice used to select temporal extent from files
         crop_slice : slice
             Slice to crop temporal output if there is temporal overlap between
-            file chunks passed to each node.
+            different file chunks.
         out_file : str | None
             File to store forward pass output. If None data will be returned in
             an array instead of saved.
