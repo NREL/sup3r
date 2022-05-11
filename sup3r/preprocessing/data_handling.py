@@ -294,7 +294,7 @@ class DataHandler(FeatureHandler):
             dump of file paths
         """
 
-        msg = (f'from source files: {file_path}')
+        msg = (f'source files: {file_path}')
         return msg
 
     @property
