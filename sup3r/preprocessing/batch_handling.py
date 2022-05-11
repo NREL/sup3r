@@ -6,12 +6,10 @@ Sup3r batch_handling module.
 """
 import logging
 import numpy as np
-from concurrent.futures import as_completed
 from datetime import datetime as dt
 import threading
 
 from rex.utilities import log_mem
-from rex.utilities.execution import SpawnProcessPool
 
 from sup3r.utilities.utilities import (daily_time_sampler, spatial_coarsening,
                                        temporal_coarsening,
