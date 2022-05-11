@@ -556,7 +556,8 @@ class SpatioTemporalGan(BaseModel):
         return loss_details
 
     @staticmethod
-    def update_adversarial_weight(loss_details, disc_type, disc_weight):
+    def update_adversarial_weight(loss_details, disc_type, disc_weight,
+                                  increase_frac=0.025):
         """Adaptive weight updating for discriminators
 
         Parameters
@@ -568,6 +569,8 @@ class SpatioTemporalGan(BaseModel):
             temporal or spatial
         disc_weight : float
             current discriminator weight to update
+        increase_frac : float
+            Fraction by which to increase weights
 
         Returns
         -------
@@ -588,7 +591,7 @@ class SpatioTemporalGan(BaseModel):
             raise ValueError('Disc must be either temporal or spatial')
 
         if trained_frac < 0.5:
-            return 1.05 * disc_weight
+            return (1 + increase_frac) * disc_weight
         else:
             return disc_weight
 
