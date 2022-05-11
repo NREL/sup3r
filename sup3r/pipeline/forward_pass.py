@@ -85,9 +85,9 @@ class ForwardPass:
             Factor by which to enhance temporal dimension of low resolution
             data
         temporal_slice : slice
-            Slice defining size of full temporal domain. e.g. If shape is
-            (100, 100) and temporal_slice is slice(0, 101, 1) then the full
-            spatiotemporal data volume will be (100, 100, 100).
+            Slice defining size of full temporal domain. e.g. If the shape
+            argument is (100, 100) and temporal_slice is slice(0, 101, 1) then
+            the full spatiotemporal data volume will be (100, 100, 100).
         temporal_extract_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -158,21 +158,21 @@ class ForwardPass:
         self.out_files = self.get_output_file_names(
             out_file_prefix=out_file_prefix, file_ids=self.file_ids)
 
-        msg = (f'Using a larger temporal_overlap {temporal_overlap} '
-               f'than temporal_chunk_size {self.temporal_pass_chunk_size}.')
+        msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
+               f'temporal_chunk_size {self.temporal_pass_chunk_size}.')
         if temporal_overlap > self.temporal_pass_chunk_size:
             logger.warning(msg)
 
-        msg = (f'Using a larger spatial_overlap {spatial_overlap} '
-               f'than spatial_chunk_size {self.spatial_chunk_size}.')
+        msg = (f'Using a larger spatial_overlap {spatial_overlap} than '
+               f'spatial_chunk_size {self.spatial_chunk_size}.')
         if any(spatial_overlap > sc for sc in self.spatial_chunk_size):
             logger.warning(msg)
 
         msg = ('Using a padded chunk size '
                f'{self.temporal_pass_chunk_size + 2 * temporal_overlap} '
                'larger than the full temporal domain '
-               f'{self.file_t_steps * len(file_paths)}. Should just '
-               'run without temporal chunking. ')
+               f'{self.file_t_steps * len(file_paths)}. Should just run '
+               'without temporal chunking. ')
         if (self.temporal_pass_chunk_size + 2 * temporal_overlap
                 >= self.file_t_steps * len(file_paths)):
             logger.warning(msg)
@@ -467,11 +467,10 @@ class ForwardPass:
                        low_res_slices[0][1].stop - low_res_slices[0][1].start,
                        data_shape[2])
         logger.info(
-            f'Starting forward passes on data shape {data_shape}. '
-            f'Using {len(low_res_slices)} chunks '
-            f'each with shape of {chunk_shape}, '
-            f'spatial_overlap of {self.spatial_overlap} '
-            f'and temporal_overlap of {self.temporal_overlap}')
+            f'Starting forward passes on data shape {data_shape}. Using '
+            f'{len(low_res_slices)} chunks each with shape of {chunk_shape}, '
+            f'spatial_overlap of {self.spatial_overlap} and temporal_overlap '
+            f'of {self.temporal_overlap}')
 
         data = np.zeros(
             (self.s_enhance * data_shape[0], self.s_enhance * data_shape[1],
@@ -503,8 +502,8 @@ class ForwardPass:
                     futures[future] = meta
 
                 logger.info(
-                    f'Started forward pass for {len(high_res_slices)} '
-                    f'chunks in {dt.now() - now}.')
+                    f'Started forward pass for {len(high_res_slices)} chunks '
+                    f'in {dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
                     slices = futures[future]
@@ -732,7 +731,7 @@ class ForwardPass:
             (spatial_1, spatial_2, temporal, 2)
         """
 
-        logger.info('Combining forward pass output '
+        logger.info('Combining forward pass output for '
                     f'{cls.file_info_logging(file_paths)}')
 
         file_t_steps = get_file_t_steps(file_paths)

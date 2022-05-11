@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 class DerivedFeature(ABC):
-    """Abstract class for special features
-    which need to be derived from raw features"""
+    """Abstract class for special features which need to be derived from raw
+    features"""
 
     @classmethod
     @abstractmethod
@@ -43,8 +43,7 @@ class DerivedFeature(ABC):
 
 
 class ClearSkyRatioH5(DerivedFeature):
-    """Clear Sky Ratio feature class for computing
-    from H5 data"""
+    """Clear Sky Ratio feature class for computing from H5 data"""
 
     @classmethod
     def inputs(cls, feature):
@@ -93,8 +92,7 @@ class ClearSkyRatioH5(DerivedFeature):
 
 
 class CloudMaskH5(DerivedFeature):
-    """Cloud Mask feature class for computing
-    from H5 data"""
+    """Cloud Mask feature class for computing from H5 data"""
 
     @classmethod
     def inputs(cls, feature):
@@ -144,8 +142,8 @@ class CloudMaskH5(DerivedFeature):
 
 
 class BVFreqSquaredNC(DerivedFeature):
-    """BVF Squared feature class with needed inputs
-    method and compute method"""
+    """BVF Squared feature class with needed inputs method and compute
+    method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -184,8 +182,7 @@ class BVFreqSquaredNC(DerivedFeature):
 
 
 class InverseMonNC(DerivedFeature):
-    """Inverse MO feature class with needed
-    inputs method and compute method"""
+    """Inverse MO feature class with needed inputs method and compute method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -229,13 +226,11 @@ class InverseMonNC(DerivedFeature):
 
 
 class BVFreqMonNC(DerivedFeature):
-    """BVF MO feature class with needed inputs
-    method and compute method"""
+    """BVF MO feature class with needed inputs method and compute method"""
 
     @classmethod
     def inputs(cls, feature):
-        """Required inputs for computing BVF times
-        inverse MO from NETCDF data
+        """Required inputs for computing BVF times inverse MO from NETCDF data
 
         Parameters
         ----------
@@ -255,8 +250,8 @@ class BVFreqMonNC(DerivedFeature):
 
     @classmethod
     def alternative_inputs(cls, feature):
-        """Alternative required inputs for computing BVF times
-        inverse MO from NETCDF data
+        """Alternative required inputs for computing BVF times inverse MO from
+        NETCDF data
 
         Parameters
         ----------
@@ -307,8 +302,8 @@ class BVFreqMonNC(DerivedFeature):
 
 
 class BVFreqSquaredH5(DerivedFeature):
-    """BVF Squared feature class with needed inputs
-    method and compute method"""
+    """BVF Squared feature class with needed inputs method and compute
+    method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -358,13 +353,11 @@ class BVFreqSquaredH5(DerivedFeature):
 
 
 class BVFreqMonH5(DerivedFeature):
-    """BVF MO feature class with needed inputs
-    method and compute method"""
+    """BVF MO feature class with needed inputs method and compute method"""
 
     @classmethod
     def inputs(cls, feature):
-        """Required inputs for computing BVF times
-        inverse MO
+        """Required inputs for computing BVF times inverse MO
 
         Parameters
         ----------
@@ -414,8 +407,8 @@ class BVFreqMonH5(DerivedFeature):
 
 
 class UWindH5(DerivedFeature):
-    """U wind component feature class with needed inputs
-    method and compute method"""
+    """U wind component feature class with needed inputs method and compute
+    method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -462,8 +455,8 @@ class UWindH5(DerivedFeature):
 
 
 class VWindH5(DerivedFeature):
-    """V wind component feature class with needed inputs
-    method and compute method"""
+    """V wind component feature class with needed inputs method and compute
+    method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -510,8 +503,8 @@ class VWindH5(DerivedFeature):
 
 
 class UWindNsrdb(DerivedFeature):
-    """U wind component feature class with needed inputs
-    method and compute method"""
+    """U wind component feature class with needed inputs method and compute
+    method"""
 
     @classmethod
     def inputs(cls, feature):
@@ -602,8 +595,8 @@ class LatLonH5:
 
     @classmethod
     def compute(cls, file_path, raster_index):
-        """Get lats and lons corresponding to raster
-        for use in windspeed/direction -> u/v mapping
+        """Get lats and lons corresponding to raster for use in
+        windspeed/direction -> u/v mapping
 
         Parameters
         ----------
@@ -629,16 +622,12 @@ class LatLonH5:
 
 
 class Feature:
-    """Class to simplify feature
-    computations. Stores alternative names,
-    feature height, feature basename, name of
-    feature in handle"""
+    """Class to simplify feature computations. Stores alternative names,
+    feature height, feature basename, name of feature in handle"""
 
     def __init__(self, feature, handle):
-        """Takes a feature (e.g. U_100m) and
-        gets the height (100), basename (U) and
-        determines whether the feature is found in
-        the data handle
+        """Takes a feature (e.g. U_100m) and gets the height (100), basename
+        (U) and determines whether the feature is found in the data handle
 
         Parameters
         ----------
@@ -666,8 +655,7 @@ class Feature:
 
     @staticmethod
     def get_basename(feature):
-        """Get basename of feature. e.g.
-        temperature from temperature_100m
+        """Get basename of feature. e.g. temperature from temperature_100m
 
         Parameters
         ----------
@@ -690,8 +678,7 @@ class Feature:
 
     @staticmethod
     def get_height(feature):
-        """Get height from feature name
-        to use in height interpolation
+        """Get height from feature name to use in height interpolation
 
         Parameters
         ----------
@@ -710,8 +697,8 @@ class Feature:
         return height
 
     def check_rename(self, handle, feature):
-        """Method to account for possible alternative
-        feature names. e.g. T for temperature
+        """Method to account for possible alternative feature names. e.g. T for
+        temperature
 
         Parameters
         ----------
@@ -737,10 +724,8 @@ class Feature:
 
 
 class FeatureHandler:
-    """Feature Handler with cache
-    for previously loaded features used
-    in other calculations
-    """
+    """Feature Handler with cache for previously loaded features used in other
+    calculations """
 
     TIME_IND_FEATURES = ('lat_lon',)
 
@@ -772,21 +757,19 @@ class FeatureHandler:
 
     @classmethod
     def pop_old_data(cls, data, chunk_number, all_features):
-        """Remove input feature data if no longer needed for
-        requested features
+        """Remove input feature data if no longer needed for requested features
 
         Parameters
         ----------
         data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
+            dictionary of feature arrays with integer keys for chunks and str
+            keys for features.  e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         chunk_number : int
             time chunk index to check
         all_features : list
-            list of all requested features including those
-            requiring derivation from input features
+            list of all requested features including those requiring derivation
+            from input features
 
         """
         old_keys = [f for f in data[chunk_number]
@@ -797,7 +780,6 @@ class FeatureHandler:
     @classmethod
     def serial_extract(cls, file_path, raster_index, time_chunks,
                        input_features):
-
         """Extract features in series
 
         Parameters
@@ -807,17 +789,16 @@ class FeatureHandler:
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
+            List of slices to chunk data feature extraction along time
+            dimension
         input_features : list
             list of input feature strings
 
         Returns
         -------
         dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
+            dictionary of feature arrays with integer keys for chunks and str
+            keys for features.  e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
 
@@ -841,7 +822,6 @@ class FeatureHandler:
     @classmethod
     def parallel_extract(cls, file_path, raster_index, time_chunks,
                          input_features, max_workers=None):
-
         """Extract features using parallel subprocesses
 
         Parameters
@@ -851,20 +831,19 @@ class FeatureHandler:
         raster_index : ndarray | list
             raster index for spatial domain
         time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
+            List of slices to chunk data feature extraction along time
+            dimension
         input_features : list
             list of input feature strings
         max_workers : int | None
-            Number of max workers to use for extraction.
-            If equal to 1 then method is run in serial
+            Number of max workers to use for extraction.  If equal to 1 then
+            method is run in serial
 
         Returns
         -------
         dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
+            dictionary of feature arrays with integer keys for chunks and str
+            keys for features.  e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
 
@@ -925,36 +904,33 @@ class FeatureHandler:
     @classmethod
     def serial_compute(cls, data, time_chunks,
                        input_features, all_features):
-
         """Compute features in series
 
         Parameters
         ----------
         data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
-            e.g. data[chunk_number][feature] = array.
+            dictionary of feature arrays with integer keys for chunks and str
+            keys for features. e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
+            List of slices to chunk data feature extraction along time
+            dimension
         input_features : list
             list of input feature strings
         all_features : list
-            list of all features including those requiring
-            derivation from input features
+            list of all features including those requiring derivation from
+            input features
         max_workers : int | None
-            Number of max workers to use for extraction.
-            If equal to 1 then method is run in serial
+            Number of max workers to use for extraction. If equal to 1 then
+            method is run in serial
 
         Returns
         -------
         data : dict
-            dictionary of feature arrays, including computed
-            features, with integer keys for chunks and str
-            keys for features. Includes
+            dictionary of feature arrays, including computed features, with
+            integer keys for chunks and str keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
@@ -981,8 +957,8 @@ class FeatureHandler:
         Parameters
         ----------
         data : dict
-            dictionary of feature arrays with integer keys
-            for chunks and str keys for features.
+            dictionary of feature arrays with integer keys for chunks and str
+            keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         data_array : ndarray
@@ -991,24 +967,23 @@ class FeatureHandler:
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
-            List of slices to chunk data feature extraction
-            along time dimension
+            List of slices to chunk data feature extraction along time
+            dimension
         input_features : list
             list of input feature strings
         all_features : list
-            list of all features including those requiring
-            derivation from input features
+            list of all features including those requiring derivation from
+            input features
         max_workers : int | None
-            Number of max workers to use for computation.
-            If equal to 1 then method is run in serial
+            Number of max workers to use for computation. If equal to 1 then
+            method is run in serial
 
         Returns
         -------
         data : dict
-            dictionary of feature arrays, including computed
-            features, with integer keys for chunks and str
-            keys for features. Includes
-            e.g. data[chunk_number][feature] = array.
+            dictionary of feature arrays, including computed features, with
+            integer keys for chunks and str keys for features. Includes e.g.
+            data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
 
@@ -1095,8 +1070,8 @@ class FeatureHandler:
         feature : str
             Feature to lookup in registry
         attr_name : str
-            Attribute to get from registry. Can be
-            compute, inputs, alternative_inputs
+            Attribute to get from registry. Can be compute, inputs,
+            alternative_inputs
 
         Returns
         -------

@@ -144,7 +144,7 @@ class SUP3R:
         Parameters
         ----------
         kwargs : dict
-            This dict provides the following keys:
+            This dict accepts the following keys:
 
             file_paths : list
                 A list of NETCDF files to extract raster data from. Each file
@@ -232,7 +232,7 @@ class SUP3R:
                       'crop_slice': chunk_crop}
 
             logger.info(
-                'Running forward passes '
+                'Running forward passes for '
                 f'{handler.file_info_logging(handler.file_paths[chunk])} ')
 
             ForwardPass.forward_pass_file_chunk(**kwargs)
@@ -244,7 +244,7 @@ class SUP3R:
         Parameters
         ----------
         kwargs : dict
-            This dict provides the following keys:
+            This dict accepts the following keys:
 
             file_paths : list
                 A list of NETCDF files to extract raster data from. Each file
@@ -310,8 +310,7 @@ class SUP3R:
                 {"alloc": 'seasiawind',
                  "memory": 83,
                  "walltime": 1,
-                 "feature": '--qos=high',
-                 "stdout": './'}
+                 "feature": '--qos=high'}
         """
 
         slurm_manager = SLURM()
@@ -361,7 +360,7 @@ class SUP3R:
                 f"ForwardPassHandler.forward_pass_file_chunk(**{kwargs})\"")
 
             logger.info(
-                'Running forward passes '
+                'Running forward passes for '
                 f'{handler.file_info_logging(handler.file_paths[chunk])} ')
             out = slurm_manager.sbatch(cmd, alloc=user_input["alloc"],
                                        memory=user_input["memory"],
@@ -373,13 +372,11 @@ class SUP3R:
             print(f'\ncmd:\n{cmd}\n')
 
             if out:
-                msg = (f'Kicked off job "{node_name}" '
-                       f'(SLURM jobid #{out}) on '
+                msg = (f'Kicked off job "{node_name}" (SLURM jobid #{out}) on '
                        f'Eagle with {user_input}')
             else:
-                msg = (f'Was unable to kick off job '
-                       f'"{node_name}". Please see the '
-                       'stdout error messages')
+                msg = (f'Was unable to kick off job "{node_name}". Please see '
+                       'the stdout error messages')
             print(msg)
 
     @classmethod
@@ -436,11 +433,9 @@ class SUP3R:
         print(f'\ncmd:\n{cmd}\n')
 
         if out:
-            msg = (f'Kicked off job "{node_name}" '
-                   f'(SLURM jobid #{out}) on '
+            msg = (f'Kicked off job "{node_name}" (SLURM jobid #{out}) on '
                    f'Eagle with {user_input}')
         else:
-            msg = (f'Was unable to kick off job '
-                   f'"{node_name}". Please see the '
+            msg = (f'Was unable to kick off job "{node_name}". Please see the '
                    'stdout error messages')
         print(msg)

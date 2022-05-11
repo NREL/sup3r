@@ -49,8 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_handler_class(file_paths):
-    """Method to get source type specific
-    DataHandler class
+    """Method to get source type specific DataHandler class
 
     Parameters
     ----------
@@ -98,8 +97,8 @@ class DataHandler(FeatureHandler):
         Parameters
         ----------
         file_path : str
-            A single source h5 wind file to extract raster data from
-            or a list of netcdf files with identical grid
+            A single source h5 wind file to extract raster data from or a list
+            of netcdf files with identical grid
         features : list
             list of features to extract
         target : tuple
@@ -113,11 +112,11 @@ class DataHandler(FeatureHandler):
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
         raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. Either need
-            target+shape or raster_file.
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist.  If None
+            raster_index will be calculated directly. Either need target+shape
+            or raster_file.
         val_split : float32
             Fraction of data to store for validation
         sample_shape : tuple
@@ -125,8 +124,8 @@ class DataHandler(FeatureHandler):
             observation for batching
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, time_pruning). If equal to
-            slice(None, None, 1) the full time dimension is selected.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -135,15 +134,15 @@ class DataHandler(FeatureHandler):
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         max_compute_workers : int | None
-            max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
+            max number of workers to use for computing features. If
+            max_compute_workers == 1 then extraction will be serialized.
         max_extract_workers : int | None
-            max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
+            max number of workers to use for data extraction. If
+            max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size
-            of the full time index for best performance.
+            extraction. If running in serial this can be set to the size of the
+            full time index for best performance.
         cache_file_prefix : str | None
             Prefix of files for saving feature data. Each feature will be saved
             to a file with the feature name appended to the end of
@@ -157,8 +156,8 @@ class DataHandler(FeatureHandler):
 
         check = ((target is not None and shape is not None)
                  or (raster_file is not None and os.path.exists(raster_file)))
-        msg = ('You must either provide the target+shape inputs '
-               'or an existing raster_file input.')
+        msg = ('You must either provide the target+shape inputs or an existing'
+               ' raster_file input.')
         assert check, msg
 
         super().__init__()
@@ -168,7 +167,7 @@ class DataHandler(FeatureHandler):
         self.file_path = sorted(self.file_path)
 
         logger.info(
-            'Initializing DataHandler from'
+            'Initializing DataHandler for '
             f'{self.file_info_logging(self.file_path)}')
 
         self.features = features
@@ -191,8 +190,8 @@ class DataHandler(FeatureHandler):
         self.data = None
         self.val_data = None
 
-        msg = ('sample_shape[2] cannot be larger than the number of time '
-               'steps in the raw data.')
+        msg = ('sample_shape[2] cannot be larger than the number of time steps'
+               ' in the raw data.')
         assert len(self.raw_time_index) >= self.sample_shape[2], msg
 
         msg = (f'The requested time slice {temporal_slice} conflicts with the '
@@ -209,22 +208,22 @@ class DataHandler(FeatureHandler):
                 os.path.exists(fp) for fp in self.cache_files):
             if self.load_cached:
                 logger.info(
-                    f'All {self.cache_files} exist. Loading from cache '
-                    f'instead of extracting from {self.file_path}')
+                    f'All {self.cache_files} exist. Loading from cache instead'
+                    f' of extracting from {self.file_path}')
                 self.load_cached_data()
             else:
                 logger.info(
                     f'All {self.cache_files} exist. Call the '
-                    'load_cached_data() method or use '
-                    'load_cache=True to load this data.')
+                    'load_cached_data() method or use load_cache=True to load '
+                    'this data.')
                 self.data = None
 
         else:
             if self.overwrite_cache and self.cache_files is not None and all(
                     os.path.exists(fp) for fp in self.cache_files):
                 logger.info(
-                    f'{self.cache_files} exists but overwrite_cache is '
-                    'set to True. Proceeding with extraction.')
+                    f'{self.cache_files} exists but overwrite_cache is set to '
+                    'True. Proceeding with extraction.')
 
             self.raster_index = self.get_raster_index(
                 self.file_path, self.target, self.grid_shape)
@@ -249,8 +248,7 @@ class DataHandler(FeatureHandler):
         log_mem(logger, log_level='INFO')
 
     def get_cache_file_names(self, cache_file_prefix):
-        """Get names of cache files from cache_file_prefix
-        and feature names
+        """Get names of cache files from cache_file_prefix and feature names
 
         Parameters
         ----------
@@ -282,9 +280,9 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def file_info_logging(cls, file_path):
-        """Method to provide info about files in log output. Since
-        NETCDF files have single time slices printing out all the file
-        paths is just a text dump without much info.
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
 
         Parameters
         ----------
@@ -294,8 +292,8 @@ class DataHandler(FeatureHandler):
         Returns
         -------
         str
-            message to append to log output that does not
-            include a huge info dump of file paths
+            message to append to log output that does not include a huge info
+            dump of file paths
         """
 
         msg = (f'source files: {file_path}')
@@ -323,26 +321,22 @@ class DataHandler(FeatureHandler):
                 (self.data[:, :, :, i]) * stds[i] + means[i]
 
     def normalize(self, means, stds):
-        """Normalize all data features
-        Parameters
+        """Normalize all data features Parameters
         ----------
         means : np.ndarray
             dimensions (features)
-            array of means for all features
-            with same ordering as data features
+            array of means for all features with same ordering as data features
         stds : np.ndarray
             dimensions (features)
-            array of means for all features
-            with same ordering as data features
+            array of means for all features with same ordering as data features
         """
 
         for i in range(self.shape[-1]):
             self._normalize_data(i, means[i], stds[i])
 
     def _normalize_data(self, feature_index, mean, std):
-        """Normalize data with initialized
-        mean and standard deviation for
-        a specific feature
+        """Normalize data with initialized mean and standard deviation for a
+        specific feature
 
         Parameters
         ----------
@@ -372,9 +366,8 @@ class DataHandler(FeatureHandler):
         Returns
         -------
         observation_index : tuple
-            Tuple of sampled spatial grid, time slice,
-            and features indices. Used to get single observation
-            like self.data[observation_index]
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
         """
         spatial_slice = uniform_box_sampler(
             self.data, self.sample_shape[:2])
@@ -384,9 +377,8 @@ class DataHandler(FeatureHandler):
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
     def get_next(self):
-        """Gets data for observation using
-        random observation index. Loops repeatedly
-        over randomized time index
+        """Gets data for observation using random observation index. Loops
+        repeatedly over randomized time index
 
         Returns
         -------
@@ -399,8 +391,8 @@ class DataHandler(FeatureHandler):
         return observation
 
     def split_data(self, data=None):
-        """Splits time dimension into set of training indices
-        and validation indices
+        """Splits time dimension into set of training indices and validation
+        indices
 
         Parameters
         ----------
@@ -412,8 +404,8 @@ class DataHandler(FeatureHandler):
         -------
         data : np.ndarray
             (spatial_1, spatial_2, temporal, features)
-            Training data fraction of initial data array. Initial
-            data array is overwritten by this new data array.
+            Training data fraction of initial data array. Initial data array is
+            overwritten by this new data array.
         val_data : np.ndarray
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
@@ -477,8 +469,7 @@ class DataHandler(FeatureHandler):
                     'overwrite.')
 
     def load_cached_data(self):
-        """Load data from cache files and split into
-        training and validation
+        """Load data from cache files and split into training and validation
         """
 
         if self.data is not None:
@@ -515,7 +506,8 @@ class DataHandler(FeatureHandler):
                     del tmp
 
             logger.debug('Splitting data into training / validation sets '
-                         f'({1 - self.val_split}, {self.val_split})')
+                         f'({1 - self.val_split}, {self.val_split}) '
+                         f'for {self.file_info_logging(self.file_path)}')
             self.data, self.val_data = self.split_data()
 
     @classmethod
@@ -540,8 +532,8 @@ class DataHandler(FeatureHandler):
         Returns
         -------
         list
-            List of features to extract. Might not include features which
-            have cache files.
+            List of features to extract. Might not include features which have
+            cache files.
         """
 
         extract_features = []
@@ -585,9 +577,8 @@ class DataHandler(FeatureHandler):
                      cache_files=None,
                      overwrite_cache=False,
                      load_cached=False):
-        """Building base 4D data array. Can
-        handle multiple files but assumes each
-        file has the same spatial domain
+        """Building base 4D data array. Can handle multiple files but assumes
+        each file has the same spatial domain
 
         Parameters
         ----------
@@ -600,8 +591,8 @@ class DataHandler(FeatureHandler):
             list of features to extract
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, time_pruning). If equal to
-            slice(None, None, 1) the full time dimension is selected.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
@@ -614,8 +605,8 @@ class DataHandler(FeatureHandler):
             max number of workers to use for data extraction.
             If max_extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
-            Size of chunks to split time dimension into for smaller
-            data extractions
+            Size of chunks to split time dimension into for smaller data
+            extractions
         cache_files : list | None
             Path to files with saved feature data
         overwrite_cache : bool
@@ -663,7 +654,7 @@ class DataHandler(FeatureHandler):
 
         logger.info(
             f'Starting {extract_features} extraction '
-            f'{cls.file_info_logging(file_path)}')
+            f'for {cls.file_info_logging(file_path)}')
 
         raw_data = cls.parallel_extract(
             file_path, raster_index, time_chunks,
@@ -695,7 +686,7 @@ class DataHandler(FeatureHandler):
                     data_array[:, :, :, f_index] = pickle.load(fh)
 
         logger.info(
-            'Finished extracting data '
+            'Finished extracting data for '
             f'{cls.file_info_logging(file_path)} '
             f'in {dt.now() - now}')
 
@@ -703,9 +694,8 @@ class DataHandler(FeatureHandler):
 
     @abstractmethod
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data. Here we
-        assume the list of paths in file_path all have data
-        with the same spatial domain. We use the first
+        """Get raster index for file data. Here we assume the list of paths in
+        file_path all have data with the same spatial domain. We use the first
         file in the list to compute the raster
 
         Parameters
@@ -740,13 +730,13 @@ class DataHandlerNC(DataHandler):
         Returns
         -------
         str
-            message to append to log output that does not
-            include a huge info dump of file paths
+            message to append to log output that does not include a huge info
+            dump of file paths
         """
 
         dirname = os.path.dirname(file_path[0])
         date_start, date_end = get_wrf_date_range(file_path)
-        msg = (f'for {len(file_path)} files from {dirname} '
+        msg = (f'{len(file_path)} files from {dirname} '
                f'with date range: {date_start} - {date_end}')
         return msg
 
@@ -851,9 +841,8 @@ class DataHandlerNC(DataHandler):
         return fdata.astype(np.float32)
 
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data. Here we
-        assume the list of paths in file_path all have data
-        with the same spatial domain. We use the first
+        """Get raster index for file data. Here we assume the list of paths in
+        file_path all have data with the same spatial domain. We use the first
         file in the list to compute the raster.
 
         Parameters
@@ -869,11 +858,11 @@ class DataHandlerNC(DataHandler):
         -------
         raster_index : np.ndarray
             2D array of grid indices
-
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(f'Loading raster index: {self.raster_file}')
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.file_info_logging(self.file_path)}')
             raster_index = np.load(self.raster_file)
         else:
             logger.debug('Calculating raster index from WRF file '
@@ -994,9 +983,8 @@ class DataHandlerH5(DataHandler):
         return fdata.astype(np.float32)
 
     def get_raster_index(self, file_path, target, shape):
-        """Get raster index for file data. Here we
-        assume the list of paths in file_path all have data
-        with the same spatial domain. We use the first
+        """Get raster index for file data. Here we assume the list of paths in
+        file_path all have data with the same spatial domain. We use the first
         file in the list to compute the raster.
 
         Parameters
@@ -1012,11 +1000,11 @@ class DataHandlerH5(DataHandler):
         -------
         raster_index : np.ndarray
             2D array of grid indices
-
         """
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(f'Loading raster index: {self.raster_file}')
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.file_info_logging(self.file_path)}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             logger.debug('Calculating raster index from WTK file '
@@ -1060,9 +1048,8 @@ class DataHandlerNsrdb(DataHandlerH5):
         Returns
         -------
         observation_index : tuple
-            Tuple of sampled spatial grid, time slice,
-            and features indices. Used to get single observation
-            like self.data[observation_index]
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
         """
         spatial_slice = uniform_box_sampler(self.data,
                                             self.sample_shape[:2])
@@ -1088,8 +1075,8 @@ class DataHandlerNsrdb(DataHandlerH5):
         -------
         data : np.ndarray
             (spatial_1, spatial_2, temporal, features)
-            Training data fraction of initial data array. Initial
-            data array is overwritten by this new data array.
+            Training data fraction of initial data array. Initial data array is
+            overwritten by this new data array.
         val_data : np.ndarray
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
