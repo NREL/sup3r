@@ -496,9 +496,9 @@ class DataHandler(FeatureHandler):
                     self.data[:, :, :, i] = tmp
                     del tmp
 
-            logger.debug(
-                'Splitting data into training / validation sets ('
-                f'{1 - self.val_split} / {self.val_split})')
+            logger.debug('Splitting data into training / validation sets '
+                         f'({1 - self.val_split}, {self.val_split}) '
+                         f'for {self.file_info_logging(self.file_path)}')
             self.data, self.val_data = self.split_data()
 
     @classmethod
