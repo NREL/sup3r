@@ -517,7 +517,7 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
-    def __init__(self, strategy, model_path, file_slice_index):
+    def __init__(self, strategy, model_path, run_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
 
@@ -528,14 +528,14 @@ class ForwardPass:
             forward passes on.
         model_path : str
             Path to SpatioTemporalGan used to generate high resolution data
-        file_slice_index : int
+        run_index : int
             Index used to select subset of full file list on which to run
             forward passes on a single node.
         """
         self.strategy = strategy
         self.model_path = model_path
         self.features = SpatioTemporalGan.load(model_path).training_features
-        self.run_index = file_slice_index
+        self.run_index = run_index
 
         file_slice = self.strategy.padded_file_slices[self.run_index]
         file_paths = self.strategy.file_paths[file_slice]
