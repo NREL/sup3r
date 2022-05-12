@@ -555,48 +555,6 @@ class SpatioTemporalGan(BaseModel):
 
         return loss_details
 
-    @staticmethod
-    def update_adversarial_weight(loss_details, disc_type, disc_weight,
-                                  update_frac=0.025):
-        """Adaptive weight updating for discriminators
-
-        Parameters
-        ----------
-        loss_details : dict
-            Dictionary with information on how often discriminators
-            were trained
-        disc_type : str
-            temporal or spatial
-        disc_weight : float
-            current discriminator weight to update
-        update_frac : float
-            Fraction by which to increase/decrease weights
-
-        Returns
-        -------
-        float
-            Updated discriminator weight
-
-        Raises
-        ------
-        ValueError
-            disc_type must be either temporal or spatial
-        """
-
-        if disc_type == 'temporal':
-            trained_frac = loss_details['train_disc_t_trained_frac']
-        elif disc_type == 'spatial':
-            trained_frac = loss_details['train_disc_s_trained_frac']
-        else:
-            raise ValueError('Disc must be either temporal or spatial')
-
-        if trained_frac < 0.5:
-            return (1 + update_frac) * disc_weight
-        elif trained_frac > 0.95:
-            return (1 - update_frac) * disc_weight
-        else:
-            return disc_weight
-
     def train(self, batch_handler, n_epoch,
               weight_gen_advers_s=0.001, weight_gen_advers_t=0.001,
               train_gen=True, train_disc_s=True, train_disc_t=True,
@@ -604,7 +562,7 @@ class SpatioTemporalGan(BaseModel):
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
               early_stop_n_epoch=5, adaptive_weights=True,
-              update_fraction=0.025):
+              update_threshold_range=(0.5, 0.95), update_fraction=0.025):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -655,6 +613,12 @@ class SpatioTemporalGan(BaseModel):
             warrants an early stop.
         adaptive_weights : bool
             Whether to adaptively update the discriminator weights
+        update_threshold_range : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < threshold_range[0] then the weight
+            will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > threshold_range[1] then the weight
+            will be decreased by (1 - update_frac).
         update_fraction : float
             Amount by which to increase or decrease adversarial weights for
             adaptive updates
@@ -719,15 +683,22 @@ class SpatioTemporalGan(BaseModel):
                                      early_stop_n_epoch, extras=extras)
             if adaptive_weights:
                 if train_disc_s:
-                    weight_gen_advers_s = self.update_adversarial_weight(
-                        loss_details, 'spatial', weight_gen_advers_s)
+                    s_update_frac = self.update_adversarial_weight(
+                        loss_details, 'train_disc_s_trained_frac',
+                        update_frac=update_fraction,
+                        threshold_range=update_threshold_range)
+                    weight_gen_advers_s *= s_update_frac
                 if train_disc_t:
-                    weight_gen_advers_t = self.update_adversarial_weight(
-                        loss_details, 'temporal', weight_gen_advers_t,
-                        update_frac=update_fraction)
-                logger.debug(
-                    'New discriminator weights (disc_s / disc_t): '
-                    f'{weight_gen_advers_s} / {weight_gen_advers_t}')
+                    t_update_frac = self.update_adversarial_weight(
+                        loss_details, 'train_disc_t_trained_frac',
+                        update_frac=update_fraction,
+                        threshold_range=update_threshold_range)
+                    weight_gen_advers_t *= t_update_frac
+
+                if not all(w == 1 for w in (s_update_frac, t_update_frac)):
+                    logger.debug(
+                        'New discriminator weights (disc_s / disc_t): '
+                        f'{weight_gen_advers_s} / {weight_gen_advers_t}')
 
             if stop:
                 break

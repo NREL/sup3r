@@ -520,6 +520,43 @@ class BaseModel(ABC):
         return self.generator_weights
 
     @staticmethod
+    def update_adversarial_weight(loss_details, comparison_key,
+                                  threshold_range=(0.5, 0.95),
+                                  update_frac=0.025):
+        """Adaptive weight updating for discriminators
+
+        Parameters
+        ----------
+        loss_details : dict
+            Dictionary with information on how often discriminators
+            were trained and other history information.
+        comparison_key : str
+            loss_details key to use for update check
+        threshold_range : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < threshold_range[0] then the weight
+            will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > threshold_range[1] then the weight
+            will be decreased by (1 - update_frac).
+        update_frac : float
+            Fraction by which to increase/decrease weights
+
+        Returns
+        -------
+        float
+            Factor by which to multiply old weight to get updated weight
+        """
+
+        trained_frac = loss_details[comparison_key]
+
+        if trained_frac < threshold_range[0]:
+            return (1 + update_frac)
+        elif trained_frac > threshold_range[1]:
+            return (1 - update_frac)
+        else:
+            return 1
+
+    @staticmethod
     def update_loss_details(loss_details, new_data, batch_len, prefix=None):
         """Update a dictionary of loss_details with loss information from a new
         batch.
