@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Utilities module for preparing
-training data"""
+training data
+
+@author: bbenton
+"""
 
 import numpy as np
 import logging
@@ -8,12 +11,55 @@ from scipy import ndimage as nd
 from fnmatch import fnmatch
 import os
 import xarray as xr
+import re
 
 from rex import Resource
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def get_chunk_slices(arr_size, chunk_size):
+    """Get array slices of corresponding chunk size
+
+    Parameters
+    ----------
+    arr_size : int
+        Length of array to slice
+    chunk_size : int
+        Size of slices to split array into
+
+    Returns
+    -------
+    list
+        List of slices correpoding to chunks of array
+    """
+    n_chunks = int(np.ceil(arr_size / chunk_size))
+    slices = np.array_split(np.arange(arr_size), n_chunks)
+    slices = [slice(s[0], s[-1] + 1) for s in slices]
+
+    return slices
+
+
+def get_file_t_steps(file_paths):
+    """Get number of time steps in each file. We assume that each netcdf file
+    in a file list passed to the handling classes has the same number of time
+    steps.
+
+    Parameters
+    ----------
+    file_paths : list
+        List of netcdf file paths
+
+    Returns
+    -------
+    int
+        Number of time steps in each file
+    """
+
+    with xr.open_dataset(file_paths[0]) as handle:
+        return len(handle['Time'])
 
 
 def get_raster_shape(raster_index):
@@ -27,9 +73,37 @@ def get_raster_shape(raster_index):
     return shape
 
 
+def get_wrf_date_range(files):
+    """Get wrf date range for cleaner log output. This assumes file names have
+    the date pattern (YYYY-|_MM-|_DD-|_HH:|_MM:|_SS) at the end of the file
+    name.
+
+    Parameters
+    ----------
+    files : list
+        List of wrf file paths
+
+    Returns
+    -------
+    date_start : str
+        start date
+    date_end : str
+        end date
+    """
+
+    date_start = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                           files[0])[0]
+    date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
+                         files[-1])[0]
+
+    date_start = date_start.replace(':', '_')
+    date_end = date_end.replace(':', '_')
+
+    return date_start, date_end
+
+
 def uniform_box_sampler(data, shape):
-    '''
-    Extracts a sample cut from data.
+    '''Extracts a sample cut from data.
 
     Parameters:
     -----------
@@ -42,8 +116,8 @@ def uniform_box_sampler(data, shape):
 
     Returns:
     --------
-    slices : List of slices corresponding to row
-    and col extent of arr sample
+    slices : list
+        List of slices corresponding to row and col extent of arr sample
     '''
 
     slices = []
@@ -66,8 +140,7 @@ def uniform_box_sampler(data, shape):
 
 
 def uniform_time_sampler(data, shape):
-    '''
-    Extracts a temporal slice from data.
+    '''Extracts a temporal slice from data.
 
     Parameters:
     -----------
@@ -114,8 +187,8 @@ def daily_time_sampler(data, shape, time_index):
         time slice with size shape of data starting at the beginning of the day
     """
 
-    msg = ('data {} and time index ({}) shapes do not match, cannot sample '
-           'daily data.'.format(data.shape, len(time_index)))
+    msg = (f'data {data.shape} and time index ({len(time_index)}) '
+           'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
     ti_short = time_index[:-shape]
@@ -134,8 +207,7 @@ def daily_time_sampler(data, shape, time_index):
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
-    """Transform windspeed/direction to
-    u and v and align u and v with grid
+    """Transform windspeed/direction to u and v and align u and v with grid
 
     Parameters
     ----------
@@ -180,21 +252,18 @@ def temporal_coarsening(data, t_enhance=2, method='subsample'):
     data : np.ndarray
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
-
     t_enhance : int
         factor by which to coarsen temporal dimension
 
     method : str
         accepted options: [subsample, average, total]
-        Subsample will take every t_enhance-th time step,
-        average will average over t_enhance time steps,
-        total will sum over t_enhance time steps
+        Subsample will take every t_enhance-th time step, average will average
+        over t_enhance time steps, total will sum over t_enhance time steps
 
     Returns
     -------
     coarse_data : np.ndarray
-        4D array with same dimensions as data
-        with new coarse resolution
+        4D array with same dimensions as data with new coarse resolution
     """
 
     if t_enhance is not None and len(data.shape) == 5:
@@ -228,19 +297,13 @@ def spatial_coarsening(data, s_enhance=2):
     data : np.ndarray
         4D | 5D array with dimensions
         (n_observations, spatial_1, spatial_2, temporal (optional), features)
-
-    lat_lon : np.ndarray
-        2D array with dimensions
-        (spatial_1, spatial_2)
-
     s_enhance : int
         factor by which to coarsen spatial dimensions
 
     Returns
     -------
     coarse_data : np.ndarray
-        4D | 5D array with same dimensions as data
-        with new coarse resolution
+        4D | 5D array with same dimensions as data with new coarse resolution
     """
 
     if s_enhance is not None:
@@ -273,7 +336,7 @@ def spatial_coarsening(data, s_enhance=2):
 
         else:
             msg = ('Data must be 4D or 5D to do spatial coarsening, but '
-                   'received: {}'.format(data.shape))
+                   f'received: {data.shape}')
             logger.error(msg)
             raise ValueError(msg)
 
@@ -291,15 +354,13 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
     lat_lon : np.ndarray
         2D array with dimensions
         (spatial_1, spatial_2)
-
     s_enhance : int
         factor by which to coarsen spatial dimensions
 
     Returns
     -------
     coarse_lat_lon : np.ndarray
-        2D array with same dimensions as lat_lon
-        with new coarse resolution
+        2D array with same dimensions as lat_lon with new coarse resolution
     """
     coarse_lat_lon = lat_lon.reshape(-1, s_enhance,
                                      lat_lon.shape[1] // s_enhance,
@@ -309,13 +370,14 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
 
 
 def forward_average(array_in):
-    """
-    Average neighboring values in an array.
-    Used to unstagger WRF variable values.
+    """Average neighboring values in an array.  Used to unstagger WRF variable
+    values.
+
     Parameters
     ----------
     array_in : ndarray
         Input array, or array axis
+
     Returns
     -------
     ndarray
@@ -324,12 +386,10 @@ def forward_average(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def unstagger_var(data, var):
+def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     """
-    Unstagger WRF variable values.
-    Some variables use a staggered grid with values
-    associated with grid cell edges. We want to center
-    these values.
+    Unstagger WRF variable values. Some variables use a staggered grid with
+    values associated with grid cell edges. We want to center these values.
 
     Parameters
     ----------
@@ -337,6 +397,10 @@ def unstagger_var(data, var):
         netcdf data object
     var : str
         Name of variable to be unstaggered
+    raster_index : list
+        List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
 
     Returns
     -------
@@ -347,21 +411,47 @@ def unstagger_var(data, var):
     # Import Variable values from nc database instance
     array_in = np.array(data[var], np.float32)
 
-    for i, d in enumerate(data[var].dims):
-        if 'stag' in d:
-            array_in = np.apply_along_axis(
-                forward_average, i, array_in
-            )
+    if all('stag' not in d for d in data[var].dims):
+        array_in = array_in[
+            tuple([time_slice] + [slice(None)] + raster_index)]
+
+    else:
+        for i, d in enumerate(data[var].dims):
+            if 'stag' in d:
+                if 'south_north' in d:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + [slice(raster_index[0].start,
+                                 raster_index[0].stop + 1)]
+                        + [raster_index[1]])
+                    array_in = array_in[idx]
+                elif 'west_east' in d:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + [raster_index[0]]
+                        + [slice(raster_index[1].start,
+                                 raster_index[1].stop + 1)])
+                    array_in = array_in[idx]
+                else:
+                    idx = tuple(
+                        [time_slice] + [slice(None)]
+                        + raster_index)
+                    array_in = array_in[idx]
+                array_in = np.apply_along_axis(
+                    forward_average, i, array_in)
     return array_in
 
 
-def calc_height(data):
+def calc_height(data, raster_index, time_slice=slice(None)):
     """
-    Calculate height from the ground
-    Parameters
+    Calculate height from the ground Parameters
     ----------
     data : xarray
         netcdf data object
+    raster_index : list
+        List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
 
     Returns
     ---------
@@ -370,11 +460,11 @@ def calc_height(data):
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
-    phb = unstagger_var(data, 'PHB')
+    phb = unstagger_var(data, 'PHB', raster_index, time_slice)
     # Perturbation Geopotential (m^2/s^2)
-    ph = unstagger_var(data, 'PH')
+    ph = unstagger_var(data, 'PH', raster_index, time_slice)
     # Terrain Height (m)
-    hgt = data['HGT']
+    hgt = data['HGT'][tuple([time_slice] + raster_index)]
 
     if phb.shape != hgt.shape:
         hgt = np.expand_dims(hgt, axis=1)
@@ -387,16 +477,18 @@ def calc_height(data):
 
 def interp3D(var_array, h_array, heights):
     """
-    Interpolate var_array to given level(s) based on h_array.
-    Interpolation is linear and done for every 'z' column of [var, h] data.
+    Interpolate var_array to given level(s) based on h_array. Interpolation is
+    linear and done for every 'z' column of [var, h] data.
+
     Parameters
     ----------
     var_array : ndarray
         Array of variable values
     h_array : ndarray
-        Array of height values corresponding to the wrf source data
+        Array of heigh values corresponding to the wrf source data
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
+
     Returns
     -------
     out_array : ndarray
@@ -427,34 +519,36 @@ def interp3D(var_array, h_array, heights):
 
     array_shape = var_array.shape
 
-    h_array = h_array.reshape((array_shape[0], array_shape[1],
-                               np.product(array_shape[2:]))).T
+    # Flatten h_array and var_array along lat, long axis
+    out_array = np.zeros(
+        (len(heights), array_shape[-4], np.product(array_shape[-2:]))).T
 
-    var_array = var_array.reshape((array_shape[0], array_shape[1],
-                                   np.product(array_shape[2:]))).T
+    for i in range(array_shape[0]):
+        h_tmp = h_array[i].reshape(
+            (array_shape[-3], np.product(array_shape[-2:]))).T
+        var_tmp = var_array[i].reshape(
+            (array_shape[-3], np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
-    time_steps = [np.array(
-        [np.interp(heights, h, var) for h, var
-         in zip(h_array[:, :, i], var_array[:, :, i])],
-        np.float32)[np.newaxis, :, :] for i in range(array_shape[0])]
+        out_array[:, i, :] = np.array(
+            [np.interp(heights, h, var)
+             for h, var in zip(h_tmp, var_tmp)])
 
-    out_array = np.concatenate(time_steps, axis=0)
-
-    if isinstance(heights, (int, float)) or len(heights) == 1:
-        out_array = out_array.T.reshape((array_shape[0], array_shape[2],
-                                         array_shape[3]))
+    # Reshape out_array
+    if isinstance(heights, (float, np.float32, int)):
+        out_array = out_array.T.reshape(
+            (1, array_shape[-4], array_shape[-2], array_shape[-1]))
     else:
-        out_array = out_array.T.reshape((array_shape[0], len(heights),
-                                         array_shape[2], array_shape[3]))
+        out_array = out_array.T.reshape(
+            (len(heights), array_shape[-4],
+             array_shape[-2], array_shape[-1]))
 
     return out_array
 
 
-def interp_var(data, var, heights):
-    """
-    Interpolate var_array to given level(s) based on h_array.
-    Interpolation is linear and done for every 'z' column of [var, h] data.
+def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
+    """ Interpolate var_array to given level(s) based on h_array. Interpolation
+    is linear and done for every 'z' column of [var, h] data.
 
     Parameters
     ----------
@@ -462,8 +556,12 @@ def interp_var(data, var, heights):
         netcdf data object
     var : str
         Name of variable to be interpolated
+    raster_index : list
+        List of slices for raster index of spatial domain
     heights : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
+    time_slice : slice
+        slice of time to extract
     Returns
     -------
     out_array : ndarray
@@ -471,12 +569,14 @@ def interp_var(data, var, heights):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-    return interp3D(unstagger_var(data, var), calc_height(data), heights)
+
+    return interp3D(unstagger_var(data, var, raster_index, time_slice),
+                    calc_height(data, raster_index, time_slice),
+                    heights)[0]
 
 
 def potential_temperature(T, P):
-    """Potential temperature of fluid
-    at pressure P and temperature T
+    """Potential temperature of fluid at pressure P and temperature T
 
     Parameters
     ----------
@@ -495,68 +595,57 @@ def potential_temperature(T, P):
     return out
 
 
-def potential_temperature_difference(T_top, P_top,
-                                     T_bottom, P_bottom):
+def potential_temperature_difference(T_top, P_top, T_bottom, P_bottom):
     """Potential temp difference calculation
 
     Parameters
     ---------
     T_top : ndarray
-        Temperature at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at higher height. Used in the approximation of potential
+        temperature derivative
     T_bottom : ndarray
-        Temperature at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at lower height. Used in the approximation of potential
+        temperature derivative
     P_top : ndarray
-        Pressure at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at higher height. Used in the approximation of potential
+        temperature derivative
     P_bottom : ndarray
-        Pressure at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at lower height. Used in the approximation of potential
+        temperature derivative
 
     Returns
     -------
     ndarray
-        Difference in potential temperature between
-        top and bottom levels
+        Difference in potential temperature between top and bottom levels
     """
     return (potential_temperature(T_top, P_top)
             - potential_temperature(T_bottom, P_bottom))
 
 
-def potential_temperature_average(T_top, P_top,
-                                  T_bottom, P_bottom):
+def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
     """Potential temp average calculation
 
     Parameters
     ---------
     T_top : ndarray
-        Temperature at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at higher height. Used in the approximation of potential
+        temperature derivative
     T_bottom : ndarray
-        Temperature at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at lower height. Used in the approximation of potential
+        temperature derivative
     P_top : ndarray
-        Pressure at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at higher height. Used in the approximation of potential
+        temperature derivative
     P_bottom : ndarray
-        Pressure at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at lower height. Used in the approximation of potential
+        temperature derivative
 
     Returns
     -------
     ndarray
-        Average of potential temperature between
-        top and bottom levels
+        Average of potential temperature between top and bottom levels
     """
+
     return ((potential_temperature(T_top, P_top)
             + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
 
@@ -598,33 +687,26 @@ def inverse_mo_length(U_surf, V_surf, W_surf, PT_surf):
     return numer / denom
 
 
-def bvf_squared(T_top, T_bottom,
-                P_top, P_bottom,
-                delta_h):
+def bvf_squared(T_top, T_bottom, P_top, P_bottom, delta_h):
     """
     Squared Brunt Vaisala Frequency
 
     Parameters
     ----------
     T_top : ndarray
-        Temperature at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at higher height. Used in the approximation of potential
+        temperature derivative
     T_bottom : ndarray
-        Temperature at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at lower height. Used in the approximation of potential
+        temperature derivative
     P_top : ndarray
-        Pressure at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at higher height. Used in the approximation of potential
+        temperature derivative
     P_bottom : ndarray
-        Pressure at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at lower height. Used in the approximation of potential
+        temperature derivative
     delta_h : float
-        Difference in heights between
-        top and bottom levels
+        Difference in heights between top and bottom levels
 
     Results
     -------
@@ -641,49 +723,36 @@ def bvf_squared(T_top, T_bottom,
     return bvf2
 
 
-def gradient_richardson_number(T_top, T_bottom, P_top,
-                               P_bottom, U_top, U_bottom,
-                               V_top, V_bottom, delta_h):
-
-    """Formula for the gradient richardson
-    number - related to the bouyant production
-    or consumption of turbulence divided by the
-    shear production of turbulence. Used to indicate
-    dynamic stability
+def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
+                               U_bottom, V_top, V_bottom, delta_h):
+    """Formula for the gradient richardson number - related to the bouyant
+    production or consumption of turbulence divided by the shear production of
+    turbulence. Used to indicate dynamic stability
 
     Parameters
     ----------
     T_top : ndarray
-        Temperature at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at higher height. Used in the approximation of potential
+        temperature derivative
     T_bottom : ndarray
-        Temperature at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Temperature at lower height. Used in the approximation of potential
+        temperature derivative
     P_top : ndarray
-        Pressure at higher height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at higher height. Used in the approximation of potential
+        temperature derivative
     P_bottom : ndarray
-        Pressure at lower height.
-        Used in the approximation of
-        potential temperature derivative
+        Pressure at lower height. Used in the approximation of potential
+        temperature derivative
     U_top : ndarray
-        Zonal wind component at higher
-        height
+        Zonal wind component at higher height
     U_bottom : ndarray
-        Zonal wind component at lower
-        height
+        Zonal wind component at lower height
     V_top : ndarray
-        Meridional wind component at
-        higher height
+        Meridional wind component at higher height
     V_bottom : ndarray
-        Meridional wind component at
-        lower height
+        Meridional wind component at lower height
     delta_h : float
-        Difference in heights between
-        top and bottom levels
+        Difference in heights between top and bottom levels
 
     Returns
     -------
@@ -713,6 +782,7 @@ def nn_fill_array(array):
     array : np.ndarray
         Output array with NaN values filled
     """
+
     nan_mask = np.isnan(array)
     indices = nd.distance_transform_edt(nan_mask, return_distances=False,
                                         return_indices=True)
@@ -720,32 +790,8 @@ def nn_fill_array(array):
     return array
 
 
-def ignore_case_path_check(fp):
-    """Check if fp exists with any
-    case usage
-
-    Parameters
-    ----------
-    fp : str
-        file path
-
-    Returns
-    -------
-    bool
-        Whether or not fp exists
-    """
-
-    dirname = os.path.dirname(fp)
-    basename = os.path.basename(fp)
-    for file in os.listdir(dirname):
-        if fnmatch(file.lower(), basename.lower()):
-            return True
-    return False
-
-
 def ignore_case_path_fetch(fp):
-    """Get file path which matches fp
-    while ignoring case
+    """Get file path which matches fp while ignoring case
 
     Parameters
     ----------
@@ -787,8 +833,7 @@ def get_source_type(file_paths):
 
 
 def get_time_index(file_paths):
-    """Get data file handle
-    based on file type
+    """Get data file handle based on file type
     ----------
     file_paths : list
         path to data file

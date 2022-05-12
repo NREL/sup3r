@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 class BaseModel(ABC):
     """Abstract base sup3r GAN model."""
 
-    def __init__(self, optimizer=None, learning_rate=1e-4,
+    def __init__(self, optimizer=None,
+                 learning_rate=1e-4,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
@@ -287,9 +288,9 @@ class BaseModel(ABC):
         """
         return self.generator.weights
 
-    @tf.function
-    def generate(self, low_res, norm_in=False):
-        """Use the generator model to generate high res data from los res input
+    def generate(self, low_res, norm_in=True, un_norm_out=True):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
 
         Parameters
         ----------
@@ -299,10 +300,13 @@ class BaseModel(ABC):
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
             received normalized data with mean=0 stdev=1.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
 
         Returns
         -------
-        hi_res : tf.Tensor
+        hi_res : ndarray
             Synthetically generated high-resolution data
         """
 
@@ -314,7 +318,52 @@ class BaseModel(ABC):
 
             low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                low_res[..., i] = (low_res[..., i] - m) / s
+                low_res[..., i] -= m
+                if s > 0:
+                    low_res[..., i] /= s
+                else:
+                    logger.warning('Standard deviation is zero for '
+                                   f'{self.training_features[i]}')
+
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        if isinstance(hi_res, tf.Tensor):
+            hi_res = hi_res.numpy()
+
+        if un_norm_out:
+            if self._means is not None:
+                for i, feature in enumerate(self.training_features):
+                    if feature in self.output_features:
+                        m = self._means[i]
+                        s = self._stdevs[i]
+                        j = self.output_features.index(feature)
+                        hi_res[..., j] = (hi_res[..., j] * s) + m
+
+        return hi_res
+
+    @tf.function
+    def _tf_generate(self, low_res):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data. The generator should always
+            received normalized data with mean=0 stdev=1.
+
+        Returns
+        -------
+        hi_res : tf.Tensor
+            Synthetically generated high-resolution data
+        """
 
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
@@ -686,7 +735,7 @@ class BaseModel(ABC):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
-            hi_res_gen = self.generate(low_res)
+            hi_res_gen = self._tf_generate(low_res)
             loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                       **calc_loss_kwargs)
             loss, loss_details = loss_out

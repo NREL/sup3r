@@ -25,7 +25,7 @@ def test_load_spatial(spatial_len):
 
     for coarse_shape in coarse_shapes:
         x = np.ones(coarse_shape)
-        gen_out = model.generate(x)
+        gen_out = model._tf_generate(x)
 
         assert len(gen_out.shape) == 4
         assert gen_out.shape[0] == coarse_shape[0]

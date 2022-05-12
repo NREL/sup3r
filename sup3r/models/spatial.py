@@ -70,7 +70,8 @@ class SpatialGan(BaseModel):
             Optional name for the GAN.
         """
 
-        super().__init__(optimizer=optimizer, learning_rate=learning_rate,
+        super().__init__(optimizer=optimizer,
+                         learning_rate=learning_rate,
                          history=history, version_record=version_record,
                          meta=meta, means=means, stdevs=stdevs, name=name)
 
@@ -268,7 +269,8 @@ class SpatialGan(BaseModel):
         disc_out_true = self.discriminate(hi_res_true)
         disc_out_gen = self.discriminate(hi_res_gen)
 
-        loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        loss_gen_content = self.calc_loss_gen_content(
+            hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
@@ -308,7 +310,7 @@ class SpatialGan(BaseModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self.generate(val_batch.low_res)
+            high_res_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,

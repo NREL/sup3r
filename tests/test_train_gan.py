@@ -23,8 +23,8 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF_squared_200m']
 
 
-def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
-                       n_epoch=6):
+def test_train_spatial(log=False, full_shape=(20, 20),
+                       sample_shape=(10, 10, 1), n_epoch=6):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -38,8 +38,9 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
     # need to reduce the number of temporal examples to test faster
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
-                            spatial_sample_shape=sample_shape,
-                            time_pruning=10, max_extract_workers=1,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            max_extract_workers=1,
                             max_compute_workers=1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
@@ -70,9 +71,9 @@ def test_train_spatial(log=False, full_shape=(20, 20), sample_shape=(10, 10),
         model.save(out_dir)
         loaded = model.load(out_dir)
         for batch in batch_handler:
-            out_og = model.generate(batch.low_res)
-            out_dummy = dummy.generate(batch.low_res)
-            out_loaded = loaded.generate(batch.low_res)
+            out_og = model._tf_generate(batch.low_res)
+            out_dummy = dummy._tf_generate(batch.low_res)
+            out_loaded = loaded._tf_generate(batch.low_res)
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -103,9 +104,9 @@ def test_train_st(n_epoch=4, log=False):
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            temporal_sample_shape=24,
-                            spatial_sample_shape=(18, 18),
-                            time_pruning=1, val_split=0.005,
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
                             max_extract_workers=1,
                             max_compute_workers=1)
 
@@ -161,9 +162,9 @@ def test_train_st(n_epoch=4, log=False):
         assert 'config_temporal_disc' in loaded.meta
 
         for batch in batch_handler:
-            out_og = model.generate(batch.low_res)
-            out_dummy = dummy.generate(batch.low_res)
-            out_loaded = loaded.generate(batch.low_res)
+            out_og = model._tf_generate(batch.low_res)
+            out_dummy = dummy._tf_generate(batch.low_res)
+            out_loaded = loaded._tf_generate(batch.low_res)
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -178,7 +179,7 @@ def test_train_st(n_epoch=4, log=False):
 
         # test that a new shape can be passed through the generator
         test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
-        y_test = model.generate(test_data)
+        y_test = model._tf_generate(test_data)
         assert y_test.shape[0] == test_data.shape[0]
         assert y_test.shape[1] == test_data.shape[1] * 3
         assert y_test.shape[2] == test_data.shape[2] * 3
