@@ -520,10 +520,11 @@ class BaseModel(ABC):
         return self.generator_weights
 
     @staticmethod
-    def update_adversarial_weight(loss_details, comparison_key,
-                                  threshold_range=(0.5, 0.95),
-                                  update_frac=0.025):
-        """Adaptive weight updating for discriminators
+    def get_adversarial_weight_update_fraction(loss_details, comparison_key,
+                                               threshold_range=(0.5, 0.95),
+                                               update_frac=0.025):
+        """Get the factor by which to multiply previous adversarial loss
+        weight
 
         Parameters
         ----------
@@ -539,7 +540,7 @@ class BaseModel(ABC):
             loss_details[comparison_key] > threshold_range[1] then the weight
             will be decreased by (1 - update_frac).
         update_frac : float
-            Fraction by which to increase/decrease weights
+            Fraction by which to increase/decrease adversarial loss weight
 
         Returns
         -------

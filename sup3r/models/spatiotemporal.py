@@ -555,13 +555,82 @@ class SpatioTemporalGan(BaseModel):
 
         return loss_details
 
+    def update_adversarial_weights(self, loss_details, adaptive_weights,
+                                   update_fraction, update_threshold_range,
+                                   weight_gen_advers_s, weight_gen_advers_t,
+                                   train_disc_s, train_disc_t):
+        """Update spatial / temporal adversarial loss weights based on training
+        fraction history.
+
+        Parameters
+        ----------
+        loss_details : dict
+            Dictionary of training history. Includes fraction of epochs for
+            which spatial / temporal discriminators were trained. These values
+            are used to check for weight updates
+        adaptive_weights : bool
+            Whether to adaptively update the adversarial loss weights
+        update_fraction : float
+            Amount by which to increase or decrease adversarial loss weights
+            for adaptive updates
+        update_threshold_range : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < threshold_range[0] then the weight
+            will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > threshold_range[1] then the weight
+            will be decreased by (1 - update_frac).
+        weight_gen_advers_s : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the spatial discriminator.
+        weight_gen_advers_t : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the temporal discriminator.
+        train_disc_s : bool
+            Whether the spatial discriminator was set to be trained during the
+            previous epoch
+        train_disc_t : bool
+            Whether the temporal discriminator was set to be trained during the
+            previous epoch
+
+        Returns
+        -------
+        weight_gen_advers_s : float
+            Updated weight factor for the adversarial loss component of the
+            generator vs. the spatial discriminator.
+        weight_gen_advers_t : float
+            Updated weight factor for the adversarial loss component of the
+            generator vs. the temporal discriminator.
+        """
+
+        if adaptive_weights:
+            s_update_frac = t_update_frac = 1
+            if train_disc_s:
+                s_update_frac = self.get_adversarial_weight_update_fraction(
+                    loss_details, 'train_disc_s_trained_frac',
+                    update_frac=update_fraction,
+                    threshold_range=update_threshold_range)
+                weight_gen_advers_s *= s_update_frac
+            if train_disc_t:
+                t_update_frac = self.get_adversarial_weight_update_fraction(
+                    loss_details, 'train_disc_t_trained_frac',
+                    update_frac=update_fraction,
+                    threshold_range=update_threshold_range)
+                weight_gen_advers_t *= t_update_frac
+
+            if not all(w == 1 for w in (s_update_frac, t_update_frac)):
+                logger.debug(
+                    'New discriminator weights (disc_s / disc_t): '
+                    f'{weight_gen_advers_s} / {weight_gen_advers_t}')
+
+        return weight_gen_advers_s, weight_gen_advers_t
+
     def train(self, batch_handler, n_epoch,
               weight_gen_advers_s=0.001, weight_gen_advers_t=0.001,
               train_gen=True, train_disc_s=True, train_disc_t=True,
               disc_loss_bounds=(0.45, 0.6),
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
-              early_stop_n_epoch=5, adaptive_weights=True,
+              early_stop_n_epoch=5, adaptive_weight_update=True,
               update_threshold_range=(0.5, 0.95), update_fraction=0.025):
         """Train the GAN model on real low res data and real high res data
 
@@ -611,7 +680,7 @@ class SpatioTemporalGan(BaseModel):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
-        adaptive_weights : bool
+        adaptive_weight_update : bool
             Whether to adaptively update the discriminator weights
         update_threshold_range : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
@@ -681,24 +750,12 @@ class SpatioTemporalGan(BaseModel):
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
-            if adaptive_weights:
-                if train_disc_s:
-                    s_update_frac = self.update_adversarial_weight(
-                        loss_details, 'train_disc_s_trained_frac',
-                        update_frac=update_fraction,
-                        threshold_range=update_threshold_range)
-                    weight_gen_advers_s *= s_update_frac
-                if train_disc_t:
-                    t_update_frac = self.update_adversarial_weight(
-                        loss_details, 'train_disc_t_trained_frac',
-                        update_frac=update_fraction,
-                        threshold_range=update_threshold_range)
-                    weight_gen_advers_t *= t_update_frac
 
-                if not all(w == 1 for w in (s_update_frac, t_update_frac)):
-                    logger.debug(
-                        'New discriminator weights (disc_s / disc_t): '
-                        f'{weight_gen_advers_s} / {weight_gen_advers_t}')
+            out = self.update_adversarial_weights(
+                loss_details, adaptive_weight_update, update_fraction,
+                update_threshold_range, weight_gen_advers_s,
+                weight_gen_advers_t, train_disc_s, train_disc_t)
+            weight_gen_advers_s, weight_gen_advers_t = out
 
             if stop:
                 break
