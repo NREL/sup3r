@@ -20,6 +20,28 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def get_chunk_slices(arr_size, chunk_size):
+    """Get array slices of corresponding chunk size
+
+    Parameters
+    ----------
+    arr_size : int
+        Length of array to slice
+    chunk_size : int
+        Size of slices to split array into
+
+    Returns
+    -------
+    list
+        List of slices correpoding to chunks of array
+    """
+    n_chunks = int(np.ceil(arr_size / chunk_size))
+    slices = np.array_split(np.arange(arr_size), n_chunks)
+    slices = [slice(s[0], s[-1] + 1) for s in slices]
+
+    return slices
+
+
 def get_file_t_steps(file_paths):
     """Get number of time steps in each file. We assume that each netcdf file
     in a file list passed to the handling classes has the same number of time

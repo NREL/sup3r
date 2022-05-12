@@ -8,7 +8,7 @@ import numpy as np
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassHandler
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models.spatiotemporal import SpatioTemporalGan
 
 
@@ -74,15 +74,14 @@ def test_fwd_pass_handler():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        handler = ForwardPassHandler(
+        handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data = forward_pass.forward_pass_file_chunk(
-            input_files, temporal_slice=temporal_slice, out_file=None)
+        data = forward_pass.run(out_file=None)
 
         assert data.shape == (s_enhance * shape[0],
                               s_enhance * shape[1],
@@ -127,15 +126,14 @@ def test_fwd_pass_chunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        handler = ForwardPassHandler(
+        handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data_chunked = forward_pass.forward_pass_file_chunk(
-            input_files, temporal_slice=temporal_slice, out_file=None)
+        data_chunked = forward_pass.run(out_file=None)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
                                   val_split=0.0, shape=shape,
@@ -186,15 +184,14 @@ def test_fwd_pass_nochunking():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        handler = ForwardPassHandler(
+        handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data_chunked = forward_pass.forward_pass_file_chunk(
-            input_files, temporal_slice=temporal_slice, out_file=None)
+        data_chunked = forward_pass.run(out_file=None)
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,

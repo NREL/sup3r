@@ -71,9 +71,9 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         model.save(out_dir)
         loaded = model.load(out_dir)
         for batch in batch_handler:
-            out_og = model._generate(batch.low_res)
-            out_dummy = dummy._generate(batch.low_res)
-            out_loaded = loaded._generate(batch.low_res)
+            out_og = model._tf_generate(batch.low_res)
+            out_dummy = dummy._tf_generate(batch.low_res)
+            out_loaded = loaded._tf_generate(batch.low_res)
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -162,9 +162,9 @@ def test_train_st(n_epoch=4, log=False):
         assert 'config_temporal_disc' in loaded.meta
 
         for batch in batch_handler:
-            out_og = model._generate(batch.low_res)
-            out_dummy = dummy._generate(batch.low_res)
-            out_loaded = loaded._generate(batch.low_res)
+            out_og = model._tf_generate(batch.low_res)
+            out_dummy = dummy._tf_generate(batch.low_res)
+            out_loaded = loaded._tf_generate(batch.low_res)
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -179,7 +179,7 @@ def test_train_st(n_epoch=4, log=False):
 
         # test that a new shape can be passed through the generator
         test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
-        y_test = model._generate(test_data)
+        y_test = model._tf_generate(test_data)
         assert y_test.shape[0] == test_data.shape[0]
         assert y_test.shape[1] == test_data.shape[1] * 3
         assert y_test.shape[2] == test_data.shape[2] * 3
