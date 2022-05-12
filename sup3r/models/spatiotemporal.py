@@ -721,8 +721,8 @@ class SpatioTemporalGan(BaseModel):
                     weight_gen_advers_t = self.update_adversarial_weight(
                         loss_details, 'temporal', weight_gen_advers_t)
                 logger.debug(
-                    'New discriminator weights (disc_s/disc_t): '
-                    f'{weight_gen_advers_s}/{weight_gen_advers_t}')
+                    'New discriminator weights (disc_s / disc_t): '
+                    f'{weight_gen_advers_s} / {weight_gen_advers_t}')
 
             if stop:
                 break
