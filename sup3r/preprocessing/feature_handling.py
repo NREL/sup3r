@@ -20,7 +20,6 @@ from sup3r.utilities.utilities import (transform_rotate_wind,
                                        get_raster_shape,
                                        inverse_mo_length)
 
-from sup3r import __version__
 
 np.random.seed(42)
 
@@ -81,11 +80,16 @@ class ClearSkyRatioH5(DerivedFeature):
             nighttime.
         """
 
-        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
-        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
-        night_mask = data['clearsky_ghi'] <= 2
-        data['clearsky_ghi'][night_mask] = np.nan
+        # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 1
+
+        # set any timestep with any nighttime equal to NaN to avoid weird
+        # sunrise/sunset artifacts.
+        night_mask = night_mask.any(axis=(0, 1))
+        data['clearsky_ghi'][..., night_mask] = np.nan
+
         cs_ratio = data['ghi'] / data['clearsky_ghi']
         cs_ratio = cs_ratio.astype(np.float32)
         return cs_ratio
@@ -130,10 +134,15 @@ class CloudMaskH5(DerivedFeature):
             integer weirdness.
         """
 
-        # need to use a nightime threshold of 2 W/m2 because cs_ghi is stored
+        # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
-        # ratio and cloud mask between 0 and 2 W/m2 and sunrise/sunset
-        night_mask = data['clearsky_ghi'] <= 2
+        # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
+        night_mask = data['clearsky_ghi'] <= 1
+
+        # set any timestep with any nighttime equal to NaN to avoid weird
+        # sunrise/sunset artifacts.
+        night_mask = night_mask.any(axis=(0, 1))
+
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
@@ -944,7 +953,6 @@ class FeatureHandler:
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
                          input_features, all_features, max_workers=None):
-
         """Compute features using parallel subprocesses
 
         Parameters
