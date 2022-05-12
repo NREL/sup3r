@@ -311,11 +311,6 @@ class BaseModel(ABC):
         """
 
         if norm_in and self._means is not None:
-            if isinstance(low_res, tf.Tensor):
-                msg = 'Cannot normalize tensor input, must be array'
-                logger.error(msg)
-                raise TypeError(msg)
-
             low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
                 low_res[..., i] -= m
@@ -334,18 +329,15 @@ class BaseModel(ABC):
                        .format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
+        hi_res = hi_res.numpy()
 
-        if isinstance(hi_res, tf.Tensor):
-            hi_res = hi_res.numpy()
-
-        if un_norm_out:
-            if self._means is not None:
-                for i, feature in enumerate(self.training_features):
-                    if feature in self.output_features:
-                        m = self._means[i]
-                        s = self._stdevs[i]
-                        j = self.output_features.index(feature)
-                        hi_res[..., j] = (hi_res[..., j] * s) + m
+        if un_norm_out and self._means is not None:
+            for i, feature in enumerate(self.training_features):
+                if feature in self.output_features:
+                    m = self._means[i]
+                    s = self._stdevs[i]
+                    j = self.output_features.index(feature)
+                    hi_res[..., j] = (hi_res[..., j] * s) + m
 
         return hi_res
 
