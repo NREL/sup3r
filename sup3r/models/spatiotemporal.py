@@ -631,7 +631,7 @@ class SpatioTemporalGan(BaseModel):
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
               early_stop_n_epoch=5, adaptive_weight_update=True,
-              update_threshold_range=(0.5, 0.95), update_fraction=0.025):
+              update_threshold_range=(0.5, 0.98), update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
