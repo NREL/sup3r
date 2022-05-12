@@ -1014,6 +1014,12 @@ class DataHandlerNsrdb(DataHandlerH5):
     # the handler from rex to open h5 data.
     REX_HANDLER = NSRDBX
 
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features
