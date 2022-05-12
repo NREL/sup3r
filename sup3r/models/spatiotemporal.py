@@ -603,7 +603,8 @@ class SpatioTemporalGan(BaseModel):
               disc_loss_bounds=(0.45, 0.6),
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
-              early_stop_n_epoch=5, adaptive_weights=True):
+              early_stop_n_epoch=5, adaptive_weights=True,
+              update_fraction=0.025):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -654,6 +655,9 @@ class SpatioTemporalGan(BaseModel):
             warrants an early stop.
         adaptive_weights : bool
             Whether to adaptively update the discriminator weights
+        update_fraction : float
+            Amount by which to increase or decrease adversarial weights for
+            adaptive updates
         """
 
         self.set_norm_stats(batch_handler)
@@ -719,7 +723,8 @@ class SpatioTemporalGan(BaseModel):
                         loss_details, 'spatial', weight_gen_advers_s)
                 if train_disc_t:
                     weight_gen_advers_t = self.update_adversarial_weight(
-                        loss_details, 'temporal', weight_gen_advers_t)
+                        loss_details, 'temporal', weight_gen_advers_t,
+                        update_frac=update_fraction)
                 logger.debug(
                     'New discriminator weights (disc_s / disc_t): '
                     f'{weight_gen_advers_s} / {weight_gen_advers_t}')
