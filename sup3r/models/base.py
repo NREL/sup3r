@@ -551,9 +551,9 @@ class BaseModel(ABC):
         trained_frac = loss_details[comparison_key]
 
         if trained_frac < threshold_range[0]:
-            return (1 + update_frac)
+            return 1 + update_frac
         elif trained_frac > threshold_range[1]:
-            return (1 - update_frac)
+            return 1 - update_frac
         else:
             return 1
 
