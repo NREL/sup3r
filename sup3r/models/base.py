@@ -530,7 +530,7 @@ class BaseModel(ABC):
             loss_details[comparison_key] < update_bounds[0] then the weight
             will be increased by (1 + update_frac). If
             loss_details[comparison_key] > update_bounds[1] then the weight
-            will be decreased by (1 - update_frac).
+            will be decreased by 1 / (1 + update_frac).
         update_frac : float
             Fraction by which to increase/decrease adversarial loss weight
 
@@ -545,7 +545,7 @@ class BaseModel(ABC):
         if comparison_val < update_bounds[0]:
             return 1 + update_frac
         elif comparison_val > update_bounds[1]:
-            return 1 - update_frac
+            return 1 / (1 + update_frac)
         else:
             return 1
 
