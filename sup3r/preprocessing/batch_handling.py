@@ -466,7 +466,7 @@ class BatchHandler:
                     f'{i+1} out of {len(futures)} handlers for handler_chunk '
                     f'{j} loaded.')
 
-        logger.debug('Finished loading data for BatchHandler')
+        logger.debug('Finished loading data for BatchHandler.')
         log_mem(logger)
 
         self.data_handlers = data_handlers
@@ -489,10 +489,10 @@ class BatchHandler:
         self.means_file = means_file
 
         if norm:
-            logger.debug('Normalizing data for BatchHandler')
+            logger.debug('Normalizing data for BatchHandler.')
             self.normalize(means, stds)
 
-        logger.debug('Getting validation data for BatchHandler')
+        logger.debug('Getting validation data for BatchHandler.')
         self.val_data = self.VAL_CLASS(
             data_handlers, batch_size=batch_size,
             s_enhance=s_enhance, t_enhance=t_enhance,
@@ -889,11 +889,14 @@ class BatchHandler:
         means_check = (self.means_file is not None)
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
+            logger.info(f'Loading stdevs / means from files {self.stdevs_file}'
+                        f' / {self.means_file}')
             with open(self.stdevs_file, 'rb') as fh:
                 self.stds = pickle.load(fh)
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
         else:
+            logger.info('Calculating stdevs / means.')
             n_elems = np.product(self.data_handlers[0].shape[:-1])
             n_elems *= len(self.data_handlers)
             for i in range(self.shape[-1]):
@@ -905,12 +908,12 @@ class BatchHandler:
                         (data_handler.data[..., i] - self.means[i])**2)
                 self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
+            logger.info(f'Saving stdevs / means to files {self.stdevs_file} '
+                        f'/ {self.means_file}')
             with open(self.stdevs_file, 'wb') as fh:
                 self.stds = pickle.dump(fh)
             with open(self.means_file, 'wb') as fh:
                 self.means = pickle.dump(fh)
-            logger.info(f'stdevs / means saved to files {self.stdevs_file} '
-                        f'/ {self.means_file}')
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
