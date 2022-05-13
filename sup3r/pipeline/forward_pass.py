@@ -53,7 +53,6 @@ class ForwardPassStrategy:
                  overwrite_cache=False,
                  spatial_overlap=15,
                  temporal_overlap=15):
-
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -663,7 +662,36 @@ class ForwardPass:
 
         return hi_res[0][crop_slices]
 
-    def run(self):
+    @classmethod
+    def get_node_cmd(cls, config, node_kwargs):
+        """Get a CLI call to initialize ForwardPassStrategy and run ForwardPass
+        on a single node based on an input config.
+
+        Parameters
+        ----------
+        config : dict
+            sup3r forward pass config with all necessary args and kwargs to
+            initialize ForwardPassStrategy and run ForwardPass on a single
+            node.
+        node_kwargs : dict
+            PLACEHOLDER, config is probably a global input and you need
+            something that says what the node-specific chunk is. OR MAYBE
+            config is updated with the node specific arguments.
+        """
+
+        import_str = ('from sup3r.pipeline.forward_pass '
+                      'import ForwardPassStrategy, ForwardPass')
+
+        fps_init_str = get_fun_call_str(ForwardPassStrategy.__init__, config)
+        fp_run_str = get_fun_call_str(ForwardPass.run, config)
+
+        cmd = (f"python -c '{import_str};"
+               f"{fps_init_str};"
+               f"{fp_run_str}'")
+
+        return cmd
+
+    def run(self, out_file=None):
         """
         ForwardPass is initialized with a file_slice_index. This index selects
         a file subset from the full file list in ForwardPassStrategy. This
