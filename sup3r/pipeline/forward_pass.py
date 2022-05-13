@@ -26,6 +26,16 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+class Node:
+    """Class to store kwargs for a given node. Used in the sup3r cli to
+    initialize forward pass runs from config"""
+    def __init__(self, kwargs=None):
+        if kwargs is None:
+            self.kwargs = {}
+        else:
+            self.kwargs = kwargs
+
+
 class ForwardPassStrategy:
     """Class to prepare data for forward passes through generator.
 
@@ -123,6 +133,7 @@ class ForwardPassStrategy:
             for subsequent temporal stitching
         """
 
+        self._i = 0
         self.file_t_steps = get_file_t_steps(file_paths)
         self.file_paths = sorted(file_paths)
         self.raster_file = raster_file
@@ -175,6 +186,67 @@ class ForwardPassStrategy:
                 >= self.file_t_steps * len(file_paths)):
             logger.warning(msg)
             warnings.warn(msg)
+
+    def get_kwargs(self, run_index):
+        """Get node specific variables given an associated index
+
+        Parameters
+        ----------
+        run_index : int
+            Index to select node specific variables. This index selects the
+            corresponding file set, cropped_file_slice, padded_file_slice,
+            and sets of padded/overlapping/cropped spatial slices for spatial
+            chunks
+
+        Returns
+        -------
+        kwargs : dict
+            Dictionary containing the node specific variables
+        """
+
+        file_paths = self.file_paths[self.padded_file_slices[run_index]]
+        cropped_file_slice = self.cropped_file_slices[run_index]
+        file_id = self.file_ids[run_index]
+        out_file = self.out_files[run_index]
+        temporal_slice = self.temporal_slices[run_index]
+        ts_indices = np.arange(len(file_paths) * self.file_t_steps)
+        data_shape = (self.shape[0], self.shape[1],
+                      len(ts_indices[temporal_slice]))
+        out = self.get_chunk_slices(data_shape=data_shape)
+        lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
+
+        kwargs = dict(
+            file_paths=file_paths, cropped_file_slice=cropped_file_slice,
+            file_id=file_id, out_file=out_file, temporal_slice=temporal_slice,
+            lr_slices=lr_slices, lr_pad_slices=lr_pad_slices,
+            hr_slices=hr_slices, hr_crop_slices=hr_crop_slices)
+        return kwargs
+
+    def __iter__(self):
+        self._i = 0
+        return self
+
+    def __next__(self):
+        """Iterate over all file chunks and select node specific variables
+
+        Returns
+        -------
+        Node
+            Node class storing kwargs for ForwardPass initialization from
+            config
+
+        Raises
+        ------
+        StopIteration
+            Stops iteration after reaching last file chunk
+        """
+
+        if self._i < len(self.file_slices):
+            node = Node(self.get_kwargs(self._i))
+            self._i += 1
+            return node
+        else:
+            raise StopIteration
 
     @staticmethod
     def file_info_logging(file_path):
@@ -545,6 +617,10 @@ class ForwardPass:
         file_paths = self.strategy.file_paths[file_slice]
         temporal_slice = self.strategy.temporal_slices[self.run_index]
         self.crop_slice = self.strategy.cropped_file_slices[self.run_index]
+        ts_indices = np.arange(len(file_paths) * self.strategy.file_t_steps)
+
+        self.data_shape = (self.strategy.shape[0], self.strategy.shape[1],
+                           len(ts_indices[temporal_slice]))
 
         self.data_handler = DataHandlerNC(
             file_paths, self.features, target=self.strategy.target,
@@ -604,25 +680,23 @@ class ForwardPass:
             an array instead of saved.
         """
 
-        data_shape = (self.strategy.shape[0], self.strategy.shape[1],
-                      len(self.data_handler.time_index))
-
-        out = self.strategy.get_chunk_slices(data_shape=data_shape)
+        out = self.strategy.get_chunk_slices(data_shape=self.data_shape)
         lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
 
         chunk_shape = (lr_slices[0][0].stop - lr_slices[0][0].start,
                        lr_slices[0][1].stop - lr_slices[0][1].start,
-                       data_shape[2])
+                       self.data_shape[2])
         logger.info(
-            f'Starting forward passes on data shape {data_shape}. Using '
+            f'Starting forward passes on data shape {self.data_shape}. Using '
             f'{len(lr_slices)} chunks each with shape of {chunk_shape}, '
             f'spatial_overlap of {self.strategy.spatial_overlap} and '
             f'temporal_overlap of {self.strategy.temporal_overlap}')
 
         data = np.zeros(
-            (self.strategy.s_enhance * data_shape[0],
-             self.strategy.s_enhance * data_shape[1],
-             self.strategy.t_enhance * data_shape[2], 2), dtype=np.float32)
+            (self.strategy.s_enhance * self.data_shape[0],
+             self.strategy.s_enhance * self.data_shape[1],
+             self.strategy.t_enhance * self.data_shape[2], 2),
+            dtype=np.float32)
 
         if self.strategy.max_pass_workers == 1:
             for s_high, s_low_pad, s_high_crop in zip(hr_slices, lr_pad_slices,
