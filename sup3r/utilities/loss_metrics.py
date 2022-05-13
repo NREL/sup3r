@@ -5,7 +5,7 @@ Loss metrics for Sup3r
 import tensorflow as tf
 
 
-def max_mean_discrepancy(x, y, kernel):
+def max_mean_discrepancy(x, y, kernel='rbf'):
     """Emprical maximum mean discrepancy. The lower the result
        the more evidence that distributions are the same.
 

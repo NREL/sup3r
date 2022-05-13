@@ -691,8 +691,8 @@ class Sup3rGan:
 
     @staticmethod
     def get_weight_update_fraction(loss_details, comparison_key,
-                                   update_bounds=(0.5, 0.95),
-                                   update_frac=0.025):
+                                   update_bounds=(0.5, 0.98),
+                                   update_frac=0.05, n_epochs=5):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -711,6 +711,11 @@ class Sup3rGan:
             will be decreased by 1 / (1 + update_frac).
         update_frac : float
             Fraction by which to increase/decrease adversarial loss weight
+        n_epochs : int
+            Number of previous epochs to average loss_details[comparison_key]
+            over before checking for update conditions. e.g. If n_epochs = 2
+            then the update condition will depend on the average of
+            loss_details[comparison_key] over the previous 2 epochs.
 
         Returns
         -------
@@ -718,7 +723,7 @@ class Sup3rGan:
             Factor by which to multiply old weight to get updated weight
         """
 
-        comparison_val = loss_details[comparison_key]
+        comparison_val = np.mean(loss_details[comparison_key][-n_epochs:])
 
         if comparison_val < update_bounds[0]:
             return 1 + update_frac
