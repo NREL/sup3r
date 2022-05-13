@@ -8,6 +8,8 @@ import logging
 import numpy as np
 from datetime import datetime as dt
 import threading
+import os
+import pickle
 
 from rex.utilities import log_mem
 
@@ -396,7 +398,8 @@ class BatchHandler:
 
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
-                 temporal_coarsening_method='subsample'):
+                 temporal_coarsening_method='subsample', stdevs_file=None,
+                 means_file=None):
         """
         Parameters
         ----------
@@ -430,6 +433,10 @@ class BatchHandler:
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
+        stdevs_file : str | None
+            Path to stdevs data or where to save data after calling _get_stats
+        means_file : str | None
+            Path to means data or where to save data after calling _get_stats
         """
 
         handler_shapes = np.array(
@@ -478,6 +485,8 @@ class BatchHandler:
         self.temporal_coarsening_method = temporal_coarsening_method
         self.current_batch_indices = None
         self.current_handler_index = None
+        self.stdevs_file = stdevs_file
+        self.means_file = means_file
 
         if norm:
             logger.debug('Normalizing data for BatchHandler')
@@ -729,7 +738,9 @@ class BatchHandler:
              max_compute_workers=None,
              time_chunk_size=100,
              cache_file_prefixes=None,
-             overwrite_cache=False):
+             overwrite_cache=False,
+             stdevs_file=None,
+             means_file=None):
         """Method to initialize both data and batch handlers
 
         Parameters
@@ -808,6 +819,10 @@ class BatchHandler:
             computed/extracted.
         overwrite_cache : bool
             Whether to overwrite any previously saved cache files.
+        stdevs_file : str | None
+            Path to stdevs data or where to save data after calling _get_stats
+        means_file : str | None
+            Path to means data or where to save data after calling _get_stats
 
         Returns
         -------
@@ -834,7 +849,8 @@ class BatchHandler:
             data_handlers, s_enhance=s_enhance,
             t_enhance=t_enhance, batch_size=batch_size,
             norm=norm, means=means, stds=stds, n_batches=n_batches,
-            temporal_coarsening_method=temporal_coarsening_method)
+            temporal_coarsening_method=temporal_coarsening_method,
+            stdevs_file=stdevs_file, means_file=means_file)
 
         return batch_handler
 
@@ -868,16 +884,33 @@ class BatchHandler:
             array of means for all features with same ordering as data features
         """
 
-        n_elems = np.product(self.data_handlers[0].shape[:-1])
-        n_elems *= len(self.data_handlers)
-        for data_handler in self.data_handlers:
-            self.means += np.nansum(data_handler.data, axis=(0, 1, 2))
-        self.means /= n_elems
-        for data_handler in self.data_handlers:
-            self.stds += np.nansum((data_handler.data - self.means)**2,
-                                   axis=(0, 1, 2))
-        self.stds /= n_elems
-        self.stds = np.sqrt(self.stds)
+        stdevs_check = (self.stdevs_file is not None)
+        stdevs_check = stdevs_check and os.path.exists(self.stdevs_file)
+        means_check = (self.means_file is not None)
+        means_check = means_check and os.path.exists(self.means_file)
+        if stdevs_check and means_check:
+            with open(self.stdevs_file, 'rb') as fh:
+                self.stds = pickle.load(fh)
+            with open(self.means_file, 'rb') as fh:
+                self.means = pickle.load(fh)
+        else:
+            n_elems = np.product(self.data_handlers[0].shape[:-1])
+            n_elems *= len(self.data_handlers)
+            for i in range(self.shape[-1]):
+                for data_handler in self.data_handlers:
+                    self.means[i] += np.nansum(data_handler.data[..., i])
+                self.means[i] = self.means[i] / n_elems
+                for data_handler in self.data_handlers:
+                    self.stds[i] += np.nansum(
+                        (data_handler.data[..., i] - self.means[i])**2)
+                self.stds[i] = np.sqrt(self.stds[i] / n_elems)
+
+            with open(self.stdevs_file, 'wb') as fh:
+                self.stds = pickle.dump(fh)
+            with open(self.means_file, 'wb') as fh:
+                self.means = pickle.dump(fh)
+            logger.info(f'stdevs / means saved to files {self.stdevs_file} '
+                        f'/ {self.means_file}')
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and

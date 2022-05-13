@@ -723,7 +723,11 @@ class Sup3rGan:
             Factor by which to multiply old weight to get updated weight
         """
 
-        comparison_val = np.mean(loss_details[comparison_key][-n_epochs:])
+        history = loss_details[comparison_key]
+        if isinstance(history, list):
+            comparison_val = np.mean(history[-n_epochs:])
+        else:
+            comparison_val = history
 
         if comparison_val < update_bounds[0]:
             return 1 + update_frac
