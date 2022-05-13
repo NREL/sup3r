@@ -311,11 +311,6 @@ class BaseModel(ABC):
         """
 
         if norm_in and self._means is not None:
-            if isinstance(low_res, tf.Tensor):
-                msg = 'Cannot normalize tensor input, must be array'
-                logger.error(msg)
-                raise TypeError(msg)
-
             low_res = low_res.copy()
             for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
                 low_res[..., i] -= m
@@ -334,18 +329,15 @@ class BaseModel(ABC):
                        .format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
+        hi_res = hi_res.numpy()
 
-        if isinstance(hi_res, tf.Tensor):
-            hi_res = hi_res.numpy()
-
-        if un_norm_out:
-            if self._means is not None:
-                for i, feature in enumerate(self.training_features):
-                    if feature in self.output_features:
-                        m = self._means[i]
-                        s = self._stdevs[i]
-                        j = self.output_features.index(feature)
-                        hi_res[..., j] = (hi_res[..., j] * s) + m
+        if un_norm_out and self._means is not None:
+            for i, feature in enumerate(self.training_features):
+                if feature in self.output_features:
+                    m = self._means[i]
+                    s = self._stdevs[i]
+                    j = self.output_features.index(feature)
+                    hi_res[..., j] = (hi_res[..., j] * s) + m
 
         return hi_res
 
@@ -518,6 +510,44 @@ class BaseModel(ABC):
         generator, spatial discriminator, and temporal discriminator.
         """
         return self.generator_weights
+
+    @staticmethod
+    def get_weight_update_fraction(loss_details, comparison_key,
+                                   update_bounds=(0.5, 0.95),
+                                   update_frac=0.025):
+        """Get the factor by which to multiply previous adversarial loss
+        weight
+
+        Parameters
+        ----------
+        loss_details : dict
+            Dictionary with information on how often discriminators
+            were trained and other history information.
+        comparison_key : str
+            loss_details key to use for update check
+        update_bounds : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < update_bounds[0] then the weight
+            will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > update_bounds[1] then the weight
+            will be decreased by (1 - update_frac).
+        update_frac : float
+            Fraction by which to increase/decrease adversarial loss weight
+
+        Returns
+        -------
+        float
+            Factor by which to multiply old weight to get updated weight
+        """
+
+        comparison_val = loss_details[comparison_key]
+
+        if comparison_val < update_bounds[0]:
+            return 1 + update_frac
+        elif comparison_val > update_bounds[1]:
+            return 1 - update_frac
+        else:
+            return 1
 
     @staticmethod
     def update_loss_details(loss_details, new_data, batch_len, prefix=None):
