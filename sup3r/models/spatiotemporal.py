@@ -555,8 +555,9 @@ class SpatioTemporalGan(BaseModel):
 
         return loss_details
 
-    def update_adversarial_weights(self, loss_details, adaptive_weights,
-                                   update_fraction, update_bounds,
+    def update_adversarial_weights(self, loss_details,
+                                   adaptive_update_fraction,
+                                   adaptive_update_bounds,
                                    weight_gen_advers_s, weight_gen_advers_t,
                                    train_disc_s, train_disc_t):
         """Update spatial / temporal adversarial loss weights based on training
@@ -568,12 +569,10 @@ class SpatioTemporalGan(BaseModel):
             Dictionary of training history. Includes fraction of epochs for
             which spatial / temporal discriminators were trained. These values
             are used to check for weight updates
-        adaptive_weights : bool
-            Whether to adaptively update the adversarial loss weights
-        update_fraction : float
+        adaptive_update_fraction : float
             Amount by which to increase or decrease adversarial loss weights
             for adaptive updates
-        update_bounds : tuple
+        adaptive_update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
             loss_details[comparison_key] < threshold_range[0] then the weight
             will be increased by (1 + update_frac). If
@@ -602,17 +601,19 @@ class SpatioTemporalGan(BaseModel):
             generator vs. the temporal discriminator.
         """
 
-        if adaptive_weights:
+        if adaptive_update_fraction > 0:
             s_update_frac = t_update_frac = 1
             if train_disc_s:
                 s_update_frac = self.get_weight_update_fraction(
                     loss_details, 'train_disc_s_trained_frac',
-                    update_frac=update_fraction, update_bounds=update_bounds)
+                    update_frac=adaptive_update_fraction,
+                    update_bounds=adaptive_update_bounds)
                 weight_gen_advers_s *= s_update_frac
             if train_disc_t:
                 t_update_frac = self.get_weight_update_fraction(
                     loss_details, 'train_disc_t_trained_frac',
-                    update_frac=update_fraction, update_bounds=update_bounds)
+                    update_frac=adaptive_update_fraction,
+                    update_bounds=adaptive_update_bounds)
                 weight_gen_advers_t *= t_update_frac
 
             if not all(w == 1 for w in (s_update_frac, t_update_frac)):
@@ -628,8 +629,8 @@ class SpatioTemporalGan(BaseModel):
               disc_loss_bounds=(0.45, 0.6),
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
-              early_stop_n_epoch=5, adaptive_weight_update=True,
-              update_bounds=(0.5, 0.98), update_fraction=0.05):
+              early_stop_n_epoch=5, adaptive_update_bounds=(0.5, 0.98),
+              adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -678,15 +679,13 @@ class SpatioTemporalGan(BaseModel):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
-        adaptive_weight_update : bool
-            Whether to adaptively update the discriminator weights
-        update_bounds : tuple
+        adaptive_update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
             loss_details[comparison_key] < threshold_range[0] then the weight
             will be increased by (1 + update_frac). If
             loss_details[comparison_key] > threshold_range[1] then the weight
             will be decreased by (1 - update_frac).
-        update_fraction : float
+        adaptive_update_fraction : float
             Amount by which to increase or decrease adversarial weights for
             adaptive updates
         """
@@ -750,9 +749,9 @@ class SpatioTemporalGan(BaseModel):
                                      early_stop_n_epoch, extras=extras)
 
             out = self.update_adversarial_weights(
-                loss_details, adaptive_weight_update, update_fraction,
-                update_bounds, weight_gen_advers_s, weight_gen_advers_t,
-                train_disc_s, train_disc_t)
+                loss_details, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers_s, weight_gen_advers_t, train_disc_s,
+                train_disc_t)
             weight_gen_advers_s, weight_gen_advers_t = out
 
             if stop:
