@@ -512,9 +512,9 @@ class BaseModel(ABC):
         return self.generator_weights
 
     @staticmethod
-    def get_adversarial_weight_update_fraction(loss_details, comparison_key,
-                                               threshold_range=(0.5, 0.95),
-                                               update_frac=0.025):
+    def get_weight_update_fraction(loss_details, comparison_key,
+                                   update_bounds=(0.5, 0.95),
+                                   update_frac=0.025):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -525,7 +525,7 @@ class BaseModel(ABC):
             were trained and other history information.
         comparison_key : str
             loss_details key to use for update check
-        threshold_range : tuple
+        update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
             loss_details[comparison_key] < threshold_range[0] then the weight
             will be increased by (1 + update_frac). If
@@ -540,11 +540,11 @@ class BaseModel(ABC):
             Factor by which to multiply old weight to get updated weight
         """
 
-        trained_frac = loss_details[comparison_key]
+        comparison_val = loss_details[comparison_key]
 
-        if trained_frac < threshold_range[0]:
+        if comparison_val < update_bounds[0]:
             return 1 + update_frac
-        elif trained_frac > threshold_range[1]:
+        elif comparison_val > update_bounds[1]:
             return 1 - update_frac
         else:
             return 1
