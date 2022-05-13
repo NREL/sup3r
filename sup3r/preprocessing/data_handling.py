@@ -454,7 +454,7 @@ class DataHandler(FeatureHandler):
                     logger.info(f'Saving {self.features[i]} to {fp}')
 
                 with open(fp, 'wb') as fh:
-                    pickle.dump(self.data[:, :, :, i], fh, protocol=4)
+                    pickle.dump(self.data[..., i], fh, protocol=4)
             else:
                 logger.warning(
                     f'Called cache_data but {fp} '

@@ -911,9 +911,9 @@ class BatchHandler:
             logger.info(f'Saving stdevs / means to files {self.stdevs_file} '
                         f'/ {self.means_file}')
             with open(self.stdevs_file, 'wb') as fh:
-                self.stds = pickle.dump(fh)
+                pickle.dump(self.stds, fh)
             with open(self.means_file, 'wb') as fh:
-                self.means = pickle.dump(fh)
+                pickle.dump(self.means, fh)
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
