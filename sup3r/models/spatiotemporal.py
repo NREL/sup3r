@@ -574,10 +574,10 @@ class SpatioTemporalGan(BaseModel):
             for adaptive updates
         adaptive_update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
-            loss_details[comparison_key] < threshold_range[0] then the weight
-            will be increased by (1 + update_frac). If
-            loss_details[comparison_key] > threshold_range[1] then the weight
-            will be decreased by (1 - update_frac).
+            loss_details[comparison_key] < adaptive_update_bounds[0] then the
+            weight will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > adaptive_update_bounds[1] then the
+            weight will be decreased by (1 - update_frac).
         weight_gen_advers_s : float
             Weight factor for the adversarial loss component of the generator
             vs. the spatial discriminator.

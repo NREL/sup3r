@@ -527,9 +527,9 @@ class BaseModel(ABC):
             loss_details key to use for update check
         update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
-            loss_details[comparison_key] < threshold_range[0] then the weight
+            loss_details[comparison_key] < update_bounds[0] then the weight
             will be increased by (1 + update_frac). If
-            loss_details[comparison_key] > threshold_range[1] then the weight
+            loss_details[comparison_key] > update_bounds[1] then the weight
             will be decreased by (1 - update_frac).
         update_frac : float
             Fraction by which to increase/decrease adversarial loss weight
