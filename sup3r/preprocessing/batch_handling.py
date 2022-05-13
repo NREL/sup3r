@@ -868,16 +868,16 @@ class BatchHandler:
             array of means for all features with same ordering as data features
         """
 
-        for i in range(self.shape[-1]):
-            n_elems = 0
-            for data_handler in self.data_handlers:
-                self.means[i] += np.nansum(data_handler.data[..., i])
-                n_elems += np.product(data_handler.shape[:-1])
-            self.means[i] = self.means[i] / n_elems
-            for data_handler in self.data_handlers:
-                self.stds[i] += np.nansum(
-                    (data_handler.data[..., i] - self.means[i])**2)
-            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
+        n_elems = np.product(self.data_handlers[0].shape[:-1])
+        n_elems *= len(self.data_handlers)
+        for data_handler in self.data_handlers:
+            self.means += np.nansum(data_handler.data, axis=(0, 1, 2))
+        self.means /= n_elems
+        for data_handler in self.data_handlers:
+            self.stds += np.nansum((data_handler.data - self.means)**2,
+                                   axis=(0, 1, 2))
+        self.stds /= n_elems
+        self.stds = np.sqrt(self.stds)
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
