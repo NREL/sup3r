@@ -690,45 +690,41 @@ class Sup3rGan:
         return self.generator_weights + self.discriminator_weights
 
     @staticmethod
-    def get_weight_update_fraction(loss_details, comparison_key,
-                                   update_bounds=(0.5, 0.98),
-                                   update_frac=0.05, n_epochs=5):
+    def get_weight_update_fraction(history, comparison_key,
+                                   update_bounds=(0.5, 0.99),
+                                   update_frac=0.025, update_int=5):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
         Parameters
         ----------
-        loss_details : dict
+        history : dict
             Dictionary with information on how often discriminators
-            were trained and other history information.
+            were trained during current and previous epochs.
         comparison_key : str
-            loss_details key to use for update check
+            history key to use for update check
         update_bounds : tuple
-            Tuple specifying allowed range for loss_details[comparison_key]. If
-            loss_details[comparison_key] < update_bounds[0] then the weight
-            will be increased by (1 + update_frac). If
-            loss_details[comparison_key] > update_bounds[1] then the weight
-            will be decreased by 1 / (1 + update_frac).
+            Tuple specifying allowed range for history[comparison_key]. If
+            history[comparison_key] < update_bounds[0] then the weight will be
+            increased by (1 + update_frac). If history[comparison_key] >
+            update_bounds[1] then the weight will be decreased by 1 / (1 +
+            update_frac).
         update_frac : float
             Fraction by which to increase/decrease adversarial loss weight
-        n_epochs : int
-            Number of previous epochs to average loss_details[comparison_key]
-            over before checking for update conditions. e.g. If n_epochs = 2
-            then the update condition will depend on the average of
-            loss_details[comparison_key] over the previous 2 epochs.
+        update_int : int
+            Number of previous epochs to average history[comparison_key] over
+            before checking for update conditions. e.g. If update_int = 2 then
+            the update condition will depend on the average of
+            history[comparison_key] over the previous 2 epochs.
 
         Returns
         -------
         float
             Factor by which to multiply old weight to get updated weight
         """
-
-        history = loss_details[comparison_key]
-        if isinstance(history, list):
-            comparison_val = np.mean(history[-n_epochs:])
-        else:
-            comparison_val = history
-
+        comparison_val = np.mean(list(history[comparison_key])[-update_int:])
+        logger.info(f'Average value of {comparison_key} over the previous '
+                    f'{update_int} epochs: {comparison_val}')
         if comparison_val < update_bounds[0]:
             return 1 + update_frac
         elif comparison_val > update_bounds[1]:

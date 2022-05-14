@@ -399,7 +399,7 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None):
+                 means_file=None, n_features_per_thread=12):
         """
         Parameters
         ----------
@@ -437,6 +437,11 @@ class BatchHandler:
             Path to stdevs data or where to save data after calling _get_stats
         means_file : str | None
             Path to means data or where to save data after calling _get_stats
+        n_features_per_thread : int
+            Number of features to load from cache in parallel. This number will
+            tell the BatchHandler how to chunk the data handlers so that
+            number_of_features_per_handler * number_of_handlers_per_chunk <=
+            n_features_per_thread.
         """
 
         handler_shapes = np.array(
@@ -444,7 +449,7 @@ class BatchHandler:
         assert np.all(handler_shapes[0] == handler_shapes)
 
         n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
-        n_chunks = int(np.ceil(n_feature_arrays / 12))
+        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
         handler_chunks = np.array_split(data_handlers, n_chunks)
 
         for j, handler_chunk in enumerate(handler_chunks):
@@ -457,14 +462,14 @@ class BatchHandler:
                     future.start()
 
             logger.info(
-                'Started loading all data handlers'
-                f' for handler_chunk {j} in {dt.now() - now}. ')
+                f'Started loading all data handlers for handler_chunk {j + 1} '
+                f'of {len(handler_chunks)} in {dt.now() - now}. ')
 
             for i, future in enumerate(futures.keys()):
                 future.join()
                 logger.debug(
-                    f'{i+1} out of {len(futures)} handlers for handler_chunk '
-                    f'{j} loaded.')
+                    f'{i + 1} out of {len(futures)} handlers for handler_chunk'
+                    f' {j + 1} loaded.')
 
         logger.debug('Finished loading data for BatchHandler.')
         log_mem(logger)
@@ -740,7 +745,8 @@ class BatchHandler:
              cache_file_prefixes=None,
              overwrite_cache=False,
              stdevs_file=None,
-             means_file=None):
+             means_file=None,
+             n_features_per_thread=12):
         """Method to initialize both data and batch handlers
 
         Parameters
@@ -823,6 +829,11 @@ class BatchHandler:
             Path to stdevs data or where to save data after calling _get_stats
         means_file : str | None
             Path to means data or where to save data after calling _get_stats
+        n_features_per_thread : int
+            Number of features to load from cache in parallel. This number will
+            tell the BatchHandler how to chunk the data handlers so that
+            number_of_features_per_handler * number_of_handlers_per_chunk <=
+            n_features_per_thread.
 
         Returns
         -------
@@ -850,7 +861,8 @@ class BatchHandler:
             t_enhance=t_enhance, batch_size=batch_size,
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method,
-            stdevs_file=stdevs_file, means_file=means_file)
+            stdevs_file=stdevs_file, means_file=means_file,
+            n_features_per_thread=n_features_per_thread)
 
         return batch_handler
 
@@ -889,10 +901,10 @@ class BatchHandler:
         means_check = (self.means_file is not None)
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
-            logger.info(f'Loading stdevs / means from files {self.stdevs_file}'
-                        f' / {self.means_file}')
+            logger.info(f'Loading stdevs from {self.stdevs_file}')
             with open(self.stdevs_file, 'rb') as fh:
                 self.stds = pickle.load(fh)
+            logger.info(f'Loading means from {self.means_file}')
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
         else:
@@ -908,12 +920,14 @@ class BatchHandler:
                         (data_handler.data[..., i] - self.means[i])**2)
                 self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
-            logger.info(f'Saving stdevs / means to files {self.stdevs_file} '
-                        f'/ {self.means_file}')
-            with open(self.stdevs_file, 'wb') as fh:
-                pickle.dump(self.stds, fh)
-            with open(self.means_file, 'wb') as fh:
-                pickle.dump(self.means, fh)
+            if self.stdevs_file is not None:
+                logger.info(f'Saving stdevs to {self.stdevs_file}')
+                with open(self.stdevs_file, 'wb') as fh:
+                    pickle.dump(self.stds, fh)
+            if self.means_file is not None:
+                logger.info(f'Saving means to {self.means_file}')
+                with open(self.means_file, 'wb') as fh:
+                    pickle.dump(self.means, fh)
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
@@ -928,6 +942,7 @@ class BatchHandler:
                 self.unnormalize()
             self.means = means
             self.stds = stds
+        logger.info('Normalizing data in each data handler.')
         for d in self.data_handlers:
             d.normalize(self.means, self.stds)
 
