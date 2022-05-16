@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
-from abc import ABC, abstractmethod
+import copy
 import os
 import time
 import json
@@ -13,27 +13,47 @@ from tensorflow.keras import optimizers
 from tensorflow.keras.metrics import mean_squared_error
 from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
+from warnings import warn
 
 
 logger = logging.getLogger(__name__)
 
 
-class BaseModel(ABC):
-    """Abstract base sup3r GAN model."""
+class Sup3rGan:
+    """Basic sup3r GAN model."""
 
-    def __init__(self, optimizer=None,
-                 learning_rate=1e-4,
+    def __init__(self, gen_layers, disc_layers,
+                 optimizer=None, learning_rate=1e-4,
+                 optimizer_disc=None, learning_rate_disc=None,
                  history=None, version_record=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
         ----------
-        optimizer : tensorflow.keras.optimizers | dict | None | str
+        gen_layers : list | str
+            Hidden layers input argument to phygnn.base.CustomNetwork for the
+            generative super resolving model. Can also be a str filepath to a
+            .json config file containing the input layers argument or a .pkl
+            for a saved pre-trained model.
+        disc_layers : list | str
+            Hidden layers input argument to phygnn.base.CustomNetwork for the
+            discriminative model (spatial or spatiotemporal discriminator). Can
+            also be a str filepath to a .json config file containing the input
+            layers argument or a .pkl for a saved pre-trained model.
+        optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        optimizer_disc : tf.keras.optimizers.Optimizer | dict | None
+            Same as optimizer input, but if specified this makes a different
+            optimizer just for the discriminator network (spatial or
+            spatiotemporal disc).
+        learning_rate_disc : float, optional
+            Same as learning_rate input, but if specified this makes a
+            different learning_rate just for the discriminator network (spatial
+            or spatiotemporal disc).
         history : pd.DataFrame | str | None
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
@@ -55,12 +75,11 @@ class BaseModel(ABC):
         name : str | None
             Optional name for the GAN.
         """
-        self.name = name
-        self._gen = None
-        self._meta = meta if meta is not None else {}
 
+        self.name = name
         self._means = means
         self._stdevs = stdevs
+        self._meta = meta if meta is not None else {}
 
         self._version_record = CustomNetwork._parse_versions(version_record)
 
@@ -68,7 +87,14 @@ class BaseModel(ABC):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
+        optimizer_disc = optimizer_disc or copy.deepcopy(optimizer)
+        learning_rate_disc = learning_rate_disc or learning_rate
         self._optimizer = self.init_optimizer(optimizer, learning_rate)
+        self._optimizer_disc = self.init_optimizer(optimizer_disc,
+                                                   learning_rate_disc)
+
+        self._gen = self.load_network(gen_layers, 'generator')
+        self._disc = self.load_network(disc_layers, 'discriminator')
 
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
@@ -76,7 +102,7 @@ class BaseModel(ABC):
 
         Parameters
         ----------
-        optimizer : tensorflow.keras.optimizers | dict | None | str
+        optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
         learning_rate : float, optional
@@ -85,7 +111,7 @@ class BaseModel(ABC):
 
         Returns
         -------
-        optimizer : tensorflow.keras.optimizers.Optimizer
+        optimizer : tf.keras.optimizers.Optimizer
             Initialized optimizer object.
         """
         if isinstance(optimizer, dict):
@@ -158,6 +184,9 @@ class BaseModel(ABC):
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         self.generator.save(fp_gen)
 
+        fp_disc = os.path.join(out_dir, 'model_disc.pkl')
+        self.discriminator.save(fp_disc)
+
         fp_history = None
         if isinstance(self.history, pd.DataFrame):
             fp_history = os.path.join(out_dir, 'history.csv')
@@ -167,6 +196,32 @@ class BaseModel(ABC):
         with open(fp_params, 'w') as f:
             params = self.model_params
             json.dump(params, f, sort_keys=True, indent=2)
+
+        logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
+
+    @classmethod
+    def load(cls, out_dir):
+        """Load the GAN with its sub-networks from a previously saved-to output
+        directory.
+
+        Parameters
+        ----------
+        out_dir : str
+            Directory to load GAN model files from.
+
+        Returns
+        -------
+        out : BaseModel
+            Returns a pretrained gan model that was previously saved to out_dir
+        """
+
+        logger.info('Loading GAN from disk in directory: {}'.format(out_dir))
+
+        fp_gen = os.path.join(out_dir, 'model_gen.pkl')
+        fp_disc = os.path.join(out_dir, 'model_disc.pkl')
+        params = cls._load_saved_params(out_dir)
+
+        return cls(fp_gen, fp_disc, **params)
 
     @staticmethod
     def _load_saved_params(out_dir):
@@ -329,6 +384,7 @@ class BaseModel(ABC):
                        .format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
+
         hi_res = hi_res.numpy()
 
         if un_norm_out and self._means is not None:
@@ -369,6 +425,100 @@ class BaseModel(ABC):
 
         return hi_res
 
+    @property
+    def discriminator(self):
+        """Get the discriminator model.
+
+        Returns
+        -------
+        phygnn.base.CustomNetwork
+        """
+        return self._disc
+
+    @property
+    def discriminator_weights(self):
+        """Get a list of layer weights and bias terms for the discriminator
+        model.
+
+        Returns
+        -------
+        list
+        """
+        return self.discriminator.weights
+
+    def discriminate(self, hi_res, norm_in=False):
+        """Run the discriminator model on a hi resolution input field.
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            Real or fake high res data in a 4D or 5D tensor:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The disc should always
+            received normalized data with mean=0 stdev=1.
+
+        Returns
+        -------
+        out : np.ndarray
+            Discriminator output logits
+        """
+
+        if isinstance(hi_res, tf.Tensor):
+            hi_res = hi_res.numpy()
+
+        if norm_in and self._means is not None:
+            hi_res = hi_res if isinstance(hi_res, tf.Tensor) else hi_res.copy()
+            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
+                islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
+                hi_res[islice] = (hi_res[islice] - m) / s
+
+        out = self.discriminator.layers[0](hi_res)
+        for i, layer in enumerate(self.discriminator.layers[1:]):
+            try:
+                out = layer(out)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, out.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        out = out.numpy()
+
+        return out
+
+    @tf.function
+    def _tf_discriminate(self, hi_res):
+        """Run the discriminator model on a hi resolution input field.
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            Real or fake high res data in a 4D or 5D tensor:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+            This input should always be normalized with mean=0 and stdev=1
+
+        Returns
+        -------
+        out : np.ndarray
+            Discriminator output logits
+        """
+
+        out = self.discriminator.layers[0](hi_res)
+        for i, layer in enumerate(self.discriminator.layers[1:]):
+            try:
+                out = layer(out)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, out.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        return out
+
     def un_norm_output(self, hi_res):
         """Un-normalize synthetically generated output data to physical units
 
@@ -408,13 +558,26 @@ class BaseModel(ABC):
     @property
     def optimizer(self):
         """Get the tensorflow optimizer to perform gradient descent
-        calculations.
+        calculations for the generative network. This is functionally identical
+        to optimizer_disc is no special optimizer model or learning rate was
+        specified for the disc.
 
         Returns
         -------
         tf.keras.optimizers.Optimizer
         """
         return self._optimizer
+
+    @property
+    def optimizer_disc(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations for the discriminator network.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer_disc
 
     @staticmethod
     def get_optimizer_config(optimizer):
@@ -439,18 +602,29 @@ class BaseModel(ABC):
                 conf[k] = int(v)
         return conf
 
-    @abstractmethod
     def update_optimizer(self, option='generator', **kwargs):
         """Update optimizer by changing current configuration
 
         Parameters
         ----------
         option : str
-            Which optimizer to update. Can be "generator", "temporal",
-            "spatial", or "all".
+            Which optimizer to update. Can be "generator", "discriminator", or
+            "all"
         kwargs : dict
             kwargs to use for optimizer configuration update
         """
+
+        if 'gen' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer = OptimizerClass.from_config(conf)
+
+        if 'disc' in option.lower() or 'all' in option.lower():
+            conf = self.get_optimizer_config(self.optimizer_disc)
+            conf.update(**kwargs)
+            OptimizerClass = getattr(optimizers, conf['name'])
+            self._optimizer_disc = OptimizerClass.from_config(conf)
 
     @property
     def meta(self):
@@ -483,9 +657,13 @@ class BaseModel(ABC):
         stdevs = (self._stdevs if self._stdevs is None
                   else [float(s) for s in self._stdevs])
 
+        config_optm_g = self.get_optimizer_config(self.optimizer)
+        config_optm_d = self.get_optimizer_config(self.optimizer_disc)
+
         model_params = {'name': self.name,
                         'version_record': self.version_record,
-                        'optimizer': self.get_optimizer_config(self.optimizer),
+                        'optimizer': config_optm_g,
+                        'optimizer_disc': config_optm_d,
                         'means': means,
                         'stdevs': stdevs,
                         'meta': self.meta,
@@ -507,9 +685,9 @@ class BaseModel(ABC):
     @property
     def weights(self):
         """Get a list of all the layer weights and bias terms for the
-        generator, spatial discriminator, and temporal discriminator.
+        generator and discriminator networks
         """
-        return self.generator_weights
+        return self.generator_weights + self.disc_weights
 
     @staticmethod
     def get_weight_update_fraction(loss_details, comparison_key,
@@ -865,9 +1043,9 @@ class BaseModel(ABC):
 
         return loss_disc
 
-    @abstractmethod
     @tf.function
-    def calc_loss(self, hi_res_true, hi_res_gen):
+    def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
+                  train_gen=True, train_disc=False):
         """Calculate the GAN loss function using generated and true high
         resolution data.
 
@@ -878,11 +1056,329 @@ class BaseModel(ABC):
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
             generative model.
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_gen : bool
+            True if generator is being trained, then loss=loss_gen
+        train_disc : bool
+            True if disc is being trained, then loss=loss_disc
 
         Returns
         -------
         loss : tf.Tensor
-            0D tensor representing the full GAN loss term.
+            0D tensor representing the loss value for the network being trained
+            (either generator or one of the discriminators)
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+
+        disc_out_true = self._tf_discriminate(hi_res_true)
+        disc_out_gen = self._tf_discriminate(hi_res_gen)
+
+        loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
+        loss_gen = (loss_gen_content + weight_gen_advers * loss_gen_advers)
+
+        loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
+
+        loss = None
+        if train_gen:
+            loss = loss_gen
+        elif train_disc:
+            loss = loss_disc
+
+        loss_details = {'loss_gen': loss_gen,
+                        'loss_gen_content': loss_gen_content,
+                        'loss_gen_advers': loss_gen_advers,
+                        'loss_disc': loss_disc,
+                        }
+
+        return loss, loss_details
+
+    def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
+        """Calculate the validation loss at the current state of model training
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        loss_details : dict
+            Namespace of the breakdown of loss components
+
+        Returns
+        -------
+        loss_details : dict
+            Same as input but now includes val_* loss info
+        """
+        logger.debug('Starting end-of-epoch validation loss calculation...')
+        loss_details['n_obs'] = 0
+        for val_batch in batch_handler.val_data:
+            high_res_gen = self._tf_generate(val_batch.low_res)
+            _, v_loss_details = self.calc_loss(
+                val_batch.high_res, high_res_gen,
+                weight_gen_advers=weight_gen_advers,
+                train_gen=False, train_disc=False)
+
+            loss_details = self.update_loss_details(loss_details,
+                                                    v_loss_details,
+                                                    len(val_batch),
+                                                    prefix='val_')
+
+        return loss_details
+
+    def train_epoch(self, batch_handler, weight_gen_advers, train_gen,
+                    train_disc, disc_loss_bounds):
+        """Train the GAN for one epoch.
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_gen : bool
+            Flag whether to train the generator for this set of epochs
+        train_disc : bool
+            Flag whether to train the discriminator for this set of epochs
+        disc_loss_bounds : tuple
+            Lower and upper bounds for the discriminator loss outside of which
+            the discriminators will not train unless train_disc=True or
+            and train_gen=False.
+
+        Returns
+        -------
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+
+        disc_th_low = np.min(disc_loss_bounds)
+        disc_th_high = np.max(disc_loss_bounds)
+        loss_details = {'n_obs': 0, 'train_loss_disc': 0}
+
+        only_gen = train_gen and not train_disc
+        only_disc = train_disc and not train_gen
+
+        for ib, batch in enumerate(batch_handler):
+            trained_gen = False
+            trained_disc = False
+            b_loss_details = {}
+            loss_disc = loss_details['train_loss_disc']
+            disc_too_good = loss_disc <= disc_th_low
+            disc_too_bad = (loss_disc > disc_th_high) and train_disc
+            gen_too_good = disc_too_bad
+
+            if only_gen or (train_gen and not gen_too_good):
+                trained_gen = True
+                b_loss_details = self.run_gradient_descent(
+                    batch.low_res, batch.high_res, self.generator_weights,
+                    weight_gen_advers=weight_gen_advers,
+                    optimizer=self.optimizer,
+                    train_gen=True, train_disc=False)
+
+            if only_disc or (train_disc and not disc_too_good):
+                trained_disc = True
+                b_loss_details = self.run_gradient_descent(
+                    batch.low_res, batch.high_res, self.discriminator_weights,
+                    weight_gen_advers=weight_gen_advers,
+                    optimizer=self.optimizer_disc,
+                    train_gen=False, train_disc=True)
+
+            b_loss_details['gen_trained_frac'] = float(trained_gen)
+            b_loss_details['disc_trained_frac'] = float(trained_disc)
+            loss_details = self.update_loss_details(loss_details,
+                                                    b_loss_details,
+                                                    len(batch),
+                                                    prefix='train_')
+
+            logger.debug('Batch {} out of {} has epoch-average '
+                         '(gen / disc) loss of: ({:.2e} / {:.2e}). '
+                         'Trained (gen / disc): ({} / {})'
+                         .format(ib, len(batch_handler),
+                                 loss_details['train_loss_gen'],
+                                 loss_details['train_loss_disc'],
+                                 trained_gen, trained_disc))
+
+            if all([not trained_gen, not trained_disc]):
+                msg = ('For some reason none of the GAN networks trained '
+                       'during batch {} out of {}!'
+                       .format(ib, len(batch_handler)))
+                logger.warning(msg)
+                warn(msg)
+
+        return loss_details
+
+    def update_adversarial_weight(self, loss_details,
+                                  adaptive_update_fraction,
+                                  adaptive_update_bounds,
+                                  weight_gen_advers,
+                                  train_disc):
+        """Update adversarial loss weight based on training fraction history.
+
+        Parameters
+        ----------
+        loss_details : dict
+            Dictionary of training history. Includes fraction of epochs for
+            which spatial / temporal discriminators were trained. These values
+            are used to check for weight updates
+        adaptive_update_fraction : float
+            Amount by which to increase or decrease adversarial loss weights
+            for adaptive updates
+        adaptive_update_bounds : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < adaptive_update_bounds[0] then the
+            weight will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > adaptive_update_bounds[1] then the
+            weight will be decreased by 1 / (1 - update_frac).
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_disc : bool
+            Whether the discriminator was set to be trained during the
+            previous epoch
+
+        Returns
+        -------
+        weight_gen_advers : float
+            Updated weight factor for the adversarial loss component of the
+            generator vs. the discriminator.
+        """
+
+        if adaptive_update_fraction > 0:
+            update_frac = 1
+            if train_disc:
+                update_frac = self.get_weight_update_fraction(
+                    loss_details, 'train_disc_trained_frac',
+                    update_frac=adaptive_update_fraction,
+                    update_bounds=adaptive_update_bounds)
+                weight_gen_advers *= update_frac
+
+            if update_frac != 1:
+                logger.debug(f'New adversarial weight: {weight_gen_advers}')
+
+        return weight_gen_advers
+
+    def train(self, batch_handler, n_epoch,
+              weight_gen_advers=0.001,
+              train_gen=True,
+              train_disc=True,
+              disc_loss_bounds=(0.45, 0.6),
+              checkpoint_int=None,
+              out_dir='./gan_{epoch}',
+              early_stop_on=None,
+              early_stop_threshold=0.005,
+              early_stop_n_epoch=5,
+              adaptive_update_bounds=(0.5, 0.98),
+              adaptive_update_fraction=0.05):
+        """Train the GAN model on real low res data and real high res data
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        n_epoch : int
+            Number of epochs to train on
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_gen : bool
+            Flag whether to train the generator for this set of epochs
+        train_disc : bool
+            Flag whether to train the discriminator for this set of epochs
+        disc_loss_bounds : tuple
+            Lower and upper bounds for the discriminator loss outside of which
+            the discriminator will not train unless train_disc=True and
+            train_gen=False.
+        checkpoint_int : int | None
+            Epoch interval at which to save checkpoint models.
+        out_dir : str
+            Directory to save checkpoint GAN models. Should have {epoch} in
+            the directory name. This directory will be created if it does not
+            already exist.
+        early_stop_on : str | None
+            If not None, this should be a column in the training history to
+            evaluate for early stopping (e.g. validation_loss_gen,
+            validation_loss_disc). If this value in this history decreases by
+            an absolute fractional relative difference of less than 0.01 for
+            more than 5 epochs in a row, the training will stop early.
+        early_stop_threshold : float
+            The absolute relative fractional difference in validation loss
+            between subsequent epochs below which an early termination is
+            warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+            less than the default thresold of 0.01 and would satisfy the
+            condition for early termination.
+        early_stop_n_epoch : int
+            The number of consecutive epochs that satisfy the threshold that
+            warrants an early stop.
+        adaptive_update_bounds : tuple
+            Tuple specifying allowed range for loss_details[comparison_key]. If
+            loss_details[comparison_key] < threshold_range[0] then the weight
+            will be increased by (1 + update_frac). If
+            loss_details[comparison_key] > threshold_range[1] then the weight
+            will be decreased by (1 - update_frac).
+        adaptive_update_fraction : float
+            Amount by which to increase or decrease adversarial weight for
+            adaptive updates
+        """
+
+        self.set_norm_stats(batch_handler)
+        self.set_feature_names(batch_handler)
+
+        epochs = list(range(n_epoch))
+
+        if self._history is None:
+            self._history = pd.DataFrame(
+                columns=['elapsed_time'])
+            self._history.index.name = 'epoch'
+        else:
+            epochs += self._history.index.values[-1] + 1
+
+        t0 = time.time()
+        logger.info('Training model with adversarial weight: {} '
+                    'for {} epochs starting at epoch {}'
+                    .format(weight_gen_advers, n_epoch, epochs[0]))
+
+        for epoch in epochs:
+            loss_details = self.train_epoch(batch_handler, weight_gen_advers,
+                                            train_gen, train_disc,
+                                            disc_loss_bounds)
+
+            loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
+                                              loss_details)
+
+            logger.info('Epoch {} of {} '
+                        'generator train/val loss: {:.2e}/{:.2e} '
+                        'discriminator train/val loss: {:.2e}/{:.2e}'
+                        .format(epoch, epochs[-1],
+                                loss_details['train_loss_gen'],
+                                loss_details['val_loss_gen'],
+                                loss_details['train_loss_disc'],
+                                loss_details['val_loss_disc'],
+                                ))
+
+            lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
+            lr_d = self.get_optimizer_config(
+                self.optimizer_disc)['learning_rate']
+
+            extras = {'weight_gen_advers': weight_gen_advers,
+                      'disc_loss_bound_0': disc_loss_bounds[0],
+                      'disc_loss_bound_1': disc_loss_bounds[1],
+                      'learning_rate_gen': lr_g,
+                      'learning_rate_disc': lr_d}
+
+            stop = self.finish_epoch(epoch, epochs, t0, loss_details,
+                                     checkpoint_int, out_dir,
+                                     early_stop_on, early_stop_threshold,
+                                     early_stop_n_epoch, extras=extras)
+
+            weight_gen_advers = self.update_adversarial_weight(
+                loss_details, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers, train_disc)
+
+            if stop:
+                break

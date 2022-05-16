@@ -6,7 +6,7 @@ import pytest
 import tensorflow as tf
 
 from sup3r import CONFIG_DIR
-from sup3r.models import SpatialGan, SpatioTemporalGan
+from sup3r.models import Sup3rGan
 
 ST_CONFIG_DIR = os.path.join(CONFIG_DIR, 'spatiotemporal/')
 GEN_CONFIGS = [fn for fn in os.listdir(ST_CONFIG_DIR) if fn.startswith('gen')]
@@ -18,7 +18,7 @@ def test_load_spatial(spatial_len):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    model = SpatialGan(fp_gen, fp_disc)
+    model = Sup3rGan(fp_gen, fp_disc)
 
     coarse_shapes = [(32, spatial_len, spatial_len, 2),
                      (16, 2 * spatial_len, 2 * spatial_len, 2)]
@@ -54,7 +54,7 @@ def test_load_all_spatial_generators():
         s_enhance = int(enhancements[0].strip('x'))
 
         fp_gen = os.path.join(st_config_dir, fn)
-        model = SpatialGan(fp_gen, fp_disc)
+        model = Sup3rGan(fp_gen, fp_disc)
 
         coarse_shape = (1, 5, 5, 2)
         x = np.ones(coarse_shape)
@@ -72,10 +72,9 @@ def test_load_all_spatial_generators():
 def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
-    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
+    model = Sup3rGan(fp_gen, fp_disc)
 
     coarse_shape = (32, 5, 5, 4, 2)
     x = np.ones(coarse_shape)
@@ -93,19 +92,11 @@ def test_load_spatiotemporal():
     assert gen_out.shape[4] == coarse_shape[4]
 
     x = tf.identity(gen_out)
-    for layer in model.disc_temporal:
+    for layer in model.discriminator:
         x = layer(x)
     disc_out = tf.identity(x)
     assert len(disc_out.shape) == 2
     assert disc_out.shape[0] == coarse_shape[0]
-    assert disc_out.shape[1] == 1
-
-    x = tf.identity(gen_out)
-    for layer in model.disc_spatial:
-        x = layer(x)
-    disc_out = tf.identity(x)
-    assert len(disc_out.shape) == 2
-    assert disc_out.shape[0] == gen_out.shape[0] * gen_out.shape[3]
     assert disc_out.shape[1] == 1
 
 
@@ -116,8 +107,7 @@ def test_load_spatiotemporal():
 def test_load_all_st_generators(fn_gen, coarse_shape):
     """Test all generator configs in the spatiotemporal config dir"""
     fp_gen = os.path.join(ST_CONFIG_DIR, fn_gen)
-    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
-    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     enhancements = [s for s in fn_gen.replace('.json', '').split('_')
                     if s.endswith('x')]
@@ -130,7 +120,7 @@ def test_load_all_st_generators(fn_gen, coarse_shape):
     assert len(n_features) == 1
     n_features = int(n_features[0].strip('f'))
 
-    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
+    model = Sup3rGan(fp_gen, fp_disc)
 
     x = np.ones(coarse_shape)
     for layer in model.generator:

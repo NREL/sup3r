@@ -12,7 +12,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import SpatialGan, SpatioTemporalGan
+from sup3r.models import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
@@ -32,8 +32,8 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    SpatialGan.seed()
-    model = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6)
 
     # need to reduce the number of temporal examples to test faster
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -64,7 +64,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert 'model_disc.pkl' in os.listdir(td + '/test_5')
 
         # make an un-trained dummy model
-        dummy = SpatialGan(fp_gen, fp_disc, learning_rate=1e-6)
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6)
 
         # test save/load functionality
         out_dir = os.path.join(td, 'spatial_gan')
@@ -93,14 +93,11 @@ def test_train_st(n_epoch=4, log=False):
         init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
-    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    SpatioTemporalGan.seed()
-    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                              learning_rate=1e-4,
-                              learning_rate_s=2e-4,
-                              learning_rate_t=3e-4)
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     learning_rate_disc=3e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
@@ -117,18 +114,16 @@ def test_train_st(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
-                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'config_generator' in model.meta
-        assert 'config_spatial_disc' in model.meta
-        assert 'config_temporal_disc' in model.meta
+        assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
         assert all(model.history['train_gen_trained_frac'] == 1)
-        assert all(model.history['train_disc_s_trained_frac'] == 0)
-        assert all(model.history['train_disc_t_trained_frac'] == 0)
+        assert all(model.history['train_disc_trained_frac'] == 0)
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
@@ -136,11 +131,11 @@ def test_train_st(n_epoch=4, log=False):
         assert 'test_0' in os.listdir(td)
         assert 'test_2' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc_s.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc_t.pkl' in os.listdir(td + '/test_2')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
-        dummy = SpatialGan(fp_gen, fp_disc_s, fp_disc_t)
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                         learning_rate_disc=2e-4)
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
@@ -151,15 +146,13 @@ def test_train_st(n_epoch=4, log=False):
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
-        assert np.allclose(model_params['optimizer_s']['learning_rate'], 2e-4)
-        assert np.allclose(model_params['optimizer_t']['learning_rate'], 3e-4)
+        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
+                           2e-4)
         assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_s' in model.history
-        assert 'learning_rate_t' in model.history
+        assert 'learning_rate_disc' in model.history
 
         assert 'config_generator' in loaded.meta
-        assert 'config_spatial_disc' in loaded.meta
-        assert 'config_temporal_disc' in loaded.meta
+        assert 'config_discriminator' in loaded.meta
 
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
@@ -191,32 +184,26 @@ def test_optimizer_update():
     """Test updating optimizer method."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
-    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    SpatioTemporalGan.seed()
-    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                              learning_rate=1e-4, learning_rate_s=2e-4,
-                              learning_rate_t=4e-4)
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     learning_rate_disc=4e-4)
 
     assert model.optimizer.learning_rate == 1e-4
-    assert model.optimizer_s.learning_rate == 2e-4
-    assert model.optimizer_t.learning_rate == 4e-4
+    assert model.optimizer_disc.learning_rate == 4e-4
 
     model.update_optimizer(option='generator', learning_rate=2)
 
     assert model.optimizer.learning_rate == 2
-    assert model.optimizer_s.learning_rate == 2e-4
-    assert model.optimizer_t.learning_rate == 4e-4
+    assert model.optimizer_disc.learning_rate == 4e-4
 
-    model.update_optimizer(option='temporal', learning_rate=0.4)
+    model.update_optimizer(option='discriminator', learning_rate=0.4)
 
     assert model.optimizer.learning_rate == 2
-    assert model.optimizer_s.learning_rate == 2e-4
-    assert model.optimizer_t.learning_rate == 0.4
+    assert model.optimizer_disc.learning_rate == 0.4
 
-    model.update_optimizer(option='all', learning_rate=0.4)
+    model.update_optimizer(option='all', learning_rate=0.1)
 
-    assert model.optimizer.learning_rate == 0.4
-    assert model.optimizer_s.learning_rate == 0.4
-    assert model.optimizer_t.learning_rate == 0.4
+    assert model.optimizer.learning_rate == 0.1
+    assert model.optimizer_disc.learning_rate == 0.1

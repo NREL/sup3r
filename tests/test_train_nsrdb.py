@@ -5,7 +5,7 @@ import tempfile
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import SpatioTemporalGan
+from sup3r.models import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
 from sup3r.preprocessing.batch_handling import NsrdbBatchHandler
 
@@ -37,17 +37,15 @@ def test_nsrdb_model():
     NOTE that the full 10x model is too big to train on the 20x20 test data.
     """
     fp_gen = os.path.join(CONFIG_DIR, 'nsrdb/gen_4x_24x_1f.json')
-    fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
-    fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    SpatioTemporalGan.seed()
-    model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t,
-                              learning_rate=1e-4)
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
-                    weight_gen_advers_s=0.0, weight_gen_advers_t=0.0,
-                    train_gen=True, train_disc_s=False, train_disc_t=False,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
                     checkpoint_int=None,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
