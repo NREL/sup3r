@@ -471,10 +471,11 @@ class BatchHandler:
                     f'{i + 1} out of {len(futures)} handlers for handler_chunk'
                     f' {j + 1} loaded.')
 
-        logger.debug('Finished loading data for BatchHandler.')
+        self.data_handlers = data_handlers
+        logger.debug(f'Finished loading data of shape {self.shape} '
+                     'for BatchHandler.')
         log_mem(logger)
 
-        self.data_handlers = data_handlers
         self._i = 0
         self.low_res = None
         self.high_res = None
@@ -505,7 +506,7 @@ class BatchHandler:
             output_features_ind=self.output_features_ind,
             output_features=self.output_features)
 
-        logger.info('Finished initializing BatchHandler')
+        logger.info('Finished initializing BatchHandler.')
 
     def __len__(self):
         """Use user input of n_batches to specify length

@@ -5,46 +5,51 @@ Loss metrics for Sup3r
 import tensorflow as tf
 
 
-def max_mean_discrepancy(x, y, kernel='rbf'):
-    """Emprical maximum mean discrepancy. The lower the result
-       the more evidence that distributions are the same.
+def gaussian_kernel(x1, x2, beta=1.0):
+    """Gaussian kernel for mmd content loss
 
-    Args:
-        x: first sample, distribution P
-        y: second sample, distribution Q
-        kernel: kernel type such as "multiscale" or "rbf"
+    Parameters
+    ----------
+    x1: tf.tensor
+        first sample, distribution P
+    x2: tf.tensor
+        second sample, distribution Q
+
+    Returns
+    -------
+    tf.tensor
     """
-    xx = tf.matmul(x, tf.transpose(x))
-    yy = tf.matmul(y, tf.transpose(y))
-    xy = tf.matmul(x, tf.transpose(y))
-    rx = tf.broadcast_to(tf.expand_dims(tf.linalg.diag_part(xx), 0), xx.shape)
-    ry = tf.broadcast_to(tf.expand_dims(tf.linalg.diag_part(yy), 0), yy.shape)
+    return tf.reduce_sum(tf.exp(-beta * (x1 - x2)**2), axis=-1)
 
-    dxx = tf.transpose(rx) + rx - 2. * xx
-    dyy = tf.transpose(ry) + ry - 2. * yy
-    dxy = tf.transpose(rx) + ry - 2. * xy
 
-    XX, YY, XY = (tf.zeros(xx.shape), tf.zeros(xx.shape), tf.zeros(xx.shape))
+def max_mean_discrepancy(x1, x2, beta=1.0):
+    """
+    maximum mean discrepancy (MMD) based on Gaussian kernel
+    function for keras models (theano or tensorflow backend)
 
-    if kernel == 'linear':
-        XX = xx
-        YY = yy
-        XY = xy
+    - Gretton, Arthur, et al. "A kernel method for the two-sample-problem."
+    Advances in neural information processing systems. 2007.
 
-    if kernel == "multiscale":
+    Parameters
+    ----------
+    x1: tf.tensor
+        first sample, distribution P
+    x2: tf.tensor
+        second sample, distribution Q
+    beta : float
+        scaling parameter for gaussian kernel
 
-        bandwidth_range = [0.2, 0.5, 0.9, 1.3]
-        for a in bandwidth_range:
-            XX += a**2 * (a**2 + dxx)**-1
-            YY += a**2 * (a**2 + dyy)**-1
-            XY += a**2 * (a**2 + dxy)**-1
+    Returns
+    tf.tensor
+        0D tensor with content loss value
+    -------
 
-    if kernel == "rbf":
 
-        bandwidth_range = [1, 10, 15, 20, 50]
-        for a in bandwidth_range:
-            XX += tf.exp(-0.5 * dxx / a)
-            YY += tf.exp(-0.5 * dyy / a)
-            XY += tf.exp(-0.5 * dxy / a)
-
-    return tf.reduce_mean(XX + YY - 2. * XY, axis=0)
+    """
+    x1x1 = gaussian_kernel(x1, x1, beta)
+    x1x2 = gaussian_kernel(x1, x2, beta)
+    x2x2 = gaussian_kernel(x2, x2, beta)
+    diff = tf.reduce_mean(x1x1)
+    diff -= 2 * tf.reduce_mean(x1x2)
+    diff += tf.reduce_mean(x2x2)
+    return diff

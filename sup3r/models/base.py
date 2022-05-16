@@ -692,7 +692,7 @@ class Sup3rGan:
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
                                    update_bounds=(0.5, 0.99),
-                                   update_frac=0.025, update_int=5):
+                                   update_frac=0.05, update_int=5):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -722,12 +722,13 @@ class Sup3rGan:
         float
             Factor by which to multiply old weight to get updated weight
         """
-        comparison_val = np.mean(list(history[comparison_key])[-update_int:])
+        history = list(history[comparison_key])
+        val = np.mean(history[-update_int:])
         logger.info(f'Average value of {comparison_key} over the previous '
-                    f'{update_int} epochs: {comparison_val}')
-        if comparison_val < update_bounds[0]:
+                    f'{update_int} epochs: {round(val, 3)}')
+        if val < update_bounds[0] and history[-1] < update_bounds[0]:
             return 1 + update_frac
-        elif comparison_val > update_bounds[1]:
+        elif val > update_bounds[1]:
             return 1 / (1 + update_frac)
         else:
             return 1

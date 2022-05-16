@@ -324,6 +324,8 @@ class DataHandler(FeatureHandler):
             array of means for all features with same ordering as data features
         """
 
+        logger.debug(
+            f'Normalizing data for {self.file_info_logging(self.file_path)}')
         for i in range(self.shape[-1]):
             self._normalize_data(i, means[i], stds[i])
 
@@ -449,9 +451,11 @@ class DataHandler(FeatureHandler):
         for i, fp in enumerate(cache_file_paths):
             if not os.path.exists(fp) or self.overwrite_cache:
                 if self.overwrite_cache and os.path.exists(fp):
-                    logger.info(f'Overwriting {self.features[i]} to {fp}')
+                    logger.info(f'Overwriting {self.features[i]} with shape '
+                                f'{self.data[..., i].shape} to {fp}')
                 else:
-                    logger.info(f'Saving {self.features[i]} to {fp}')
+                    logger.info(f'Saving {self.features[i]} with shape '
+                                f'{self.data[..., i].shape} to {fp}')
 
                 with open(fp, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
@@ -642,8 +646,9 @@ class DataHandler(FeatureHandler):
         time_index = get_time_index(file_path)
 
         data_array = np.zeros(
-            (shape[0], shape[1], len(time_index), len(features)),
-            dtype=np.float32)
+            (shape[0], shape[1],
+             len(time_index),
+             len(features)), dtype=np.float32)
 
         # split time dimension into smaller slices which can be
         # extracted in parallel
@@ -682,7 +687,7 @@ class DataHandler(FeatureHandler):
                 data_array[..., t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = data_array[:, :, ::temporal_slice.step, :]
+        data_array = data_array[:, :, temporal_slice, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:

@@ -614,14 +614,14 @@ class SpatioTemporalGan(BaseModel):
                     history, 'train_disc_s_trained_frac',
                     update_frac=adaptive_update_fraction,
                     update_bounds=adaptive_update_bounds,
-                    n_epochs=weight_update_int)
+                    update_int=weight_update_int)
                 weight_gen_advers_s *= s_update_frac
             if train_disc_t:
                 t_update_frac = self.get_weight_update_fraction(
                     history, 'train_disc_t_trained_frac',
                     update_frac=adaptive_update_fraction,
                     update_bounds=adaptive_update_bounds,
-                    n_epochs=weight_update_int)
+                    update_int=weight_update_int)
                 weight_gen_advers_t *= t_update_frac
 
             if not all(w == 1 for w in (s_update_frac, t_update_frac)):
@@ -638,7 +638,7 @@ class SpatioTemporalGan(BaseModel):
               checkpoint_int=None, out_dir='./spatial_gan_{epoch}',
               early_stop_on=None, early_stop_threshold=0.005,
               early_stop_n_epoch=5, adaptive_update_bounds=(0.5, 0.99),
-              adaptive_update_fraction=0.025, weight_update_int=5):
+              adaptive_update_fraction=0.05, weight_update_int=5):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -829,6 +829,7 @@ class SpatioTemporalGanMMD(SpatioTemporalGan):
         """
 
         loss_gen_content = mean_squared_error(hi_res_true, hi_res_gen)
+        loss_gen_content = tf.reduce_mean(loss_gen_content)
         loss_gen_content += max_mean_discrepancy(hi_res_true, hi_res_gen)
         loss_gen_content = tf.reduce_mean(loss_gen_content)
 
