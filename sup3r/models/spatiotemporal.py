@@ -9,7 +9,8 @@ import pandas as pd
 from warnings import warn
 import tensorflow as tf
 from tensorflow.keras import optimizers
-from tensorflow.keras.metrics import mean_squared_error, kl_divergence
+from tensorflow.keras.metrics import mean_squared_error
+from tensorflow.keras.metrics import kld as kl_divergence
 
 from sup3r.models.base import BaseModel
 from sup3r.utilities.loss_metrics import max_mean_discrepancy
