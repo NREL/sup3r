@@ -65,6 +65,14 @@ def test_handler(plot=False):
         assert all((cs_ghi_profile <= 1200)[~nan_mask])
         assert all((cs_ghi_profile >= 0)[~nan_mask])
 
+        # new feature engineering so that whenever sunset starts, all
+        # clearsky_ratio data is NaN
+        for i in range(obs.shape[2]):
+            if np.isnan(obs[:, :, i, 0]).any():
+                assert np.isnan(obs[:, :, i, 0]).all()
+            if (obs[:, :, i, -1] <= 1).any():
+                assert np.isnan(obs[:, :, i, 0]).all()
+
     if plot:
         obs = handler.get_next()
         for i in range(obs.shape[2]):
