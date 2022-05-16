@@ -13,6 +13,7 @@ import numpy as np
 import os
 from datetime import datetime as dt
 import pickle
+import warnings
 
 from rex import WindX, NSRDBX
 from rex.utilities import log_mem
@@ -496,9 +497,11 @@ class DataHandler(FeatureHandler):
                     self.data[..., i] = np.array(pickle.load(fh),
                                                  dtype=np.float32)
 
-            msg = ('Data loaded from cache does not match the requested shape'
-                   f' {self.data.shape}')
-            assert not np.isnan(self.data).any(), msg
+            nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
+            if nan_perc > 0:
+                msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
+                logger.warning(msg)
+                warnings.warn(msg)
 
             logger.debug('Splitting data into training / validation sets '
                          f'({1 - self.val_split}, {self.val_split}) '
