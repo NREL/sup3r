@@ -11,13 +11,14 @@ def gaussian_kernel(x1, x2, beta=1.0):
     Parameters
     ----------
     x1: tf.tensor
-        first sample, distribution P
+        synthetic generator output
     x2: tf.tensor
-        second sample, distribution Q
+        high resolution data
 
     Returns
     -------
     tf.tensor
+        0D tensor with sum over kernel output tensor
     """
     return tf.reduce_sum(tf.exp(-beta * (x1 - x2)**2), axis=-1)
 
@@ -33,9 +34,9 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
     Parameters
     ----------
     x1: tf.tensor
-        first sample, distribution P
+        synthetic generator output
     x2: tf.tensor
-        second sample, distribution Q
+        high resolution data
     beta : float
         scaling parameter for gaussian kernel
 
