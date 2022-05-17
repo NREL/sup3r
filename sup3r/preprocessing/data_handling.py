@@ -13,6 +13,7 @@ import numpy as np
 import os
 from datetime import datetime as dt
 import pickle
+import warnings
 
 from rex import WindX, NSRDBX
 from rex.utilities import log_mem
@@ -40,8 +41,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5)
-
-from sup3r import __version__
 
 np.random.seed(42)
 
@@ -91,7 +90,6 @@ class DataHandler(FeatureHandler):
                  cache_file_prefix=None,
                  overwrite_cache=False,
                  load_cached=False):
-
         """Data handling and extraction
 
         Parameters
@@ -480,25 +478,42 @@ class DataHandler(FeatureHandler):
             shape = get_raster_shape(self.raster_index)
             requested_shape = (shape[0], shape[1], len(self.time_index),
                                len(self.features))
-            self.data = np.zeros(requested_shape, dtype=np.float32)
-            self.data[...] = np.nan
+
+            msg = ('Found {} cache files but need {} for features {}! '
+                   'These are the cache files that were found: {}'
+                   .format(len(self.cache_files), len(self.features),
+                           self.features, self.cache_files))
+            assert len(self.cache_files) == len(self.features), msg
+
+            self.data = np.full(shape=requested_shape, fill_value=np.nan,
+                                dtype=np.float32)
 
             for i, fp in enumerate(self.cache_files):
 
-                fp_ignore_case = ignore_case_path_fetch(fp)
                 assert self.features[i].lower() in fp.lower()
-                logger.info(
-                    f'Loading {self.features[i]} from {fp_ignore_case}')
+                fp = ignore_case_path_fetch(fp)
+                logger.info(f'Loading {self.features[i]} from {fp}')
 
-                with open(fp_ignore_case, 'rb') as fh:
-
+                with open(fp, 'rb') as fh:
                     log_mem(logger)
-                    self.data[..., i] = np.array(pickle.load(fh),
-                                                 dtype=np.float32)
 
-            msg = ('Data loaded from cache does not match the requested shape'
-                   f' {self.data.shape}')
-            assert not np.isnan(self.data).any(), msg
+                    try:
+                        self.data[..., i] = np.array(pickle.load(fh),
+                                                     dtype=np.float32)
+                    except Exception as e:
+                        msg = ('Data loaded from from cache file "{}" '
+                               'could not be written to feature channel {} '
+                               'of full data array of shape {}. '
+                               'Make sure the cached data has the '
+                               'appropriate shape.'
+                               .format(fp, i, self.data.shape))
+                        raise RuntimeError(msg) from e
+
+            nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
+            if nan_perc > 0:
+                msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
+                logger.warning(msg)
+                warnings.warn(msg)
 
             logger.debug('Splitting data into training / validation sets '
                          f'({1 - self.val_split}, {self.val_split}) '
@@ -1013,6 +1028,12 @@ class DataHandlerNsrdb(DataHandlerH5):
 
     # the handler from rex to open h5 data.
     REX_HANDLER = NSRDBX
+
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
 
     @classmethod
     def feature_registry(cls):

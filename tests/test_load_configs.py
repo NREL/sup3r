@@ -15,7 +15,7 @@ GEN_CONFIGS = [fn for fn in os.listdir(ST_CONFIG_DIR) if fn.startswith('gen')]
 @pytest.mark.parametrize('spatial_len', (5, 6, 7))
 def test_load_spatial(spatial_len):
     """Test the loading of a sample the spatial gan model."""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     model = SpatialGan(fp_gen, fp_disc)
@@ -71,7 +71,7 @@ def test_load_all_spatial_generators():
 
 def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_2x_24x.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
     fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
 
@@ -87,9 +87,9 @@ def test_load_spatiotemporal():
 
     assert len(gen_out.shape) == 5
     assert gen_out.shape[0] == coarse_shape[0]
-    assert gen_out.shape[1] == 2 * coarse_shape[1]
-    assert gen_out.shape[2] == 2 * coarse_shape[2]
-    assert gen_out.shape[3] == 24 * coarse_shape[3]
+    assert gen_out.shape[1] == 3 * coarse_shape[1]
+    assert gen_out.shape[2] == 3 * coarse_shape[2]
+    assert gen_out.shape[3] == 4 * coarse_shape[3]
     assert gen_out.shape[4] == coarse_shape[4]
 
     x = tf.identity(gen_out)
@@ -125,6 +125,11 @@ def test_load_all_st_generators(fn_gen, coarse_shape):
     s_enhance = int(enhancements[0].strip('x'))
     t_enhance = int(enhancements[1].strip('x'))
 
+    n_features = [s for s in fn_gen.replace('.json', '').split('_')
+                  if s.endswith('f')]
+    assert len(n_features) == 1
+    n_features = int(n_features[0].strip('f'))
+
     model = SpatioTemporalGan(fp_gen, fp_disc_s, fp_disc_t)
 
     x = np.ones(coarse_shape)
@@ -135,4 +140,4 @@ def test_load_all_st_generators(fn_gen, coarse_shape):
     assert x.shape[1] == s_enhance * coarse_shape[1]
     assert x.shape[2] == s_enhance * coarse_shape[2]
     assert x.shape[3] == t_enhance * coarse_shape[3]
-    assert x.shape[4] == coarse_shape[4]
+    assert x.shape[4] == n_features

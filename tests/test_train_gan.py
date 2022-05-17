@@ -29,7 +29,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     SpatialGan.seed()
@@ -92,7 +92,7 @@ def test_train_st(n_epoch=4, log=False):
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
     fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
 
@@ -190,7 +190,7 @@ def test_train_st(n_epoch=4, log=False):
 def test_optimizer_update():
     """Test updating optimizer method."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc_s = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_space.json')
     fp_disc_t = os.path.join(CONFIG_DIR, 'spatiotemporal/disc_time.json')
 
