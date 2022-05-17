@@ -687,7 +687,7 @@ class Sup3rGan:
         """Get a list of all the layer weights and bias terms for the
         generator and discriminator networks
         """
-        return self.generator_weights + self.disc_weights
+        return self.generator_weights + self.discriminator_weights
 
     @staticmethod
     def get_weight_update_fraction(loss_details, comparison_key,
