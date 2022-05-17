@@ -133,10 +133,6 @@ def test_train_st(n_epoch=4, log=False):
         assert 'model_gen.pkl' in os.listdir(td + '/test_2')
         assert 'model_disc.pkl' in os.listdir(td + '/test_2')
 
-        # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
-                         learning_rate_disc=2e-4)
-
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
@@ -147,12 +143,16 @@ def test_train_st(n_epoch=4, log=False):
 
         assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
         assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           2e-4)
+                           3e-4)
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
 
         assert 'config_generator' in loaded.meta
         assert 'config_discriminator' in loaded.meta
+
+        # make an un-trained dummy model
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                         learning_rate_disc=2e-4)
 
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
