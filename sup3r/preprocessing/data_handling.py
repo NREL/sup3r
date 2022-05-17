@@ -42,8 +42,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5)
 
-from sup3r import __version__
-
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
@@ -92,7 +90,6 @@ class DataHandler(FeatureHandler):
                  cache_file_prefix=None,
                  overwrite_cache=False,
                  load_cached=False):
-
         """Data handling and extraction
 
         Parameters
@@ -481,21 +478,32 @@ class DataHandler(FeatureHandler):
             shape = get_raster_shape(self.raster_index)
             requested_shape = (shape[0], shape[1], len(self.time_index),
                                len(self.features))
-            self.data = np.zeros(requested_shape, dtype=np.float32)
-            self.data[...] = np.nan
+
+            msg = ('Found {} cache files but need {} for features {}! '
+                   'These are the cache files that were found: {}'
+                   .format(len(self.cache_files), len(self.features),
+                           self.features, self.cache_files))
+            assert len(self.cache_files) == len(self.features), msg
+
+            self.data = np.full(shape=requested_shape, fill_value=np.nan,
+                                dtype=np.float32)
 
             for i, fp in enumerate(self.cache_files):
 
-                fp_ignore_case = ignore_case_path_fetch(fp)
                 assert self.features[i].lower() in fp.lower()
-                logger.info(
-                    f'Loading {self.features[i]} from {fp_ignore_case}')
+                fp = ignore_case_path_fetch(fp)
+                logger.info(f'Loading {self.features[i]} from {fp}')
 
-                with open(fp_ignore_case, 'rb') as fh:
-
+                with open(fp, 'rb') as fh:
                     log_mem(logger)
-                    self.data[..., i] = np.array(pickle.load(fh),
-                                                 dtype=np.float32)
+                    tmp = np.array(pickle.load(fh), dtype=np.float32)
+
+                    msg = ('Loaded data of shape {} from cache file {} '
+                           'but data handler wants shape of {}!'
+                           .format(tmp.shape, fp, self.data.shape[:-1]))
+                    assert tmp.shape == requested_shape[:-1], msg
+
+                    self.data[..., i] = tmp
 
             nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
             if nan_perc > 0:
