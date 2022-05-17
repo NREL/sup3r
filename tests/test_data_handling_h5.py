@@ -164,7 +164,7 @@ def test_normalization():
         s_enhance=s_enhance,
         sample_shape=sample_shape,
         max_delta=max_delta,
-        val_split=0.0,
+        val_split=val_split,
         temporal_slice=temporal_slice,
         n_batches=n_batches)
 
@@ -178,8 +178,8 @@ def test_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.999 <= std <= 1.001
-        assert -0.001 <= mean <= 0.001
+        assert 0.99999 <= std <= 1.00001
+        assert -0.00001 <= mean <= 0.00001
 
 
 def test_spatiotemporal_normalization():
@@ -192,7 +192,7 @@ def test_spatiotemporal_normalization():
         t_enhance=t_enhance,
         sample_shape=sample_shape,
         max_delta=max_delta,
-        val_split=0.5,
+        val_split=val_split,
         temporal_slice=temporal_slice,
         n_batches=n_batches)
 
@@ -206,8 +206,8 @@ def test_spatiotemporal_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.999 <= std <= 1.001
-        assert -0.001 <= mean <= 0.001
+        assert 0.99999 <= std <= 1.00001
+        assert -0.00001 <= mean <= 0.00001
 
 
 def test_data_extraction():

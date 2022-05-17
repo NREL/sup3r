@@ -878,11 +878,9 @@ class BatchHandler:
             With temporal extent equal to the sum across all data handlers time
             dimension
         """
-        time_steps = 0
-        for h in self.data_handlers:
-            time_steps += h.shape[2]
+        time_steps = np.sum([h.shape[-2] for h in self.data_handlers])
         return (self.data_handlers[0].shape[0], self.data_handlers[0].shape[1],
-                time_steps, self.data_handlers[0].shape[3])
+                time_steps, self.data_handlers[0].shape[-1])
 
     def _get_stats(self):
         """Get standard deviations and means for all data features
@@ -910,8 +908,7 @@ class BatchHandler:
                 self.means = pickle.load(fh)
         else:
             logger.info('Calculating stdevs / means.')
-            n_elems = np.product(self.data_handlers[0].shape[:-1])
-            n_elems *= len(self.data_handlers)
+            n_elems = np.product(self.shape[:-1])
             for i in range(self.shape[-1]):
                 for data_handler in self.data_handlers:
                     self.means[i] += np.nansum(data_handler.data[..., i])
@@ -920,6 +917,7 @@ class BatchHandler:
                     self.stds[i] += np.nansum(
                         (data_handler.data[..., i] - self.means[i])**2)
                 self.stds[i] = np.sqrt(self.stds[i] / n_elems)
+                print(i, self.stds[i], self.means[i])
 
             if self.stdevs_file is not None:
                 logger.info(f'Saving stdevs to {self.stdevs_file}')
