@@ -20,7 +20,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def get_chunk_slices(arr_size, chunk_size):
+def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     """Get array slices of corresponding chunk size
 
     Parameters
@@ -29,15 +29,29 @@ def get_chunk_slices(arr_size, chunk_size):
         Length of array to slice
     chunk_size : int
         Size of slices to split array into
+    index_slice : slice
+        Slice specifying starting and ending index of slice list
 
     Returns
     -------
     list
         List of slices correpoding to chunks of array
     """
-    n_chunks = int(np.ceil(arr_size / chunk_size))
-    slices = np.array_split(np.arange(arr_size), n_chunks)
-    slices = [slice(s[0], s[-1] + 1) for s in slices]
+
+    indices = np.arange(0, arr_size)
+    indices = indices[index_slice.start:index_slice.stop]
+    step = index_slice.step
+    if step is None:
+        step = 1
+    slices = []
+    start = indices[0]
+    stop = start + step * chunk_size
+    while start < indices[-1] + 1:
+        slices.append(slice(start, stop, step))
+        start = stop
+        stop += step * chunk_size
+        if stop > indices[-1] + 1:
+            stop = indices[-1] + 1
 
     return slices
 

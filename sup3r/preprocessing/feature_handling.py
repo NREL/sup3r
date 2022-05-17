@@ -894,12 +894,13 @@ class FeatureHandler:
                     futures[future] = meta
 
                 shape = get_raster_shape(raster_index)
+                time_shape = time_chunks[0].stop - time_chunks[0].start
+                time_shape //= time_chunks[0].step
                 logger.info(
                     f'Started extracting {input_features}'
                     f' in {dt.now() - now}. Using {len(time_chunks)}'
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_chunks[0].stop - time_chunks[0].start}) '
-                    f'for {len(input_features)} features')
+                    f'{time_shape}) for {len(input_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
@@ -986,7 +987,10 @@ class FeatureHandler:
         """
 
         derived_features = [f for f in all_features if f not in input_features]
-        logger.info(f'Computing {derived_features}')
+        if len(derived_features) == 0:
+            return data
+        else:
+            logger.info(f'Computing {derived_features}')
 
         futures = {}
         now = dt.now()
@@ -1012,12 +1016,13 @@ class FeatureHandler:
                         data, t, all_features)
 
                 shape = get_raster_shape(raster_index)
+                time_shape = time_chunks[0].stop - time_chunks[0].start
+                time_shape //= time_chunks[0].step
                 logger.info(
                     f'Started computing {derived_features}'
                     f' in {dt.now() - now}. Using {len(time_chunks)}'
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_chunks[0].stop - time_chunks[0].start}) '
-                    f'for {len(derived_features)} features')
+                    f'{time_shape}) for {len(derived_features)} features')
 
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]

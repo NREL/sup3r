@@ -15,10 +15,10 @@ from datetime import datetime as dt
 import pickle
 import warnings
 
-from rex import WindX, NSRDBX
+from rex import MultiFileWindX, NSRDBX
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (uniform_box_sampler,
+from sup3r.utilities.utilities import (get_chunk_slices, uniform_box_sampler,
                                        uniform_time_sampler,
                                        daily_time_sampler,
                                        interp_var,
@@ -187,6 +187,15 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
+
+        n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
+        n_steps = len(n_steps)
+        msg = (f'Temporal slice step ({temporal_slice.step}) does not evenly '
+               f'divide the number of time steps ({n_steps})')
+        check = temporal_slice.step is None
+        check = check or n_steps % temporal_slice.step == 0
+        if not check:
+            logger.warning(msg)
 
         msg = ('sample_shape[2] cannot be larger than the number of time steps'
                ' in the raw data.')
@@ -644,19 +653,16 @@ class DataHandler(FeatureHandler):
 
         # get the file-native time index without pruning
         time_index = get_time_index(file_path)
+        n_steps = len(time_index[temporal_slice])
 
         data_array = np.zeros(
-            (shape[0], shape[1],
-             len(time_index),
-             len(features)), dtype=np.float32)
+            (shape[0], shape[1], n_steps, len(features)), dtype=np.float32)
 
         # split time dimension into smaller slices which can be
         # extracted in parallel
-        n_chunks = int(np.ceil(len(time_index) / time_chunk_size))
-        time_indices = np.arange(0, len(time_index))
-        time_indices = time_indices[temporal_slice.start:temporal_slice.stop]
-        time_chunks = np.array_split(time_indices, n_chunks)
-        time_chunks = [slice(t[0], t[-1] + 1) for t in time_chunks]
+        time_chunks = get_chunk_slices(
+            len(time_index), time_chunk_size, temporal_slice)
+        shifted_time_chunks = get_chunk_slices(n_steps, time_chunk_size)
 
         extract_features = cls.check_cached_features(
             file_path, features, cache_files=cache_files,
@@ -681,13 +687,12 @@ class DataHandler(FeatureHandler):
         logger.info(f'Finished computing {extract_features} for '
                     f'{cls.file_info_logging(file_path)}')
 
-        for t, t_slice in enumerate(time_chunks):
+        for t, t_slice in enumerate(shifted_time_chunks):
             for _, f in enumerate(extract_features):
                 f_index = features.index(f)
                 data_array[..., t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = data_array[:, :, temporal_slice, :]
         data_array = np.roll(data_array, time_roll, axis=2)
 
         if load_cached:
@@ -906,7 +911,7 @@ class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
     # the handler from rex to open h5 data.
-    REX_HANDLER = WindX
+    REX_HANDLER = MultiFileWindX
 
     @classmethod
     def feature_registry(cls):
@@ -940,7 +945,7 @@ class DataHandlerH5(DataHandler):
             List of input features
         """
 
-        with cls.REX_HANDLER(file_path[0], hsds=False) as handle:
+        with cls.REX_HANDLER(file_path) as handle:
             input_features = cls.get_raw_feature_list_from_handle(
                 features, handle)
         return input_features
@@ -968,7 +973,7 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with cls.REX_HANDLER(file_path[0], hsds=False) as handle:
+        with cls.REX_HANDLER(file_path) as handle:
 
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
@@ -1018,7 +1023,7 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with self.REX_HANDLER(file_path[0], hsds=False) as handle:
+            with self.REX_HANDLER(file_path[0]) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             if self.raster_file is not None:
