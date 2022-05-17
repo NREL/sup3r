@@ -242,7 +242,7 @@ def test_train_st_kld(n_epoch=4, log=False):
         assert 'model_disc_t.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
-        dummy = SpatialGan(fp_gen, fp_disc_s, fp_disc_t)
+        dummy = SpatioTemporalGanKLD(fp_gen, fp_disc_s, fp_disc_t)
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
@@ -343,7 +343,7 @@ def test_train_st_mmd(n_epoch=4, log=False):
         assert 'model_disc_t.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
-        dummy = SpatialGan(fp_gen, fp_disc_s, fp_disc_t)
+        dummy = SpatioTemporalGanMMD(fp_gen, fp_disc_s, fp_disc_t)
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')

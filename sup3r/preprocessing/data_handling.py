@@ -15,7 +15,7 @@ from datetime import datetime as dt
 import pickle
 import warnings
 
-from rex import MultiFileWindX, NSRDBX
+from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 
 from sup3r.utilities.utilities import (get_chunk_slices, uniform_box_sampler,
@@ -1037,7 +1037,7 @@ class DataHandlerNsrdb(DataHandlerH5):
     """Special data handling and batch sampling for NSRDB solar data"""
 
     # the handler from rex to open h5 data.
-    REX_HANDLER = NSRDBX
+    REX_HANDLER = MultiFileNSRDBX
 
     # list of features / feature name patterns that are input to the generative
     # model but are not part of the synthetic output and are not sent to the
