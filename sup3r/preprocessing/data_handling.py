@@ -496,14 +496,18 @@ class DataHandler(FeatureHandler):
 
                 with open(fp, 'rb') as fh:
                     log_mem(logger)
-                    tmp = np.array(pickle.load(fh), dtype=np.float32)
 
-                    msg = ('Loaded data of shape {} from cache file {} '
-                           'but data handler wants shape of {}!'
-                           .format(tmp.shape, fp, self.data.shape[:-1]))
-                    assert tmp.shape == requested_shape[:-1], msg
-
-                    self.data[..., i] = tmp
+                    try:
+                        self.data[..., i] = np.array(pickle.load(fh),
+                                                     dtype=np.float32)
+                    except Exception as e:
+                        msg = ('Data loaded from from cache file "{}" '
+                               'could not be written to feature channel {} '
+                               'of full data array of shape {}. '
+                               'Make sure the cached data has the '
+                               'appropriate shape.'
+                               .format(fp, i, self.data.shape))
+                        raise RuntimeError(msg) from e
 
             nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
             if nan_perc > 0:
