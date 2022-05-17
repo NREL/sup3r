@@ -1218,34 +1218,38 @@ class Sup3rGan:
 
         return loss_details
 
-    def update_adversarial_weight(self, loss_details,
-                                  adaptive_update_fraction,
-                                  adaptive_update_bounds,
-                                  weight_gen_advers,
-                                  train_disc):
-        """Update adversarial loss weight based on training fraction history.
+    def update_adversarial_weights(self, history, adaptive_update_fraction,
+                                   adaptive_update_bounds,
+                                   weight_gen_advers,
+                                   train_disc, weight_update_int):
+        """Update spatial / temporal adversarial loss weights based on training
+        fraction history.
 
         Parameters
         ----------
-        loss_details : dict
-            Dictionary of training history. Includes fraction of epochs for
-            which spatial / temporal discriminators were trained. These values
-            are used to check for weight updates
+        history : dict
+            Dictionary with information on how often discriminators
+            were trained during current and previous epochs.
         adaptive_update_fraction : float
             Amount by which to increase or decrease adversarial loss weights
             for adaptive updates
         adaptive_update_bounds : tuple
-            Tuple specifying allowed range for loss_details[comparison_key]. If
-            loss_details[comparison_key] < adaptive_update_bounds[0] then the
-            weight will be increased by (1 + update_frac). If
-            loss_details[comparison_key] > adaptive_update_bounds[1] then the
-            weight will be decreased by 1 / (1 - update_frac).
+            Tuple specifying allowed range for history[comparison_key]. If
+            history[comparison_key] < update_bounds[0] then the weight will be
+            increased by (1 + update_frac). If history[comparison_key] >
+            update_bounds[1] then the weight will be decreased by 1 / (1 +
+            update_frac).
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
             vs. the discriminator.
         train_disc : bool
             Whether the discriminator was set to be trained during the
             previous epoch
+        weight_update_int : int
+            Number of previous epochs to average history[comparison_key] over
+            before checking for update conditions. e.g. If weight_update_int =
+            2 then the update condition will depend on the average of
+            history[comparison_key] over the previous 2 epochs.
 
         Returns
         -------
@@ -1258,13 +1262,15 @@ class Sup3rGan:
             update_frac = 1
             if train_disc:
                 update_frac = self.get_weight_update_fraction(
-                    loss_details, 'train_disc_trained_frac',
+                    history, 'train_disc_trained_frac',
                     update_frac=adaptive_update_fraction,
-                    update_bounds=adaptive_update_bounds)
+                    update_bounds=adaptive_update_bounds,
+                    update_int=weight_update_int)
                 weight_gen_advers *= update_frac
 
             if update_frac != 1:
-                logger.debug(f'New adversarial weight: {weight_gen_advers}')
+                logger.debug(
+                    f'New discriminator weight: {weight_gen_advers}')
 
         return weight_gen_advers
 
@@ -1278,8 +1284,9 @@ class Sup3rGan:
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.98),
-              adaptive_update_fraction=0.05):
+              adaptive_update_bounds=(0.5, 0.99),
+              adaptive_update_fraction=0.05,
+              weight_update_int=5):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -1323,13 +1330,18 @@ class Sup3rGan:
             warrants an early stop.
         adaptive_update_bounds : tuple
             Tuple specifying allowed range for loss_details[comparison_key]. If
-            loss_details[comparison_key] < threshold_range[0] then the weight
-            will be increased by (1 + update_frac). If
-            loss_details[comparison_key] > threshold_range[1] then the weight
-            will be decreased by (1 - update_frac).
+            history[comparison_key] < threshold_range[0] then the weight will
+            be increased by (1 + update_frac). If history[comparison_key] >
+            threshold_range[1] then the weight will be decreased by 1 / (1 +
+            update_frac).
         adaptive_update_fraction : float
-            Amount by which to increase or decrease adversarial weight for
+            Amount by which to increase or decrease adversarial weights for
             adaptive updates
+        weight_update_int : int
+            Number of previous epochs to average loss_details[comparison_key]
+            over before checking for update conditions. e.g. If
+            weight_update_int = 2 then the update condition will depend on the
+            average of loss_details[comparison_key] over the previous 2 epochs.
         """
 
         self.set_norm_stats(batch_handler)
@@ -1382,9 +1394,10 @@ class Sup3rGan:
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
 
-            weight_gen_advers = self.update_adversarial_weight(
-                loss_details, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc)
+            weight_gen_advers = self.update_adversarial_weights(
+                self.history, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers, train_disc,
+                weight_update_int=weight_update_int)
 
             if stop:
                 break
