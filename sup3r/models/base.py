@@ -372,8 +372,10 @@ class Sup3rGan:
                 if s > 0:
                     low_res[..., i] /= s
                 else:
-                    logger.warning('Standard deviation is zero for '
-                                   f'{self.training_features[i]}')
+                    msg = ('Standard deviation is zero for '
+                           f'{self.training_features[i]}')
+                    logger.warning(msg)
+                    warn(msg)
 
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
@@ -692,7 +694,7 @@ class Sup3rGan:
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
                                    update_bounds=(0.5, 0.99),
-                                   update_frac=0.05, update_int=5):
+                                   update_frac=0.05):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -711,11 +713,6 @@ class Sup3rGan:
             update_frac).
         update_frac : float
             Fraction by which to increase/decrease adversarial loss weight
-        update_int : int
-            Number of previous epochs to average history[comparison_key] over
-            before checking for update conditions. e.g. If update_int = 2 then
-            the update condition will depend on the average of
-            history[comparison_key] over the previous 2 epochs.
 
         Returns
         -------
@@ -723,9 +720,9 @@ class Sup3rGan:
             Factor by which to multiply old weight to get updated weight
         """
         history = list(history[comparison_key])
-        val = np.mean(history[-update_int:])
+        val = np.mean(history[-1])
         logger.info(f'Average value of {comparison_key} over the previous '
-                    f'{update_int} epochs: {round(val, 3)}')
+                    f'epoch: {round(val, 3)}')
         if val < update_bounds[0] and history[-1] < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
@@ -1221,7 +1218,7 @@ class Sup3rGan:
     def update_adversarial_weights(self, history, adaptive_update_fraction,
                                    adaptive_update_bounds,
                                    weight_gen_advers,
-                                   train_disc, weight_update_int):
+                                   train_disc):
         """Update spatial / temporal adversarial loss weights based on training
         fraction history.
 
@@ -1245,11 +1242,6 @@ class Sup3rGan:
         train_disc : bool
             Whether the discriminator was set to be trained during the
             previous epoch
-        weight_update_int : int
-            Number of previous epochs to average history[comparison_key] over
-            before checking for update conditions. e.g. If weight_update_int =
-            2 then the update condition will depend on the average of
-            history[comparison_key] over the previous 2 epochs.
 
         Returns
         -------
@@ -1264,8 +1256,7 @@ class Sup3rGan:
                 update_frac = self.get_weight_update_fraction(
                     history, 'train_disc_trained_frac',
                     update_frac=adaptive_update_fraction,
-                    update_bounds=adaptive_update_bounds,
-                    update_int=weight_update_int)
+                    update_bounds=adaptive_update_bounds)
                 weight_gen_advers *= update_frac
 
             if update_frac != 1:
@@ -1285,8 +1276,7 @@ class Sup3rGan:
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
               adaptive_update_bounds=(0.5, 0.99),
-              adaptive_update_fraction=0.05,
-              weight_update_int=5):
+              adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -1337,11 +1327,6 @@ class Sup3rGan:
         adaptive_update_fraction : float
             Amount by which to increase or decrease adversarial weights for
             adaptive updates
-        weight_update_int : int
-            Number of previous epochs to average loss_details[comparison_key]
-            over before checking for update conditions. e.g. If
-            weight_update_int = 2 then the update condition will depend on the
-            average of loss_details[comparison_key] over the previous 2 epochs.
         """
 
         self.set_norm_stats(batch_handler)
@@ -1396,8 +1381,7 @@ class Sup3rGan:
 
             weight_gen_advers = self.update_adversarial_weights(
                 self.history, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc,
-                weight_update_int=weight_update_int)
+                weight_gen_advers, train_disc)
 
             if stop:
                 break

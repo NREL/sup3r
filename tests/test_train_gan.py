@@ -116,70 +116,21 @@ def test_train_st_weight_update(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.1,
+                    weight_gen_advers=1e-4,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        assert 'config_generator' in model.meta
-        assert 'config_discriminator' in model.meta
-        assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] > 0)
-        assert all(model.history['train_disc_trained_frac'] > 0)
-        vlossg = model.history['val_loss_gen'].values
-        tlossg = model.history['train_loss_gen'].values
-        assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
-        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 1.5)
-        assert 'test_0' in os.listdir(td)
-        assert 'test_2' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
+        print(model.history['train_disc_trained_frac'])
 
-        # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
-                         learning_rate_disc=2e-4)
-
-        # test save/load functionality
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-        loaded = model.load(out_dir)
-
-        with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
-            model_params = json.load(f)
-
-        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
-        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           3e-4)
-        assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_disc' in model.history
-
-        assert 'config_generator' in loaded.meta
-        assert 'config_discriminator' in loaded.meta
-
-        for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
-
-            # make sure the loaded model generates the same data as the saved
-            # model but different than the dummy
-            tf.assert_equal(out_og, out_loaded)
-            with pytest.raises(InvalidArgumentError):
-                tf.assert_equal(out_og, out_dummy)
-
-            # make sure the trained model has less loss than dummy
-            loss_og = model.calc_loss(batch.high_res, out_og)[0]
-            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
-            assert loss_og.numpy() < loss_dummy.numpy()
-
-        # test that a new shape can be passed through the generator
-        test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
-        y_test = model._tf_generate(test_data)
-        assert y_test.shape[0] == test_data.shape[0]
-        assert y_test.shape[1] == test_data.shape[1] * 3
-        assert y_test.shape[2] == test_data.shape[2] * 3
-        assert y_test.shape[3] == test_data.shape[3] * 4
-        assert y_test.shape[4] == test_data.shape[4] - 1
+        # check that weight is changed
+        for e in range(0, n_epoch - 1):
+            weight_old = model.history['weight_gen_advers'][e]
+            weight_new = model.history['weight_gen_advers'][e + 1]
+            if model.history['train_disc_trained_frac'][e] < 0.5:
+                assert weight_new > weight_old
+            if model.history['train_disc_trained_frac'][e] > 0.99:
+                assert weight_new < weight_old
 
 
 def test_train_st_kld(n_epoch=4, log=False):
@@ -192,8 +143,10 @@ def test_train_st_kld(n_epoch=4, log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGanKLD.seed()
-    model = Sup3rGanKLD(fp_gen, fp_disc, learning_rate=1e-4,
-                        learning_rate_disc=3e-4)
+    model_kld = Sup3rGanKLD(fp_gen, fp_disc, learning_rate=1e-4,
+                            learning_rate_disc=3e-4)
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     learning_rate_disc=3e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
@@ -209,71 +162,20 @@ def test_train_st_kld(n_epoch=4, log=False):
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
+        model_kld.train(batch_handler, n_epoch=n_epoch,
+                        weight_gen_advers=0.1,
+                        train_gen=True, train_disc=True,
+                        checkpoint_int=2,
+                        out_dir=os.path.join(td, 'test_{epoch}'))
         model.train(batch_handler, n_epoch=n_epoch,
                     weight_gen_advers=0.1,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        assert 'config_generator' in model.meta
-        assert 'config_discriminator' in model.meta
-        assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] > 0)
-        assert all(model.history['train_disc_trained_frac'] > 0)
-        vlossg = model.history['val_loss_gen'].values
-        tlossg = model.history['train_loss_gen'].values
-        assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
-        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 1.5)
-        assert 'test_0' in os.listdir(td)
-        assert 'test_2' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
-
-        # make an un-trained dummy model
-        dummy = Sup3rGanKLD(fp_gen, fp_disc, learning_rate=1e-4,
-                            learning_rate_disc=3e-4)
-
-        # test save/load functionality
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-        loaded = model.load(out_dir)
-
-        with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
-            model_params = json.load(f)
-
-        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
-        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           3e-4)
-        assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_disc' in model.history
-
-        assert 'config_generator' in loaded.meta
-        assert 'config_discriminator' in loaded.meta
-
-        for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
-
-            # make sure the loaded model generates the same data as the saved
-            # model but different than the dummy
-            tf.assert_equal(out_og, out_loaded)
-            with pytest.raises(InvalidArgumentError):
-                tf.assert_equal(out_og, out_dummy)
-
-            # make sure the trained model has less loss than dummy
-            loss_og = model.calc_loss(batch.high_res, out_og)[0]
-            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
-            assert loss_og.numpy() < loss_dummy.numpy()
-
-        # test that a new shape can be passed through the generator
-        test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
-        y_test = model._tf_generate(test_data)
-        assert y_test.shape[0] == test_data.shape[0]
-        assert y_test.shape[1] == test_data.shape[1] * 3
-        assert y_test.shape[2] == test_data.shape[2] * 3
-        assert y_test.shape[3] == test_data.shape[3] * 4
-        assert y_test.shape[4] == test_data.shape[4] - 1
+        assert all(kld_loss != loss for kld_loss, loss in zip(
+            model_kld.history['train_loss_gen'],
+            model.history['train_loss_gen']))
 
 
 def test_train_st_mmd(n_epoch=4, log=False):
@@ -286,8 +188,10 @@ def test_train_st_mmd(n_epoch=4, log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGanMMD.seed()
-    model = Sup3rGanMMD(fp_gen, fp_disc, learning_rate=1e-4,
-                        learning_rate_disc=3e-4)
+    model_mmd = Sup3rGanMMD(fp_gen, fp_disc, learning_rate=1e-4,
+                            learning_rate_disc=3e-4)
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     learning_rate_disc=3e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
@@ -303,71 +207,20 @@ def test_train_st_mmd(n_epoch=4, log=False):
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
+        model_mmd.train(batch_handler, n_epoch=n_epoch,
+                        weight_gen_advers=0.1,
+                        train_gen=True, train_disc=True,
+                        checkpoint_int=2,
+                        out_dir=os.path.join(td, 'test_{epoch}'))
         model.train(batch_handler, n_epoch=n_epoch,
                     weight_gen_advers=0.1,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        assert 'config_generator' in model.meta
-        assert 'config_discriminator' in model.meta
-        assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] > 0)
-        assert all(model.history['train_disc_trained_frac'] > 0)
-        vlossg = model.history['val_loss_gen'].values
-        tlossg = model.history['train_loss_gen'].values
-        assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
-        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 1.5)
-        assert 'test_0' in os.listdir(td)
-        assert 'test_2' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
-
-        # make an un-trained dummy model
-        dummy = Sup3rGanMMD(fp_gen, fp_disc, learning_rate=1e-4,
-                            learning_rate_disc=3e-4)
-
-        # test save/load functionality
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-        loaded = model.load(out_dir)
-
-        with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
-            model_params = json.load(f)
-
-        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
-        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           3e-4)
-        assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_disc' in model.history
-
-        assert 'config_generator' in loaded.meta
-        assert 'config_discriminator' in loaded.meta
-
-        for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
-
-            # make sure the loaded model generates the same data as the saved
-            # model but different than the dummy
-            tf.assert_equal(out_og, out_loaded)
-            with pytest.raises(InvalidArgumentError):
-                tf.assert_equal(out_og, out_dummy)
-
-            # make sure the trained model has less loss than dummy
-            loss_og = model.calc_loss(batch.high_res, out_og)[0]
-            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
-            assert loss_og.numpy() < loss_dummy.numpy()
-
-        # test that a new shape can be passed through the generator
-        test_data = np.ones((3, 10, 10, 4, len(FEATURES)), dtype=np.float32)
-        y_test = model._tf_generate(test_data)
-        assert y_test.shape[0] == test_data.shape[0]
-        assert y_test.shape[1] == test_data.shape[1] * 3
-        assert y_test.shape[2] == test_data.shape[2] * 3
-        assert y_test.shape[3] == test_data.shape[3] * 4
-        assert y_test.shape[4] == test_data.shape[4] - 1
+        assert all(mmd_loss != loss for mmd_loss, loss in zip(
+            model_mmd.history['train_loss_gen'],
+            model.history['train_loss_gen']))
 
 
 def test_train_st(n_epoch=4, log=False):

@@ -485,8 +485,8 @@ class BatchHandler:
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.sample_shape = handler_shapes[0]
-        self.means = np.zeros((self.shape[-1]), dtype=np.float32)
-        self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.means = None
+        self.stds = None
         self.n_batches = n_batches
         self.temporal_coarsening_method = temporal_coarsening_method
         self.current_batch_indices = None
@@ -496,7 +496,9 @@ class BatchHandler:
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
+            means, stds = self.check_cached_stats()
             self.normalize(means, stds)
+            self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
         self.val_data = self.VAL_CLASS(
@@ -882,15 +884,16 @@ class BatchHandler:
         return (self.data_handlers[0].shape[0], self.data_handlers[0].shape[1],
                 time_steps, self.data_handlers[0].shape[-1])
 
-    def _get_stats(self):
-        """Get standard deviations and means for all data features
+    def check_cached_stats(self):
+        """Get standard deviations and means for all data features from cache
+        files if available
 
         Returns
         -------
-        means : np.ndarray
+        means : np.ndarray | None
             dimensions (features)
             array of means for all features with same ordering as data features
-        stds : np.ndarray
+        stds : np.ndarray | None
             dimensions (features)
             array of means for all features with same ordering as data features
         """
@@ -899,6 +902,7 @@ class BatchHandler:
         stdevs_check = stdevs_check and os.path.exists(self.stdevs_file)
         means_check = (self.means_file is not None)
         means_check = means_check and os.path.exists(self.means_file)
+        self.stds = self.means = None
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
             with open(self.stdevs_file, 'rb') as fh:
@@ -906,26 +910,38 @@ class BatchHandler:
             logger.info(f'Loading means from {self.means_file}')
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
-        else:
-            logger.info('Calculating stdevs / means.')
-            n_elems = np.product(self.shape[:-1])
-            for i in range(self.shape[-1]):
-                for data_handler in self.data_handlers:
-                    self.means[i] += np.nansum(data_handler.data[..., i])
-                self.means[i] = self.means[i] / n_elems
-                for data_handler in self.data_handlers:
-                    self.stds[i] += np.nansum(
-                        (data_handler.data[..., i] - self.means[i])**2)
-                self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
-            if self.stdevs_file is not None:
-                logger.info(f'Saving stdevs to {self.stdevs_file}')
-                with open(self.stdevs_file, 'wb') as fh:
-                    pickle.dump(self.stds, fh)
-            if self.means_file is not None:
-                logger.info(f'Saving means to {self.means_file}')
-                with open(self.means_file, 'wb') as fh:
-                    pickle.dump(self.means, fh)
+        return self.means, self.stds
+
+    def cache_stats(self):
+        """Saved stdevs and means to cache files if files are not None
+        """
+
+        if self.stdevs_file is not None:
+            logger.info(f'Saving stdevs to {self.stdevs_file}')
+            with open(self.stdevs_file, 'wb') as fh:
+                pickle.dump(self.stds, fh)
+        if self.means_file is not None:
+            logger.info(f'Saving means to {self.means_file}')
+            with open(self.means_file, 'wb') as fh:
+                pickle.dump(self.means, fh)
+
+    def _get_stats(self):
+        """Get standard deviations and means for all data features"""
+
+        self.means = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+
+        logger.info('Calculating stdevs / means.')
+        n_elems = np.product(self.shape[:-1])
+        for i in range(self.shape[-1]):
+            for data_handler in self.data_handlers:
+                self.means[i] += np.nansum(data_handler.data[..., i])
+            self.means[i] = self.means[i] / n_elems
+            for data_handler in self.data_handlers:
+                self.stds[i] += np.nansum(
+                    (data_handler.data[..., i] - self.means[i])**2)
+            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and

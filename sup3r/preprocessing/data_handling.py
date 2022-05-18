@@ -196,6 +196,7 @@ class DataHandler(FeatureHandler):
         check = check or n_steps % temporal_slice.step == 0
         if not check:
             logger.warning(msg)
+            warnings.warn(msg)
 
         msg = ('sample_shape[2] cannot be larger than the number of time steps'
                ' in the raw data.')
@@ -359,8 +360,10 @@ class DataHandler(FeatureHandler):
             self.val_data[..., feature_index] /= std
             self.data[..., feature_index] /= std
         else:
-            logger.warning('Standard Deviation is zero for '
-                           f'{self.features[feature_index]}')
+            msg = ('Standard Deviation is zero for '
+                   f'{self.features[feature_index]}')
+            logger.warning(msg)
+            warnings.warn(msg)
 
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
@@ -469,18 +472,19 @@ class DataHandler(FeatureHandler):
                 with open(fp, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
             else:
-                logger.warning(
-                    f'Called cache_data but {fp} '
-                    'already exists. Set to overwrite_cache to True to '
-                    'overwrite.')
+                msg = (f'Called cache_data but {fp} already exists. Set to '
+                       'overwrite_cache to True to overwrite.')
+                logger.warning(msg)
+                warnings.warn(msg)
 
     def load_cached_data(self):
         """Load data from cache files and split into training and validation
         """
 
         if self.data is not None:
-            logger.warning(
-                'Called load_cached_data() but self.data is not None')
+            msg = ('Called load_cached_data() but self.data is not None')
+            logger.warning(msg)
+            warnings.warn(msg)
 
         elif self.data is None:
             self.raster_index = getattr(self, 'raster_index', None)
