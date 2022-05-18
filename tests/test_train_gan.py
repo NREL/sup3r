@@ -116,18 +116,16 @@ def test_train_st_weight_update(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.0,
+                    weight_gen_advers=0.1,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'config_generator' in model.meta
-        assert 'config_spatial_disc' in model.meta
-        assert 'config_temporal_disc' in model.meta
+        assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
         assert all(model.history['train_gen_trained_frac'] > 0)
-        assert all(model.history['train_disc_s_trained_frac'] > 0)
-        assert all(model.history['train_disc_t_trained_frac'] > 0)
+        assert all(model.history['train_disc_trained_frac'] > 0)
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
@@ -135,8 +133,7 @@ def test_train_st_weight_update(n_epoch=4, log=False):
         assert 'test_0' in os.listdir(td)
         assert 'test_2' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc_s.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc_t.pkl' in os.listdir(td + '/test_2')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
         dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
@@ -151,15 +148,13 @@ def test_train_st_weight_update(n_epoch=4, log=False):
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], 1e-4)
-        assert np.allclose(model_params['optimizer_s']['learning_rate'], 2e-4)
-        assert np.allclose(model_params['optimizer_t']['learning_rate'], 3e-4)
+        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
+                           3e-4)
         assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_s' in model.history
-        assert 'learning_rate_t' in model.history
+        assert 'learning_rate_disc' in model.history
 
         assert 'config_generator' in loaded.meta
-        assert 'config_spatial_disc' in loaded.meta
-        assert 'config_temporal_disc' in loaded.meta
+        assert 'config_discriminator' in loaded.meta
 
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
@@ -215,7 +210,7 @@ def test_train_st_kld(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.0,
+                    weight_gen_advers=0.1,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
@@ -223,8 +218,8 @@ def test_train_st_kld(n_epoch=4, log=False):
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] == 1)
-        assert all(model.history['train_disc_trained_frac'] == 0)
+        assert all(model.history['train_gen_trained_frac'] > 0)
+        assert all(model.history['train_disc_trained_frac'] > 0)
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
@@ -309,7 +304,7 @@ def test_train_st_mmd(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.0,
+                    weight_gen_advers=0.1,
                     train_gen=True, train_disc=True,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
@@ -317,8 +312,8 @@ def test_train_st_mmd(n_epoch=4, log=False):
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] == 1)
-        assert all(model.history['train_disc_trained_frac'] == 0)
+        assert all(model.history['train_gen_trained_frac'] > 0)
+        assert all(model.history['train_disc_trained_frac'] > 0)
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
@@ -329,7 +324,7 @@ def test_train_st_mmd(n_epoch=4, log=False):
         assert 'model_disc.pkl' in os.listdir(td + '/test_2')
 
         # make an un-trained dummy model
-        dummy = Sup3rGanKLD(fp_gen, fp_disc, learning_rate=1e-4,
+        dummy = Sup3rGanMMD(fp_gen, fp_disc, learning_rate=1e-4,
                             learning_rate_disc=3e-4)
 
         # test save/load functionality

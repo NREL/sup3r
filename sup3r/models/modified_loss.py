@@ -67,7 +67,6 @@ class Sup3rGanMMD(Sup3rGan):
         """
 
         loss_gen_content = mean_squared_error(hi_res_true, hi_res_gen)
-        loss_gen_content = tf.reduce_mean(loss_gen_content)
         loss_gen_content += max_mean_discrepancy(hi_res_true, hi_res_gen)
         loss_gen_content = tf.reduce_mean(loss_gen_content)
 

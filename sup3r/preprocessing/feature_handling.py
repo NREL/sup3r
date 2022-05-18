@@ -1116,9 +1116,13 @@ class FeatureHandler:
                             raw_features.append(r)
                 else:
                     method = cls.lookup(f, 'alternative_inputs')
-                    for r in method(f):
-                        if r not in raw_features:
-                            raw_features.append(r)
+                    if method is not None:
+                        for r in method(f):
+                            if r not in raw_features:
+                                raw_features.append(r)
+                    else:
+                        msg = (f'Cannot compute {f} from the provided data.')
+                        raise ValueError(msg)
             else:
                 if f not in raw_features:
                     raw_features.append(f)

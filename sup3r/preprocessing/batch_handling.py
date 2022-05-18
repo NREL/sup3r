@@ -917,7 +917,6 @@ class BatchHandler:
                     self.stds[i] += np.nansum(
                         (data_handler.data[..., i] - self.means[i])**2)
                 self.stds[i] = np.sqrt(self.stds[i] / n_elems)
-                print(i, self.stds[i], self.means[i])
 
             if self.stdevs_file is not None:
                 logger.info(f'Saving stdevs to {self.stdevs_file}')

@@ -18,9 +18,9 @@ def gaussian_kernel(x1, x2, beta=1.0):
     Returns
     -------
     tf.tensor
-        0D tensor with sum over kernel output tensor
+        kernel output tensor
     """
-    return tf.reduce_sum(tf.exp(-beta * (x1 - x2)**2), axis=-1)
+    return tf.exp(-beta * (x1 - x2)**2)
 
 
 def max_mean_discrepancy(x1, x2, beta=1.0):
@@ -50,7 +50,6 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
     x1x1 = gaussian_kernel(x1, x1, beta)
     x1x2 = gaussian_kernel(x1, x2, beta)
     x2x2 = gaussian_kernel(x2, x2, beta)
-    diff = tf.reduce_mean(x1x1)
-    diff -= 2 * tf.reduce_mean(x1x2)
-    diff += tf.reduce_mean(x2x2)
+    diff = tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)
+    diff = tf.reduce_mean(diff)
     return diff
