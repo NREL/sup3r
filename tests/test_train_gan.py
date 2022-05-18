@@ -121,8 +121,6 @@ def test_train_st_weight_update(n_epoch=4, log=False):
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        print(model.history['train_disc_trained_frac'])
-
         # check that weight is changed
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
