@@ -140,28 +140,42 @@ def test_kld_loss():
     """Test content loss using mse + kld for content loss."""
 
     x = np.random.rand(6, 10, 10, 8, 3)
+    x /= np.max(x)
     y = np.random.rand(6, 10, 10, 8, 3)
+    y /= np.max(y)
 
+    # random distributions between 0-1 should give small mse and larger kld
     mse = Sup3rGan.calc_loss_gen_content(x, y)
-    kld = Sup3rGanKLD.calc_loss_gen_content(x, y)
+    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(x, y)
 
-    assert not np.array_equal(mse, kld)
-    assert np.mean(kld) > np.mean(mse)
-    assert not np.isnan(kld).any()
+    assert kld_plus_mse > 2 * mse
+
+    # scaling the same distribution should give high mse and smaller kld
+    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
+    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(10 * x, x)
+
+    assert kld_plus_mse < 2 * mse
 
 
 def test_mmd_loss():
     """Test content loss using mse + mmd for content loss."""
 
     x = np.random.rand(6, 10, 10, 8, 3)
+    x /= np.max(x)
     y = np.random.rand(6, 10, 10, 8, 3)
+    y /= np.max(y)
 
+    # random distributions between 0-1 should give small mse and larger mmd
     mse = Sup3rGan.calc_loss_gen_content(x, y)
-    mmd = Sup3rGanMMD.calc_loss_gen_content(x, y)
+    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(x, y)
 
-    assert not np.array_equal(mse, mmd)
-    assert np.mean(mmd) > np.mean(mse)
-    assert not np.isnan(mmd).any()
+    assert mmd_plus_mse > 2 * mse
+
+    # scaling the same distribution should give high mse and smaller mmd
+    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
+    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(10 * x, x)
+
+    assert mmd_plus_mse < 2 * mse
 
 
 def test_train_st(n_epoch=4, log=False):

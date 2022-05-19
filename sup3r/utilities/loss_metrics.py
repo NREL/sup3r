@@ -35,14 +35,17 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
     ----------
     x1: tf.tensor
         synthetic generator output
+        (n_observations, spatial_1, spatial_2, temporal, features)
     x2: tf.tensor
         high resolution data
+        (n_observations, spatial_1, spatial_2, temporal, features)
     beta : float
         scaling parameter for gaussian kernel
 
     Returns
     tf.tensor
-        0D tensor with content loss value
+        tensor with content loss value summed over feature channel
+        (n_observations, spatial_1, spatial_2, temporal)
     -------
 
 
@@ -51,5 +54,4 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
     x1x2 = gaussian_kernel(x1, x2, beta)
     x2x2 = gaussian_kernel(x2, x2, beta)
     diff = tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)
-    diff = tf.reduce_mean(diff)
     return diff
