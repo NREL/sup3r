@@ -153,7 +153,7 @@ def uniform_box_sampler(data, shape):
     return slices
 
 
-def uniform_time_sampler(data, shape):
+def uniform_time_sampler(data, shape, temporal_focus=slice(None)):
     '''Extracts a temporal slice from data.
 
     Parameters:
@@ -164,6 +164,8 @@ def uniform_time_sampler(data, shape):
     shape : tuple
         (time_steps) Size of time slice to sample
         from data
+    temporal_focus : slice
+        Slice used to select a prefered temporal range from full extent
 
     Returns:
     --------
@@ -171,11 +173,13 @@ def uniform_time_sampler(data, shape):
         time slice with size shape
     '''
 
-    if data.shape[2] <= shape:
-        start = 0
-        stop = data.shape[2]
+    t_indices = np.arange(0, data.shape[2])
+    t_indices = t_indices[temporal_focus]
+    if len(t_indices) <= shape:
+        start = t_indices[0]
+        stop = len(t_indices)
     else:
-        start = np.random.randint(0, data.shape[2] - shape)
+        start = np.random.randint(t_indices[0], len(t_indices) - shape)
         stop = start + shape
     return slice(start, stop)
 

@@ -13,7 +13,8 @@ import pickle
 
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (daily_time_sampler, spatial_coarsening,
+from sup3r.utilities.utilities import (daily_time_sampler, get_chunk_slices,
+                                       spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
@@ -399,7 +400,7 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12):
+                 means_file=None, n_features_per_thread=12, data_split=None):
         """
         Parameters
         ----------
@@ -442,6 +443,14 @@ class BatchHandler:
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
         """
 
         handler_shapes = np.array(
@@ -493,6 +502,8 @@ class BatchHandler:
         self.current_handler_index = None
         self.stdevs_file = stdevs_file
         self.means_file = means_file
+        self.data_split = data_split
+        self.temporal_focus_slices = None
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
@@ -509,6 +520,59 @@ class BatchHandler:
             output_features=self.output_features)
 
         logger.info('Finished initializing BatchHandler.')
+
+    def update_data_split(self, data_split):
+        """Update the prefered temporal focus for selecting training
+        observations.
+
+        Parameters
+        ----------
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
+
+        Returns
+        -------
+        list
+            List of slices used to select training observations from a specific
+            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
+            then the first training observation will be selected at random from
+            within this temporal range.
+        """
+        self.data_split = data_split
+        self.temporal_focus_slices = self.get_temporal_focus_slices()
+
+    def get_temporal_focus_slices(self):
+        """Get preferred time slices for each batch based on the requested
+        data split. e.g. If the data split was [0.2, 0.8] then this will
+        return 20 percent of n_batches within the first temporal half of
+        the training data set and 80 percent in the 2nd half.
+
+        Returns
+        -------
+        list
+            List of slices used to select training observations from a specific
+            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
+            then the first training observation will be selected at random from
+            within this temporal range.
+        """
+        self.temporal_focus_slices = []
+        if self.data_split is None:
+            self.data_split = [1]
+        n_steps = self.data_handlers.shape[2]
+        chunk_size = int(np.ceil(n_steps / len(self.data_split)))
+        temporal_slices = get_chunk_slices(n_steps, chunk_size)
+        n_slices = [int(self.n_batches * s) for s in self.data_split]
+        n_slices[-1] = self.n_batches - np.sum(n_slices[:-1])
+        for i, n in enumerate(n_slices):
+            self.temporal_focus_slices += [n] * temporal_slices[i]
+        np.shuffle(self.temporal_focus_slices)
+        return self.temporal_focus_slices
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -967,6 +1031,7 @@ class BatchHandler:
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
+            temporal_focus = self.temporal_focus_slices[self._i]
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
@@ -975,7 +1040,7 @@ class BatchHandler:
                                  self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next()
+                high_res[i, ...] = handler.get_next(temporal_focus)
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(
