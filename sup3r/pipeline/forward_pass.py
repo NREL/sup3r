@@ -11,6 +11,7 @@ from concurrent.futures import as_completed
 from datetime import datetime as dt
 import pickle
 import os
+import warnings
 
 from rex.utilities.execution import SpawnProcessPool
 
@@ -157,11 +158,13 @@ class ForwardPassStrategy:
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
         if temporal_overlap > forward_pass_chunk_shape[2]:
             logger.warning(msg)
+            warnings.warn(msg)
 
         msg = (f'Using a larger spatial_overlap {spatial_overlap} than '
                f'spatial_chunk_size {forward_pass_chunk_shape[:2]}.')
         if any(spatial_overlap > sc for sc in forward_pass_chunk_shape[:2]):
             logger.warning(msg)
+            warnings.warn(msg)
 
         msg = ('Using a padded chunk size '
                f'{forward_pass_chunk_shape[2] + 2 * temporal_overlap} '
@@ -171,6 +174,7 @@ class ForwardPassStrategy:
         if (forward_pass_chunk_shape[2] + 2 * temporal_overlap
                 >= self.file_t_steps * len(file_paths)):
             logger.warning(msg)
+            warnings.warn(msg)
 
     @staticmethod
     def file_info_logging(file_path):

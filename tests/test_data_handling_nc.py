@@ -188,6 +188,28 @@ def test_raster_index_caching():
                                       handler.data.shape[2], len(features))
 
 
+def test_normalization_input():
+    """Test correct normalization input"""
+
+    means = np.random.rand(len(features))
+    stds = np.random.rand(len(features))
+    batch_handler = BatchHandler.make(
+        input_files, features, targets, shape,
+        batch_size=batch_size,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        sample_shape=sample_shape,
+        max_delta=max_delta,
+        val_split=val_split,
+        temporal_slice=temporal_slice,
+        n_batches=n_batches,
+        list_chunk_size=list_chunk_size,
+        means=means, stds=stds)
+
+    assert np.array_equal(batch_handler.stds, stds)
+    assert np.array_equal(batch_handler.means, means)
+
+
 def test_normalization():
     """Test correct normalization"""
 

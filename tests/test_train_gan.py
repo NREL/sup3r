@@ -13,6 +13,7 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
+from sup3r.models.modified_loss import Sup3rGanKLD, Sup3rGanMMD
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
@@ -85,6 +86,96 @@ def test_train_spatial(log=False, full_shape=(20, 20),
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
+
+
+def test_train_st_weight_update(n_epoch=5, log=False):
+    """Test basic spatiotemporal model training with discriminators and
+    adversarial loss updating."""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     learning_rate_disc=3e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            max_extract_workers=1,
+                            max_compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=3, t_enhance=4,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+        # test that training works and reduces loss
+        model.train(batch_handler, n_epoch=n_epoch,
+                    weight_gen_advers=1e-6,
+                    train_gen=True, train_disc=True,
+                    checkpoint_int=10,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        # check that weight is changed
+        check_lower = any(frac < 0.5 for frac in
+                          model.history['train_disc_trained_frac'][:-1])
+        check_higher = any(frac > 0.99 for frac in
+                           model.history['train_disc_trained_frac'][:-1])
+        assert check_lower or check_higher
+        for e in range(0, n_epoch - 1):
+            weight_old = model.history['weight_gen_advers'][e]
+            weight_new = model.history['weight_gen_advers'][e + 1]
+            if model.history['train_disc_trained_frac'][e] < 0.5:
+                assert weight_new > weight_old
+            if model.history['train_disc_trained_frac'][e] > 0.99:
+                assert weight_new < weight_old
+
+
+def test_kld_loss():
+    """Test content loss using mse + kld for content loss."""
+
+    x = np.random.rand(6, 10, 10, 8, 3)
+    x /= np.max(x)
+    y = np.random.rand(6, 10, 10, 8, 3)
+    y /= np.max(y)
+
+    # random distributions between 0-1 should give small mse and larger kld
+    mse = Sup3rGan.calc_loss_gen_content(x, y)
+    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(x, y)
+
+    assert kld_plus_mse > 2 * mse
+
+    # scaling the same distribution should give high mse and smaller kld
+    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
+    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(10 * x, x)
+
+    assert kld_plus_mse < 2 * mse
+
+
+def test_mmd_loss():
+    """Test content loss using mse + mmd for content loss."""
+
+    x = np.random.rand(6, 10, 10, 8, 3)
+    x /= np.max(x)
+    y = np.random.rand(6, 10, 10, 8, 3)
+    y /= np.max(y)
+
+    # random distributions between 0-1 should give small mse and larger mmd
+    mse = Sup3rGan.calc_loss_gen_content(x, y)
+    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(x, y)
+
+    assert mmd_plus_mse > 2 * mse
+
+    # scaling the same distribution should give high mse and smaller mmd
+    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
+    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(10 * x, x)
+
+    assert mmd_plus_mse < 2 * mse
 
 
 def test_train_st(n_epoch=4, log=False):

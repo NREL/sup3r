@@ -19,7 +19,7 @@ input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
 target = (39.01, -105.15)
 targets = target
 shape = (20, 20)
-features = ['U_100m', 'V_100m', 'BVF_Squared_200m']
+features = ['U_100m', 'V_100m', 'BVF_squared_200m']
 batch_size = 8
 sample_shape = (10, 10, 12)
 s_enhance = 5
@@ -155,6 +155,26 @@ def test_raster_index_caching():
                                       handler.data.shape[2], len(features))
 
 
+def test_normalization_input():
+    """Test correct normalization input"""
+
+    means = np.random.rand(len(features))
+    stds = np.random.rand(len(features))
+    batch_handler = BatchHandler.make(
+        input_files, features, targets=targets, shape=shape,
+        batch_size=batch_size,
+        s_enhance=s_enhance,
+        sample_shape=sample_shape,
+        max_delta=max_delta,
+        val_split=val_split,
+        temporal_slice=temporal_slice,
+        n_batches=n_batches,
+        means=means, stds=stds)
+
+    assert np.array_equal(batch_handler.stds, stds)
+    assert np.array_equal(batch_handler.means, means)
+
+
 def test_normalization():
     """Test correct normalization"""
 
@@ -174,10 +194,10 @@ def test_normalization():
             axis=2)
 
     for i in range(len(features)):
-        std = np.std(stacked_data[:, :, :, i])
+        std = np.std(stacked_data[..., i])
         if std == 0:
             std = 1
-        mean = np.mean(stacked_data[:, :, :, i])
+        mean = np.mean(stacked_data[..., i])
         assert 0.99999 <= std <= 1.00001
         assert -0.00001 <= mean <= 0.00001
 
@@ -202,10 +222,10 @@ def test_spatiotemporal_normalization():
             axis=2)
 
     for i in range(len(features)):
-        std = np.std(stacked_data[:, :, :, i])
+        std = np.std(stacked_data[..., i])
         if std == 0:
             std = 1
-        mean = np.mean(stacked_data[:, :, :, i])
+        mean = np.mean(stacked_data[..., i])
         assert 0.99999 <= std <= 1.00001
         assert -0.00001 <= mean <= 0.00001
 
