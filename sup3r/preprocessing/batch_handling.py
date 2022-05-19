@@ -485,8 +485,8 @@ class BatchHandler:
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.sample_shape = handler_shapes[0]
-        self.means = None
-        self.stds = None
+        self.means = means
+        self.stds = stds
         self.n_batches = n_batches
         self.temporal_coarsening_method = temporal_coarsening_method
         self.current_batch_indices = None
@@ -496,8 +496,8 @@ class BatchHandler:
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
-            means, stds = self.check_cached_stats()
-            self.normalize(means, stds)
+            self.means, self.stds = self.check_cached_stats()
+            self.normalize(self.means, self.stds)
             self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
@@ -886,23 +886,19 @@ class BatchHandler:
 
     def check_cached_stats(self):
         """Get standard deviations and means for all data features from cache
-        files if available. If not available then return Nones
+        files if available.
 
         Returns
         -------
-        means : np.ndarray | None
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray | None
-            dimensions (features)
-            array of means for all features with same ordering as data features
+        means : ndarray
+            Array of means for each feature
+        stds : ndarray
+            Array of stdevs for each feature
         """
-
         stdevs_check = (self.stdevs_file is not None)
         stdevs_check = stdevs_check and os.path.exists(self.stdevs_file)
         means_check = (self.means_file is not None)
         means_check = means_check and os.path.exists(self.means_file)
-        self.stds = self.means = None
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
             with open(self.stdevs_file, 'rb') as fh:
@@ -910,7 +906,6 @@ class BatchHandler:
             logger.info(f'Loading means from {self.means_file}')
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
-
         return self.means, self.stds
 
     def cache_stats(self):

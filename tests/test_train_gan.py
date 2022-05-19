@@ -157,7 +157,7 @@ def test_mmd_loss():
     y = np.random.rand(6, 10, 10, 8, 3)
 
     mse = Sup3rGan.calc_loss_gen_content(x, y)
-    mmd = Sup3rGanKLD.calc_loss_gen_content(x, y)
+    mmd = Sup3rGanMMD.calc_loss_gen_content(x, y)
 
     assert not np.array_equal(mse, mmd)
     assert np.mean(mmd) > np.mean(mse)
