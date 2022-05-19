@@ -79,8 +79,6 @@ class Sup3rGan:
         """
 
         self.name = name
-        self._means = means
-        self._stdevs = stdevs
         self._meta = meta if meta is not None else {}
 
         self._version_record = CustomNetwork._parse_versions(version_record)
@@ -97,6 +95,11 @@ class Sup3rGan:
 
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc = self.load_network(disc_layers, 'discriminator')
+
+        self._means = (means if means is None
+                       else np.array(means).astype(np.float32))
+        self._stdevs = (stdevs if stdevs is None
+                        else np.array(stdevs).astype(np.float32))
 
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
