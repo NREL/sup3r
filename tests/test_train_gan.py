@@ -88,7 +88,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
-def test_train_st_weight_update(n_epoch=4, log=False):
+def test_train_st_weight_update(n_epoch=5, log=False):
     """Test basic spatiotemporal model training with discriminators and
     adversarial loss updating."""
     if log:
@@ -116,12 +116,17 @@ def test_train_st_weight_update(n_epoch=4, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=1e-4,
+                    weight_gen_advers=1e-6,
                     train_gen=True, train_disc=True,
-                    checkpoint_int=2,
+                    checkpoint_int=10,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         # check that weight is changed
+        check_lower = any(frac < 0.5 for frac in
+                          model.history['train_disc_trained_frac'][:-1])
+        check_higher = any(frac > 0.99 for frac in
+                           model.history['train_disc_trained_frac'][:-1])
+        assert check_lower or check_higher
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
             weight_new = model.history['weight_gen_advers'][e + 1]
@@ -131,94 +136,32 @@ def test_train_st_weight_update(n_epoch=4, log=False):
                 assert weight_new < weight_old
 
 
-def test_train_st_kld(n_epoch=4, log=False):
-    """Test basic spatiotemporal model training with only gen content loss
-    using mse + kld for content loss."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
+def test_kld_loss():
+    """Test content loss using mse + kld for content loss."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    x = np.random.rand(6, 10, 10, 8, 3)
+    y = np.random.rand(6, 10, 10, 8, 3)
 
-    Sup3rGanKLD.seed()
-    model_kld = Sup3rGanKLD(fp_gen, fp_disc, learning_rate=1e-4,
-                            learning_rate_disc=3e-4)
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
-                     learning_rate_disc=3e-4)
+    mse = Sup3rGan.calc_loss_gen_content(x, y)
+    kld = Sup3rGanKLD.calc_loss_gen_content(x, y)
 
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=3, t_enhance=4,
-                                 n_batches=4)
-
-    with tempfile.TemporaryDirectory() as td:
-        # test that training works and reduces loss
-        model_kld.train(batch_handler, n_epoch=n_epoch,
-                        weight_gen_advers=0.1,
-                        train_gen=True, train_disc=True,
-                        checkpoint_int=2,
-                        out_dir=os.path.join(td, 'test_{epoch}'))
-        model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.1,
-                    train_gen=True, train_disc=True,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert all(kld_loss != loss for kld_loss, loss in zip(
-            model_kld.history['train_loss_gen'],
-            model.history['train_loss_gen']))
+    assert not np.array_equal(mse, kld)
+    assert np.mean(kld) > np.mean(mse)
+    assert not np.isnan(kld).any()
 
 
-def test_train_st_mmd(n_epoch=4, log=False):
-    """Test basic spatiotemporal model training with only gen content loss
-    using mse + mmd for content loss."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
+def test_mmd_loss():
+    """Test content loss using mse + mmd for content loss."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    x = np.random.rand(6, 10, 10, 8, 3)
+    y = np.random.rand(6, 10, 10, 8, 3)
 
-    Sup3rGanMMD.seed()
-    model_mmd = Sup3rGanMMD(fp_gen, fp_disc, learning_rate=1e-4,
-                            learning_rate_disc=3e-4)
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
-                     learning_rate_disc=3e-4)
+    mse = Sup3rGan.calc_loss_gen_content(x, y)
+    mmd = Sup3rGanKLD.calc_loss_gen_content(x, y)
 
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=3, t_enhance=4,
-                                 n_batches=4)
-
-    with tempfile.TemporaryDirectory() as td:
-        # test that training works and reduces loss
-        model_mmd.train(batch_handler, n_epoch=n_epoch,
-                        weight_gen_advers=0.1,
-                        train_gen=True, train_disc=True,
-                        checkpoint_int=2,
-                        out_dir=os.path.join(td, 'test_{epoch}'))
-        model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.1,
-                    train_gen=True, train_disc=True,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert all(mmd_loss != loss for mmd_loss, loss in zip(
-            model_mmd.history['train_loss_gen'],
-            model.history['train_loss_gen']))
+    assert not np.array_equal(mse, mmd)
+    assert np.mean(mmd) > np.mean(mse)
+    assert not np.isnan(mmd).any()
 
 
 def test_train_st(n_epoch=4, log=False):

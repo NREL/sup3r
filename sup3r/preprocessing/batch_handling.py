@@ -886,7 +886,7 @@ class BatchHandler:
 
     def check_cached_stats(self):
         """Get standard deviations and means for all data features from cache
-        files if available
+        files if available. If not available then return Nones
 
         Returns
         -------
