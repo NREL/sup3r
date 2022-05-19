@@ -19,6 +19,7 @@ from sup3r.utilities.utilities import (daily_time_sampler, get_chunk_slices,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        nn_fill_array)
+from sup3r.preprocessing.data_handling import DataHandlerDataCentricH5
 from sup3r.preprocessing.data_handling import get_handler_class
 from sup3r import __version__
 
@@ -400,7 +401,7 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12, data_split=None):
+                 means_file=None, n_features_per_thread=12):
         """
         Parameters
         ----------
@@ -443,14 +444,6 @@ class BatchHandler:
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
-        data_split : list | None
-            List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
-            percent of the training observations will be selected from between
-            time step 200 and time step 300. If None this is the same as [1].
-            All observations will be selected from between the first and last
-            time step.
         """
 
         handler_shapes = np.array(
@@ -502,11 +495,6 @@ class BatchHandler:
         self.current_handler_index = None
         self.stdevs_file = stdevs_file
         self.means_file = means_file
-        self.data_split = data_split
-        self.temporal_bins = self.get_temporal_bins()
-
-        logger.info(
-            f'Using a temporal data selection strategy of {self.data_split}')
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
@@ -523,59 +511,6 @@ class BatchHandler:
             output_features=self.output_features)
 
         logger.info('Finished initializing BatchHandler.')
-
-    def update_data_split(self, data_split):
-        """Update the prefered temporal focus for selecting training
-        observations.
-
-        Parameters
-        ----------
-        data_split : list | None
-            List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
-            percent of the training observations will be selected from between
-            time step 200 and time step 300. If None this is the same as [1].
-            All observations will be selected from between the first and last
-            time step.
-
-        Returns
-        -------
-        list
-            List of slices used to select training observations from a specific
-            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
-            then the first training observation will be selected at random from
-            within this temporal range.
-        """
-        self.data_split = data_split
-        self.temporal_bins = self.get_temporal_bins()
-
-    def get_temporal_bins(self):
-        """Get preferred time slices for each batch based on the requested
-        data split. e.g. If the data split was [0.2, 0.8] then this will
-        return 20 percent of n_batches within the first temporal half of
-        the training data set and 80 percent in the 2nd half.
-
-        Returns
-        -------
-        list
-            List of slices used to select training observations from a specific
-            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
-            then the first training observation will be selected at random from
-            within this temporal range.
-        """
-        temporal_bins = []
-        if self.data_split is None:
-            self.data_split = [1]
-        n_steps = self.data_handlers.shape[2]
-        chunk_size = int(np.ceil(n_steps / len(self.data_split)))
-        temporal_slices = get_chunk_slices(n_steps, chunk_size)
-        n_slices = [int(self.n_batches * s) for s in self.data_split]
-        n_slices[-1] = self.n_batches - np.sum(n_slices[:-1])
-        for i, n in enumerate(n_slices):
-            temporal_bins += [n] * temporal_slices[i]
-        np.shuffle(self.temporal_bins)
-        return temporal_bins
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -816,8 +751,7 @@ class BatchHandler:
              overwrite_cache=False,
              stdevs_file=None,
              means_file=None,
-             n_features_per_thread=12,
-             data_split=None):
+             n_features_per_thread=12):
         """Method to initialize both data and batch handlers
 
         Parameters
@@ -905,14 +839,6 @@ class BatchHandler:
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
-        data_split : list | None
-            List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
-            percent of the training observations will be selected from between
-            time step 200 and time step 300. If None this is the same as [1].
-            All observations will be selected from between the first and last
-            time step.
 
         Returns
         -------
@@ -935,13 +861,13 @@ class BatchHandler:
             cache_file_prefixes=cache_file_prefixes,
             overwrite_cache=overwrite_cache)
 
-        batch_handler = BatchHandler(
-            data_handlers, s_enhance=s_enhance,
-            t_enhance=t_enhance, batch_size=batch_size,
-            norm=norm, means=means, stds=stds, n_batches=n_batches,
+        batch_handler = cls(
+            data_handlers, s_enhance=s_enhance, t_enhance=t_enhance,
+            batch_size=batch_size, norm=norm, means=means, stds=stds,
+            n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method,
             stdevs_file=stdevs_file, means_file=means_file,
-            n_features_per_thread=n_features_per_thread, data_split=data_split)
+            n_features_per_thread=n_features_per_thread)
 
         return batch_handler
 
@@ -1043,7 +969,6 @@ class BatchHandler:
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            temporal_focus = self.temporal_focus_slices[self._i]
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
@@ -1052,7 +977,7 @@ class BatchHandler:
                                  self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next(temporal_focus)
+                high_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(
@@ -1177,11 +1102,9 @@ class SpatialBatchHandler(BatchHandler):
             time_chunk_size=time_chunk_size,
             cache_file_prefixes=cache_file_prefixes)
 
-        batch_handler = SpatialBatchHandler(
-            data_handlers, s_enhance=s_enhance,
-            t_enhance=1, batch_size=batch_size,
-            norm=norm, means=means,
-            stds=stds, n_batches=n_batches)
+        batch_handler = cls(data_handlers, s_enhance=s_enhance, t_enhance=1,
+                            batch_size=batch_size, norm=norm, means=means,
+                            stds=stds, n_batches=n_batches)
         return batch_handler
 
     def __next__(self):
@@ -1198,6 +1121,546 @@ class SpatialBatchHandler(BatchHandler):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
                 output_features_ind=self.output_features_ind)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class ValidationDataDC(ValidationData):
+    """Iterator for data-centric validation data"""
+
+    def _get_val_indices(self):
+        """List of dicts to index each validation data observation across all
+        handlers
+
+        Returns
+        -------
+        val_indices : list[dict]
+            List of dicts with handler_index and tuple_index. The tuple index
+            is used to get validation data observation with
+            data[tuple_index]"""
+
+        time_indices = np.arange(0, self.handlers[0].data.shape[2])
+        chunks = np.array_split(time_indices, 12)
+        time_bins = [slice(t[0], t[-1] + 1) for t in chunks]
+
+        val_indices = []
+        for _, time_bin in enumerate(time_bins):
+            h_idx = np.random.choice(np.arange(len(self.handlers)))
+            h = self.handlers[h_idx]
+            spatial_slice = uniform_box_sampler(
+                h.data, self.sample_shape[:2])
+            temporal_slice = uniform_time_sampler(
+                h.data, self.sample_shape[2], temporal_focus=time_bin)
+            tuple_index = tuple(spatial_slice + [temporal_slice]
+                                + [np.arange(h.data.shape[-1])])
+            val_indices.append({'handler_index': h_idx,
+                                'tuple_index': tuple_index})
+        return val_indices
+
+    def get_bin_observation(self, t):
+        """Get validation data batch
+
+        Returns
+        -------
+        Parameters
+        ----------
+        t : int
+            Index for time bin to select observation from
+
+        batch : Batch
+            validation data batch with low and high res data each with
+            n_observations = batch_size
+        """
+        val_index = self.val_indices[t]
+        high_res = self.handlers[
+            val_index['handler_index']].data[val_index['tuple_index']]
+        high_res = np.expand_dims(high_res, axis=0)
+
+        batch = self.BATCH_CLASS.get_coarse_batch(
+            high_res, self.s_enhance, t_enhance=self.t_enhance,
+            temporal_coarsening_method=self.temporal_coarsening_method,
+            output_features_ind=self.output_features_ind,
+            output_features=self.output_features)
+        return batch
+
+    def __next__(self):
+
+        if self._i < len(self.val_indices):
+            batch = self.get_bin_observation(self._i)
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class BatchHandlerDC(BatchHandler):
+    """Data-centric batch handler"""
+
+    VAL_CLASS = ValidationDataDC
+    BATCH_CLASS = Batch
+    HANDLER_CLASS = DataHandlerDataCentricH5
+
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
+                 means=None, stds=None, norm=True, n_batches=10,
+                 temporal_coarsening_method='subsample', stdevs_file=None,
+                 means_file=None, n_features_per_thread=12, data_split=None):
+        """
+        Parameters
+        ----------
+        data_handlers : list[DataHandler]
+            List of DataHandler instances
+        batch_size : int
+            Number of observations in a batch
+        s_enhance : int
+            Factor by which to coarsen spatial dimensions of the high
+            resolution data to generate low res data
+        t_enhance : int
+            Factor by which to coarsen temporal dimension of the high
+            resolution data to generate low res data
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data
+            features.  If not None and norm is True these will be used for
+            normalization
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data
+            features.  If not None and norm is True these will be used form
+            normalization
+        norm : bool
+            Whether to normalize the data or not
+        n_batches : int
+            Number of batches in an epoch, this sets the iteration limit for
+            this object.
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every t_enhance-th time step, average will
+            average over t_enhance time steps, total will sum over t_enhance
+            time steps
+        stdevs_file : str | None
+            Path to stdevs data or where to save data after calling _get_stats
+        means_file : str | None
+            Path to means data or where to save data after calling _get_stats
+        n_features_per_thread : int
+            Number of features to load from cache in parallel. This number will
+            tell the BatchHandler how to chunk the data handlers so that
+            number_of_features_per_handler * number_of_handlers_per_chunk <=
+            n_features_per_thread.
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
+        """
+
+        handler_shapes = np.array(
+            [d.sample_shape for d in data_handlers])
+        assert np.all(handler_shapes[0] == handler_shapes)
+
+        n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
+        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
+        handler_chunks = np.array_split(data_handlers, n_chunks)
+
+        for j, handler_chunk in enumerate(handler_chunks):
+            futures = {}
+            now = dt.now()
+            for i, d in enumerate(handler_chunk):
+                if d.data is None:
+                    future = threading.Thread(target=d.load_cached_data)
+                    futures[future] = i
+                    future.start()
+
+            logger.info(
+                f'Started loading all data handlers for handler_chunk {j + 1} '
+                f'of {len(handler_chunks)} in {dt.now() - now}. ')
+
+            for i, future in enumerate(futures.keys()):
+                future.join()
+                logger.debug(
+                    f'{i + 1} out of {len(futures)} handlers for handler_chunk'
+                    f' {j + 1} loaded.')
+
+        self.data_handlers = data_handlers
+        logger.debug(f'Finished loading data of shape {self.shape} '
+                     'for BatchHandler.')
+        log_mem(logger)
+
+        self._i = 0
+        self.low_res = None
+        self.high_res = None
+        self.data_handler = None
+        self.batch_size = batch_size
+        self._val_data = None
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
+        self.sample_shape = handler_shapes[0]
+        self.means = means
+        self.stds = stds
+        self.n_batches = n_batches
+        self.temporal_coarsening_method = temporal_coarsening_method
+        self.current_batch_indices = None
+        self.current_handler_index = None
+        self.stdevs_file = stdevs_file
+        self.means_file = means_file
+        self.data_split = data_split
+        self.temporal_bins = self.get_temporal_bins()
+
+        logger.info(
+            'Using a temporal data selection strategy of '
+            f'{[round(w, 3) for w in self.data_split]}')
+
+        if norm:
+            logger.debug('Normalizing data for BatchHandler.')
+            self.means, self.stds = self.check_cached_stats()
+            self.normalize(self.means, self.stds)
+            self.cache_stats()
+
+        logger.debug('Getting validation data for BatchHandler.')
+        self.val_data = self.VAL_CLASS(
+            data_handlers, batch_size=batch_size,
+            s_enhance=s_enhance, t_enhance=t_enhance,
+            temporal_coarsening_method=temporal_coarsening_method,
+            output_features_ind=self.output_features_ind,
+            output_features=self.output_features)
+
+        logger.info('Finished initializing BatchHandler.')
+
+    def update_data_split(self, data_split):
+        """Update the prefered temporal focus for selecting training
+        observations.
+
+        Parameters
+        ----------
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
+
+        Returns
+        -------
+        list
+            List of slices used to select training observations from a specific
+            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
+            then the first training observation will be selected at random from
+            within this temporal range.
+        """
+        self.data_split = data_split
+        self.temporal_bins = self.get_temporal_bins()
+        logger.debug(f'Updated temporal bin weights: {self.data_split}')
+
+    def get_temporal_bins(self):
+        """Get preferred time slices for each batch based on the requested
+        data split. e.g. If the data split was [0.2, 0.8] then this will
+        return 20 percent of n_batches within the first temporal half of
+        the training data set and 80 percent in the 2nd half.
+
+        Returns
+        -------
+        list
+            List of slices used to select training observations from a specific
+            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
+            then the first training observation will be selected at random from
+            within this temporal range.
+        """
+        temporal_bins = []
+        if self.data_split is None:
+            self.data_split = [1]
+        n_steps = self.data_handlers[0].shape[2]
+        chunk_size = int(np.ceil(n_steps / len(self.data_split)))
+        temporal_slices = get_chunk_slices(n_steps, chunk_size)
+        n_slices = [int(self.n_batches * s) for s in self.data_split]
+        n_slices[-1] = self.n_batches - np.sum(n_slices[:-1])
+        for i, n in enumerate(n_slices):
+            temporal_bins += [temporal_slices[i]] * n
+        np.random.shuffle(temporal_bins)
+        return temporal_bins
+
+    @classmethod
+    def init_data_handlers(cls, file_paths, features, targets=None,
+                           shape=None, val_split=0.0,
+                           sample_shape=(10, 10, 10),
+                           max_delta=20,
+                           raster_files=None,
+                           temporal_slice=slice(None),
+                           time_roll=0,
+                           list_chunk_size=None,
+                           max_extract_workers=None,
+                           max_compute_workers=None,
+                           time_chunk_size=100,
+                           cache_file_prefixes=None,
+                           overwrite_cache=False):
+        """
+        Initialize set of data handlers for input to make method
+
+        Parameters
+        ----------
+        file_paths : list
+            list of file paths
+        targets : tuple
+            List of several (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
+        shape : tuple
+            (rows, cols) grid size
+        features : list
+            list of features to extract
+        val_split : float32
+            fraction of data to reserve for validation
+        batch_size : int
+            number of observations in a batch
+        sample_shape : tuple
+            size of spatial and temporal domain used for batching
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
+        raster_files : list | str | None
+            Files for raster_index array for the corresponding targets and
+            shape. If a list these can be different files for different
+            targets. If a string the same file will be used for all targets. If
+            None raster_index will be calculated directly.
+        temporal_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
+        list_chunk_size : int
+            Size of chunks to split file_paths into if a list of files
+            is passed. If None no splitting will be performed.
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
+            max number of workers to use for data extraction.
+            If max_extract_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
+        cache_file_prefixes : list | None
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted.
+        overwrite_cache : bool
+            Whether to overwrite any previously saved cache files.
+
+        Returns
+        -------
+        list
+            List of DataHandler objects used to initialize BatchHandler object
+        """
+
+        check = ((targets is not None and shape is not None)
+                 or raster_files is not None)
+        msg = ('You must either provide the targets+shape inputs '
+               'or the raster_files input.')
+        assert check, msg
+
+        file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
+
+        data_handlers = []
+        if not isinstance(file_paths, list):
+            file_paths = [file_paths]
+
+        for i, f in enumerate(file_paths):
+            cache_file_prefix, raster_file, target = cls.make_inputs(
+                cache_file_prefixes, raster_files, targets, i)
+            data_handlers.append(
+                cls.HANDLER_CLASS(
+                    f, features, target=target,
+                    shape=shape, max_delta=max_delta,
+                    raster_file=raster_file, val_split=val_split,
+                    sample_shape=sample_shape,
+                    temporal_slice=temporal_slice,
+                    time_roll=time_roll,
+                    max_extract_workers=max_extract_workers,
+                    max_compute_workers=max_compute_workers,
+                    time_chunk_size=time_chunk_size,
+                    cache_file_prefix=cache_file_prefix,
+                    overwrite_cache=overwrite_cache))
+        return data_handlers
+
+    @classmethod
+    def make(cls, file_paths, features,
+             targets=None, shape=None, val_split=0.0,
+             sample_shape=(10, 10, 10),
+             s_enhance=3, t_enhance=2,
+             max_delta=20, norm=True,
+             raster_files=None,
+             temporal_slice=slice(None),
+             time_roll=0,
+             batch_size=8, n_batches=10,
+             means=None, stds=None,
+             temporal_coarsening_method='subsample',
+             list_chunk_size=None,
+             max_extract_workers=None,
+             max_compute_workers=None,
+             time_chunk_size=100,
+             cache_file_prefixes=None,
+             overwrite_cache=False,
+             stdevs_file=None,
+             means_file=None,
+             n_features_per_thread=12,
+             data_split=None):
+        """Method to initialize both data and batch handlers
+
+        Parameters
+        ----------
+        file_paths : list
+            list of file paths
+        features : list
+            list of features to extract
+        targets : tuple
+            List of several (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
+        shape : tuple
+            (rows, cols) grid size
+        val_split : float32
+            fraction of data to reserve for validation
+        sample_shape : tuple
+            size of spatial and temporal domain used for batching
+        s_enhance: int
+            factor by which to coarsen spatial dimensions of the high
+            resolution data
+        t_enhance: int
+            factor by which to coarsen temporal dimension of the high
+            resolution data
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
+        norm : bool
+            Wether to normalize data using means/stds calulcated across all
+            handlers
+        raster_files : list | str | None
+            Files for raster_index array for the corresponding targets and
+            shape. If a list these can be different files for different
+            targets. If a string the same file will be used for all targets. If
+            None raster_index will be calculated directly.
+        temporal_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
+        time_roll : int
+            The number of places by which elements are shifted in the time
+            axis. Can be used to convert data to different timezones. This is
+            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+            time_pruning operation.
+        batch_size : int
+            number of observations in a batch
+        n_batches : int
+            Number of batches to iterate through
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features
+            with same ordering as data features
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every t_enhance-th time step, average will
+            average over t_enhance time steps, total will sum over t_enhance
+            time steps
+        list_chunk_size : int
+            Size of chunks to split file_paths into if a list of files is
+            passed. If None no splitting will be performed.
+        max_compute_workers : int | None
+            max number of workers to use for computing features.
+            If max_compute_workers == 1 then extraction will be serialized.
+        max_extract_workers : int | None
+            max number of workers to use for data extraction.
+            If max_extract_workers == 1 then extraction will be serialized.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for data extraction
+        cache_file_prefixes : list | None | bool
+            File prefixes for cached feature data. If None then feature data
+            will be stored in memory while other features are being
+            computed/extracted.
+        overwrite_cache : bool
+            Whether to overwrite any previously saved cache files.
+        stdevs_file : str | None
+            Path to stdevs data or where to save data after calling _get_stats
+        means_file : str | None
+            Path to means data or where to save data after calling _get_stats
+        n_features_per_thread : int
+            Number of features to load from cache in parallel. This number will
+            tell the BatchHandler how to chunk the data handlers so that
+            number_of_features_per_handler * number_of_handlers_per_chunk <=
+            n_features_per_thread.
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
+
+        Returns
+        -------
+        batchHandler : BatchHandler
+            batchHandler with dataHandler attribute
+        """
+
+        data_handlers = cls.init_data_handlers(
+            file_paths, features, val_split=val_split,
+            targets=targets, shape=shape,
+            sample_shape=sample_shape,
+            max_delta=max_delta,
+            raster_files=raster_files,
+            temporal_slice=temporal_slice,
+            time_roll=time_roll,
+            list_chunk_size=list_chunk_size,
+            max_extract_workers=max_extract_workers,
+            max_compute_workers=max_compute_workers,
+            time_chunk_size=time_chunk_size,
+            cache_file_prefixes=cache_file_prefixes,
+            overwrite_cache=overwrite_cache)
+
+        batch_handler = cls(
+            data_handlers, s_enhance=s_enhance,
+            t_enhance=t_enhance, batch_size=batch_size,
+            norm=norm, means=means, stds=stds, n_batches=n_batches,
+            temporal_coarsening_method=temporal_coarsening_method,
+            stdevs_file=stdevs_file, means_file=means_file,
+            n_features_per_thread=n_features_per_thread, data_split=data_split)
+
+        return batch_handler
+
+    def __next__(self):
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            temporal_focus = self.temporal_bins[self._i]
+            handler_index = np.random.randint(0, len(self.data_handlers))
+            self.current_handler_index = handler_index
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.sample_shape[2],
+                                 self.shape[-1]), dtype=np.float32)
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next(temporal_focus)
+                self.current_batch_indices.append(handler.current_obs_index)
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance, t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features)
 
             self._i += 1
             return batch

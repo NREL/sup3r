@@ -365,7 +365,7 @@ class DataHandler(FeatureHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
-    def get_observation_index(self, temporal_focus=slice(None)):
+    def get_observation_index(self):
         """Randomly gets spatial sample and time sample
 
         Returns
@@ -373,16 +373,13 @@ class DataHandler(FeatureHandler):
         observation_index : tuple
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
-        temporal_focus : slice
-            Slice used to select prefered temporal range from full extent
         """
         spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2],
-                                              temporal_focus=temporal_focus)
+        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
-    def get_next(self, temporal_focus=slice(None)):
+    def get_next(self):
         """Gets data for observation using random observation index. Loops
         repeatedly over randomized time index
 
@@ -391,10 +388,8 @@ class DataHandler(FeatureHandler):
         observation : np.ndarray
             4D array
             (spatial_1, spatial_2, temporal, features)
-        temporal_focus : slice
-            Slice used to select prefered temporal range from full extent
         """
-        self.current_obs_index = self.get_observation_index(temporal_focus)
+        self.current_obs_index = self.get_observation_index()
         observation = self.data[self.current_obs_index]
         return observation
 
@@ -1128,3 +1123,40 @@ class DataHandlerNsrdb(DataHandlerH5):
         self.time_index = self.time_index[slice(val_split_index, None)]
 
         return self.data, self.val_data
+
+
+class DataHandlerDataCentricH5(DataHandlerH5):
+    """Data-centric data handler"""
+
+    def get_observation_index(self, temporal_focus=slice(None)):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        temporal_focus : slice
+            Slice used to select prefered temporal range from full extent
+        """
+        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
+        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2],
+                                              temporal_focus=temporal_focus)
+        return tuple(
+            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
+
+    def get_next(self, temporal_focus=slice(None)):
+        """Gets data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        temporal_focus : slice
+            Slice used to select prefered temporal range from full extent
+        """
+        self.current_obs_index = self.get_observation_index(temporal_focus)
+        observation = self.data[self.current_obs_index]
+        return observation

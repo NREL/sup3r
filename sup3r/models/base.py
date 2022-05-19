@@ -1265,29 +1265,6 @@ class Sup3rGan:
 
         return weight_gen_advers
 
-    def calc_time_bin_loss(self):
-        """Calculate loss across time bins. e.g. Get the loss across time step
-        0 to 100, 100 to 200, etc. Use this to determine performance within
-        time bins and to update how observations are selected from these bins
-        """
-        raise NotImplementedError
-
-    def update_data_split(self, batch_handler):
-        """Calculate loss across time bins and use this to get a new
-        data split for how to select observations within those bins. Update
-        the batch handler with this new data split.
-
-        Parameters
-        ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
-            BatchHandler object to iterate through
-
-        Raises
-        ------
-        NotImplementedError
-        """
-        raise NotImplementedError
-
     def train(self, batch_handler, n_epoch,
               weight_gen_advers=0.001,
               train_gen=True,
@@ -1405,8 +1382,6 @@ class Sup3rGan:
             weight_gen_advers = self.update_adversarial_weights(
                 self.history, adaptive_update_fraction, adaptive_update_bounds,
                 weight_gen_advers, train_disc)
-
-            self.update_data_split(batch_handler)
 
             if stop:
                 break

@@ -177,9 +177,9 @@ def uniform_time_sampler(data, shape, temporal_focus=slice(None)):
     t_indices = t_indices[temporal_focus]
     if len(t_indices) <= shape:
         start = t_indices[0]
-        stop = len(t_indices)
+        stop = t_indices[-1] + 1
     else:
-        start = np.random.randint(t_indices[0], len(t_indices) - shape)
+        start = np.random.randint(t_indices[0], t_indices[-1] + 1 - shape)
         stop = start + shape
     return slice(start, stop)
 
