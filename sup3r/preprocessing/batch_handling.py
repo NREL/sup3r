@@ -503,7 +503,10 @@ class BatchHandler:
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.data_split = data_split
-        self.temporal_focus_slices = None
+        self.temporal_bins = self.get_temporal_bins()
+
+        logger.info(
+            f'Using a temporal data selection strategy of {self.data_split}')
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
@@ -545,9 +548,9 @@ class BatchHandler:
             within this temporal range.
         """
         self.data_split = data_split
-        self.temporal_focus_slices = self.get_temporal_focus_slices()
+        self.temporal_bins = self.get_temporal_bins()
 
-    def get_temporal_focus_slices(self):
+    def get_temporal_bins(self):
         """Get preferred time slices for each batch based on the requested
         data split. e.g. If the data split was [0.2, 0.8] then this will
         return 20 percent of n_batches within the first temporal half of
@@ -561,7 +564,7 @@ class BatchHandler:
             then the first training observation will be selected at random from
             within this temporal range.
         """
-        self.temporal_focus_slices = []
+        temporal_bins = []
         if self.data_split is None:
             self.data_split = [1]
         n_steps = self.data_handlers.shape[2]
@@ -570,9 +573,9 @@ class BatchHandler:
         n_slices = [int(self.n_batches * s) for s in self.data_split]
         n_slices[-1] = self.n_batches - np.sum(n_slices[:-1])
         for i, n in enumerate(n_slices):
-            self.temporal_focus_slices += [n] * temporal_slices[i]
-        np.shuffle(self.temporal_focus_slices)
-        return self.temporal_focus_slices
+            temporal_bins += [n] * temporal_slices[i]
+        np.shuffle(self.temporal_bins)
+        return temporal_bins
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -813,7 +816,8 @@ class BatchHandler:
              overwrite_cache=False,
              stdevs_file=None,
              means_file=None,
-             n_features_per_thread=12):
+             n_features_per_thread=12,
+             data_split=None):
         """Method to initialize both data and batch handlers
 
         Parameters
@@ -901,6 +905,14 @@ class BatchHandler:
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
+        data_split : list | None
+            List specifying how to perferentially split temporal extent for
+            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
+            time steps in the training data set is 500, this means 100
+            percent of the training observations will be selected from between
+            time step 200 and time step 300. If None this is the same as [1].
+            All observations will be selected from between the first and last
+            time step.
 
         Returns
         -------
@@ -929,7 +941,7 @@ class BatchHandler:
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method,
             stdevs_file=stdevs_file, means_file=means_file,
-            n_features_per_thread=n_features_per_thread)
+            n_features_per_thread=n_features_per_thread, data_split=data_split)
 
         return batch_handler
 
