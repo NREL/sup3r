@@ -214,12 +214,15 @@ class ForwardPassStrategy:
                       len(ts_indices[temporal_slice]))
         out = self.get_chunk_slices(data_shape=data_shape)
         lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
-
+        chunk_shape = (lr_slices[0][0].stop - lr_slices[0][0].start,
+                       lr_slices[0][1].stop - lr_slices[0][1].start,
+                       data_shape[2])
         kwargs = dict(
             file_paths=file_paths, cropped_file_slice=cropped_file_slice,
             file_id=file_id, out_file=out_file, temporal_slice=temporal_slice,
             lr_slices=lr_slices, lr_pad_slices=lr_pad_slices,
-            hr_slices=hr_slices, hr_crop_slices=hr_crop_slices)
+            hr_slices=hr_slices, hr_crop_slices=hr_crop_slices,
+            data_shape=data_shape, chunk_shape=chunk_shape)
         return kwargs
 
     def __iter__(self):
@@ -290,6 +293,8 @@ class ForwardPassStrategy:
             for file_id in file_ids:
                 out_files.append(
                     f'{out_file_prefix}_{file_id}.pkl')
+        else:
+            out_files = [None] * len(file_ids)
         return out_files
 
     @staticmethod
@@ -396,23 +401,15 @@ class ForwardPassStrategy:
             when forward passes are performed on overlapping chunks
         """
 
-        n_chunks = int(np.ceil(data_shape[0]
-                       / self.forward_pass_chunk_shape[0]))
-        s1_slices = np.array_split(np.arange(data_shape[0]), n_chunks)
-        s1_slices = [slice(s1[0], s1[-1] + 1) for s1 in s1_slices]
-
-        n_chunks = int(np.ceil(data_shape[1]
-                       / self.forward_pass_chunk_shape[1]))
-        s2_slices = np.array_split(np.arange(data_shape[1]), n_chunks)
-        s2_slices = [slice(s2[0], s2[-1] + 1) for s2 in s2_slices]
-
+        s1_slices = get_chunk_slices(data_shape[0],
+                                     self.forward_pass_chunk_shape[0])
+        s2_slices = get_chunk_slices(data_shape[1],
+                                     self.forward_pass_chunk_shape[1])
         if self.file_t_steps < self.forward_pass_chunk_shape[2]:
             t_slices = [slice(None)]
         else:
-            n_chunks = int(np.ceil(data_shape[2]
-                           / self.forward_pass_chunk_shape[2]))
-            t_slices = np.array_split(np.arange(data_shape[2]), n_chunks)
-            t_slices = [slice(t[0], t[-1] + 1) for t in t_slices]
+            t_slices = get_chunk_slices(data_shape[2],
+                                        self.forward_pass_chunk_shape[2])
 
         lr_pad_slices = []
         lr_slices = []
@@ -613,18 +610,23 @@ class ForwardPass:
         self.features = Sup3rGan.load(model_path).training_features
         self.run_index = run_index
 
-        file_slice = self.strategy.padded_file_slices[self.run_index]
-        file_paths = self.strategy.file_paths[file_slice]
-        temporal_slice = self.strategy.temporal_slices[self.run_index]
-        self.crop_slice = self.strategy.cropped_file_slices[self.run_index]
-        ts_indices = np.arange(len(file_paths) * self.strategy.file_t_steps)
+        kwargs = strategy.get_kwargs(run_index)
 
-        self.data_shape = (self.strategy.shape[0], self.strategy.shape[1],
-                           len(ts_indices[temporal_slice]))
+        self.file_paths = kwargs['file_paths']
+        self.cropped_file_slice = kwargs['cropped_file_slice']
+        self.file_id = kwargs['file_id']
+        self.out_file = kwargs['out_file']
+        self.temporal_slice = kwargs['temporal_slice']
+        self.lr_slices = kwargs['lr_slices']
+        self.lr_pad_slices = kwargs['lr_pad_slices']
+        self.hr_slices = kwargs['hr_slices']
+        self.hr_crop_slices = kwargs['hr_crop_slices']
+        self.data_shape = kwargs['data_shape']
+        self.chunk_shape = kwargs['chunk_shape']
 
         self.data_handler = DataHandlerNC(
-            file_paths, self.features, target=self.strategy.target,
-            shape=self.strategy.shape, temporal_slice=temporal_slice,
+            self.file_paths, self.features, target=self.strategy.target,
+            shape=self.strategy.shape, temporal_slice=self.temporal_slice,
             raster_file=self.strategy.raster_file,
             max_extract_workers=self.strategy.max_extract_workers,
             max_compute_workers=self.strategy.max_compute_workers,
@@ -666,7 +668,7 @@ class ForwardPass:
 
         return hi_res[0][crop_slices]
 
-    def run(self, out_file=None):
+    def run(self):
         """
         ForwardPass is initialized with a file_slice_index. This index selects
         a file subset from the full file list in ForwardPassStrategy. This
@@ -680,17 +682,12 @@ class ForwardPass:
             an array instead of saved.
         """
 
-        out = self.strategy.get_chunk_slices(data_shape=self.data_shape)
-        lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
-
-        chunk_shape = (lr_slices[0][0].stop - lr_slices[0][0].start,
-                       lr_slices[0][1].stop - lr_slices[0][1].start,
-                       self.data_shape[2])
         logger.info(
             f'Starting forward passes on data shape {self.data_shape}. Using '
-            f'{len(lr_slices)} chunks each with shape of {chunk_shape}, '
-            f'spatial_overlap of {self.strategy.spatial_overlap} and '
-            f'temporal_overlap of {self.strategy.temporal_overlap}')
+            f'{len(self.lr_slices)} chunks each with shape of '
+            f'{self.chunk_shape}, spatial_overlap of '
+            f'{self.strategy.spatial_overlap} and temporal_overlap of '
+            f'{self.strategy.temporal_overlap}')
 
         data = np.zeros(
             (self.strategy.s_enhance * self.data_shape[0],
@@ -699,8 +696,9 @@ class ForwardPass:
             dtype=np.float32)
 
         if self.strategy.max_pass_workers == 1:
-            for s_high, s_low_pad, s_high_crop in zip(hr_slices, lr_pad_slices,
-                                                      hr_crop_slices):
+            for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
+                                                      self.lr_pad_slices,
+                                                      self.hr_crop_slices):
 
                 data_chunk = self.data_handler.data[s_low_pad]
                 data[s_high] = ForwardPass.forward_pass_chunk(
@@ -711,9 +709,9 @@ class ForwardPass:
             now = dt.now()
             with SpawnProcessPool(
                     max_workers=self.strategy.max_pass_workers) as exe:
-                for s_high, s_low_pad, s_high_crop in zip(hr_slices,
-                                                          lr_pad_slices,
-                                                          hr_crop_slices):
+                for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
+                                                          self.lr_pad_slices,
+                                                          self.hr_crop_slices):
 
                     data_chunk = self.data_handler.data[s_low_pad]
                     future = exe.submit(ForwardPass.forward_pass_chunk,
@@ -723,8 +721,8 @@ class ForwardPass:
                     meta = {'s_high': s_high}
                     futures[future] = meta
 
-                logger.info(f'Started forward pass for {len(hr_slices)} chunks'
-                            f' in {dt.now() - now}.')
+                logger.info(f'Started forward pass for {len(self.hr_slices)} '
+                            f'chunks in {dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
                     slices = futures[future]
@@ -737,9 +735,9 @@ class ForwardPass:
 
         data = data[:, :, self.crop_slice, :]
 
-        if out_file is not None:
-            with open(out_file, 'wb') as fh:
-                logger.info(f'Saving forward pass output to {out_file}.')
+        if self.out_file is not None:
+            with open(self.out_file, 'wb') as fh:
+                logger.info(f'Saving forward pass output to {self.out_file}.')
                 pickle.dump(data, fh)
         else:
             return data
