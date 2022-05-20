@@ -26,16 +26,6 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Node:
-    """Class to store kwargs for a given node. Used in the sup3r cli to
-    initialize forward pass runs from config"""
-    def __init__(self, kwargs=None):
-        if kwargs is None:
-            self.kwargs = {}
-        else:
-            self.kwargs = kwargs
-
-
 class ForwardPassStrategy:
     """Class to prepare data for forward passes through generator.
 
@@ -204,6 +194,11 @@ class ForwardPassStrategy:
             Dictionary containing the node specific variables
         """
 
+        if run_index >= len(self.file_ids):
+            msg = (f'Index is out of bounds. There are {len(self.file_ids)} '
+                   f'file chunks and the index requested was {run_index}.')
+            raise ValueError(msg)
+
         file_paths = self.file_paths[self.padded_file_slices[run_index]]
         cropped_file_slice = self.cropped_file_slices[run_index]
         file_id = self.file_ids[run_index]
@@ -234,8 +229,8 @@ class ForwardPassStrategy:
 
         Returns
         -------
-        Node
-            Node class storing kwargs for ForwardPass initialization from
+        kwargs : dict
+            Dictionary storing kwargs for ForwardPass initialization from
             config
 
         Raises
@@ -245,9 +240,9 @@ class ForwardPassStrategy:
         """
 
         if self._i < len(self.file_slices):
-            node = Node(self.get_kwargs(self._i))
+            kwargs = self.get_kwargs(self._i)
             self._i += 1
-            return node
+            return kwargs
         else:
             raise StopIteration
 
