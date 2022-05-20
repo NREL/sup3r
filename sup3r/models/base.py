@@ -693,7 +693,7 @@ class Sup3rGan:
 
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
-                                   update_bounds=(0.5, 0.99),
+                                   update_bounds=(0.5, 0.95),
                                    update_frac=0.05):
         """Get the factor by which to multiply previous adversarial loss
         weight
@@ -1275,7 +1275,7 @@ class Sup3rGan:
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.99),
+              adaptive_update_bounds=(0.5, 0.95),
               adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 

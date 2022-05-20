@@ -153,6 +153,48 @@ def uniform_box_sampler(data, shape):
     return slices
 
 
+def weighted_time_sampler(data, shape, weights):
+    """Extracts a temporal slice from data with selection weighted based on
+    provided weights
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (time_steps) Size of time slice to sample
+        from data
+    weights : list
+        List of weights used to specify selection strategy. e.g. If weights
+        is [0.2, 0.8] then the start of the temporal slice will be selected
+        from the first half of the temporal extent with 0.8 probability and
+        0.2 probability for the second half.
+
+    Returns
+    -------
+    slice : slice
+        time slice with size shape
+    """
+    t_indices = np.arange(0, data.shape[2])
+
+    if len(t_indices) <= shape:
+        start = t_indices[0]
+        stop = t_indices[-1] + 1
+    else:
+        t_indices[-shape:] = t_indices[-shape]
+        t_chunks = np.array_split(t_indices, len(weights))
+        weight_list = []
+
+        for i, w in enumerate(weights):
+            weight_list += [w] * len(t_chunks[i])
+
+        weight_list /= np.sum(weight_list)
+        start = np.random.choice(t_indices, p=weight_list)
+        stop = start + shape
+    return slice(start, stop)
+
+
 def uniform_time_sampler(data, shape, temporal_focus=slice(None)):
     '''Extracts a temporal slice from data.
 

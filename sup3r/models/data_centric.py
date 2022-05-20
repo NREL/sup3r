@@ -6,7 +6,6 @@ import time
 import logging
 import pandas as pd
 
-from sup3r.models.base import Sup3rGan
 from sup3r.models.modified_loss import Sup3rGanMMD
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class Sup3rGanDC(Sup3rGanMMD):
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.99),
+              adaptive_update_bounds=(0.5, 0.95),
               adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 
@@ -125,19 +124,21 @@ class Sup3rGanDC(Sup3rGanMMD):
                                             disc_loss_bounds)
 
             temporal_losses = self.calc_time_bin_loss(batch_handler)
-            new_data_split = temporal_losses / np.sum(temporal_losses)
-            batch_handler.update_data_split(new_data_split)
+            new_temporal_weights = temporal_losses / np.sum(temporal_losses)
+            batch_handler.update_temporal_weights(new_temporal_weights)
 
-            loss_details['mean_temporal_val_loss'] = np.mean(temporal_losses)
+            loss_details['mean_val_loss'] = np.mean(temporal_losses)
+            loss_details['temporal_weights'] = [round(w, 3) for w
+                                                in new_temporal_weights]
 
             logger.info('Epoch {} of {} '
                         'generator train loss: {:.2e} '
                         'discriminator train loss: {:.2e} '
-                        'mean temporal val loss: {:.2e}'
+                        'mean gen val loss: {:.2e}'
                         .format(epoch, epochs[-1],
                                 loss_details['train_loss_gen'],
                                 loss_details['train_loss_disc'],
-                                loss_details['mean_temporal_val_loss'],
+                                loss_details['mean_val_loss'],
                                 ))
 
             lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']

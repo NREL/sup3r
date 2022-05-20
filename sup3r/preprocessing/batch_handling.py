@@ -13,7 +13,8 @@ import pickle
 
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (daily_time_sampler, get_chunk_slices,
+from sup3r.utilities.utilities import (daily_time_sampler,
+                                       weighted_time_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        uniform_box_sampler,
@@ -238,11 +239,11 @@ class ValidationData:
         assert np.all(handler_shapes[0] == handler_shapes)
 
         self.handlers = data_handlers
+        self.batch_size = batch_size
         self.sample_shape = handler_shapes[0]
         self.val_indices = self._get_val_indices()
         self.max = np.ceil(
             len(self.val_indices) / (batch_size))
-        self.batch_size = batch_size
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self._remaining_observations = len(self.val_indices)
@@ -1146,18 +1147,22 @@ class ValidationDataDC(ValidationData):
         chunks = np.array_split(time_indices, 12)
         time_bins = [slice(t[0], t[-1] + 1) for t in chunks]
 
-        val_indices = []
-        for _, time_bin in enumerate(time_bins):
+        val_indices = {}
+        for t, time_bin in enumerate(time_bins):
+            val_indices[t] = []
             h_idx = np.random.choice(np.arange(len(self.handlers)))
             h = self.handlers[h_idx]
-            spatial_slice = uniform_box_sampler(
-                h.data, self.sample_shape[:2])
-            temporal_slice = uniform_time_sampler(
-                h.data, self.sample_shape[2], temporal_focus=time_bin)
-            tuple_index = tuple(spatial_slice + [temporal_slice]
-                                + [np.arange(h.data.shape[-1])])
-            val_indices.append({'handler_index': h_idx,
-                                'tuple_index': tuple_index})
+            for _ in range(self.batch_size):
+                spatial_slice = uniform_box_sampler(
+                    h.data, self.sample_shape[:2])
+                weights = np.zeros(len(time_bins))
+                weights[t] = 1
+                temporal_slice = weighted_time_sampler(
+                    h.data, self.sample_shape[2], weights)
+                tuple_index = tuple(spatial_slice + [temporal_slice]
+                                    + [np.arange(h.data.shape[-1])])
+                val_indices[t].append({'handler_index': h_idx,
+                                       'tuple_index': tuple_index})
         return val_indices
 
     def get_bin_observation(self, t):
@@ -1174,10 +1179,15 @@ class ValidationDataDC(ValidationData):
             validation data batch with low and high res data each with
             n_observations = batch_size
         """
-        val_index = self.val_indices[t]
-        high_res = self.handlers[
-            val_index['handler_index']].data[val_index['tuple_index']]
-        high_res = np.expand_dims(high_res, axis=0)
+        high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                             self.sample_shape[1],
+                             self.sample_shape[2],
+                             self.handlers[0].shape[-1]),
+                            dtype=np.float32)
+        val_indices = self.val_indices[t]
+        for i, idx in enumerate(val_indices):
+            high_res[i, ...] = self.handlers[
+                idx['handler_index']].data[idx['tuple_index']]
 
         batch = self.BATCH_CLASS.get_coarse_batch(
             high_res, self.s_enhance, t_enhance=self.t_enhance,
@@ -1188,7 +1198,7 @@ class ValidationDataDC(ValidationData):
 
     def __next__(self):
 
-        if self._i < len(self.val_indices):
+        if self._i < len(self.val_indices.keys()):
             batch = self.get_bin_observation(self._i)
             self._i += 1
             return batch
@@ -1206,7 +1216,8 @@ class BatchHandlerDC(BatchHandler):
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12, data_split=None):
+                 means_file=None, n_features_per_thread=12,
+                 temporal_weights=None):
         """
         Parameters
         ----------
@@ -1249,10 +1260,10 @@ class BatchHandlerDC(BatchHandler):
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
-        data_split : list | None
+        temporal_weights : list | None
             List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
+            training. e.g. If temporal_weights = [0, 0, 1, 0, 0] and the number
+            of time steps in the training data set is 500, this means 100
             percent of the training observations will be selected from between
             time step 200 and time step 300. If None this is the same as [1].
             All observations will be selected from between the first and last
@@ -1308,12 +1319,11 @@ class BatchHandlerDC(BatchHandler):
         self.current_handler_index = None
         self.stdevs_file = stdevs_file
         self.means_file = means_file
-        self.data_split = data_split
-        self.temporal_bins = self.get_temporal_bins()
+        self.temporal_weights = temporal_weights
 
         logger.info(
-            'Using a temporal data selection strategy of '
-            f'{[round(w, 3) for w in self.data_split]}')
+            'Using temporal weights: '
+            f'{[round(w, 3) for w in self.temporal_weights]}')
 
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
@@ -1331,16 +1341,16 @@ class BatchHandlerDC(BatchHandler):
 
         logger.info('Finished initializing BatchHandler.')
 
-    def update_data_split(self, data_split):
+    def update_temporal_weights(self, temporal_weights):
         """Update the prefered temporal focus for selecting training
         observations.
 
         Parameters
         ----------
-        data_split : list | None
+        temporal_weights : list | None
             List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
+            training. e.g. If temporal_weights = [0, 0, 1, 0, 0] and the number
+            of time steps in the training data set is 500, this means 100
             percent of the training observations will be selected from between
             time step 200 and time step 300. If None this is the same as [1].
             All observations will be selected from between the first and last
@@ -1354,36 +1364,10 @@ class BatchHandlerDC(BatchHandler):
             then the first training observation will be selected at random from
             within this temporal range.
         """
-        self.data_split = data_split
-        self.temporal_bins = self.get_temporal_bins()
-        logger.debug(f'Updated temporal bin weights: {self.data_split}')
-
-    def get_temporal_bins(self):
-        """Get preferred time slices for each batch based on the requested
-        data split. e.g. If the data split was [0.2, 0.8] then this will
-        return 20 percent of n_batches within the first temporal half of
-        the training data set and 80 percent in the 2nd half.
-
-        Returns
-        -------
-        list
-            List of slices used to select training observations from a specific
-            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
-            then the first training observation will be selected at random from
-            within this temporal range.
-        """
-        temporal_bins = []
-        if self.data_split is None:
-            self.data_split = [1]
-        n_steps = self.data_handlers[0].shape[2]
-        chunk_size = int(np.ceil(n_steps / len(self.data_split)))
-        temporal_slices = get_chunk_slices(n_steps, chunk_size)
-        n_slices = [int(self.n_batches * s) for s in self.data_split]
-        n_slices[-1] = self.n_batches - np.sum(n_slices[:-1])
-        for i, n in enumerate(n_slices):
-            temporal_bins += [temporal_slices[i]] * n
-        np.random.shuffle(temporal_bins)
-        return temporal_bins
+        self.temporal_weights = temporal_weights
+        msg = ('Updated temporal bin weights: '
+               f'{[round(w, 3) for w in self.temporal_weights]}')
+        logger.debug(msg)
 
     @classmethod
     def init_data_handlers(cls, file_paths, features, targets=None,
@@ -1513,7 +1497,7 @@ class BatchHandlerDC(BatchHandler):
              stdevs_file=None,
              means_file=None,
              n_features_per_thread=12,
-             data_split=None):
+             temporal_weights=None):
         """Method to initialize both data and batch handlers
 
         Parameters
@@ -1601,10 +1585,10 @@ class BatchHandlerDC(BatchHandler):
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
-        data_split : list | None
+        temporal_weights : list | None
             List specifying how to perferentially split temporal extent for
-            training. e.g. If data_split = [0, 0, 1, 0, 0] and the number of
-            time steps in the training data set is 500, this means 100
+            training. e.g. If temporal_weights = [0, 0, 1, 0, 0] and the number
+            of time steps in the training data set is 500, this means 100
             percent of the training observations will be selected from between
             time step 200 and time step 300. If None this is the same as [1].
             All observations will be selected from between the first and last
@@ -1637,14 +1621,14 @@ class BatchHandlerDC(BatchHandler):
             norm=norm, means=means, stds=stds, n_batches=n_batches,
             temporal_coarsening_method=temporal_coarsening_method,
             stdevs_file=stdevs_file, means_file=means_file,
-            n_features_per_thread=n_features_per_thread, data_split=data_split)
+            n_features_per_thread=n_features_per_thread,
+            temporal_weights=temporal_weights)
 
         return batch_handler
 
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            temporal_focus = self.temporal_bins[self._i]
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
@@ -1653,7 +1637,7 @@ class BatchHandlerDC(BatchHandler):
                                  self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next(temporal_focus)
+                high_res[i, ...] = handler.get_next(self.temporal_weights)
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(

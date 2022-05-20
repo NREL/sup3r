@@ -18,8 +18,10 @@ import warnings
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (get_chunk_slices, uniform_box_sampler,
+from sup3r.utilities.utilities import (get_chunk_slices,
+                                       uniform_box_sampler,
                                        uniform_time_sampler,
+                                       weighted_time_sampler,
                                        daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
@@ -1128,7 +1130,7 @@ class DataHandlerNsrdb(DataHandlerH5):
 class DataHandlerDataCentricH5(DataHandlerH5):
     """Data-centric data handler"""
 
-    def get_observation_index(self, temporal_focus=slice(None)):
+    def get_observation_index(self, temporal_weights):
         """Randomly gets spatial sample and time sample
 
         Returns
@@ -1140,12 +1142,12 @@ class DataHandlerDataCentricH5(DataHandlerH5):
             Slice used to select prefered temporal range from full extent
         """
         spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2],
-                                              temporal_focus=temporal_focus)
+        temporal_slice = weighted_time_sampler(self.data, self.sample_shape[2],
+                                               weights=temporal_weights)
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
-    def get_next(self, temporal_focus=slice(None)):
+    def get_next(self, temporal_weights):
         """Gets data for observation using random observation index. Loops
         repeatedly over randomized time index
 
@@ -1157,6 +1159,6 @@ class DataHandlerDataCentricH5(DataHandlerH5):
         temporal_focus : slice
             Slice used to select prefered temporal range from full extent
         """
-        self.current_obs_index = self.get_observation_index(temporal_focus)
+        self.current_obs_index = self.get_observation_index(temporal_weights)
         observation = self.data[self.current_obs_index]
         return observation
