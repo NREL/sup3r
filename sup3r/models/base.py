@@ -724,13 +724,11 @@ class Sup3rGan:
         float
             Factor by which to multiply old weight to get updated weight
         """
-        val = history[comparison_key]
-        logger.info(f'Average value of {comparison_key} over the previous '
-                    f'epoch: {round(val, 3)}')
+        val = list(history[comparison_key])[-1]
         if val < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
-            return 1 / (1 + update_frac)
+            return 1 - update_frac
         else:
             return 1
 
