@@ -15,25 +15,31 @@ class Sup3rGanDC(Sup3rGanMMD):
     """Data-centric model using loss across time bins to select training
     observations"""
 
-    def calc_time_bin_loss(self, batch_handler):
+    def calc_time_bin_loss(self, batch_handler, weight_gen_advers):
         """Calculate loss across time bins. e.g. Get the loss across time step
         0 to 100, 100 to 200, etc. Use this to determine performance within
-        time bins and to update how observations are selected from these bins
+        time bins and to update how observations are selected from these bins.
+        Loss is calculated using just content loss.
 
         Parameters
         ----------
         batch_handler : sup3r.data_handling.preprocessing.BatchHandler
             BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
 
         Returns
         -------
         list
-            List of normalized losses for all time bins
+            List of losses for all time bins
         """
         losses = []
         for obs in batch_handler.val_data:
             gen = self._tf_generate(obs.low_res)
-            loss = self.calc_loss_gen_content(obs.high_res, gen)
+            loss, _ = self.calc_loss(obs.high_res, gen,
+                                     weight_gen_advers=weight_gen_advers,
+                                     train_gen=True, train_disc=True)
             losses.append(loss)
         return losses
 
@@ -123,13 +129,12 @@ class Sup3rGanDC(Sup3rGanMMD):
                                             train_gen, train_disc,
                                             disc_loss_bounds)
 
-            temporal_losses = self.calc_time_bin_loss(batch_handler)
+            temporal_losses = self.calc_time_bin_loss(batch_handler,
+                                                      weight_gen_advers)
             new_temporal_weights = temporal_losses / np.sum(temporal_losses)
             batch_handler.update_temporal_weights(new_temporal_weights)
 
             loss_details['mean_val_loss'] = np.mean(temporal_losses)
-            loss_details['temporal_weights'] = [round(w, 3) for w
-                                                in new_temporal_weights]
 
             logger.info('Epoch {} of {} '
                         'generator train loss: {:.2e} '

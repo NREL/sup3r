@@ -1105,23 +1105,20 @@ class SpatialBatchHandler(BatchHandler):
             batchHandler with dataHandler attribute
         """
 
-        data_handlers = cls.init_data_handlers(
-            file_paths, features,
-            targets=targets, shape=shape, val_split=val_split,
+        batch_handler = super().make(
+            file_paths=file_paths, features=features, targets=targets,
+            shape=shape, val_split=val_split,
             sample_shape=(sample_shape[0], sample_shape[1], 1),
-            max_delta=max_delta,
-            raster_files=raster_files,
+            max_delta=max_delta, raster_files=raster_files,
             temporal_slice=temporal_slice,
-            time_roll=time_roll,
-            list_chunk_size=list_chunk_size,
+            time_roll=time_roll, list_chunk_size=list_chunk_size,
             max_extract_workers=max_extract_workers,
             max_compute_workers=max_compute_workers,
             time_chunk_size=time_chunk_size,
-            cache_file_prefixes=cache_file_prefixes)
+            cache_file_prefixes=cache_file_prefixes,
+            s_enhance=s_enhance, t_enhance=1, batch_size=batch_size,
+            norm=norm, means=means, stds=stds, n_batches=n_batches)
 
-        batch_handler = cls(data_handlers, s_enhance=s_enhance, t_enhance=1,
-                            batch_size=batch_size, norm=norm, means=means,
-                            stds=stds, n_batches=n_batches)
         return batch_handler
 
     def __next__(self):
@@ -1179,41 +1176,23 @@ class ValidationDataDC(ValidationData):
                                        'tuple_index': tuple_index})
         return val_indices
 
-    def get_bin_observation(self, t):
-        """Get validation data batch
-
-        Returns
-        -------
-        Parameters
-        ----------
-        t : int
-            Index for time bin to select observation from
-
-        batch : Batch
-            validation data batch with low and high res data each with
-            n_observations = batch_size
-        """
-        high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                             self.sample_shape[1],
-                             self.sample_shape[2],
-                             self.handlers[0].shape[-1]),
-                            dtype=np.float32)
-        val_indices = self.val_indices[t]
-        for i, idx in enumerate(val_indices):
-            high_res[i, ...] = self.handlers[
-                idx['handler_index']].data[idx['tuple_index']]
-
-        batch = self.BATCH_CLASS.get_coarse_batch(
-            high_res, self.s_enhance, t_enhance=self.t_enhance,
-            temporal_coarsening_method=self.temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
-            output_features=self.output_features)
-        return batch
-
     def __next__(self):
-
         if self._i < len(self.val_indices.keys()):
-            batch = self.get_bin_observation(self._i)
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1],
+                                 self.sample_shape[2],
+                                 self.handlers[0].shape[-1]),
+                                dtype=np.float32)
+            val_indices = self.val_indices[self._i]
+            for i, idx in enumerate(val_indices):
+                high_res[i, ...] = self.handlers[
+                    idx['handler_index']].data[idx['tuple_index']]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance, t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features)
             self._i += 1
             return batch
         else:
@@ -1274,69 +1253,13 @@ class BatchHandlerDC(BatchHandler):
             n_features_per_thread.
         """
 
-        handler_shapes = np.array(
-            [d.sample_shape for d in data_handlers])
-        assert np.all(handler_shapes[0] == handler_shapes)
-
-        n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
-        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
-        handler_chunks = np.array_split(data_handlers, n_chunks)
-
-        for j, handler_chunk in enumerate(handler_chunks):
-            futures = {}
-            now = dt.now()
-            for i, d in enumerate(handler_chunk):
-                if d.data is None:
-                    future = threading.Thread(target=d.load_cached_data)
-                    futures[future] = i
-                    future.start()
-
-            logger.info(
-                f'Started loading all data handlers for handler_chunk {j + 1} '
-                f'of {len(handler_chunks)} in {dt.now() - now}. ')
-
-            for i, future in enumerate(futures.keys()):
-                future.join()
-                logger.debug(
-                    f'{i + 1} out of {len(futures)} handlers for handler_chunk'
-                    f' {j + 1} loaded.')
-
-        self.data_handlers = data_handlers
-        logger.debug(f'Finished loading data of shape {self.shape} '
-                     'for BatchHandler.')
-        log_mem(logger)
-
-        self._i = 0
-        self.low_res = None
-        self.high_res = None
-        self.data_handler = None
-        self.batch_size = batch_size
-        self._val_data = None
-        self.s_enhance = s_enhance
-        self.t_enhance = t_enhance
-        self.sample_shape = handler_shapes[0]
-        self.means = means
-        self.stds = stds
-        self.n_batches = n_batches
-        self.temporal_coarsening_method = temporal_coarsening_method
-        self.current_batch_indices = None
-        self.current_handler_index = None
-        self.stdevs_file = stdevs_file
-        self.means_file = means_file
-
-        if norm:
-            logger.debug('Normalizing data for BatchHandler.')
-            self.means, self.stds = self.check_cached_stats()
-            self.normalize(self.means, self.stds)
-            self.cache_stats()
-
-        logger.debug('Getting validation data for BatchHandler.')
-        self.val_data = self.VAL_CLASS(
-            data_handlers, batch_size=batch_size,
-            s_enhance=s_enhance, t_enhance=t_enhance,
-            temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
-            output_features=self.output_features)
+        super().__init__(data_handlers=data_handlers, batch_size=batch_size,
+                         s_enhance=s_enhance, t_enhance=t_enhance,
+                         means=means, stds=stds, norm=norm,
+                         n_batches=n_batches,
+                         temporal_coarsening_method=temporal_coarsening_method,
+                         stdevs_file=stdevs_file, means_file=means_file,
+                         n_features_per_thread=n_features_per_thread)
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
@@ -1344,8 +1267,6 @@ class BatchHandlerDC(BatchHandler):
         logger.info(
             'Using temporal weights: '
             f'{[round(w, 3) for w in self.temporal_weights]}')
-
-        logger.info('Finished initializing BatchHandler.')
 
     def update_temporal_weights(self, temporal_weights):
         """Update the prefered temporal focus for selecting training

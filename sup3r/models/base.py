@@ -1261,7 +1261,7 @@ class Sup3rGan:
 
             if update_frac != 1:
                 logger.debug(
-                    f'New discriminator weight: {weight_gen_advers}')
+                    f'New discriminator weight: {round(weight_gen_advers, 3)}')
 
         return weight_gen_advers
 
