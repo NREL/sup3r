@@ -24,7 +24,8 @@ def test_weighted_time_sampler():
     """Test weighted_time_sampler for correct start point based on weights"""
 
     data = np.zeros((1, 1, 100))
-    chunks = np.array_split(np.arange(0, 100), 10)
+    shape = 10
+    chunks = np.array_split(np.arange(0, 100 - shape), 10)
     weights = np.zeros(10)
     weights_1 = weights.copy()
     weights_1[0] = 1
@@ -38,25 +39,12 @@ def test_weighted_time_sampler():
 
     for _ in range(100):
 
-        slice_1 = weighted_time_sampler(data, 10, weights_1)
-        assert 0 <= slice_1.start <= 10
+        slice_1 = weighted_time_sampler(data, shape, weights_1)
+        assert chunks[0][0] <= slice_1.start <= chunks[0][-1]
 
-        slice_2 = weighted_time_sampler(data, 10, weights_2)
-        assert 90 <= slice_2.start <= 100
+        slice_2 = weighted_time_sampler(data, shape, weights_2)
+        assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
         slice_3 = weighted_time_sampler(data, 10, weights_3)
         assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
                or chunks[5][0] <= slice_3.start <= chunks[5][-1])
-
-
-def test_uniform_time_sampler():
-    """Test uniform_time_sampler for correct start point based on
-    temporal_focus"""
-
-    data = np.zeros((1, 1, 100))
-    temporal_focus = slice(10, 30)
-
-    for _ in range(100):
-
-        slice_1 = uniform_time_sampler(data, 10, temporal_focus)
-        assert 10 <= slice_1.start <= 30

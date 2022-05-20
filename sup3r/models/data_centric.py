@@ -19,7 +19,7 @@ class Sup3rGanDC(Sup3rGanMMD):
         """Calculate loss across time bins. e.g. Get the loss across time step
         0 to 100, 100 to 200, etc. Use this to determine performance within
         time bins and to update how observations are selected from these bins.
-        Loss is calculated using just content loss.
+        Loss is calculated using total loss.
 
         Parameters
         ----------
@@ -131,6 +131,9 @@ class Sup3rGanDC(Sup3rGanMMD):
 
             temporal_losses = self.calc_time_bin_loss(batch_handler,
                                                       weight_gen_advers)
+            logger.info(
+                f'Temporal losses: {[round(tl, 3) for tl in temporal_losses]}')
+
             new_temporal_weights = temporal_losses / np.sum(temporal_losses)
             batch_handler.update_temporal_weights(new_temporal_weights)
 

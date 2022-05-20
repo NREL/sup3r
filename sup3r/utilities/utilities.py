@@ -176,28 +176,23 @@ def weighted_time_sampler(data, shape, weights):
     slice : slice
         time slice with size shape
     """
-    t_indices = np.arange(0, data.shape[2])
-
-    if len(t_indices) <= shape:
-        start = t_indices[0]
-        stop = t_indices[-1] + 1
+    if data.shape[2] <= shape:
+        start = 0
+        stop = data.shape[2]
     else:
-        t_indices[-shape:] = t_indices[-shape]
+        t_indices = np.arange(0, data.shape[2] - shape)
         t_chunks = np.array_split(t_indices, len(weights))
         weight_list = []
-
         for i, w in enumerate(weights):
             weight_list += [w] * len(t_chunks[i])
-
         weight_list /= np.sum(weight_list)
         start = np.random.choice(t_indices, p=weight_list)
         stop = start + shape
     return slice(start, stop)
 
 
-def uniform_time_sampler(data, shape, temporal_focus=slice(None)):
+def uniform_time_sampler(data, shape):
     '''Extracts a temporal slice from data.
-
     Parameters:
     -----------
     data : np.ndarray
@@ -206,22 +201,17 @@ def uniform_time_sampler(data, shape, temporal_focus=slice(None)):
     shape : tuple
         (time_steps) Size of time slice to sample
         from data
-    temporal_focus : slice
-        Slice used to select a prefered temporal range from full extent
-
     Returns:
     --------
     slice : slice
         time slice with size shape
     '''
 
-    t_indices = np.arange(0, data.shape[2])
-    t_indices = t_indices[temporal_focus]
-    if len(t_indices) <= shape:
-        start = t_indices[0]
-        stop = t_indices[-1] + 1
+    if data.shape[2] <= shape:
+        start = 0
+        stop = data.shape[2]
     else:
-        start = np.random.randint(t_indices[0], t_indices[-1] + 1 - shape)
+        start = np.random.randint(0, data.shape[2] - shape)
         stop = start + shape
     return slice(start, stop)
 

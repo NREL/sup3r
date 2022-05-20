@@ -266,16 +266,14 @@ class ValidationData:
         val_indices = []
         for i, h in enumerate(self.handlers):
             for _ in range(h.val_data.shape[2]):
-                spatial_slice = uniform_box_sampler(
-                    h.val_data, self.sample_shape[:2])
-                temporal_slice = uniform_time_sampler(
-                    h.val_data, self.sample_shape[2])
-                tuple_index = tuple(
-                    spatial_slice + [temporal_slice]
-                    + [np.arange(h.val_data.shape[-1])])
-                val_indices.append(
-                    {'handler_index': i,
-                     'tuple_index': tuple_index})
+                spatial_slice = uniform_box_sampler(h.val_data,
+                                                    self.sample_shape[:2])
+                temporal_slice = uniform_time_sampler(h.val_data,
+                                                      self.sample_shape[2])
+                tuple_index = tuple(spatial_slice + [temporal_slice]
+                                    + [np.arange(h.val_data.shape[-1])])
+                val_indices.append({'handler_index': i,
+                                    'tuple_index': tuple_index})
         return val_indices
 
     @property
