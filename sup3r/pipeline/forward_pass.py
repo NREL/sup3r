@@ -733,7 +733,7 @@ class ForwardPass:
 
         logger.info('All forward passes are complete.')
 
-        data = data[:, :, self.crop_slice, :]
+        data = data[:, :, self.cropped_file_slice, :]
 
         if self.out_file is not None:
             with open(self.out_file, 'wb') as fh:
