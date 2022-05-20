@@ -79,7 +79,7 @@ def test_fwd_pass_handler():
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data = forward_pass.run(out_file=None)
+        data = forward_pass.run()
 
         assert data.shape == (s_enhance * shape[0],
                               s_enhance * shape[1],
@@ -129,7 +129,7 @@ def test_fwd_pass_chunking():
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data_chunked = forward_pass.run(out_file=None)
+        data_chunked = forward_pass.run()
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
                                   val_split=0.0, shape=shape,
@@ -185,7 +185,7 @@ def test_fwd_pass_nochunking():
             forward_pass_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
-        data_chunked = forward_pass.run(out_file=None)
+        data_chunked = forward_pass.run()
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
