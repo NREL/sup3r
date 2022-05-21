@@ -396,6 +396,7 @@ class BatchHandler:
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationData
     BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = None
 
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
@@ -480,7 +481,6 @@ class BatchHandler:
         self._i = 0
         self.low_res = None
         self.high_res = None
-        self.data_handler = None
         self.batch_size = batch_size
         self._val_data = None
         self.s_enhance = s_enhance
@@ -543,22 +543,6 @@ class BatchHandler:
             out = [i for i, feature in enumerate(self.training_features)
                    if feature in self.output_features]
             return out
-
-    @staticmethod
-    def get_handler_class(file_paths):
-        """Get data handler class for make method.
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths. The file type is used to determine the needed
-            data handler
-
-        Returns
-        -------
-        DataHandlerNC | DataHandlerH5
-        """
-        return get_handler_class(file_paths)
 
     @staticmethod
     def chunk_file_paths(file_paths, list_chunk_size=None):
@@ -667,18 +651,17 @@ class BatchHandler:
                'or the raster_files input.')
         assert check, msg
 
-        HandlerClass = cls.get_handler_class(file_paths)
+        if cls.DATA_HANDLER_CLASS is None:
+            cls.DATA_HANDLER_CLASS = get_handler_class(file_paths)
+
         file_paths = cls.chunk_file_paths(file_paths, list_chunk_size)
 
         data_handlers = []
-        if not isinstance(file_paths, list):
-            file_paths = [file_paths]
-
         for i, f in enumerate(file_paths):
             cache_file_prefix, raster_file, target = cls.make_inputs(
                 cache_file_prefixes, raster_files, targets, i)
             data_handlers.append(
-                HandlerClass(
+                cls.DATA_HANDLER_CLASS(
                     f, features, target=target,
                     shape=shape, max_delta=max_delta,
                     raster_file=raster_file, val_split=val_split,
@@ -1202,6 +1185,7 @@ class BatchHandlerDC(BatchHandler):
 
     VAL_CLASS = ValidationDataDC
     BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = DataHandlerDataCentricH5
 
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
@@ -1261,53 +1245,27 @@ class BatchHandlerDC(BatchHandler):
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
+        self.training_sample_record = [0] * self.val_data.N_TIME_BINS
+        bin_range = self.data_handlers[0].data.shape[2] - self.sample_shape[2]
+        self.temporal_bins = np.array_split(np.arange(0, bin_range),
+                                            self.val_data.N_TIME_BINS)
+        self.temporal_bins = [b[0] for b in self.temporal_bins]
 
         logger.info(
             'Using temporal weights: '
             f'{[round(w, 3) for w in self.temporal_weights]}')
 
-    def update_temporal_weights(self, temporal_weights):
-        """Update the prefered temporal focus for selecting training
-        observations.
+    def update_training_sample_record(self):
+        """Keep track of number of observations from each temporal bin"""
+        handler = self.data_handlers[self.current_handler_index]
+        t_start = handler.current_obs_index[2].start
+        bin_number = np.digitize(t_start, self.temporal_bins)
+        self.training_sample_record[bin_number - 1] += 1
 
-        Parameters
-        ----------
-        temporal_weights : list | None
-            List specifying how to perferentially split temporal extent for
-            training. e.g. If temporal_weights = [0, 0, 1, 0, 0] and the number
-            of time steps in the training data set is 500, this means 100
-            percent of the training observations will be selected from between
-            time step 200 and time step 300. If None this is the same as [1].
-            All observations will be selected from between the first and last
-            time step.
-
-        Returns
-        -------
-        list
-            List of slices used to select training observations from a specific
-            temporal range. e.g. If temporal_focus_slices[0] = slice(100, 200)
-            then the first training observation will be selected at random from
-            within this temporal range.
-        """
-        self.temporal_weights = temporal_weights
-        msg = ('Updated temporal bin weights: '
-               f'{[round(w, 3) for w in self.temporal_weights]}')
-        logger.debug(msg)
-
-    @staticmethod
-    def get_handler_class(file_paths):
-        """Override super class method to return needed data handler
-
-        Parameters
-        ----------
-        file_paths : list
-            Unused input to follow superclass method signature
-
-        Returns
-        -------
-        DataHandlerDataCentricH5
-        """
-        return DataHandlerDataCentricH5
+    def __iter__(self):
+        self._i = 0
+        self.training_sample_record = [0] * self.val_data.N_TIME_BINS
+        return self
 
     def __next__(self):
         self.current_batch_indices = []
@@ -1322,6 +1280,8 @@ class BatchHandlerDC(BatchHandler):
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next(self.temporal_weights)
                 self.current_batch_indices.append(handler.current_obs_index)
+
+                self.update_training_sample_record()
 
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance, t_enhance=self.t_enhance,

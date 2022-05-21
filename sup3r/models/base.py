@@ -702,7 +702,7 @@ class Sup3rGan:
         ----------
         history : dict
             Dictionary with information on how often discriminators
-            were trained during current and previous epochs.
+            were trained during previous epoch.
         comparison_key : str
             history key to use for update check
         update_bounds : tuple
@@ -719,11 +719,10 @@ class Sup3rGan:
         float
             Factor by which to multiply old weight to get updated weight
         """
-        history = list(history[comparison_key])
-        val = np.mean(history[-1])
+        val = history[comparison_key]
         logger.info(f'Average value of {comparison_key} over the previous '
                     f'epoch: {round(val, 3)}')
-        if val < update_bounds[0] and history[-1] < update_bounds[0]:
+        if val < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
             return 1 / (1 + update_frac)
@@ -1374,14 +1373,14 @@ class Sup3rGan:
                       'learning_rate_gen': lr_g,
                       'learning_rate_disc': lr_d}
 
+            weight_gen_advers = self.update_adversarial_weights(
+                loss_details, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers, train_disc)
+
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
-
-            weight_gen_advers = self.update_adversarial_weights(
-                self.history, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc)
 
             if stop:
                 break

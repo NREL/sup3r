@@ -32,7 +32,7 @@ class Sup3rGanDC(Sup3rGanMMD):
         Returns
         -------
         list
-            List of losses for all time bins
+            List of total losses for all time bins
         """
         losses = []
         for obs in batch_handler.val_data:
@@ -42,6 +42,79 @@ class Sup3rGanDC(Sup3rGanMMD):
                                      train_gen=True, train_disc=True)
             losses.append(loss)
         return losses
+
+    def calc_time_bin_content_loss(self, batch_handler):
+        """Calculate loss across time bins. e.g. Get the loss across time step
+        0 to 100, 100 to 200, etc. Use this to determine performance within
+        time bins and to update how observations are selected from these bins.
+        Loss is calculated using content loss.
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+
+        Returns
+        -------
+        list
+            List of content losses for all time bins
+        """
+        losses = []
+        for obs in batch_handler.val_data:
+            gen = self._tf_generate(obs.low_res)
+            loss = self.calc_loss_gen_content(obs.high_res, gen)
+            losses.append(loss)
+        return losses
+
+    def update_temporal_weights(self, batch_handler, weight_gen_advers,
+                                loss_details):
+        """Update the temporal weights for the batch handler based on the
+        losses across the time bins
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        loss_details : dict
+            Namespace of the breakdown of loss components where each value is a
+            running average at the current state in the epoch.
+
+        Returns
+        -------
+        dict
+            Updated loss_details with mean validation loss calculated using
+            the validation samples across the time bins
+        """
+
+        total_samples = batch_handler.batch_size * batch_handler.n_batches
+        normalized_count = [round(float(s / total_samples), 3) for s
+                            in batch_handler.training_sample_record]
+        total_losses = self.calc_time_bin_loss(batch_handler,
+                                               weight_gen_advers)
+        content_losses = self.calc_time_bin_content_loss(batch_handler)
+        new_temporal_weights = total_losses / np.sum(total_losses)
+        batch_handler.temporal_weights = new_temporal_weights
+
+        logger.debug('Sample count across temporal bins during previous epoch:'
+                     f' {batch_handler.training_sample_record}')
+        logger.debug('Normalized sampled count during previous epoch: '
+                     f'{normalized_count}')
+        logger.debug(
+            'Previous temporal bin weights: '
+            f'{[round(w, 3) for w in batch_handler.temporal_weights]}')
+        logger.debug('Temporal losses (total): '
+                     f'{[round(float(tl), 3) for tl in total_losses]}')
+        logger.debug('Temporal losses (content): '
+                     f'{[round(float(cl), 3) for cl in content_losses]}')
+        logger.info('Updated temporal bin weights: '
+                    f'{[round(w, 3) for w in new_temporal_weights]}')
+
+        loss_details['mean_val_loss'] = np.mean(total_losses)
+        loss_details['mean_val_content_loss'] = np.mean(content_losses)
+        return loss_details
 
     def train(self, batch_handler, n_epoch,
               weight_gen_advers=0.001,
@@ -129,19 +202,9 @@ class Sup3rGanDC(Sup3rGanMMD):
                                             train_gen, train_disc,
                                             disc_loss_bounds)
 
-            temporal_losses = self.calc_time_bin_loss(batch_handler,
-                                                      weight_gen_advers)
-            logger.info(
-                f'Temporal losses: {[round(tl, 3) for tl in temporal_losses]}')
-
-            new_temporal_weights = temporal_losses / np.sum(temporal_losses)
-            batch_handler.update_temporal_weights(new_temporal_weights)
-
-            loss_details['mean_val_loss'] = np.mean(temporal_losses)
-
             logger.info('Epoch {} of {} '
-                        'generator train loss: {:.2e} '
-                        'discriminator train loss: {:.2e} '
+                        'generator train loss: {:.2e}, '
+                        'discriminator train loss: {:.2e}, '
                         'mean gen val loss: {:.2e}'
                         .format(epoch, epochs[-1],
                                 loss_details['train_loss_gen'],
@@ -158,15 +221,20 @@ class Sup3rGanDC(Sup3rGanMMD):
                       'disc_loss_bound_1': disc_loss_bounds[1],
                       'learning_rate_gen': lr_g,
                       'learning_rate_disc': lr_d}
+            for i, w, in enumerate(batch_handler.temporal_weights):
+                extras[f'temporal_weight_{i}'] = w
+
+            loss_details = self.update_temporal_weights(
+                batch_handler, weight_gen_advers, loss_details)
+
+            weight_gen_advers = self.update_adversarial_weights(
+                loss_details, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers, train_disc)
 
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
-
-            weight_gen_advers = self.update_adversarial_weights(
-                self.history, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc)
 
             if stop:
                 break

@@ -35,7 +35,7 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     Returns
     -------
     list
-        List of slices correpoding to chunks of array
+        List of slices corresponding to chunks of array
     """
 
     indices = np.arange(0, arr_size)
