@@ -1127,7 +1127,7 @@ class DataHandlerNsrdb(DataHandlerH5):
         return self.data, self.val_data
 
 
-class DataHandlerDataCentricH5(DataHandlerH5):
+class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
     def get_observation_index(self, temporal_weights):
@@ -1162,3 +1162,11 @@ class DataHandlerDataCentricH5(DataHandlerH5):
         self.current_obs_index = self.get_observation_index(temporal_weights)
         observation = self.data[self.current_obs_index]
         return observation
+
+
+class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
+    """Data centric data handler for NETCDF files"""
+
+
+class DataHandlerDCforH5(DataHandlerH5, DataHandlerDC):
+    """Data centric data handler for H5 files"""

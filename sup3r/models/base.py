@@ -1274,7 +1274,7 @@ class Sup3rGan:
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.95),
+              adaptive_update_bounds=(0.9, 0.99),
               adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 

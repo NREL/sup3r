@@ -7,11 +7,12 @@ import logging
 import pandas as pd
 
 from sup3r.models.modified_loss import Sup3rGanMMD
+from sup3r.models.base import Sup3rGan
 
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGanDC(Sup3rGanMMD):
+class Sup3rGanDC(Sup3rGan):
     """Data-centric model using loss across time bins to select training
     observations"""
 
@@ -96,15 +97,14 @@ class Sup3rGanDC(Sup3rGanMMD):
                                                weight_gen_advers)
         content_losses = self.calc_time_bin_content_loss(batch_handler)
         new_temporal_weights = total_losses / np.sum(total_losses)
+        previous_temporal_weights = batch_handler.temporal_weights
         batch_handler.temporal_weights = new_temporal_weights
 
-        logger.debug('Sample count across temporal bins during previous epoch:'
+        logger.debug('Sample count for temporal bins:'
                      f' {batch_handler.training_sample_record}')
-        logger.debug('Normalized sampled count during previous epoch: '
-                     f'{normalized_count}')
-        logger.debug(
-            'Previous temporal bin weights: '
-            f'{[round(w, 3) for w in batch_handler.temporal_weights]}')
+        logger.debug(f'Previous normalized sampled count: {normalized_count}')
+        logger.debug('Previous temporal bin weights: '
+                     f'{[round(w, 3) for w in previous_temporal_weights]}')
         logger.debug('Temporal losses (total): '
                      f'{[round(float(tl), 3) for tl in total_losses]}')
         logger.debug('Temporal losses (content): '
@@ -126,7 +126,7 @@ class Sup3rGanDC(Sup3rGanMMD):
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.95),
+              adaptive_update_bounds=(0.9, 0.99),
               adaptive_update_fraction=0.05):
         """Train the GAN model on real low res data and real high res data
 
@@ -204,12 +204,10 @@ class Sup3rGanDC(Sup3rGanMMD):
 
             logger.info('Epoch {} of {} '
                         'generator train loss: {:.2e}, '
-                        'discriminator train loss: {:.2e}, '
-                        'mean gen val loss: {:.2e}'
+                        'discriminator train loss: {:.2e} '
                         .format(epoch, epochs[-1],
                                 loss_details['train_loss_gen'],
-                                loss_details['train_loss_disc'],
-                                loss_details['mean_val_loss'],
+                                loss_details['train_loss_disc']
                                 ))
 
             lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
@@ -238,3 +236,7 @@ class Sup3rGanDC(Sup3rGanMMD):
 
             if stop:
                 break
+
+
+class Sup3rGanDCwithMMD(Sup3rGanMMD):
+    """Sup3rGan with MMD loss and Data centric observation selection"""
