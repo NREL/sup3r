@@ -627,9 +627,25 @@ class BatchHandler:
                 self.unnormalize()
             self.means = means
             self.stds = stds
+
         logger.info('Normalizing data in each data handler.')
-        for d in self.data_handlers:
-            d.normalize(self.means, self.stds)
+        futures = {}
+        now = dt.now()
+        for i, d in enumerate(self.data_handlers):
+            future = threading.Thread(target=d.normalize,
+                                      args=(self.means, self.stds))
+            futures[future] = i
+            future.start()
+
+        logger.info(
+            f'Started normalizing {len(self.data_handlers)} data handlers '
+            f'in {dt.now() - now}. ')
+
+        for i, future in enumerate(futures.keys()):
+            future.join()
+            logger.debug(
+                f'{i + 1} out of {len(futures)} data handlers normalized')
+        logger.info(f'Finished normalizing data in all data handlers')
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""

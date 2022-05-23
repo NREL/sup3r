@@ -238,5 +238,5 @@ class Sup3rGanDC(Sup3rGan):
                 break
 
 
-class Sup3rGanDCwithMMD(Sup3rGanMMD):
+class Sup3rGanDCwithMMD(Sup3rGanDC, Sup3rGanMMD):
     """Sup3rGan with MMD loss and Data centric observation selection"""
