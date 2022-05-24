@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """Sup3r data-centric model software"""
 
+from re import I
 import numpy as np
 import time
 import logging
 import pandas as pd
 
-from sup3r.models.modified_loss import Sup3rGanMMD
+from sup3r.models.modified_loss import Sup3rGanMMD, Sup3rGanKLD
 from sup3r.models.base import Sup3rGan
 
 logger = logging.getLogger(__name__)
@@ -16,11 +17,13 @@ class Sup3rGanDC(Sup3rGan):
     """Data-centric model using loss across time bins to select training
     observations"""
 
-    def calc_time_bin_loss(self, batch_handler, weight_gen_advers):
-        """Calculate loss across time bins. e.g. Get the loss across time step
-        0 to 100, 100 to 200, etc. Use this to determine performance within
-        time bins and to update how observations are selected from these bins.
-        Loss is calculated using total loss.
+    def calc_temporal_val_loss_gen(self, batch_handler, weight_gen_advers):
+        """Calculate the validation total loss across the temporal validation
+        samples. e.g. If the temporal domain has 100 time steps and the
+        validation set has 10 bins then this will get a list of losses across
+        time step 0 to 10, 10 to 20, etc.  Use this to determine performance
+        within time bins and to update how observations are selected from these
+        bins.
 
         Parameters
         ----------
@@ -44,11 +47,13 @@ class Sup3rGanDC(Sup3rGan):
             losses.append(loss)
         return losses
 
-    def calc_time_bin_content_loss(self, batch_handler):
-        """Calculate loss across time bins. e.g. Get the loss across time step
-        0 to 100, 100 to 200, etc. Use this to determine performance within
-        time bins and to update how observations are selected from these bins.
-        Loss is calculated using content loss.
+    def calc_temporal_val_loss_gen_content(self, batch_handler):
+        """Calculate the validation content loss across the temporal validation
+        samples. e.g. If the temporal domain has 100 time steps and the
+        validation set has 10 bins then this will get a list of losses across
+        time step 0 to 10, 10 to 20, etc.  Use this to determine performance
+        within time bins and to update how observations are selected from these
+        bins.
 
         Parameters
         ----------
@@ -90,21 +95,20 @@ class Sup3rGanDC(Sup3rGan):
             the validation samples across the time bins
         """
 
-        total_samples = batch_handler.batch_size * batch_handler.n_batches
-        normalized_count = [round(float(s / total_samples), 3) for s
-                            in batch_handler.training_sample_record]
-        total_losses = self.calc_time_bin_loss(batch_handler,
-                                               weight_gen_advers)
-        content_losses = self.calc_time_bin_content_loss(batch_handler)
+        total_losses = self.calc_temporal_val_loss_gen(batch_handler,
+                                                       weight_gen_advers)
+        content_losses = self.calc_temporal_val_loss_gen_content(batch_handler)
         new_temporal_weights = total_losses / np.sum(total_losses)
-        previous_temporal_weights = batch_handler.temporal_weights
         batch_handler.temporal_weights = new_temporal_weights
 
+        normed_count = [round(w, 3) for w
+                        in batch_handler.normalized_sample_record]
         logger.debug('Sample count for temporal bins:'
                      f' {batch_handler.training_sample_record}')
-        logger.debug(f'Previous normalized sampled count: {normalized_count}')
-        logger.debug('Previous temporal bin weights: '
-                     f'{[round(w, 3) for w in previous_temporal_weights]}')
+        logger.debug(f'Previous normalized sampled count: {normed_count}')
+        logger.debug(
+            'Previous temporal bin weights: '
+            f'{[round(w, 3) for w in batch_handler.old_temporal_weights]}')
         logger.debug('Temporal losses (total): '
                      f'{[round(float(tl), 3) for tl in total_losses]}')
         logger.debug('Temporal losses (content): '
@@ -112,8 +116,9 @@ class Sup3rGanDC(Sup3rGan):
         logger.info('Updated temporal bin weights: '
                     f'{[round(w, 3) for w in new_temporal_weights]}')
 
-        loss_details['mean_val_loss'] = np.mean(total_losses)
-        loss_details['mean_val_content_loss'] = np.mean(content_losses)
+        loss_details['mean_temporal_val_loss_gen'] = np.mean(total_losses)
+        loss_details['mean_temporal_val_loss_gen_content'] = np.mean(
+            content_losses)
         return loss_details
 
     def train(self, batch_handler, n_epoch,
@@ -239,4 +244,8 @@ class Sup3rGanDC(Sup3rGan):
 
 
 class Sup3rGanDCwithMMD(Sup3rGanDC, Sup3rGanMMD):
-    """Sup3rGan with MMD loss and Data centric observation selection"""
+    """Sup3rGan with MMD loss and Data-Centric observation selection"""
+
+
+class Sup3rGanDCwithKLD(Sup3rGanDC, Sup3rGanKLD):
+    """Sup3rGan with KLD loss and Data-Centric observation selection"""

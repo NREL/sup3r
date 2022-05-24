@@ -21,7 +21,6 @@ from sup3r.utilities.utilities import (daily_time_sampler,
                                        uniform_time_sampler,
                                        nn_fill_array)
 from sup3r.preprocessing.data_handling import DataHandlerDCforH5
-from sup3r.preprocessing.data_handling import get_handler_class
 from sup3r import __version__
 
 np.random.seed(42)
@@ -837,6 +836,8 @@ class BatchHandlerDC(BatchHandler):
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
         self.training_sample_record = [0] * self.val_data.N_TIME_BINS
+        self.normalized_sample_record = [0] * self.val_data.N_TIME_BINS
+        self.old_temporal_weights = [0] * self.val_data.N_TIME_BINS
         bin_range = self.data_handlers[0].data.shape[2] - self.sample_shape[2]
         self.temporal_bins = np.array_split(np.arange(0, bin_range),
                                             self.val_data.N_TIME_BINS)
@@ -883,4 +884,8 @@ class BatchHandlerDC(BatchHandler):
             self._i += 1
             return batch
         else:
+            total_count = self.n_batches * self.batch_size
+            self.normalized_sample_record = [c / (total_count) for c
+                                             in self.training_sample_record]
+            self.old_temporal_weights = self.temporal_weights.copy()
             raise StopIteration
