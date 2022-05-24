@@ -181,6 +181,69 @@ def uniform_box_sampler(data, shape):
     return [slice(start_row, stop_row), slice(start_col, stop_col)]
 
 
+def weighted_box_sampler(data, shape, weights):
+    """Extracts a temporal slice from data with selection weighted based on
+    provided weights
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (spatial_1, spatial_2) Size of box to sample from data
+    weights : ndarray
+        Array of weights used to specify selection strategy. e.g. If weights is
+        [[0.2, 0.4], [0.1, 0.3]] then the upper left quadrant of the spatial
+        domain will be sampled 20 percent of the time, the upper right quadrant
+        will be sampled 40 percent of the time, etc.
+
+    Returns
+    -------
+    slices : list
+        List of spatial slices [spatial_1, spatial_2]
+    """
+
+    indices = np.arange(data.shape[0] * data.shape[1])
+    indices = indices.reshape((data.shape[0], data.shape[1]))
+
+    if data.shape[0] <= shape[0]:
+        shift_1 = data.shape[0] - 1
+    else:
+        shift_1 = shape[0] - 1
+    if data.shape[1] <= shape[1]:
+        shift_2 = data.shape[1] - 1
+    else:
+        shift_2 = shape[1] - 1
+
+    if shift_1 == 0:
+        slice_1 = slice(None)
+    else:
+        slice_1 = slice(None, -shift_1)
+    if shift_2 == 0:
+        slice_2 = slice(None)
+    else:
+        slice_2 = slice(None, -shift_2)
+
+    indices = indices[slice_1, slice_2]
+    indices = indices.flatten()
+    chunks = np.array_split(indices, len(weights.flatten()))
+    weight_list = []
+    for i, w in enumerate(weights.flatten()):
+        weight_list += [w] * len(chunks[i])
+    weight_list /= np.sum(weight_list)
+    start = np.random.choice(indices, p=weight_list)
+    start_1 = start // data.shape[1]
+    start_2 = start % data.shape[1]
+    stop_1 = start_1 + np.min([shape[0], data.shape[0]])
+    stop_2 = start_2 + np.min([shape[1], data.shape[1]])
+
+    slice_1 = slice(start_1, stop_1)
+    slice_2 = slice(start_2, stop_2)
+
+    return [slice_1, slice_2]
+
+
 def weighted_time_sampler(data, shape, weights):
     """Extracts a temporal slice from data with selection weighted based on
     provided weights
@@ -191,8 +254,7 @@ def weighted_time_sampler(data, shape, weights):
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
     shape : tuple
-        (time_steps) Size of time slice to sample
-        from data
+        (time_steps) Size of time slice to sample from data
     weights : list
         List of weights used to specify selection strategy. e.g. If weights
         is [0.2, 0.8] then the start of the temporal slice will be selected
