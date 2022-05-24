@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Sup3r data-centric model software"""
 
-from re import I
 import numpy as np
 import time
 import logging
