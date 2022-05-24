@@ -204,7 +204,7 @@ def test_train_st_dc(n_epoch=2, log=False):
     batch_size = 4
     n_batches = 20
     total_count = batch_size * n_batches
-    deviation = np.sqrt(1 / total_count)
+    deviation = np.sqrt(1 / (total_count - 1))
     batch_handler = BatchHandlerDC([handler], batch_size=batch_size,
                                    s_enhance=3, t_enhance=4,
                                    n_batches=n_batches)

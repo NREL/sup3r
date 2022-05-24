@@ -644,7 +644,7 @@ class BatchHandler:
             future.join()
             logger.debug(
                 f'{i + 1} out of {len(futures)} data handlers normalized')
-        logger.info(f'Finished normalizing data in all data handlers')
+        logger.info('Finished normalizing data in all data handlers')
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""
