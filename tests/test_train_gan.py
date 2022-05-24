@@ -116,6 +116,7 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                                  s_enhance=3, t_enhance=4,
                                  n_batches=4)
 
+    adaptive_update_bounds = (0.9, 0.99)
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
@@ -123,20 +124,22 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                     train_gen=True, train_disc=True,
                     checkpoint_int=10,
                     out_dir=os.path.join(td, 'test_{epoch}'),
-                    adaptive_update_bounds=(0.5, 0.99))
+                    adaptive_update_bounds=adaptive_update_bounds)
 
         # check that weight is changed
-        check_lower = any(frac < 0.5 for frac in
+        check_lower = any(frac < adaptive_update_bounds[0] for frac in
                           model.history['train_disc_trained_frac'][:-1])
-        check_higher = any(frac > 0.99 for frac in
+        check_higher = any(frac > adaptive_update_bounds[1] for frac in
                            model.history['train_disc_trained_frac'][:-1])
         assert check_lower or check_higher
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
             weight_new = model.history['weight_gen_advers'][e + 1]
-            if model.history['train_disc_trained_frac'][e] < 0.5:
+            if (model.history['train_disc_trained_frac'][e]
+                    < adaptive_update_bounds[0]):
                 assert weight_new > weight_old
-            if model.history['train_disc_trained_frac'][e] > 0.99:
+            if (model.history['train_disc_trained_frac'][e]
+                    > adaptive_update_bounds[1]):
                 assert weight_new < weight_old
 
 
@@ -218,8 +221,6 @@ def test_train_st_dc(n_epoch=2, log=False):
                     train_gen=True, train_disc=False,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
-        print(batch_handler.old_temporal_weights)
-        print(batch_handler.normalized_sample_record)
         assert np.allclose(batch_handler.old_temporal_weights,
                            batch_handler.normalized_sample_record,
                            atol=deviation)
