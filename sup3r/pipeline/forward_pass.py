@@ -14,6 +14,7 @@ import os
 import warnings
 
 from rex.utilities.execution import SpawnProcessPool
+from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.utilities import (get_wrf_date_range,
@@ -176,7 +177,7 @@ class ForwardPassStrategy:
             logger.warning(msg)
             warnings.warn(msg)
 
-    def get_kwargs(self, run_index):
+    def get_node_kwargs(self, run_index):
         """Get node specific variables given an associated index
 
         Parameters
@@ -206,17 +207,27 @@ class ForwardPassStrategy:
         ts_indices = np.arange(len(file_paths) * self.file_t_steps)
         data_shape = (self.shape[0], self.shape[1],
                       len(ts_indices[temporal_slice]))
+
         out = self.get_chunk_slices(data_shape=data_shape)
         lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
+
         chunk_shape = (lr_slices[0][0].stop - lr_slices[0][0].start,
                        lr_slices[0][1].stop - lr_slices[0][1].start,
                        data_shape[2])
-        kwargs = dict(
-            file_paths=file_paths, cropped_file_slice=cropped_file_slice,
-            file_id=file_id, out_file=out_file, temporal_slice=temporal_slice,
-            lr_slices=lr_slices, lr_pad_slices=lr_pad_slices,
-            hr_slices=hr_slices, hr_crop_slices=hr_crop_slices,
-            data_shape=data_shape, chunk_shape=chunk_shape)
+
+        kwargs = dict(file_paths=file_paths,
+                      cropped_file_slice=cropped_file_slice,
+                      file_id=file_id,
+                      out_file=out_file,
+                      temporal_slice=temporal_slice,
+                      lr_slices=lr_slices,
+                      lr_pad_slices=lr_pad_slices,
+                      hr_slices=hr_slices,
+                      hr_crop_slices=hr_crop_slices,
+                      data_shape=data_shape,
+                      chunk_shape=chunk_shape,
+                      run_index=run_index)
+
         return kwargs
 
     def __iter__(self):
@@ -239,7 +250,7 @@ class ForwardPassStrategy:
         """
 
         if self._i < len(self.file_slices):
-            kwargs = self.get_kwargs(self._i)
+            kwargs = self.get_node_kwargs(self._i)
             self._i += 1
             return kwargs
         else:
@@ -604,7 +615,7 @@ class ForwardPass:
         self.features = Sup3rGan.load(model_path).training_features
         self.run_index = run_index
 
-        kwargs = strategy.get_kwargs(run_index)
+        kwargs = strategy.get_node_kwargs(run_index)
 
         self.file_paths = kwargs['file_paths']
         self.cropped_file_slice = kwargs['cropped_file_slice']
@@ -683,11 +694,12 @@ class ForwardPass:
                       'import ForwardPassStrategy, ForwardPass')
 
         fps_init_str = get_fun_call_str(ForwardPassStrategy.__init__, config)
-        fp_run_str = get_fun_call_str(ForwardPass.run, config)
+        model_path = config['model_path']
 
-        cmd = (f"python -c '{import_str};"
-               f"{fps_init_str};"
-               f"{fp_run_str}'")
+        cmd = (f"python -c \'{import_str};\n"
+               f"strategy = {fps_init_str};\n"
+               f"fwp = ForwardPass(strategy, \"{model_path}\");\n"
+               "fwp.run()\'\n")
 
         return cmd
 

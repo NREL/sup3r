@@ -2,10 +2,12 @@
 """
 sup3r forward pass CLI entry points.
 """
+import copy
 import os
 import json
 import click
 import logging
+from inspect import signature
 
 from reV.pipeline.stats import Status
 
@@ -13,6 +15,7 @@ from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 from rex.utilities.cli_dtypes import STR
+from rex.utilities.utilities import safe_json_load
 
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
@@ -23,15 +26,12 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.version_option(version=__version__)
-@click.option('--name', '-n', default=os.path.basename(os.getcwd()),
-              type=STR, show_default=True, help='sup3r forward pass job name.')
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def main(ctx, name, verbose):
+def main(ctx, verbose):
     """reV Generation Command Line Interface"""
     ctx.ensure_object(dict)
-    ctx.obj['NAME'] = name
     ctx.obj['VERBOSE'] = verbose
 
 
@@ -54,31 +54,41 @@ def from_config(ctx, config_file, verbose):
     verbose : bool
         Flag to turn on debug logging. Default is not verbose.
     """
-    verbose = any([verbose, ctx.obj['VERBOSE']])
 
-    with open(config_file, 'r') as f:
-        config = json.load(f)
+    config = safe_json_load(config_file)
 
-    name = ctx.obj['NAME']
+    config_verbose = config.get('log_level', 'INFO')
+    config_verbose = True if config_verbose == 'DEBUG' else False
+    verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult(name, './logs/', modules=[__name__, 'sup3r'], verbose=verbose)
+    init_mult('sup3r_fwp', './logs/', modules=[__name__, 'sup3r'],
+              verbose=verbose)
 
-    # PSEUDOCODE
-    strategy = ForwardPassStrategy(config)
-    for i, node in enumerate(strategy):
-        name = 'sup3r_fwp_{}'.format(i)
+    exec_kwargs = config.get('execution_control', {})
+    hardware_option = exec_kwargs.get('option', 'local')
+    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    logger.debug('Hardware run option: "{}"'.format(hardware_option))
+
+    sig = signature(ForwardPassStrategy)
+    strategy_kwargs = {k: v for k, v in config.items()
+                       if k in sig.parameters.keys()}
+    strategy = ForwardPassStrategy(**strategy_kwargs)
+
+    for i, node_kwargs in enumerate(strategy):
+        node_config = copy.deepcopy(config)
+        node_config.update(node_kwargs)
+        name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
-        config.update(node.kwargs)
-        cmd = ForwardPass.get_node_cmd(config)
+        cmd = ForwardPass.get_node_cmd(node_config)
 
-        if config.slurm:
-            kickoff_slurm_job(ctx, cmd, slurm_kwargs)
+        if hardware_option.lower() in ('eagle', 'slurm'):
+            kickoff_slurm_job(ctx, cmd, **exec_kwargs)
         else:
             SubprocessManager.submit(cmd)
 
 
-def kickoff_slurm_job(ctx, cmd, alloc, memory=None, walltime=4, feature=None,
-                      stdout_path='./stdout/'):
+def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
+                      feature=None, stdout_path='./stdout/'):
     """Run sup3r on HPC via SLURM job submission.
 
     Parameters
