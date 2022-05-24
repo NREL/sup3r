@@ -1,12 +1,17 @@
 {
   "hidden_layers": [
-    {"class": "TileLayer", "multiples": [1, 1, 1, 24, 1]},
-    {"class": "GaussianNoiseAxis", "axis": 3, "mean": 1, "stddev": 0.01},
+    {"n": 12, "repeat": [
+        {"class": "Conv3DTranspose", "filters": 64, "kernel_size": 3, "strides": 1},
+        {"class": "Cropping3D", "cropping": [1, 1, 0]}
+      ]
+    },
+    {"class": "Cropping3D", "cropping": [0, 0, [1, 0]]},
+    {"class": "SkipConnection", "name": "a"},
+
     {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
     {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
     {"class": "Cropping3D", "cropping": 2},
     {"alpha": 0.2, "class": "LeakyReLU"},
-    {"class": "SkipConnection", "name": "a"},
 
     {"n": 16, "repeat": [
         {"class": "SkipConnection", "name": "b"},
