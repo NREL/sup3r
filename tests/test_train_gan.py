@@ -122,7 +122,8 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                     weight_gen_advers=1e-6,
                     train_gen=True, train_disc=True,
                     checkpoint_int=10,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+                    out_dir=os.path.join(td, 'test_{epoch}'),
+                    adaptive_update_bounds=(0.5, 0.99))
 
         # check that weight is changed
         check_lower = any(frac < 0.5 for frac in
