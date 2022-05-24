@@ -176,14 +176,9 @@ def weighted_time_sampler(data, shape, weights):
     slice : slice
         time slice with size shape
     """
-    if data.shape[2] <= shape:
-        shift = data.shape[2] - 1
-    else:
-        shift = shape - 1
-    if shift == 0:
-        index_slice = slice(None)
-    else:
-        index_slice = slice(None, -shift)
+    shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
+    shift = None if shift == 0 else shift
+    index_slice = slice(None) if shift is None else slice(None, -shift)
 
     t_indices = np.arange(0, data.shape[2])[index_slice]
     t_chunks = np.array_split(t_indices, len(weights))
@@ -213,14 +208,9 @@ def uniform_time_sampler(data, shape):
         time slice with size shape
     '''
 
-    if data.shape[2] <= shape:
-        shift = data.shape[2] - 1
-    else:
-        shift = shape - 1
-    if shift == 0:
-        index_slice = slice(None)
-    else:
-        index_slice = slice(None, -shift)
+    shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
+    shift = None if shift == 0 else shift
+    index_slice = slice(None) if shift is None else slice(None, -shift)
     start = np.random.randint(0, data.shape[2])[index_slice]
     stop = start + np.min([data.shape[2], shape])
     return slice(start, stop)
