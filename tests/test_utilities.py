@@ -24,7 +24,7 @@ def test_weighted_time_sampler():
 
     data = np.zeros((1, 1, 100))
     shape = 10
-    chunks = np.array_split(np.arange(0, 100 - shape), 10)
+    chunks = np.array_split(np.arange(0, 100 - (shape - 1)), 10)
     weights = np.zeros(10)
     weights_1 = weights.copy()
     weights_1[0] = 1
