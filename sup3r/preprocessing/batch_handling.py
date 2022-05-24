@@ -838,7 +838,8 @@ class BatchHandlerDC(BatchHandler):
         self.training_sample_record = [0] * self.val_data.N_TIME_BINS
         self.normalized_sample_record = [0] * self.val_data.N_TIME_BINS
         self.old_temporal_weights = [0] * self.val_data.N_TIME_BINS
-        bin_range = self.data_handlers[0].data.shape[2] - self.sample_shape[2]
+        bin_range = self.data_handlers[0].data.shape[2]
+        bin_range -= (self.sample_shape[2] - 1)
         self.temporal_bins = np.array_split(np.arange(0, bin_range),
                                             self.val_data.N_TIME_BINS)
         self.temporal_bins = [b[0] for b in self.temporal_bins]
