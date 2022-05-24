@@ -74,9 +74,9 @@ def from_config(ctx, config_file, verbose):
                        if k in sig.parameters.keys()}
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
-    for i, node_kwargs in enumerate(strategy):
+    for i in range(strategy.nodes):
         node_config = copy.deepcopy(config)
-        node_config.update(node_kwargs)
+        node_config['node_index'] = i
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
         cmd = ForwardPass.get_node_cmd(node_config)

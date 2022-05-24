@@ -73,12 +73,16 @@ class ForwardPassStrategy:
             files each with 5 time steps then temporal_slice = slice(None) will
             select all 25 time steps.
         forward_pass_chunk_shape : tuple
-            (spatial_1, spatial_2, temporal)
-            Max shape of an unpadded chunk to use for a forward pass. If
-            temporal_overlap / spatial_overlap are non zero the chunk sent to
-            the generator can be bigger than this shape. If running in serial
-            set this equal to the shape of the full spatiotemporal data volume
-            for best performance.
+            Max shape (spatial_1, spatial_2, temporal) of an unpadded chunk to
+            use for a forward pass. The number of nodes that the
+            ForwardPassStrategy is set to distribute to is calculated by
+            dividing up the total time index from all file_paths by the
+            temporal part of this chunk shape. Each node will then be
+            parallelized accross parallel processes by the spatial chunk shape.
+            If temporal_overlap / spatial_overlap are non zero the chunk sent
+            to the generator can be bigger than this shape. If running in
+            serial set this equal to the shape of the full spatiotemporal data
+            volume for best performance.
         raster_file : str | None
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
@@ -177,12 +181,12 @@ class ForwardPassStrategy:
             logger.warning(msg)
             warnings.warn(msg)
 
-    def get_node_kwargs(self, run_index):
+    def get_node_kwargs(self, node_index):
         """Get node specific variables given an associated index
 
         Parameters
         ----------
-        run_index : int
+        node_index : int
             Index to select node specific variables. This index selects the
             corresponding file set, cropped_file_slice, padded_file_slice,
             and sets of padded/overlapping/cropped spatial slices for spatial
@@ -194,16 +198,15 @@ class ForwardPassStrategy:
             Dictionary containing the node specific variables
         """
 
-        if run_index >= len(self.file_ids):
+        if node_index >= len(self.file_ids):
             msg = (f'Index is out of bounds. There are {len(self.file_ids)} '
-                   f'file chunks and the index requested was {run_index}.')
+                   f'file chunks and the index requested was {node_index}.')
             raise ValueError(msg)
 
-        file_paths = self.file_paths[self.padded_file_slices[run_index]]
-        cropped_file_slice = self.cropped_file_slices[run_index]
-        file_id = self.file_ids[run_index]
-        out_file = self.out_files[run_index]
-        temporal_slice = self.temporal_slices[run_index]
+        file_paths = self.file_paths[self.padded_file_slices[node_index]]
+        cropped_file_slice = self.cropped_file_slices[node_index]
+        out_file = self.out_files[node_index]
+        temporal_slice = self.temporal_slices[node_index]
         ts_indices = np.arange(len(file_paths) * self.file_t_steps)
         data_shape = (self.shape[0], self.shape[1],
                       len(ts_indices[temporal_slice]))
@@ -217,7 +220,6 @@ class ForwardPassStrategy:
 
         kwargs = dict(file_paths=file_paths,
                       cropped_file_slice=cropped_file_slice,
-                      file_id=file_id,
                       out_file=out_file,
                       temporal_slice=temporal_slice,
                       lr_slices=lr_slices,
@@ -226,7 +228,7 @@ class ForwardPassStrategy:
                       hr_crop_slices=hr_crop_slices,
                       data_shape=data_shape,
                       chunk_shape=chunk_shape,
-                      run_index=run_index)
+                      node_index=node_index)
 
         return kwargs
 
@@ -255,6 +257,13 @@ class ForwardPassStrategy:
             return kwargs
         else:
             raise StopIteration
+
+    @property
+    def nodes(self):
+        """Get the number of nodes that this strategy should distribute work
+        to, calculated as the source time index divided by the temporal part of
+        the forward_pass_chunk_shape"""
+        return len(self.file_slices)
 
     @staticmethod
     def file_info_logging(file_path):
@@ -595,7 +604,7 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
-    def __init__(self, strategy, model_path, run_index=0):
+    def __init__(self, strategy, model_path, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
 
@@ -606,20 +615,19 @@ class ForwardPass:
             forward passes on.
         model_path : str
             Path to Sup3rGan used to generate high resolution data
-        run_index : int
+        node_index : int
             Index used to select subset of full file list on which to run
             forward passes on a single node.
         """
         self.strategy = strategy
         self.model_path = model_path
         self.features = Sup3rGan.load(model_path).training_features
-        self.run_index = run_index
+        self.node_index = node_index
 
-        kwargs = strategy.get_node_kwargs(run_index)
+        kwargs = strategy.get_node_kwargs(node_index)
 
         self.file_paths = kwargs['file_paths']
         self.cropped_file_slice = kwargs['cropped_file_slice']
-        self.file_id = kwargs['file_id']
         self.out_file = kwargs['out_file']
         self.temporal_slice = kwargs['temporal_slice']
         self.lr_slices = kwargs['lr_slices']
@@ -694,27 +702,24 @@ class ForwardPass:
                       'import ForwardPassStrategy, ForwardPass')
 
         fps_init_str = get_fun_call_str(ForwardPassStrategy.__init__, config)
+
         model_path = config['model_path']
+        node_index = config['node_index']
+        fwp_arg_str = f'strategy, \"{model_path}\", node_index={node_index}'
 
         cmd = (f"python -c \'{import_str};\n"
                f"strategy = {fps_init_str};\n"
-               f"fwp = ForwardPass(strategy, \"{model_path}\");\n"
+               f"fwp = ForwardPass({fwp_arg_str});\n"
                "fwp.run()\'\n")
 
         return cmd
 
-    def run(self, out_file=None):
+    def run(self):
         """
         ForwardPass is initialized with a file_slice_index. This index selects
         a file subset from the full file list in ForwardPassStrategy. This
         routine runs forward passes on all data chunks associated with this
         file subset.
-
-        Parameters
-        ----------
-        out_file : str | None
-            File to store forward pass output. If None data will be returned in
-            an array instead of saved.
         """
 
         logger.info(
