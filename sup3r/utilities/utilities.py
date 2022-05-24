@@ -178,7 +178,6 @@ def weighted_time_sampler(data, shape, weights):
     """
     shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
     index_slice = slice(None) if shift == 0 else slice(None, -shift)
-
     t_indices = np.arange(0, data.shape[2])[index_slice]
     t_chunks = np.array_split(t_indices, len(weights))
     weight_list = []
@@ -206,10 +205,8 @@ def uniform_time_sampler(data, shape):
     slice : slice
         time slice with size shape
     '''
-
     shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
-    index_slice = slice(None) if shift == 0 else slice(None, -shift)
-    start = np.random.randint(0, data.shape[2])[index_slice]
+    start = np.random.randint(0, data.shape[2] - shift)
     stop = start + np.min([data.shape[2], shape])
     return slice(start, stop)
 
@@ -239,7 +236,7 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:-shape]
+    ti_short = time_index[:-(shape - 1)]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
