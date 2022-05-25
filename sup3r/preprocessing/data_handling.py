@@ -1136,6 +1136,7 @@ class DataHandlerNsrdb(DataHandlerH5):
         return self.data, self.val_data
 
 
+# pylint: disable=W0223
 class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
