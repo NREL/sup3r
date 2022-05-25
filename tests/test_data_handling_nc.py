@@ -48,6 +48,7 @@ def test_height_interpolation():
     height = 250
     features = [f'U_{height}m']
     handler = DataHandler(input_files, features, target=target,
+                          sample_shape=sample_shape,
                           shape=shape, max_delta=20, val_split=0.0)
     raster_index = handler.raster_index
 
@@ -143,6 +144,7 @@ def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
     handler = DataHandler(input_files, features, target=target, shape=shape,
+                          sample_shape=sample_shape,
                           max_delta=max_delta)
     tmp = handler.extract_data(
         input_files, handler.raster_index,
@@ -166,13 +168,15 @@ def test_raster_index_caching():
 
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        handler = DataHandler(input_file, features, target=target,
+        handler = DataHandler(input_files, features, target=target,
                               shape=shape, max_delta=max_delta,
+                              sample_shape=sample_shape,
                               raster_file=raster_file)
         handler.get_raster_index(input_file, target, shape)
 
         # loading raster file
-        handler = DataHandler(input_file, features, target=target,
+        handler = DataHandler(input_files, features, target=target,
+                              sample_shape=sample_shape,
                               shape=shape, max_delta=max_delta,
                               raster_file=raster_file)
 

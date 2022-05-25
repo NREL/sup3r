@@ -401,7 +401,7 @@ class BatchHandler:
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, n_features_per_thread=12,
-                 parallel_norm=False):
+                 parallel_norm=False, parallel_load=True):
         """
         Parameters
         ----------
@@ -452,31 +452,15 @@ class BatchHandler:
             [d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
-        n_feature_arrays = len(data_handlers[0].features) * len(data_handlers)
-        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
-        n_chunks = min(n_chunks, len(data_handlers))
-        handler_chunks = np.array_split(data_handlers, n_chunks)
-
-        for j, handler_chunk in enumerate(handler_chunks):
-            futures = {}
-            now = dt.now()
-            for i, d in enumerate(handler_chunk):
-                if d.data is None:
-                    future = threading.Thread(target=d.load_cached_data)
-                    futures[future] = i
-                    future.start()
-
-            logger.info(
-                f'Started loading all data handlers for handler_chunk {j + 1} '
-                f'of {len(handler_chunks)} in {dt.now() - now}. ')
-
-            for i, future in enumerate(futures.keys()):
-                future.join()
-                logger.debug(
-                    f'{i + 1} out of {len(futures)} handlers for handler_chunk'
-                    f' {j + 1} loaded.')
-
         self.data_handlers = data_handlers
+        n_feature_arrays = len(self.data_handlers[0].features)
+        n_feature_arrays *= len(self.data_handlers)
+        if not parallel_load or n_feature_arrays <= n_features_per_thread:
+            for d in self.data_handlers:
+                d.load_cached_data()
+        else:
+            self.parallel_load(n_features_per_thread)
+
         logger.debug(f'Finished loading data of shape {self.shape} '
                      'for BatchHandler.')
         log_mem(logger)
@@ -501,7 +485,10 @@ class BatchHandler:
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
             self.means, self.stds = self.check_cached_stats()
+            now = dt.now()
             self.normalize(self.means, self.stds, parallel_norm=parallel_norm)
+            logger.debug(f'Normalized data in {dt.now() - now} with '
+                         f'parallel_norm={parallel_norm}')
             self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
@@ -513,6 +500,42 @@ class BatchHandler:
             output_features=self.output_features)
 
         logger.info('Finished initializing BatchHandler.')
+
+    def parallel_load(self, n_features_per_thread):
+        """Load data handler data in parallel
+
+        Parameters
+        ----------
+        n_features_per_thread : int
+            Number of features to load from cache in parallel. This number will
+            tell the BatchHandler how to chunk the data handlers so that
+            number_of_features_per_handler * number_of_handlers_per_chunk <=
+            n_features_per_thread.
+        """
+        n_feature_arrays = len(self.data_handlers[0].features)
+        n_feature_arrays *= len(self.data_handlers)
+        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
+        n_chunks = min(n_chunks, len(self.data_handlers))
+        handler_chunks = np.array_split(self.data_handlers, n_chunks)
+
+        for j, handler_chunk in enumerate(handler_chunks):
+            futures = {}
+            now = dt.now()
+            for i, d in enumerate(handler_chunk):
+                if d.data is None:
+                    future = threading.Thread(target=d.load_cached_data)
+                    futures[future] = i
+                    future.start()
+
+            logger.info(
+                f'Started loading all data handlers for handler_chunk {j + 1} '
+                f'of {len(handler_chunks)} in {dt.now() - now}. ')
+
+            for i, future in enumerate(futures.keys()):
+                future.join()
+                logger.debug(
+                    f'{i + 1} out of {len(futures)} handlers for '
+                    f'handler_chunk {j + 1} loaded.')
 
     def __len__(self):
         """Use user input of n_batches to specify length

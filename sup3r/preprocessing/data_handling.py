@@ -200,8 +200,9 @@ class DataHandler(FeatureHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
-        msg = ('sample_shape[2] cannot be larger than the number of time steps'
-               ' in the raw data.')
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({len(self.raw_time_index)}).')
         assert len(self.raw_time_index) >= self.sample_shape[2], msg
 
         msg = (f'The requested time slice {temporal_slice} conflicts with the '
@@ -238,11 +239,13 @@ class DataHandler(FeatureHandler):
             self.raster_index = self.get_raster_index(self.file_path,
                                                       self.target,
                                                       self.grid_shape)
-            msg = ('sample_shape[0] / sample_shape[1] cannot be larger than '
+            msg = ('sample_shape[0] / sample_shape[1] is larger than '
                    'the raster size')
             raster_shape = get_raster_shape(self.raster_index)
-            assert (sample_shape[0] <= raster_shape[0]
-                    and sample_shape[1] <= raster_shape[1]), msg
+            if (sample_shape[0] <= raster_shape[0]
+                    and sample_shape[1] <= raster_shape[1]):
+                logger.warning(msg)
+                warnings.warn(msg)
 
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.features,

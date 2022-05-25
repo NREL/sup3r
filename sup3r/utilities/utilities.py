@@ -151,8 +151,9 @@ def uniform_box_sampler(data, shape):
         List of slices corresponding to row and col extent of arr sample
     '''
 
-    msg = 'Spatial sample shape cannot be larger than the full spatial extent'
-    assert shape[0] <= data.shape[0] and shape[1] <= data.shape[1], msg
+    shape_1 = data.shape[0] if data.shape[0] < shape[0] else shape[0]
+    shape_2 = data.shape[1] if data.shape[1] < shape[1] else shape[1]
+    shape = (shape_1, shape_2)
     start_row = np.random.randint(0, data.shape[0] - shape[0] + 1)
     start_col = np.random.randint(0, data.shape[1] - shape[1] + 1)
     stop_row = start_row + shape[0]
@@ -185,10 +186,7 @@ def weighted_time_sampler(data, shape, weights):
         time slice with size shape
     """
 
-    msg = ('Temporal sample shape cannot be larger than the full temporal '
-           'extent')
-    assert shape <= data.shape[2], msg
-
+    shape = data.shape[2] if data.shape[2] < shape else shape
     t_indices = (np.arange(0, data.shape[2]) if shape == 1
                  else np.arange(0, data.shape[2] - shape + 1))
     t_chunks = np.array_split(t_indices, len(weights))
@@ -219,9 +217,7 @@ def uniform_time_sampler(data, shape):
     slice : slice
         time slice with size shape
     '''
-    msg = ('Temporal sample shape cannot be larger than the full temporal '
-           'extent')
-    assert shape <= data.shape[2], msg
+    shape = data.shape[2] if data.shape[2] < shape else shape
     start = np.random.randint(0, data.shape[2] - shape + 1)
     stop = start + shape
     return slice(start, stop)
