@@ -7,9 +7,9 @@ Sup3r batch_handling module.
 import logging
 import numpy as np
 from datetime import datetime as dt
-import threading
 import os
 import pickle
+from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
 
@@ -400,8 +400,7 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12,
-                 parallel_norm=False, parallel_load=True):
+                 means_file=None, norm_workers=None, load_workers=None):
         """
         Parameters
         ----------
@@ -439,30 +438,27 @@ class BatchHandler:
             Path to stdevs data or where to save data after calling _get_stats
         means_file : str | None
             Path to means data or where to save data after calling _get_stats
-        n_features_per_thread : int
-            Number of features to load from cache in parallel. This number will
-            tell the BatchHandler how to chunk the data handlers so that
-            number_of_features_per_handler * number_of_handlers_per_chunk <=
-            n_features_per_thread.
-        parallel_norm : bool
-            Whether to normalize the data in data_handlers in parallel.
+        load_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
+        norm_workers : int | None
+            Max number of workers to use for parallel data normalization. If
+            None the max number of available workers will be used.
         """
 
         handler_shapes = np.array(
             [d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
+        now = dt.now()
         self.data_handlers = data_handlers
-        n_feature_arrays = len(self.data_handlers[0].features)
-        n_feature_arrays *= len(self.data_handlers)
-        if not parallel_load or n_feature_arrays <= n_features_per_thread:
+        if load_workers == 1:
             for d in self.data_handlers:
                 d.load_cached_data()
         else:
-            self.parallel_load(n_features_per_thread)
-
+            self.parallel_load(load_workers)
         logger.debug(f'Finished loading data of shape {self.shape} '
-                     'for BatchHandler.')
+                     f'for BatchHandler in {dt.now() - now}.')
         log_mem(logger)
 
         self._i = 0
@@ -485,10 +481,7 @@ class BatchHandler:
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
             self.means, self.stds = self.check_cached_stats()
-            now = dt.now()
-            self.normalize(self.means, self.stds, parallel_norm=parallel_norm)
-            logger.debug(f'Normalized data in {dt.now() - now} with '
-                         f'parallel_norm={parallel_norm}')
+            self.normalize(self.means, self.stds, norm_workers)
             self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
@@ -501,41 +494,55 @@ class BatchHandler:
 
         logger.info('Finished initializing BatchHandler.')
 
-    def parallel_load(self, n_features_per_thread):
+    def parallel_normalization(self, max_workers=None):
+        """Normalize data in all data handlers in parallel.
+
+        Parameters
+        ----------
+        max_workers : int | None
+            Max number of workers to use for parallel data normalization. If
+            None the max number of available workers will be used.
+        """
+        futures = {}
+        now = dt.now()
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            for i, d in enumerate(self.data_handlers):
+                future = exe.submit(d.normalize, self.means, self.stds)
+                futures[future] = i
+
+            logger.info(
+                f'Started normalizing {len(self.data_handlers)} data handlers '
+                f'in {dt.now() - now}. ')
+
+            for i, _ in enumerate(as_completed(futures)):
+                logger.debug(
+                    f'{i + 1} out of {len(futures)} data handlers normalized.')
+
+    def parallel_load(self, max_workers=None):
         """Load data handler data in parallel
 
         Parameters
         ----------
-        n_features_per_thread : int
-            Number of features to load from cache in parallel. This number will
-            tell the BatchHandler how to chunk the data handlers so that
-            number_of_features_per_handler * number_of_handlers_per_chunk <=
-            n_features_per_thread.
+        max_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
         """
-        n_feature_arrays = len(self.data_handlers[0].features)
-        n_feature_arrays *= len(self.data_handlers)
-        n_chunks = int(np.ceil(n_feature_arrays / n_features_per_thread))
-        n_chunks = min(n_chunks, len(self.data_handlers))
-        handler_chunks = np.array_split(self.data_handlers, n_chunks)
 
-        for j, handler_chunk in enumerate(handler_chunks):
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
-            for i, d in enumerate(handler_chunk):
+            for i, d in enumerate(self.data_handlers):
                 if d.data is None:
-                    future = threading.Thread(target=d.load_cached_data)
+                    future = exe.submit(d.load_cached_data)
                     futures[future] = i
-                    future.start()
 
             logger.info(
-                f'Started loading all data handlers for handler_chunk {j + 1} '
-                f'of {len(handler_chunks)} in {dt.now() - now}. ')
+                f'Started loading all {len(self.data_handlers)} data handlers '
+                f'in {dt.now() - now}. ')
 
-            for i, future in enumerate(futures.keys()):
-                future.join()
+            for i, future in enumerate(as_completed(futures)):
                 logger.debug(
-                    f'{i + 1} out of {len(futures)} handlers for '
-                    f'handler_chunk {j + 1} loaded.')
+                    f'{i + 1} out of {len(futures)} handlers loaded.')
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -639,11 +646,22 @@ class BatchHandler:
                     (data_handler.data[..., i] - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
-    def normalize(self, means=None, stds=None, parallel_norm=False):
+    def normalize(self, means=None, stds=None, norm_workers=None):
         """Compute means and stds for each feature across all datasets and
         normalize each data handler dataset.  Checks if input means and stds
         are different from stored means and stds and renormalizes if they are
-        new """
+
+        Parameters
+        ----------
+        means : ndarray | None
+            Array of means for each feature. If None it will be calculated.
+        stds : ndarray | None
+            Array of stdevs for each feature. If None it will be calculated.
+        norm_workers : int | None
+            Max number of workers to use for parallel data normalization. If
+            None the max number of available workers will be used.
+
+        new"""
         if means is None or stds is None:
             self._get_stats()
         elif means is not None and stds is not None:
@@ -653,29 +671,17 @@ class BatchHandler:
             self.means = means
             self.stds = stds
 
+        now = dt.now()
         logger.info('Normalizing data in each data handler.')
-
-        if parallel_norm:
-            futures = {}
-            now = dt.now()
-            for i, d in enumerate(self.data_handlers):
-                future = threading.Thread(target=d.normalize,
-                                          args=(self.means, self.stds))
-                futures[future] = i
-                future.start()
-
-            logger.info(
-                f'Started normalizing {len(self.data_handlers)} data handlers '
-                f'in {dt.now() - now}. ')
-
-            for i, future in enumerate(futures.keys()):
-                future.join()
-                logger.debug(
-                    f'{i + 1} out of {len(futures)} data handlers normalized')
-            logger.info('Finished normalizing data in all data handlers')
-        else:
+        if norm_workers == 1:
             for d in self.data_handlers:
                 d.normalize(self.means, self.stds)
+        else:
+            self.parallel_normalization(norm_workers)
+
+        logger.info('Finished normalizing data in all data handlers.')
+        logger.debug(f'Normalized data in {dt.now() - now} with '
+                     f'norm_workers={norm_workers}')
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""
@@ -811,8 +817,7 @@ class BatchHandlerDC(BatchHandler):
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12,
-                 parallel_norm=False):
+                 means_file=None, norm_workers=None, load_workers=None):
         """
         Parameters
         ----------
@@ -850,13 +855,12 @@ class BatchHandlerDC(BatchHandler):
             Path to stdevs data or where to save data after calling _get_stats
         means_file : str | None
             Path to means data or where to save data after calling _get_stats
-        n_features_per_thread : int
-            Number of features to load from cache in parallel. This number will
-            tell the BatchHandler how to chunk the data handlers so that
-            number_of_features_per_handler * number_of_handlers_per_chunk <=
-            n_features_per_thread.
-        parallel_norm : bool
-            Whether to normalize the data in data_handlers in parallel.
+        load_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
+        norm_workers : int | None
+            Max number of workers to use for parallel data normalization. If
+            None the max number of available workers will be used.
         """
 
         super().__init__(data_handlers=data_handlers, batch_size=batch_size,
@@ -865,8 +869,7 @@ class BatchHandlerDC(BatchHandler):
                          n_batches=n_batches,
                          temporal_coarsening_method=temporal_coarsening_method,
                          stdevs_file=stdevs_file, means_file=means_file,
-                         n_features_per_thread=n_features_per_thread,
-                         parallel_norm=parallel_norm)
+                         norm_workers=norm_workers, load_workers=load_workers)
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
