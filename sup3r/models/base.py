@@ -693,8 +693,8 @@ class Sup3rGan:
 
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
-                                   update_bounds=(0.5, 0.99),
-                                   update_frac=0.05):
+                                   update_bounds=(0.5, 0.95),
+                                   update_frac=0.0):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -702,7 +702,7 @@ class Sup3rGan:
         ----------
         history : dict
             Dictionary with information on how often discriminators
-            were trained during current and previous epochs.
+            were trained during previous epoch.
         comparison_key : str
             history key to use for update check
         update_bounds : tuple
@@ -719,11 +719,10 @@ class Sup3rGan:
         float
             Factor by which to multiply old weight to get updated weight
         """
-        history = list(history[comparison_key])
-        val = np.mean(history[-1])
+        val = history[comparison_key]
         logger.info(f'Average value of {comparison_key} over the previous '
                     f'epoch: {round(val, 3)}')
-        if val < update_bounds[0] and history[-1] < update_bounds[0]:
+        if val < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
             return 1 / (1 + update_frac)
@@ -790,10 +789,14 @@ class Sup3rGan:
         """
         for k, v in sorted(loss_details.items()):
             if k != 'n_obs':
-                if level.lower() == 'info':
-                    logger.info('\t{}: {:.2e}'.format(k, v))
+                if isinstance(v, str):
+                    msg_format = '\t{}: {}'
                 else:
-                    logger.debug('\t{}: {:.2e}'.format(k, v))
+                    msg_format = '\t{}: {:.2e}'
+                if level.lower() == 'info':
+                    logger.info(msg_format.format(k, v))
+                else:
+                    logger.debug(msg_format.format(k, v))
 
     @staticmethod
     def early_stop(history, column, threshold=0.005, n_epoch=5):
@@ -1261,7 +1264,7 @@ class Sup3rGan:
 
             if update_frac != 1:
                 logger.debug(
-                    f'New discriminator weight: {weight_gen_advers}')
+                    f'New discriminator weight: {round(weight_gen_advers, 3)}')
 
         return weight_gen_advers
 
@@ -1275,8 +1278,8 @@ class Sup3rGan:
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.5, 0.99),
-              adaptive_update_fraction=0.05):
+              adaptive_update_bounds=(0.9, 0.99),
+              adaptive_update_fraction=0.0):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -1354,15 +1357,18 @@ class Sup3rGan:
             loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
                                               loss_details)
 
-            logger.info('Epoch {} of {} '
-                        'generator train/val loss: {:.2e}/{:.2e} '
-                        'discriminator train/val loss: {:.2e}/{:.2e}'
-                        .format(epoch, epochs[-1],
-                                loss_details['train_loss_gen'],
-                                loss_details['val_loss_gen'],
-                                loss_details['train_loss_disc'],
-                                loss_details['val_loss_disc'],
-                                ))
+            msg = f'Epoch {epoch} of {epochs[-1]} '
+            msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
+                loss_details["train_loss_gen"],
+                loss_details["train_loss_disc"])
+
+            if all(loss in loss_details for loss
+                   in ('val_loss_gen', 'val_loss_disc')):
+                msg += 'gen/disc val loss: {:.2e}/{:.2e} '.format(
+                    loss_details["val_loss_gen"],
+                    loss_details["val_loss_disc"])
+
+            logger.info(msg)
 
             lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
             lr_d = self.get_optimizer_config(
@@ -1374,14 +1380,14 @@ class Sup3rGan:
                       'learning_rate_gen': lr_g,
                       'learning_rate_disc': lr_d}
 
+            weight_gen_advers = self.update_adversarial_weights(
+                loss_details, adaptive_update_fraction, adaptive_update_bounds,
+                weight_gen_advers, train_disc)
+
             stop = self.finish_epoch(epoch, epochs, t0, loss_details,
                                      checkpoint_int, out_dir,
                                      early_stop_on, early_stop_threshold,
                                      early_stop_n_epoch, extras=extras)
-
-            weight_gen_advers = self.update_adversarial_weights(
-                self.history, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc)
 
             if stop:
                 break

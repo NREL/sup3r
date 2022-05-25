@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import tempfile
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import DataHandlerH5
+from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
@@ -17,7 +17,7 @@ input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
                os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5')]
 target = (39.01, -105.15)
-targets = target
+targets = [target]
 shape = (20, 20)
 features = ['U_100m', 'V_100m', 'BVF_squared_200m']
 batch_size = 8
@@ -47,17 +47,19 @@ def test_spatiotemporal_batch_caching(sample_shape):
                 os.system(f'rm {tmp}')
             cache_prefixes.append(tmp)
 
-        st_batch_handler = BatchHandler.make(
-            input_files, features, targets, shape,
-            sample_shape=sample_shape,
-            batch_size=batch_size,
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-            max_delta=max_delta,
-            val_split=val_split,
-            temporal_slice=temporal_slice,
-            n_batches=n_batches,
-            cache_file_prefixes=cache_prefixes)
+        data_handlers = []
+        for input_file, cache_prefix in zip(input_files, cache_prefixes):
+            data_handler = DataHandler(input_file, features, target,
+                                       shape=shape, max_delta=max_delta,
+                                       val_split=val_split,
+                                       sample_shape=sample_shape,
+                                       temporal_slice=temporal_slice,
+                                       cache_file_prefix=cache_prefix)
+            data_handlers.append(data_handler)
+        st_batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                        n_batches=n_batches,
+                                        s_enhance=s_enhance,
+                                        t_enhance=t_enhance)
 
         for batch in st_batch_handler:
             for i, index in enumerate(st_batch_handler.current_batch_indices):
@@ -82,10 +84,10 @@ def test_data_caching():
         cache_prefix = os.path.join(td, 'cached_features_h5')
         if os.path.exists(cache_prefix):
             os.system(f'rm {cache_prefix}')
-        handler = DataHandlerH5(input_file, features, target=target,
-                                shape=shape, max_delta=20,
-                                cache_file_prefix=cache_prefix,
-                                overwrite_cache=True)
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=20,
+                              cache_file_prefix=cache_prefix,
+                              overwrite_cache=True)
         assert handler.data is None
         handler.load_cached_data()
         assert handler.data.shape == (shape[0], shape[1],
@@ -97,8 +99,8 @@ def test_data_caching():
 def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
-    handler = DataHandlerH5(input_file, features, target=target, shape=shape,
-                            max_delta=max_delta, raster_file=raster_file)
+    handler = DataHandler(input_file, features, target=target, shape=shape,
+                          max_delta=max_delta, raster_file=raster_file)
 
     tmp = handler.extract_data(
         input_file, handler.raster_index,
@@ -141,15 +143,15 @@ def test_raster_index_caching():
     # saving raster file
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        handler = DataHandlerH5(input_file, features, target=target,
-                                shape=shape, max_delta=max_delta,
-                                raster_file=raster_file)
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=max_delta,
+                              raster_file=raster_file)
         handler.get_raster_index(input_file, target, shape)
 
         # loading raster file
-        handler = DataHandlerH5(input_file, features, target=target,
-                                shape=shape, max_delta=max_delta,
-                                raster_file=raster_file)
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=max_delta,
+                              raster_file=raster_file)
 
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
@@ -160,17 +162,19 @@ def test_normalization_input():
 
     means = np.random.rand(len(features))
     stds = np.random.rand(len(features))
-    batch_handler = BatchHandler.make(
-        input_files, features, targets=targets, shape=shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches,
-        means=means, stds=stds)
-
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance, means=means,
+                                 stds=stds)
     assert np.array_equal(batch_handler.stds, stds)
     assert np.array_equal(batch_handler.means, means)
 
@@ -178,15 +182,18 @@ def test_normalization_input():
 def test_normalization():
     """Test correct normalization"""
 
-    batch_handler = SpatialBatchHandler.make(
-        input_files, features, targets=targets, shape=shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = SpatialBatchHandler(data_handlers,
+                                        batch_size=batch_size,
+                                        n_batches=n_batches,
+                                        s_enhance=s_enhance)
 
     stacked_data = \
         np.concatenate(
@@ -205,20 +212,22 @@ def test_normalization():
 def test_spatiotemporal_normalization():
     """Test correct normalization"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
 
     stacked_data = \
         np.concatenate(
-            [d.data for d in spatiotemporal_batch_handler.data_handlers],
+            [d.data for d in batch_handler.data_handlers],
             axis=2)
 
     for i in range(len(features)):
@@ -232,8 +241,8 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandlerH5(input_file, features, target=target,
-                            shape=shape, max_delta=20)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -244,15 +253,19 @@ def test_validation_batching():
     """Test batching of validation data through
     ValidationData iterator"""
 
-    batch_handler = SpatialBatchHandler.make(
-        input_files, features, targets=targets, shape=shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=(sample_shape[0],
+                                                 sample_shape[1], 1),
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = SpatialBatchHandler(data_handlers,
+                                        batch_size=batch_size,
+                                        n_batches=n_batches,
+                                        s_enhance=s_enhance)
 
     for batch in batch_handler.val_data:
         assert batch.high_res.dtype == np.dtype(np.float32)
@@ -275,19 +288,21 @@ def test_validation_batching():
 def test_temporal_coarsening(method, t_enhance):
     """Test temporal coarsening of batches"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        sample_shape=sample_shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches,
-        temporal_coarsening_method=method)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 temporal_coarsening_method=method)
 
-    for batch in spatiotemporal_batch_handler:
+    for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
         assert batch.low_res.shape == \
             (batch.low_res.shape[0],
@@ -310,19 +325,21 @@ def test_spatiotemporal_validation_batching(method):
     """Test batching of validation data through
     ValidationData iterator"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        sample_shape=sample_shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches,
-        temporal_coarsening_method=method)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 temporal_coarsening_method=method)
 
-    for batch in spatiotemporal_batch_handler.val_data:
+    for batch in batch_handler.val_data:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
         assert batch.low_res.shape == \
             (batch.low_res.shape[0],
@@ -346,26 +363,27 @@ def test_spatiotemporal_validation_batching(method):
 def test_spatiotemporal_batch_observations(sample_shape):
     """Test that batch observations are found in source data"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        sample_shape=sample_shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
 
-    for batch in spatiotemporal_batch_handler:
-        for i, index in enumerate(
-                spatiotemporal_batch_handler.current_batch_indices):
+    for batch in batch_handler:
+        for i, index in enumerate(batch_handler.current_batch_indices):
             spatial_1_slice = index[0]
             spatial_2_slice = index[1]
             t_slice = index[2]
 
-            handler_index = spatiotemporal_batch_handler.current_handler_index
-            handler = spatiotemporal_batch_handler.data_handlers[handler_index]
+            handler_index = batch_handler.current_handler_index
+            handler = batch_handler.data_handlers[handler_index]
 
             assert np.array_equal(
                 batch.high_res[i, :, :, :],
@@ -383,20 +401,22 @@ def test_spatiotemporal_batch_indices(sample_shape):
     """Test spatiotemporal batch indices for unique
     spatial indices and contiguous increasing temporal slice"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        sample_shape=sample_shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
 
     all_spatial_tuples = []
-    for _ in spatiotemporal_batch_handler:
-        for index in spatiotemporal_batch_handler.current_batch_indices:
+    for _ in batch_handler:
+        for index in batch_handler.current_batch_indices:
             spatial_1_slice = np.arange(index[0].start, index[0].stop)
             spatial_2_slice = np.arange(index[1].start, index[1].stop)
             t_slice = np.arange(index[2].start, index[2].stop)
@@ -425,21 +445,23 @@ def test_spatiotemporal_batch_indices(sample_shape):
 def test_spatiotemporal_batch_handling(plot=False):
     """Test spatiotemporal batch handling class"""
 
-    spatiotemporal_batch_handler = BatchHandler.make(
-        input_files, features, targets, shape,
-        sample_shape=sample_shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        t_enhance=t_enhance,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
 
-    for batch in spatiotemporal_batch_handler:
+    for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
-    for i, batch in enumerate(spatiotemporal_batch_handler):
+    for i, batch in enumerate(batch_handler):
         assert batch.low_res.shape == \
             (batch.low_res.shape[0],
              sample_shape[0] // s_enhance,
@@ -469,15 +491,18 @@ def test_spatiotemporal_batch_handling(plot=False):
 def test_batch_handling(plot=False):
     """Test spatial batch handling class"""
 
-    batch_handler = SpatialBatchHandler.make(
-        input_files, features, targets=targets, shape=shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = SpatialBatchHandler(data_handlers,
+                                        batch_size=batch_size,
+                                        n_batches=n_batches,
+                                        s_enhance=s_enhance)
 
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -512,15 +537,18 @@ def test_batch_handling(plot=False):
 def test_val_data_storage():
     """Test validation data storage from batch handler method"""
 
-    batch_handler = SpatialBatchHandler.make(
-        input_files, features, targets=targets, shape=shape,
-        batch_size=batch_size,
-        s_enhance=s_enhance,
-        sample_shape=sample_shape,
-        max_delta=max_delta,
-        val_split=val_split,
-        temporal_slice=temporal_slice,
-        n_batches=n_batches)
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = SpatialBatchHandler(data_handlers,
+                                        batch_size=batch_size,
+                                        n_batches=n_batches,
+                                        s_enhance=s_enhance)
 
     val_observations = 0
     batch_handler.val_data._i = 0
@@ -533,10 +561,10 @@ def test_val_data_storage():
     n_observations = 0
     for f in input_files:
 
-        handler = DataHandlerH5(f, features, target, shape,
-                                max_delta, raster_file=raster_file,
-                                val_split=val_split,
-                                temporal_slice=temporal_slice)
+        handler = DataHandler(f, features, target, shape,
+                              max_delta, raster_file=raster_file,
+                              val_split=val_split,
+                              temporal_slice=temporal_slice)
         data = handler.extract_data(
             f, handler.raster_index,
             features, temporal_slice)
@@ -551,10 +579,10 @@ def test_val_data_storage():
 def test_spatial_coarsening(s_enhance, plot=False):
     """Test spatial coarsening"""
 
-    handler = DataHandlerH5(input_file, features, target=target,
-                            shape=shape, max_delta=20,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20,
+                          max_extract_workers=1,
+                          max_compute_workers=1)
 
     handler_data = handler.extract_data(
         input_file, handler.raster_index,

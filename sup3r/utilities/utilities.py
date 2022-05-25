@@ -20,6 +20,25 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def round_array(arr, digits=3):
+    """Method to round elements in an array or list. Used a lot in logging
+    losses from the data-centric model
+
+    Parameters
+    ----------
+    arr : list | ndarray
+        List or array to round elements of
+    digits : int, optional
+        Number of digits to round to, by default 3
+
+    Returns
+    -------
+    list
+        List with rounded elements
+    """
+    return [round(a, digits) for a in arr]
+
+
 def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     """Get array slices of corresponding chunk size
 
@@ -35,14 +54,12 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     Returns
     -------
     list
-        List of slices correpoding to chunks of array
+        List of slices corresponding to chunks of array
     """
 
     indices = np.arange(0, arr_size)
     indices = indices[index_slice.start:index_slice.stop]
-    step = index_slice.step
-    if step is None:
-        step = 1
+    step = 1 if index_slice.step is None else index_slice.step
     slices = []
     start = indices[0]
     stop = start + step * chunk_size
@@ -134,28 +151,59 @@ def uniform_box_sampler(data, shape):
         List of slices corresponding to row and col extent of arr sample
     '''
 
-    slices = []
-    if data.shape[0] <= shape[0]:
-        start_row = 0
-        stop_row = data.shape[0]
-    else:
-        start_row = np.random.randint(0, data.shape[0] - shape[0])
-        stop_row = start_row + shape[0]
+    shape_1 = data.shape[0] if data.shape[0] < shape[0] else shape[0]
+    shape_2 = data.shape[1] if data.shape[1] < shape[1] else shape[1]
+    shape = (shape_1, shape_2)
+    start_row = np.random.randint(0, data.shape[0] - shape[0] + 1)
+    start_col = np.random.randint(0, data.shape[1] - shape[1] + 1)
+    stop_row = start_row + shape[0]
+    stop_col = start_col + shape[1]
 
-    if data.shape[1] <= shape[1]:
-        start_col = 0
-        stop_col = data.shape[1]
-    else:
-        start_col = np.random.randint(0, data.shape[1] - shape[1])
-        stop_col = start_col + shape[1]
+    return [slice(start_row, stop_row), slice(start_col, stop_col)]
 
-    slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
-    return slices
+
+def weighted_time_sampler(data, shape, weights):
+    """Extracts a temporal slice from data with selection weighted based on
+    provided weights
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (time_steps) Size of time slice to sample
+        from data
+    weights : list
+        List of weights used to specify selection strategy. e.g. If weights
+        is [0.2, 0.8] then the start of the temporal slice will be selected
+        from the first half of the temporal extent with 0.8 probability and
+        0.2 probability for the second half.
+
+    Returns
+    -------
+    slice : slice
+        time slice with size shape
+    """
+
+    shape = data.shape[2] if data.shape[2] < shape else shape
+    t_indices = (np.arange(0, data.shape[2]) if shape == 1
+                 else np.arange(0, data.shape[2] - shape + 1))
+    t_chunks = np.array_split(t_indices, len(weights))
+
+    weight_list = []
+    for i, w in enumerate(weights):
+        weight_list += [w] * len(t_chunks[i])
+    weight_list /= np.sum(weight_list)
+
+    start = np.random.choice(t_indices, p=weight_list)
+    stop = start + shape
+
+    return slice(start, stop)
 
 
 def uniform_time_sampler(data, shape):
     '''Extracts a temporal slice from data.
-
     Parameters:
     -----------
     data : np.ndarray
@@ -164,19 +212,14 @@ def uniform_time_sampler(data, shape):
     shape : tuple
         (time_steps) Size of time slice to sample
         from data
-
     Returns:
     --------
     slice : slice
         time slice with size shape
     '''
-
-    if data.shape[2] <= shape:
-        start = 0
-        stop = data.shape[2]
-    else:
-        start = np.random.randint(0, data.shape[2] - shape)
-        stop = start + shape
+    shape = data.shape[2] if data.shape[2] < shape else shape
+    start = np.random.randint(0, data.shape[2] - shape + 1)
+    stop = start + shape
     return slice(start, stop)
 
 
@@ -205,7 +248,7 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:-shape]
+    ti_short = time_index[:1 - shape]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]

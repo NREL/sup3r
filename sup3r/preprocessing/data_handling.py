@@ -18,8 +18,10 @@ import warnings
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (get_chunk_slices, uniform_box_sampler,
+from sup3r.utilities.utilities import (get_chunk_slices,
+                                       uniform_box_sampler,
                                        uniform_time_sampler,
+                                       weighted_time_sampler,
                                        daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
@@ -198,8 +200,9 @@ class DataHandler(FeatureHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
-        msg = ('sample_shape[2] cannot be larger than the number of time steps'
-               ' in the raw data.')
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({len(self.raw_time_index)}).')
         assert len(self.raw_time_index) >= self.sample_shape[2], msg
 
         msg = (f'The requested time slice {temporal_slice} conflicts with the '
@@ -236,6 +239,14 @@ class DataHandler(FeatureHandler):
             self.raster_index = self.get_raster_index(self.file_path,
                                                       self.target,
                                                       self.grid_shape)
+            raster_shape = get_raster_shape(self.raster_index)
+            msg = (f'spatial_sample_shape {sample_shape[:2]} is larger than '
+                   f'the raster size {raster_shape}')
+            if (sample_shape[0] <= raster_shape[0]
+                    and sample_shape[1] <= raster_shape[1]):
+                logger.warning(msg)
+                warnings.warn(msg)
+
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.features,
                 temporal_slice=self.temporal_slice, time_roll=self.time_roll,
@@ -1123,3 +1134,49 @@ class DataHandlerNsrdb(DataHandlerH5):
         self.time_index = self.time_index[slice(val_split_index, None)]
 
         return self.data, self.val_data
+
+
+# pylint: disable=W0223
+class DataHandlerDC(DataHandler):
+    """Data-centric data handler"""
+
+    def get_observation_index(self, temporal_weights):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        temporal_focus : slice
+            Slice used to select prefered temporal range from full extent
+        """
+        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
+        temporal_slice = weighted_time_sampler(self.data, self.sample_shape[2],
+                                               weights=temporal_weights)
+        return tuple(
+            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
+
+    def get_next(self, temporal_weights):
+        """Gets data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        temporal_focus : slice
+            Slice used to select prefered temporal range from full extent
+        """
+        self.current_obs_index = self.get_observation_index(temporal_weights)
+        observation = self.data[self.current_obs_index]
+        return observation
+
+
+class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
+    """Data centric data handler for NETCDF files"""
+
+
+class DataHandlerDCforH5(DataHandlerH5, DataHandlerDC):
+    """Data centric data handler for H5 files"""
