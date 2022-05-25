@@ -238,6 +238,12 @@ class DataHandler(FeatureHandler):
             self.raster_index = self.get_raster_index(self.file_path,
                                                       self.target,
                                                       self.grid_shape)
+            msg = ('sample_shape[0] / sample_shape[1] cannot be larger than '
+                   'the raster size')
+            raster_shape = get_raster_shape(self.raster_index)
+            assert (sample_shape[0] <= raster_shape[0]
+                    and sample_shape[1] <= raster_shape[1]), msg
+
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.features,
                 temporal_slice=self.temporal_slice, time_roll=self.time_roll,
