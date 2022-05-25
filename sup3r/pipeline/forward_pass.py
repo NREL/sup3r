@@ -682,7 +682,7 @@ class ForwardPass:
         return hi_res[0][crop_slices]
 
     @classmethod
-    def get_node_cmd(cls, config, node_kwargs):
+    def get_node_cmd(cls, config, node_kwargs=None):
         """Get a CLI call to initialize ForwardPassStrategy and run ForwardPass
         on a single node based on an input config.
 

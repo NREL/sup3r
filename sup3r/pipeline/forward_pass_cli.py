@@ -9,7 +9,7 @@ import click
 import logging
 from inspect import signature
 
-from reV.pipeline.stats import Status
+from reV.pipeline.status import Status
 
 from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
