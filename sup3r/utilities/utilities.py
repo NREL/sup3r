@@ -151,7 +151,7 @@ def uniform_box_sampler(data, shape):
         List of slices corresponding to row and col extent of arr sample
     '''
 
-    msg = 'Spatial sample shape must be <= full spatial extent'
+    msg = 'Spatial sample shape cannot be larger than the full spatial extent'
     assert shape[0] <= data.shape[0] and shape[1] <= data.shape[1], msg
     start_row = np.random.randint(0, data.shape[0] - shape[0] + 1)
     start_col = np.random.randint(0, data.shape[1] - shape[1] + 1)
@@ -185,7 +185,8 @@ def weighted_time_sampler(data, shape, weights):
         time slice with size shape
     """
 
-    msg = 'Temporal sample shape must be <= full temporal extent'
+    msg = ('Temporal sample shape cannot be larger than the full temporal '
+           'extent')
     assert shape <= data.shape[2], msg
 
     t_indices = (np.arange(0, data.shape[2]) if shape == 1
@@ -218,7 +219,8 @@ def uniform_time_sampler(data, shape):
     slice : slice
         time slice with size shape
     '''
-    msg = 'Temporal sample shape must be <= full temporal extent'
+    msg = ('Temporal sample shape cannot be larger than the full temporal '
+           'extent')
     assert shape <= data.shape[2], msg
     start = np.random.randint(0, data.shape[2] - shape + 1)
     stop = start + shape
@@ -250,7 +252,7 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:-(shape - 1)]
+    ti_short = time_index[:1 - shape]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
