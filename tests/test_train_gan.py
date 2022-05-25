@@ -118,13 +118,13 @@ def test_train_st_weight_update(n_epoch=5, log=False):
 
     adaptive_update_bounds = (0.9, 0.99)
     with tempfile.TemporaryDirectory() as td:
-        # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
                     weight_gen_advers=1e-6,
                     train_gen=True, train_disc=True,
                     checkpoint_int=10,
                     out_dir=os.path.join(td, 'test_{epoch}'),
-                    adaptive_update_bounds=adaptive_update_bounds)
+                    adaptive_update_bounds=adaptive_update_bounds,
+                    adaptive_update_fraction=0.05)
 
         # check that weight is changed
         check_lower = any(frac < adaptive_update_bounds[0] for frac in

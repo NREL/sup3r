@@ -4,7 +4,9 @@
 import numpy as np
 
 from sup3r.utilities.utilities import (get_chunk_slices,
-                                       weighted_time_sampler)
+                                       uniform_time_sampler,
+                                       weighted_time_sampler,
+                                       uniform_box_sampler)
 
 
 def test_get_chunk_slices():
@@ -25,7 +27,7 @@ def test_weighted_time_sampler():
     data = np.zeros((1, 1, 100))
     shape = 10
     chunks = np.array_split(np.arange(0, 100 - (shape - 1)), 10)
-    weights = np.zeros(10)
+    weights = np.zeros(len(chunks))
     weights_1 = weights.copy()
     weights_1[0] = 1
 
@@ -47,3 +49,33 @@ def test_weighted_time_sampler():
         slice_3 = weighted_time_sampler(data, 10, weights_3)
         assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
                or chunks[5][0] <= slice_3.start <= chunks[5][-1])
+
+    shape = 1
+    weights = np.zeros(data.shape[2])
+    weights_4 = weights.copy()
+    weights_4[5] = 1
+
+    slice_4 = weighted_time_sampler(data, shape, weights_4)
+    print(slice_4)
+    assert weights_4[slice_4.start] == 1
+
+
+def test_uniform_time_sampler():
+    """Test uniform_time_sampler for correct start point for edge case"""
+
+    data = np.zeros((1, 1, 10))
+    shape = 10
+    t_slice = uniform_time_sampler(data, shape)
+    assert t_slice.start == 0
+    assert t_slice.stop == data.shape[2]
+
+
+def test_uniform_box_sampler():
+    """Test uniform_box_sampler for correct start point for edge case"""
+
+    data = np.zeros((10, 10, 1))
+    shape = (10, 10)
+    [s1, s2] = uniform_box_sampler(data, shape)
+    assert s1.start == s2.start == 0
+    assert s1.stop == data.shape[0]
+    assert s2.stop == data.shape[1]

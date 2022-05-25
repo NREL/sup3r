@@ -59,9 +59,7 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
 
     indices = np.arange(0, arr_size)
     indices = indices[index_slice.start:index_slice.stop]
-    step = index_slice.step
-    if step is None:
-        step = 1
+    step = 1 if index_slice.step is None else index_slice.step
     slices = []
     start = indices[0]
     stop = start + step * chunk_size
@@ -153,23 +151,14 @@ def uniform_box_sampler(data, shape):
         List of slices corresponding to row and col extent of arr sample
     '''
 
-    slices = []
-    if data.shape[0] <= shape[0]:
-        start_row = 0
-        stop_row = data.shape[0]
-    else:
-        start_row = np.random.randint(0, data.shape[0] - shape[0])
-        stop_row = start_row + shape[0]
+    msg = 'Spatial sample shape must be <= full spatial extent'
+    assert shape[0] <= data.shape[0] and shape[1] <= data.shape[1], msg
+    start_row = np.random.randint(0, data.shape[0] - shape[0] + 1)
+    start_col = np.random.randint(0, data.shape[1] - shape[1] + 1)
+    stop_row = start_row + shape[0]
+    stop_col = start_col + shape[1]
 
-    if data.shape[1] <= shape[1]:
-        start_col = 0
-        stop_col = data.shape[1]
-    else:
-        start_col = np.random.randint(0, data.shape[1] - shape[1])
-        stop_col = start_col + shape[1]
-
-    slices = [slice(start_row, stop_row), slice(start_col, stop_col)]
-    return slices
+    return [slice(start_row, stop_row), slice(start_col, stop_col)]
 
 
 def weighted_time_sampler(data, shape, weights):
@@ -195,16 +184,21 @@ def weighted_time_sampler(data, shape, weights):
     slice : slice
         time slice with size shape
     """
-    shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
-    index_slice = slice(None) if shift == 0 else slice(None, -shift)
-    t_indices = np.arange(0, data.shape[2])[index_slice]
+
+    msg = 'Temporal sample shape must be <= full temporal extent'
+    assert shape <= data.shape[2], msg
+
+    t_indices = (np.arange(0, data.shape[2]) if shape == 1
+                 else np.arange(0, data.shape[2] - shape + 1))
     t_chunks = np.array_split(t_indices, len(weights))
+
     weight_list = []
     for i, w in enumerate(weights):
         weight_list += [w] * len(t_chunks[i])
     weight_list /= np.sum(weight_list)
+
     start = np.random.choice(t_indices, p=weight_list)
-    stop = start + np.min([data.shape[2], shape])
+    stop = start + shape
 
     return slice(start, stop)
 
@@ -224,9 +218,10 @@ def uniform_time_sampler(data, shape):
     slice : slice
         time slice with size shape
     '''
-    shift = data.shape[2] - 1 if data.shape[2] <= shape else shape - 1
-    start = np.random.randint(0, data.shape[2] - shift)
-    stop = start + np.min([data.shape[2], shape])
+    msg = 'Temporal sample shape must be <= full temporal extent'
+    assert shape <= data.shape[2], msg
+    start = np.random.randint(0, data.shape[2] - shape + 1)
+    stop = start + shape
     return slice(start, stop)
 
 
