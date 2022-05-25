@@ -400,7 +400,8 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12):
+                 means_file=None, n_features_per_thread=12,
+                 parallel_norm=False):
         """
         Parameters
         ----------
@@ -443,6 +444,8 @@ class BatchHandler:
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
+        parallel_norm : bool
+            Whether to normalize the data in data_handlers in parallel.
         """
 
         handler_shapes = np.array(
@@ -498,7 +501,7 @@ class BatchHandler:
         if norm:
             logger.debug('Normalizing data for BatchHandler.')
             self.means, self.stds = self.check_cached_stats()
-            self.normalize(self.means, self.stds)
+            self.normalize(self.means, self.stds, parallel_norm=parallel_norm)
             self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
@@ -613,7 +616,7 @@ class BatchHandler:
                     (data_handler.data[..., i] - self.means[i])**2)
             self.stds[i] = np.sqrt(self.stds[i] / n_elems)
 
-    def normalize(self, means=None, stds=None):
+    def normalize(self, means=None, stds=None, parallel_norm=False):
         """Compute means and stds for each feature across all datasets and
         normalize each data handler dataset.  Checks if input means and stds
         are different from stored means and stds and renormalizes if they are
@@ -628,23 +631,28 @@ class BatchHandler:
             self.stds = stds
 
         logger.info('Normalizing data in each data handler.')
-        futures = {}
-        now = dt.now()
-        for i, d in enumerate(self.data_handlers):
-            future = threading.Thread(target=d.normalize,
-                                      args=(self.means, self.stds))
-            futures[future] = i
-            future.start()
 
-        logger.info(
-            f'Started normalizing {len(self.data_handlers)} data handlers '
-            f'in {dt.now() - now}. ')
+        if parallel_norm:
+            futures = {}
+            now = dt.now()
+            for i, d in enumerate(self.data_handlers):
+                future = threading.Thread(target=d.normalize,
+                                          args=(self.means, self.stds))
+                futures[future] = i
+                future.start()
 
-        for i, future in enumerate(futures.keys()):
-            future.join()
-            logger.debug(
-                f'{i + 1} out of {len(futures)} data handlers normalized')
-        logger.info('Finished normalizing data in all data handlers')
+            logger.info(
+                f'Started normalizing {len(self.data_handlers)} data handlers '
+                f'in {dt.now() - now}. ')
+
+            for i, future in enumerate(futures.keys()):
+                future.join()
+                logger.debug(
+                    f'{i + 1} out of {len(futures)} data handlers normalized')
+            logger.info('Finished normalizing data in all data handlers')
+        else:
+            for d in self.data_handlers:
+                d.normalize(self.means, self.stds)
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""
@@ -780,7 +788,8 @@ class BatchHandlerDC(BatchHandler):
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, n_features_per_thread=12):
+                 means_file=None, n_features_per_thread=12,
+                 parallel_norm=False):
         """
         Parameters
         ----------
@@ -823,6 +832,8 @@ class BatchHandlerDC(BatchHandler):
             tell the BatchHandler how to chunk the data handlers so that
             number_of_features_per_handler * number_of_handlers_per_chunk <=
             n_features_per_thread.
+        parallel_norm : bool
+            Whether to normalize the data in data_handlers in parallel.
         """
 
         super().__init__(data_handlers=data_handlers, batch_size=batch_size,
@@ -831,7 +842,8 @@ class BatchHandlerDC(BatchHandler):
                          n_batches=n_batches,
                          temporal_coarsening_method=temporal_coarsening_method,
                          stdevs_file=stdevs_file, means_file=means_file,
-                         n_features_per_thread=n_features_per_thread)
+                         n_features_per_thread=n_features_per_thread,
+                         parallel_norm=parallel_norm)
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)

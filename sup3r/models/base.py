@@ -694,7 +694,7 @@ class Sup3rGan:
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
                                    update_bounds=(0.5, 0.95),
-                                   update_frac=0.05):
+                                   update_frac=0.0):
         """Get the factor by which to multiply previous adversarial loss
         weight
 
@@ -789,10 +789,14 @@ class Sup3rGan:
         """
         for k, v in sorted(loss_details.items()):
             if k != 'n_obs':
-                if level.lower() == 'info':
-                    logger.info('\t{}: {:.2e}'.format(k, v))
+                if isinstance(v, str):
+                    msg_format = '\t{}: {}'
                 else:
-                    logger.debug('\t{}: {:.2e}'.format(k, v))
+                    msg_format = '\t{}: {:.2e}'
+                if level.lower() == 'info':
+                    logger.info(msg_format.format(k, v))
+                else:
+                    logger.debug(msg_format.format(k, v))
 
     @staticmethod
     def early_stop(history, column, threshold=0.005, n_epoch=5):
@@ -1275,7 +1279,7 @@ class Sup3rGan:
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
               adaptive_update_bounds=(0.9, 0.99),
-              adaptive_update_fraction=0.05):
+              adaptive_update_fraction=0.0):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -1353,15 +1357,18 @@ class Sup3rGan:
             loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
                                               loss_details)
 
-            logger.info('Epoch {} of {} '
-                        'generator train/val loss: {:.2e}/{:.2e} '
-                        'discriminator train/val loss: {:.2e}/{:.2e}'
-                        .format(epoch, epochs[-1],
-                                loss_details['train_loss_gen'],
-                                loss_details['val_loss_gen'],
-                                loss_details['train_loss_disc'],
-                                loss_details['val_loss_disc'],
-                                ))
+            msg = f'Epoch {epoch} of {epochs[-1]} '
+            msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
+                loss_details["train_loss_gen"],
+                loss_details["train_loss_disc"])
+
+            if all(loss in loss_details for loss
+                   in ('val_loss_gen', 'val_loss_disc')):
+                msg += 'gen/disc val loss: {:.2e}/{:.2e} '.format(
+                    loss_details["val_loss_gen"],
+                    loss_details["val_loss_disc"])
+
+            logger.info(msg)
 
             lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
             lr_d = self.get_optimizer_config(

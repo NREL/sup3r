@@ -20,6 +20,25 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def round_array(arr, digits=3):
+    """Method to round elements in an array or list. Used a lot in logging
+    losses from the data-centric model
+
+    Parameters
+    ----------
+    arr : list | ndarray
+        List or array to round elements of
+    digits : int, optional
+        Number of digits to round to, by default 3
+
+    Returns
+    -------
+    list
+        List with rounded elements
+    """
+    return [round(a, digits) for a in arr]
+
+
 def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     """Get array slices of corresponding chunk size
 
