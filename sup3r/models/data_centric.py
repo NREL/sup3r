@@ -2,9 +2,7 @@
 """Sup3r data-centric model software"""
 
 import numpy as np
-import time
 import logging
-import pandas as pd
 import json
 
 from sup3r.models.modified_loss import Sup3rGanMMD, Sup3rGanKLD
