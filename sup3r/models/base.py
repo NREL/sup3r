@@ -266,6 +266,26 @@ class Sup3rGan:
 
         return params
 
+    @property
+    def means(self):
+        """Get the data normalization mean values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._means
+
+    @property
+    def stdevs(self):
+        """Get the data normalization standard deviation values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._stdevs
+
     def set_norm_stats(self, batch_handler):
         """Set the normalization statistics associated with a data batch
         handler to model attributes.
