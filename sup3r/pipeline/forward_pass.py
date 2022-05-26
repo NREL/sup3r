@@ -684,7 +684,7 @@ class ForwardPass:
         return hi_res[0][crop_slices]
 
     @classmethod
-    def get_node_cmd(cls, config, node_kwargs=None):
+    def get_node_cmd(cls, config):
         """Get a CLI call to initialize ForwardPassStrategy and run ForwardPass
         on a single node based on an input config.
 
@@ -694,10 +694,6 @@ class ForwardPass:
             sup3r forward pass config with all necessary args and kwargs to
             initialize ForwardPassStrategy and run ForwardPass on a single
             node.
-        node_kwargs : dict
-            PLACEHOLDER, config is probably a global input and you need
-            something that says what the node-specific chunk is. OR MAYBE
-            config is updated with the node specific arguments.
         """
 
         import_str = ('from sup3r.pipeline.forward_pass '
@@ -717,11 +713,10 @@ class ForwardPass:
         return cmd
 
     def run(self):
-        """
-        ForwardPass is initialized with a file_slice_index. This index selects
-        a file subset from the full file list in ForwardPassStrategy. This
-        routine runs forward passes on all data chunks associated with this
-        file subset.
+        """ForwardPass is initialized with a file_slice_index. This index
+        selects a file subset from the full file list in ForwardPassStrategy.
+        This routine runs forward passes on all data chunks associated with
+        this file subset.
         """
 
         logger.info(
