@@ -12,6 +12,7 @@ from fnmatch import fnmatch
 import os
 import xarray as xr
 import re
+import warnings
 
 from rex import Resource
 
@@ -571,8 +572,8 @@ def interp3D(var_array, h_array, heights):
     if not height_check:
         msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
                f'({h_min}, {h_max})')
-        logger.error(msg)
-        raise RuntimeError(msg)
+        logger.warning(msg)
+        warnings.warn(msg)
 
     array_shape = var_array.shape
 

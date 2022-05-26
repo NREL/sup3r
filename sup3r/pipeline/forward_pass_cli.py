@@ -17,6 +17,7 @@ from rex.utilities.loggers import init_mult
 from rex.utilities.cli_dtypes import STR
 from rex.utilities.utilities import safe_json_load
 
+from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
 
@@ -58,7 +59,7 @@ def from_config(ctx, config_file, verbose):
     config = safe_json_load(config_file)
 
     config_verbose = config.get('log_level', 'INFO')
-    config_verbose = True if config_verbose == 'DEBUG' else False
+    config_verbose = bool(config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
     init_mult('sup3r_fwp', './logs/', modules=[__name__, 'sup3r'],

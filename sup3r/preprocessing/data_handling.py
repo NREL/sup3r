@@ -242,8 +242,8 @@ class DataHandler(FeatureHandler):
             raster_shape = get_raster_shape(self.raster_index)
             msg = (f'spatial_sample_shape {sample_shape[:2]} is larger than '
                    f'the raster size {raster_shape}')
-            if (sample_shape[0] <= raster_shape[0]
-                    and sample_shape[1] <= raster_shape[1]):
+            if (sample_shape[0] > raster_shape[0]
+                    and sample_shape[1] > raster_shape[1]):
                 logger.warning(msg)
                 warnings.warn(msg)
 

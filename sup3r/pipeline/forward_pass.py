@@ -478,9 +478,9 @@ class ForwardPassStrategy:
                     start = max(start - self.temporal_overlap, 0)
             if stop is not None:
                 if i < 2:
-                    stop = min(start + self.spatial_overlap, ends[i])
+                    stop = min(stop + self.spatial_overlap, ends[i])
                 else:
-                    stop = min(start + self.temporal_overlap, ends[i])
+                    stop = min(stop + self.temporal_overlap, ends[i])
             pad_slices.append(slice(start, stop))
         return pad_slices
 
@@ -604,6 +604,8 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
+    DATA_HANDLER = DataHandlerNC
+
     def __init__(self, strategy, model_path, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
@@ -637,7 +639,7 @@ class ForwardPass:
         self.data_shape = kwargs['data_shape']
         self.chunk_shape = kwargs['chunk_shape']
 
-        self.data_handler = DataHandlerNC(
+        self.data_handler = self.DATA_HANDLER(
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.shape, temporal_slice=self.temporal_slice,
             raster_file=self.strategy.raster_file,
@@ -701,7 +703,7 @@ class ForwardPass:
         import_str = ('from sup3r.pipeline.forward_pass '
                       'import ForwardPassStrategy, ForwardPass')
 
-        fps_init_str = get_fun_call_str(ForwardPassStrategy.__init__, config)
+        fps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         model_path = config['model_path']
         node_index = config['node_index']
