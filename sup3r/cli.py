@@ -7,6 +7,7 @@ import logging
 
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass_cli import from_config as forward_pass_cli
+from sup3r.pipeline.data_extract_cli import from_config as data_extract_cli
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
 def main(ctx, config_file, verbose):
-    """reV command line interface."""
+    """sup3r command line interface."""
     ctx.ensure_object(dict)
     ctx.obj['CONFIG_FILE'] = config_file
     ctx.obj['VERBOSE'] = verbose
@@ -36,3 +37,22 @@ def forward_pass(ctx, verbose):
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(forward_pass_cli, config_file=config_file, verbose=verbose)
+
+
+@main.group()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def data_extract(ctx, verbose):
+    """sup3r data extraction and caching prior to training or forward pass."""
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(data_extract_cli, config_file=config_file, verbose=verbose)
+
+
+if __name__ == '__main__':
+    try:
+        main(obj={})
+    except Exception:
+        logger.exception('Error running sup3r CLI')
+        raise

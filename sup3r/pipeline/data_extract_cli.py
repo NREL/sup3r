@@ -93,7 +93,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         Click context object where ctx.obj is a dictionary
     cmd : str
         Command to be submitted in SLURM shell script. Example:
-            'python -m sup3r.pipeline.data_extract_cli.kickoff_slurm_job'
+            'python -m sup3r.cli data_extract -c <config_file>'
     alloc : str
         HPC project (allocation) handle. Example: 'sup3r'. Default is not to
         state an allocation (does not work on Eagle slurm).
