@@ -17,6 +17,7 @@ import warnings
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
+from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_box_sampler,
@@ -264,6 +265,27 @@ class DataHandler(FeatureHandler):
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize DataHandler and cache data.
+
+        Parameters
+        ----------
+        config : dict
+            sup3r data handler config with all necessary args and kwargs to
+            initialize DataHandler and run data extraction.
+        """
+
+        import_str = ('from sup3r.preprocessing.data_handling '
+                      f'import {cls.__name__}')
+
+        dh_init_str = get_fun_call_str(cls, config)
+
+        cmd = (f"python -c \'{import_str};\n"
+               f"data_handler = {dh_init_str};\'\n")
+
+        return cmd
+
     def get_cache_file_names(self, cache_file_prefix):
         """Get names of cache files from cache_file_prefix and feature names
 
@@ -482,6 +504,7 @@ class DataHandler(FeatureHandler):
 
                 with open(fp, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
+                    print(f'data shape: {self.data.shape}')
             else:
                 msg = (f'Called cache_data but {fp} already exists. Set to '
                        'overwrite_cache to True to overwrite.')

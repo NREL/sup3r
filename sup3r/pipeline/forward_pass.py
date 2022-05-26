@@ -210,6 +210,8 @@ class ForwardPassStrategy:
         ts_indices = np.arange(len(file_paths) * self.file_t_steps)
         data_shape = (self.shape[0], self.shape[1],
                       len(ts_indices[temporal_slice]))
+        cache_file_prefix = (None if self.cache_file_prefix is None
+                             else f'{self.cache_file_prefix}_{node_index}')
 
         out = self.get_chunk_slices(data_shape=data_shape)
         lr_slices, lr_pad_slices, hr_slices, hr_crop_slices = out
@@ -228,6 +230,7 @@ class ForwardPassStrategy:
                       hr_crop_slices=hr_crop_slices,
                       data_shape=data_shape,
                       chunk_shape=chunk_shape,
+                      cache_file_prefix=cache_file_prefix,
                       node_index=node_index)
 
         return kwargs
@@ -638,6 +641,7 @@ class ForwardPass:
         self.hr_crop_slices = kwargs['hr_crop_slices']
         self.data_shape = kwargs['data_shape']
         self.chunk_shape = kwargs['chunk_shape']
+        self.cache_file_prefix = kwargs['cache_file_prefix']
 
         self.data_handler = self.DATA_HANDLER(
             self.file_paths, self.features, target=self.strategy.target,
@@ -645,12 +649,13 @@ class ForwardPass:
             raster_file=self.strategy.raster_file,
             max_extract_workers=self.strategy.max_extract_workers,
             max_compute_workers=self.strategy.max_compute_workers,
-            cache_file_prefix=self.strategy.cache_file_prefix,
+            cache_file_prefix=self.cache_file_prefix,
             time_chunk_size=self.strategy.temporal_extract_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
             val_split=0.0)
 
-        self.data_handler.load_cached_data()
+        if self.cache_file_prefix is not None:
+            self.data_handler.load_cached_data()
 
     @staticmethod
     def forward_pass_chunk(data_chunk, crop_slices, model_path):
