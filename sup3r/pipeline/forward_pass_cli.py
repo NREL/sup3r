@@ -12,7 +12,6 @@ from reV.pipeline.status import Status
 from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
-from rex.utilities.cli_dtypes import STR
 from rex.utilities.utilities import safe_json_load
 
 from sup3r.utilities import ModuleName
