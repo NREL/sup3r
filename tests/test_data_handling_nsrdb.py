@@ -3,6 +3,7 @@
 
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from rex import Resource
@@ -10,6 +11,7 @@ from rex import Resource
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
 from sup3r.preprocessing.batch_handling import BatchHandlerNsrdb
+from sup3r.utilities.utilities import nsrdb_sampler
 
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
@@ -238,3 +240,31 @@ def test_ancillary_vars():
     ws_test = np.sqrt(handler.data[..., 1]**2 + handler.data[..., 2]**2)
     ws_test = np.mean(ws_test, axis=(0, 1))
     assert np.allclose(ws_true, ws_test)
+
+
+def test_nsrdb_sampler():
+    """Test the nsrdb data sampler which does centered sampling on daylight
+    hours."""
+    handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                               target=TARGET, shape=SHAPE,
+                               temporal_slice=slice(None, None, 2),
+                               time_roll=-7,
+                               val_split=0.1,
+                               sample_shape=(20, 20, 24),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+    ti = pd.date_range('20220101', '20230101', freq='1h', inclusive='left')
+    ti = ti[0:handler.data.shape[2]]
+
+    for _ in range(100):
+        tslice = nsrdb_sampler(handler.data, 4, ti)
+        # with only 4 samples, there should never be any NaN data
+        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+
+    for _ in range(100):
+        tslice = nsrdb_sampler(handler.data, 20, ti)
+        # there should be ~8 hours of non-NaN data
+        # the beginning and ending timesteps should be nan
+        assert ((~np.isnan(handler.data[0, 0, tslice, 0])).sum() > 7)
+        assert np.isnan(handler.data[0, 0, tslice, 0])[:3].all()
+        assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()

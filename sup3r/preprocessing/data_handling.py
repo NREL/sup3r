@@ -24,13 +24,13 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
-                                       daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
                                        get_time_index,
                                        get_source_type,
-                                       get_wrf_date_range
+                                       get_wrf_date_range,
+                                       nsrdb_sampler,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -1302,9 +1302,8 @@ class DataHandlerNsrdb(DataHandlerH5):
         """
         spatial_slice = uniform_box_sampler(self.data,
                                             self.sample_shape[:2])
-        temporal_slice = daily_time_sampler(self.data,
-                                            self.sample_shape[2],
-                                            self.time_index)
+        temporal_slice = nsrdb_sampler(self.data, self.sample_shape[2],
+                                       self.time_index)
         obs_index = tuple(spatial_slice
                           + [temporal_slice]
                           + [np.arange(len(self.features))])

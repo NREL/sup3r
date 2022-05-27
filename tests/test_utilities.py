@@ -6,7 +6,8 @@ import numpy as np
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
-                                       uniform_box_sampler)
+                                       uniform_box_sampler,
+                                       )
 
 
 def test_get_chunk_slices():

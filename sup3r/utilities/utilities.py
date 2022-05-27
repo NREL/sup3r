@@ -12,7 +12,7 @@ from fnmatch import fnmatch
 import os
 import xarray as xr
 import re
-import warnings
+from warnings import warn
 
 from rex import Resource
 
@@ -230,8 +230,7 @@ def uniform_time_sampler(data, shape):
 
 
 def daily_time_sampler(data, shape, time_index):
-    """
-    Extracts a temporal slice from data starting at midnight of a random day
+    """Finds a random temporal slice from data starting at midnight
 
     Parameters:
     -----------
@@ -240,23 +239,19 @@ def daily_time_sampler(data, shape, time_index):
         (spatial_1, spatial_2, temporal, features)
     shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
-        multiple of 24.
+        less than or equal to 24.
     time_index : pd.Datetimeindex
         Time index that matches the data axis=2
 
     Returns:
     --------
-    slice : slice
+    tslice : slice
         time slice with size shape of data starting at the beginning of the day
     """
 
     msg = (f'data {data.shape} and time index ({len(time_index)}) '
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
-
-    msg = ('Daily time sampler only supports hourly 8760 or 8784 data '
-           f'right now, but data shape is {data.shape}')
-    assert (data.shape[2] == 8760) | (data.shape[2] == 8784), msg
 
     msg = ('Cannot sample more than 24 hours right now, but received shape '
            f'request: {shape}')
@@ -274,6 +269,54 @@ def daily_time_sampler(data, shape, time_index):
     tslice = slice(start, stop)
 
     return tslice
+
+
+def nsrdb_sampler(data, shape, time_index, csr_ind=0):
+    """Finds a random sample during daylight hours of a day. Nightime is
+    assumed to be marked as NaN in feature axis == csr_ind in the data input.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions, where [..., csr_ind] is assumed to be
+        clearsky ratio with NaN at night.
+        (spatial_1, spatial_2, temporal, features)
+    shape : int
+        (time_steps) Size of time slice to sample from data, must be an integer
+        less than or equal to 24.
+    time_index : pd.Datetimeindex
+        Time index that matches the data axis=2
+    csr_ind : int
+        Index of the feature axis where clearsky ratio is located and NaN's can
+        be found at night.
+
+    Returns:
+    --------
+    tslice : slice
+        time slice with size shape of data starting at the beginning of the day
+    """
+
+    tslice = daily_time_sampler(data, 24, time_index)
+    night_mask = np.isnan(data[:, :, tslice, csr_ind]).any(axis=(0, 1))
+
+    if shape == 24:
+        return tslice
+
+    if night_mask.all():
+        msg = (f'No daylight data found for tslice {tslice} '
+               f'{time_index[tslice]}')
+        logger.warning(msg)
+        warn(msg)
+        return tslice
+
+    else:
+        day_ilocs = np.where(~night_mask)[0]
+        padding = shape - len(day_ilocs)
+        half_pad = int(np.round(padding / 2))
+        new_start = tslice.start + day_ilocs[0] - half_pad
+        new_end = new_start + shape
+        tslice = slice(new_start, new_end)
+        return tslice
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
@@ -639,7 +682,7 @@ def interp3D(var_array, h_array, heights):
         msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
                f'({h_min}, {h_max})')
         logger.warning(msg)
-        warnings.warn(msg)
+        warn(msg)
 
     array_shape = var_array.shape
 
