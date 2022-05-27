@@ -114,7 +114,7 @@ def test_batching(plot=False):
 
     for batch in batcher:
         truth = coarsen_alternate_calc(batch, 1)
-        assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
+        assert np.allclose(batch.low_res[0, :, :, 0, 0], truth, rtol=1e-4)
 
     batcher = BatchHandlerNsrdb([handler], batch_size=1, n_batches=10,
                                 s_enhance=2)
@@ -162,6 +162,54 @@ def test_batching(plot=False):
                 plt.savefig('./test_nsrdb_batch_{}.png'.format(i), dpi=300,
                             bbox_inches='tight')
                 plt.close()
+
+
+def test_batch_nan_stats():
+    """Test that the batch handler calculates the correct statistics even with
+    NaN data present"""
+    handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                               target=TARGET, shape=SHAPE,
+                               temporal_slice=slice(None, None, 2),
+                               time_roll=-7,
+                               val_split=0.1,
+                               sample_shape=(20, 20, 12),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    true_means = [np.nanmean(handler.data[..., i])
+                  for i in range(len(FEATURES))]
+    true_stdevs = [np.nanstd(handler.data[..., i])
+                   for i in range(len(FEATURES))]
+
+    batcher = BatchHandlerNsrdb([handler], batch_size=1, n_batches=10,
+                                s_enhance=1)
+
+    assert np.allclose(true_means, batcher.means)
+    assert np.allclose(true_stdevs, batcher.stds)
+
+    handler1 = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                                target=TARGET, shape=SHAPE,
+                                temporal_slice=slice(None, None, 2),
+                                time_roll=-7,
+                                val_split=0.1,
+                                sample_shape=(20, 20, 12),
+                                max_extract_workers=1,
+                                max_compute_workers=1)
+
+    handler2 = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                                target=TARGET, shape=SHAPE,
+                                temporal_slice=slice(None, None, 2),
+                                time_roll=-7,
+                                val_split=0.1,
+                                sample_shape=(20, 20, 12),
+                                max_extract_workers=1,
+                                max_compute_workers=1)
+
+    batcher = BatchHandlerNsrdb([handler1, handler2], batch_size=1,
+                                n_batches=10, s_enhance=1)
+
+    assert np.allclose(true_means, batcher.means)
+    assert np.allclose(true_stdevs, batcher.stds)
 
 
 def test_val_data():
