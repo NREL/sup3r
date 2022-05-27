@@ -38,6 +38,8 @@ class ForwardPassStrategy:
     stich the chunks back togerther.
     """
 
+    DATA_HANDLER = DataHandlerNC
+
     def __init__(self, file_paths,
                  target=None, shape=None,
                  temporal_slice=slice(None),
@@ -61,7 +63,7 @@ class ForwardPassStrategy:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from. Each file must
+            A list of files to extract raster data from. Each file must
             have the same number of timesteps.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
@@ -268,9 +270,9 @@ class ForwardPassStrategy:
         the forward_pass_chunk_shape"""
         return len(self.file_slices)
 
-    @staticmethod
-    def file_info_logging(file_path):
-        """More concise file info about NETCDF files
+    @classmethod
+    def file_info_logging(cls, file_path):
+        """More concise file info about data files
 
         Parameters
         ----------
@@ -284,7 +286,7 @@ class ForwardPassStrategy:
             dump of file paths
         """
 
-        return DataHandlerNC.file_info_logging(file_path)
+        return cls.DATA_HANDLER.file_info_logging(file_path)
 
     @staticmethod
     def get_output_file_names(out_file_prefix, file_ids):
@@ -321,7 +323,7 @@ class ForwardPassStrategy:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from
+            A list of files to extract raster data from
         file_slices : list
             List of slices specifying file chunks sent to different nodes
 
@@ -345,7 +347,7 @@ class ForwardPassStrategy:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from
+            A list of files to extract raster data from
 
         Returns
         -------
@@ -562,14 +564,21 @@ class ForwardPassStrategy:
             cropped_slices.append(slice(start, stop))
         return cropped_slices
 
-    @classmethod
-    def combine_out_files(cls, file_paths, out_files, fp_out=None):
+
+class ForwardPassOutputHandler:
+    """Class to handle forward pass output. This includes transforming features
+    back to their original form and outputting to the correct file format.
+    """
+    def __init__(self, strategy):
+        self.strategy = strategy
+
+    def combine_out_files(self, fp_out=None):
         """Combine the output of each file_set passed to a different node
 
         Parameters
         ----------
         file_paths : list
-            A list of all the NETCDF files previously run through the
+            A list of all the files previously run through the
             generator. Each file must have the same number of timesteps.
         out_files : list
             Paths to forward pass output files.
@@ -583,11 +592,12 @@ class ForwardPassStrategy:
             (spatial_1, spatial_2, temporal, 2)
         """
 
-        logger.info('Combining forward pass output for '
-                    f'{cls.file_info_logging(file_paths)}')
+        logger.info(
+            'Combining forward pass output for '
+            f'{self.strategy.file_info_logging(self.strategy.file_paths)}')
 
         out = []
-        for fp in out_files:
+        for fp in self.strategy.out_files:
             with open(fp, 'rb') as fh:
                 out.append(pickle.load(fh))
 
@@ -599,6 +609,56 @@ class ForwardPassStrategy:
                 pickle.dump(out, fh)
         else:
             return out
+
+
+class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
+    """ForwardPassOutputHandler subclass for NETCDF files"""
+
+    def get_lat_lon(self, bottom_left_corner, top_right_corner, shape):
+        """Get lat lon arrays for high res NETCDF output file
+
+        Parameters
+        ----------
+        bottom_left_corner : tuple
+            (lon, lat) Coordinate of bottom left corner of high res grid
+        top_right_corner : tuple
+            (lat, lon) Coordinate of top right corner of high res grid
+        shape : tuple
+            (lons, lats) Shape of high res grid
+
+        Returns
+        -------
+        lons : ndarray
+            Array of lons for high res NETCDF output file
+        lats : ndarray
+            Array of lats for high res NETCDF output file
+        """
+        lats = np.linspace(bottom_left_corner[1], top_right_corner[1],
+                           shape[1])
+        lons = np.linspace(bottom_left_corner[0], top_right_corner[0],
+                           shape[0])
+        lons, lats = np.meshgrid(lons, lats)
+        return lons, lats
+
+    def get_time_index(self, start, stop, shape):
+        """Get array of times for high res NETCDF output file
+
+        Parameters
+        ----------
+        start : float
+            Starting time of forward pass output
+        stop : float
+            End time of forward pass output
+        shape : int
+            Number of time steps for high res time array
+
+        Returns
+        -------
+        ndarray
+            Array of times for high res NETCDF output file
+        """
+        time_index = np.linspace(start, stop, shape)
+        return time_index
 
 
 class ForwardPass:
