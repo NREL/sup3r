@@ -22,7 +22,6 @@ from sup3r.utilities.utilities import (daily_time_sampler,
                                        uniform_time_sampler,
                                        nn_fill_array)
 from sup3r.preprocessing.data_handling import DataHandlerDCforH5
-from sup3r import __version__
 
 np.random.seed(42)
 
@@ -685,17 +684,20 @@ class BatchHandler:
         feature : str
             Feature to get stats for
         """
-        n_elems = np.product(self.shape[:-1])
         idx = self.training_features.index(feature)
-        logger.debug(
-            f'Calculating stdev/mean for {feature}')
+        logger.debug(f'Calculating stdev/mean for {feature}')
+
         for data_handler in self.data_handlers:
-            self.means[idx] += np.nansum(data_handler.data[..., idx])
-        self.means[idx] = self.means[idx] / n_elems
+            self.means[idx] += np.nanmean(data_handler.data[..., idx])
+
+        self.means[idx] /= len(self.data_handlers)
+
         for data_handler in self.data_handlers:
-            self.stds[idx] += np.nansum(
-                (data_handler.data[..., idx] - self.means[idx])**2)
-        self.stds[idx] = np.sqrt(self.stds[idx] / n_elems)
+            istd = (data_handler.data[..., idx] - self.means[idx])**2
+            self.stds[idx] += np.nanmean(istd)
+
+        self.stds[idx] /= len(self.data_handlers)
+        self.stds[idx] = np.sqrt(self.stds[idx])
 
     def normalize(self, means=None, stds=None, norm_workers=None):
         """Compute means and stds for each feature across all datasets and
