@@ -74,7 +74,6 @@ def test_fwd_pass_cli(runner):
                   'shape': (8, 8),
                   'forward_pass_chunk_shape': (4, 4, 6),
                   'temporal_extract_chunk_size': 10,
-                  'out_file_prefix': os.path.join(td, 'out'),
                   's_enhance': 3,
                   't_enhance': 4,
                   'max_extract_workers': None,
@@ -82,7 +81,6 @@ def test_fwd_pass_cli(runner):
                   'temporal_overlap': 5,
                   'max_pass_workers': None,
                   'overwrite_cache': False,
-                  'cache_file_prefix': os.path.join(td, 'cache'),
                   'execution_control': {
                       "nodes": 1,
                       "option": "local"}}
@@ -107,7 +105,6 @@ def test_data_extract_cli(runner):
                   'target': TARGET_COORD,
                   'features': FEATURES,
                   'shape': (20, 20),
-                  'cache_file_prefix': os.path.join(td, 'cache'),
                   'sample_shape': (20, 20, 12),
                   'val_split': 0.05,
                   'handler_class': 'DataHandlerH5'}
