@@ -571,10 +571,12 @@ class ForwardPassOutputHandler:
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
+    @staticmethod
     @abstractmethod
     def get_lat_lon():
         """Get lat lon arrays for writing to output file"""
 
+    @staticmethod
     @abstractmethod
     def get_times():
         """Get time array for writing to output file"""
@@ -639,6 +641,7 @@ class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
         time_index = np.linspace(t_0, t_1, shape)
         return time_index
 
+    @classmethod
     def write_output(cls, data, features, bottom_left_corner,
                      top_right_corner, time_range, time_description,
                      out_file):
