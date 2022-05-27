@@ -215,7 +215,7 @@ def uniform_time_sampler(data, shape):
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
-    shape : tuple
+    shape : int
         (time_steps) Size of time slice to sample
         from data
     Returns:
@@ -238,7 +238,7 @@ def daily_time_sampler(data, shape, time_index):
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
-    shape : tuple
+    shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
         multiple of 24.
     time_index : pd.Datetimeindex
@@ -254,19 +254,26 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:1 - shape]
+    msg = ('Daily time sampler only supports hourly 8760 or 8784 data '
+           f'right now, but data shape is {data.shape}')
+    assert (data.shape[2] == 8760) | (data.shape[2] == 8784), msg
+
+    msg = ('Cannot sample more than 24 hours right now, but received shape '
+           f'request: {shape}')
+    assert shape <= 24, msg
+
+    ti_short = time_index[:-23]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
 
-    if data.shape[2] <= shape:
-        start = 0
-        stop = data.shape[2]
-    else:
-        start = np.random.randint(0, len(midnight_ilocs))
-        start = midnight_ilocs[start]
-        stop = start + shape
-    return slice(start, stop)
+    start = np.random.randint(0, len(midnight_ilocs))
+    start = midnight_ilocs[start]
+    stop = start + shape
+
+    tslice = slice(start, stop)
+
+    return tslice
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
