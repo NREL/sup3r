@@ -258,6 +258,11 @@ def test_nsrdb_sampler():
         assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
 
     for _ in range(100):
+        tslice = nsrdb_sampler(handler.data, 8, ti)
+        # with only 8 samples, there should never be any NaN data
+        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+
+    for _ in range(100):
         tslice = nsrdb_sampler(handler.data, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan
