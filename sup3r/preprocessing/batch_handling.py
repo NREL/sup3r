@@ -137,7 +137,7 @@ class Batch:
         return batch
 
 
-class NsrdbBatch(Batch):
+class BatchNsrdb(Batch):
     """Special batch handler for NSRDB data"""
 
     @classmethod
@@ -352,11 +352,11 @@ class ValidationData:
             raise StopIteration
 
 
-class NsrdbValidationData(ValidationData):
+class ValidationDataNsrdb(ValidationData):
     """Iterator for daily NSRDB validation data"""
 
     # Classes to use for handling an individual batch obj.
-    BATCH_CLASS = NsrdbBatch
+    BATCH_CLASS = BatchNsrdb
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -770,12 +770,12 @@ class BatchHandler:
             raise StopIteration
 
 
-class NsrdbBatchHandler(BatchHandler):
+class BatchHandlerNsrdb(BatchHandler):
     """Sup3r base batch handling class"""
 
     # Classes to use for handling an individual batch obj.
-    VAL_CLASS = NsrdbValidationData
-    BATCH_CLASS = NsrdbBatch
+    VAL_CLASS = ValidationDataNsrdb
+    BATCH_CLASS = BatchNsrdb
 
 
 class SpatialBatchHandler(BatchHandler):

@@ -7,7 +7,7 @@ from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
-from sup3r.preprocessing.batch_handling import NsrdbBatchHandler
+from sup3r.preprocessing.batch_handling import BatchHandlerNsrdb
 
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
@@ -25,7 +25,7 @@ handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                            extract_workers=1,
                            compute_workers=1)
 
-batcher = NsrdbBatchHandler([handler],
+batcher = BatchHandlerNsrdb([handler],
                             batch_size=16, n_batches=2,
                             s_enhance=4, t_enhance=24,
                             temporal_coarsening_method='average')

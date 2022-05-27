@@ -9,7 +9,7 @@ from rex import Resource
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
-from sup3r.preprocessing.batch_handling import NsrdbBatchHandler
+from sup3r.preprocessing.batch_handling import BatchHandlerNsrdb
 
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
@@ -107,7 +107,7 @@ def test_batching(plot=False):
                                extract_workers=1,
                                compute_workers=1)
 
-    batcher = NsrdbBatchHandler([handler],
+    batcher = BatchHandlerNsrdb([handler],
                                 batch_size=1, n_batches=10,
                                 s_enhance=1, t_enhance=24,
                                 temporal_coarsening_method='average')
@@ -116,7 +116,7 @@ def test_batching(plot=False):
         truth = coarsen_alternate_calc(batch, 1)
         assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
 
-    batcher = NsrdbBatchHandler([handler],
+    batcher = BatchHandlerNsrdb([handler],
                                 batch_size=1, n_batches=10,
                                 s_enhance=2, t_enhance=24,
                                 temporal_coarsening_method='average')
@@ -177,7 +177,7 @@ def test_val_data():
                                extract_workers=1,
                                compute_workers=1)
 
-    batcher = NsrdbBatchHandler([handler],
+    batcher = BatchHandlerNsrdb([handler],
                                 batch_size=1, n_batches=10,
                                 s_enhance=2, t_enhance=24,
                                 temporal_coarsening_method='average')
