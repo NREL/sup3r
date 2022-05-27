@@ -5,13 +5,15 @@ Sup3r forward pass handling module.
 @author: bbenton
 """
 
+from abc import abstractmethod
 import numpy as np
 import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
-import pickle
 import os
 import warnings
+from netCDF4 import Dataset, date2num
+
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
@@ -311,7 +313,7 @@ class ForwardPassStrategy:
                 os.makedirs(dirname)
             for file_id in file_ids:
                 out_files.append(
-                    f'{out_file_prefix}_{file_id}.pkl')
+                    f'{out_file_prefix}_{file_id}')
         else:
             out_files = [None] * len(file_ids)
         return out_files
@@ -569,58 +571,26 @@ class ForwardPassOutputHandler:
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
-    def __init__(self, strategy):
-        self.strategy = strategy
+    @abstractmethod
+    def get_lat_lon():
+        """Get lat lon arrays for writing to output file"""
 
-    def combine_out_files(self, fp_out=None):
-        """Combine the output of each file_set passed to a different node
-
-        Parameters
-        ----------
-        file_paths : list
-            A list of all the files previously run through the
-            generator. Each file must have the same number of timesteps.
-        out_files : list
-            Paths to forward pass output files.
-        fp_out : str, optional
-            Combined output file name, by default None
-
-        Returns
-        -------
-        ndarray
-            Array of combined output
-            (spatial_1, spatial_2, temporal, 2)
-        """
-
-        logger.info(
-            'Combining forward pass output for '
-            f'{self.strategy.file_info_logging(self.strategy.file_paths)}')
-
-        out = []
-        for fp in self.strategy.out_files:
-            with open(fp, 'rb') as fh:
-                out.append(pickle.load(fh))
-
-        out = np.concatenate(out, axis=2)
-
-        if fp_out is not None:
-            logger.info(f'Saving combined output: {fp_out}')
-            with open(fp_out, 'wb') as fh:
-                pickle.dump(out, fh)
-        else:
-            return out
+    @abstractmethod
+    def get_times():
+        """Get time array for writing to output file"""
 
 
 class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
     """ForwardPassOutputHandler subclass for NETCDF files"""
 
-    def get_lat_lon(self, bottom_left_corner, top_right_corner, shape):
+    @staticmethod
+    def get_lat_lon(bottom_left_corner, top_right_corner, shape):
         """Get lat lon arrays for high res NETCDF output file
 
         Parameters
         ----------
         bottom_left_corner : tuple
-            (lon, lat) Coordinate of bottom left corner of high res grid
+            (lat, lon) Coordinate of bottom left corner of high res grid
         top_right_corner : tuple
             (lat, lon) Coordinate of top right corner of high res grid
         shape : tuple
@@ -633,35 +603,99 @@ class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
         lats : ndarray
             Array of lats for high res NETCDF output file
         """
-        lats = np.linspace(bottom_left_corner[1], top_right_corner[1],
-                           shape[1])
-        lons = np.linspace(bottom_left_corner[0], top_right_corner[0],
+        lats = np.linspace(bottom_left_corner[0], top_right_corner[0],
                            shape[0])
+        lons = np.linspace(bottom_left_corner[1], top_right_corner[1],
+                           shape[1])
         lons, lats = np.meshgrid(lons, lats)
-        return lons, lats
+        return lats, lons
 
-    def get_time_index(self, start, stop, shape):
+    @staticmethod
+    def get_times(time_range, time_description, shape):
         """Get array of times for high res NETCDF output file
 
         Parameters
         ----------
-        start : float
-            Starting time of forward pass output
-        stop : float
-            End time of forward pass output
+        time_range : tuple
+            (start, end) Starting and ending time of forward pass output
+        time_description : string
+            Description of time. e.g. minutes since 2016-01-30 00:00:00
         shape : int
             Number of time steps for high res time array
 
         Returns
         -------
         ndarray
-            Array of times for high res NETCDF output file
+            Array of times for high res NETCDF output file. In hours since
+            1800-01-01.
         """
-        time_index = np.linspace(start, stop, shape)
+        reference_time = np.datetime64('1970-01-01T00:00:00Z')
+        t_0 = (time_range[0] - reference_time) / np.timedelta64(1, 's')
+        t_1 = (time_range[1] - reference_time) / np.timedelta64(1, 's')
+        t_0 = date2num(dt.utcfromtimestamp(t_0), time_description,
+                       has_year_zero=False, calendar='standard')
+        t_1 = date2num(dt.utcfromtimestamp(t_1), time_description,
+                       has_year_zero=False, calendar='standard')
+        time_index = np.linspace(t_0, t_1, shape)
         return time_index
 
+    def write_output(cls, data, features, bottom_left_corner,
+                     top_right_corner, time_range, time_description,
+                     out_file):
+        """Write forward pass output to NETCDF file
 
-class ForwardPass:
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        bottom_left_corner : tuple
+            (lat, lon) Coordinate of bottom left corner of high res grid
+        top_right_corner : tuple
+            (lat, lon) Coordinate of top right corner of high res grid
+        time_range : tuple
+            (start, end) Starting and ending time of forward pass output
+        time_description : string
+            Description of time. e.g. minutes since 2016-01-30 00:00:00
+        out_file : string
+            Output file path
+        """
+        with Dataset(out_file, mode='w', format='NETCDF4_CLASSIC') as ncfile:
+            ncfile.createDimension('south_north', data.shape[0])
+            ncfile.createDimension('west_east', data.shape[1])
+            ncfile.createDimension('Time', None)
+
+            ncfile.title = "Forward pass output"
+
+            lat = ncfile.createVariable('XLAT', np.float32,
+                                        ('south_north', 'west_east'))
+            lat.units = 'degree_north'
+            lat.long_name = 'latitude'
+            lon = ncfile.createVariable('XLONG', np.float32,
+                                        ('south_north', 'west_east'))
+            lon.units = 'degree_east'
+            lon.long_name = 'longitude'
+
+            lat[:, :], lon[:, :] = cls.get_lat_lon(bottom_left_corner,
+                                                   top_right_corner,
+                                                   data.shape[:2])
+
+            time = ncfile.createVariable('XTIME', np.float32, ('Time',))
+            time.description = time_description
+            time.long_name = 'time'
+
+            time[:] = cls.get_times(time_range, time_description,
+                                    data.shape[-2])
+
+            for i, f in enumerate(features):
+                nc_feature = ncfile.createVariable(
+                    f, np.float32, ('Time', 'south_north', 'west_east'))
+                nc_feature[:, :, :] = np.transpose(data[..., i], (2, 0, 1))
+
+
+class ForwardPass(ForwardPassOutputHandlerNC):
     """Class to run forward passes on all chunks provided by the given
     ForwardPassStrategy. The chunks provided by the strategy are all passed
     through the GAN generator to produce high resolution output.
@@ -849,8 +883,12 @@ class ForwardPass:
 
         logger.debug(f'outfile: {self.out_file}')
         if self.out_file is not None:
-            with open(self.out_file, 'wb') as fh:
-                logger.info(f'Saving forward pass output to {self.out_file}.')
-                pickle.dump(data, fh)
+            self.write_output(data, self.data_handler.output_features,
+                              self.data_handler.bottom_left_corner,
+                              self.data_handler.top_right_corner,
+                              self.data_handler.time_range,
+                              self.data_handler.time_description,
+                              self.out_file)
+            logger.info(f'Saving forward pass output to {self.out_file}.')
         else:
             return data

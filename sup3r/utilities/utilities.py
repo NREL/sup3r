@@ -91,7 +91,7 @@ def get_file_t_steps(file_paths):
     """
 
     with xr.open_dataset(file_paths[0]) as handle:
-        return len(handle['Time'])
+        return len(handle.XTIME.values)
 
 
 def get_raster_shape(raster_index):
@@ -907,5 +907,5 @@ def get_time_index(file_paths):
     else:
         with xr.open_mfdataset(file_paths, combine='nested',
                                concat_dim='Time') as handle:
-            time_index = handle['Times']
+            time_index = handle.XTIME.values
     return time_index

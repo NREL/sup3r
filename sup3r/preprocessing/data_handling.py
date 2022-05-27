@@ -935,8 +935,10 @@ class DataHandlerNC(DataHandler):
                          f'for shape {shape} and target {target}')
             with xr.open_mfdataset(file_path, combine='nested',
                                    concat_dim='Time') as handle:
-                lats = handle['XLAT'].values[0, :, 0]
-                lons = handle['XLONG'].values[0, 0, :]
+                lats = (handle.XLAT.values[:, 0] if 'Time' not
+                        in handle.XLAT.dims else handle.XLAT.values[0, :, 0])
+                lons = (handle.XLONG.values[0, :] if 'Time' not
+                        in handle.XLONG.dims else handle.XLONG.values[0, 0, :])
                 lat_diff = list(lats - target[0])
                 lat_idx = np.argmin(np.abs(lat_diff))
                 lon_diff = list(lons - target[1])
@@ -956,6 +958,64 @@ class DataHandlerNC(DataHandler):
                     logger.debug(f'Saving raster index: {self.raster_file}')
                     np.save(self.raster_file, raster_index)
         return raster_index
+
+    @property
+    def time_range(self):
+        """Starting and ending time for temporal domain
+
+        Returns
+        -------
+        tuple
+            (start, end) Starting and ending time for temporal domain
+        """
+        with xr.open_mfdataset(self.file_path, combine='nested',
+                               concat_dim='Time') as handle:
+            times = handle.XTIME.values[self.temporal_slice]
+        return (times[0], times[-1])
+
+    @property
+    def time_description(self):
+        """Get description of time index
+
+        Returns
+        -------
+        time_description : string
+            Description of time. e.g. minutes since 2016-01-30 00:00:00
+        """
+        with xr.open_mfdataset(self.file_path, combine='nested',
+                               concat_dim='Time') as handle:
+            desc = handle.XTIME.attrs['description']
+        return desc
+
+    @property
+    def bottom_left_corner(self):
+        """Bottom left corner of spatial domain
+
+        Returns
+        -------
+        tuple
+            (lat, lon) Coordinate of bottom left corner of spatial domain
+        """
+        with xr.open_mfdataset(self.file_path, combine='nested',
+                               concat_dim='Time') as handle:
+            lat = np.min(handle.XLAT[tuple([0] + self.raster_index)])
+            lon = np.min(handle.XLONG[tuple([0] + self.raster_index)])
+        return (lat, lon)
+
+    @property
+    def top_right_corner(self):
+        """Top right corner of spatial domain
+
+        Returns
+        -------
+        tuple
+            (lat, lon) Coordinate of top right corner of spatial domain
+        """
+        with xr.open_mfdataset(self.file_path, combine='nested',
+                               concat_dim='Time') as handle:
+            lat = np.max(handle.XLAT[tuple([0] + self.raster_index)])
+            lon = np.max(handle.XLONG[tuple([0] + self.raster_index)])
+        return (lat, lon)
 
 
 class DataHandlerH5(DataHandler):
