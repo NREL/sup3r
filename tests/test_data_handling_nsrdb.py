@@ -22,8 +22,8 @@ FEATURES = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 
 def coarsen_alternate_calc(batch, s_enhance):
     """alternate calculation to coarsen solar daily data"""
-    night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
     truth = batch.high_res[0, :, :, :, 0].copy()
+    night_mask = np.isnan(batch.high_res[0, :, :, :, 2])
     truth[night_mask] = np.nan
     truth = np.nansum(truth, axis=2) / 24
     if s_enhance > 1:
@@ -109,19 +109,15 @@ def test_batching(plot=False):
                                extract_workers=1,
                                compute_workers=1)
 
-    batcher = BatchHandlerNsrdb([handler],
-                                batch_size=1, n_batches=10,
-                                s_enhance=1, t_enhance=24,
-                                temporal_coarsening_method='average')
+    batcher = BatchHandlerNsrdb([handler], batch_size=1, n_batches=10,
+                                s_enhance=1)
 
     for batch in batcher:
         truth = coarsen_alternate_calc(batch, 1)
         assert np.allclose(batch.low_res[0, :, :, 0, 0], truth)
 
-    batcher = BatchHandlerNsrdb([handler],
-                                batch_size=1, n_batches=10,
-                                s_enhance=2, t_enhance=24,
-                                temporal_coarsening_method='average')
+    batcher = BatchHandlerNsrdb([handler], batch_size=1, n_batches=10,
+                                s_enhance=2)
 
     for batch in batcher:
         truth = coarsen_alternate_calc(batch, 2)

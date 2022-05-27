@@ -17,6 +17,7 @@ from sup3r.utilities.utilities import (daily_time_sampler,
                                        weighted_time_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
+                                       nsrdb_temporal_coarsening,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        nn_fill_array)
@@ -178,12 +179,9 @@ class BatchNsrdb(Batch):
 
         # for nsrdb, do temporal avg first so you dont have to do spatial agg
         # across NaNs
-        low_res = temporal_coarsening(
-            high_res, t_enhance,
-            temporal_coarsening_method)
+        low_res = nsrdb_temporal_coarsening(high_res)
 
-        low_res = spatial_coarsening(
-            low_res, s_enhance)
+        low_res = spatial_coarsening(low_res, s_enhance)
 
         high_res = cls.reduce_features(high_res, output_features_ind)
 
