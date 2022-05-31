@@ -712,7 +712,7 @@ class ForwardPass:
         fwp_arg_str = f'strategy, \"{model_path}\", node_index={node_index}'
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = '\"sup3r.pipeline.forward_pass\", '
+        log_arg_str = '\"sup3r\", '
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
@@ -720,9 +720,9 @@ class ForwardPass:
         logger.debug(f'log_arg_str: {log_arg_str}')
 
         cmd = (f"python -c \'{import_str};\n"
+               f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
                f"fwp = ForwardPass({fwp_arg_str});\n"
-               f"logger = init_logger({log_arg_str});\n"
                "fwp.run()\'\n")
 
         return cmd

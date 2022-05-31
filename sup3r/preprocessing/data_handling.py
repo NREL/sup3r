@@ -284,7 +284,7 @@ class DataHandler(FeatureHandler):
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = '\"sup3r.preprocessing.data_handling\", '
+        log_arg_str = '\"sup3r\", '
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
