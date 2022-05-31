@@ -14,6 +14,7 @@ import os
 from datetime import datetime as dt
 import pickle
 import warnings
+import glob
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
@@ -97,9 +98,10 @@ class DataHandler(FeatureHandler):
 
         Parameters
         ----------
-        file_path : str
+        file_path : str | list
             A single source h5 wind file to extract raster data from or a list
-            of netcdf files with identical grid
+            of netcdf files with identical grid. The string can be a unix-style
+            file path which will be passed through glob.glob
         features : list
             list of features to extract
         target : tuple
@@ -162,10 +164,9 @@ class DataHandler(FeatureHandler):
         assert check, msg
 
         super().__init__()
-        self.file_path = file_path
-        if not isinstance(self.file_path, list):
-            self.file_path = [self.file_path]
-        self.file_path = sorted(self.file_path)
+        if isinstance(file_path, str):
+            file_path = glob.glob(file_path)
+        self.file_path = sorted(file_path)
 
         logger.info(
             'Initializing DataHandler '
@@ -277,11 +278,24 @@ class DataHandler(FeatureHandler):
         """
 
         import_str = ('from sup3r.preprocessing.data_handling '
-                      f'import {cls.__name__}')
+                      f'import {cls.__name__}; from rex import init_logger')
 
         dh_init_str = get_fun_call_str(cls, config)
 
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = '\"sup3r.preprocessing.data_handling\", '
+        log_arg_str += f'log_file=\"{log_file}\", '
+        log_arg_str += f'log_level=\"{log_level}\"'
+
+        cache_check = config.get('cache_file_prefix', False)
+        msg = ('No cache file prefix provided.')
+        if not cache_check:
+            logger.warning(msg)
+            warnings.warn(msg)
+
         cmd = (f"python -c \'{import_str};\n"
+               f"logger = init_logger({log_arg_str});\n"
                f"data_handler = {dh_init_str};\'\n")
 
         return cmd
@@ -504,7 +518,6 @@ class DataHandler(FeatureHandler):
 
                 with open(fp, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
-                    print(f'data shape: {self.data.shape}')
             else:
                 msg = (f'Called cache_data but {fp} already exists. Set to '
                        'overwrite_cache to True to overwrite.')

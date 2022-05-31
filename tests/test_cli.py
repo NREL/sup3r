@@ -4,11 +4,12 @@ import json
 import os
 import tempfile
 import pytest
+import glob
 
 from click.testing import CliRunner
 
 from sup3r.pipeline.forward_pass_cli import from_config as fp_main
-from sup3r.pipeline.data_extract_cli import from_config as dh_main
+from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.models.base import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import BatchHandler
@@ -68,11 +69,19 @@ def test_fwd_pass_cli(runner):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
+        fp_chunk_shape = (4, 4, 6)
+        n_nodes = len(INPUT_FILES) // fp_chunk_shape[2] + 1
+        cache_prefix = os.path.join(td, 'cache')
+        out_prefix = os.path.join(td, 'out')
+        log_prefix = os.path.join(td, 'log')
         config = {'file_paths': INPUT_FILES,
                   'target': (19, -125),
                   'model_path': out_dir,
+                  'out_file_prefix': out_prefix,
+                  'cache_file_prefix': cache_prefix,
+                  'log_file_prefix': log_prefix,
                   'shape': (8, 8),
-                  'forward_pass_chunk_shape': (4, 4, 6),
+                  'forward_pass_chunk_shape': fp_chunk_shape,
                   'temporal_extract_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
@@ -91,6 +100,10 @@ def test_fwd_pass_cli(runner):
 
         result = runner.invoke(fp_main, ['-c', config_path, '-v'])
 
+        assert len(glob.glob(f'{out_prefix}*')) == n_nodes
+        assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES * n_nodes)
+        assert len(glob.glob(f'{log_prefix}*')) == n_nodes
+
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
@@ -106,6 +119,7 @@ def test_data_extract_cli(runner):
                   'features': FEATURES,
                   'shape': (20, 20),
                   'sample_shape': (20, 20, 12),
+                  'cache_file_prefix': os.path.join(td, 'cache'),
                   'val_split': 0.05,
                   'handler_class': 'DataHandlerH5'}
 

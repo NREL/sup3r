@@ -63,6 +63,7 @@ def from_config(ctx, config_file, verbose):
               verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
+    log_prefix = config.get('log_file_prefix', None)
     hardware_option = exec_kwargs.get('option', 'local')
     logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
@@ -75,8 +76,11 @@ def from_config(ctx, config_file, verbose):
     for i in range(strategy.nodes):
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
+        node_config['log_file'] = (f'{log_prefix}_{i}.log'
+                                   if log_prefix is not None else log_prefix)
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
+        logger.debug(f'node_config: {node_config}')
         cmd = ForwardPass.get_node_cmd(node_config)
 
         if hardware_option.lower() in ('eagle', 'slurm'):
@@ -154,8 +158,8 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
                        job_attrs={'job_id': out, 'hardware': 'slurm',
                                   'fn_out': fn_out, 'out_dir': out_dir})
 
-        click.echo(msg)
-        logger.info(msg)
+    click.echo(msg)
+    logger.info(msg)
 
 
 if __name__ == '__main__':

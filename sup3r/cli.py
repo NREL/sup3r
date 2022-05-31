@@ -6,8 +6,8 @@ import click
 import logging
 
 from sup3r.version import __version__
-from sup3r.pipeline.forward_pass_cli import from_config as forward_pass_cli
-from sup3r.pipeline.data_extract_cli import from_config as data_extract_cli
+from sup3r.pipeline.forward_pass_cli import from_config as fp_cli
+from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def forward_pass(ctx, verbose):
     """sup3r forward pass to super-resolve data."""
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(forward_pass_cli, config_file=config_file, verbose=verbose)
+    ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group()
@@ -47,7 +47,7 @@ def data_extract(ctx, verbose):
     """sup3r data extraction and caching prior to training or forward pass."""
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(data_extract_cli, config_file=config_file, verbose=verbose)
+    ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
 
 
 if __name__ == '__main__':

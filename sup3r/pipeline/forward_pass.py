@@ -702,17 +702,27 @@ class ForwardPass:
         """
 
         import_str = ('from sup3r.pipeline.forward_pass '
-                      'import ForwardPassStrategy, ForwardPass')
+                      'import ForwardPassStrategy, ForwardPass; '
+                      'from rex import init_logger')
 
         fps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         model_path = config['model_path']
         node_index = config['node_index']
         fwp_arg_str = f'strategy, \"{model_path}\", node_index={node_index}'
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = '\"sup3r.pipeline.forward_pass\", '
+        log_arg_str += f'log_file=\"{log_file}\", '
+        log_arg_str += f'log_level=\"{log_level}\"'
+
+        logger.debug(f'node_config: {config}')
+        logger.debug(f'log_arg_str: {log_arg_str}')
 
         cmd = (f"python -c \'{import_str};\n"
                f"strategy = {fps_init_str};\n"
                f"fwp = ForwardPass({fwp_arg_str});\n"
+               f"logger = init_logger({log_arg_str});\n"
                "fwp.run()\'\n")
 
         return cmd
@@ -777,6 +787,7 @@ class ForwardPass:
 
         data = data[:, :, self.cropped_file_slice, :]
 
+        logger.debug(f'outfile: {self.out_file}')
         if self.out_file is not None:
             with open(self.out_file, 'wb') as fh:
                 logger.info(f'Saving forward pass output to {self.out_file}.')

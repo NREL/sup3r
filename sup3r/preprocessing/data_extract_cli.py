@@ -68,13 +68,11 @@ def from_config(ctx, config_file, verbose):
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     HANDLER_CLASS = getattr(sup3r.preprocessing.data_handling, config_handler)
-    sig = signature(HANDLER_CLASS)
-    dh_kwargs = {k: v for k, v in config.items()
-                 if k in sig.parameters.keys()}
 
     name = 'sup3r_data_extract'
     ctx.obj['NAME'] = name
-    cmd = HANDLER_CLASS.get_node_cmd(dh_kwargs)
+
+    cmd = HANDLER_CLASS.get_node_cmd(config)
 
     if hardware_option.lower() in ('eagle', 'slurm'):
         kickoff_slurm_job(ctx, cmd, **exec_kwargs)
@@ -152,8 +150,8 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
                        job_attrs={'job_id': out, 'hardware': 'slurm',
                                   'fn_out': fn_out, 'out_dir': out_dir})
 
-        click.echo(msg)
-        logger.info(msg)
+    click.echo(msg)
+    logger.info(msg)
 
 
 if __name__ == '__main__':
