@@ -33,7 +33,7 @@ sample_shape = (8, 8, 6)
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
 temporal_slice = slice(None, None, 1)
 list_chunk_size = 10
-forward_pass_chunk_shape = (8, 8, 10)
+forward_pass_chunk_shape = (4, 4, 10)
 s_enhance = 3
 t_enhance = 4
 

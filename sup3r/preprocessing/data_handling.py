@@ -14,9 +14,11 @@ import os
 from datetime import datetime as dt
 import pickle
 import warnings
+import glob
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
+from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_box_sampler,
@@ -96,9 +98,10 @@ class DataHandler(FeatureHandler):
 
         Parameters
         ----------
-        file_path : str
+        file_path : str | list
             A single source h5 wind file to extract raster data from or a list
-            of netcdf files with identical grid
+            of netcdf files with identical grid. The string can be a unix-style
+            file path which will be passed through glob.glob
         features : list
             list of features to extract
         target : tuple
@@ -161,10 +164,9 @@ class DataHandler(FeatureHandler):
         assert check, msg
 
         super().__init__()
-        self.file_path = file_path
-        if not isinstance(self.file_path, list):
-            self.file_path = [self.file_path]
-        self.file_path = sorted(self.file_path)
+        if isinstance(file_path, str):
+            file_path = glob.glob(file_path)
+        self.file_path = sorted(file_path)
 
         logger.info(
             'Initializing DataHandler '
@@ -242,8 +244,8 @@ class DataHandler(FeatureHandler):
             raster_shape = get_raster_shape(self.raster_index)
             msg = (f'spatial_sample_shape {sample_shape[:2]} is larger than '
                    f'the raster size {raster_shape}')
-            if (sample_shape[0] <= raster_shape[0]
-                    and sample_shape[1] <= raster_shape[1]):
+            if (sample_shape[0] > raster_shape[0]
+                    and sample_shape[1] > raster_shape[1]):
                 logger.warning(msg)
                 warnings.warn(msg)
 
@@ -263,6 +265,40 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize DataHandler and cache data.
+
+        Parameters
+        ----------
+        config : dict
+            sup3r data handler config with all necessary args and kwargs to
+            initialize DataHandler and run data extraction.
+        """
+
+        import_str = ('from sup3r.preprocessing.data_handling '
+                      f'import {cls.__name__}; from rex import init_logger')
+
+        dh_init_str = get_fun_call_str(cls, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = '\"sup3r\", '
+        log_arg_str += f'log_file=\"{log_file}\", '
+        log_arg_str += f'log_level=\"{log_level}\"'
+
+        cache_check = config.get('cache_file_prefix', False)
+        msg = ('No cache file prefix provided.')
+        if not cache_check:
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        cmd = (f"python -c \'{import_str};\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"data_handler = {dh_init_str};\'\n")
+
+        return cmd
 
     def get_cache_file_names(self, cache_file_prefix):
         """Get names of cache files from cache_file_prefix and feature names
