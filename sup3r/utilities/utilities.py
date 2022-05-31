@@ -302,7 +302,7 @@ def transform_rotate_wind(ws, wd, lat_lon):
     return u_rot, v_rot
 
 
-def temporal_coarsening(data, t_enhance=2, method='subsample'):
+def temporal_coarsening(data, t_enhance=4, method='subsample'):
     """"Coarsen data according to t_enhance resolution
 
     Parameters

@@ -13,6 +13,7 @@ from datetime import datetime as dt
 import os
 import warnings
 from netCDF4 import Dataset, date2num
+import xarray as xr
 
 
 from rex.utilities.execution import SpawnProcessPool
@@ -317,6 +318,27 @@ class ForwardPassStrategy:
         else:
             out_files = [None] * len(file_ids)
         return out_files
+
+    @staticmethod
+    def get_combined_output_file_name(self, out_file_prefix, file_paths):
+        """Get combined output file name. Use same file name format for
+        chunked output files.
+
+        Parameters
+        ----------
+        out_file_prefix : str
+            Prefix of output file names
+        file_paths : list
+            A list of files to extract raster data from
+
+        Returns
+        -------
+        str
+            Combined output file name
+        """
+        file_id = self.get_file_ids(file_paths, slice(None))
+        [outfile] = self.get_output_file_names(out_file_prefix, file_id)
+        return outfile
 
     @staticmethod
     def get_file_ids(file_paths, file_slices):
@@ -696,6 +718,12 @@ class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
                 nc_feature = ncfile.createVariable(
                     f, np.float32, ('Time', 'south_north', 'west_east'))
                 nc_feature[:, :, :] = np.transpose(data[..., i], (2, 0, 1))
+
+    @staticmethod
+    def combine_file(files, outfile):
+        ds = xr.open_mfdataset(files, combine='nested', concat_dim='Time')
+        ds.to_netcdf(outfile)
+        logger.info(f'Saved combined file: {outfile}')
 
 
 class ForwardPass(ForwardPassOutputHandlerNC):

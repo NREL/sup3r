@@ -15,6 +15,7 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
+from concurrent.futures import as_completed, ThreadPoolExecutor
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
@@ -191,6 +192,8 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
+        self.max_extract_workers = max_extract_workers
+        self.max_compute_workers = max_compute_workers
 
         n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
         n_steps = len(n_steps)
@@ -313,15 +316,13 @@ class DataHandler(FeatureHandler):
         list
             List of cache file names
         """
-
         if cache_file_prefix is not None:
             basedir = os.path.dirname(cache_file_prefix)
             if not os.path.exists(basedir):
                 os.makedirs(basedir)
 
             cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.pkl'
-                for f in self.features]
+                f'{cache_file_prefix}_{f.lower()}.pkl' for f in self.features]
             for i, fp in enumerate(cache_files):
                 fp_check = ignore_case_path_fetch(fp)
                 if fp_check is not None:
@@ -371,7 +372,9 @@ class DataHandler(FeatureHandler):
             self.data[..., i] = self.data[..., i] * stds[i] + means[i]
 
     def normalize(self, means, stds):
-        """Normalize all data features Parameters
+        """Normalize all data features
+
+        Parameters
         ----------
         means : np.ndarray
             dimensions (features)
@@ -383,8 +386,39 @@ class DataHandler(FeatureHandler):
 
         logger.debug(
             f'Normalizing data for {self.file_info_logging(self.file_path)}')
-        for i in range(self.shape[-1]):
-            self._normalize_data(i, means[i], stds[i])
+
+        if self.max_compute_workers == 1:
+            for i in range(self.shape[-1]):
+                self._normalize_data(i, means[i], stds[i])
+        else:
+            self.parallel_normalization(means, stds)
+
+    def parallel_normalization(self, means, stds):
+        """Run normalization of features in parallel
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        """
+        with ThreadPoolExecutor(max_workers=self.max_compute_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i in enumerate(self.shape[-1]):
+                future = exe.submit(self._normalize_data, i, means[i],
+                                    stds[i])
+                futures[future] = i
+
+            logger.info(f'Started normalizing all {self.shape[-1]} features '
+                        f'in {dt.now() - now}. ')
+
+            for i, future in enumerate(as_completed(futures)):
+                logger.debug(f'{i + 1} out of {self.shape[-1]} features '
+                             'normalized.')
 
     def _normalize_data(self, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a
@@ -524,8 +558,71 @@ class DataHandler(FeatureHandler):
                 logger.warning(msg)
                 warnings.warn(msg)
 
+    def parallel_load(self, max_workers=None):
+        """Load feature data in parallel
+
+        Parameters
+        ----------
+        max_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
+        """
+
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i, fp in enumerate(self.cache_files):
+                future = exe.submit(self.load_single_cached_feature, fp=fp)
+                futures[future] = i
+
+            logger.info(
+                f'Started loading all {len(self.cache_files)} cache files '
+                f'in {dt.now() - now}. ')
+
+            for i, future in enumerate(as_completed(futures)):
+                logger.debug(
+                    f'{i + 1} out of {len(futures)} cache files loaded.')
+
+    def load_single_cached_feature(self, fp):
+        """Load single feature from given file
+
+        Parameters
+        ----------
+        fp : string
+            File path for feature cache file
+
+        Raises
+        ------
+        RuntimeError
+            Error raised if shape conflicts with requested shape
+        """
+        idx = self.cache_files.index(fp)
+        assert self.features[idx].lower() in fp.lower()
+        fp = ignore_case_path_fetch(fp)
+        logger.info(f'Loading {self.features[idx]} from {fp}')
+
+        with open(fp, 'rb') as fh:
+            try:
+                self.data[..., idx] = np.array(pickle.load(fh),
+                                               dtype=np.float32)
+            except Exception as e:
+                msg = ('Data loaded from from cache file "{}" '
+                       'could not be written to feature channel {} '
+                       'of full data array of shape {}. '
+                       'Make sure the cached data has the '
+                       'appropriate shape.'
+                       .format(fp, idx, self.data.shape))
+                raise RuntimeError(msg) from e
+
     def load_cached_data(self):
         """Load data from cache files and split into training and validation
+
+        Parameters
+        ----------
+        max_workers : int | None
+            Max number of workers to use for loading cached features. If None
+            max available workers will be used. If 1 cached data will be loaded
+            in serial
         """
 
         if self.data is not None:
@@ -552,26 +649,11 @@ class DataHandler(FeatureHandler):
             self.data = np.full(shape=requested_shape, fill_value=np.nan,
                                 dtype=np.float32)
 
-            for i, fp in enumerate(self.cache_files):
-
-                assert self.features[i].lower() in fp.lower()
-                fp = ignore_case_path_fetch(fp)
-                logger.info(f'Loading {self.features[i]} from {fp}')
-
-                with open(fp, 'rb') as fh:
-                    log_mem(logger)
-
-                    try:
-                        self.data[..., i] = np.array(pickle.load(fh),
-                                                     dtype=np.float32)
-                    except Exception as e:
-                        msg = ('Data loaded from from cache file "{}" '
-                               'could not be written to feature channel {} '
-                               'of full data array of shape {}. '
-                               'Make sure the cached data has the '
-                               'appropriate shape.'
-                               .format(fp, i, self.data.shape))
-                        raise RuntimeError(msg) from e
+            if self.max_extract_workers == 1:
+                for _, fp in enumerate(self.cache_files):
+                    self.load_single_cached_feature(fp)
+            else:
+                self.parallel_load(max_workers=self.max_extract_workers)
 
             nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
             if nan_perc > 0:
