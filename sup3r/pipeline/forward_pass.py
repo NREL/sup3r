@@ -319,7 +319,6 @@ class ForwardPassStrategy:
             out_files = [None] * len(file_ids)
         return out_files
 
-    @staticmethod
     def get_combined_output_file_name(self, out_file_prefix, file_paths):
         """Get combined output file name. Use same file name format for
         chunked output files.
