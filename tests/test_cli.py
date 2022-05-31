@@ -114,12 +114,15 @@ def test_fwd_pass_cli(runner):
 def test_data_extract_cli(runner):
     """Test cli call to run data extraction"""
     with tempfile.TemporaryDirectory() as td:
+        cache_prefix = os.path.join(td, 'cache')
+        log_file = os.path.join(td, 'log.log')
         config = {'file_path': FP_WTK,
                   'target': TARGET_COORD,
                   'features': FEATURES,
                   'shape': (20, 20),
                   'sample_shape': (20, 20, 12),
-                  'cache_file_prefix': os.path.join(td, 'cache'),
+                  'cache_file_prefix': cache_prefix,
+                  'log_file': log_file,
                   'val_split': 0.05,
                   'handler_class': 'DataHandlerH5'}
 
@@ -128,6 +131,9 @@ def test_data_extract_cli(runner):
             json.dump(config, fh)
 
         result = runner.invoke(dh_main, ['-c', config_path, '-v'])
+
+        assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES)
+        assert len(glob.glob(f'{log_file}')) == 1
 
         if result.exit_code != 0:
             import traceback
