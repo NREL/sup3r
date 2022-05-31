@@ -4,7 +4,6 @@ sup3r data extraction CLI entry points.
 """
 import click
 import logging
-from inspect import signature
 
 from reV.pipeline.status import Status
 
