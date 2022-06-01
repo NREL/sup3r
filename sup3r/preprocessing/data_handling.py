@@ -89,12 +89,13 @@ class DataHandler(FeatureHandler):
                  time_roll=0, val_split=0.1,
                  sample_shape=(10, 10, 1),
                  raster_file=None, shuffle_time=False,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
                  time_chunk_size=100,
                  cache_file_prefix=None,
                  overwrite_cache=False,
-                 load_cached=False):
+                 load_cached=False,
+                 train_only_features=None):
         """Data handling and extraction
 
         Parameters
@@ -137,12 +138,12 @@ class DataHandler(FeatureHandler):
             or raster_file.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        max_compute_workers : int | None
+        compute_workers : int | None
             max number of workers to use for computing features. If
-            max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
+            compute_workers == 1 then extraction will be serialized.
+        extract_workers : int | None
             max number of workers to use for data extraction. If
-            max_extract_workers == 1 then extraction will be serialized.
+            extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
@@ -173,6 +174,9 @@ class DataHandler(FeatureHandler):
             'Initializing DataHandler '
             f'{self.file_info_logging(self.file_path)}')
 
+        if train_only_features is None:
+            self.train_only_features = self.TRAIN_ONLY_FEATURES
+
         self.features = features
         self.grid_shape = shape
         self.val_time_index = None
@@ -192,8 +196,8 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
-        self.max_extract_workers = max_extract_workers
-        self.max_compute_workers = max_compute_workers
+        self.extract_workers = extract_workers
+        self.compute_workers = compute_workers
 
         n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
         n_steps = len(n_steps)
@@ -255,8 +259,8 @@ class DataHandler(FeatureHandler):
             self.data = self.extract_data(
                 self.file_path, self.raster_index, self.features,
                 temporal_slice=self.temporal_slice, time_roll=self.time_roll,
-                max_extract_workers=max_extract_workers,
-                max_compute_workers=max_compute_workers,
+                extract_workers=extract_workers,
+                compute_workers=compute_workers,
                 time_chunk_size=time_chunk_size, cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
@@ -387,7 +391,7 @@ class DataHandler(FeatureHandler):
         logger.debug(
             f'Normalizing data for {self.file_info_logging(self.file_path)}')
 
-        if self.max_compute_workers == 1:
+        if self.compute_workers == 1:
             for i in range(self.shape[-1]):
                 self._normalize_data(i, means[i], stds[i])
         else:
@@ -405,7 +409,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ThreadPoolExecutor(max_workers=self.max_compute_workers) as exe:
+        with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
             futures = {}
             now = dt.now()
             for i in enumerate(self.shape[-1]):
@@ -649,11 +653,11 @@ class DataHandler(FeatureHandler):
             self.data = np.full(shape=requested_shape, fill_value=np.nan,
                                 dtype=np.float32)
 
-            if self.max_extract_workers == 1:
+            if self.extract_workers == 1:
                 for _, fp in enumerate(self.cache_files):
                     self.load_single_cached_feature(fp)
             else:
-                self.parallel_load(max_workers=self.max_extract_workers)
+                self.parallel_load(max_workers=self.extract_workers)
 
             nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
             if nan_perc > 0:
@@ -726,8 +730,8 @@ class DataHandler(FeatureHandler):
     def extract_data(cls, file_path, raster_index, features,
                      temporal_slice=slice(None, None, 1),
                      time_roll=0,
-                     max_extract_workers=None,
-                     max_compute_workers=None,
+                     extract_workers=None,
+                     compute_workers=None,
                      time_chunk_size=100,
                      cache_files=None,
                      overwrite_cache=False,
@@ -753,12 +757,12 @@ class DataHandler(FeatureHandler):
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
             time_pruning operation.
-        max_compute_workers : int | None
+        compute_workers : int | None
             max number of workers to use for computing features.
-            If max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
+            If compute_workers == 1 then extraction will be serialized.
+        extract_workers : int | None
             max number of workers to use for data extraction.
-            If max_extract_workers == 1 then extraction will be serialized.
+            If extract_workers == 1 then extraction will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for smaller data
             extractions
@@ -808,14 +812,14 @@ class DataHandler(FeatureHandler):
             f'{cls.file_info_logging(file_path)}')
 
         raw_data = cls.parallel_extract(file_path, raster_index, time_chunks,
-                                        raw_features, max_extract_workers)
+                                        raw_features, extract_workers)
 
         logger.info(f'Finished extracting {extract_features} for '
                     f'{cls.file_info_logging(file_path)}')
 
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
-                                        max_compute_workers)
+                                        compute_workers)
 
         logger.info(f'Finished computing {extract_features} for '
                     f'{cls.file_info_logging(file_path)}')
@@ -960,7 +964,13 @@ class DataHandlerNC(DataHandler):
 
             else:
                 try:
-                    if len(handle[basename].shape) > 3:
+                    if feature in handle:
+                        fdata = np.array(
+                            handle[feature][
+                                tuple([time_slice] + raster_index)],
+                            dtype=np.float32)
+
+                    elif len(handle[basename].shape) > 3:
                         if interp_height is None:
                             fdata = np.array(
                                 handle[feature][
@@ -974,11 +984,6 @@ class DataHandlerNC(DataHandler):
                                 handle, basename, raster_index,
                                 np.float32(interp_height),
                                 time_slice)
-                    else:
-                        fdata = np.array(
-                            handle[feature][
-                                tuple([time_slice] + raster_index)],
-                            dtype=np.float32)
 
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
@@ -1028,13 +1033,13 @@ class DataHandlerNC(DataHandler):
                 raster_index = [slice(lat_idx, lat_idx + shape[0]),
                                 slice(lon_idx, lon_idx + shape[1])]
 
-                if (raster_index[1].stop >= len(lat_diff)
-                   or raster_index[1].stop >= len(lon_diff)):
+                if (raster_index[0].stop > len(lat_diff)
+                   or raster_index[1].stop > len(lon_diff)):
                     raise ValueError(
-                        f'Invalid target {target} and shape {shape} for '
-                        f'data domain of size ({len(lat_diff)}, '
-                        f'{len(lon_diff)}) with lower left corner '
-                        f'({np.min(lats)}, {np.min(lons)})')
+                        f'Invalid target {target}, shape {shape}, and raster '
+                        f'{raster_index} for data domain of size '
+                        f'({len(lat_diff)}, {len(lon_diff)}) with lower left '
+                        f'corner ({np.min(lats)}, {np.min(lons)}).')
 
                 if self.raster_file is not None:
                     logger.debug(f'Saving raster index: {self.raster_file}')

@@ -581,14 +581,14 @@ def test_spatial_coarsening(s_enhance, plot=False):
 
     handler = DataHandler(input_file, features, target=target,
                           shape=shape, max_delta=20,
-                          max_extract_workers=1,
-                          max_compute_workers=1)
+                          extract_workers=1,
+                          compute_workers=1)
 
     handler_data = handler.extract_data(
         input_file, handler.raster_index,
         features, temporal_slice,
-        max_extract_workers=1,
-        max_compute_workers=1)
+        extract_workers=1,
+        compute_workers=1)
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, s_enhance)
     direct_avg = np.zeros(coarse_data.shape)

@@ -51,8 +51,8 @@ def test_fwd_pass_cli(runner):
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
+                            extract_workers=1,
+                            compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=3,
@@ -85,7 +85,7 @@ def test_fwd_pass_cli(runner):
                   'temporal_extract_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
-                  'max_extract_workers': None,
+                  'extract_workers': None,
                   'spatial_overlap': 5,
                   'temporal_overlap': 5,
                   'max_pass_workers': None,

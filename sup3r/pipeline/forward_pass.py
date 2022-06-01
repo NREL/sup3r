@@ -14,6 +14,7 @@ import os
 import warnings
 from netCDF4 import Dataset, date2num
 import xarray as xr
+import glob
 
 
 from rex.utilities.execution import SpawnProcessPool
@@ -50,8 +51,8 @@ class ForwardPassStrategy:
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
                  max_pass_workers=None,
                  temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
@@ -65,9 +66,10 @@ class ForwardPassStrategy:
 
         Parameters
         ----------
-        file_paths : list
-            A list of files to extract raster data from. Each file must
-            have the same number of timesteps.
+        file_paths : list | str
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string with a
+            unix-style file path which will be passed through glob.glob
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -100,12 +102,12 @@ class ForwardPassStrategy:
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
             data
-        max_compute_workers : int | None
+        compute_workers : int | None
             max number of workers to use for computing features. If
-            max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
+            compute_workers == 1 then extraction will be serialized.
+        extract_workers : int | None
             max number of workers to use for data extraction. If
-            max_extract_workers == 1 then extraction will be serialized.
+            extract_workers == 1 then extraction will be serialized.
         max_pass_workers : int | None
             Max number of workers to use for forward passes on each node. If
             max_pass_workers == 1 then forward passes on chunks will be
@@ -132,17 +134,19 @@ class ForwardPassStrategy:
             for subsequent temporal stitching
         """
 
-        self._i = 0
-        self.file_t_steps = get_file_t_steps(file_paths)
+        if isinstance(file_paths, str):
+            file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
+        self._i = 0
+        self.file_t_steps = get_file_t_steps(self.file_paths)
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
         self.forward_pass_chunk_shape = forward_pass_chunk_shape
         self.temporal_slice = temporal_slice
         self.max_pass_workers = max_pass_workers
-        self.max_extract_workers = max_extract_workers
-        self.max_compute_workers = max_compute_workers
+        self.extract_workers = extract_workers
+        self.compute_workers = compute_workers
         self.cache_file_prefix = cache_file_prefix
         self.out_file_prefix = out_file_prefix
         self.temporal_extract_chunk_size = temporal_extract_chunk_size
@@ -336,8 +340,8 @@ class ForwardPassStrategy:
             Combined output file name
         """
         file_id = self.get_file_ids(file_paths, slice(None))
-        [outfile] = self.get_output_file_names(out_file_prefix, file_id)
-        return outfile
+        outfile = self.get_output_file_names(out_file_prefix, file_id)
+        return outfile[0]
 
     @staticmethod
     def get_file_ids(file_paths, file_slices):
@@ -652,7 +656,7 @@ class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
             Array of times for high res NETCDF output file. In hours since
             1800-01-01.
         """
-        reference_time = np.datetime64('1970-01-01T00:00:00Z')
+        reference_time = np.datetime64('1970-01-01T00:00:00')
         t_0 = (time_range[0] - reference_time) / np.timedelta64(1, 's')
         t_1 = (time_range[1] - reference_time) / np.timedelta64(1, 's')
         t_0 = date2num(dt.utcfromtimestamp(t_0), time_description,
@@ -771,8 +775,8 @@ class ForwardPass(ForwardPassOutputHandlerNC):
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.shape, temporal_slice=self.temporal_slice,
             raster_file=self.strategy.raster_file,
-            max_extract_workers=self.strategy.max_extract_workers,
-            max_compute_workers=self.strategy.max_compute_workers,
+            extract_workers=self.strategy.extract_workers,
+            compute_workers=self.strategy.compute_workers,
             cache_file_prefix=self.cache_file_prefix,
             time_chunk_size=self.strategy.temporal_extract_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
