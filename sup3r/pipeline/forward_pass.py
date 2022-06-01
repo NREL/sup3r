@@ -724,6 +724,15 @@ class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
 
     @staticmethod
     def combine_file(files, outfile):
+        """Combine all chunked output files from ForwardPass into a single file
+
+        Parameters
+        ----------
+        files : list
+            List of chunked output files from ForwardPass runs
+        outfile : str
+            Output file name for combined file
+        """
         ds = xr.open_mfdataset(files, combine='nested', concat_dim='Time')
         ds.to_netcdf(outfile)
         logger.info(f'Saved combined file: {outfile}')
