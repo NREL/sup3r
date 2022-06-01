@@ -35,7 +35,7 @@
     {"alpha": 0.2, "class": "LeakyReLU"},
 
     {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
-    {"class": "Conv3D", "filters": 9, "kernel_size": 3, "strides": 1},
+    {"class": "Conv3D", "filters": 10, "kernel_size": 3, "strides": 1},
     {"class": "Cropping3D", "cropping": 2}
   ]
 }

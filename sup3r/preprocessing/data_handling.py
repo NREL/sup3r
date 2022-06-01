@@ -421,6 +421,7 @@ class DataHandler(FeatureHandler):
                         f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(f'{i + 1} out of {self.shape[-1]} features '
                              'normalized.')
 
@@ -584,6 +585,7 @@ class DataHandler(FeatureHandler):
                 f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(
                     f'{i + 1} out of {len(futures)} cache files loaded.')
 

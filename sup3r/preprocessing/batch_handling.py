@@ -515,6 +515,7 @@ class BatchHandler:
                 f'in {dt.now() - now}. ')
 
             for i, _ in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(
                     f'{i + 1} out of {len(futures)} data handlers normalized.')
 
@@ -541,6 +542,7 @@ class BatchHandler:
                 f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(
                     f'{i + 1} out of {len(futures)} handlers loaded.')
 
@@ -558,14 +560,15 @@ class BatchHandler:
             futures = {}
             now = dt.now()
             for i, f in enumerate(self.training_features):
-                future = exe.submit(self.get_stats_for_feature(f))
+                future = exe.submit(self.get_stats_for_feature, f)
                 futures[future] = i
 
             logger.info(
                 f'Started calculating stats for {len(self.training_features)} '
-                f'in {dt.now() - now}. ')
+                f'features in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(f'{i + 1} out of {len(self.training_features)} '
                              'stats calculated.')
 
@@ -639,6 +642,14 @@ class BatchHandler:
             logger.info(f'Loading means from {self.means_file}')
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
+
+            msg = ('The training features and cached statistics are '
+                   'incompatible. Number of training features is '
+                   f'{len(self.training_features)} and number of stats is'
+                   f' {len(self.stds)}')
+            check = len(self.means) == len(self.training_features)
+            check = check and (len(self.stds) == len(self.training_features))
+            assert check, msg
         return self.means, self.stds
 
     def cache_stats(self):
@@ -660,8 +671,8 @@ class BatchHandler:
         self.means = np.zeros((self.shape[-1]), dtype=np.float32)
         self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
 
-        logger.info('Calculating stdevs / means.')
-
+        logger.info(
+            f'Calculating stdevs/means with max_workers={max_workers}')
         if max_workers == 1:
             for f in self.training_features:
                 self.get_stats_for_feature(f)
@@ -679,7 +690,7 @@ class BatchHandler:
         n_elems = np.product(self.shape[:-1])
         idx = self.training_features.index(feature)
         logger.debug(
-            f'Calculating stdev / mean for {feature}')
+            f'Calculating stdev/mean for {feature}')
         for data_handler in self.data_handlers:
             self.means[idx] += np.nansum(data_handler.data[..., idx])
         self.means[idx] = self.means[idx] / n_elems
@@ -702,8 +713,7 @@ class BatchHandler:
         norm_workers : int | None
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
-
-        new"""
+        """
         if means is None or stds is None:
             self.get_stats(max_workers=norm_workers)
         elif means is not None and stds is not None:
