@@ -412,7 +412,7 @@ class DataHandler(FeatureHandler):
         with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
             futures = {}
             now = dt.now()
-            for i in enumerate(self.shape[-1]):
+            for i in range(self.shape[-1]):
                 future = exe.submit(self._normalize_data, i, means[i],
                                     stds[i])
                 futures[future] = i
@@ -984,6 +984,11 @@ class DataHandlerNC(DataHandler):
                                 handle, basename, raster_index,
                                 np.float32(interp_height),
                                 time_slice)
+                    else:
+                        fdata = np.array(
+                            handle[feature][
+                                tuple([time_slice] + raster_index)],
+                            dtype=np.float32)
 
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
