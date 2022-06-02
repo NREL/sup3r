@@ -4,7 +4,6 @@
 import os
 import tempfile
 import numpy as np
-import glob
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC

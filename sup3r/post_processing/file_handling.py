@@ -28,6 +28,11 @@ class OutputHandler:
     def get_times():
         """Get time array for writing to output file"""
 
+    @abstractmethod
+    def write_output(self):
+        """Write output in correct format with new times, grid, and meta data
+        """
+
 
 class OutputHandlerNC(OutputHandler):
     """OutputHandler subclass for NETCDF files"""
