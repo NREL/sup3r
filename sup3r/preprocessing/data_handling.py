@@ -15,7 +15,8 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import (as_completed, ThreadPoolExecutor,
+                                ProcessPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
@@ -198,6 +199,8 @@ class DataHandler(FeatureHandler):
         self.val_data = None
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
+        self.lats = None
+        self.lons = None
 
         n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
         n_steps = len(n_steps)
@@ -268,7 +271,7 @@ class DataHandler(FeatureHandler):
                 self.data, self.val_data = self.split_data()
             else:
                 self.cache_data(self.cache_files)
-                self.data = None
+                self.data = None if not self.load_cached else self.data
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -409,7 +412,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
+        with ProcessPoolExecutor(max_workers=self.compute_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
@@ -1000,6 +1003,37 @@ class DataHandlerNC(DataHandler):
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
 
+    def get_closest_lat_lon(self, target):
+        """Get closest indices to target lat lon to use for lower left corner
+        of raster index
+
+        Parameters
+        ----------
+        target : tuple
+            (lat, lon) for lower left corner
+
+        Returns
+        -------
+        row : int
+            row index for closest lat/lon to target lat/lon
+        col : int
+            col index for closest lat/lon to target lat/lon
+        """
+        lat_diff = lon_diff = np.inf
+        row = col = -1
+
+        for i in range(self.lats.shape[0]):
+            for j in range(self.lats.shape[1]):
+                lat = self.lats[i, j]
+                lon = self.lons[i, j]
+                if (np.abs(lat - target[0]) < lat_diff
+                        and np.abs(lon - target[1]) < lon_diff):
+                    lat_diff = np.abs(lat - target[0])
+                    lon_diff = np.abs(lon - target[1])
+                    row = i
+                    col = j
+        return row, col
+
     def get_raster_index(self, file_path, target, shape):
         """Get raster index for file data. Here we assume the list of paths in
         file_path all have data with the same spatial domain. We use the first
@@ -1029,43 +1063,26 @@ class DataHandlerNC(DataHandler):
                          f'for shape {shape} and target {target}')
             with xr.open_mfdataset(file_path, combine='nested',
                                    concat_dim='Time') as handle:
-                lats = (handle.XLAT.values[:, 0] if 'Time' not
-                        in handle.XLAT.dims else handle.XLAT.values[0, :, 0])
-                lons = (handle.XLONG.values[0, :] if 'Time' not
-                        in handle.XLONG.dims else handle.XLONG.values[0, 0, :])
-                lat_diff = list(lats - target[0])
-                lat_idx = np.argmin(np.abs(lat_diff))
-                lon_diff = list(lons - target[1])
-                lon_idx = np.argmin(np.abs(lon_diff))
-                raster_index = [slice(lat_idx, lat_idx + shape[0]),
-                                slice(lon_idx, lon_idx + shape[1])]
+                self.lats = (handle.XLAT.values if 'Time' not
+                             in handle.XLAT.dims else handle.XLAT.values[0])
+                self.lons = (handle.XLONG.values if 'Time' not
+                             in handle.XLONG.dims else handle.XLONG.values[0])
+                row, col = self.get_closest_lat_lon(target)
+                raster_index = [slice(row, row + shape[0]),
+                                slice(col, col + shape[1])]
 
-                if (raster_index[0].stop > len(lat_diff)
-                   or raster_index[1].stop > len(lon_diff)):
+                if (raster_index[0].stop > self.lats.shape[0]
+                   or raster_index[1].stop > self.lats.shape[1]):
                     raise ValueError(
                         f'Invalid target {target}, shape {shape}, and raster '
                         f'{raster_index} for data domain of size '
-                        f'({len(lat_diff)}, {len(lon_diff)}) with lower left '
-                        f'corner ({np.min(lats)}, {np.min(lons)}).')
+                        f'{self.lats.shape} with lower left corner '
+                        f'({np.min(self.lats)}, {np.min(self.lons)}).')
 
                 if self.raster_file is not None:
                     logger.debug(f'Saving raster index: {self.raster_file}')
                     np.save(self.raster_file, raster_index)
         return raster_index
-
-    @property
-    def time_range(self):
-        """Starting and ending time for temporal domain
-
-        Returns
-        -------
-        tuple
-            (start, end) Starting and ending time for temporal domain
-        """
-        with xr.open_mfdataset(self.file_path, combine='nested',
-                               concat_dim='Time') as handle:
-            times = handle.XTIME.values[self.temporal_slice]
-        return (times[0], times[-1])
 
     @property
     def time_description(self):
@@ -1080,36 +1097,6 @@ class DataHandlerNC(DataHandler):
                                concat_dim='Time') as handle:
             desc = handle.XTIME.attrs['description']
         return desc
-
-    @property
-    def bottom_left_corner(self):
-        """Bottom left corner of spatial domain
-
-        Returns
-        -------
-        tuple
-            (lat, lon) Coordinate of bottom left corner of spatial domain
-        """
-        with xr.open_mfdataset(self.file_path, combine='nested',
-                               concat_dim='Time') as handle:
-            lat = np.min(handle.XLAT[tuple([0] + self.raster_index)])
-            lon = np.min(handle.XLONG[tuple([0] + self.raster_index)])
-        return (lat, lon)
-
-    @property
-    def top_right_corner(self):
-        """Top right corner of spatial domain
-
-        Returns
-        -------
-        tuple
-            (lat, lon) Coordinate of top right corner of spatial domain
-        """
-        with xr.open_mfdataset(self.file_path, combine='nested',
-                               concat_dim='Time') as handle:
-            lat = np.max(handle.XLAT[tuple([0] + self.raster_index)])
-            lon = np.max(handle.XLONG[tuple([0] + self.raster_index)])
-        return (lat, lon)
 
 
 class DataHandlerH5(DataHandler):

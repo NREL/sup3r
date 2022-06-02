@@ -4,16 +4,12 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
-
-from abc import abstractmethod
 import numpy as np
 import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
 import os
 import warnings
-from netCDF4 import Dataset, date2num
-import xarray as xr
 import glob
 
 
@@ -21,6 +17,7 @@ from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.post_processing.file_handling import OutputHandlerNC
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
                                        get_chunk_slices)
@@ -592,159 +589,14 @@ class ForwardPassStrategy:
         return cropped_slices
 
 
-class ForwardPassOutputHandler:
-    """Class to handle forward pass output. This includes transforming features
-    back to their original form and outputting to the correct file format.
-    """
-    @staticmethod
-    @abstractmethod
-    def get_lat_lon():
-        """Get lat lon arrays for writing to output file"""
-
-    @staticmethod
-    @abstractmethod
-    def get_times():
-        """Get time array for writing to output file"""
-
-
-class ForwardPassOutputHandlerNC(ForwardPassOutputHandler):
-    """ForwardPassOutputHandler subclass for NETCDF files"""
-
-    @staticmethod
-    def get_lat_lon(bottom_left_corner, top_right_corner, shape):
-        """Get lat lon arrays for high res NETCDF output file
-
-        Parameters
-        ----------
-        bottom_left_corner : tuple
-            (lat, lon) Coordinate of bottom left corner of high res grid
-        top_right_corner : tuple
-            (lat, lon) Coordinate of top right corner of high res grid
-        shape : tuple
-            (lons, lats) Shape of high res grid
-
-        Returns
-        -------
-        lons : ndarray
-            Array of lons for high res NETCDF output file
-        lats : ndarray
-            Array of lats for high res NETCDF output file
-        """
-        lats = np.linspace(bottom_left_corner[0], top_right_corner[0],
-                           shape[0])
-        lons = np.linspace(bottom_left_corner[1], top_right_corner[1],
-                           shape[1])
-        lons, lats = np.meshgrid(lons, lats)
-        return lats, lons
-
-    @staticmethod
-    def get_times(time_range, time_description, shape):
-        """Get array of times for high res NETCDF output file
-
-        Parameters
-        ----------
-        time_range : tuple
-            (start, end) Starting and ending time of forward pass output
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-        shape : int
-            Number of time steps for high res time array
-
-        Returns
-        -------
-        ndarray
-            Array of times for high res NETCDF output file. In hours since
-            1800-01-01.
-        """
-        reference_time = np.datetime64('1970-01-01T00:00:00')
-        t_0 = (time_range[0] - reference_time) / np.timedelta64(1, 's')
-        t_1 = (time_range[1] - reference_time) / np.timedelta64(1, 's')
-        t_0 = date2num(dt.utcfromtimestamp(t_0), time_description,
-                       has_year_zero=False, calendar='standard')
-        t_1 = date2num(dt.utcfromtimestamp(t_1), time_description,
-                       has_year_zero=False, calendar='standard')
-        time_index = np.linspace(t_0, t_1, shape)
-        return time_index
-
-    @classmethod
-    def write_output(cls, data, features, bottom_left_corner,
-                     top_right_corner, time_range, time_description,
-                     out_file):
-        """Write forward pass output to NETCDF file
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        bottom_left_corner : tuple
-            (lat, lon) Coordinate of bottom left corner of high res grid
-        top_right_corner : tuple
-            (lat, lon) Coordinate of top right corner of high res grid
-        time_range : tuple
-            (start, end) Starting and ending time of forward pass output
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-        out_file : string
-            Output file path
-        """
-        with Dataset(out_file, mode='w', format='NETCDF4_CLASSIC') as ncfile:
-            ncfile.createDimension('south_north', data.shape[0])
-            ncfile.createDimension('west_east', data.shape[1])
-            ncfile.createDimension('Time', None)
-
-            ncfile.title = "Forward pass output"
-
-            lat = ncfile.createVariable('XLAT', np.float32,
-                                        ('south_north', 'west_east'))
-            lat.units = 'degree_north'
-            lat.long_name = 'latitude'
-            lon = ncfile.createVariable('XLONG', np.float32,
-                                        ('south_north', 'west_east'))
-            lon.units = 'degree_east'
-            lon.long_name = 'longitude'
-
-            lat[:, :], lon[:, :] = cls.get_lat_lon(bottom_left_corner,
-                                                   top_right_corner,
-                                                   data.shape[:2])
-
-            time = ncfile.createVariable('XTIME', np.float32, ('Time',))
-            time.description = time_description
-            time.long_name = 'time'
-
-            time[:] = cls.get_times(time_range, time_description,
-                                    data.shape[-2])
-
-            for i, f in enumerate(features):
-                nc_feature = ncfile.createVariable(
-                    f, np.float32, ('Time', 'south_north', 'west_east'))
-                nc_feature[:, :, :] = np.transpose(data[..., i], (2, 0, 1))
-
-    @staticmethod
-    def combine_file(files, outfile):
-        """Combine all chunked output files from ForwardPass into a single file
-
-        Parameters
-        ----------
-        files : list
-            List of chunked output files from ForwardPass runs
-        outfile : str
-            Output file name for combined file
-        """
-        ds = xr.open_mfdataset(files, combine='nested', concat_dim='Time')
-        ds.to_netcdf(outfile)
-        logger.info(f'Saved combined file: {outfile}')
-
-
-class ForwardPass(ForwardPassOutputHandlerNC):
+class ForwardPass:
     """Class to run forward passes on all chunks provided by the given
     ForwardPassStrategy. The chunks provided by the strategy are all passed
     through the GAN generator to produce high resolution output.
     """
 
     DATA_HANDLER = DataHandlerNC
+    OUTPUT_HANDLER = OutputHandlerNC
 
     def __init__(self, strategy, model_path, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
@@ -926,12 +778,13 @@ class ForwardPass(ForwardPassOutputHandlerNC):
 
         logger.debug(f'outfile: {self.out_file}')
         if self.out_file is not None:
-            self.write_output(data, self.data_handler.output_features,
-                              self.data_handler.bottom_left_corner,
-                              self.data_handler.top_right_corner,
-                              self.data_handler.time_range,
-                              self.data_handler.time_description,
-                              self.out_file)
+            self.OUTPUT_HANDLER.write_output(
+                data, self.data_handler.output_features,
+                self.data_handler.lats[tuple(self.data_handler.raster_index)],
+                self.data_handler.lons[tuple(self.data_handler.raster_index)],
+                self.data_handler.time_index,
+                self.data_handler.time_description,
+                self.out_file)
             logger.info(f'Saving forward pass output to {self.out_file}.')
         else:
             return data

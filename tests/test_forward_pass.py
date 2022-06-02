@@ -21,11 +21,11 @@ input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
 target = (19, -125)
 targets = target
@@ -61,7 +61,6 @@ def test_repeated_forward_pass():
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance,
                                  n_batches=4)
-
     with tempfile.TemporaryDirectory() as td:
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
@@ -85,10 +84,9 @@ def test_repeated_forward_pass():
         forward_pass.run()
 
         # 2nd forward pass
-        new_input_files = glob.glob(f'{out_file_prefix}*')
         new_shape = (s_enhance * shape[0], s_enhance * shape[1])
         handler = ForwardPassStrategy(
-            new_input_files, target=target, shape=new_shape,
+            handler.out_files, target=target, shape=new_shape,
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
