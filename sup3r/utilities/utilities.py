@@ -253,10 +253,16 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:-shape]
+    ti_short = time_index[:-(shape - 1)]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
+
+    if not any(midnight_ilocs):
+        msg = ('Cannot sample time index of shape {} with requested daily '
+               'sample shape {}'.format(len(time_index), shape))
+        logger.error(msg)
+        raise RuntimeError(msg)
 
     start = np.random.randint(0, len(midnight_ilocs))
     start = midnight_ilocs[start]
