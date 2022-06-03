@@ -3,6 +3,7 @@
 author : @bbenton
 """
 from abc import abstractmethod
+from attr import attr
 import numpy as np
 from datetime import datetime as dt
 from netCDF4 import Dataset, date2num
@@ -11,14 +12,55 @@ import pandas as pd
 import logging
 from scipy.interpolate import RBFInterpolator
 import warnings
+import re
+
+from sup3r.utilities.utilities import invert_uv
+from sup3r.preprocessing.feature_handling import Feature
+
+from reV.handlers.outputs import Outputs
 
 logger = logging.getLogger(__name__)
+
+
+def get_H5_attrs(feature):
+    """Get attributes for feature being written to H5 file
+
+    Parameters
+    ----------
+    feature : str
+        Name of feature to write to H5 file
+
+    Returns
+    -------
+    dict
+        Dictionary of attributes for given feature
+    """
+    if 'windspeed' in feature.lower():
+        attrs = {'fill_value': 65535, 'scale_factor': 100.0,
+                 'units': 'm s-1'}
+    if 'winddirection' in feature.lower():
+        attrs = {'fill_value': 65535, 'scale_factor': 100.0,
+                 'units': 'degree'}
+    if 'temperature' in feature.lower():
+        attrs = {'fill_value': 32767, 'scale_factor': 100.0,
+                 'units': 'C'}
+    if 'pressure' in feature.lower():
+        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
+                 'units': 'Pa'}
+    if 'bvfmo' in feature.lower():
+        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
+                 'units': 'm s-2'}
+    if 'bvf_squared' in feature.lower():
+        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
+                 'units': 's-2'}
+    return attrs
 
 
 class OutputHandler:
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
+
     @staticmethod
     def get_lat_lon(low_res_lat_lon, shape):
         """Get lat lon arrays for high res output file
@@ -120,6 +162,7 @@ class OutputHandlerNC(OutputHandler):
             List of np.datetime64 objects for high res data.
         time_description : string
             Description of time. e.g. minutes since 2016-01-30 00:00:00
+
         Returns
         -------
         ndarray
@@ -209,3 +252,101 @@ class OutputHandlerNC(OutputHandler):
         ds = xr.open_mfdataset(files, combine='nested', concat_dim='Time')
         ds.to_netcdf(outfile)
         logger.info(f'Saved combined file: {outfile}')
+
+
+class OutputHandlerH5(OutputHandler):
+    """Class to handle writing output to H5 file"""
+
+    @classmethod
+    def invert_uv_features(cls, data, features, lat_lon):
+        """Invert U/V to windspeed and winddirection
+
+        Parameters
+        ----------
+        data : ndarray
+            High res data from forward pass
+            (spatial_1, spatial_2, temporal, features)
+        features : list
+            List of output features
+        lat_lon : ndarray
+            High res lat/lon array
+            (spatial_1, spatial_2, 2)
+
+        Returns
+        -------
+        ndarray
+            High res data with u/v -> windspeed/winddirection for each height
+        list
+            List of renamed features u/v -> windspeed/winddirection for each
+            height
+        """
+
+        heights = []
+        renamed_features = features.copy()
+        data_out = data.copy()
+        for f in features:
+            if re.match('U_(.*?)m'.lower(), f.lower()):
+                heights.append(Feature.get_height(f))
+
+        for height in heights:
+            u_idx = features.index(f'U_{height}m')
+            v_idx = features.index(f'V_{height}m')
+
+            ws, wd = invert_uv(data[..., u_idx], data[..., v_idx], lat_lon)
+
+            data_out[..., u_idx] = ws
+            data_out[..., v_idx] = wd
+
+            renamed_features[u_idx] = f'windspeed_{height}m'
+            renamed_features[v_idx] = f'winddirection_{height}m'
+
+        return data_out, renamed_features
+
+    @classmethod
+    def write_output(cls, data, features, low_res_lat_lon,
+                     low_res_times, time_description, out_file):
+        """Write forward pass output to NETCDF file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        low_res_lat_lon : ndarray
+            Array of lat/lon for input data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        low_res_times : list
+            List of np.datetime64 objects for input data.
+        time_description : dict
+            Description of time. e.g.
+            {'description': 'minutes since 2016-01-30 00:00:00'}
+        out_file : string
+            Output file path
+        """
+
+        out_file = out_file.split('.')[0] + '.h5'
+        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
+        times = cls.get_times(low_res_times, data.shape[-2])
+        data, renamed_features = cls.invert_uv_features(data, features,
+                                                        lat_lon)
+        meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
+                             'longitude': lat_lon[..., 1].flatten()})
+
+        with Outputs(out_file, 'w') as fh:
+            fh.time_index = times
+            fh.meta = meta
+            fh.attrs['time_index'] = time_description
+
+            for i, f in enumerate(renamed_features):
+                attrs = get_H5_attrs(f)
+                if attrs['scale_factor'] != 1:
+                    data_type = np.int
+                else:
+                    data_type = np.float32
+                flat_data = data[..., i].reshape((-1, len(times)))
+                flat_data = np.transpose(flat_data, (1, 0))
+                Outputs.add_dataset(out_file, f, flat_data, dtype=data_type,
+                                    attrs=attrs)

@@ -302,6 +302,46 @@ def transform_rotate_wind(ws, wd, lat_lon):
     return u_rot, v_rot
 
 
+def invert_uv(u, v, lat_lon):
+    """Transform u and v back to windspeed and winddirection
+
+    Parameters
+    ----------
+    u : np.ndarray
+        3D array of high res U data
+    v : np.ndarray
+        3D array of high res V data
+    lat_lon : np.ndarray
+        3D array of lat lon
+
+    Returns
+    -------
+    ws : np.ndarray
+        3D array of high res windspeed data
+    wd : np.ndarray
+        3D array of high res winddirection data
+    """
+    # get the dy/dx to the nearest vertical neighbor
+    dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
+    dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+
+    # calculate the angle from the vertical
+    theta = (np.pi / 2) - np.arctan2(dy, dx)
+    del dy, dx
+    theta[0] = theta[1]  # fix the roll row
+
+    u_rot = -np.sin(theta)[:, :, np.newaxis] * u
+    u_rot += np.cos(theta)[:, :, np.newaxis] * v
+
+    v_rot = np.cos(theta)[:, :, np.newaxis] * u
+    v_rot += np.sin(theta)[:, :, np.newaxis] * v
+
+    ws = np.sqrt(u_rot**2 + v_rot**2)
+    wd = 180.0 / np.pi * np.arctan2(v_rot, u_rot)
+
+    return ws, wd
+
+
 def temporal_coarsening(data, t_enhance=4, method='subsample'):
     """"Coarsen data according to t_enhance resolution
 

@@ -16,7 +16,8 @@ from rex.utilities.utilities import safe_json_load
 
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
-from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
+from sup3r.pipeline.forward_pass import ForwardPassStrategy
+from sup3r.pipeline.forward_pass import ForwardPassToH5 as ForwardPass
 
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ def from_config(ctx, config_file, verbose):
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
         cmd = ForwardPass.get_node_cmd(node_config)
+        logger.debug(f'Running command: {cmd}')
 
         if hardware_option.lower() in ('eagle', 'slurm'):
             kickoff_slurm_job(ctx, cmd, **exec_kwargs)

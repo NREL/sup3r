@@ -17,7 +17,7 @@ from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.postprocessing.file_handling import OutputHandlerNC
+from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
                                        get_chunk_slices,
@@ -711,7 +711,7 @@ class ForwardPass:
         """
 
         import_str = ('from sup3r.pipeline.forward_pass '
-                      'import ForwardPassStrategy, ForwardPass; '
+                      f'import ForwardPassStrategy, {cls.__name__}; '
                       'from rex import init_logger')
 
         fps_init_str = get_fun_call_str(ForwardPassStrategy, config)
@@ -728,7 +728,7 @@ class ForwardPass:
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
-               f"fwp = ForwardPass({fwp_arg_str});\n"
+               f"fwp = {cls.__name__}({fwp_arg_str});\n"
                "fwp.run()\'\n")
 
         return cmd
@@ -801,3 +801,9 @@ class ForwardPass:
                 self.out_file, self.meta_data)
         else:
             return data
+
+
+class ForwardPassToH5(ForwardPass):
+    """ForwardPass subclass with H5 output"""
+
+    OUTPUT_HANDLER = OutputHandlerH5
