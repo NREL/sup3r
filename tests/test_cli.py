@@ -5,7 +5,6 @@ import os
 import tempfile
 import pytest
 import glob
-import numpy as np
 import shutil
 from netCDF4 import Dataset
 
