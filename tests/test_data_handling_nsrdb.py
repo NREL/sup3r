@@ -319,7 +319,6 @@ def test_nsrdb_sub_daily_sampler():
         assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()
 
 
-
 def test_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
     handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
@@ -341,3 +340,25 @@ def test_multi_day_coarse_data():
     for batch in batcher.val_data:
         assert batch.low_res.shape == (4, 5, 5, 3, 3)
         assert batch.high_res.shape == (4, 20, 20, 9, 3)
+
+    # run another test with u/v on low res side but not high res
+    features = ['clearsky_ratio', 'u', 'v']
+    handler = DataHandlerNsrdb(INPUT_FILE, features,
+                               target=TARGET, shape=SHAPE,
+                               temporal_slice=slice(None, None, 2),
+                               time_roll=-7,
+                               val_split=0.1,
+                               sample_shape=(20, 20, 72),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    batcher = BatchHandlerNsrdb([handler], batch_size=4, n_batches=10,
+                                s_enhance=4)
+
+    for batch in batcher:
+        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.high_res.shape == (4, 20, 20, 9, 1)
+
+    for batch in batcher.val_data:
+        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.high_res.shape == (4, 20, 20, 9, 1)
