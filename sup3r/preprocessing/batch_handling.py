@@ -18,6 +18,7 @@ from sup3r.utilities.utilities import (daily_time_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        nsrdb_temporal_coarsening,
+                                       nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        nn_fill_array)
@@ -142,7 +143,7 @@ class BatchNsrdb(Batch):
 
     @classmethod
     def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=1,
+                         s_enhance, t_enhance=24, sub_daily_shape=9,
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
                          output_features=None):
@@ -161,6 +162,10 @@ class BatchNsrdb(Batch):
         t_enhance : int
             Factor by which to coarsen temporal dimension of the high
             resolution data
+        sub_daily_shape : int | None
+            If the high res data is one or more days (hourly) data, this can be
+            used to downselect a few daylight hours of the center day. None
+            disables this.
         temporal_coarsening_method : str
             Method to use for temporal coarsening. Can be subsample, average,
             or total
@@ -176,11 +181,37 @@ class BatchNsrdb(Batch):
             Batch instance with low and high res data
         """
 
-        # for nsrdb, do temporal avg first so you dont have to do spatial agg
-        # across NaNs
-        low_res = nsrdb_temporal_coarsening(high_res)
+        if high_res.shape[3] <= 24:
+            # for nsrdb, do temporal avg first so you dont have to do spatial
+            # agg across NaNs
+            low_res = nsrdb_temporal_coarsening(high_res)
+            low_res = spatial_coarsening(low_res, s_enhance)
+        else:
+            msg = ('Temporal axis must be multiple of 24 but got {}'
+                   .format(high_res.shape[3]))
+            assert high_res.shape[3] % 24 == 0, msg
+            n_days = int(high_res.shape[3] / 24)
+            splits = np.array_split(np.arange(high_res.shape[3]), n_days)
+            splits = [slice(x[0], x[-1] + 1) for x in splits]
+            low_res = np.zeros((high_res.shape[0],
+                                int(high_res.shape[1] / s_enhance),
+                                int(high_res.shape[2] / s_enhance),
+                                n_days,
+                                high_res.shape[4]),
+                               dtype=np.float32)
+            for day in range(n_days):
+                s = splits[day]
+                temp = nsrdb_temporal_coarsening(high_res[:, :, :, s, :])
+                temp = spatial_coarsening(temp, s_enhance)
+                low_res[:, :, :, day, :] = temp[:, :, :, 0, :]
 
-        low_res = spatial_coarsening(low_res, s_enhance)
+            if sub_daily_shape is not None:
+                if n_days > 1:
+                    assert n_days % 2 == 1, 'Need odd days'
+                    i_mid = int((n_days - 1) / 2)
+                    high_res = high_res[:, :, :, splits[i_mid], :]
+
+                high_res = nsrdb_reduce_daily_data(high_res, sub_daily_shape)
 
         high_res = cls.reduce_features(high_res, output_features_ind)
 

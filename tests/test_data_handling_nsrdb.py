@@ -11,7 +11,7 @@ from rex import Resource
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNsrdb
 from sup3r.preprocessing.batch_handling import BatchHandlerNsrdb
-from sup3r.utilities.utilities import nsrdb_sampler
+from sup3r.utilities.utilities import nsrdb_sub_daily_sampler
 
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
@@ -286,7 +286,7 @@ def test_ancillary_vars():
     assert np.allclose(ws_true, ws_test)
 
 
-def test_nsrdb_sampler():
+def test_nsrdb_sub_daily_sampler():
     """Test the nsrdb data sampler which does centered sampling on daylight
     hours."""
     handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
@@ -301,19 +301,43 @@ def test_nsrdb_sampler():
     ti = ti[0:handler.data.shape[2]]
 
     for _ in range(100):
-        tslice = nsrdb_sampler(handler.data, 4, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
         # with only 4 samples, there should never be any NaN data
         assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
 
     for _ in range(100):
-        tslice = nsrdb_sampler(handler.data, 8, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
         # with only 8 samples, there should never be any NaN data
         assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
 
     for _ in range(100):
-        tslice = nsrdb_sampler(handler.data, 20, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan
         assert ((~np.isnan(handler.data[0, 0, tslice, 0])).sum() > 7)
         assert np.isnan(handler.data[0, 0, tslice, 0])[:3].all()
         assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()
+
+
+
+def test_multi_day_coarse_data():
+    """Test a multi day sample with only 9 hours of high res data output"""
+    handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
+                               target=TARGET, shape=SHAPE,
+                               temporal_slice=slice(None, None, 2),
+                               time_roll=-7,
+                               val_split=0.1,
+                               sample_shape=(20, 20, 72),
+                               max_extract_workers=1,
+                               max_compute_workers=1)
+
+    batcher = BatchHandlerNsrdb([handler], batch_size=4, n_batches=10,
+                                s_enhance=4)
+
+    for batch in batcher:
+        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.high_res.shape == (4, 20, 20, 9, 3)
+
+    for batch in batcher.val_data:
+        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.high_res.shape == (4, 20, 20, 9, 3)

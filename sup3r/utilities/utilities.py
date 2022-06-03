@@ -253,11 +253,7 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    msg = ('Cannot sample more than 24 hours right now, but received shape '
-           f'request: {shape}')
-    assert shape <= 24, msg
-
-    ti_short = time_index[:-23]
+    ti_short = time_index[:-shape]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
@@ -271,7 +267,7 @@ def daily_time_sampler(data, shape, time_index):
     return tslice
 
 
-def nsrdb_sampler(data, shape, time_index, csr_ind=0):
+def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
     """Finds a random sample during daylight hours of a day. Nightime is
     assumed to be marked as NaN in feature axis == csr_ind in the data input.
 
@@ -317,6 +313,50 @@ def nsrdb_sampler(data, shape, time_index, csr_ind=0):
         new_end = new_start + shape
         tslice = slice(new_start, new_end)
         return tslice
+
+
+def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
+    """Takes a 5D array and reduces the axis=3 temporal dim to daylight hours.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array 5D, where [..., csr_ind] is assumed to be
+        clearsky ratio with NaN at night.
+        (n_obs, spatial_1, spatial_2, temporal, features)
+    shape : int
+        (time_steps) Size of time slice to sample from data, must be an integer
+        less than or equal to 24.
+    csr_ind : int
+        Index of the feature axis where clearsky ratio is located and NaN's can
+        be found at night.
+
+    Returns:
+    --------
+    data : np.ndarray
+        Same as input but with axis=3 reduced to dailylight hours with
+        requested shape.
+    """
+
+    night_mask = np.isnan(data[0, :, :, :, csr_ind]).any(axis=(0, 1))
+
+    if shape == 24:
+        return data
+
+    if night_mask.all():
+        msg = (f'No daylight data found for data of shape {data.shape}')
+        logger.warning(msg)
+        warn(msg)
+        return data
+
+    else:
+        day_ilocs = np.where(~night_mask)[0]
+        padding = shape - len(day_ilocs)
+        half_pad = int(np.round(padding / 2))
+        start = day_ilocs[0] - half_pad
+        end = start + shape
+        tslice = slice(start, end)
+        return data[:, :, :, tslice, :]
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
