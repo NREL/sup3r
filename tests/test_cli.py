@@ -5,6 +5,9 @@ import os
 import tempfile
 import pytest
 import glob
+import numpy as np
+import shutil
+from netCDF4 import Dataset
 
 from click.testing import CliRunner
 
@@ -29,6 +32,19 @@ INPUT_FILES = sorted(input_files)
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF_squared_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+
+
+def make_fake_nc_files(td):
+    """Make dummy nc files with increasing times"""
+    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(8)]
+    fake_times = list(range(8))
+
+    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
+    for i, f in enumerate(INPUT_FILES):
+        shutil.copy(f, fake_files[i])
+        with Dataset(fake_files[i], 'r+') as dset:
+            dset['XTIME'][:] = fake_times[i]
+    return fake_files
 
 
 @pytest.fixture(scope='module')
@@ -60,6 +76,9 @@ def test_fwd_pass_cli(runner):
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
+
+        input_files = make_fake_nc_files(td)
+
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
@@ -70,11 +89,11 @@ def test_fwd_pass_cli(runner):
         model.save(out_dir)
 
         fp_chunk_shape = (4, 4, 6)
-        n_nodes = len(INPUT_FILES) // fp_chunk_shape[2] + 1
+        n_nodes = len(input_files) // fp_chunk_shape[2] + 1
         cache_prefix = os.path.join(td, 'cache')
         out_prefix = os.path.join(td, 'out')
         log_prefix = os.path.join(td, 'log')
-        config = {'file_paths': INPUT_FILES,
+        config = {'file_paths': input_files,
                   'target': (19, -125),
                   'model_path': out_dir,
                   'out_file_prefix': out_prefix,
@@ -99,10 +118,9 @@ def test_fwd_pass_cli(runner):
             json.dump(config, fh)
 
         result = runner.invoke(fp_main, ['-c', config_path, '-v'])
-
-        assert len(glob.glob(f'{out_prefix}*')) == n_nodes
         assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES * n_nodes)
         assert len(glob.glob(f'{log_prefix}*')) == n_nodes
+        assert len(glob.glob(f'{out_prefix}*')) == n_nodes
 
         if result.exit_code != 0:
             import traceback

@@ -412,7 +412,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ProcessPoolExecutor(max_workers=self.compute_workers) as exe:
+        with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):

@@ -10,6 +10,7 @@ import xarray as xr
 import pandas as pd
 import logging
 from scipy.interpolate import RBFInterpolator
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,12 @@ class OutputHandlerNC(OutputHandler):
         offset = (low_res_times[1] - low_res_times[0])
         low_res_offset = offset / np.timedelta64(1, 's')
         new_offset = offset / np.timedelta64(t_enhance, 's')
+
+        msg = 'Found a difference of 0 seconds between successive file times'
+        if new_offset == 0:
+            logger.warning(msg)
+            warnings.warn(msg)
+
         freq = pd.tseries.offsets.DateOffset(seconds=new_offset)
         end_time = low_res_times[-1] + np.timedelta64(int(low_res_offset), 's')
         time_index = pd.date_range(low_res_times[0], end_time, freq=freq,

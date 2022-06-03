@@ -11,6 +11,7 @@ from datetime import datetime as dt
 import os
 import warnings
 import glob
+import pickle
 
 
 from rex.utilities.execution import SpawnProcessPool
@@ -313,9 +314,9 @@ class ForwardPassStrategy:
             dirname = os.path.dirname(out_file_prefix)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
-            for file_id in file_ids:
-                out_files.append(
-                    f'{out_file_prefix}_{file_id}')
+            for i, file_id in enumerate(file_ids):
+                out_file = f'{out_file_prefix}_{file_id}_{i}'
+                out_files.append(out_file)
         else:
             out_files = [None] * len(file_ids)
         return out_files
@@ -705,9 +706,6 @@ class ForwardPass:
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
-        logger.debug(f'node_config: {config}')
-        logger.debug(f'log_arg_str: {log_arg_str}')
-
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
@@ -722,7 +720,6 @@ class ForwardPass:
         This routine runs forward passes on all data chunks associated with
         this file subset.
         """
-
         logger.info(
             f'Starting forward passes on data shape {self.data_shape}. Using '
             f'{len(self.lr_slices)} chunks each with shape of '
@@ -773,11 +770,10 @@ class ForwardPass:
                                      'passes completed.')
 
         logger.info('All forward passes are complete.')
-
         data = data[:, :, self.cropped_file_slice, :]
 
-        logger.debug(f'outfile: {self.out_file}')
         if self.out_file is not None:
+            logger.info(f'Saving forward pass output to {self.out_file}.')
             self.OUTPUT_HANDLER.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lats[tuple(self.data_handler.raster_index)],
@@ -785,6 +781,5 @@ class ForwardPass:
                 self.data_handler.time_index,
                 self.data_handler.time_description,
                 self.out_file)
-            logger.info(f'Saving forward pass output to {self.out_file}.')
         else:
             return data
