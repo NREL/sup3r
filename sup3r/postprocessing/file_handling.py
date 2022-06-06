@@ -47,9 +47,10 @@ class OutputHandler:
 
         # This shifts the indices for the old points by the downsampling
         # fraction so that we can calculate the centers of the new points with
-        # origin at zero
-        lat_shift = low_res_lat_lon.shape[0] / shape[0]
-        lon_shift = low_res_lat_lon.shape[1] / shape[1]
+        # origin at zero. Obviously if the shapes are the same then there
+        # should be no shift
+        lat_shift = 1 - low_res_lat_lon.shape[0] / shape[0]
+        lon_shift = 1 - low_res_lat_lon.shape[1] / shape[1]
 
         new_count = old_count = 0
         for i in range(shape[0]):
