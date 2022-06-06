@@ -11,7 +11,6 @@ from datetime import datetime as dt
 import os
 import warnings
 import glob
-import pickle
 
 
 from rex.utilities.execution import SpawnProcessPool
