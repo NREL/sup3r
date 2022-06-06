@@ -101,6 +101,10 @@ class OutputHandler:
                                    closed='left')
         return time_index
 
+    @abstractmethod
+    def write_output(self):
+        """Write high res data with new coordinates and meta data to output"""
+
 
 class OutputHandlerNC(OutputHandler):
     """OutputHandler subclass for NETCDF files"""
