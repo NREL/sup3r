@@ -18,7 +18,7 @@ from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.post_processing.file_handling import OutputHandlerNC
+from sup3r.postprocessing.file_handling import OutputHandlerNC
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
                                        get_chunk_slices)
@@ -276,12 +276,12 @@ class ForwardPassStrategy:
         return len(self.file_slices)
 
     @classmethod
-    def file_info_logging(cls, file_path):
+    def file_info_logging(cls, file_paths):
         """More concise file info about data files
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             List of file paths
 
         Returns
@@ -291,7 +291,7 @@ class ForwardPassStrategy:
             dump of file paths
         """
 
-        return cls.DATA_HANDLER.file_info_logging(file_path)
+        return cls.DATA_HANDLER.file_info_logging(file_paths)
 
     @staticmethod
     def get_output_file_names(out_file_prefix, file_ids):
@@ -617,6 +617,7 @@ class ForwardPass:
         self.strategy = strategy
         self.model_path = model_path
         self.features = Sup3rGan.load(model_path).training_features
+        self.meta_data = Sup3rGan.load(model_path).meta
         self.node_index = node_index
 
         kwargs = strategy.get_node_kwargs(node_index)
@@ -776,10 +777,9 @@ class ForwardPass:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.OUTPUT_HANDLER.write_output(
                 data, self.data_handler.output_features,
-                self.data_handler.lats[tuple(self.data_handler.raster_index)],
-                self.data_handler.lons[tuple(self.data_handler.raster_index)],
+                self.data_handler.lat_lon,
                 self.data_handler.time_index,
                 self.data_handler.time_description,
-                self.out_file)
+                self.out_file, self.meta_data)
         else:
             return data

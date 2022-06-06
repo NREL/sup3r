@@ -133,7 +133,7 @@ def test_data_extract_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         cache_prefix = os.path.join(td, 'cache')
         log_file = os.path.join(td, 'log.log')
-        config = {'file_path': FP_WTK,
+        config = {'file_paths': FP_WTK,
                   'target': TARGET_COORD,
                   'features': FEATURES,
                   'shape': (20, 20),
