@@ -21,7 +21,8 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.postprocessing.file_handling import OutputHandlerNC
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
-                                       get_chunk_slices)
+                                       get_chunk_slices,
+                                       get_source_type)
 from sup3r.models import Sup3rGan
 
 np.random.seed(42)
@@ -57,7 +58,8 @@ class ForwardPassStrategy:
                  out_file_prefix=None,
                  overwrite_cache=False,
                  spatial_overlap=15,
-                 temporal_overlap=15):
+                 temporal_overlap=15,
+                 output_type='nc'):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -130,11 +132,17 @@ class ForwardPassStrategy:
         temporal_overlap : int
             Size of temporal overlap between chunks passed to forward passes
             for subsequent temporal stitching
+        output_type : str
+            Either nc (netcdf) or h5. This selects the extension for output
+            files and determines which output handler to use when writing the
+            results of the forward passes
         """
 
         if isinstance(file_paths, str):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
+        self.output_type = output_type
+        self.input_type = get_source_type(file_paths)
         self._i = 0
         self.file_t_steps = get_file_t_steps(self.file_paths)
         self.raster_file = raster_file
@@ -164,7 +172,8 @@ class ForwardPassStrategy:
         self.file_ids = self.get_file_ids(
             file_paths=file_paths, file_slices=self.file_slices)
         self.out_files = self.get_output_file_names(
-            out_file_prefix=out_file_prefix, file_ids=self.file_ids)
+            out_file_prefix=out_file_prefix, file_ids=self.file_ids,
+            file_type=self.output_type)
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
@@ -294,7 +303,7 @@ class ForwardPassStrategy:
         return cls.DATA_HANDLER.file_info_logging(file_paths)
 
     @staticmethod
-    def get_output_file_names(out_file_prefix, file_ids):
+    def get_output_file_names(out_file_prefix, file_ids, file_type='nc'):
         """Get output file names for each file chunk forward pass
 
         Parameters
@@ -303,19 +312,29 @@ class ForwardPassStrategy:
             Prefix of output file names
         file_ids : list
             List of file ids for each output file. e.g. date range
+        file_type : str
+            Either netcdf or h5. This selects the extension for output files
+            and determines which output handler to use when writing the results
+            of the forward passes
 
         Returns
         -------
         list
             List of output file names
         """
+
+        if file_type.lower() == 'nc' or file_type.lower() == 'netcdf':
+            ext = '.nc'
+        elif file_type.lower() == 'h5':
+            ext = '.h5'
+
         out_files = []
         if out_file_prefix is not None:
             dirname = os.path.dirname(out_file_prefix)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             for i, file_id in enumerate(file_ids):
-                out_file = f'{out_file_prefix}_{file_id}_{i}'
+                out_file = f'{out_file_prefix}_{file_id}_{i}_{ext}'
                 out_files.append(out_file)
         else:
             out_files = [None] * len(file_ids)

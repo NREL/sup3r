@@ -160,7 +160,6 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         """
 
-        out_file = out_file.split('.')[0] + '.nc'
         with Dataset(out_file, mode='w', format='NETCDF4_CLASSIC') as ncfile:
             ncfile.createDimension('south_north', data.shape[0])
             ncfile.createDimension('west_east', data.shape[1])
