@@ -17,7 +17,8 @@ from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
+from sup3r.postprocessing.file_handling import (OutputHandlerH5,
+                                                OutputHandlerNC)
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
                                        get_chunk_slices,
