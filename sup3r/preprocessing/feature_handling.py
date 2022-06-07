@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import re
 from datetime import datetime as dt
+import xarray as xr
 
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
@@ -599,17 +600,46 @@ class VWindNsrdb(DerivedFeature):
         return v
 
 
+class LatLonNC:
+    """Lat Lon feature class with compute method"""
+
+    @classmethod
+    def compute(cls, file_paths, raster_index):
+        """Get lats and lons
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : list
+            List of slices for raster
+        Returns
+        -------
+        ndarray
+            lat lon array
+            (spatial_1, spatial_2, 2)
+        """
+        with xr.open_dataset(file_paths[0]) as handle:
+            lats = (handle.XLAT.values if 'Time' not
+                    in handle.XLAT.dims else handle.XLAT.values[0])
+            lons = (handle.XLONG.values if 'Time' not
+                    in handle.XLONG.dims else handle.XLONG.values[0])
+            lat_lon = np.concatenate(
+                [lats[tuple(raster_index)][..., np.newaxis],
+                 lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
+        return lat_lon
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
     @classmethod
-    def compute(cls, file_path, raster_index):
+    def compute(cls, file_paths, raster_index):
         """Get lats and lons corresponding to raster for use in
         windspeed/direction -> u/v mapping
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             path to data file
         raster_index : ndarray
             Raster index array
@@ -621,7 +651,7 @@ class LatLonH5:
             (spatial_1, spatial_2, 2)
         """
 
-        with Resource(file_path[0], hsds=False) as handle:
+        with Resource(file_paths[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
             lat_lon = lat_lon.reshape((raster_index.shape[0],
                                        raster_index.shape[1],
@@ -787,13 +817,13 @@ class FeatureHandler:
             data[chunk_number].pop(k)
 
     @classmethod
-    def serial_extract(cls, file_path, raster_index, time_chunks,
+    def serial_extract(cls, file_paths, raster_index, time_chunks,
                        input_features):
         """Extract features in series
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             list of file paths
         raster_index : ndarray
             raster index for spatial domain
@@ -821,21 +851,21 @@ class FeatureHandler:
         for t, t_slice in enumerate(time_chunks):
             for f in time_dep_features:
                 data[t][f] = cls.extract_feature(
-                    file_path, raster_index, f, t_slice)
+                    file_paths, raster_index, f, t_slice)
         for f in time_ind_features:
             data[-1][f] = cls.extract_feature(
-                file_path, raster_index, f)
+                file_paths, raster_index, f)
 
         return data
 
     @classmethod
-    def parallel_extract(cls, file_path, raster_index, time_chunks,
+    def parallel_extract(cls, file_paths, raster_index, time_chunks,
                          input_features, max_workers=None):
         """Extract features using parallel subprocesses
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             list of file paths
         raster_index : ndarray | list
             raster index for spatial domain
@@ -870,13 +900,13 @@ class FeatureHandler:
 
         if max_workers == 1:
             return cls.serial_extract(
-                file_path, raster_index, time_chunks, input_features)
+                file_paths, raster_index, time_chunks, input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
                     for f in time_dep_features:
                         future = exe.submit(cls.extract_feature,
-                                            file_path=file_path,
+                                            file_paths=file_paths,
                                             raster_index=raster_index,
                                             feature=f,
                                             time_slice=t_slice)
@@ -886,7 +916,7 @@ class FeatureHandler:
 
                 for f in time_ind_features:
                     future = exe.submit(cls.extract_feature,
-                                        file_path=file_path,
+                                        file_paths=file_paths,
                                         raster_index=raster_index,
                                         feature=f)
                     meta = {'feature': f,
@@ -1142,18 +1172,18 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def get_raw_feature_list(cls, file_path, features):
+    def get_raw_feature_list(cls, file_paths, features):
         """Lookup inputs needed to compute features"""
 
     @classmethod
     @abstractmethod
-    def extract_feature(cls, file_path, raster_index, feature,
+    def extract_feature(cls, file_paths, raster_index, feature,
                         time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             path to data file
         raster_index : ndarray
             Raster index array

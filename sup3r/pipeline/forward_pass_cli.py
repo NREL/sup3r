@@ -80,7 +80,6 @@ def from_config(ctx, config_file, verbose):
                                    if log_prefix is not None else log_prefix)
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
-        logger.debug(f'node_config: {node_config}')
         cmd = ForwardPass.get_node_cmd(node_config)
 
         if hardware_option.lower() in ('eagle', 'slurm'):

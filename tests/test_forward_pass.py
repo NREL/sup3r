@@ -20,11 +20,11 @@ input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
 target = (19, -125)
 targets = target
@@ -36,6 +36,65 @@ list_chunk_size = 10
 forward_pass_chunk_shape = (4, 4, 10)
 s_enhance = 3
 t_enhance = 4
+
+
+def test_repeated_forward_pass():
+    """Test forward pass handler output with second pass on output files."""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    # only use wind features since model output only gives 2 features
+    handler = DataHandlerH5(FP_WTK, FEATURES[:2], target=TARGET_COORD,
+                            shape=(20, 20),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            extract_workers=1,
+                            compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 n_batches=4)
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batch_handler, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        cache_file_prefix = os.path.join(td, 'cache')
+        out_file_prefix = os.path.join(td, 'out')
+        # 1st forward pass
+        handler = ForwardPassStrategy(
+            input_files, target=target, shape=shape,
+            temporal_slice=temporal_slice, raster_file=raster_file,
+            cache_file_prefix=cache_file_prefix,
+            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            overwrite_cache=True, out_file_prefix=out_file_prefix)
+        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass.run()
+
+        # 2nd forward pass
+        new_shape = (s_enhance * shape[0], s_enhance * shape[1])
+        handler = ForwardPassStrategy(
+            handler.out_files, target=target, shape=new_shape,
+            temporal_slice=temporal_slice, raster_file=raster_file,
+            cache_file_prefix=cache_file_prefix,
+            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            overwrite_cache=True)
+        forward_pass = ForwardPass(handler, model_path=out_dir)
+        data = forward_pass.run()
+        assert data.shape == (
+            s_enhance**2 * shape[0], s_enhance**2 * shape[1],
+            t_enhance**2 * len(input_files), 2)
 
 
 def test_fwd_pass_handler():
@@ -53,8 +112,8 @@ def test_fwd_pass_handler():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
+                            extract_workers=1,
+                            compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -103,8 +162,8 @@ def test_fwd_pass_chunking():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
+                            extract_workers=1,
+                            compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -159,8 +218,8 @@ def test_fwd_pass_nochunking():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_extract_workers=1,
-                            max_compute_workers=1)
+                            extract_workers=1,
+                            compute_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -191,8 +250,8 @@ def test_fwd_pass_nochunking():
                                   target=target, shape=shape,
                                   temporal_slice=temporal_slice,
                                   raster_file=raster_file,
-                                  max_extract_workers=None,
-                                  max_compute_workers=None,
+                                  extract_workers=None,
+                                  compute_workers=None,
                                   cache_file_prefix=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,

@@ -40,8 +40,8 @@ def test_handler(plot=False):
                                time_roll=-7,
                                val_split=0.1,
                                sample_shape=(20, 20, 24),
-                               max_extract_workers=1,
-                               max_compute_workers=1)
+                               extract_workers=1,
+                               compute_workers=1)
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data.shape[2] % 24 == 0
@@ -104,8 +104,8 @@ def test_batching(plot=False):
                                time_roll=-7,
                                val_split=0.1,
                                sample_shape=(20, 20, 24),
-                               max_extract_workers=1,
-                               max_compute_workers=1)
+                               extract_workers=1,
+                               compute_workers=1)
 
     batcher = NsrdbBatchHandler([handler],
                                 batch_size=1, n_batches=10,
@@ -174,8 +174,8 @@ def test_val_data():
                                time_roll=-7,
                                val_split=0.1,
                                sample_shape=(20, 20, 24),
-                               max_extract_workers=1,
-                               max_compute_workers=1)
+                               extract_workers=1,
+                               compute_workers=1)
 
     batcher = NsrdbBatchHandler([handler],
                                 batch_size=1, n_batches=10,
@@ -211,8 +211,8 @@ def test_ancillary_vars():
                                time_roll=-7,
                                val_split=0.0,
                                sample_shape=(20, 20, 24),
-                               max_extract_workers=1,
-                               max_compute_workers=1)
+                               extract_workers=1,
+                               compute_workers=1)
 
     assert handler.data.shape[-1] == 4
 

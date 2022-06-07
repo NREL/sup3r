@@ -397,7 +397,7 @@ class BatchHandler:
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = None
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, norm_workers=None, load_workers=None):
@@ -435,9 +435,9 @@ class BatchHandler:
             average over t_enhance time steps, total will sum over t_enhance
             time steps
         stdevs_file : str | None
-            Path to stdevs data or where to save data after calling _get_stats
+            Path to stdevs data or where to save data after calling get_stats
         means_file : str | None
-            Path to means data or where to save data after calling _get_stats
+            Path to means data or where to save data after calling get_stats
         load_workers : int | None
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
@@ -515,6 +515,7 @@ class BatchHandler:
                 f'in {dt.now() - now}. ')
 
             for i, _ in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(
                     f'{i + 1} out of {len(futures)} data handlers normalized.')
 
@@ -541,8 +542,35 @@ class BatchHandler:
                 f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
+                future.result()
                 logger.debug(
                     f'{i + 1} out of {len(futures)} handlers loaded.')
+
+    def parallel_stats(self, max_workers=None):
+        """Get standard deviations and means for training features in parallel
+
+        Parameters
+        ----------
+        max_workers : int | None
+            Max number of workers to use for parallel stats computation. If
+            None the max number of available workers will be used.
+        """
+
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i, f in enumerate(self.training_features):
+                future = exe.submit(self.get_stats_for_feature, f)
+                futures[future] = i
+
+            logger.info(
+                f'Started calculating stats for {len(self.training_features)} '
+                f'features in {dt.now() - now}. ')
+
+            for i, future in enumerate(as_completed(futures)):
+                future.result()
+                logger.debug(f'{i + 1} out of {len(self.training_features)} '
+                             'stats calculated.')
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -614,6 +642,14 @@ class BatchHandler:
             logger.info(f'Loading means from {self.means_file}')
             with open(self.means_file, 'rb') as fh:
                 self.means = pickle.load(fh)
+
+            msg = ('The training features and cached statistics are '
+                   'incompatible. Number of training features is '
+                   f'{len(self.training_features)} and number of stats is'
+                   f' {len(self.stds)}')
+            check = len(self.means) == len(self.training_features)
+            check = check and (len(self.stds) == len(self.training_features))
+            assert check, msg
         return self.means, self.stds
 
     def cache_stats(self):
@@ -629,22 +665,39 @@ class BatchHandler:
             with open(self.means_file, 'wb') as fh:
                 pickle.dump(self.means, fh)
 
-    def _get_stats(self):
+    def get_stats(self, max_workers=None):
         """Get standard deviations and means for all data features"""
 
         self.means = np.zeros((self.shape[-1]), dtype=np.float32)
         self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
 
-        logger.info('Calculating stdevs / means.')
+        logger.info(
+            f'Calculating stdevs/means with max_workers={max_workers}')
+        if max_workers == 1:
+            for f in self.training_features:
+                self.get_stats_for_feature(f)
+        else:
+            self.parallel_stats(max_workers=max_workers)
+
+    def get_stats_for_feature(self, feature):
+        """Get standard deviation and mean for requested feature
+
+        Parameters
+        ----------
+        feature : str
+            Feature to get stats for
+        """
         n_elems = np.product(self.shape[:-1])
-        for i in range(self.shape[-1]):
-            for data_handler in self.data_handlers:
-                self.means[i] += np.nansum(data_handler.data[..., i])
-            self.means[i] = self.means[i] / n_elems
-            for data_handler in self.data_handlers:
-                self.stds[i] += np.nansum(
-                    (data_handler.data[..., i] - self.means[i])**2)
-            self.stds[i] = np.sqrt(self.stds[i] / n_elems)
+        idx = self.training_features.index(feature)
+        logger.debug(
+            f'Calculating stdev/mean for {feature}')
+        for data_handler in self.data_handlers:
+            self.means[idx] += np.nansum(data_handler.data[..., idx])
+        self.means[idx] = self.means[idx] / n_elems
+        for data_handler in self.data_handlers:
+            self.stds[idx] += np.nansum(
+                (data_handler.data[..., idx] - self.means[idx])**2)
+        self.stds[idx] = np.sqrt(self.stds[idx] / n_elems)
 
     def normalize(self, means=None, stds=None, norm_workers=None):
         """Compute means and stds for each feature across all datasets and
@@ -660,10 +713,9 @@ class BatchHandler:
         norm_workers : int | None
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
-
-        new"""
+        """
         if means is None or stds is None:
-            self._get_stats()
+            self.get_stats(max_workers=norm_workers)
         elif means is not None and stds is not None:
             if (not np.array_equal(means, self.means)
                     or not np.array_equal(stds, self.stds)):
@@ -814,7 +866,7 @@ class BatchHandlerDC(BatchHandler):
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = DataHandlerDCforH5
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=2,
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, norm_workers=None, load_workers=None):
@@ -852,9 +904,9 @@ class BatchHandlerDC(BatchHandler):
             average over t_enhance time steps, total will sum over t_enhance
             time steps
         stdevs_file : str | None
-            Path to stdevs data or where to save data after calling _get_stats
+            Path to stdevs data or where to save data after calling get_stats
         means_file : str | None
-            Path to means data or where to save data after calling _get_stats
+            Path to means data or where to save data after calling get_stats
         load_workers : int | None
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.

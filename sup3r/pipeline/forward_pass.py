@@ -4,22 +4,24 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
-
 import numpy as np
 import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
-import pickle
 import os
 import warnings
+import glob
+
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.postprocessing.file_handling import OutputHandlerNC
 from sup3r.utilities.utilities import (get_wrf_date_range,
                                        get_file_t_steps,
-                                       get_chunk_slices)
+                                       get_chunk_slices,
+                                       get_source_type)
 from sup3r.models import Sup3rGan
 
 np.random.seed(42)
@@ -38,6 +40,8 @@ class ForwardPassStrategy:
     stich the chunks back togerther.
     """
 
+    DATA_HANDLER = DataHandlerNC
+
     def __init__(self, file_paths,
                  target=None, shape=None,
                  temporal_slice=slice(None),
@@ -45,24 +49,26 @@ class ForwardPassStrategy:
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
-                 max_extract_workers=None,
-                 max_compute_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
                  max_pass_workers=None,
                  temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
                  out_file_prefix=None,
                  overwrite_cache=False,
                  spatial_overlap=15,
-                 temporal_overlap=15):
+                 temporal_overlap=15,
+                 output_type='nc'):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
 
         Parameters
         ----------
-        file_paths : list
-            A list of NETCDF files to extract raster data from. Each file must
-            have the same number of timesteps.
+        file_paths : list | str
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string with a
+            unix-style file path which will be passed through glob.glob
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -95,12 +101,12 @@ class ForwardPassStrategy:
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
             data
-        max_compute_workers : int | None
+        compute_workers : int | None
             max number of workers to use for computing features. If
-            max_compute_workers == 1 then extraction will be serialized.
-        max_extract_workers : int | None
+            compute_workers == 1 then extraction will be serialized.
+        extract_workers : int | None
             max number of workers to use for data extraction. If
-            max_extract_workers == 1 then extraction will be serialized.
+            extract_workers == 1 then extraction will be serialized.
         max_pass_workers : int | None
             Max number of workers to use for forward passes on each node. If
             max_pass_workers == 1 then forward passes on chunks will be
@@ -125,19 +131,27 @@ class ForwardPassStrategy:
         temporal_overlap : int
             Size of temporal overlap between chunks passed to forward passes
             for subsequent temporal stitching
+        output_type : str
+            Either nc (netcdf) or h5. This selects the extension for output
+            files and determines which output handler to use when writing the
+            results of the forward passes
         """
 
-        self._i = 0
-        self.file_t_steps = get_file_t_steps(file_paths)
+        if isinstance(file_paths, str):
+            file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
+        self.output_type = output_type
+        self.input_type = get_source_type(file_paths)
+        self._i = 0
+        self.file_t_steps = get_file_t_steps(self.file_paths)
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
         self.forward_pass_chunk_shape = forward_pass_chunk_shape
         self.temporal_slice = temporal_slice
         self.max_pass_workers = max_pass_workers
-        self.max_extract_workers = max_extract_workers
-        self.max_compute_workers = max_compute_workers
+        self.extract_workers = extract_workers
+        self.compute_workers = compute_workers
         self.cache_file_prefix = cache_file_prefix
         self.out_file_prefix = out_file_prefix
         self.temporal_extract_chunk_size = temporal_extract_chunk_size
@@ -157,7 +171,8 @@ class ForwardPassStrategy:
         self.file_ids = self.get_file_ids(
             file_paths=file_paths, file_slices=self.file_slices)
         self.out_files = self.get_output_file_names(
-            out_file_prefix=out_file_prefix, file_ids=self.file_ids)
+            out_file_prefix=out_file_prefix, file_ids=self.file_ids,
+            file_type=self.output_type)
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
@@ -268,13 +283,13 @@ class ForwardPassStrategy:
         the forward_pass_chunk_shape"""
         return len(self.file_slices)
 
-    @staticmethod
-    def file_info_logging(file_path):
-        """More concise file info about NETCDF files
+    @classmethod
+    def file_info_logging(cls, file_paths):
+        """More concise file info about data files
 
         Parameters
         ----------
-        file_path : list
+        file_paths : list
             List of file paths
 
         Returns
@@ -284,10 +299,10 @@ class ForwardPassStrategy:
             dump of file paths
         """
 
-        return DataHandlerNC.file_info_logging(file_path)
+        return cls.DATA_HANDLER.file_info_logging(file_paths)
 
     @staticmethod
-    def get_output_file_names(out_file_prefix, file_ids):
+    def get_output_file_names(out_file_prefix, file_ids, file_type='nc'):
         """Get output file names for each file chunk forward pass
 
         Parameters
@@ -296,23 +311,53 @@ class ForwardPassStrategy:
             Prefix of output file names
         file_ids : list
             List of file ids for each output file. e.g. date range
+        file_type : str
+            Either netcdf or h5. This selects the extension for output files
+            and determines which output handler to use when writing the results
+            of the forward passes
 
         Returns
         -------
         list
             List of output file names
         """
+
+        if file_type.lower() == 'nc' or file_type.lower() == 'netcdf':
+            ext = '.nc'
+        elif file_type.lower() == 'h5':
+            ext = '.h5'
+
         out_files = []
         if out_file_prefix is not None:
             dirname = os.path.dirname(out_file_prefix)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
-            for file_id in file_ids:
-                out_files.append(
-                    f'{out_file_prefix}_{file_id}.pkl')
+            for i, file_id in enumerate(file_ids):
+                out_file = f'{out_file_prefix}_{file_id}_{i}_{ext}'
+                out_files.append(out_file)
         else:
             out_files = [None] * len(file_ids)
         return out_files
+
+    def get_combined_output_file_name(self, out_file_prefix, file_paths):
+        """Get combined output file name. Use same file name format for
+        chunked output files.
+
+        Parameters
+        ----------
+        out_file_prefix : str
+            Prefix of output file names
+        file_paths : list
+            A list of files to extract raster data from
+
+        Returns
+        -------
+        str
+            Combined output file name
+        """
+        file_id = self.get_file_ids(file_paths, slice(None))
+        outfile = self.get_output_file_names(out_file_prefix, file_id)
+        return outfile[0]
 
     @staticmethod
     def get_file_ids(file_paths, file_slices):
@@ -321,7 +366,7 @@ class ForwardPassStrategy:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from
+            A list of files to extract raster data from
         file_slices : list
             List of slices specifying file chunks sent to different nodes
 
@@ -345,7 +390,7 @@ class ForwardPassStrategy:
         Parameters
         ----------
         file_paths : list
-            A list of NETCDF files to extract raster data from
+            A list of files to extract raster data from
 
         Returns
         -------
@@ -562,44 +607,6 @@ class ForwardPassStrategy:
             cropped_slices.append(slice(start, stop))
         return cropped_slices
 
-    @classmethod
-    def combine_out_files(cls, file_paths, out_files, fp_out=None):
-        """Combine the output of each file_set passed to a different node
-
-        Parameters
-        ----------
-        file_paths : list
-            A list of all the NETCDF files previously run through the
-            generator. Each file must have the same number of timesteps.
-        out_files : list
-            Paths to forward pass output files.
-        fp_out : str, optional
-            Combined output file name, by default None
-
-        Returns
-        -------
-        ndarray
-            Array of combined output
-            (spatial_1, spatial_2, temporal, 2)
-        """
-
-        logger.info('Combining forward pass output for '
-                    f'{cls.file_info_logging(file_paths)}')
-
-        out = []
-        for fp in out_files:
-            with open(fp, 'rb') as fh:
-                out.append(pickle.load(fh))
-
-        out = np.concatenate(out, axis=2)
-
-        if fp_out is not None:
-            logger.info(f'Saving combined output: {fp_out}')
-            with open(fp_out, 'wb') as fh:
-                pickle.dump(out, fh)
-        else:
-            return out
-
 
 class ForwardPass:
     """Class to run forward passes on all chunks provided by the given
@@ -608,6 +615,7 @@ class ForwardPass:
     """
 
     DATA_HANDLER = DataHandlerNC
+    OUTPUT_HANDLER = OutputHandlerNC
 
     def __init__(self, strategy, model_path, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
@@ -627,6 +635,7 @@ class ForwardPass:
         self.strategy = strategy
         self.model_path = model_path
         self.features = Sup3rGan.load(model_path).training_features
+        self.meta_data = Sup3rGan.load(model_path).meta
         self.node_index = node_index
 
         kwargs = strategy.get_node_kwargs(node_index)
@@ -647,8 +656,8 @@ class ForwardPass:
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.shape, temporal_slice=self.temporal_slice,
             raster_file=self.strategy.raster_file,
-            max_extract_workers=self.strategy.max_extract_workers,
-            max_compute_workers=self.strategy.max_compute_workers,
+            extract_workers=self.strategy.extract_workers,
+            compute_workers=self.strategy.compute_workers,
             cache_file_prefix=self.cache_file_prefix,
             time_chunk_size=self.strategy.temporal_extract_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
@@ -716,9 +725,6 @@ class ForwardPass:
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
-        logger.debug(f'node_config: {config}')
-        logger.debug(f'log_arg_str: {log_arg_str}')
-
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
@@ -733,7 +739,6 @@ class ForwardPass:
         This routine runs forward passes on all data chunks associated with
         this file subset.
         """
-
         logger.info(
             f'Starting forward passes on data shape {self.data_shape}. Using '
             f'{len(self.lr_slices)} chunks each with shape of '
@@ -784,13 +789,15 @@ class ForwardPass:
                                      'passes completed.')
 
         logger.info('All forward passes are complete.')
-
         data = data[:, :, self.cropped_file_slice, :]
 
-        logger.debug(f'outfile: {self.out_file}')
         if self.out_file is not None:
-            with open(self.out_file, 'wb') as fh:
-                logger.info(f'Saving forward pass output to {self.out_file}.')
-                pickle.dump(data, fh)
+            logger.info(f'Saving forward pass output to {self.out_file}.')
+            self.OUTPUT_HANDLER.write_output(
+                data, self.data_handler.output_features,
+                self.data_handler.lat_lon,
+                self.data_handler.time_index,
+                self.data_handler.time_description,
+                self.out_file, self.meta_data)
         else:
             return data

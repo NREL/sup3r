@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 import tempfile
+import pickle
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
@@ -177,6 +178,53 @@ def test_normalization_input():
                                  stds=stds)
     assert np.array_equal(batch_handler.stds, stds)
     assert np.array_equal(batch_handler.means, means)
+
+
+def test_stats_caching():
+    """Test caching of stdevs and means"""
+
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=val_split,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+
+    with tempfile.TemporaryDirectory() as td:
+        means_file = os.path.join(td, 'means.pkl')
+        stdevs_file = os.path.join(td, 'stdevs.pkl')
+        batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                     n_batches=n_batches,
+                                     s_enhance=s_enhance,
+                                     t_enhance=t_enhance,
+                                     stdevs_file=stdevs_file,
+                                     means_file=means_file,
+                                     norm_workers=None)
+        assert os.path.exists(means_file)
+        assert os.path.exists(stdevs_file)
+
+        with open(means_file, 'rb') as fh:
+            means = pickle.load(fh)
+        with open(stdevs_file, 'rb') as fh:
+            stdevs = pickle.load(fh)
+
+        assert np.array_equal(means, batch_handler.means)
+        assert np.array_equal(stdevs, batch_handler.stds)
+
+        stacked_data = \
+            np.concatenate(
+                [d.data for d in batch_handler.data_handlers],
+                axis=2)
+
+        for i in range(len(features)):
+            std = np.std(stacked_data[..., i])
+            if std == 0:
+                std = 1
+            mean = np.mean(stacked_data[..., i])
+            assert 0.99999 <= std <= 1.00001
+            assert -0.00001 <= mean <= 0.00001
 
 
 def test_normalization():
@@ -581,14 +629,14 @@ def test_spatial_coarsening(s_enhance, plot=False):
 
     handler = DataHandler(input_file, features, target=target,
                           shape=shape, max_delta=20,
-                          max_extract_workers=1,
-                          max_compute_workers=1)
+                          extract_workers=1,
+                          compute_workers=1)
 
     handler_data = handler.extract_data(
         input_file, handler.raster_index,
         features, temporal_slice,
-        max_extract_workers=1,
-        max_compute_workers=1)
+        extract_workers=1,
+        compute_workers=1)
     handler_data = handler_data.transpose((2, 0, 1, 3))
     coarse_data = utilities.spatial_coarsening(handler_data, s_enhance)
     direct_avg = np.zeros(coarse_data.shape)

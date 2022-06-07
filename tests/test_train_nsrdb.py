@@ -22,8 +22,8 @@ handler = DataHandlerNsrdb(INPUT_FILE, FEATURES,
                            time_roll=-7,
                            val_split=0.05,
                            sample_shape=(20, 20, 24),
-                           max_extract_workers=1,
-                           max_compute_workers=1)
+                           extract_workers=1,
+                           compute_workers=1)
 
 batcher = NsrdbBatchHandler([handler],
                             batch_size=16, n_batches=2,
