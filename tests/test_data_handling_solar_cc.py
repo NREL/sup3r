@@ -145,7 +145,7 @@ def test_batching(plot=False):
         found = False
         high_res_source = handler.data[:, :, handler.current_obs_index[2], :]
         for i in range(high_res_source.shape[2]):
-            check = high_res_source[:, :, i:i+8, :]
+            check = high_res_source[:, :, i:i + 8, :]
             if np.allclose(batch.high_res, check):
                 found = True
                 break
@@ -267,7 +267,7 @@ def test_val_data():
                                   s_enhance=2, sub_daily_shape=8)
 
     n = 0
-    for batch in batcher.val_data:
+    for _ in batcher.val_data:
         n += 1
 
     assert n == 0

@@ -675,7 +675,7 @@ def test_no_val_data():
                                  t_enhance=t_enhance)
 
     n = 0
-    for batch in batch_handler.val_data:
+    for _ in batch_handler.val_data:
         n += 1
 
     assert n == 0

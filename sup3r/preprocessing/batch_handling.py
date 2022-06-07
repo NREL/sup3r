@@ -13,11 +13,9 @@ from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (daily_time_sampler,
-                                       weighted_time_sampler,
+from sup3r.utilities.utilities import (weighted_time_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
-                                       nsrdb_temporal_coarsening,
                                        nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
@@ -655,6 +653,14 @@ class BatchHandler:
         return self
 
     def __next__(self):
+        """Get the next iterator output.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate coarsening.
+        """
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler_index = np.random.randint(0, len(self.data_handlers))
@@ -688,10 +694,31 @@ class BatchHandlerSolarCC(BatchHandler):
     BATCH_CLASS = Batch
 
     def __init__(self, *args, sub_daily_shape=9, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as BatchHandler
+        sub_daily_shape : int
+            Number of hours to use in the high res sample output. This is the
+            shape of the temporal dimension of the high res batch observation.
+            This time window will be sampled for the daylight hours on the
+            middle day of the data handler observation.
+        **kwargs : dict
+            Same keyword args as BatchHandler
+        """
         super().__init__(*args, **kwargs)
         self.sub_daily_shape = sub_daily_shape
 
     def __next__(self):
+        """Get the next iterator output.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate coarsening.
+        """
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler_index = np.random.randint(0, len(self.data_handlers))
@@ -709,36 +736,15 @@ class BatchHandlerSolarCC(BatchHandler):
                     obs_hourly, self.output_features_ind)
 
                 if low_res is None:
-                    low_res = np.zeros((self.batch_size,
-                                        obs_daily_avg.shape[0],
-                                        obs_daily_avg.shape[1],
-                                        obs_daily_avg.shape[2],
-                                        obs_daily_avg.shape[-1]),
-                                       dtype=np.float32)
-
-                    high_res = np.zeros((self.batch_size,
-                                         obs_hourly.shape[0],
-                                         obs_hourly.shape[1],
-                                         obs_hourly.shape[2],
-                                         obs_hourly.shape[-1]),
-                                        dtype=np.float32)
+                    lr_shape = (self.batch_size,) + obs_daily_avg.shape
+                    hr_shape = (self.batch_size,) + obs_hourly.shape
+                    low_res = np.zeros(lr_shape, dtype=np.float32)
+                    high_res = np.zeros(hr_shape, dtype=np.float32)
 
                 low_res[i] = obs_daily_avg
                 high_res[i] = obs_hourly
 
-            if self.sub_daily_shape is not None:
-                n_days = int(high_res.shape[3] / 24)
-                if n_days > 1:
-                    ind = np.arange(high_res.shape[3])
-                    day_slices = np.array_split(ind, n_days)
-                    day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
-                    assert n_days % 2 == 1, 'Need odd days'
-                    i_mid = int((n_days - 1) / 2)
-                    high_res = high_res[:, :, :, day_slices[i_mid], :]
-
-                high_res = nsrdb_reduce_daily_data(high_res,
-                                                   self.sub_daily_shape)
-
+            high_res = self.reduce_high_res_sub_daily(high_res)
             low_res = spatial_coarsening(low_res, self.s_enhance)
 
             if (self.output_features is not None
@@ -753,6 +759,41 @@ class BatchHandlerSolarCC(BatchHandler):
             return batch
         else:
             raise StopIteration
+
+    def reduce_high_res_sub_daily(self, high_res):
+        """Take an hourly high-res observation and reduce the temporal axis
+        down to the self.sub_daily_shape using only daylight hours on the
+        center day.
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal >= 24 (set by the data handler).
+
+        Returns
+        -------
+        high_res : np.ndarray
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal has been reduced down to the integer
+            self.sub_daily_shape. For example if the input temporal shape is 72
+            (3 days) and sub_daily_shape=9, the center daylight 9 hours from
+            the second day will be returned in the output array.
+        """
+
+        if self.sub_daily_shape is not None:
+            n_days = int(high_res.shape[3] / 24)
+            if n_days > 1:
+                ind = np.arange(high_res.shape[3])
+                day_slices = np.array_split(ind, n_days)
+                day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
+                assert n_days % 2 == 1, 'Need odd days'
+                i_mid = int((n_days - 1) / 2)
+                high_res = high_res[:, :, :, day_slices[i_mid], :]
+
+            high_res = nsrdb_reduce_daily_data(high_res, self.sub_daily_shape)
+
+        return high_res
 
 
 class SpatialBatchHandler(BatchHandler):

@@ -30,8 +30,6 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_time_index,
                                        get_source_type,
                                        get_wrf_date_range,
-                                       daily_time_sampler,
-                                       nsrdb_sub_daily_sampler,
                                        nsrdb_temporal_coarsening,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -1280,6 +1278,14 @@ class DataHandlerH5SolarCC(DataHandlerH5):
     TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
 
     def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataHandlerH5
+        **kwargs : dict
+            Same keyword args as DataHandlerH5
+        """
         t_shape = kwargs.get('sample_shape', (10, 10, 1))[-1]
         if t_shape < 24 or t_shape % 24 != 0:
             msg = ('DataHandlerSolarCC can only work with temporal sample '
@@ -1322,6 +1328,9 @@ class DataHandlerH5SolarCC(DataHandlerH5):
         for d, t_slice in enumerate(self.daily_data_slices):
             self.daily_data[:, :, d, :] = nsrdb_temporal_coarsening(
                 self.data[:, :, t_slice, :], temporal_axis=2)[:, :, 0, :]
+
+        logger.info('Finished calculating daily average datasets for {} '
+                    'training data days.'.format(n_data_days))
 
     @classmethod
     def feature_registry(cls):
