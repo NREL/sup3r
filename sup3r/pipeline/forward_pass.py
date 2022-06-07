@@ -579,48 +579,6 @@ class ForwardPassStrategy:
 
         return hr_slices
 
-    def get_lr_cropped_slices(self, lr_slices, lr_pad_slices):
-        """Get cropped spatial and temporal slices for stitching
-
-        Parameters
-        ----------
-        lr_slices : list
-            List of unpadded slices for data chunk
-            (spatial_1, spatial_2, temporal)
-        lr_pad_slices : list
-            List of padded slices for data chunk
-            (spatial_1, spatial_2, temporal)
-
-        Returns
-        -------
-        list
-            List of cropped slices
-            (spatial_1, spatial_2, temporal)
-        """
-
-        cropped_slices = []
-        for i, (ps, s) in enumerate(zip(lr_pad_slices, lr_slices)):
-            start = s.start
-            stop = s.stop
-            if start is not None:
-                if i < 2:
-                    start = (s.start - ps.start)
-                else:
-                    start = (s.start - ps.start)
-            if stop is not None:
-                if i < 2:
-                    stop = (s.stop - ps.stop)
-                else:
-                    stop = (s.stop - ps.stop)
-
-            if start is not None and start <= 0:
-                start = None
-            if stop is not None and stop >= 0:
-                stop = None
-
-            cropped_slices.append(slice(start, stop))
-        return cropped_slices
-
     def get_hr_cropped_slices(self, lr_slices, lr_pad_slices):
         """Get cropped spatial and temporal slices for stitching
 

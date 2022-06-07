@@ -2,6 +2,7 @@
 import numpy as np
 
 from sup3r.postprocessing.file_handling import OutputHandlerNC
+from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 
 
 def test_get_lat_lon():
@@ -21,3 +22,21 @@ def test_get_lat_lon():
 
     assert np.allclose(new_lons[:, 0], -125)
     assert np.allclose(new_lons[:, -1], -75)
+
+
+def test_invert_uv():
+    """Make sure inverse uv transform returns inputs"""
+
+    lats = np.array([[1, 1, 1], [0, 0, 0]])
+    lons = np.array([[-120, -100, -80], [-120, -100, -80]])
+    lat_lon = np.concatenate([np.expand_dims(lats, axis=-1),
+                              np.expand_dims(lons, axis=-1)], axis=-1)
+    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)**2
+    winddirection = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+
+    u, v = transform_rotate_wind(windspeed, winddirection, lat_lon)
+
+    ws, wd = invert_uv(u, v, lat_lon)
+
+    assert np.allclose(windspeed, ws)
+    assert np.allclose(winddirection, wd)
