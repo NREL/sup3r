@@ -42,8 +42,8 @@ def test_handler(plot=False):
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data.shape[2] % 24 == 0
@@ -131,8 +131,8 @@ def test_batching(plot=False):
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     batcher = BatchHandlerSolarCC([handler], batch_size=1, n_batches=10,
                                   s_enhance=1, sub_daily_shape=8)
@@ -164,8 +164,8 @@ def test_batching(plot=False):
                                        time_roll=-7,
                                        val_split=0.1,
                                        sample_shape=(20, 20, 24),
-                                       max_extract_workers=1,
-                                       max_compute_workers=1)
+                                       extract_workers=1,
+                                       compute_workers=1)
         batcher = BatchHandlerSolarCC([handler], batch_size=1, n_batches=10,
                                       s_enhance=1, sub_daily_shape=8)
         for p, batch in enumerate(batcher):
@@ -213,8 +213,8 @@ def test_batch_nan_stats():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     true_means = [np.nanmean(handler.data[..., i])
                   for i in range(len(FEATURES))]
@@ -233,8 +233,8 @@ def test_batch_nan_stats():
                                     time_roll=-7,
                                     val_split=0.1,
                                     sample_shape=(20, 20, 24),
-                                    max_extract_workers=1,
-                                    max_compute_workers=1)
+                                    extract_workers=1,
+                                    compute_workers=1)
 
     handler2 = DataHandlerH5SolarCC(INPUT_FILE, FEATURES,
                                     target=TARGET, shape=SHAPE,
@@ -242,8 +242,8 @@ def test_batch_nan_stats():
                                     time_roll=-7,
                                     val_split=0.1,
                                     sample_shape=(20, 20, 24),
-                                    max_extract_workers=1,
-                                    max_compute_workers=1)
+                                    extract_workers=1,
+                                    compute_workers=1)
 
     batcher = BatchHandlerSolarCC([handler1, handler2], batch_size=1,
                                   n_batches=10, s_enhance=1)
@@ -260,8 +260,8 @@ def test_val_data():
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(20, 20, 24),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     batcher = BatchHandlerSolarCC([handler], batch_size=1, n_batches=10,
                                   s_enhance=2, sub_daily_shape=8)
@@ -284,8 +284,8 @@ def test_ancillary_vars():
                                    time_roll=-7,
                                    val_split=0.001,
                                    sample_shape=(20, 20, 24),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     assert handler.data.shape[-1] == 4
 
@@ -322,8 +322,8 @@ def test_nsrdb_sub_daily_sampler():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
     ti = pd.date_range('20220101', '20230101', freq='1h', inclusive='left')
     ti = ti[0:handler.data.shape[2]]
 
@@ -354,8 +354,8 @@ def test_multi_day_coarse_data():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     batcher = BatchHandlerSolarCC([handler], batch_size=4, n_batches=10,
                                   s_enhance=4, sub_daily_shape=9)
@@ -376,8 +376,8 @@ def test_multi_day_coarse_data():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_extract_workers=1,
-                                   max_compute_workers=1)
+                                   extract_workers=1,
+                                   compute_workers=1)
 
     batcher = BatchHandlerSolarCC([handler], batch_size=4, n_batches=10,
                                   s_enhance=4, sub_daily_shape=9)

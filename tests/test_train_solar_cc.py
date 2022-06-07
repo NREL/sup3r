@@ -24,8 +24,8 @@ HANDLER = DataHandlerH5SolarCC(INPUT_FILE, FEATURES,
                                temporal_slice=slice(None, None, 2),
                                time_roll=-7,
                                sample_shape=(20, 20, 72),
-                               max_extract_workers=1,
-                               max_compute_workers=1)
+                               extract_workers=1,
+                               compute_workers=1)
 
 BATCHER = BatchHandlerSolarCC([HANDLER], batch_size=16, n_batches=2,
                               s_enhance=2, sub_daily_shape=9)
