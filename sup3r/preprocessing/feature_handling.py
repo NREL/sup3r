@@ -616,10 +616,7 @@ class LatLonNC:
             path to data file
         raster_index : list
             List of slices for raster
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Returns
         -------
         ndarray
@@ -634,10 +631,6 @@ class LatLonNC:
             lat_lon = np.concatenate(
                 [lats[tuple(raster_index)][..., np.newaxis],
                  lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
-<<<<<<< HEAD
-=======
-
->>>>>>> 25f1ea2... init h5 output handling
         return lat_lon
 
 

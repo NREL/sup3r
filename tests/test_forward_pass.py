@@ -71,14 +71,14 @@ def test_repeated_forward_pass():
         model.save(out_dir)
 
         cache_file_prefix = os.path.join(td, 'cache')
-        out_file_prefix = os.path.join(td, 'out')
+        out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True, out_file_prefix=out_file_prefix)
+            overwrite_cache=True, out_files=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
 

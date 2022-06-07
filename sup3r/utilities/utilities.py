@@ -920,6 +920,9 @@ def get_source_type(file_paths):
     source_type : str
         Either h5 or nc
     """
+    if file_paths is None:
+        return None
+
     if not isinstance(file_paths, list):
         file_paths = [file_paths]
 

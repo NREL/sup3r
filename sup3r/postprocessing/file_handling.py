@@ -3,15 +3,11 @@
 author : @bbenton
 """
 from abc import abstractmethod
-from attr import attr
 import numpy as np
-from datetime import datetime as dt
-from netCDF4 import Dataset, date2num
 import xarray as xr
 import pandas as pd
 import logging
 from scipy.interpolate import RBFInterpolator
-import warnings
 import re
 
 from sup3r.utilities.utilities import invert_uv
@@ -130,18 +126,8 @@ class OutputHandler:
         """
         t_enhance = int(shape / len(low_res_times))
         offset = (low_res_times[1] - low_res_times[0])
-        low_res_offset = offset / np.timedelta64(1, 's')
-        new_offset = offset / np.timedelta64(t_enhance, 's')
-
-        msg = 'Found a difference of 0 seconds between successive file times'
-        if new_offset == 0:
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        freq = pd.tseries.offsets.DateOffset(seconds=new_offset)
-        end_time = low_res_times[-1] + np.timedelta64(int(low_res_offset), 's')
-        time_index = pd.date_range(low_res_times[0], end_time, freq=freq,
-                                   closed='left')
+        time_index = np.array([low_res_times[0] + i * offset / t_enhance
+                               for i in range(shape)])
         return time_index
 
     @abstractmethod
@@ -151,31 +137,6 @@ class OutputHandler:
 
 class OutputHandlerNC(OutputHandler):
     """OutputHandler subclass for NETCDF files"""
-
-    @staticmethod
-    def convert_times(time_index, time_description):
-        """Convert times to NETCDF format
-
-        Parameters
-        ----------
-        time_index : list
-            List of np.datetime64 objects for high res data.
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-
-        Returns
-        -------
-        ndarray
-            Array of times for high res NETCDF output file. In hours since
-            1800-01-01.
-        """
-        time_index = [np.datetime64(t) for t in time_index]
-        t_ref = np.datetime64('1970-01-01T00:00:00')
-        time_index = [(t - t_ref) / np.timedelta64(1, 's') for t in time_index]
-        time_index = [date2num(dt.utcfromtimestamp(t), time_description,
-                               has_year_zero=False, calendar='standard')
-                      for t in time_index]
-        return time_index
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
@@ -204,39 +165,23 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         """
 
-        with Dataset(out_file, mode='w', format='NETCDF4_CLASSIC') as ncfile:
-            ncfile.createDimension('south_north', data.shape[0])
-            ncfile.createDimension('west_east', data.shape[1])
-            ncfile.createDimension('Time', None)
+        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
+        times = cls.get_times(low_res_times, data.shape[-2])
+        coords = {'XTIME': (['Time'], times,
+                            {'description': time_description}),
+                  'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
+                  'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
 
-            ncfile.title = "Forward pass output"
-            if meta_data is not None:
-                ncfile.description = str(meta_data)
+        data_vars = {}
+        for i, f in enumerate(features):
+            data_vars[f] = (['Time', 'south_north', 'east_west'],
+                            np.transpose(data[..., i], (2, 0, 1)))
 
-            lat = ncfile.createVariable('XLAT', np.float32,
-                                        ('south_north', 'west_east'))
-            lat.units = 'degree_north'
-            lat.long_name = 'latitude'
-            lon = ncfile.createVariable('XLONG', np.float32,
-                                        ('south_north', 'west_east'))
-            lon.units = 'degree_east'
-            lon.long_name = 'longitude'
+        attrs = {'gan_info': str(meta_data)}
 
-            lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
-            lat[:, :] = lat_lon[..., 0]
-            lon[:, :] = lat_lon[..., 1]
-
-            time = ncfile.createVariable('XTIME', np.float32, ('Time',))
-            time.description = time_description
-            time.long_name = 'time'
-
-            times = cls.get_times(low_res_times, data.shape[-2])
-            time[:] = cls.convert_times(times, time_description)
-
-            for i, f in enumerate(features):
-                nc_feature = ncfile.createVariable(
-                    f, np.float32, ('Time', 'south_north', 'west_east'))
-                nc_feature[:, :, :] = np.transpose(data[..., i], (2, 0, 1))
+        with xr.Dataset(data_vars=data_vars, coords=coords,
+                        attrs=attrs) as ncfile:
+            ncfile.to_netcdf(out_file)
 
     @staticmethod
     def combine_file(files, outfile):
@@ -304,8 +249,9 @@ class OutputHandlerH5(OutputHandler):
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, time_description, out_file):
-        """Write forward pass output to NETCDF file
+                     low_res_times, time_description, out_file,
+                     meta_data=None):
+        """Write forward pass output to H5 file
 
         Parameters
         ----------
@@ -325,20 +271,22 @@ class OutputHandlerH5(OutputHandler):
             {'description': 'minutes since 2016-01-30 00:00:00'}
         out_file : string
             Output file path
+        meta_data : dict | None
+            Dictionary of meta data from model
         """
-
-        out_file = out_file.split('.')[0] + '.h5'
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
+        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
+        freq = pd.tseries.offsets.DateOffset(seconds=freq)
+        times = pd.date_range(times[0], times[-1], freq=freq)
         data, renamed_features = cls.invert_uv_features(data, features,
                                                         lat_lon)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
         with Outputs(out_file, 'w') as fh:
-            fh.time_index = times
             fh.meta = meta
-            fh.attrs['time_index'] = time_description
+            fh.time_index = times
 
             for i, f in enumerate(renamed_features):
                 attrs = get_H5_attrs(f)
@@ -350,3 +298,7 @@ class OutputHandlerH5(OutputHandler):
                 flat_data = np.transpose(flat_data, (1, 0))
                 Outputs.add_dataset(out_file, f, flat_data, dtype=data_type,
                                     attrs=attrs)
+            fh.attrs['time_index'] = time_description
+
+            if meta_data is not None:
+                fh.attrs['gan_info'] = meta_data

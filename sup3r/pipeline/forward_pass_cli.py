@@ -17,7 +17,7 @@ from rex.utilities.utilities import safe_json_load
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass import ForwardPassStrategy
-from sup3r.pipeline.forward_pass import ForwardPassToH5 as ForwardPass
+from sup3r.pipeline.forward_pass import ForwardPass
 
 
 logger = logging.getLogger(__name__)

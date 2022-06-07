@@ -90,12 +90,12 @@ def test_fwd_pass_cli(runner):
         fp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fp_chunk_shape[2] + 1
         cache_prefix = os.path.join(td, 'cache')
-        out_prefix = os.path.join(td, 'out')
+        out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log')
         config = {'file_paths': input_files,
                   'target': (19, -125),
                   'model_path': out_dir,
-                  'out_file_prefix': out_prefix,
+                  'out_files': out_files,
                   'cache_file_prefix': cache_prefix,
                   'log_file_prefix': log_prefix,
                   'shape': (8, 8),
@@ -119,7 +119,7 @@ def test_fwd_pass_cli(runner):
         result = runner.invoke(fp_main, ['-c', config_path, '-v'])
         assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES * n_nodes)
         assert len(glob.glob(f'{log_prefix}*')) == n_nodes
-        assert len(glob.glob(f'{out_prefix}*')) == n_nodes
+        assert len(glob.glob(os.path.join(td, 'out_*.nc'))) == n_nodes
 
         if result.exit_code != 0:
             import traceback
