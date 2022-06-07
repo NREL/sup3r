@@ -1101,6 +1101,15 @@ class Sup3rGan:
             Namespace of the breakdown of loss components
         """
 
+        if hi_res_gen.shape != hi_res_true.shape:
+            msg = ('The tensor shapes of the synthetic output {} and '
+                   'true high res {} did not have matching shape! '
+                   'Check the spatiotemporal enhancement multipliers in your '
+                   'your model config and data handlers.'
+                   .format(hi_res_gen.shape, hi_res_true.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
 

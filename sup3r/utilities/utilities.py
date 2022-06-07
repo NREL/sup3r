@@ -501,7 +501,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     return coarse_data
 
 
-def nsrdb_temporal_coarsening(data):
+def nsrdb_temporal_coarsening(data, temporal_axis=3):
     """Temporal coarsening for solar climate change data.
 
     This method takes the sum of the data in the temporal dimension and divides
@@ -514,6 +514,9 @@ def nsrdb_temporal_coarsening(data):
     data : np.ndarray
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
+    temporal_axis : int
+        Axis index of the temporal axis to be averaged. Default is axis=3 for
+        the 5D tensor that is fed to the ST-GAN.
 
     Returns
     -------
@@ -521,8 +524,8 @@ def nsrdb_temporal_coarsening(data):
         5D array with same dimensions as data with new coarse resolution,
         temporal dimension is 1
     """
-    coarse_data = np.nansum(data, axis=3) / 24
-    coarse_data = np.expand_dims(coarse_data, axis=3)
+    coarse_data = np.nansum(data, axis=temporal_axis) / 24
+    coarse_data = np.expand_dims(coarse_data, axis=temporal_axis)
     return coarse_data
 
 

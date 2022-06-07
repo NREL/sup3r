@@ -138,94 +138,6 @@ class Batch:
         return batch
 
 
-class BatchNsrdb(Batch):
-    """Special batch handler for NSRDB data"""
-
-    @classmethod
-    def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=24, sub_daily_shape=9,
-                         temporal_coarsening_method='subsample',
-                         output_features_ind=None,
-                         output_features=None):
-        """Coarsen high res data and return Batch with high res and low res
-        data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            Factor by which to coarsen spatial dimensions of the high
-            resolution data
-        t_enhance : int
-            Factor by which to coarsen temporal dimension of the high
-            resolution data
-        sub_daily_shape : int | None
-            If the high res data is one or more days (hourly) data, this can be
-            used to downselect a few daylight hours of the center day. None
-            disables this.
-        temporal_coarsening_method : str
-            Method to use for temporal coarsening. Can be subsample, average,
-            or total
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
-
-        Returns
-        -------
-        Batch
-            Batch instance with low and high res data
-        """
-
-        if high_res.shape[3] <= 24:
-            # for nsrdb, do temporal avg first so you dont have to do spatial
-            # agg across NaNs
-            low_res = nsrdb_temporal_coarsening(high_res)
-            low_res = spatial_coarsening(low_res, s_enhance)
-        else:
-            msg = ('Temporal axis must be multiple of 24 but got {}'
-                   .format(high_res.shape[3]))
-            assert high_res.shape[3] % 24 == 0, msg
-            n_days = int(high_res.shape[3] / 24)
-            splits = np.array_split(np.arange(high_res.shape[3]), n_days)
-            splits = [slice(x[0], x[-1] + 1) for x in splits]
-            low_res = np.zeros((high_res.shape[0],
-                                int(high_res.shape[1] / s_enhance),
-                                int(high_res.shape[2] / s_enhance),
-                                n_days,
-                                high_res.shape[4]),
-                               dtype=np.float32)
-            for day in range(n_days):
-                s = splits[day]
-                temp = nsrdb_temporal_coarsening(high_res[:, :, :, s, :])
-                temp = spatial_coarsening(temp, s_enhance)
-                low_res[:, :, :, day, :] = temp[:, :, :, 0, :]
-
-            if sub_daily_shape is not None:
-                if n_days > 1:
-                    assert n_days % 2 == 1, 'Need odd days'
-                    i_mid = int((n_days - 1) / 2)
-                    high_res = high_res[:, :, :, splits[i_mid], :]
-
-                high_res = nsrdb_reduce_daily_data(high_res, sub_daily_shape)
-
-        high_res = cls.reduce_features(high_res, output_features_ind)
-
-        if (output_features is not None
-                and 'clearsky_ratio' in output_features):
-            cs_ind = output_features.index('clearsky_ratio')
-            if np.isnan(high_res[..., cs_ind]).any():
-                high_res[..., cs_ind] = nn_fill_array(high_res[..., cs_ind])
-
-        batch = cls(low_res, high_res)
-
-        return batch
-
-
 class ValidationData:
     """Iterator for validation data"""
 
@@ -303,6 +215,10 @@ class ValidationData:
                                     'tuple_index': tuple_index})
         return val_indices
 
+    def any(self):
+        """Return True if any validation data exists"""
+        return any(self.val_indices)
+
     @property
     def shape(self):
         """Shape of full validation dataset across all handlers
@@ -378,43 +294,6 @@ class ValidationData:
             return batch
         else:
             raise StopIteration
-
-
-class ValidationDataNsrdb(ValidationData):
-    """Iterator for daily NSRDB validation data"""
-
-    # Classes to use for handling an individual batch obj.
-    BATCH_CLASS = BatchNsrdb
-
-    def _get_val_indices(self):
-        """List of dicts to index each validation data observation across all
-        handlers
-
-        Returns
-        -------
-        val_indices : list[dict]
-            List of dicts with handler_index and tuple_index. The tuple index
-            is used to get validation data observation with
-            data[tuple_index]"""
-
-        val_indices = []
-        for i, h in enumerate(self.handlers):
-            for _ in range(h.val_data.shape[2]):
-
-                spatial_slice = uniform_box_sampler(h.val_data,
-                                                    self.sample_shape[:2])
-
-                temporal_slice = daily_time_sampler(h.val_data,
-                                                    self.sample_shape[2],
-                                                    h.val_time_index)
-                tuple_index = tuple(spatial_slice
-                                    + [temporal_slice]
-                                    + [np.arange(h.val_data.shape[-1])])
-
-                val_indices.append({'handler_index': i,
-                                    'tuple_index': tuple_index})
-
-        return val_indices
 
 
 class BatchHandler:
@@ -801,12 +680,79 @@ class BatchHandler:
             raise StopIteration
 
 
-class BatchHandlerNsrdb(BatchHandler):
-    """Sup3r base batch handling class"""
+class BatchHandlerSolarCC(BatchHandler):
+    """Batch handling class for solar climate change data"""
 
     # Classes to use for handling an individual batch obj.
-    VAL_CLASS = ValidationDataNsrdb
-    BATCH_CLASS = BatchNsrdb
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
+
+    def __init__(self, *args, sub_daily_shape=9, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sub_daily_shape = sub_daily_shape
+
+    def __next__(self):
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(0, len(self.data_handlers))
+            self.current_handler_index = handler_index
+            handler = self.data_handlers[handler_index]
+
+            low_res = None
+            high_res = None
+
+            for i in range(self.batch_size):
+                obs_hourly, obs_daily_avg = handler.get_next()
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                obs_hourly = self.BATCH_CLASS.reduce_features(
+                    obs_hourly, self.output_features_ind)
+
+                if low_res is None:
+                    low_res = np.zeros((self.batch_size,
+                                        obs_daily_avg.shape[0],
+                                        obs_daily_avg.shape[1],
+                                        obs_daily_avg.shape[2],
+                                        obs_daily_avg.shape[-1]),
+                                       dtype=np.float32)
+
+                    high_res = np.zeros((self.batch_size,
+                                         obs_hourly.shape[0],
+                                         obs_hourly.shape[1],
+                                         obs_hourly.shape[2],
+                                         obs_hourly.shape[-1]),
+                                        dtype=np.float32)
+
+                low_res[i] = obs_daily_avg
+                high_res[i] = obs_hourly
+
+            if self.sub_daily_shape is not None:
+                n_days = int(high_res.shape[3] / 24)
+                if n_days > 1:
+                    ind = np.arange(high_res.shape[3])
+                    day_slices = np.array_split(ind, n_days)
+                    day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
+                    assert n_days % 2 == 1, 'Need odd days'
+                    i_mid = int((n_days - 1) / 2)
+                    high_res = high_res[:, :, :, day_slices[i_mid], :]
+
+                high_res = nsrdb_reduce_daily_data(high_res,
+                                                   self.sub_daily_shape)
+
+            low_res = spatial_coarsening(low_res, self.s_enhance)
+
+            if (self.output_features is not None
+                    and 'clearsky_ratio' in self.output_features):
+                i_cs = self.output_features.index('clearsky_ratio')
+                if np.isnan(high_res[..., i_cs]).any():
+                    high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+            batch = self.BATCH_CLASS(low_res, high_res)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
 
 
 class SpatialBatchHandler(BatchHandler):

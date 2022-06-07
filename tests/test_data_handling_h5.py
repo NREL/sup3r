@@ -655,3 +655,28 @@ def test_spatial_coarsening(s_enhance, plot=False):
         ax[0].imshow(handler_data[0, :, :, 0])
         ax[1].imshow(coarse_data[0, :, :, 0])
         plt.show()
+
+
+def test_no_val_data():
+    """Test that the data handler can work with zero validation data."""
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=0,
+                                   max_compute_workers=1,
+                                   max_extract_workers=1,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
+
+    n = 0
+    for batch in batch_handler.val_data:
+        n += 1
+
+    assert n == 0
+    assert not batch_handler.val_data.any()
