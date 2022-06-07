@@ -221,11 +221,22 @@ def test_batch_nan_stats():
     true_stdevs = [np.nanstd(handler.data[..., i])
                    for i in range(len(FEATURES))]
 
+    orig_daily_means = []
+    orig_daily_stdevs = []
+    for f in range(handler.daily_data.shape[-1]):
+        orig_daily_means.append(handler.daily_data[..., f].mean())
+        orig_daily_stdevs.append(handler.daily_data[..., f].std())
+
     batcher = BatchHandlerSolarCC([handler], batch_size=1, n_batches=10,
                                   s_enhance=1)
 
     assert np.allclose(true_means, batcher.means)
     assert np.allclose(true_stdevs, batcher.stds)
+
+    # make sure the daily means were also normalized
+    for f in range(handler.daily_data.shape[-1]):
+        new = (orig_daily_means[f] - true_means[f]) / true_stdevs[f]
+        assert np.allclose(new, handler.daily_data[..., f].mean(), atol=1e-4)
 
     handler1 = DataHandlerH5SolarCC(INPUT_FILE, FEATURES,
                                     target=TARGET, shape=SHAPE,
@@ -389,3 +400,6 @@ def test_multi_day_coarse_data():
     for batch in batcher.val_data:
         assert batch.low_res.shape == (4, 5, 5, 3, 3)
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
+
+
+test_batch_nan_stats()

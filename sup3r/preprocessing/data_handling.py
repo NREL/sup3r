@@ -1332,6 +1332,23 @@ class DataHandlerH5SolarCC(DataHandlerH5):
         logger.info('Finished calculating daily average datasets for {} '
                     'training data days.'.format(n_data_days))
 
+    def _normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized mean and standard deviation for a
+        specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+        """
+        super()._normalize_data(feature_index, mean, std)
+        self.daily_data[..., feature_index] -= mean
+        self.daily_data[..., feature_index] /= std
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features
