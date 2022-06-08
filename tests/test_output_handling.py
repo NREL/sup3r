@@ -30,13 +30,12 @@ def test_invert_uv():
     lons = np.array([[-120, -100, -80], [-120, -100, -80]])
     lat_lon = np.concatenate([np.expand_dims(lats, axis=-1),
                               np.expand_dims(lons, axis=-1)], axis=-1)
-    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)**2
-    winddirection = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    winddirection -= np.min(winddirection)
-    winddirection /= np.max(winddirection)
-    winddirection *= 360
+    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
 
-    u, v = transform_rotate_wind(windspeed, winddirection, lat_lon)
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
