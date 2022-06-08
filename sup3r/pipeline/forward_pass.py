@@ -174,10 +174,6 @@ class ForwardPassStrategy:
         self.out_files = self.get_output_file_names(
             out_files=out_files, file_ids=self.file_ids)
 
-        msg = ('Out files must contain {file_id} or be None. Received '
-               f'{out_files}')
-        assert '{file_id}' in out_files or out_files is None, msg
-
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
         if temporal_overlap > forward_pass_chunk_shape[2]:
@@ -326,6 +322,11 @@ class ForwardPassStrategy:
         list
             List of output file names
         """
+
+        msg = ('out_files must contain {file_id} or be None. Received '
+               f'{out_files}')
+        assert out_files is None or '{file_id}' in out_files, msg
+
         out_file_list = []
         if out_files is not None:
             dirname = os.path.dirname(out_files)
