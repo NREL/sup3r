@@ -820,6 +820,7 @@ class ForwardPass:
                 self.data_handler.lat_lon,
                 self.data_handler.time_index[self.lr_cropped_file_slice],
                 self.data_handler.time_description,
-                self.out_file, self.meta_data)
+                self.out_file, self.meta_data,
+                max_workers=self.data_handler.extract_workers)
         else:
             return data

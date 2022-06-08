@@ -271,17 +271,24 @@ def transform_rotate_wind(ws, wd, lat_lon):
     ----------
     ws : np.ndarray
         3D array of high res windspeed data
+        (spatial_1, spatial_2, temporal)
     wd : np.ndarray
-        3D array of high res winddirection data
+        3D array of high res winddirection data. Angle is in degrees and
+        measured relative to the south_north direction.
+        (spatial_1, spatial_2, temporal)
     lat_lon : np.ndarray
         3D array of lat lon
+        (spatial_1, spatial_2, 2)
+        Last dimension has lat / lon in that order
 
     Returns
     -------
     u : np.ndarray
         3D array of high res U data
+        (spatial_1, spatial_2, temporal)
     v : np.ndarray
         3D array of high res V data
+        (spatial_1, spatial_2, temporal)
     """
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
@@ -309,17 +316,24 @@ def invert_uv(u, v, lat_lon):
     ----------
     u : np.ndarray
         3D array of high res U data
+        (spatial_1, spatial_2, temporal)
     v : np.ndarray
         3D array of high res V data
+        (spatial_1, spatial_2, temporal)
     lat_lon : np.ndarray
         3D array of lat lon
+        (spatial_1, spatial_2, 2)
+        Last dimension has lat / lon in that order
 
     Returns
     -------
     ws : np.ndarray
         3D array of high res windspeed data
+        (spatial_1, spatial_2, temporal)
     wd : np.ndarray
-        3D array of high res winddirection data
+        3D array of high res winddirection data. Angle is in degrees and
+        measured relative to the south_north direction.
+        (spatial_1, spatial_2, temporal)
     """
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)

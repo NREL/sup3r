@@ -3,12 +3,14 @@
 author : @bbenton
 """
 from abc import abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import xarray as xr
 import pandas as pd
 import logging
 from scipy.interpolate import RBFInterpolator
 import re
+from datetime import datetime as dt
 
 from sup3r.utilities.utilities import invert_uv
 from sup3r.preprocessing.feature_handling import Feature
@@ -141,7 +143,7 @@ class OutputHandlerNC(OutputHandler):
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, time_description, out_file,
-                     meta_data=None):
+                     meta_data=None, max_workers=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -163,6 +165,8 @@ class OutputHandlerNC(OutputHandler):
             Output file path
         meta_data : dict | None
             Dictionary of meta data from model
+        max_workers : int | None
+            Has no effect. For compliance with H5 output handler
         """
 
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
@@ -203,8 +207,39 @@ class OutputHandlerH5(OutputHandler):
     """Class to handle writing output to H5 file"""
 
     @classmethod
-    def invert_uv_features(cls, data, features, lat_lon):
-        """Invert U/V to windspeed and winddirection
+    def get_renamed_features(cls, features):
+        """Rename features based on transformation from u/v to
+        windspeed/winddirection
+
+        Parameters
+        ----------
+        features : list
+            List of output features
+
+        Returns
+        -------
+        list
+            List of renamed features u/v -> windspeed/winddirection for each
+            height
+        """
+        heights = []
+        renamed_features = features.copy()
+        for f in features:
+            if re.match('U_(.*?)m'.lower(), f.lower()):
+                heights.append(Feature.get_height(f))
+
+        for height in heights:
+            u_idx = features.index(f'U_{height}m')
+            v_idx = features.index(f'V_{height}m')
+
+            renamed_features[u_idx] = f'windspeed_{height}m'
+            renamed_features[v_idx] = f'winddirection_{height}m'
+
+        return renamed_features
+
+    @classmethod
+    def invert_uv_features(cls, data, features, lat_lon, max_workers=None):
+        """Invert U/V to windspeed and winddirection. Performed in place.
 
         Parameters
         ----------
@@ -216,41 +251,65 @@ class OutputHandlerH5(OutputHandler):
         lat_lon : ndarray
             High res lat/lon array
             (spatial_1, spatial_2, 2)
-
-        Returns
-        -------
-        ndarray
-            High res data with u/v -> windspeed/winddirection for each height
-        list
-            List of renamed features u/v -> windspeed/winddirection for each
-            height
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the maximum
+            available workers will be used.
         """
 
         heights = []
-        renamed_features = features.copy()
-        data_out = data.copy()
         for f in features:
             if re.match('U_(.*?)m'.lower(), f.lower()):
                 heights.append(Feature.get_height(f))
 
-        for height in heights:
-            u_idx = features.index(f'U_{height}m')
-            v_idx = features.index(f'V_{height}m')
+        futures = {}
+        now = dt.now()
+        if max_workers == 1:
+            for height in heights:
+                u_idx = features.index(f'U_{height}m')
+                v_idx = features.index(f'V_{height}m')
+                cls.invert_uv_single_pair(data, lat_lon, u_idx, v_idx)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                for height in heights:
+                    u_idx = features.index(f'U_{height}m')
+                    v_idx = features.index(f'V_{height}m')
+                    future = exe.submit(cls.invert_uv_single_pair, data,
+                                        lat_lon, u_idx, v_idx)
+                    futures[future] = height
 
-            ws, wd = invert_uv(data[..., u_idx], data[..., v_idx], lat_lon)
+                logger.info(f'Started inverse transforms on {len(heights)} '
+                            f'u/v pairs in {dt.now() - now}. ')
 
-            data_out[..., u_idx] = ws
-            data_out[..., v_idx] = wd
+                for i, _ in enumerate(as_completed(futures)):
+                    future.result()
+                    logger.debug(f'{i + 1} out of {len(futures)} inverse '
+                                 'transforms completed.')
 
-            renamed_features[u_idx] = f'windspeed_{height}m'
-            renamed_features[v_idx] = f'winddirection_{height}m'
+    @staticmethod
+    def invert_uv_single_pair(data, lat_lon, u_idx, v_idx):
+        """Perform inverse transform in place on a single u/v pair.
 
-        return data_out, renamed_features
+        Parameters
+        ----------
+        data : ndarray
+            High res data from forward pass
+            (spatial_1, spatial_2, temporal, features)
+        lat_lon : ndarray
+            High res lat/lon array
+            (spatial_1, spatial_2, 2)
+        u_idx : int
+            Index in data for U component to transform
+        v_idx : int
+            Index in data for V component to transform
+        """
+        ws, wd = invert_uv(data[..., u_idx], data[..., v_idx], lat_lon)
+        data[..., u_idx] = ws
+        data[..., v_idx] = wd
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, time_description, out_file,
-                     meta_data=None):
+                     meta_data=None, max_workers=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -273,14 +332,18 @@ class OutputHandlerH5(OutputHandler):
             Output file path
         meta_data : dict | None
             Dictionary of meta data from model
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the maximum
+            available workers will be used.
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         freq = (times[1] - times[0]) / np.timedelta64(1, 's')
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
         times = pd.date_range(times[0], times[-1], freq=freq)
-        data, renamed_features = cls.invert_uv_features(data, features,
-                                                        lat_lon)
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        renamed_features = cls.get_renamed_features(features)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
