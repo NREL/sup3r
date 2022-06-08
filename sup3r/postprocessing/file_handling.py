@@ -140,6 +140,7 @@ class OutputHandler:
 class OutputHandlerNC(OutputHandler):
     """OutputHandler subclass for NETCDF files"""
 
+    # pylint: disable=W0613
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, time_description, out_file,
