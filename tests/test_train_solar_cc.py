@@ -54,3 +54,6 @@ def test_solar_cc_model(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
+        assert 'air_temperature' in model.meta['output_features']
+        assert model.meta['output_features'] == ['clearsky_ratio']
+        assert model.meta['class'] == 'Sup3rGan'
