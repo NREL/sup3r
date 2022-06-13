@@ -336,14 +336,9 @@ class OutputHandlerH5(OutputHandler):
 
             for i, f in enumerate(renamed_features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
-                if attrs['scale_factor'] != 1:
-                    data_type = np.int
-                else:
-                    data_type = np.float32
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                Outputs.add_dataset(out_file, f, flat_data, dtype=data_type,
-                                    attrs=attrs)
+                Outputs.add_dataset(out_file, f, flat_data, attrs=attrs)
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
