@@ -78,7 +78,7 @@ class Sup3rGan:
             Optional name for the GAN.
         """
 
-        self.name = name
+        self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
         self._version_record = CustomNetwork._parse_versions(version_record)
@@ -656,6 +656,10 @@ class Sup3rGan:
     @property
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
+
+        if 'class' not in self._meta:
+            self._meta['class'] = self.__class__.__name__
+
         return self._meta
 
     @property
