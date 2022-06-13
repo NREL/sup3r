@@ -55,7 +55,7 @@ class ForwardPassStrategy:
                  max_pass_workers=None,
                  temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
-                 out_files=None,
+                 out_pattern=None,
                  overwrite_cache=False,
                  spatial_overlap=15,
                  temporal_overlap=15):
@@ -142,7 +142,7 @@ class ForwardPassStrategy:
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
         self.input_type = get_source_type(file_paths)
-        self.output_type = get_source_type(out_files)
+        self.output_type = get_source_type(out_pattern)
         self._i = 0
         self.file_t_steps = get_file_t_steps(self.file_paths)
         self.raster_file = raster_file
@@ -154,7 +154,7 @@ class ForwardPassStrategy:
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
         self.cache_file_prefix = cache_file_prefix
-        self.out_files = out_files
+        self.out_files = out_pattern
         self.temporal_extract_chunk_size = temporal_extract_chunk_size
         self.overwrite_cache = overwrite_cache
         self.t_enhance = t_enhance
@@ -173,7 +173,7 @@ class ForwardPassStrategy:
         self.file_ids = self.get_file_ids(
             file_paths=file_paths, file_slices=self.file_slices)
         self.out_files = self.get_output_file_names(
-            out_files=out_files, file_ids=self.file_ids)
+            out_files=out_pattern, file_ids=self.file_ids)
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
