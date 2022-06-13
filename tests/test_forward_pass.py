@@ -79,7 +79,7 @@ def test_repeated_forward_pass_nc():
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True, out_files=out_files)
+            overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
 
@@ -139,7 +139,7 @@ def test_repeated_forward_pass_h5():
             temporal_slice=temporal_slice, raster_file=raster_file,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True, out_files=out_files)
+            overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
 
