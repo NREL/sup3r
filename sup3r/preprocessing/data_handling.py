@@ -273,10 +273,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, time_slice):
         """Store lat lon for future output
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Parameters
         ----------
         file_paths : list
@@ -285,10 +282,7 @@ class DataHandler(FeatureHandler):
             Raster index array or list of slices
         time_slice : slice
             slice of time to extract
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Returns
         -------
         ndarray
@@ -1079,10 +1073,7 @@ class DataHandlerNC(DataHandler):
     @property
     def attrs(self):
         """Get atttributes of input data
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Returns
         -------
         dict
@@ -1232,10 +1223,7 @@ class DataHandlerH5(DataHandler):
     @property
     def attrs(self):
         """Get atttributes of input data
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Returns
         -------
         dict
@@ -1248,10 +1236,7 @@ class DataHandlerH5(DataHandler):
     @property
     def time_description(self):
         """Get description of time index
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Returns
         -------
         time_description : string

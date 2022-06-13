@@ -21,38 +21,18 @@ from reV.handlers.outputs import Outputs
 logger = logging.getLogger(__name__)
 
 
-def get_H5_attrs(feature):
-    """Get attributes for feature being written to H5 file
-
-    Parameters
-    ----------
-    feature : str
-        Name of feature to write to H5 file
-
-    Returns
-    -------
-    dict
-        Dictionary of attributes for given feature
-    """
-    if 'windspeed' in feature.lower():
-        attrs = {'fill_value': 65535, 'scale_factor': 100.0,
-                 'units': 'm s-1'}
-    if 'winddirection' in feature.lower():
-        attrs = {'fill_value': 65535, 'scale_factor': 100.0,
-                 'units': 'degree'}
-    if 'temperature' in feature.lower():
-        attrs = {'fill_value': 32767, 'scale_factor': 100.0,
-                 'units': 'C'}
-    if 'pressure' in feature.lower():
-        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
-                 'units': 'Pa'}
-    if 'bvfmo' in feature.lower():
-        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
-                 'units': 'm s-2'}
-    if 'bvf_squared' in feature.lower():
-        attrs = {'fill_value': 65535, 'scale_factor': 0.1,
-                 'units': 's-2'}
-    return attrs
+H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
+                          'units': 'm s-1', 'dtype': 'float32'},
+            'winddirection': {'fill_value': 65535, 'scale_factor': 100.0,
+                              'units': 'degree', 'dtype': 'float32'},
+            'temperature': {'fill_value': 32767, 'scale_factor': 100.0,
+                            'units': 'C', 'dtype': 'float32'},
+            'pressure': {'fill_value': 65535, 'scale_factor': 0.1,
+                         'units': 'Pa', 'dtype': 'float32'},
+            'bvfmo': {'fill_value': 65535, 'scale_factor': 0.1,
+                      'units': 'm s-2', 'dtype': 'float32'},
+            'bvf_squared': {'fill_value': 65535, 'scale_factor': 0.1,
+                            'units': 's-2', 'dtype': 'float32'}}
 
 
 class OutputHandler:
@@ -329,7 +309,7 @@ class OutputHandlerH5(OutputHandler):
             List of np.datetime64 objects for input data.
         time_description : dict
             Description of time. e.g.
-            {'description': 'minutes since 2016-01-30 00:00:00'}
+            {'description': 'UTC'}
         out_file : string
             Output file path
         meta_data : dict | None
@@ -355,7 +335,7 @@ class OutputHandlerH5(OutputHandler):
                                attrs={'description': time_description})
 
             for i, f in enumerate(renamed_features):
-                attrs = get_H5_attrs(f)
+                attrs = H5_ATTRS[Feature.get_basename(f)]
                 if attrs['scale_factor'] != 1:
                     data_type = np.int
                 else:

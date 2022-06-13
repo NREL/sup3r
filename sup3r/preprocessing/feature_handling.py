@@ -606,10 +606,7 @@ class LatLonNC:
     @classmethod
     def compute(cls, file_paths, raster_index):
         """Get lats and lons
-<<<<<<< HEAD
-=======
 
->>>>>>> 25f1ea2... init h5 output handling
         Parameters
         ----------
         file_paths : list

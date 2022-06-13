@@ -120,8 +120,9 @@ class ForwardPassStrategy:
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data
-        out_files : str
-            Output file pattern. Must be of the form /path/<name>_{file_id}.ext
+        out_pattern : str
+            Output file pattern. Must be of form <path>/<name>_{file_id}.<ext>.
+            e.g. /tmp/sup3r_job_{file_id}.h5
             Each output file will have a unique file_id filled in and the ext
             determines the output type. If None then data will be returned in
             an array and not saved.
@@ -320,7 +321,7 @@ class ForwardPassStrategy:
         Returns
         -------
         list
-            List of output file names
+            List of output file paths
         """
 
         msg = ('out_files must contain {file_id} or be None. Received '
@@ -666,16 +667,16 @@ class ForwardPass:
         self.cache_file_prefix = kwargs['cache_file_prefix']
 
         if strategy.input_type == 'nc':
-            self.DATA_HANDLER = DataHandlerNC
+            self.data_handler_class = DataHandlerNC
         elif strategy.input_type == 'h5':
-            self.DATA_HANDLER = DataHandlerH5
+            self.data_handler_class = DataHandlerH5
 
         if strategy.output_type == 'nc':
-            self.OUTPUT_HANDLER = OutputHandlerNC
+            self.output_handler_class = OutputHandlerNC
         elif strategy.output_type == 'h5':
-            self.OUTPUT_HANDLER = OutputHandlerH5
+            self.output_handler_class = OutputHandlerH5
 
-        self.data_handler = self.DATA_HANDLER(
+        self.data_handler = self.data_handler_class(
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.shape, temporal_slice=self.temporal_slice,
             raster_file=self.strategy.raster_file,
@@ -816,7 +817,7 @@ class ForwardPass:
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
-            self.OUTPUT_HANDLER.write_output(
+            self.output_handler_class.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
                 self.data_handler.time_index[self.lr_cropped_file_slice],
