@@ -41,8 +41,6 @@ class ForwardPassStrategy:
     stich the chunks back togerther.
     """
 
-    DATA_HANDLER = DataHandlerNC
-
     def __init__(self, file_paths,
                  target=None, shape=None,
                  temporal_slice=slice(None),
@@ -164,6 +162,11 @@ class ForwardPassStrategy:
         self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
         self.fp_chunk_size = int(np.ceil(forward_pass_chunk_shape[2]
                                          / self.file_t_steps))
+
+        if self.input_type == 'nc':
+            self.data_handler_class = DataHandlerNC
+        elif self.input_type == 'h5':
+            self.data_handler_class = DataHandlerH5
 
         out = self.get_file_slices(self.file_paths)
         self.file_slices, self.padded_file_slices = out[:2]
@@ -287,8 +290,7 @@ class ForwardPassStrategy:
         the forward_pass_chunk_shape"""
         return len(self.file_slices)
 
-    @classmethod
-    def file_info_logging(cls, file_paths):
+    def file_info_logging(self, file_paths):
         """More concise file info about data files
 
         Parameters
@@ -303,7 +305,7 @@ class ForwardPassStrategy:
             dump of file paths
         """
 
-        return cls.DATA_HANDLER.file_info_logging(file_paths)
+        return self.data_handler_class.file_info_logging(file_paths)
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -822,7 +824,7 @@ class ForwardPass:
                 self.data_handler.lat_lon,
                 self.data_handler.time_index[self.lr_cropped_file_slice],
                 self.data_handler.time_description,
-                self.out_file, self.meta_data,
+                self.out_file, meta_data=self.meta_data,
                 max_workers=self.data_handler.extract_workers)
         else:
             return data

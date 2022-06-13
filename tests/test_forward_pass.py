@@ -11,6 +11,8 @@ from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
 
+from rex import ResourceX
+
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -26,11 +28,10 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-target = (19, -125)
+target = (19.3, -123.5)
 targets = target
 shape = (8, 8)
 sample_shape = (8, 8, 6)
-raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
 temporal_slice = slice(None, None, 1)
 list_chunk_size = 10
 forward_pass_chunk_shape = (4, 4, 10)
@@ -76,7 +77,7 @@ def test_repeated_forward_pass_nc():
         # 1st forward pass
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True, out_pattern=out_files)
@@ -87,7 +88,7 @@ def test_repeated_forward_pass_nc():
         new_shape = (s_enhance * shape[0], s_enhance * shape[1])
         handler = ForwardPassStrategy(
             handler.out_files, target=target, shape=new_shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
@@ -98,7 +99,7 @@ def test_repeated_forward_pass_nc():
             t_enhance**2 * len(input_files), 2)
 
 
-def test_repeated_forward_pass_h5():
+def test_forward_pass_h5():
     """Test forward pass handler output with second pass on output files.
     Writing to h5"""
 
@@ -133,29 +134,21 @@ def test_repeated_forward_pass_h5():
 
         cache_file_prefix = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        # 1st forward pass
+
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
 
-        # 2nd forward pass
-        new_shape = (s_enhance * shape[0], s_enhance * shape[1])
-        handler = ForwardPassStrategy(
-            handler.out_files, target=target, shape=new_shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
-        data = forward_pass.run()
-        assert data.shape == (
-            s_enhance**2 * shape[0], s_enhance**2 * shape[1],
-            t_enhance**2 * len(input_files), 2)
+        with ResourceX(handler.out_files[0]) as fh:
+            assert fh.shape == (t_enhance * len(input_files),
+                                s_enhance**2 * shape[0] * shape[1])
+            assert all(f in fh.attrs for f in ('windspeed_100m',
+                                               'winddirection_100m'))
 
 
 def test_fwd_pass_handler():
@@ -194,7 +187,7 @@ def test_fwd_pass_handler():
         cache_file_prefix = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
@@ -244,7 +237,7 @@ def test_fwd_pass_chunking():
         cache_file_prefix = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
             overwrite_cache=True)
@@ -252,8 +245,7 @@ def test_fwd_pass_chunking():
         data_chunked = forward_pass.run()
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape,
-                                  raster_file=raster_file)
+                                  val_split=0.0, shape=shape)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -300,7 +292,7 @@ def test_fwd_pass_nochunking():
         cache_file_prefix = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice, raster_file=raster_file,
+            temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
@@ -310,7 +302,6 @@ def test_fwd_pass_nochunking():
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
                                   temporal_slice=temporal_slice,
-                                  raster_file=raster_file,
                                   extract_workers=None,
                                   compute_workers=None,
                                   cache_file_prefix=None,

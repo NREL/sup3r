@@ -22,17 +22,17 @@ logger = logging.getLogger(__name__)
 
 
 H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
-                          'units': 'm s-1', 'dtype': 'float32'},
+                          'units': 'm s-1', 'dtype': 'uint16'},
             'winddirection': {'fill_value': 65535, 'scale_factor': 100.0,
-                              'units': 'degree', 'dtype': 'float32'},
+                              'units': 'degree', 'dtype': 'int16'},
             'temperature': {'fill_value': 32767, 'scale_factor': 100.0,
-                            'units': 'C', 'dtype': 'float32'},
+                            'units': 'C', 'dtype': 'int32'},
             'pressure': {'fill_value': 65535, 'scale_factor': 0.1,
-                         'units': 'Pa', 'dtype': 'float32'},
+                         'units': 'Pa', 'dtype': 'uint16'},
             'bvfmo': {'fill_value': 65535, 'scale_factor': 0.1,
-                      'units': 'm s-2', 'dtype': 'float32'},
+                      'units': 'm s-2', 'dtype': 'uint16'},
             'bvf_squared': {'fill_value': 65535, 'scale_factor': 0.1,
-                            'units': 's-2', 'dtype': 'float32'}}
+                            'units': 's-2', 'dtype': 'int16'}}
 
 
 class OutputHandler:
@@ -168,6 +168,7 @@ class OutputHandlerNC(OutputHandler):
         with xr.Dataset(data_vars=data_vars, coords=coords,
                         attrs=attrs) as ncfile:
             ncfile.to_netcdf(out_file)
+        logger.info(f'Saved output of size {data.shape} to: {out_file}')
 
     @staticmethod
     def combine_file(files, outfile):
@@ -331,14 +332,17 @@ class OutputHandlerH5(OutputHandler):
 
         with Outputs(out_file, 'w') as fh:
             fh.meta = meta
-            fh._set_time_index('time_index', times,
-                               attrs={'description': time_description})
+            fh._set_time_index(
+                'time_index', times,
+                attrs={'description': f'Original data had {time_description}'})
 
             for i, f in enumerate(renamed_features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                Outputs.add_dataset(out_file, f, flat_data, attrs=attrs)
+                Outputs.add_dataset(out_file, f, flat_data,
+                                    dtype=attrs['dtype'], attrs=attrs)
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
+        logger.info(f'Saved output of size {data.shape} to: {out_file}')
