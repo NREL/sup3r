@@ -28,7 +28,7 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-target = (19.3, -123.5)
+target = (19, -125)
 targets = target
 shape = (8, 8)
 sample_shape = (8, 8, 6)

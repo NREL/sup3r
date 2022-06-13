@@ -95,7 +95,7 @@ def test_fwd_pass_cli(runner):
         config = {'file_paths': input_files,
                   'target': (19, -125),
                   'model_path': out_dir,
-                  'out_files': out_files,
+                  'out_pattern': out_files,
                   'cache_file_prefix': cache_prefix,
                   'log_file_prefix': log_prefix,
                   'shape': (8, 8),
