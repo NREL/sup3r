@@ -647,7 +647,7 @@ class ForwardPass:
         self.strategy = strategy
         self.model_path = model_path
         self.features = Sup3rGan.load(model_path).training_features
-        self.meta_data = Sup3rGan.load(model_path).meta
+        self.meta_data = Sup3rGan.load(model_path).model_params
         self.node_index = node_index
 
         kwargs = strategy.get_node_kwargs(node_index)

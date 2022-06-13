@@ -11,6 +11,7 @@ import logging
 from scipy.interpolate import RBFInterpolator
 import re
 from datetime import datetime as dt
+import json
 
 from sup3r.utilities.utilities import invert_uv
 from sup3r.preprocessing.feature_handling import Feature
@@ -182,7 +183,7 @@ class OutputHandlerNC(OutputHandler):
             data_vars[f] = (['Time', 'south_north', 'east_west'],
                             np.transpose(data[..., i], (2, 0, 1)))
 
-        attrs = {'gan_info': str(meta_data)}
+        attrs = {'gan_meta': json.dumps(meta_data)}
 
         with xr.Dataset(data_vars=data_vars, coords=coords,
                         attrs=attrs) as ncfile:
@@ -350,7 +351,8 @@ class OutputHandlerH5(OutputHandler):
 
         with Outputs(out_file, 'w') as fh:
             fh.meta = meta
-            fh.time_index = times
+            fh._set_time_index('time_index', times,
+                               attrs={'description': time_description})
 
             for i, f in enumerate(renamed_features):
                 attrs = get_H5_attrs(f)
@@ -362,7 +364,6 @@ class OutputHandlerH5(OutputHandler):
                 flat_data = np.transpose(flat_data, (1, 0))
                 Outputs.add_dataset(out_file, f, flat_data, dtype=data_type,
                                     attrs=attrs)
-            fh.attrs['time_index'] = time_description
 
             if meta_data is not None:
-                fh.attrs['gan_info'] = meta_data
+                fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
