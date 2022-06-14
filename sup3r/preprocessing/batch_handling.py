@@ -686,14 +686,15 @@ class BatchHandler:
             raise StopIteration
 
 
-class BatchHandlerSolarCC(BatchHandler):
-    """Batch handling class for solar climate change data"""
+class BatchHandlerCC(BatchHandler):
+    """Batch handling class for climate change data with daily averages as the
+    coarse dataset."""
 
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationData
     BATCH_CLASS = Batch
 
-    def __init__(self, *args, sub_daily_shape=9, **kwargs):
+    def __init__(self, *args, sub_daily_shape=None, **kwargs):
         """
         Parameters
         ----------

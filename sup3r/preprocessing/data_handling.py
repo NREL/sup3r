@@ -1264,18 +1264,18 @@ class DataHandlerH5(DataHandler):
         return self.attrs['time_index']
 
 
-class DataHandlerH5SolarCC(DataHandlerH5):
-    """Special data handling and batch sampling for h5 NSRDB solar data for
+class DataHandlerH5WindCC(DataHandlerH5):
+    """Special data handling and batch sampling for h5 wtk or nsrdb data for
     climate change applications"""
 
     # the handler from rex to open h5 data.
-    REX_HANDLER = MultiFileNSRDBX
+    REX_HANDLER = MultiFileWindX
 
     # list of features / feature name patterns that are input to the generative
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+    TRAIN_ONLY_FEATURES = tuple()
 
     def __init__(self, *args, **kwargs):
         """
@@ -1288,8 +1288,8 @@ class DataHandlerH5SolarCC(DataHandlerH5):
         """
         t_shape = kwargs.get('sample_shape', (10, 10, 1))[-1]
         if t_shape < 24 or t_shape % 24 != 0:
-            msg = ('DataHandlerSolarCC can only work with temporal sample '
-                   'shapes that are one or more days of hourly data '
+            msg = ('Climate Change DataHandler can only work with temporal '
+                   'sample shapes that are one or more days of hourly data '
                    '(e.g. 24, 48, 72...). The requested temporal sample '
                    'shape was: {}'.format(t_shape))
             logger.error(msg)
@@ -1357,12 +1357,9 @@ class DataHandlerH5SolarCC(DataHandlerH5):
         dict
             Method registry
         """
-        registry = {
-            'U': UWindNsrdb,
-            'V': VWindNsrdb,
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+        registry = {'U_(.*)m': UWindH5,
+                    'V_(.*)m': VWindH5,
+                    'lat_lon': LatLonH5}
         return registry
 
     def get_observation_index(self):
@@ -1452,6 +1449,37 @@ class DataHandlerH5SolarCC(DataHandlerH5):
         self.time_index = self.time_index[slice(val_split_index, None)]
 
         return self.data, self.val_data
+
+
+class DataHandlerH5SolarCC(DataHandlerH5WindCC):
+    """Special data handling and batch sampling for h5 NSRDB solar data for
+    climate change applications"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = MultiFileNSRDBX
+
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U': UWindNsrdb,
+            'V': VWindNsrdb,
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
 
 
 # pylint: disable=W0223
