@@ -1017,8 +1017,8 @@ class DataHandlerNC(DataHandler):
                 lon = lat_lon[i, j, 1]
                 tmp_lat_diff = lat - target[0]
                 tmp_lon_diff = lon - target[1]
-                if (tmp_lat_diff < lat_diff and tmp_lat_diff >= 0
-                        and tmp_lon_diff < lon_diff and tmp_lon_diff >= 0):
+                if (0 <= tmp_lat_diff < lat_diff
+                        and 0 <= tmp_lon_diff < lon_diff):
                     lat_diff = np.abs(lat - target[0])
                     lon_diff = np.abs(lon - target[1])
                     row = i
