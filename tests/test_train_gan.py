@@ -167,20 +167,25 @@ def test_kld_loss():
 def test_mmd_loss():
     """Test content loss using mse + mmd for content loss."""
 
-    x = np.random.rand(6, 10, 10, 8, 3)
-    x /= np.max(x)
-    y = np.random.rand(6, 10, 10, 8, 3)
-    y /= np.max(y)
+    x = np.zeros((6, 10, 10, 8, 3))
+    y = np.zeros((6, 10, 10, 8, 3))
+    x[:, 6:7, 6:7, :, :] = 1
 
-    # random distributions between 0-1 should give small mse and larger mmd
+    # distributions differing by only a small peak should give small mse and
+    # larger mmd
     mse = Sup3rGan.calc_loss_gen_content(x, y)
     mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(x, y)
 
     assert mmd_plus_mse > 2 * mse
 
+    x = np.random.rand(6, 10, 10, 8, 3)
+    x /= np.max(x)
+    y = np.random.rand(6, 10, 10, 8, 3)
+    y /= np.max(y)
+
     # scaling the same distribution should give high mse and smaller mmd
-    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
-    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(10 * x, x)
+    mse = Sup3rGan.calc_loss_gen_content(5 * x, x)
+    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(5 * x, x)
 
     assert mmd_plus_mse < 2 * mse
 
