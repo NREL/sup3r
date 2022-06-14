@@ -77,7 +77,7 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
 
 
     """
-    x1x1 = gaussian_kernel(x1, x1)
-    x2x2 = gaussian_kernel(x2, x2)
-    x1x2 = gaussian_kernel(x1, x2)
+    x1x1 = gaussian_kernel(x1, x1, beta)
+    x2x2 = gaussian_kernel(x2, x2, beta)
+    x1x2 = gaussian_kernel(x1, x2, beta)
     return tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)
