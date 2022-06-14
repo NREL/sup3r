@@ -9,6 +9,7 @@ from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.models import Sup3rGan
 
 from rex import ResourceX
@@ -28,7 +29,7 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-target = (19, -125)
+target = (19.3, -123.5)
 targets = target
 shape = (8, 8)
 sample_shape = (8, 8, 6)
@@ -86,8 +87,11 @@ def test_repeated_forward_pass_nc():
 
         # 2nd forward pass
         new_shape = (s_enhance * shape[0], s_enhance * shape[1])
+        new_lat_lon = OutputHandler.get_lat_lon(
+            forward_pass.data_handler.lat_lon, new_shape)
+        new_target = (np.min(new_lat_lon[..., 0]), np.min(new_lat_lon[..., 1]))
         handler = ForwardPassStrategy(
-            handler.out_files, target=target, shape=new_shape,
+            handler.out_files, target=new_target, shape=new_shape,
             temporal_slice=temporal_slice,
             cache_file_prefix=cache_file_prefix,
             forward_pass_chunk_shape=forward_pass_chunk_shape,
@@ -110,7 +114,8 @@ def test_forward_pass_h5():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, FEATURES[:2], target=TARGET_COORD,
+    handler = DataHandlerH5(FP_WTK, ['U_100m', 'V_100m'],
+                            target=TARGET_COORD,
                             shape=(20, 20),
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
@@ -196,8 +201,7 @@ def test_fwd_pass_handler():
 
         assert data.shape == (s_enhance * shape[0],
                               s_enhance * shape[1],
-                              t_enhance * len(input_files),
-                              2)
+                              t_enhance * len(input_files), 2)
 
 
 def test_fwd_pass_chunking():

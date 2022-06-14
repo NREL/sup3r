@@ -82,7 +82,7 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=20, temporal_slice=slice(None),
+                 max_delta=50, temporal_slice=slice(None),
                  time_roll=0, val_split=0.1,
                  sample_shape=(10, 10, 1),
                  raster_file=None, shuffle_time=False,
@@ -1015,8 +1015,10 @@ class DataHandlerNC(DataHandler):
             for j in range(lat_lon.shape[1]):
                 lat = lat_lon[i, j, 0]
                 lon = lat_lon[i, j, 1]
-                if (np.abs(lat - target[0]) < lat_diff
-                        and np.abs(lon - target[1]) < lon_diff):
+                tmp_lat_diff = lat - target[0]
+                tmp_lon_diff = lon - target[1]
+                if (tmp_lat_diff < lat_diff and tmp_lat_diff >= 0
+                        and tmp_lon_diff < lon_diff and tmp_lon_diff >= 0):
                     lat_diff = np.abs(lat - target[0])
                     lon_diff = np.abs(lon - target[1])
                     row = i
@@ -1050,6 +1052,15 @@ class DataHandlerNC(DataHandler):
                          f'for shape {shape} and target {target}')
             lat_lon = self.get_lat_lon(file_paths, [slice(None), slice(None)],
                                        self.temporal_slice)
+            min_lat = np.min(lat_lon[..., 0])
+            min_lon = np.min(lat_lon[..., 1])
+            max_lat = np.max(lat_lon[..., 0])
+            max_lon = np.max(lat_lon[..., 1])
+            msg = (f'target {target} out of bounds with min lat/lon {min_lat}/'
+                   f'{min_lon} and max lat/lon {max_lat}/{max_lon}')
+            assert (min_lat <= target[0] <= max_lat
+                    and min_lon <= target[1] <= max_lon), msg
+
             row, col = self.get_closest_lat_lon(lat_lon, target)
             raster_index = [slice(row, row + shape[0]),
                             slice(col, col + shape[1])]
@@ -1064,6 +1075,14 @@ class DataHandlerNC(DataHandler):
                     f'{np.min(lat_lon[..., 1])}).')
 
             self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
+
+            mask = ((self.lat_lon[..., 0] >= target[0])
+                    & (self.lat_lon[..., 1] >= target[1]))
+            if mask.sum() != np.product(shape):
+                msg = (f'Found {mask.sum()} coordinates but should have found '
+                       f'{shape[0]} by {shape[1]}')
+                logger.warning(msg)
+                warnings.warn(msg)
 
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
