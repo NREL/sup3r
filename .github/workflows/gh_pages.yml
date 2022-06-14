@@ -1,0 +1,33 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  make-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: select python version
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m pip install sphinx
+          python -m pip install sphinx_rtd_theme
+          python -m pip install sphinx-click
+      - name: build documentation
+        run: |
+          cd docs
+          make html
+      - name: deploy
+        uses: peaceiris/actions-gh-pages@v3.6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/_build/html
+          force_orphan: true
+          full_commit_message: ${{ github.event.head_commit.message }}
