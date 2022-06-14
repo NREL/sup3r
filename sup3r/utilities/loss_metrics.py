@@ -20,7 +20,34 @@ def gaussian_kernel(x1, x2, beta=1.0):
     tf.tensor
         kernel output tensor
     """
-    return tf.exp(-beta * (x1 - x2)**2)
+
+    r = tf.transpose(x1, perm=[0, 2, 1, 3, 4])
+    result = tf.exp(-beta * (r - x2)**2)
+    return result
+
+
+def exp_difference(x1, x2, beta=1.0):
+    """
+    Exponential difference loss function
+
+    Parameters
+    ----------
+    x1: tf.tensor
+        synthetic generator output
+        (n_observations, spatial_1, spatial_2, temporal, features)
+    x2: tf.tensor
+        high resolution data
+        (n_observations, spatial_1, spatial_2, temporal, features)
+    beta : float
+        scaling parameter for gaussian kernel
+
+    Returns
+    tf.tensor
+        tensor with content loss value summed over feature channel
+        (n_observations, spatial_1, spatial_2, temporal)
+    """
+    diff = tf.reduce_sum(2 - tf.exp(-beta * (x1 - x2)**2), axis=-1)
+    return diff
 
 
 def max_mean_discrepancy(x1, x2, beta=1.0):
@@ -50,8 +77,7 @@ def max_mean_discrepancy(x1, x2, beta=1.0):
 
 
     """
-    x1x1 = gaussian_kernel(x1, x1, beta)
-    x1x2 = gaussian_kernel(x1, x2, beta)
-    x2x2 = gaussian_kernel(x2, x2, beta)
-    diff = tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)
-    return diff
+    x1x1 = gaussian_kernel(x1, x1)
+    x2x2 = gaussian_kernel(x2, x2)
+    x1x2 = gaussian_kernel(x1, x2)
+    return tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)

@@ -7,6 +7,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
                                        uniform_box_sampler)
+from sup3r.utilities.loss_metrics import max_mean_discrepancy
 
 
 def test_get_chunk_slices():
