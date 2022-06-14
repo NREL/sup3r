@@ -1,7 +1,6 @@
 .wy-nav-content {
-    max-width: 60% !important;
+  max-width: 60% !important;
 }
-
 
 .wy-side-nav-search {
   display: block;
@@ -11,8 +10,5 @@
   z-index: 200;
   background-color: #fcfcfc;
   text-align: center;
-  padding: 0.809em;
-  display: block;
   color: #fcfcfc;
-  margin-bottom: 0.809em;
 }
