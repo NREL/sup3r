@@ -75,14 +75,13 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
 
 
 def get_file_t_steps(file_paths):
-    """Get number of time steps in each file. We assume that each netcdf file
-    in a file list passed to the handling classes has the same number of time
-    steps.
+    """Get number of time steps in each file. We assume that each file in a
+    file list passed to the handling classes has the same number of time steps.
 
     Parameters
     ----------
     file_paths : list
-        List of netcdf file paths
+        List of netcdf or h5 file paths
 
     Returns
     -------
@@ -90,8 +89,14 @@ def get_file_t_steps(file_paths):
         Number of time steps in each file
     """
 
-    with xr.open_dataset(file_paths[0]) as handle:
-        return len(handle.XTIME.values)
+    file_type = get_source_type(file_paths)
+
+    if file_type == 'nc':
+        with xr.open_dataset(file_paths[0]) as handle:
+            return len(handle.XTIME.values)
+    elif file_type == 'h5':
+        with Resource(file_paths[0]) as handle:
+            return len(handle.time_index)
 
 
 def get_raster_shape(raster_index):
@@ -271,17 +276,24 @@ def transform_rotate_wind(ws, wd, lat_lon):
     ----------
     ws : np.ndarray
         3D array of high res windspeed data
+        (spatial_1, spatial_2, temporal)
     wd : np.ndarray
-        3D array of high res winddirection data
+        3D array of high res winddirection data. Angle is in degrees and
+        measured relative to the south_north direction.
+        (spatial_1, spatial_2, temporal)
     lat_lon : np.ndarray
         3D array of lat lon
+        (spatial_1, spatial_2, 2)
+        Last dimension has lat / lon in that order
 
     Returns
     -------
     u : np.ndarray
         3D array of high res U data
+        (spatial_1, spatial_2, temporal)
     v : np.ndarray
         3D array of high res V data
+        (spatial_1, spatial_2, temporal)
     """
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
@@ -300,6 +312,53 @@ def transform_rotate_wind(ws, wd, lat_lon):
     v_rot -= np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
     del theta, ws, wd
     return u_rot, v_rot
+
+
+def invert_uv(u, v, lat_lon):
+    """Transform u and v back to windspeed and winddirection
+
+    Parameters
+    ----------
+    u : np.ndarray
+        3D array of high res U data
+        (spatial_1, spatial_2, temporal)
+    v : np.ndarray
+        3D array of high res V data
+        (spatial_1, spatial_2, temporal)
+    lat_lon : np.ndarray
+        3D array of lat lon
+        (spatial_1, spatial_2, 2)
+        Last dimension has lat / lon in that order
+
+    Returns
+    -------
+    ws : np.ndarray
+        3D array of high res windspeed data
+        (spatial_1, spatial_2, temporal)
+    wd : np.ndarray
+        3D array of high res winddirection data. Angle is in degrees and
+        measured relative to the south_north direction.
+        (spatial_1, spatial_2, temporal)
+    """
+    # get the dy/dx to the nearest vertical neighbor
+    dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
+    dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+
+    # calculate the angle from the vertical
+    theta = (np.pi / 2) - np.arctan2(dy, dx)
+    del dy, dx
+    theta[0] = theta[1]  # fix the roll row
+
+    u_rot = -np.sin(theta)[:, :, np.newaxis] * u
+    u_rot += np.cos(theta)[:, :, np.newaxis] * v
+
+    v_rot = np.cos(theta)[:, :, np.newaxis] * u
+    v_rot += np.sin(theta)[:, :, np.newaxis] * v
+
+    ws = np.sqrt(u_rot**2 + v_rot**2)
+    wd = np.degrees(np.arctan2(u_rot, v_rot)) + 180.0
+
+    return ws, wd
 
 
 def temporal_coarsening(data, t_enhance=4, method='subsample'):
@@ -880,6 +939,9 @@ def get_source_type(file_paths):
     source_type : str
         Either h5 or nc
     """
+    if file_paths is None:
+        return None
+
     if not isinstance(file_paths, list):
         file_paths = [file_paths]
 

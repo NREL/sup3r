@@ -2,56 +2,91 @@
 Loss metrics for Sup3r
 """
 
+from tensorflow.keras.losses import MeanSquaredError
 import tensorflow as tf
 
 
-def gaussian_kernel(x1, x2, beta=1.0):
+def gaussian_kernel(x1, x2, sigma=1.0):
     """Gaussian kernel for mmd content loss
 
     Parameters
     ----------
     x1: tf.tensor
         synthetic generator output
+        (n_obs, spatial_1, spatial_2, temporal, features)
     x2: tf.tensor
         high resolution data
+        (n_obs, spatial_1, spatial_2, temporal, features)
 
     Returns
     -------
     tf.tensor
         kernel output tensor
-    """
-    return tf.exp(-beta * (x1 - x2)**2)
 
-
-def max_mean_discrepancy(x1, x2, beta=1.0):
-    """
-    maximum mean discrepancy (MMD) based on Gaussian kernel
-    function for keras models (theano or tensorflow backend)
-
-    - Gretton, Arthur, et al. "A kernel method for the two-sample-problem."
-    Advances in neural information processing systems. 2007.
-
-    Parameters
+    References
     ----------
-    x1: tf.tensor
-        synthetic generator output
-        (n_observations, spatial_1, spatial_2, temporal, features)
-    x2: tf.tensor
-        high resolution data
-        (n_observations, spatial_1, spatial_2, temporal, features)
-    beta : float
-        scaling parameter for gaussian kernel
-
-    Returns
-    tf.tensor
-        tensor with content loss value summed over feature channel
-        (n_observations, spatial_1, spatial_2, temporal)
-    -------
-
-
+    Following MMD implementation in https://github.com/lmjohns3/theanets
     """
-    x1x1 = gaussian_kernel(x1, x1, beta)
-    x1x2 = gaussian_kernel(x1, x2, beta)
-    x2x2 = gaussian_kernel(x2, x2, beta)
-    diff = tf.reduce_sum(x1x1 + x2x2 - 2 * x1x2, axis=-1)
-    return diff
+
+    # The expand dims + subtraction compares every entry for the dimension
+    # prior to the expanded dimension to every other entry. So expand_dims with
+    # axis=1 will compare every observation along axis=0 to every other
+    # observation along axis=0.
+    result = tf.exp(-0.5 * tf.reduce_sum(
+        (tf.expand_dims(x1, axis=1) - x2)**2, axis=-1) / sigma**2)
+    return result
+
+
+class ExpLoss(tf.keras.losses.Loss):
+    """Loss class for squared exponential difference"""
+    def __call__(self, x1, x2):
+        """
+        Exponential difference loss function
+
+        Parameters
+        ----------
+        x1: tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2: tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        return tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
+
+
+class MmdMseLoss(tf.keras.losses.Loss):
+    """Loss class for MMD + MSE"""
+    MSE_LOSS = MeanSquaredError()
+
+    def __call__(self, x1, x2, sigma=1.0):
+        """Maximum mean discrepancy (MMD) based on Gaussian kernel function
+        for keras models
+
+        Parameters
+        ----------
+        x1: tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2: tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        sigma : float
+            standard deviation for gaussian kernel
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1x1 = gaussian_kernel(x1, x1, sigma)
+        x2x2 = gaussian_kernel(x2, x2, sigma)
+        x1x2 = gaussian_kernel(x1, x2, sigma)
+        mmd = tf.reduce_mean(x1x1 + x2x2 - 2 * x1x2)
+        mse = self.MSE_LOSS(x1, x2)
+        return mmd + mse

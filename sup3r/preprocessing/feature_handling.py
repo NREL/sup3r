@@ -606,12 +606,14 @@ class LatLonNC:
     @classmethod
     def compute(cls, file_paths, raster_index):
         """Get lats and lons
+
         Parameters
         ----------
         file_paths : list
             path to data file
         raster_index : list
             List of slices for raster
+
         Returns
         -------
         ndarray

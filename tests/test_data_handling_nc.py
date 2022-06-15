@@ -25,7 +25,7 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
 input_files = sorted(input_files)
-target = (19, -125)
+target = (19.3, -123.5)
 targets = target
 shape = (8, 8)
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
