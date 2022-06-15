@@ -47,12 +47,11 @@ class ExpLoss(tf.keras.losses.Loss):
             (n_observations, spatial_1, spatial_2, temporal, features)
 
         Returns
+        -------
         tf.tensor
-            tensor with content loss value summed over feature channel
-            (n_observations, spatial_1, spatial_2, temporal)
+            0D tensor with loss value
         """
-        diff = tf.reduce_sum(1 - tf.exp(-(x1 - x2)**2), axis=-1)
-        return diff
+        return tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
 
 
 class MmdMseLoss(tf.keras.losses.Loss):
@@ -75,9 +74,9 @@ class MmdMseLoss(tf.keras.losses.Loss):
             standard deviation for gaussian kernel
 
         Returns
+        -------
         tf.tensor
-            tensor with content loss value summed over feature channel
-            (n_observations, spatial_1, spatial_2, temporal)
+            0D tensor with loss value
         """
         x1x1 = gaussian_kernel(x1, x1, sigma)
         x2x2 = gaussian_kernel(x2, x2, sigma)
