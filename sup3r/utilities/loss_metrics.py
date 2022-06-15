@@ -93,6 +93,7 @@ class MmdLoss(tf.keras.losses.Loss):
 
 class MmdMseLoss(tf.keras.losses.Loss):
     """Loss class for MMD + MSE"""
+    MMD_LOSS = MmdLoss()
     MSE_LOSS = MeanSquaredError()
 
     def __call__(self, x1, x2, sigma=1.0):
@@ -115,10 +116,7 @@ class MmdMseLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        x1x1 = gaussian_kernel(x1, x1, sigma)
-        x2x2 = gaussian_kernel(x2, x2, sigma)
-        x1x2 = gaussian_kernel(x1, x2, sigma)
-        mmd = tf.reduce_mean(x1x1 + x2x2 - 2 * x1x2)
+        mmd = self.MMD_LOSS(x1, x2)
         mse = self.MSE_LOSS(x1, x2)
         return mmd + mse
 
