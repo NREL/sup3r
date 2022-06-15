@@ -752,7 +752,7 @@ class Sup3rGan:
         if val < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
-            return 1 - update_frac
+            return 1 / (1 + update_frac)
         else:
             return 1
 

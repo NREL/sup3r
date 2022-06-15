@@ -7,7 +7,6 @@ from sup3r.utilities.loss_metrics import (ExpLoss, MmdMseLoss, MmdLoss,
                                           CoarseMseLoss)
 
 
-
 class Sup3rGanMmd(Sup3rGan):
     """Sup3rGan sub class using only max mean discrepancy as the content loss
     """
