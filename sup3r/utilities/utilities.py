@@ -111,8 +111,8 @@ def get_raster_shape(raster_index):
 
 
 def get_wrf_date_range(files):
-    """Get wrf date range for cleaner log output. This assumes file names have
-    the date pattern (YYYY-\|_MM-\|_DD-\|_HH:\|_MM:\|_SS) at the end of the
+    r"""Get wrf date range for cleaner log output. This assumes file names have
+    the date pattern (YYYY-|_MM-|_DD-|_HH:|_MM:|_SS) at the end of the
     file name.
 
     Parameters
