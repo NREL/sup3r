@@ -223,8 +223,8 @@ def test_stats_caching():
             if std == 0:
                 std = 1
             mean = np.mean(stacked_data[..., i])
-            assert 0.99999 <= std <= 1.00001
-            assert -0.00001 <= mean <= 0.00001
+            assert np.allclose(std, 1, atol=1e-3)
+            assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_normalization():
@@ -253,8 +253,8 @@ def test_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.99999 <= std <= 1.00001
-        assert -0.00001 <= mean <= 0.00001
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_spatiotemporal_normalization():
@@ -283,8 +283,8 @@ def test_spatiotemporal_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.99999 <= std <= 1.00001
-        assert -0.00001 <= mean <= 0.00001
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_data_extraction():
@@ -664,8 +664,8 @@ def test_no_val_data():
         data_handler = DataHandler(input_file, features, target,
                                    shape=shape, max_delta=max_delta,
                                    val_split=0,
-                                   max_compute_workers=1,
-                                   max_extract_workers=1,
+                                   compute_workers=1,
+                                   extract_workers=1,
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
