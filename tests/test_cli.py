@@ -93,7 +93,7 @@ def test_fwd_pass_cli(runner):
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log')
         config = {'file_paths': input_files,
-                  'target': (19, -125),
+                  'target': (19.3, -123.5),
                   'model_path': out_dir,
                   'out_pattern': out_files,
                   'cache_file_prefix': cache_prefix,

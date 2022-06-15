@@ -13,7 +13,7 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
-from sup3r.models.modified_loss import Sup3rGanKLD, Sup3rGanMMD
+from sup3r.models.modified_loss import Sup3rGanMmdMse
 from sup3r.models.data_centric import Sup3rGanDC
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerDCforH5)
@@ -143,38 +143,18 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                 assert weight_new < weight_old
 
 
-def test_kld_loss():
-    """Test content loss using mse + kld for content loss."""
-
-    x = np.random.rand(6, 10, 10, 8, 3)
-    x /= np.max(x)
-    y = np.random.rand(6, 10, 10, 8, 3)
-    y /= np.max(y)
-
-    # random distributions between 0-1 should give small mse and larger kld
-    mse = Sup3rGan.calc_loss_gen_content(x, y)
-    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(x, y)
-
-    assert kld_plus_mse > 2 * mse
-
-    # scaling the same distribution should give high mse and smaller kld
-    mse = Sup3rGan.calc_loss_gen_content(10 * x, x)
-    kld_plus_mse = Sup3rGanKLD.calc_loss_gen_content(10 * x, x)
-
-    assert kld_plus_mse < 2 * mse
-
-
 def test_mmd_loss():
     """Test content loss using mse + mmd for content loss."""
 
     x = np.zeros((6, 10, 10, 8, 3))
     y = np.zeros((6, 10, 10, 8, 3))
-    x[:, 6:7, 6:7, :, :] = 1
+    x[:, 7:9, 7:9, :, :] = 1
+    y[:, 2:5, 2:5, :, :] = 1
 
     # distributions differing by only a small peak should give small mse and
     # larger mmd
     mse = Sup3rGan.calc_loss_gen_content(x, y)
-    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(x, y)
+    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(x, y)
 
     assert mmd_plus_mse > 2 * mse
 
@@ -185,7 +165,7 @@ def test_mmd_loss():
 
     # scaling the same distribution should give high mse and smaller mmd
     mse = Sup3rGan.calc_loss_gen_content(5 * x, x)
-    mmd_plus_mse = Sup3rGanMMD.calc_loss_gen_content(5 * x, x)
+    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(5 * x, x)
 
     assert mmd_plus_mse < 2 * mse
 

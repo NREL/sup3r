@@ -10,7 +10,7 @@ import pprint
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
-from tensorflow.keras.metrics import mean_squared_error
+from tensorflow.keras.losses import MeanSquaredError
 from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 from warnings import warn
@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 class Sup3rGan:
     """Basic sup3r GAN model."""
+
+    LOSS = MeanSquaredError()
 
     def __init__(self, gen_layers, disc_layers,
                  optimizer=None, learning_rate=1e-4,
@@ -963,9 +965,9 @@ class Sup3rGan:
 
         return loss_details
 
-    @staticmethod
+    @classmethod
     @tf.function
-    def calc_loss_gen_content(hi_res_true, hi_res_gen):
+    def calc_loss_gen_content(cls, hi_res_true, hi_res_gen):
         """Calculate the content loss term for the generator model.
 
         Parameters
@@ -983,8 +985,7 @@ class Sup3rGan:
             hi res ground truth to the hi res synthetically generated output.
         """
 
-        loss_gen_content = mean_squared_error(hi_res_true, hi_res_gen)
-        loss_gen_content = tf.reduce_mean(loss_gen_content)
+        loss_gen_content = cls.LOSS(hi_res_true, hi_res_gen)
 
         return loss_gen_content
 

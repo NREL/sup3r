@@ -5,7 +5,7 @@ import numpy as np
 import logging
 import json
 
-from sup3r.models.modified_loss import Sup3rGanMMD, Sup3rGanKLD
+from sup3r.models.modified_loss import Sup3rGanMmdMse, Sup3rGanExp
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.utilities import round_array
 
@@ -121,9 +121,10 @@ class Sup3rGanDC(Sup3rGan):
         return loss_details
 
 
-class Sup3rGanDCwithMMD(Sup3rGanDC, Sup3rGanMMD):
+class Sup3rGanDCwithMmdMse(Sup3rGanDC, Sup3rGanMmdMse):
     """Sup3rGan with MMD loss and Data-Centric observation selection"""
 
 
-class Sup3rGanDCwithKLD(Sup3rGanDC, Sup3rGanKLD):
-    """Sup3rGan with KLD loss and Data-Centric observation selection"""
+class Sup3rGanDCwithExp(Sup3rGanDC, Sup3rGanExp):
+    """Sup3rGan with exponential difference loss and Data-Centric observation
+    selection"""
