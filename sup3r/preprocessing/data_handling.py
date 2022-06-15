@@ -30,7 +30,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_time_index,
                                        get_source_type,
                                        get_wrf_date_range,
-                                       nsrdb_temporal_coarsening,
+                                       daily_temporal_coarsening,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -1326,7 +1326,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
         self.daily_data_slices = [slice(x[0], x[-1] + 1)
                                   for x in self.daily_data_slices]
         for d, t_slice in enumerate(self.daily_data_slices):
-            self.daily_data[:, :, d, :] = nsrdb_temporal_coarsening(
+            self.daily_data[:, :, d, :] = daily_temporal_coarsening(
                 self.data[:, :, t_slice, :], temporal_axis=2)[:, :, 0, :]
 
         logger.info('Finished calculating daily average datasets for {} '

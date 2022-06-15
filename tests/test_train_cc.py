@@ -109,7 +109,7 @@ def test_wind_cc_model(log=False):
         assert model.meta['class'] == 'Sup3rGan'
         assert len(model.output_features) == len(FEATURES_W)
 
-    x = np.random.uniform(0, 1, (1, 30, 30, 120, 3))
+    x = np.random.uniform(0, 1, (1, 16, 16, 96, 3))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 4

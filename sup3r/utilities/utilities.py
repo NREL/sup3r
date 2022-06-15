@@ -501,18 +501,20 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     return coarse_data
 
 
-def nsrdb_temporal_coarsening(data, temporal_axis=3):
-    """Temporal coarsening for solar climate change data.
+def daily_temporal_coarsening(data, temporal_axis=3):
+    """Temporal coarsening for daily average climate change data.
 
     This method takes the sum of the data in the temporal dimension and divides
-    by 24 (for 24 hours per day). Even if there are only 8-12 obs in the
-    temporal axis, we want to divide by 24 to give the equivelant of a daily
-    average.
+    by 24 (for 24 hours per day). Even if there are only 8-12 daylight obs in
+    the temporal axis, we want to divide by 24 to give the equivelant of a
+    daily average.
 
     Parameters
     ----------
     data : np.ndarray
-        5D array with dimensions
+        Array of data with a temporal axis as determined by the temporal_axis
+        input. Example 4D or 5D input shapes:
+        (spatial_1, spatial_2, temporal, features)
         (observations, spatial_1, spatial_2, temporal, features)
     temporal_axis : int
         Axis index of the temporal axis to be averaged. Default is axis=3 for
@@ -521,8 +523,8 @@ def nsrdb_temporal_coarsening(data, temporal_axis=3):
     Returns
     -------
     coarse_data : np.ndarray
-        5D array with same dimensions as data with new coarse resolution,
-        temporal dimension is 1
+        Array with same dimensions as data with new coarse resolution,
+        temporal dimension is size 1
     """
     coarse_data = np.nansum(data, axis=temporal_axis) / 24
     coarse_data = np.expand_dims(coarse_data, axis=temporal_axis)
