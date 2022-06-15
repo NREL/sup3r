@@ -13,8 +13,10 @@ def gaussian_kernel(x1, x2, sigma=1.0):
     ----------
     x1: tf.tensor
         synthetic generator output
+        (n_obs, spatial_1, spatial_2, temporal, features)
     x2: tf.tensor
         high resolution data
+        (n_obs, spatial_1, spatial_2, temporal, features)
 
     Returns
     -------
@@ -26,6 +28,10 @@ def gaussian_kernel(x1, x2, sigma=1.0):
     Following MMD implementation in https://github.com/lmjohns3/theanets
     """
 
+    # The expand dims + subtraction compares every entry for the dimension
+    # prior to the expanded dimension to every other entry. So expand_dims with
+    # axis=1 will compare every observation along axis=0 to every other
+    # observation along axis=0.
     result = tf.exp(-0.5 * tf.reduce_sum(
         (tf.expand_dims(x1, axis=1) - x2)**2, axis=-1) / sigma**2)
     return result
