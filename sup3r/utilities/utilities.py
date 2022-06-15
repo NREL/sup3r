@@ -12,7 +12,7 @@ from fnmatch import fnmatch
 import os
 import xarray as xr
 import re
-import warnings
+from warnings import warn
 
 from rex import Resource
 
@@ -215,7 +215,7 @@ def uniform_time_sampler(data, shape):
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
-    shape : tuple
+    shape : int
         (time_steps) Size of time slice to sample
         from data
     Returns:
@@ -230,23 +230,22 @@ def uniform_time_sampler(data, shape):
 
 
 def daily_time_sampler(data, shape, time_index):
-    """
-    Extracts a temporal slice from data starting at midnight of a random day
+    """Finds a random temporal slice from data starting at midnight
 
     Parameters:
     -----------
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
-    shape : tuple
+    shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
-        multiple of 24.
+        less than or equal to 24.
     time_index : pd.Datetimeindex
         Time index that matches the data axis=2
 
     Returns:
     --------
-    slice : slice
+    tslice : slice
         time slice with size shape of data starting at the beginning of the day
     """
 
@@ -254,19 +253,116 @@ def daily_time_sampler(data, shape, time_index):
            'shapes do not match, cannot sample daily data.')
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:1 - shape]
+    ti_short = time_index[:-(shape - 1)]
     midnight_ilocs = np.where((ti_short.hour == 0)
                               & (ti_short.minute == 0)
                               & (ti_short.second == 0))[0]
 
-    if data.shape[2] <= shape:
-        start = 0
-        stop = data.shape[2]
+    if not any(midnight_ilocs):
+        msg = ('Cannot sample time index of shape {} with requested daily '
+               'sample shape {}'.format(len(time_index), shape))
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    start = np.random.randint(0, len(midnight_ilocs))
+    start = midnight_ilocs[start]
+    stop = start + shape
+
+    tslice = slice(start, stop)
+
+    return tslice
+
+
+def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
+    """Finds a random sample during daylight hours of a day. Nightime is
+    assumed to be marked as NaN in feature axis == csr_ind in the data input.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array with dimensions, where [..., csr_ind] is assumed to be
+        clearsky ratio with NaN at night.
+        (spatial_1, spatial_2, temporal, features)
+    shape : int
+        (time_steps) Size of time slice to sample from data, must be an integer
+        less than or equal to 24.
+    time_index : pd.Datetimeindex
+        Time index that matches the data axis=2
+    csr_ind : int
+        Index of the feature axis where clearsky ratio is located and NaN's can
+        be found at night.
+
+    Returns:
+    --------
+    tslice : slice
+        time slice with size shape of data starting at the beginning of the day
+    """
+
+    tslice = daily_time_sampler(data, 24, time_index)
+    night_mask = np.isnan(data[:, :, tslice, csr_ind]).any(axis=(0, 1))
+
+    if shape == 24:
+        return tslice
+
+    if night_mask.all():
+        msg = (f'No daylight data found for tslice {tslice} '
+               f'{time_index[tslice]}')
+        logger.warning(msg)
+        warn(msg)
+        return tslice
+
     else:
-        start = np.random.randint(0, len(midnight_ilocs))
-        start = midnight_ilocs[start]
-        stop = start + shape
-    return slice(start, stop)
+        day_ilocs = np.where(~night_mask)[0]
+        padding = shape - len(day_ilocs)
+        half_pad = int(np.round(padding / 2))
+        new_start = tslice.start + day_ilocs[0] - half_pad
+        new_end = new_start + shape
+        tslice = slice(new_start, new_end)
+        return tslice
+
+
+def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
+    """Takes a 5D array and reduces the axis=3 temporal dim to daylight hours.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        Data array 5D, where [..., csr_ind] is assumed to be
+        clearsky ratio with NaN at night.
+        (n_obs, spatial_1, spatial_2, temporal, features)
+    shape : int
+        (time_steps) Size of time slice to sample from data, must be an integer
+        less than or equal to 24.
+    csr_ind : int
+        Index of the feature axis where clearsky ratio is located and NaN's can
+        be found at night.
+
+    Returns:
+    --------
+    data : np.ndarray
+        Same as input but with axis=3 reduced to dailylight hours with
+        requested shape.
+    """
+
+    night_mask = np.isnan(data[0, :, :, :, csr_ind]).any(axis=(0, 1))
+
+    if shape == 24:
+        return data
+
+    if night_mask.all():
+        msg = (f'No daylight data found for data of shape {data.shape}')
+        logger.warning(msg)
+        warn(msg)
+        return data
+
+    else:
+        day_ilocs = np.where(~night_mask)[0]
+        padding = shape - len(day_ilocs)
+        half_pad = int(np.round(padding / 2))
+        start = day_ilocs[0] - half_pad
+        end = start + shape
+        tslice = slice(start, end)
+        return data[:, :, :, tslice, :]
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
@@ -371,7 +467,6 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
         factor by which to coarsen temporal dimension
-
     method : str
         accepted options: [subsample, average, total]
         Subsample will take every t_enhance-th time step, average will average
@@ -380,7 +475,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     Returns
     -------
     coarse_data : np.ndarray
-        4D array with same dimensions as data with new coarse resolution
+        5D array with same dimensions as data with new coarse resolution
     """
 
     if t_enhance is not None and len(data.shape) == 5:
@@ -403,6 +498,36 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     else:
         coarse_data = data
 
+    return coarse_data
+
+
+def daily_temporal_coarsening(data, temporal_axis=3):
+    """Temporal coarsening for daily average climate change data.
+
+    This method takes the sum of the data in the temporal dimension and divides
+    by 24 (for 24 hours per day). Even if there are only 8-12 daylight obs in
+    the temporal axis, we want to divide by 24 to give the equivelant of a
+    daily average.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Array of data with a temporal axis as determined by the temporal_axis
+        input. Example 4D or 5D input shapes:
+        (spatial_1, spatial_2, temporal, features)
+        (observations, spatial_1, spatial_2, temporal, features)
+    temporal_axis : int
+        Axis index of the temporal axis to be averaged. Default is axis=3 for
+        the 5D tensor that is fed to the ST-GAN.
+
+    Returns
+    -------
+    coarse_data : np.ndarray
+        Array with same dimensions as data with new coarse resolution,
+        temporal dimension is size 1
+    """
+    coarse_data = np.nansum(data, axis=temporal_axis) / 24
+    coarse_data = np.expand_dims(coarse_data, axis=temporal_axis)
     return coarse_data
 
 
@@ -632,7 +757,7 @@ def interp3D(var_array, h_array, heights):
         msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
                f'({h_min}, {h_max})')
         logger.warning(msg)
-        warnings.warn(msg)
+        warn(msg)
 
     array_shape = var_array.shape
 

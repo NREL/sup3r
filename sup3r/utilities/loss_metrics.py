@@ -39,6 +39,7 @@ def gaussian_kernel(x1, x2, sigma=1.0):
 
 class ExpLoss(tf.keras.losses.Loss):
     """Loss class for squared exponential difference"""
+
     def __call__(self, x1, x2):
         """
         Exponential difference loss function
@@ -60,9 +61,8 @@ class ExpLoss(tf.keras.losses.Loss):
         return tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
 
 
-class MmdMseLoss(tf.keras.losses.Loss):
-    """Loss class for MMD + MSE"""
-    MSE_LOSS = MeanSquaredError()
+class MmdLoss(tf.keras.losses.Loss):
+    """Loss class for max mean discrepancy loss"""
 
     def __call__(self, x1, x2, sigma=1.0):
         """Maximum mean discrepancy (MMD) based on Gaussian kernel function
@@ -88,5 +88,61 @@ class MmdMseLoss(tf.keras.losses.Loss):
         x2x2 = gaussian_kernel(x2, x2, sigma)
         x1x2 = gaussian_kernel(x1, x2, sigma)
         mmd = tf.reduce_mean(x1x1 + x2x2 - 2 * x1x2)
+        return mmd
+
+
+class MmdMseLoss(tf.keras.losses.Loss):
+    """Loss class for MMD + MSE"""
+    MMD_LOSS = MmdLoss()
+    MSE_LOSS = MeanSquaredError()
+
+    def __call__(self, x1, x2, sigma=1.0):
+        """Maximum mean discrepancy (MMD) based on Gaussian kernel function
+        for keras models plus the typical MSE loss.
+
+        Parameters
+        ----------
+        x1: tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2: tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        sigma : float
+            standard deviation for gaussian kernel
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        mmd = self.MMD_LOSS(x1, x2)
         mse = self.MSE_LOSS(x1, x2)
         return mmd + mse
+
+
+class CoarseMseLoss(tf.keras.losses.Loss):
+    """Loss class for coarse mse on spatial average of 5D tensor"""
+    MSE_LOSS = MeanSquaredError()
+
+    def __call__(self, x1, x2):
+        """
+        Exponential difference loss function
+
+        Parameters
+        ----------
+        x1: tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2: tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_coarse = tf.reduce_mean(x1, axis=(1, 2))
+        x2_coarse = tf.reduce_mean(x2, axis=(1, 2))
+        return self.MSE_LOSS(x1_coarse, x2_coarse)

@@ -273,6 +273,7 @@ def test_train_st(n_epoch=4, log=False):
 
         assert 'config_generator' in loaded.meta
         assert 'config_discriminator' in loaded.meta
+        assert model.meta['class'] == 'Sup3rGan'
 
         # make an un-trained dummy model
         dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=5e-5,

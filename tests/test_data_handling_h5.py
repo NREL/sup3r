@@ -223,8 +223,8 @@ def test_stats_caching():
             if std == 0:
                 std = 1
             mean = np.mean(stacked_data[..., i])
-            assert 0.99999 <= std <= 1.00001
-            assert -0.00001 <= mean <= 0.00001
+            assert np.allclose(std, 1, atol=1e-3)
+            assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_normalization():
@@ -253,8 +253,8 @@ def test_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.99999 <= std <= 1.00001
-        assert -0.00001 <= mean <= 0.00001
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_spatiotemporal_normalization():
@@ -283,8 +283,8 @@ def test_spatiotemporal_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert 0.99999 <= std <= 1.00001
-        assert -0.00001 <= mean <= 0.00001
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_data_extraction():
@@ -655,3 +655,28 @@ def test_spatial_coarsening(s_enhance, plot=False):
         ax[0].imshow(handler_data[0, :, :, 0])
         ax[1].imshow(coarse_data[0, :, :, 0])
         plt.show()
+
+
+def test_no_val_data():
+    """Test that the data handler can work with zero validation data."""
+    data_handlers = []
+    for input_file in input_files:
+        data_handler = DataHandler(input_file, features, target,
+                                   shape=shape, max_delta=max_delta,
+                                   val_split=0,
+                                   compute_workers=1,
+                                   extract_workers=1,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=temporal_slice)
+        data_handlers.append(data_handler)
+    batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
+                                 n_batches=n_batches,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance)
+
+    n = 0
+    for _ in batch_handler.val_data:
+        n += 1
+
+    assert n == 0
+    assert not batch_handler.val_data.any()

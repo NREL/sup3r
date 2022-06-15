@@ -78,9 +78,7 @@ class Sup3rGan:
             Optional name for the GAN.
         """
 
-        self.name = name
-        self._means = means
-        self._stdevs = stdevs
+        self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
         self._version_record = CustomNetwork._parse_versions(version_record)
@@ -97,6 +95,11 @@ class Sup3rGan:
 
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc = self.load_network(disc_layers, 'discriminator')
+
+        self._means = (means if means is None
+                       else np.array(means).astype(np.float32))
+        self._stdevs = (stdevs if stdevs is None
+                        else np.array(stdevs).astype(np.float32))
 
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
@@ -262,6 +265,26 @@ class Sup3rGan:
                         .format(pprint.pformat(active_versions, indent=2)))
 
         return params
+
+    @property
+    def means(self):
+        """Get the data normalization mean values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._means
+
+    @property
+    def stdevs(self):
+        """Get the data normalization standard deviation values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._stdevs
 
     def set_norm_stats(self, batch_handler):
         """Set the normalization statistics associated with a data batch
@@ -633,6 +656,10 @@ class Sup3rGan:
     @property
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
+
+        if 'class' not in self._meta:
+            self._meta['class'] = self.__class__.__name__
+
         return self._meta
 
     @property
@@ -721,9 +748,11 @@ class Sup3rGan:
         float
             Factor by which to multiply old weight to get updated weight
         """
+
         val = history[comparison_key]
-        logger.info(f'Average value of {comparison_key} over the previous '
-                    f'epoch: {round(val, 3)}')
+        if isinstance(val, (list, tuple, np.ndarray)):
+            val = val[-1]
+
         if val < update_bounds[0]:
             return 1 + update_frac
         elif val > update_bounds[1]:
@@ -1079,6 +1108,15 @@ class Sup3rGan:
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+
+        if hi_res_gen.shape != hi_res_true.shape:
+            msg = ('The tensor shapes of the synthetic output {} and '
+                   'true high res {} did not have matching shape! '
+                   'Check the spatiotemporal enhancement multipliers in your '
+                   'your model config and data handlers.'
+                   .format(hi_res_gen.shape, hi_res_true.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)

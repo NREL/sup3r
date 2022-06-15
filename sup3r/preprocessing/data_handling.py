@@ -24,13 +24,13 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
-                                       daily_time_sampler,
                                        interp_var,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
                                        get_time_index,
                                        get_source_type,
-                                       get_wrf_date_range
+                                       get_wrf_date_range,
+                                       daily_temporal_coarsening,
                                        )
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -61,12 +61,12 @@ def get_handler_class(file_paths):
     Returns
     -------
     DataHandler
-        Either DataHandlerNC, DataHandlerH5, DataHandlerNsrdb
+        Either DataHandlerNC, DataHandlerH5, DataHandlerH5SolarCC
     """
     if get_source_type(file_paths) == 'h5':
         HandlerClass = DataHandlerH5
         if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
-            HandlerClass = DataHandlerNsrdb
+            HandlerClass = DataHandlerH5SolarCC
     else:
         HandlerClass = DataHandlerNC
     return HandlerClass
@@ -1264,17 +1264,90 @@ class DataHandlerH5(DataHandler):
         return self.attrs['time_index']
 
 
-class DataHandlerNsrdb(DataHandlerH5):
-    """Special data handling and batch sampling for NSRDB solar data"""
+class DataHandlerH5WindCC(DataHandlerH5):
+    """Special data handling and batch sampling for h5 wtk or nsrdb data for
+    climate change applications"""
 
     # the handler from rex to open h5 data.
-    REX_HANDLER = MultiFileNSRDBX
+    REX_HANDLER = MultiFileWindX
 
     # list of features / feature name patterns that are input to the generative
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+    TRAIN_ONLY_FEATURES = tuple()
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataHandlerH5
+        **kwargs : dict
+            Same keyword args as DataHandlerH5
+        """
+        t_shape = kwargs.get('sample_shape', (10, 10, 1))[-1]
+        if t_shape < 24 or t_shape % 24 != 0:
+            msg = ('Climate Change DataHandler can only work with temporal '
+                   'sample shapes that are one or more days of hourly data '
+                   '(e.g. 24, 48, 72...). The requested temporal sample '
+                   'shape was: {}'.format(t_shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        # validation splits not enabled for solar CC model.
+        kwargs['val_split'] = 0.0
+
+        super().__init__(*args, **kwargs)
+
+        self.daily_data = None
+        self.daily_data_slices = None
+        self.run_daily_averages()
+
+    def run_daily_averages(self):
+        """Calculate daily average data and store as attribute."""
+        msg = ('Data needs to be hourly with at least 24 hours, but data '
+               'shape is {} and val data shape is {}'
+               .format(self.data.shape, self.val_data.shape))
+        assert self.data.shape[2] % 24 == 0, msg
+        assert self.data.shape[2] > 24, msg
+
+        n_data_days = int(self.data.shape[2] / 24)
+        daily_data_shape = (self.data.shape[0:2] + (n_data_days,)
+                            + (self.data.shape[3],))
+
+        logger.info('Calculating daily average datasets for {} training '
+                    'data days.'.format(n_data_days))
+
+        self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
+
+        self.daily_data_slices = np.array_split(np.arange(self.data.shape[2]),
+                                                n_data_days)
+        self.daily_data_slices = [slice(x[0], x[-1] + 1)
+                                  for x in self.daily_data_slices]
+        for d, t_slice in enumerate(self.daily_data_slices):
+            self.daily_data[:, :, d, :] = daily_temporal_coarsening(
+                self.data[:, :, t_slice, :], temporal_axis=2)[:, :, 0, :]
+
+        logger.info('Finished calculating daily average datasets for {} '
+                    'training data days.'.format(n_data_days))
+
+    def _normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized mean and standard deviation for a
+        specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+        """
+        super()._normalize_data(feature_index, mean, std)
+        self.daily_data[..., feature_index] -= mean
+        self.daily_data[..., feature_index] /= std
 
     @classmethod
     def feature_registry(cls):
@@ -1284,31 +1357,61 @@ class DataHandlerNsrdb(DataHandlerH5):
         dict
             Method registry
         """
-        registry = {
-            'U': UWindNsrdb,
-            'V': VWindNsrdb,
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+        registry = {'U_(.*)m': UWindH5,
+                    'V_(.*)m': VWindH5,
+                    'lat_lon': LatLonH5}
         return registry
 
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
         Returns
         -------
-        observation_index : tuple
+        obs_ind_hourly : tuple
             Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
+            Used to get single observation like self.data[observation_index].
+            This is for hourly high-res data slicing.
+        obs_ind_daily : tuple
+            Same as obs_ind_hourly but the temporal index (i=2) is a slice of
+            the daily data (self.daily_data) with day integers.
         """
         spatial_slice = uniform_box_sampler(self.data,
                                             self.sample_shape[:2])
-        temporal_slice = daily_time_sampler(self.data,
-                                            self.sample_shape[2],
-                                            self.time_index)
-        obs_index = tuple(spatial_slice
-                          + [temporal_slice]
-                          + [np.arange(len(self.features))])
-        return obs_index
+
+        n_days = int(self.sample_shape[2] / 24)
+        rand_day_ind = np.random.choice(len(self.daily_data_slices) - n_days)
+        t_slice_0 = self.daily_data_slices[rand_day_ind]
+        t_slice_1 = self.daily_data_slices[rand_day_ind + n_days - 1]
+        t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
+        t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
+
+        obs_ind_hourly = tuple(spatial_slice
+                               + [t_slice_hourly]
+                               + [np.arange(len(self.features))])
+
+        obs_ind_daily = tuple(spatial_slice
+                              + [t_slice_daily]
+                              + [np.arange(len(self.features))])
+
+        return obs_ind_hourly, obs_ind_daily
+
+    def get_next(self):
+        """Gets data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        obs_hourly : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal_hourly, features)
+        obs_daily_avg : np.ndarray
+            4D array but the temporal axis is temporal_hourly//24
+            (spatial_1, spatial_2, temporal_daily, features)
+        """
+        obs_ind_hourly, obs_ind_daily = self.get_observation_index()
+        self.current_obs_index = obs_ind_hourly
+        obs_hourly = self.data[obs_ind_hourly]
+        obs_daily_avg = self.daily_data[obs_ind_daily]
+        return obs_hourly, obs_daily_avg
 
     def split_data(self, data=None):
         """Splits time dimension into set of training indices and validation
@@ -1336,7 +1439,7 @@ class DataHandlerNsrdb(DataHandlerH5):
                                   & (self.time_index.minute == 0)
                                   & (self.time_index.second == 0))[0]
 
-        n_val_obs = int(np.round(self.val_split * len(midnight_ilocs)))
+        n_val_obs = int(np.ceil(self.val_split * len(midnight_ilocs)))
         val_split_index = midnight_ilocs[n_val_obs]
 
         self.val_data = self.data[:, :, slice(None, val_split_index), :]
@@ -1346,6 +1449,37 @@ class DataHandlerNsrdb(DataHandlerH5):
         self.time_index = self.time_index[slice(val_split_index, None)]
 
         return self.data, self.val_data
+
+
+class DataHandlerH5SolarCC(DataHandlerH5WindCC):
+    """Special data handling and batch sampling for h5 NSRDB solar data for
+    climate change applications"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = MultiFileNSRDBX
+
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U': UWindNsrdb,
+            'V': VWindNsrdb,
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
 
 
 # pylint: disable=W0223
