@@ -112,8 +112,8 @@ def get_raster_shape(raster_index):
 
 def get_wrf_date_range(files):
     """Get wrf date range for cleaner log output. This assumes file names have
-    the date pattern (YYYY-|_MM-|_DD-|_HH:|_MM:|_SS) at the end of the file
-    name.
+    the date pattern (YYYY-\|_MM-\|_DD-\|_HH:\|_MM:\|_SS) at the end of the
+    file name.
 
     Parameters
     ----------
@@ -142,8 +142,8 @@ def get_wrf_date_range(files):
 def uniform_box_sampler(data, shape):
     '''Extracts a sample cut from data.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
@@ -151,8 +151,8 @@ def uniform_box_sampler(data, shape):
         (rows, cols) Size of grid to sample
         from data
 
-    Returns:
-    --------
+    Returns
+    -------
     slices : list
         List of slices corresponding to row and col extent of arr sample
     '''
@@ -210,16 +210,18 @@ def weighted_time_sampler(data, shape, weights):
 
 def uniform_time_sampler(data, shape):
     '''Extracts a temporal slice from data.
-    Parameters:
-    -----------
+
+    Parameters
+    ----------
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
     shape : int
         (time_steps) Size of time slice to sample
         from data
-    Returns:
-    --------
+
+    Returns
+    -------
     slice : slice
         time slice with size shape
     '''
@@ -232,8 +234,8 @@ def uniform_time_sampler(data, shape):
 def daily_time_sampler(data, shape, time_index):
     """Finds a random temporal slice from data starting at midnight
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     data : np.ndarray
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
@@ -243,9 +245,9 @@ def daily_time_sampler(data, shape, time_index):
     time_index : pd.Datetimeindex
         Time index that matches the data axis=2
 
-    Returns:
-    --------
-    tslice : slice
+    Returns
+    -------
+    slice : slice
         time slice with size shape of data starting at the beginning of the day
     """
 
@@ -703,8 +705,9 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
 
 
 def calc_height(data, raster_index, time_slice=slice(None)):
-    """
-    Calculate height from the ground Parameters
+    """Calculate height from the ground Parameters
+
+    Parameters
     ----------
     data : xarray
         netcdf data object
@@ -714,7 +717,7 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         slice of time to extract
 
     Returns
-    ---------
+    -------
     height_arr : ndarray
         (temporal, vertical_level, spatial_1, spatial_2)
         4D array of heights above ground. In meters.
@@ -736,9 +739,8 @@ def calc_height(data, raster_index, time_slice=slice(None)):
 
 
 def interp3D(var_array, h_array, heights):
-    """
-    Interpolate var_array to given level(s) based on h_array. Interpolation is
-    linear and done for every 'z' column of [var, h] data.
+    """Interpolate var_array to given level(s) based on h_array. Interpolation
+    is linear and done for every 'z' column of [var, h] data.
 
     Parameters
     ----------
@@ -807,7 +809,7 @@ def interp3D(var_array, h_array, heights):
 
 
 def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
-    """ Interpolate var_array to given level(s) based on h_array. Interpolation
+    """Interpolate var_array to given level(s) based on h_array. Interpolation
     is linear and done for every 'z' column of [var, h] data.
 
     Parameters
@@ -822,6 +824,7 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
         level or levels to interpolate to (e.g. final desired hub heights)
     time_slice : slice
         slice of time to extract
+
     Returns
     -------
     out_array : ndarray
@@ -1148,9 +1151,12 @@ def rotor_equiv_ws(data, heights):
 
 def get_source_type(file_paths):
     """Get data source type
+
+    Parameters
     ----------
     file_paths : list
         path to data file
+
     Returns
     -------
     source_type : str
@@ -1171,6 +1177,8 @@ def get_source_type(file_paths):
 
 def get_time_index(file_paths):
     """Get data file handle based on file type
+
+    Parameters
     ----------
     file_paths : list
         path to data file

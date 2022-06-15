@@ -11,7 +11,7 @@ sup3r documentation
 *******************
 
 What is sup3r?
-=============
+==============
 sup3r stands for **Super Resolution for Renewable Resource Data**.
 
 The Super Resolution for Renewable Resource Data software uses

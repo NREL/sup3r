@@ -1,3 +1,3 @@
-.. click:: sup3r.cli:data_extract
+.. click:: sup3r.preprocessing.data_extract_cli:main
    :prog: data_extract
    :show-nested:

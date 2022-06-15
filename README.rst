@@ -6,6 +6,12 @@ The Super Resolution for Renewable Resource Data (sup3r) software uses
 generative adversarial networks to create synthetic high-resolution wind and
 solar spatiotemporal data from coarse low-resolution inputs.
 
+sup3r command line tools
+======================
+
+- `forward_pass <https://nrel.github.io/sup3r/_cli/forward_pass.html#forward_pass>`_
+- `data_extract <https://nrel.github.io/sup3r/_cli/data_extract.html#data_extract>`_
+
 Installing sup3r
 ================
 
