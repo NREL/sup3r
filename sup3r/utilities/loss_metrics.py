@@ -32,6 +32,7 @@ def gaussian_kernel(x1, x2, sigma=1.0):
 
 
 class ExpLoss(tf.keras.losses.Loss):
+    """Loss class for squared exponential difference"""
     def __call__(self, x1, x2):
         """
         Exponential difference loss function
@@ -55,7 +56,7 @@ class ExpLoss(tf.keras.losses.Loss):
 
 
 class MmdMseLoss(tf.keras.losses.Loss):
-
+    """Loss class for MMD + MSE"""
     MSE_LOSS = MeanSquaredError()
 
     def __call__(self, x1, x2, sigma=1.0):
