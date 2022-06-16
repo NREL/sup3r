@@ -1076,6 +1076,73 @@ def ignore_case_path_fetch(fp):
     return None
 
 
+def rotor_area(h_bottom, h_top, radius=40):
+    """Area of circular section between two heights
+
+    Parameters
+    ----------
+    h_bottom : float
+        Lower height
+    h_top : float
+        Upper height
+    radius : float
+        Radius of rotor. Default is 40 meters
+
+    Returns
+    -------
+    area : float
+    """
+
+    x_bottom = np.sqrt(radius**2 - h_bottom**2)
+    x_top = np.sqrt(radius**2 - h_top**2)
+    area = h_top * x_top - h_bottom * x_bottom
+    area += radius**2 * np.arctan2(h_top, x_top)
+    area -= radius**2 * np.arctan2(h_bottom, x_bottom)
+    return area
+
+
+def rotor_equiv_ws(data, heights):
+    """Calculate rotor equivalent wind speed. Follows implementation in 'How
+    wind speed shear and directional veer affect the power production of a
+    megawatt-scale operational wind turbine. DOI:10.5194/wes-2019-86'
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary of arrays for windspeeds/winddirections at different hub
+        heights.
+        Each dictionary entry has (spatial_1, spatial_2, temporal)
+    heights : list
+        List of heights corresponding to the windspeeds/winddirections.
+        rotor is assumed to be at mean(heights).
+
+    Returns
+    -------
+    rews : ndarray
+        Array of rotor equivalent windspeeds.
+        (spatial_1, spatial_2, temporal)
+    """
+
+    rotor_center = np.mean(heights)
+    rel_heights = [h - rotor_center for h in heights]
+    areas = [rotor_area(rel_heights[i], rel_heights[i + 1])
+             for i in range(len(rel_heights) - 1)]
+    total_area = np.sum(areas)
+    areas /= total_area
+    rews = np.zeros(data[list(data.keys())[0]].shape)
+    for i in range(len(heights) - 1):
+        ws_0 = data[f'windspeed_{heights[i]}m']
+        ws_1 = data[f'windspeed_{heights[i + 1]}m']
+        wd_0 = data[f'winddirection_{heights[i]}m']
+        wd_1 = data[f'winddirection_{heights[i + 1]}m']
+        ws_cos_0 = np.cos(np.radians(wd_0)) * ws_0
+        ws_cos_1 = np.cos(np.radians(wd_1)) * ws_1
+        rews += areas[i] * (ws_cos_0 + ws_cos_1)**3
+
+    rews = 0.5 * np.cbrt(rews)
+    return rews
+
+
 def get_source_type(file_paths):
     """Get data source type
     ----------

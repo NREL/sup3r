@@ -84,10 +84,9 @@ class MmdLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        x1x1 = gaussian_kernel(x1, x1, sigma)
-        x2x2 = gaussian_kernel(x2, x2, sigma)
-        x1x2 = gaussian_kernel(x1, x2, sigma)
-        mmd = tf.reduce_mean(x1x1 + x2x2 - 2 * x1x2)
+        mmd = tf.reduce_mean(gaussian_kernel(x1, x1, sigma))
+        mmd += tf.reduce_mean(gaussian_kernel(x2, x2, sigma))
+        mmd -= tf.reduce_mean(2 * gaussian_kernel(x1, x2, sigma))
         return mmd
 
 

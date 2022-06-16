@@ -39,13 +39,18 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredH5,
                                                   BVFreqSquaredNC,
                                                   LatLonNC,
+                                                  RewsH5,
+                                                  RewsNC,
                                                   UWindH5,
                                                   VWindH5,
                                                   UWindNsrdb,
                                                   VWindNsrdb,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
-                                                  CloudMaskH5)
+                                                  CloudMaskH5,
+                                                  WindspeedNC,
+                                                  WinddirectionNC
+                                                  )
 
 np.random.seed(42)
 
@@ -935,6 +940,9 @@ class DataHandlerNC(DataHandler):
         registry = {
             'BVF_squared_(.*)': BVFreqSquaredNC,
             'BVF_MO_(.*)': BVFreqMonNC,
+            'REWS_(.*)': RewsNC,
+            'Windspeed_(.*)': WindspeedNC,
+            'Winddirection_(.*)': WinddirectionNC,
             'lat_lon': LatLonNC}
         return registry
 
@@ -1084,7 +1092,8 @@ class DataHandlerNC(DataHandler):
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
-            raster_index = np.load(self.raster_file)
+            raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
+                                   allow_pickle=True)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
@@ -1124,7 +1133,7 @@ class DataHandlerNC(DataHandler):
 
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
-                np.save(self.raster_file, raster_index)
+                np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index
 
     @property
@@ -1174,7 +1183,8 @@ class DataHandlerH5(DataHandler):
             'BVF_MO_(.*)': BVFreqMonH5,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
-            'lat_lon': LatLonH5}
+            'lat_lon': LatLonH5,
+            'REWS_(.*)': RewsH5}
         return registry
 
     @classmethod
