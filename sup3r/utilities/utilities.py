@@ -111,9 +111,9 @@ def get_raster_shape(raster_index):
 
 
 def get_wrf_date_range(files):
-    r"""Get wrf date range for cleaner log output. This assumes file names have
-    the date pattern (YYYY-|_MM-|_DD-|_HH:|_MM:|_SS) at the end of the
-    file name.
+    """Get wrf date range for cleaner log output. This assumes file names have
+    the date pattern (YYYY-MM-DD-HH:MM:SS) or (YYYY_MM_DD_HH_MM_SS) at the end
+    of the file name.
 
     Parameters
     ----------
@@ -279,8 +279,8 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
     """Finds a random sample during daylight hours of a day. Nightime is
     assumed to be marked as NaN in feature axis == csr_ind in the data input.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     data : np.ndarray
         Data array with dimensions, where [..., csr_ind] is assumed to be
         clearsky ratio with NaN at night.
@@ -294,8 +294,8 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
         Index of the feature axis where clearsky ratio is located and NaN's can
         be found at night.
 
-    Returns:
-    --------
+    Returns
+    -------
     tslice : slice
         time slice with size shape of data starting at the beginning of the day
     """
@@ -326,8 +326,8 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
 def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
     """Takes a 5D array and reduces the axis=3 temporal dim to daylight hours.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     data : np.ndarray
         Data array 5D, where [..., csr_ind] is assumed to be
         clearsky ratio with NaN at night.
@@ -339,8 +339,8 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         Index of the feature axis where clearsky ratio is located and NaN's can
         be found at night.
 
-    Returns:
-    --------
+    Returns
+    -------
     data : np.ndarray
         Same as input but with axis=3 reduced to dailylight hours with
         requested shape.
@@ -1028,7 +1028,6 @@ def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
     -------
     ndarray
         Gradient Richardson Number
-
     """
 
     ws_grad = (U_top - U_bottom) ** 2
@@ -1043,10 +1042,12 @@ def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
 
 def nn_fill_array(array):
     """Fill any NaN values in an np.ndarray from the nearest non-nan values.
+
     Parameters
     ----------
     array : np.ndarray
         Input array with NaN values
+
     Returns
     -------
     array : np.ndarray
