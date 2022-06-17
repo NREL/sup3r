@@ -621,42 +621,6 @@ def test_val_data_storage():
     assert val_observations == int(val_split * n_observations)
 
 
-@pytest.mark.parametrize(
-    's_enhance', (10, 5, 4, 2)
-)
-def test_spatial_coarsening(s_enhance, plot=False):
-    """Test spatial coarsening"""
-
-    handler = DataHandler(input_file, features, target=target,
-                          shape=shape, max_delta=20,
-                          extract_workers=1,
-                          compute_workers=1)
-
-    handler_data = handler.extract_data(
-        input_file, handler.raster_index,
-        features, temporal_slice,
-        extract_workers=1,
-        compute_workers=1)
-    handler_data = handler_data.transpose((2, 0, 1, 3))
-    coarse_data = utilities.spatial_coarsening(handler_data, s_enhance)
-    direct_avg = np.zeros(coarse_data.shape)
-
-    for i in range(direct_avg.shape[1]):
-        for j in range(direct_avg.shape[1]):
-            direct_avg[:, i, j, :] = \
-                np.mean(handler_data[:, s_enhance * i:s_enhance * (i + 1),
-                                     s_enhance * j:s_enhance * (j + 1),
-                                     :], axis=(1, 2))
-
-    np.testing.assert_equal(coarse_data, direct_avg)
-
-    if plot:
-        _, ax = plt.subplots(1, 2)
-        ax[0].imshow(handler_data[0, :, :, 0])
-        ax[1].imshow(coarse_data[0, :, :, 0])
-        plt.show()
-
-
 def test_no_val_data():
     """Test that the data handler can work with zero validation data."""
     data_handlers = []

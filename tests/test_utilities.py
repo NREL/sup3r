@@ -7,7 +7,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
                                        uniform_box_sampler,
-                                       )
+                                       spatial_coarsening)
 
 
 def test_get_chunk_slices():
@@ -80,3 +80,19 @@ def test_uniform_box_sampler():
     assert s1.start == s2.start == 0
     assert s1.stop == data.shape[0]
     assert s2.stop == data.shape[1]
+
+
+if __name__ == '__main__':
+    arr = np.arange(28800).reshape((2, 20, 20, 12, 3))
+    coarse = spatial_coarsening(arr, s_enhance=2, obs_axis=True)
+    print(arr[0, :, :, 0, 0])
+    print(coarse[0, :, :, 0, 0])
+
+
+
+
+
+
+
+
+

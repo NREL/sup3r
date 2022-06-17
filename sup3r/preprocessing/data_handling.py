@@ -31,7 +31,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_wrf_date_range,
                                        daily_temporal_coarsening,
-                                       )
+                                       spatial_coarsening)
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
                                                   BVFreqMonH5,
@@ -82,10 +82,14 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=50, temporal_slice=slice(None),
-                 time_roll=0, val_split=0.1,
+                 max_delta=50,
+                 temporal_slice=slice(None),
+                 hr_spatial_coarsen=None,
+                 time_roll=0,
+                 val_split=0.1,
                  sample_shape=(10, 10, 1),
-                 raster_file=None, shuffle_time=False,
+                 raster_file=None,
+                 shuffle_time=False,
                  extract_workers=None,
                  compute_workers=None,
                  time_chunk_size=100,
@@ -116,11 +120,17 @@ class DataHandler(FeatureHandler):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
+        hr_spatial_coarsen : int | None
+            Optional input to coarsen the high-resolution spatial field. This
+            can be used if (for example) you have 2km source data, but you want
+            the final high res prediction target to be 4km resolution, then
+            hr_spatial_coarsen would be 2 so that the GAN is trained on
+            aggregated 4km high-res data.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
-            time_pruning operation.
+            temporal_slice operation.
         val_split : float32
             Fraction of data to store for validation
         sample_shape : tuple
@@ -166,9 +176,8 @@ class DataHandler(FeatureHandler):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
 
-        logger.info(
-            'Initializing DataHandler '
-            f'{self.file_info_logging(self.file_paths)}')
+        logger.info('Initializing DataHandler '
+                    f'{self.file_info_logging(self.file_paths)}')
 
         if train_only_features is None:
             self.train_only_features = self.TRAIN_ONLY_FEATURES
@@ -182,6 +191,7 @@ class DataHandler(FeatureHandler):
         self.val_split = val_split
         self.sample_shape = sample_shape
         self.temporal_slice = temporal_slice
+        self.hr_spatial_coarsen = hr_spatial_coarsen
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_paths)
         self.time_index = self.raw_time_index[temporal_slice]
@@ -214,51 +224,63 @@ class DataHandler(FeatureHandler):
         msg = (f'The requested time slice {temporal_slice} conflicts with the '
                f'number of time steps ({len(self.raw_time_index)}) '
                'in the raw data')
-        if (temporal_slice.start is not None
-                and temporal_slice.stop is not None):
-            assert ((temporal_slice.stop - temporal_slice.start
-                     <= len(self.raw_time_index))
-                    and temporal_slice.stop <= len(self.raw_time_index)
-                    and temporal_slice.start <= len(self.raw_time_index)), msg
+        t_slice_is_subset = (temporal_slice.start is not None
+                             and temporal_slice.stop is not None)
+        good_subset = ((temporal_slice.stop - temporal_slice.start
+                        <= len(self.raw_time_index))
+                       and temporal_slice.stop <= len(self.raw_time_index)
+                       and temporal_slice.start <= len(self.raw_time_index))
+        if t_slice_is_subset and not good_subset:
+            logger.error(msg)
+            raise RuntimeError(msg)
 
-        if cache_file_prefix is not None and not self.overwrite_cache and all(
-                os.path.exists(fp) for fp in self.cache_files):
-            if self.load_cached:
-                logger.info(
-                    f'All {self.cache_files} exist. Loading from cache instead'
-                    f' of extracting from {self.file_paths}')
-                self.load_cached_data()
-            else:
-                logger.info(
-                    f'All {self.cache_files} exist. Call the '
-                    'load_cached_data() method or use load_cache=True to load '
-                    'this data.')
-                self.data = None
+        try_load = (cache_file_prefix is not None
+                    and not self.overwrite_cache
+                    and all(os.path.exists(fp) for fp in self.cache_files))
+
+        overwrite = (self.overwrite_cache
+                     and self.cache_files is not None
+                     and all(os.path.exists(fp) for fp in self.cache_files))
+
+        if try_load and self.load_cached:
+            logger.info(f'All {self.cache_files} exist. Loading from cache '
+                        f'instead of extracting from {self.file_paths}')
+            self.load_cached_data()
+
+        elif try_load and not self.load_cached:
+            self.data = None
+            logger.info(f'All {self.cache_files} exist. Call the '
+                        'load_cached_data() method or use load_cache=True '
+                        'to load this data from cache files.')
 
         else:
-            if self.overwrite_cache and self.cache_files is not None and all(
-                    os.path.exists(fp) for fp in self.cache_files):
-                logger.info(
-                    f'{self.cache_files} exists but overwrite_cache is set to '
-                    'True. Proceeding with extraction.')
+            if overwrite:
+                logger.info(f'{self.cache_files} exists but overwrite_cache '
+                            'is set to True. Proceeding with extraction.')
 
             self.raster_index = self.get_raster_index(self.file_paths,
                                                       self.target,
                                                       self.grid_shape)
+
             raster_shape = get_raster_shape(self.raster_index)
-            msg = (f'spatial_sample_shape {sample_shape[:2]} is larger than '
-                   f'the raster size {raster_shape}')
-            if (sample_shape[0] > raster_shape[0]
-                    and sample_shape[1] > raster_shape[1]):
+            bad_shape = (sample_shape[0] > raster_shape[0]
+                         and sample_shape[1] > raster_shape[1])
+            if bad_shape:
+                msg = (f'spatial_sample_shape {sample_shape[:2]} is larger '
+                       f'than the raster size {raster_shape}')
                 logger.warning(msg)
                 warnings.warn(msg)
 
             self.data = self.extract_data(
-                self.file_paths, self.raster_index, self.features,
-                temporal_slice=self.temporal_slice, time_roll=self.time_roll,
+                self.file_paths, self.raster_index,
+                self.features,
+                temporal_slice=self.temporal_slice,
+                hr_spatial_coarsen=self.hr_spatial_coarsen,
+                time_roll=self.time_roll,
                 extract_workers=extract_workers,
                 compute_workers=compute_workers,
-                time_chunk_size=time_chunk_size, cache_files=self.cache_files,
+                time_chunk_size=time_chunk_size,
+                cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
             if cache_file_prefix is None:
@@ -730,6 +752,7 @@ class DataHandler(FeatureHandler):
     @classmethod
     def extract_data(cls, file_paths, raster_index, features,
                      temporal_slice=slice(None, None, 1),
+                     hr_spatial_coarsen=None,
                      time_roll=0,
                      extract_workers=None,
                      compute_workers=None,
@@ -752,11 +775,17 @@ class DataHandler(FeatureHandler):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
+        hr_spatial_coarsen : int | None
+            Optional input to coarsen the high-resolution spatial field. This
+            can be used if (for example) you have 2km source data, but you want
+            the final high res prediction target to be 4km resolution, then
+            hr_spatial_coarsen would be 2 so that the GAN is trained on
+            aggregated 4km high-res data.
         time_roll : int
             The number of places by which elements are shifted in the time
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
-            time_pruning operation.
+            temporal_slice operation.
         compute_workers : int | None
             max number of workers to use for computing features.
             If compute_workers == 1 then extraction will be serialized.
@@ -772,6 +801,7 @@ class DataHandler(FeatureHandler):
             Whether to overwrite cached files
         load_cached : bool
             Whether to load data from cache files
+
         Returns
         -------
         data : np.ndarray
@@ -784,20 +814,20 @@ class DataHandler(FeatureHandler):
             file_paths = [file_paths]
 
         shape = get_raster_shape(raster_index)
-        logger.debug(
-            f'Loading data for raster of shape {shape}')
+        logger.debug(f'Loading data for raster of shape {shape}')
 
         # get the file-native time index without pruning
         time_index = get_time_index(file_paths)
         n_steps = len(time_index[temporal_slice])
 
-        data_array = np.zeros(
-            (shape[0], shape[1], n_steps, len(features)), dtype=np.float32)
+        data_array = np.zeros((shape[0], shape[1], n_steps, len(features)),
+                              dtype=np.float32)
 
         # split time dimension into smaller slices which can be
         # extracted in parallel
-        time_chunks = get_chunk_slices(
-            len(time_index), time_chunk_size, temporal_slice)
+        time_chunks = get_chunk_slices(len(time_index),
+                                       time_chunk_size,
+                                       temporal_slice)
         shifted_time_chunks = get_chunk_slices(n_steps, time_chunk_size)
 
         extract_features = cls.check_cached_features(
@@ -806,9 +836,8 @@ class DataHandler(FeatureHandler):
 
         raw_features = cls.get_raw_feature_list(file_paths, extract_features)
 
-        logger.info(
-            f'Starting {extract_features} extraction for '
-            f'{cls.file_info_logging(file_paths)}')
+        logger.info(f'Starting {extract_features} extraction for '
+                    f'{cls.file_info_logging(file_paths)}')
 
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)
@@ -830,6 +859,11 @@ class DataHandler(FeatureHandler):
             raw_data.pop(t)
 
         data_array = np.roll(data_array, time_roll, axis=2)
+
+        if hr_spatial_coarsen is not None:
+            data_array = spatial_coarsening(data_array,
+                                            s_enhance=hr_spatial_coarsen,
+                                            obs_axis=False)
 
         if load_cached:
             for f in [f for f in features if f not in extract_features]:

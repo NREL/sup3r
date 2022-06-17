@@ -531,50 +531,66 @@ def daily_temporal_coarsening(data, temporal_axis=3):
     return coarse_data
 
 
-def spatial_coarsening(data, s_enhance=2):
+def spatial_coarsening(data, s_enhance=2, obs_axis=True):
     """"Coarsen data according to s_enhance resolution
 
     Parameters
     ----------
     data : np.ndarray
-        4D | 5D array with dimensions
+        4D | 5D array with dimensions:
         (n_observations, spatial_1, spatial_2, temporal (optional), features)
     s_enhance : int
         factor by which to coarsen spatial dimensions
+    obs_axis : bool
+        Flag for if axis=0 is the observation axis. If False, this allows for
+        the following 3D or 4D arrays:
+        (spatial_1, spatial_2, temporal (optional), features)
 
     Returns
     -------
-    coarse_data : np.ndarray
+    data : np.ndarray
         4D | 5D array with same dimensions as data with new coarse resolution
     """
 
-    if s_enhance is not None:
-        if (data.shape[1] % s_enhance != 0
-                or data.shape[2] % s_enhance != 0):
-            msg = 's_enhance must evenly divide grid size. '
-            msg += f'Received s_enhance: {s_enhance} '
-            msg += f'with grid size: ({data.shape[1]}, '
-            msg += f'{data.shape[2]})'
+    if s_enhance is not None and s_enhance > 1:
+        bad1 = (obs_axis and (data.shape[1] % s_enhance != 0
+                              or data.shape[2] % s_enhance != 0))
+        bad2 = (not obs_axis and (data.shape[0] % s_enhance != 0
+                                  or data.shape[1] % s_enhance != 0))
+        if bad1 or bad2:
+            msg = ('s_enhance must evenly divide grid size. '
+                   f'Received s_enhance: {s_enhance} with data shape: '
+                   f'{data.shape}')
             logger.error(msg)
             raise ValueError(msg)
 
-        if len(data.shape) == 5:
-            coarse_data = data.reshape(data.shape[0],
-                                       -1,
-                                       s_enhance,
-                                       data.shape[1] // s_enhance,
-                                       s_enhance,
-                                       data.shape[3],
-                                       data.shape[4]).sum((2, 4)) \
-                / (s_enhance * s_enhance)
+        if obs_axis and len(data.shape) == 5:
+            data = data.reshape(data.shape[0],
+                                data.shape[1] // s_enhance, s_enhance,
+                                data.shape[2] // s_enhance, s_enhance,
+                                data.shape[3],
+                                data.shape[4])
+            data = data.sum(axis=(2, 4)) / s_enhance**2
 
-        elif len(data.shape) == 4:
-            coarse_data = data.reshape(data.shape[0], -1,
-                                       s_enhance,
-                                       data.shape[1] // s_enhance,
-                                       s_enhance,
-                                       data.shape[3]).sum((2, 4)) \
-                / (s_enhance * s_enhance)
+        elif obs_axis and len(data.shape) == 4:
+            data = data.reshape(data.shape[0],
+                                data.shape[1] // s_enhance, s_enhance,
+                                data.shape[2] // s_enhance, s_enhance,
+                                data.shape[3])
+            data = data.sum(axis=(2, 4)) / s_enhance**2
+
+        elif not obs_axis and len(data.shape) == 5:
+            data = data.reshape(data.shape[0] // s_enhance, s_enhance,
+                                data.shape[1] // s_enhance, s_enhance,
+                                data.shape[2],
+                                data.shape[3])
+            data = data.sum(axis=(1, 3)) / s_enhance**2
+
+        elif not obs_axis and len(data.shape) == 4:
+            data = data.reshape(data.shape[0] // s_enhance, s_enhance,
+                                data.shape[1] // s_enhance, s_enhance,
+                                data.shape[2])
+            data = data.sum(axis=(1, 3)) / s_enhance**2
 
         else:
             msg = ('Data must be 4D or 5D to do spatial coarsening, but '
@@ -582,10 +598,7 @@ def spatial_coarsening(data, s_enhance=2):
             logger.error(msg)
             raise ValueError(msg)
 
-    else:
-        coarse_data = data
-
-    return coarse_data
+    return data
 
 
 def lat_lon_coarsening(lat_lon, s_enhance=2):
