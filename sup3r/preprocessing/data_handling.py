@@ -191,7 +191,7 @@ class DataHandler(FeatureHandler):
         self.val_split = val_split
         self.sample_shape = sample_shape
         self.temporal_slice = temporal_slice
-        self.hr_spatial_coarsen = hr_spatial_coarsen
+        self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_paths)
         self.time_index = self.raw_time_index[temporal_slice]
@@ -863,7 +863,8 @@ class DataHandler(FeatureHandler):
 
         data_array = np.roll(data_array, time_roll, axis=2)
 
-        if hr_spatial_coarsen is not None:
+        hr_spatial_coarsen = hr_spatial_coarsen or 1
+        if hr_spatial_coarsen > 1:
             data_array = spatial_coarsening(data_array,
                                             s_enhance=hr_spatial_coarsen,
                                             obs_axis=False)
