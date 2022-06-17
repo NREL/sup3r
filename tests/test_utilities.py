@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""pytests for general utilities"""
 
 import numpy as np
+import pytest
 
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
                                        uniform_box_sampler,
-                                       )
+                                       spatial_coarsening)
 
 
 def test_get_chunk_slices():
@@ -80,3 +81,107 @@ def test_uniform_box_sampler():
     assert s1.start == s2.start == 0
     assert s1.stop == data.shape[0]
     assert s2.stop == data.shape[1]
+
+
+def test_s_enhance_errors():
+    """Negative tests of spatial coarsening method"""
+
+    arr = np.arange(28800).reshape((2, 20, 20, 12, 3))
+    with pytest.raises(ValueError):
+        spatial_coarsening(arr, s_enhance=3)
+    with pytest.raises(ValueError):
+        spatial_coarsening(arr, s_enhance=7)
+    with pytest.raises(ValueError):
+        spatial_coarsening(arr, s_enhance=40)
+
+    arr = np.ones(10)
+    with pytest.raises(ValueError):
+        spatial_coarsening(arr, s_enhance=5)
+
+    arr = np.ones((4, 4))
+    with pytest.raises(ValueError):
+        spatial_coarsening(arr, s_enhance=2)
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
+def test_s_enhance_5D(s_enhance):
+    """Test the spatial enhancement of a 5D array"""
+    arr = np.arange(28800).reshape((2, 20, 20, 12, 3))
+    coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=True)
+
+    for o in range(arr.shape[0]):
+        for t in range(arr.shape[3]):
+            for f in range(arr.shape[4]):
+                for i_lr in range(coarse.shape[1]):
+                    for j_lr in range(coarse.shape[2]):
+
+                        i_hr = i_lr * s_enhance
+                        i_hr = slice(i_hr, i_hr + s_enhance)
+
+                        j_hr = j_lr * s_enhance
+                        j_hr = slice(j_hr, j_hr + s_enhance)
+
+                        assert np.allclose(coarse[o, i_lr, j_lr, t, f],
+                                           arr[o, i_hr, j_hr, t, f].mean())
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
+def test_s_enhance_4D(s_enhance):
+    """Test the spatial enhancement of a 4D array"""
+    arr = np.arange(28800).reshape((24, 20, 20, 3))
+    coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=True)
+
+    for o in range(arr.shape[0]):
+        for f in range(arr.shape[3]):
+            for i_lr in range(coarse.shape[1]):
+                for j_lr in range(coarse.shape[2]):
+
+                    i_hr = i_lr * s_enhance
+                    i_hr = slice(i_hr, i_hr + s_enhance)
+
+                    j_hr = j_lr * s_enhance
+                    j_hr = slice(j_hr, j_hr + s_enhance)
+
+                    assert np.allclose(coarse[o, i_lr, j_lr, f],
+                                       arr[o, i_hr, j_hr, f].mean())
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
+def test_s_enhance_4D_no_obs(s_enhance):
+    """Test the spatial enhancement of a 4D array without the obs axis"""
+    arr = np.arange(28800).reshape((20, 20, 24, 3))
+    coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=False)
+
+    for t in range(arr.shape[2]):
+        for f in range(arr.shape[3]):
+            for i_lr in range(coarse.shape[0]):
+                for j_lr in range(coarse.shape[1]):
+
+                    i_hr = i_lr * s_enhance
+                    i_hr = slice(i_hr, i_hr + s_enhance)
+
+                    j_hr = j_lr * s_enhance
+                    j_hr = slice(j_hr, j_hr + s_enhance)
+
+                    assert np.allclose(coarse[i_lr, j_lr, t, f],
+                                       arr[i_hr, j_hr, t, f].mean())
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
+def test_s_enhance_3D_no_obs(s_enhance):
+    """Test the spatial enhancement of a 3D array without the obs axis"""
+    arr = np.arange(28800).reshape((20, 20, 72))
+    coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=False)
+
+    for f in range(arr.shape[2]):
+        for i_lr in range(coarse.shape[0]):
+            for j_lr in range(coarse.shape[1]):
+
+                i_hr = i_lr * s_enhance
+                i_hr = slice(i_hr, i_hr + s_enhance)
+
+                j_hr = j_lr * s_enhance
+                j_hr = slice(j_hr, j_hr + s_enhance)
+
+                assert np.allclose(coarse[i_lr, j_lr, f],
+                                   arr[i_hr, j_hr, f].mean())
