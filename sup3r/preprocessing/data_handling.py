@@ -226,8 +226,9 @@ class DataHandler(FeatureHandler):
                'in the raw data')
         t_slice_is_subset = (temporal_slice.start is not None
                              and temporal_slice.stop is not None)
-        good_subset = ((temporal_slice.stop - temporal_slice.start
-                        <= len(self.raw_time_index))
+        good_subset = (t_slice_is_subset
+                       and (temporal_slice.stop - temporal_slice.start
+                            <= len(self.raw_time_index))
                        and temporal_slice.stop <= len(self.raw_time_index)
                        and temporal_slice.start <= len(self.raw_time_index))
         if t_slice_is_subset and not good_subset:

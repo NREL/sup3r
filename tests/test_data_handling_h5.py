@@ -297,6 +297,16 @@ def test_data_extraction():
     assert handler.val_data.dtype == np.dtype(np.float32)
 
 
+def test_hr_coarsening():
+    """Test spatial coarsening of the high res field"""
+    handler = DataHandler(input_file, features, target=target,
+                          shape=shape, max_delta=20, hr_spatial_coarsen=2)
+    assert handler.data.shape == (shape[0] // 2, shape[1] // 2,
+                                  handler.data.shape[2], len(features))
+    assert handler.data.dtype == np.dtype(np.float32)
+    assert handler.val_data.dtype == np.dtype(np.float32)
+
+
 def test_validation_batching():
     """Test batching of validation data through
     ValidationData iterator"""

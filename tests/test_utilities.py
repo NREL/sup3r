@@ -185,8 +185,3 @@ def test_s_enhance_3D_no_obs(s_enhance):
 
                 assert np.allclose(coarse[i_lr, j_lr, f],
                                    arr[i_hr, j_hr, f].mean())
-
-
-
-
-
