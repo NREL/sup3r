@@ -1460,7 +1460,7 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def get_handle_features(file_paths):
+    def get_handle_features(cls, file_paths):
         """Get available features from data"""
 
     @classmethod
