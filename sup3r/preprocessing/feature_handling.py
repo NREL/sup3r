@@ -991,15 +991,15 @@ class FeatureHandler:
     TIME_IND_FEATURES = ('lat_lon',)
 
     @classmethod
-    def valid_input_features(cls, features, handle):
-        """Check if features are in handle or have compute methods
+    def valid_handle_features(cls, features, handle_features):
+        """Check if features are in handle
 
         Parameters
         ----------
         features : str | list
             Raw feature names e.g. U_100m
-        handle : WindX | xarray
-            handle for data file
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
@@ -1010,8 +1010,30 @@ class FeatureHandler:
         if features is None:
             return False
 
-        handle_basenames = [Feature.get_basename(r) for r in handle]
-        if all(Feature.get_basename(f) in handle_basenames
+        return all(Feature.get_basename(f) in handle_features
+                   for f in features)
+
+    @classmethod
+    def valid_input_features(cls, features, handle_features):
+        """Check if features are in handle or have compute methods
+
+        Parameters
+        ----------
+        features : str | list
+            Raw feature names e.g. U_100m
+        handle_features : list
+            Features available in raw data
+
+        Returns
+        -------
+        bool
+            Whether feature basename is in handle
+        """
+
+        if features is None:
+            return False
+
+        if all(Feature.get_basename(f) in handle_features
                or cls.lookup(f, 'compute') is not None for f in features):
             return True
         return False
@@ -1183,18 +1205,19 @@ class FeatureHandler:
         inputs = cls.lookup(feature, 'inputs')
         method = cls.lookup(feature, 'compute')
         height = Feature.get_height(feature)
-        if inputs is not None:
-            if all(r in data for r in inputs(feature)):
+        if feature not in data:
+            if inputs is not None:
+                if all(r in data for r in inputs(feature)):
+                    data[feature] = method(data, height)
+                else:
+                    for r in inputs(feature):
+                        data[r] = cls.recursive_compute(data, r)
                 data[feature] = method(data, height)
-            else:
-                for r in inputs(feature):
-                    data[r] = cls.recursive_compute(data, r)
-            logger.info(f'Computing {feature}')
-            data[feature] = method(data, height)
         return data[feature]
 
     @classmethod
-    def serial_compute(cls, data, time_chunks, input_features, all_features):
+    def serial_compute(cls, data, time_chunks, input_features, all_features,
+                       handle_features):
         """Compute features in series
 
         Parameters
@@ -1211,6 +1234,8 @@ class FeatureHandler:
         all_features : list
             list of all features including those requiring derivation from
             input features
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
@@ -1225,7 +1250,7 @@ class FeatureHandler:
 
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
-                tmp = cls.get_input_arrays(data, t, f)
+                tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(data=tmp, feature=f)
             cls.pop_old_data(data, t, all_features)
 
@@ -1233,7 +1258,8 @@ class FeatureHandler:
 
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
-                         input_features, all_features, max_workers=None):
+                         input_features, all_features, handle_features,
+                         max_workers=None):
         """Compute features using parallel subprocesses
 
         Parameters
@@ -1253,6 +1279,8 @@ class FeatureHandler:
         all_features : list
             list of all features including those requiring derivation from
             input features
+        handle_features : list
+            Features available in raw data
         max_workers : int | None
             Number of max workers to use for computation. If equal to 1 then
             method is run in serial
@@ -1275,13 +1303,13 @@ class FeatureHandler:
         futures = {}
         now = dt.now()
         if max_workers == 1:
-            return cls.serial_compute(
-                data, time_chunks, input_features, all_features)
+            return cls.serial_compute(data, time_chunks, input_features,
+                                      all_features, handle_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
-                        tmp = cls.get_input_arrays(data, t, f)
+                        tmp = cls.get_input_arrays(data, t, f, handle_features)
                         future = exe.submit(
                             cls.recursive_compute, data=tmp, feature=f)
 
@@ -1312,7 +1340,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def get_input_arrays(cls, data, chunk_number, f):
+    def get_input_arrays(cls, data, chunk_number, f, handle_features):
         """Get only arrays needed for computations
 
         Parameters
@@ -1323,13 +1351,15 @@ class FeatureHandler:
             time chunk for which to get input arrays
         f : str
             feature to compute using input arrays
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
         dict
             Dictionary of arrays with only needed features
         """
-        inputs = cls.get_inputs_recursive(f)
+        inputs = cls.get_inputs_recursive(f, handle_features)
         tmp = {}
         for r in inputs:
             if r in data[chunk_number]:
@@ -1364,7 +1394,7 @@ class FeatureHandler:
         return None
 
     @classmethod
-    def get_inputs_recursive(cls, feature):
+    def get_inputs_recursive(cls, feature, handle_features):
         """Lookup inputs needed to compute feature. Walk through inputs methods
         for each required feature to get all raw features.
 
@@ -1372,6 +1402,8 @@ class FeatureHandler:
         ----------
         feature : str
             Feature for which to get needed inputs for derivation
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
@@ -1380,26 +1412,33 @@ class FeatureHandler:
         """
         raw_features = []
         method = cls.lookup(feature, 'inputs')
-        for f in method(feature):
-            if cls.lookup(f, 'inputs') is None:
-                if f not in raw_features:
-                    raw_features.append(f)
-            else:
-                for r in cls.get_inputs_recursive(f):
-                    if r not in raw_features:
-                        raw_features.append(r)
+        if (method is None or cls.valid_handle_features([feature],
+                                                        handle_features)):
+
+            if feature not in raw_features:
+                raw_features.append(feature)
+        else:
+            for f in method(feature):
+                if (cls.lookup(f, 'inputs') is None
+                        or cls.valid_handle_features([f], handle_features)):
+                    if f not in raw_features:
+                        raw_features.append(f)
+                else:
+                    for r in cls.get_inputs_recursive(f, handle_features):
+                        if r not in raw_features:
+                            raw_features.append(r)
         return raw_features
 
     @classmethod
-    def get_raw_feature_list_from_handle(cls, features, handle):
+    def get_raw_feature_list_from_handle(cls, features, handle_features):
         """Lookup inputs needed to compute feature
 
         Parameters
         ----------
         features : list
             Features for which to get needed inputs for derivation
-        handle : WindX | xarray
-            File handle to use for checking whether features can be extracted
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
@@ -1408,21 +1447,15 @@ class FeatureHandler:
         """
         raw_features = []
         for f in features:
-            method = cls.lookup(f, 'inputs')
-            if method is not None:
-                candidate_features = cls.get_inputs_recursive(f)
-                if cls.valid_input_features(candidate_features, handle):
-                    for r in candidate_features:
-                        if r not in raw_features:
-                            raw_features.append(r)
-                else:
-                    msg = (f'Cannot compute {f} from the provided data. '
-                           f'Requested features: {cls.lookup(f, "inputs")(f)}')
-                    raise ValueError(msg)
+            candidate_features = cls.get_inputs_recursive(f, handle_features)
+            if candidate_features:
+                for r in candidate_features:
+                    if r not in raw_features:
+                        raw_features.append(r)
             else:
-                if f not in raw_features:
-                    raw_features.append(f)
-
+                msg = (f'Cannot compute {f} from the provided data. '
+                       f'Requested features: {cls.lookup(f, "inputs")(f)}')
+                raise ValueError(msg)
         return raw_features
 
     @classmethod

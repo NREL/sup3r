@@ -844,7 +844,8 @@ class DataHandler(FeatureHandler):
             file_paths, features, cache_files=cache_files,
             overwrite_cache=overwrite_cache, load_cached=load_cached)
 
-        raw_features = cls.get_raw_feature_list(file_paths, extract_features)
+        raw_features, handle_features = cls.get_raw_feature_list(
+            file_paths, extract_features)
 
         logger.info(f'Starting {extract_features} extraction for '
                     f'{cls.file_info_logging(file_paths)}')
@@ -857,7 +858,7 @@ class DataHandler(FeatureHandler):
 
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
-                                        compute_workers)
+                                        handle_features, compute_workers)
 
         logger.info(f'Finished computing {extract_features} for '
                     f'{cls.file_info_logging(file_paths)}')
@@ -963,13 +964,16 @@ class DataHandlerNC(DataHandler):
         -------
         list
             List of input features
+        list
+            List of available features in data
         """
 
         with xr.open_mfdataset(file_paths, combine='nested',
                                concat_dim='Time') as handle:
+            handle_features = [Feature.get_basename(r) for r in handle]
             input_features = cls.get_raw_feature_list_from_handle(
-                features, handle)
-        return input_features
+                features, handle_features)
+        return input_features, handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
@@ -1199,12 +1203,15 @@ class DataHandlerH5(DataHandler):
         -------
         list
             List of input features
+        list
+            List of available features in data
         """
 
         with cls.REX_HANDLER(file_paths) as handle:
+            handle_features = [Feature.get_basename(r) for r in handle]
             input_features = cls.get_raw_feature_list_from_handle(
-                features, handle)
-        return input_features
+                features, handle_features)
+        return input_features, handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
