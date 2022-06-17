@@ -34,11 +34,11 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        spatial_coarsening)
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
-                                                  BVFreqMonH5,
-                                                  BVFreqMonNC,
+                                                  BVFreqMon,
                                                   BVFreqSquaredH5,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
+                                                  InverseMonH5,
                                                   LatLonNC,
                                                   UWindH5,
                                                   VWindH5,
@@ -49,7 +49,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   CloudMaskH5,
                                                   WindspeedNC,
                                                   WinddirectionNC,
-                                                  ShearNC,
+                                                  Shear,
                                                   Rews
                                                   )
 
@@ -942,12 +942,12 @@ class DataHandlerNC(DataHandler):
         """
         registry = {
             'BVF2_(.*)': BVFreqSquaredNC,
-            'BVF_MO_(.*)': BVFreqMonNC,
+            'BVF_MO_(.*)': BVFreqMon,
             'RMOL': InverseMonNC,
             'Windspeed_(.*)': WindspeedNC,
             'Winddirection_(.*)': WinddirectionNC,
             'lat_lon': LatLonNC,
-            'Shear_(.*)': ShearNC,
+            'Shear_(.*)': Shear,
             'REWS_(.*)': Rews}
         return registry
 
@@ -1181,11 +1181,12 @@ class DataHandlerH5(DataHandler):
         """
         registry = {
             'BVF2_(.*)': BVFreqSquaredH5,
-            'BVF_MO_(.*)': BVFreqMonH5,
+            'BVF_MO_(.*)': BVFreqMon,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
             'lat_lon': LatLonH5,
-            'REWS_(.*)': Rews}
+            'REWS_(.*)': Rews,
+            'RMOL': InverseMonH5}
         return registry
 
     @classmethod

@@ -185,12 +185,52 @@ class BVFreqSquaredNC(DerivedFeature):
         # T is perturbation potential temperature for wrf and the
         # base potential temperature is 300K
         bvf2 = np.float32(9.81 / 100)
-        bvf2 *= (data[f'T_{height}m']
-                 - data[f'T_{int(height) - 100}m'])
-        bvf2 /= (data[f'T_{height}m'] - 600
-                 + data[f'T_{int(height) - 100}m'])
+        bvf2 *= (data[f'T_{height}m'] - data[f'T_{int(height) - 100}m'])
+        bvf2 /= (data[f'T_{height}m'] - 600 + data[f'T_{int(height) - 100}m'])
         bvf2 /= np.float32(2)
         return bvf2
+
+
+class InverseMonH5(DerivedFeature):
+    """Inverse MO feature class with needed inputs method and compute method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for inverse MO from H5 data
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. RMOL
+
+        Returns
+        -------
+        list
+            List of required features for computing RMOL
+        """
+
+        assert feature == 'RMOL'
+        features = ['inversemoninobukhovlength_2m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height=None):
+        """Method to compute Inverse MO from H5 data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Placeholder to match interface with other compute methods
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        return data['inversemoninobukhovlength_2m']
 
 
 class InverseMonNC(DerivedFeature):
@@ -198,7 +238,7 @@ class InverseMonNC(DerivedFeature):
 
     @classmethod
     def inputs(cls, feature):
-        """Required inputs inverse MO from NETCDF data
+        """Required inputs for inverse MO from NETCDF data
 
         Parameters
         ----------
@@ -237,12 +277,12 @@ class InverseMonNC(DerivedFeature):
             data['W_2m'], data['T_2m'])
 
 
-class BVFreqMonNC(DerivedFeature):
+class BVFreqMon(DerivedFeature):
     """BVF MO feature class with needed inputs method and compute method"""
 
     @classmethod
     def inputs(cls, feature):
-        """Required inputs for computing BVF times inverse MO from NETCDF data
+        """Required inputs for computing BVF times inverse MO from data
 
         Parameters
         ----------
@@ -255,13 +295,12 @@ class BVFreqMonNC(DerivedFeature):
             List of required features for computing BVF_MO
         """
         height = Feature.get_height(feature)
-        features = [f'BVF2_{height}m',
-                    'RMOL']
+        features = [f'BVF2_{height}m', 'RMOL']
         return features
 
     @classmethod
     def compute(cls, data, height):
-        """Method to compute BVF MO from NC data
+        """Method to compute BVF MO from data
 
         Parameters
         ----------
@@ -426,7 +465,67 @@ class WinddirectionNC(DerivedFeature):
         return wd
 
 
-class ShearNC(DerivedFeature):
+class Veer(DerivedFeature):
+    """Veer at a given height"""
+
+    HEIGHTS = [40, 60, 80, 100, 120]
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing Veer
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. BVF_MO_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing REWS
+        """
+
+        rotor_center = Feature.get_height(feature)
+        if rotor_center is None:
+            heights = cls.HEIGHTS
+        else:
+            heights = [int(rotor_center) - i * 20 for i in [-2, -1, 0, 1, 2]]
+        features = []
+        for height in heights:
+            features.append(f'winddirection_{height}m')
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Compute Veer
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+
+        if height is None:
+            heights = cls.HEIGHTS
+        else:
+            heights = [int(height) - i * 20 for i in [-2, -1, 0, 1, 2]]
+        veer = 0
+        for i in range(0, len(heights), 2):
+            tmp = np.radians(data[f'winddirection_{height[i + 1]}'])
+            tmp -= np.radians(data[f'winddirection_{height[i]}'])
+            veer += np.abs(tmp)
+        veer /= (heights[-1] - heights[0])
+        return veer
+
+
+class Shear(DerivedFeature):
     """Wind shear at a given height"""
 
     @classmethod
@@ -468,9 +567,10 @@ class ShearNC(DerivedFeature):
             Derived feature array
         """
 
+        heights = [int(height), int(height) + 20]
         shear = np.cos(np.radians(data[f'winddirection_{int(height) + 20}m']))
         shear -= np.cos(np.radians(data[f'winddirection_{int(height)}m']))
-        shear /= 20
+        shear /= (heights[-1] - heights[0])
         return shear
 
 
@@ -528,56 +628,6 @@ class Rews(DerivedFeature):
             heights = [int(height) - i * 20 for i in [-2, -1, 0, 1, 2]]
         rews = rotor_equiv_ws(data, heights)
         return rews
-
-
-class BVFreqMonH5(DerivedFeature):
-    """BVF MO feature class with needed inputs method and compute method"""
-
-    @classmethod
-    def inputs(cls, feature):
-        """Required inputs for computing BVF times inverse MO
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            List of required features for computing BVF_MO
-        """
-        height = Feature.get_height(feature)
-        features = [f'BVF2_{height}m',
-                    'inversemoninobukhovlength_2m']
-        return features
-
-    @classmethod
-    def compute(cls, data, height):
-        """Method to compute BVF MO from H5 data
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of raw feature arrays to use for derivation
-        height : str | int
-            Height at which to compute the derived feature
-
-        Returns
-        -------
-        ndarray
-            Derived feature array
-        """
-        bvf_mo = data[f'BVF2_{height}m']
-        mask = data['inversemoninobukhovlength_2m'] != 0
-        bvf_mo[mask] = (bvf_mo[mask]
-                        / data['inversemoninobukhovlength_2m'][mask])
-
-        # making this zero when not both bvf and mo are negative
-        bvf_mo[data['inversemoninobukhovlength_2m'] >= 0] = 0
-        bvf_mo[bvf_mo < 0] = 0
-
-        return bvf_mo
 
 
 class UWindH5(DerivedFeature):
@@ -845,7 +895,8 @@ class Feature:
             'temperature': 'T',
             'pressure': 'P',
             'T': 'temperature',
-            'P': 'pressure'
+            'P': 'pressure',
+            'RMOL': 'inversemoninobukhovlength_2m'
         }
         self.raw_name = feature
         self.height = self.get_height(feature)
