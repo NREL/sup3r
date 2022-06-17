@@ -667,7 +667,9 @@ class DataHandler(FeatureHandler):
                     self.file_paths, self.target, self.grid_shape)
 
             shape = get_raster_shape(self.raster_index)
-            requested_shape = (shape[0], shape[1], len(self.time_index),
+            requested_shape = (shape[0] // self.hr_spatial_coarsen,
+                               shape[1] // self.hr_spatial_coarsen,
+                               len(self.time_index),
                                len(self.features))
 
             msg = ('Found {} cache files but need {} for features {}! '
