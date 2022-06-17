@@ -338,62 +338,6 @@ class BVFreqSquaredH5(DerivedFeature):
             100)
 
 
-class RewsH5(DerivedFeature):
-    """Rotor equivalent wind speed"""
-
-    HEIGHTS = [40, 60, 80, 100, 120]
-
-    @classmethod
-    def inputs(cls, feature):
-        """Required inputs for computing REWS
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            List of required features for computing REWS
-        """
-
-        rotor_center = Feature.get_height(feature)
-        if rotor_center is None:
-            heights = cls.HEIGHTS
-        else:
-            heights = [int(rotor_center) - i * 20 for i in [-2, -1, 0, 1, 2]]
-        features = []
-        for height in heights:
-            features.append(f'windspeed_{height}m')
-            features.append(f'winddirection_{height}m')
-        return features
-
-    @classmethod
-    def compute(cls, data, height):
-        """Compute REWS
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of raw feature arrays to use for derivation
-        height : str | int
-            Height at which to compute the derived feature
-
-        Returns
-        -------
-        ndarray
-            Derived feature array
-        """
-
-        if height is None:
-            heights = cls.HEIGHTS
-        else:
-            heights = [int(height) - i * 20 for i in [-2, -1, 0, 1, 2]]
-        rews = rotor_equiv_ws(data, heights)
-        return rews
-
-
 class WindspeedNC(DerivedFeature):
     """Windspeed feature from netcdf data"""
 
@@ -530,7 +474,7 @@ class ShearNC(DerivedFeature):
         return shear
 
 
-class RewsNC(DerivedFeature):
+class Rews(DerivedFeature):
     """Rotor equivalent wind speed"""
 
     HEIGHTS = [40, 60, 80, 100, 120]

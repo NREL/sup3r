@@ -40,8 +40,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
                                                   LatLonNC,
-                                                  RewsH5,
-                                                  RewsNC,
                                                   UWindH5,
                                                   VWindH5,
                                                   UWindNsrdb,
@@ -51,7 +49,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   CloudMaskH5,
                                                   WindspeedNC,
                                                   WinddirectionNC,
-                                                  ShearNC
+                                                  ShearNC,
+                                                  Rews
                                                   )
 
 np.random.seed(42)
@@ -459,7 +458,7 @@ class DataHandler(FeatureHandler):
                                     stds[i])
                 futures[future] = i
 
-            logger.info(f'Started normalizing all {self.shape[-1]} features '
+            logger.info(f'Started normalizing {self.shape[-1]} features '
                         f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
@@ -945,11 +944,11 @@ class DataHandlerNC(DataHandler):
             'BVF2_(.*)': BVFreqSquaredNC,
             'BVF_MO_(.*)': BVFreqMonNC,
             'RMOL': InverseMonNC,
-            'REWS_(.*)': RewsNC,
             'Windspeed_(.*)': WindspeedNC,
             'Winddirection_(.*)': WinddirectionNC,
             'lat_lon': LatLonNC,
-            'Shear_(.*)': ShearNC}
+            'Shear_(.*)': ShearNC,
+            'REWS_(.*)': Rews}
         return registry
 
     @classmethod
@@ -1186,7 +1185,7 @@ class DataHandlerH5(DataHandler):
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
             'lat_lon': LatLonH5,
-            'REWS_(.*)': RewsH5}
+            'REWS_(.*)': Rews}
         return registry
 
     @classmethod
