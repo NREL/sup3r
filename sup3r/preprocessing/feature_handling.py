@@ -255,30 +255,8 @@ class BVFreqMonNC(DerivedFeature):
             List of required features for computing BVF_MO
         """
         height = Feature.get_height(feature)
-        features = [f'T_{height}m',
-                    f'T_{int(height) - 100}m',
+        features = [f'BVF2_{height}m',
                     'RMOL']
-        return features
-
-    @classmethod
-    def alternative_inputs(cls, feature):
-        """Alternative required inputs for computing BVF times inverse MO from
-        NETCDF data
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. BVF_MO_100m
-
-        Returns
-        -------
-        list
-            List of required features for computing BVF_MO
-        """
-        height = Feature.get_height(feature)
-        features = [f'T_{height}m', f'T_{int(height) - 100}m']
-        features += InverseMonNC.inputs('RMOL')
-
         return features
 
     @classmethod
@@ -298,11 +276,7 @@ class BVFreqMonNC(DerivedFeature):
             Derived feature array
 
         """
-        bvf_mo = BVFreqSquaredNC.compute(data, height)
-
-        if 'RMOL' not in data:
-            data['RMOL'] = InverseMonNC.compute(data, height)
-
+        bvf_mo = data[f'BVF2_{height}m']
         mask = data['RMOL'] != 0
         bvf_mo[mask] = bvf_mo[mask] / data['RMOL'][mask]
 
@@ -324,12 +298,12 @@ class BVFreqSquaredH5(DerivedFeature):
         Parameters
         ----------
         feature : str
-            raw feature name. e.g. BVF_squared_100m
+            raw feature name. e.g. BVF2_100m
 
         Returns
         -------
         list
-            List of required features for computing BVF_squared
+            List of required features for computing BVF2
         """
         height = Feature.get_height(feature)
         features = [f'temperature_{height}m',
@@ -508,6 +482,54 @@ class WinddirectionNC(DerivedFeature):
         return wd
 
 
+class ShearNC(DerivedFeature):
+    """Wind shear at a given height"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing Veer
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. BVF_MO_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing Veer
+        """
+
+        height = Feature.get_height(feature)
+        heights = [int(height), int(height) + 20]
+        features = []
+        for height in heights:
+            features.append(f'winddirection_{height}m')
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Compute REWS
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+
+        shear = np.cos(np.radians(data[f'winddirection_{int(height) + 20}m']))
+        shear -= np.cos(np.radians(data[f'winddirection_{int(height)}m']))
+        shear /= 20
+        return shear
+
+
 class RewsNC(DerivedFeature):
     """Rotor equivalent wind speed"""
 
@@ -533,14 +555,6 @@ class RewsNC(DerivedFeature):
             heights = cls.HEIGHTS
         else:
             heights = [int(rotor_center) - i * 20 for i in [-2, -1, 0, 1, 2]]
-
-        '''
-        features = []
-        for height in heights:
-            features.append(f'U_{height}m')
-            features.append(f'V_{height}m')
-        features.append('lat_lon')
-        '''
         features = []
         for height in heights:
             features.append(f'windspeed_{height}m')
@@ -568,16 +582,6 @@ class RewsNC(DerivedFeature):
             heights = cls.HEIGHTS
         else:
             heights = [int(height) - i * 20 for i in [-2, -1, 0, 1, 2]]
-
-        '''
-        tmp_data = {}
-        for height in heights:
-            u = data[f'U_{height}m']
-            v = data[f'V_{height}m']
-            ws, wd = invert_uv(u, v, data['lat_lon'])
-            tmp_data[f'windspeed_{height}m'] = ws
-            tmp_data[f'winddirection_{height}m'] = wd
-        '''
         rews = rotor_equiv_ws(data, heights)
         return rews
 
@@ -600,10 +604,7 @@ class BVFreqMonH5(DerivedFeature):
             List of required features for computing BVF_MO
         """
         height = Feature.get_height(feature)
-        features = [f'temperature_{height}m',
-                    f'temperature_{int(height) - 100}m',
-                    f'pressure_{height}m',
-                    f'pressure_{int(height) - 100}m',
+        features = [f'BVF2_{height}m',
                     'inversemoninobukhovlength_2m']
         return features
 
@@ -623,7 +624,7 @@ class BVFreqMonH5(DerivedFeature):
         ndarray
             Derived feature array
         """
-        bvf_mo = BVFreqSquaredH5.compute(data, height)
+        bvf_mo = data[f'BVF2_{height}m']
         mask = data['inversemoninobukhovlength_2m'] != 0
         bvf_mo[mask] = (bvf_mo[mask]
                         / data['inversemoninobukhovlength_2m'][mask])
@@ -1163,6 +1164,36 @@ class FeatureHandler:
         return data
 
     @classmethod
+    def recursive_compute(cls, data, feature):
+        """Compute intermediate features recursively
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays. e.g. data[feature] = array.
+            (spatial_1, spatial_2, temporal)
+        feature : str
+            Name of feature to compute
+
+        Returns
+        -------
+        ndarray
+            Array of computed feature data
+        """
+        inputs = cls.lookup(feature, 'inputs')
+        method = cls.lookup(feature, 'compute')
+        height = Feature.get_height(feature)
+        if inputs is not None:
+            if all(r in data for r in inputs(feature)):
+                data[feature] = method(data, height)
+            else:
+                for r in inputs(feature):
+                    data[r] = cls.recursive_compute(data, r)
+            logger.info(f'Computing {feature}')
+            data[feature] = method(data, height)
+        return data[feature]
+
+    @classmethod
     def serial_compute(cls, data, time_chunks, input_features, all_features):
         """Compute features in series
 
@@ -1194,10 +1225,8 @@ class FeatureHandler:
 
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
-                method = cls.lookup(f, 'compute')
-                height = Feature.get_height(f)
                 tmp = cls.get_input_arrays(data, t, f)
-                data[t][f] = method(tmp, height)
+                data[t][f] = cls.recursive_compute(data=tmp, feature=f)
             cls.pop_old_data(data, t, all_features)
 
         return data
@@ -1252,11 +1281,9 @@ class FeatureHandler:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
-                        method = cls.lookup(f, 'compute')
-                        height = Feature.get_height(f)
                         tmp = cls.get_input_arrays(data, t, f)
                         future = exe.submit(
-                            method, data=tmp, height=height)
+                            cls.recursive_compute, data=tmp, feature=f)
 
                         meta = {'feature': f,
                                 'chunk': t}
@@ -1302,13 +1329,9 @@ class FeatureHandler:
         dict
             Dictionary of arrays with only needed features
         """
-        inputs = cls.lookup(f, 'inputs')
-        if not all(r in data[chunk_number] or r
-                   in data[-1] for r in inputs(f)):
-            inputs = cls.lookup(f, 'alternative_inputs')
-
+        inputs = cls.get_inputs_recursive(f)
         tmp = {}
-        for r in inputs(f):
+        for r in inputs:
             if r in data[chunk_number]:
                 tmp[r] = data[chunk_number][r]
             else:
@@ -1347,7 +1370,7 @@ class FeatureHandler:
 
         Parameters
         ----------
-        features : str
+        feature : str
             Feature for which to get needed inputs for derivation
 
         Returns
@@ -1393,16 +1416,9 @@ class FeatureHandler:
                         if r not in raw_features:
                             raw_features.append(r)
                 else:
-                    method = cls.lookup(f, 'alternative_inputs')
-                    if method is not None:
-                        for r in method(f):
-                            if r not in raw_features:
-                                raw_features.append(r)
-                    else:
-                        msg = (f'Cannot compute {f} from the provided data. '
-                               'Requested features: '
-                               f'{cls.lookup(f, "inputs")(f)}')
-                        raise ValueError(msg)
+                    msg = (f'Cannot compute {f} from the provided data. '
+                           f'Requested features: {cls.lookup(f, "inputs")(f)}')
+                    raise ValueError(msg)
             else:
                 if f not in raw_features:
                     raw_features.append(f)

@@ -29,7 +29,7 @@ input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
 INPUT_FILES = sorted(input_files)
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m', 'BVF_squared_200m']
+FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 
 

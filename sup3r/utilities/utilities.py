@@ -64,13 +64,13 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     slices = []
     start = indices[0]
     stop = start + step * chunk_size
+    stop = np.min([stop, indices[-1] + 1])
+
     while start < indices[-1] + 1:
         slices.append(slice(start, stop, step))
         start = stop
         stop += step * chunk_size
-        if stop > indices[-1] + 1:
-            stop = indices[-1] + 1
-
+        stop = np.min([stop, indices[-1] + 1])
     return slices
 
 
@@ -690,19 +690,15 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
                         + [raster_index[1]])
                     array_in = array_in[idx]
                 elif 'west_east' in d:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + [raster_index[0]]
-                        + [slice(raster_index[1].start,
-                                 raster_index[1].stop + 1)])
+                    idx = tuple([time_slice] + [slice(None)]
+                                + [raster_index[0]]
+                                + [slice(raster_index[1].start,
+                                         raster_index[1].stop + 1)])
                     array_in = array_in[idx]
                 else:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + raster_index)
+                    idx = tuple([time_slice] + [slice(None)] + raster_index)
                     array_in = array_in[idx]
-                array_in = np.apply_along_axis(
-                    forward_average, i, array_in)
+                array_in = np.apply_along_axis(forward_average, i, array_in)
     return array_in
 
 
@@ -833,7 +829,6 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-
     return interp3D(unstagger_var(data, var, raster_index, time_slice),
                     calc_height(data, raster_index, time_slice),
                     heights)[0]

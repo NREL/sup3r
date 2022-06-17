@@ -38,6 +38,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqMonNC,
                                                   BVFreqSquaredH5,
                                                   BVFreqSquaredNC,
+                                                  InverseMonNC,
                                                   LatLonNC,
                                                   RewsH5,
                                                   RewsNC,
@@ -49,7 +50,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5,
                                                   WindspeedNC,
-                                                  WinddirectionNC
+                                                  WinddirectionNC,
+                                                  ShearNC
                                                   )
 
 np.random.seed(42)
@@ -84,7 +86,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=50,
@@ -938,12 +940,14 @@ class DataHandlerNC(DataHandler):
             Method registry
         """
         registry = {
-            'BVF_squared_(.*)': BVFreqSquaredNC,
+            'BVF2_(.*)': BVFreqSquaredNC,
             'BVF_MO_(.*)': BVFreqMonNC,
+            'RMOL': InverseMonNC,
             'REWS_(.*)': RewsNC,
             'Windspeed_(.*)': WindspeedNC,
             'Winddirection_(.*)': WinddirectionNC,
-            'lat_lon': LatLonNC}
+            'lat_lon': LatLonNC,
+            'Shear_(.*)': ShearNC}
         return registry
 
     @classmethod
@@ -1014,13 +1018,9 @@ class DataHandlerNC(DataHandler):
                                     tuple([time_slice] + [0] + raster_index)],
                                 dtype=np.float32)
                         else:
-                            logger.debug(
-                                f'Interpolating {basename}'
-                                f' at height {interp_height}m')
-                            fdata = interp_var(
-                                handle, basename, raster_index,
-                                np.float32(interp_height),
-                                time_slice)
+                            fdata = interp_var(handle, basename, raster_index,
+                                               np.float32(interp_height),
+                                               time_slice)
                     else:
                         fdata = np.array(
                             handle[feature][
@@ -1094,6 +1094,7 @@ class DataHandlerNC(DataHandler):
                          f'for {self.file_info_logging(self.file_paths)}')
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
+            raster_index = list(raster_index)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
@@ -1179,7 +1180,7 @@ class DataHandlerH5(DataHandler):
             Method registry
         """
         registry = {
-            'BVF_squared_(.*)': BVFreqSquaredH5,
+            'BVF2_(.*)': BVFreqSquaredH5,
             'BVF_MO_(.*)': BVFreqMonH5,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
