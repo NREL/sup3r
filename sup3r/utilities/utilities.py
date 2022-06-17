@@ -537,20 +537,29 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
     Parameters
     ----------
     data : np.ndarray
-        4D | 5D array with dimensions:
-        (n_observations, spatial_1, spatial_2, temporal (optional), features)
+        3D | 4D | 5D array with dimensions:
+        (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
+        (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
+        (spatial_1, spatial_2, temporal, features) (obs_axis=False)
+        (spatial_1, spatial_2, features) (obs_axis=False)
     s_enhance : int
         factor by which to coarsen spatial dimensions
     obs_axis : bool
-        Flag for if axis=0 is the observation axis. If False, this allows for
-        the following 3D or 4D arrays:
-        (spatial_1, spatial_2, temporal (optional), features)
+        Flag for if axis=0 is the observation axis. If True (default)
+        spatial axis=(1, 2) (zero-indexed), if False spatial axis=(0, 1)
 
     Returns
     -------
     data : np.ndarray
-        4D | 5D array with same dimensions as data with new coarse resolution
+        3D | 4D | 5D array with same dimensions as data with new coarse
+        resolution
     """
+
+    if len(data.shape) < 3:
+        msg = ('Data must be 3D, 4D, or 5D to do spatial coarsening, but '
+               f'received: {data.shape}')
+        logger.error(msg)
+        raise ValueError(msg)
 
     if s_enhance is not None and s_enhance > 1:
         bad1 = (obs_axis and (data.shape[1] % s_enhance != 0
@@ -579,21 +588,21 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
                                 data.shape[3])
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
-        elif not obs_axis and len(data.shape) == 5:
+        elif not obs_axis and len(data.shape) == 4:
             data = data.reshape(data.shape[0] // s_enhance, s_enhance,
                                 data.shape[1] // s_enhance, s_enhance,
                                 data.shape[2],
                                 data.shape[3])
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
-        elif not obs_axis and len(data.shape) == 4:
+        elif not obs_axis and len(data.shape) == 3:
             data = data.reshape(data.shape[0] // s_enhance, s_enhance,
                                 data.shape[1] // s_enhance, s_enhance,
                                 data.shape[2])
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
         else:
-            msg = ('Data must be 4D or 5D to do spatial coarsening, but '
+            msg = ('Data must be 3D, 4D, or 5D to do spatial coarsening, but '
                    f'received: {data.shape}')
             logger.error(msg)
             raise ValueError(msg)
