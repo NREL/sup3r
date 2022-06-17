@@ -1430,7 +1430,7 @@ class FeatureHandler:
         return raw_features
 
     @classmethod
-    def get_raw_feature_list_from_handle(cls, features, handle_features):
+    def get_raw_feature_list(cls, features, handle_features):
         """Lookup inputs needed to compute feature
 
         Parameters
@@ -1460,6 +1460,11 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
+    def get_handle_features(file_paths):
+        """Get available features from data"""
+
+    @classmethod
+    @abstractmethod
     def feature_registry(cls):
         """Registry of methods for computing features
 
@@ -1468,11 +1473,6 @@ class FeatureHandler:
         dict
             Method registry
         """
-
-    @classmethod
-    @abstractmethod
-    def get_raw_feature_list(cls, file_paths, features):
-        """Lookup inputs needed to compute features"""
 
     @classmethod
     @abstractmethod

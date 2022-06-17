@@ -844,8 +844,9 @@ class DataHandler(FeatureHandler):
             file_paths, features, cache_files=cache_files,
             overwrite_cache=overwrite_cache, load_cached=load_cached)
 
-        raw_features, handle_features = cls.get_raw_feature_list(
-            file_paths, extract_features)
+        handle_features = cls.get_handle_features(file_paths)
+        raw_features = cls.get_raw_feature_list(extract_features,
+                                                handle_features)
 
         logger.info(f'Starting {extract_features} extraction for '
                     f'{cls.file_info_logging(file_paths)}')
@@ -952,18 +953,16 @@ class DataHandlerNC(DataHandler):
         return registry
 
     @classmethod
-    def get_raw_feature_list(cls, file_paths, features):
+    def get_handle_features(cls, file_paths):
         """Lookup inputs needed to compute feature
+
         Parameters
         ----------
         file_paths : list
             List of data file paths
-        feature : str
-            Feature to lookup in registry
+
         Returns
         -------
-        list
-            List of input features
         list
             List of available features in data
         """
@@ -971,9 +970,7 @@ class DataHandlerNC(DataHandler):
         with xr.open_mfdataset(file_paths, combine='nested',
                                concat_dim='Time') as handle:
             handle_features = [Feature.get_basename(r) for r in handle]
-            input_features = cls.get_raw_feature_list_from_handle(
-                features, handle_features)
-        return input_features, handle_features
+        return handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
@@ -1193,25 +1190,22 @@ class DataHandlerH5(DataHandler):
         return registry
 
     @classmethod
-    def get_raw_feature_list(cls, file_paths, features):
+    def get_handle_features(cls, file_paths):
         """Lookup inputs needed to compute feature
         Parameters
         ----------
-        feature : str
-            Feature to lookup in registry
+        file_paths : list
+            path to data file
+
         Returns
         -------
-        list
-            List of input features
         list
             List of available features in data
         """
 
         with cls.REX_HANDLER(file_paths) as handle:
             handle_features = [Feature.get_basename(r) for r in handle]
-            input_features = cls.get_raw_feature_list_from_handle(
-                features, handle_features)
-        return input_features, handle_features
+        return handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
