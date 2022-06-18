@@ -1197,10 +1197,10 @@ class FeatureHandler:
         ndarray
             Array of computed feature data
         """
-        inputs = cls.lookup(feature, 'inputs')
-        method = cls.lookup(feature, 'compute')
-        height = Feature.get_height(feature)
         if feature not in data:
+            inputs = cls.lookup(feature, 'inputs')
+            method = cls.lookup(feature, 'compute')
+            height = Feature.get_height(feature)
             if inputs is not None:
                 if all(r in data for r in inputs(feature)):
                     data[feature] = method(data, height)
