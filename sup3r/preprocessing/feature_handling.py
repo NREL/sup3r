@@ -1346,11 +1346,9 @@ class FeatureHandler:
                     if method is not None:
                         return method
                 elif attr_name == 'inputs':
-                    def method(feature):
-                        height = Feature.get_height(feature)
-                        f = (v if height is None
-                             else v.replace('(.*)', height))
-                        return [f]
+                    height = Feature.get_height(feature)
+                    f = (v if height is None else v.replace('(.*)', height))
+                    method = lambda x: f
                     return method
         return None
 
