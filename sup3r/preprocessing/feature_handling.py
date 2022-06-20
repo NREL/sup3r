@@ -1348,8 +1348,8 @@ class FeatureHandler:
             return getattr(out, attr_name, None)
         elif attr_name == 'inputs':
             height = Feature.get_height(feature)
-            f = (v if height is None else v.replace('(.*)', height))
-            method = lambda x: [f]
+            out = (out if height is None else out.replace('(.*)', height))
+            method = lambda x: [out]
             return method
 
     @classmethod
