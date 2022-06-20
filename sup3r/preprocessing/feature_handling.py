@@ -1329,28 +1329,28 @@ class FeatureHandler:
         ----------
         feature : str
             Feature to lookup in registry
-        attr_name : str
-            Attribute to get from registry. Can be compute, inputs,
-            alternative_inputs
 
         Returns
         -------
-        method | None
-            Method corresponding to requested attribute
+        class | str | None
+            Feature registry entry corresponding to feature
         """
 
+        out = None
         for k, v in cls.feature_registry().items():
             if re.match(k.lower(), feature.lower()):
-                if not isinstance(v, str):
-                    method = getattr(v, attr_name, None)
-                    if method is not None:
-                        return method
-                elif attr_name == 'inputs':
-                    height = Feature.get_height(feature)
-                    f = (v if height is None else v.replace('(.*)', height))
-                    method = lambda x: f
-                    return method
-        return None
+                out = v
+                break
+        if out is None:
+            return None
+
+        if not isinstance(out, str):
+            return getattr(out, attr_name, None)
+        elif attr_name == 'inputs':
+            height = Feature.get_height(feature)
+            f = (v if height is None else v.replace('(.*)', height))
+            method = lambda x: [f]
+            return method
 
     @classmethod
     def get_inputs_recursive(cls, feature, handle_features):
