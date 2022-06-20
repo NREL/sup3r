@@ -1329,11 +1329,13 @@ class FeatureHandler:
         ----------
         feature : str
             Feature to lookup in registry
+        attr_name : str
+            Type of method to lookup. e.g. inputs or compute
 
         Returns
         -------
-        class | str | None
-            Feature registry entry corresponding to feature
+        method | None
+            Feature registry method corresponding to feature
         """
 
         out = None
