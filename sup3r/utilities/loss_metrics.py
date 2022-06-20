@@ -61,6 +61,33 @@ class ExpLoss(tf.keras.losses.Loss):
         return tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
 
 
+class MseExpLoss(tf.keras.losses.Loss):
+    """Loss class for mse + squared exponential difference"""
+
+    MSE_LOSS = MeanSquaredError()
+
+    def __call__(self, x1, x2):
+        """Mse + Exponential difference loss function
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        mse = self.MSE_LOSS(x1, x2)
+        exp = tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
+        return mse + exp
+
+
 class MmdLoss(tf.keras.losses.Loss):
     """Loss class for max mean discrepancy loss"""
 

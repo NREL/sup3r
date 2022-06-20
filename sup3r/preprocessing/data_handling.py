@@ -38,8 +38,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredH5,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
-                                                  InverseMonH5,
                                                   LatLonNC,
+                                                  TempNC,
                                                   UWindH5,
                                                   VWindH5,
                                                   UWindNsrdb,
@@ -941,14 +941,16 @@ class DataHandlerNC(DataHandler):
             Method registry
         """
         registry = {
-            'BVF2_(.*)': BVFreqSquaredNC,
-            'BVF_MO_(.*)': BVFreqMon,
+            'BVF2_(.*)m': BVFreqSquaredNC,
+            'BVF_MO_(.*)m': BVFreqMon,
             'RMOL': InverseMonNC,
-            'Windspeed_(.*)': WindspeedNC,
-            'Winddirection_(.*)': WinddirectionNC,
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
             'lat_lon': LatLonNC,
-            'Shear_(.*)': Shear,
-            'REWS_(.*)': Rews}
+            'Shear_(.*)m': Shear,
+            'REWS_(.*)m': Rews,
+            'Temperature_(.*)m': TempNC,
+            'Pressure_(.*)m': 'P_(.*)m'}
         return registry
 
     @classmethod
@@ -1173,20 +1175,23 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def feature_registry(cls):
-        """Registry of methods for computing features
+        """Registry of methods for computing features or extracting renamed
+        features
+
         Returns
         -------
         dict
             Method registry
         """
         registry = {
-            'BVF2_(.*)': BVFreqSquaredH5,
-            'BVF_MO_(.*)': BVFreqMon,
+            'BVF2_(.*)m': BVFreqSquaredH5,
+            'BVF_MO_(.*)m': BVFreqMon,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
             'lat_lon': LatLonH5,
-            'REWS_(.*)': Rews,
-            'RMOL': InverseMonH5}
+            'REWS_(.*)m': Rews,
+            'RMOL': 'inversemoninobukhovlength_2m',
+            'P_(.*)m': 'pressure_(.*)m'}
         return registry
 
     @classmethod
@@ -1229,26 +1234,21 @@ class DataHandlerH5(DataHandler):
         """
 
         with cls.REX_HANDLER(file_paths) as handle:
-
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
                 return method(file_paths, raster_index)
-
             else:
                 try:
-                    fdata = handle[
-                        tuple([feature] + [time_slice]
-                              + [raster_index.flatten()])]
-
+                    fdata = handle[tuple([feature] + [time_slice]
+                                         + [raster_index.flatten()])]
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
                     logger.exception(msg)
                     raise ValueError(msg) from e
 
-        fdata = fdata.reshape(
-            (-1, raster_index.shape[0], raster_index.shape[1]))
+        fdata = fdata.reshape((-1, raster_index.shape[0],
+                               raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
-
         return fdata.astype(np.float32)
 
     def get_raster_index(self, file_paths, target, shape):
@@ -1279,13 +1279,10 @@ class DataHandlerH5(DataHandler):
             with self.REX_HANDLER(file_paths[0]) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
-
             self.lat_lon = self.get_lat_lon(file_paths, raster_index,
                                             self.temporal_slice)
-
             if self.raster_file is not None:
-                logger.debug(
-                    f'Saving raster index: {self.raster_file}')
+                logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 

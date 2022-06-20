@@ -16,7 +16,8 @@ import xarray as xr
 
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
-from sup3r.utilities.utilities import (invert_uv, rotor_equiv_ws,
+from sup3r.utilities.utilities import (invert_pot_temp, invert_uv,
+                                       rotor_equiv_ws,
                                        transform_rotate_wind,
                                        bvf_squared,
                                        get_raster_shape,
@@ -153,6 +154,37 @@ class CloudMaskH5(DerivedFeature):
         return cloud_mask
 
 
+class TempNC(DerivedFeature):
+    """Temperature feature class for NETCDF data. Needed since T is potential
+    temperature not standard temp."""
+
+    @classmethod
+    def inputs(cls, feature):
+        height = Feature.get_height(feature)
+        features = [f'T_{height}m',
+                    f'P_{height}m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute T from NETCDF data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        return invert_pot_temp(data[f'T_{height}m'], data[f'P_{height}m'])
+
+
 class BVFreqSquaredNC(DerivedFeature):
     """BVF Squared feature class with needed inputs method and compute
     method"""
@@ -189,48 +221,6 @@ class BVFreqSquaredNC(DerivedFeature):
         bvf2 /= (data[f'T_{height}m'] - 600 + data[f'T_{int(height) - 100}m'])
         bvf2 /= np.float32(2)
         return bvf2
-
-
-class InverseMonH5(DerivedFeature):
-    """Inverse MO feature class with needed inputs method and compute method"""
-
-    @classmethod
-    def inputs(cls, feature):
-        """Required inputs for inverse MO from H5 data
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. RMOL
-
-        Returns
-        -------
-        list
-            List of required features for computing RMOL
-        """
-
-        assert feature == 'RMOL'
-        features = ['inversemoninobukhovlength_2m']
-        return features
-
-    @classmethod
-    def compute(cls, data, height=None):
-        """Method to compute Inverse MO from H5 data
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of raw feature arrays to use for derivation
-        height : str | int
-            Placeholder to match interface with other compute methods
-
-        Returns
-        -------
-        ndarray
-            Derived feature array
-
-        """
-        return data['inversemoninobukhovlength_2m']
 
 
 class InverseMonNC(DerivedFeature):
@@ -877,8 +867,8 @@ class LatLonH5:
 
 
 class Feature:
-    """Class to simplify feature computations. Stores alternative names,
-    feature height, feature basename, name of feature in handle"""
+    """Class to simplify feature computations. Stores feature height, feature
+    basename, name of feature in handle"""
 
     def __init__(self, feature, handle):
         """Takes a feature (e.g. U_100m) and gets the height (100), basename
@@ -891,17 +881,9 @@ class Feature:
         handle : WindX | NSRDBX | xarray
             handle for data file
         """
-        self.alternative_names = {
-            'temperature': 'T',
-            'pressure': 'P',
-            'T': 'temperature',
-            'P': 'pressure',
-            'RMOL': 'inversemoninobukhovlength_2m'
-        }
         self.raw_name = feature
         self.height = self.get_height(feature)
         self.basename = self.get_basename(feature)
-        self.alt_name = self.check_rename(handle, feature)
         if self.raw_name in handle:
             self.handle_input = self.raw_name
         elif self.basename in handle:
@@ -951,32 +933,6 @@ class Feature:
         if not height.isdigit():
             height = None
         return height
-
-    def check_rename(self, handle, feature):
-        """Method to account for possible alternative feature names. e.g. T for
-        temperature
-
-        Parameters
-        ----------
-        handle : WindX | NSRDBX | xarray
-            handle pointing to file data
-        feature : str
-            Feature name. e.g. temperature_100m
-
-        Returns
-        -------
-        renamed_feature : str
-            New feature name. e.g. T_100m
-        """
-
-        for k, v in self.alternative_names.items():
-            if k in feature:
-                renamed_feature = feature.replace(k, v)
-                handle_basenames = [
-                    self.get_basename(f) for f in handle]
-                if v in handle_basenames:
-                    return renamed_feature
-        return None
 
 
 class FeatureHandler:
@@ -1202,12 +1158,14 @@ class FeatureHandler:
             method = cls.lookup(feature, 'compute')
             height = Feature.get_height(feature)
             if inputs is not None:
-                if all(r in data for r in inputs(feature)):
+                if method is None:
+                    return data[inputs(feature)[0]]
+                elif all(r in data for r in inputs(feature)):
                     data[feature] = method(data, height)
                 else:
                     for r in inputs(feature):
                         data[r] = cls.recursive_compute(data, r)
-                data[feature] = method(data, height)
+                    data[feature] = method(data, height)
         return data[feature]
 
     @classmethod
@@ -1383,8 +1341,16 @@ class FeatureHandler:
 
         for k, v in cls.feature_registry().items():
             if re.match(k.lower(), feature.lower()):
-                method = getattr(v, attr_name, None)
-                if method is not None:
+                if not isinstance(v, str):
+                    method = getattr(v, attr_name, None)
+                    if method is not None:
+                        return method
+                elif attr_name == 'inputs':
+                    def method(feature):
+                        height = Feature.get_height(feature)
+                        f = (v if height is None
+                             else v.replace('(.*)', height))
+                        return [f]
                     return method
         return None
 

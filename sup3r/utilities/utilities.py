@@ -854,6 +854,27 @@ def potential_temperature(T, P):
     return out
 
 
+def invert_pot_temp(PT, P):
+
+    """Potential temperature of fluid at pressure P and temperature T
+
+    Parameters
+    ----------
+    PT : ndarray
+        Potential temperature in Kelvin
+    P : ndarray
+        Pressure of fluid in Pa
+
+    Returns
+    -------
+    ndarray
+        Temperature in celsius
+    """
+    out = PT / (np.float32(100000) / P) ** np.float32(0.286)
+    out -= np.float32(273.15)
+    return out
+
+
 def potential_temperature_difference(T_top, P_top, T_bottom, P_bottom):
     """Potential temp difference calculation
 
