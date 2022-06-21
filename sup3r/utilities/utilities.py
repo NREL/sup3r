@@ -930,40 +930,27 @@ def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
             + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
 
 
-def inverse_mo_length(U_surf, V_surf, W_surf, PT_surf):
+def inverse_mo_length(U_star, flux_surf):
     """Inverse Monin - Obukhov Length
 
     Parameters
     ----------
-    U_surf : ndarray
+    U_star : ndarray
         (spatial_1, spatial_2, temporal)
-        Surface U wind component
-    V_surf : ndarray
+        Frictional wind speed
+    flux_surf : ndarray
         (spatial_1, spatial_2, temporal)
-        Surface V wind component
-    W_surf : ndarray
-        (spatial_1, spatial_2, temporal)
-        Surface W wind component
-    PT_surf : ndarray
-        (spatial_1, spatial_2, temporal)
-        Surface potential temperature
+        Surface heat flux
 
     Returns
     -------
     ndarray
         (spatial_1, spatial_2, temporal)
-        Monin - Obukhov Length
+        Inverse Monin - Obukhov Length
     """
 
-    U_eddy = U_surf - np.mean(U_surf, axis=2)[:, :, np.newaxis]
-    V_eddy = V_surf - np.mean(V_surf, axis=2)[:, :, np.newaxis]
-    W_eddy = W_surf - np.mean(W_surf, axis=2)[:, :, np.newaxis]
-
-    PT_flux = W_eddy * (PT_surf - np.mean(PT_surf, axis=2)[:, :, np.newaxis])
-
-    ws_friction = ((U_eddy * W_eddy) ** 2 + (V_eddy * W_eddy) ** 2) ** 0.25
-    denom = -ws_friction ** 3 * PT_surf
-    numer = (0.41 * 9.81 * PT_flux)
+    denom = -U_star ** 3 * 300
+    numer = (0.41 * 9.81 * flux_surf)
     return numer / denom
 
 

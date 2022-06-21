@@ -242,7 +242,7 @@ class InverseMonNC(DerivedFeature):
         """
 
         assert feature == 'RMOL'
-        features = ['U_2m', 'V_2m', 'W_2m', 'T_2m']
+        features = ['UST', 'HFX']
         return features
 
     @classmethod
@@ -262,9 +262,7 @@ class InverseMonNC(DerivedFeature):
             Derived feature array
 
         """
-        return inverse_mo_length(
-            data['U_2m'], data['V_2m'],
-            data['W_2m'], data['T_2m'])
+        return inverse_mo_length(data['UST'], data['HFX'])
 
 
 class BVFreqMon(DerivedFeature):
