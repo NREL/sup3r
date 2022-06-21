@@ -209,11 +209,35 @@ def test_solar_batching_spatial(plot=False):
                                    compute_workers=1)
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
-                                    s_enhance=5)
+                                    s_enhance=2)
 
     for batch in batcher:
         assert batch.high_res.shape == (8, 20, 20, 3)
-        assert batch.low_res.shape == (8, 4, 4, 3)
+        assert batch.low_res.shape == (8, 10, 10, 3)
+
+    if plot:
+        for p, batch in enumerate(batcher):
+            for i in range(batch.high_res.shape[3]):
+                _, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+                tmp = (batch.high_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[0].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Batch high res cs ratio')
+
+                tmp = (batch.low_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Batch low res cs ratio')
+
+                plt.savefig('./test_nsrdb_batch_{}_{}.png'.format(p, i),
+                            dpi=300, bbox_inches='tight')
+                plt.close()
+
+            if p > 4:
+                break
 
 
 def test_solar_batch_nan_stats():
@@ -484,3 +508,27 @@ def test_wind_batching_spatial(plot=False):
     for batch in batcher:
         assert batch.high_res.shape == (8, 20, 20, 3)
         assert batch.low_res.shape == (8, 4, 4, 3)
+
+    if plot:
+        for p, batch in enumerate(batcher):
+            for i in range(batch.high_res.shape[3]):
+                _, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+                tmp = (batch.high_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[0].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Batch high res cs ratio')
+
+                tmp = (batch.low_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Batch low res cs ratio')
+
+                plt.savefig('./test_wind_batch_{}_{}.png'.format(p, i),
+                            dpi=300, bbox_inches='tight')
+                plt.close()
+
+            if p > 4:
+                break

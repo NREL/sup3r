@@ -867,41 +867,6 @@ class SpatialBatchHandlerCC(BatchHandler):
         else:
             raise StopIteration
 
-    def reduce_high_res_sub_daily(self, high_res):
-        """Take an hourly high-res observation and reduce the temporal axis
-        down to the self.sub_daily_shape using only daylight hours on the
-        center day.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
-            n_features) where temporal >= 24 (set by the data handler).
-
-        Returns
-        -------
-        high_res : np.ndarray
-            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
-            n_features) where temporal has been reduced down to the integer
-            self.sub_daily_shape. For example if the input temporal shape is 72
-            (3 days) and sub_daily_shape=9, the center daylight 9 hours from
-            the second day will be returned in the output array.
-        """
-
-        if self.sub_daily_shape is not None:
-            n_days = int(high_res.shape[3] / 24)
-            if n_days > 1:
-                ind = np.arange(high_res.shape[3])
-                day_slices = np.array_split(ind, n_days)
-                day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
-                assert n_days % 2 == 1, 'Need odd days'
-                i_mid = int((n_days - 1) / 2)
-                high_res = high_res[:, :, :, day_slices[i_mid], :]
-
-            high_res = nsrdb_reduce_daily_data(high_res, self.sub_daily_shape)
-
-        return high_res
-
 
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
