@@ -306,6 +306,22 @@ def test_hr_coarsening():
     assert handler.data.dtype == np.dtype(np.float32)
     assert handler.val_data.dtype == np.dtype(np.float32)
 
+    with tempfile.TemporaryDirectory() as td:
+        cache_prefix = os.path.join(td, 'cached_features_h5')
+        if os.path.exists(cache_prefix):
+            os.system(f'rm {cache_prefix}')
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=20,
+                              hr_spatial_coarsen=2,
+                              cache_file_prefix=cache_prefix,
+                              overwrite_cache=True)
+        assert handler.data is None
+        handler.load_cached_data()
+        assert handler.data.shape == (shape[0] // 2, shape[1] // 2,
+                                      handler.data.shape[2], len(features))
+        assert handler.data.dtype == np.dtype(np.float32)
+        assert handler.val_data.dtype == np.dtype(np.float32)
+
 
 def test_validation_batching():
     """Test batching of validation data through

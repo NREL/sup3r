@@ -191,7 +191,7 @@ class DataHandler(FeatureHandler):
         self.val_split = val_split
         self.sample_shape = sample_shape
         self.temporal_slice = temporal_slice
-        self.hr_spatial_coarsen = hr_spatial_coarsen
+        self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_paths)
         self.time_index = self.raw_time_index[temporal_slice]
@@ -667,7 +667,9 @@ class DataHandler(FeatureHandler):
                     self.file_paths, self.target, self.grid_shape)
 
             shape = get_raster_shape(self.raster_index)
-            requested_shape = (shape[0], shape[1], len(self.time_index),
+            requested_shape = (shape[0] // self.hr_spatial_coarsen,
+                               shape[1] // self.hr_spatial_coarsen,
+                               len(self.time_index),
                                len(self.features))
 
             msg = ('Found {} cache files but need {} for features {}! '
@@ -861,7 +863,8 @@ class DataHandler(FeatureHandler):
 
         data_array = np.roll(data_array, time_roll, axis=2)
 
-        if hr_spatial_coarsen is not None:
+        hr_spatial_coarsen = hr_spatial_coarsen or 1
+        if hr_spatial_coarsen > 1:
             data_array = spatial_coarsening(data_array,
                                             s_enhance=hr_spatial_coarsen,
                                             obs_axis=False)
