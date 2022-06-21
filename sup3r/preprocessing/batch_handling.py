@@ -797,6 +797,112 @@ class BatchHandlerCC(BatchHandler):
         return high_res
 
 
+class SpatialBatchHandlerCC(BatchHandler):
+    """Batch handling class for climate change data with daily averages as the
+    coarse dataset with only spatial samples, e.g. the batch tensor shape is
+    (n_obs, spatial_1, spatial_2, features)
+    """
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
+
+    def __next__(self):
+        """Get the next iterator output.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate coarsening.
+        """
+
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(0, len(self.data_handlers))
+            self.current_handler_index = handler_index
+            handler = self.data_handlers[handler_index]
+
+            low_res = None
+            high_res = None
+
+            for i in range(self.batch_size):
+                _, obs_daily_avg = handler.get_next()
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                obs_daily_avg = self.BATCH_CLASS.reduce_features(
+                    obs_daily_avg, self.output_features_ind)
+
+                if low_res is None:
+                    lr_shape = (self.batch_size,) + obs_daily_avg.shape
+                    hr_shape = (self.batch_size,) + obs_daily_avg.shape
+                    low_res = np.zeros(lr_shape, dtype=np.float32)
+                    high_res = np.zeros(hr_shape, dtype=np.float32)
+
+                    msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
+                           'but received LR shape {}, HR shape {} with '
+                           'HR n_temporal={} and LR n_temporal={}'
+                           .format(lr_shape, hr_shape,
+                                   lr_shape[3], hr_shape[3]))
+                    assert lr_shape[3] == 1, msg
+                    assert hr_shape[3] == 1, msg
+
+                low_res[i] = obs_daily_avg
+                high_res[i] = obs_daily_avg
+
+            low_res = spatial_coarsening(low_res, self.s_enhance)
+            low_res = low_res[:, :, :, 0, :]
+            high_res = high_res[:, :, :, 0, :]
+
+            if (self.output_features is not None
+                    and 'clearsky_ratio' in self.output_features):
+                i_cs = self.output_features.index('clearsky_ratio')
+                if np.isnan(high_res[..., i_cs]).any():
+                    high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+            batch = self.BATCH_CLASS(low_res, high_res)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+    def reduce_high_res_sub_daily(self, high_res):
+        """Take an hourly high-res observation and reduce the temporal axis
+        down to the self.sub_daily_shape using only daylight hours on the
+        center day.
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal >= 24 (set by the data handler).
+
+        Returns
+        -------
+        high_res : np.ndarray
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal has been reduced down to the integer
+            self.sub_daily_shape. For example if the input temporal shape is 72
+            (3 days) and sub_daily_shape=9, the center daylight 9 hours from
+            the second day will be returned in the output array.
+        """
+
+        if self.sub_daily_shape is not None:
+            n_days = int(high_res.shape[3] / 24)
+            if n_days > 1:
+                ind = np.arange(high_res.shape[3])
+                day_slices = np.array_split(ind, n_days)
+                day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
+                assert n_days % 2 == 1, 'Need odd days'
+                i_mid = int((n_days - 1) / 2)
+                high_res = high_res[:, :, :, day_slices[i_mid], :]
+
+            high_res = nsrdb_reduce_daily_data(high_res, self.sub_daily_shape)
+
+        return high_res
+
+
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 

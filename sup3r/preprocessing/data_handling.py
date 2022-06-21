@@ -215,6 +215,11 @@ class DataHandler(FeatureHandler):
         self.compute_workers = compute_workers
         self.lat_lon = None
 
+        if len(self.sample_shape) == 2:
+            logger.info('Found 2D sample shape of {}. Adding spatial dim of 1'
+                        .format(self.sample_shape))
+            self.sample_shape = self.sample_shape + (1,)
+
         n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
         n_steps = len(n_steps)
         msg = (f'Temporal slice step ({temporal_slice.step}) does not evenly '
@@ -1374,7 +1379,16 @@ class DataHandlerH5WindCC(DataHandlerH5):
         **kwargs : dict
             Same keyword args as DataHandlerH5
         """
-        t_shape = kwargs.get('sample_shape', (10, 10, 1))[-1]
+        sample_shape = kwargs.get('sample_shape', (10, 10, 24))
+        t_shape = sample_shape[-1]
+
+        if len(sample_shape) == 2:
+            logger.info('Found 2D sample shape of {}. Adding spatial dim of 24'
+                        .format(sample_shape))
+            sample_shape = sample_shape + (24,)
+            t_shape = sample_shape[-1]
+            kwargs['sample_shape'] = sample_shape
+
         if t_shape < 24 or t_shape % 24 != 0:
             msg = ('Climate Change DataHandler can only work with temporal '
                    'sample shapes that are one or more days of hourly data '
