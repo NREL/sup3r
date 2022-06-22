@@ -1,6 +1,4 @@
-"""
-Loss metrics for Sup3r
-"""
+"""Loss metrics for Sup3r"""
 
 from tensorflow.keras.losses import MeanSquaredError
 import tensorflow as tf
@@ -11,10 +9,10 @@ def gaussian_kernel(x1, x2, sigma=1.0):
 
     Parameters
     ----------
-    x1: tf.tensor
+    x1 : tf.tensor
         synthetic generator output
         (n_obs, spatial_1, spatial_2, temporal, features)
-    x2: tf.tensor
+    x2 : tf.tensor
         high resolution data
         (n_obs, spatial_1, spatial_2, temporal, features)
 
@@ -41,15 +39,14 @@ class ExpLoss(tf.keras.losses.Loss):
     """Loss class for squared exponential difference"""
 
     def __call__(self, x1, x2):
-        """
-        Exponential difference loss function
+        """Exponential difference loss function
 
         Parameters
         ----------
-        x1: tf.tensor
+        x1 : tf.tensor
             synthetic generator output
             (n_observations, spatial_1, spatial_2, temporal, features)
-        x2: tf.tensor
+        x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
 
@@ -97,10 +94,10 @@ class MmdLoss(tf.keras.losses.Loss):
 
         Parameters
         ----------
-        x1: tf.tensor
+        x1 : tf.tensor
             synthetic generator output
             (n_observations, spatial_1, spatial_2, temporal, features)
-        x2: tf.tensor
+        x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
         sigma : float
@@ -119,6 +116,7 @@ class MmdLoss(tf.keras.losses.Loss):
 
 class MmdMseLoss(tf.keras.losses.Loss):
     """Loss class for MMD + MSE"""
+
     MMD_LOSS = MmdLoss()
     MSE_LOSS = MeanSquaredError()
 
@@ -128,10 +126,10 @@ class MmdMseLoss(tf.keras.losses.Loss):
 
         Parameters
         ----------
-        x1: tf.tensor
+        x1 : tf.tensor
             synthetic generator output
             (n_observations, spatial_1, spatial_2, temporal, features)
-        x2: tf.tensor
+        x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
         sigma : float
@@ -149,18 +147,18 @@ class MmdMseLoss(tf.keras.losses.Loss):
 
 class CoarseMseLoss(tf.keras.losses.Loss):
     """Loss class for coarse mse on spatial average of 5D tensor"""
+
     MSE_LOSS = MeanSquaredError()
 
     def __call__(self, x1, x2):
-        """
-        Exponential difference loss function
+        """Exponential difference loss function
 
         Parameters
         ----------
-        x1: tf.tensor
+        x1 : tf.tensor
             synthetic generator output
             (n_observations, spatial_1, spatial_2, temporal, features)
-        x2: tf.tensor
+        x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
 
