@@ -172,6 +172,10 @@ class DataHandler(FeatureHandler):
             Whether to overwrite any previously saved cache files.
         load_cached : bool
             Whether to load data from cache files
+        train_only_features : list | tuple | None
+            List of feature names or patt*erns that should only be included in
+            the training set and not the output. If None (default), this will
+            default to the class TRAIN_ONLY_FEATURES attribute.
         """
 
         check = ((target is not None and shape is not None)
@@ -188,7 +192,8 @@ class DataHandler(FeatureHandler):
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
 
-        if train_only_features is None:
+        self.train_only_features = train_only_features
+        if self.train_only_features is None:
             self.train_only_features = self.TRAIN_ONLY_FEATURES
 
         self.features = features
@@ -298,11 +303,11 @@ class DataHandler(FeatureHandler):
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
-            if cache_file_prefix is None:
-                self.data, self.val_data = self.split_data()
-            else:
+            if cache_file_prefix is not None:
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
+
+            self.data, self.val_data = self.split_data()
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -420,7 +425,7 @@ class DataHandler(FeatureHandler):
         out = []
         for feature in self.features:
             ignore = any(fnmatch(feature.lower(), pattern.lower())
-                         for pattern in self.TRAIN_ONLY_FEATURES)
+                         for pattern in self.train_only_features)
             if not ignore:
                 out.append(feature)
         return out
@@ -1409,8 +1414,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
     def run_daily_averages(self):
         """Calculate daily average data and store as attribute."""
         msg = ('Data needs to be hourly with at least 24 hours, but data '
-               'shape is {} and val data shape is {}'
-               .format(self.data.shape, self.val_data.shape))
+               'shape is {}.'.format(self.data.shape))
         assert self.data.shape[2] % 24 == 0, msg
         assert self.data.shape[2] > 24, msg
 
