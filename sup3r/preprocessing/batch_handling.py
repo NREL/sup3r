@@ -823,7 +823,6 @@ class SpatialBatchHandlerCC(BatchHandler):
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
 
-            low_res = None
             high_res = None
 
             for i in range(self.batch_size):
@@ -833,24 +832,18 @@ class SpatialBatchHandlerCC(BatchHandler):
                 obs_daily_avg = self.BATCH_CLASS.reduce_features(
                     obs_daily_avg, self.output_features_ind)
 
-                if low_res is None:
-                    lr_shape = (self.batch_size,) + obs_daily_avg.shape
+                if high_res is None:
                     hr_shape = (self.batch_size,) + obs_daily_avg.shape
-                    low_res = np.zeros(lr_shape, dtype=np.float32)
                     high_res = np.zeros(hr_shape, dtype=np.float32)
 
                     msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
-                           'but received LR shape {}, HR shape {} with '
-                           'HR n_temporal={} and LR n_temporal={}'
-                           .format(lr_shape, hr_shape,
-                                   lr_shape[3], hr_shape[3]))
-                    assert lr_shape[3] == 1, msg
+                           'but received HR shape {} with n_temporal={}.'
+                           .format(hr_shape, hr_shape[3]))
                     assert hr_shape[3] == 1, msg
 
-                low_res[i] = obs_daily_avg
                 high_res[i] = obs_daily_avg
 
-            low_res = spatial_coarsening(low_res, self.s_enhance)
+            low_res = spatial_coarsening(high_res, self.s_enhance)
             low_res = low_res[:, :, :, 0, :]
             high_res = high_res[:, :, :, 0, :]
 
