@@ -990,11 +990,6 @@ class DataHandlerNC(DataHandler):
         ----------
         file_paths : list
             List of data file paths
-<<<<<<< HEAD
-=======
-        feature : str
-            Feature to lookup in registry
->>>>>>> 9600a8b... cleaning up sphinx syntax for docs
 
         Returns
         -------
