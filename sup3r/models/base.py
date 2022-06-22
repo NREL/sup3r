@@ -85,7 +85,7 @@ class Sup3rGan:
         self._meta = meta if meta is not None else {}
 
         self.loss_name = loss
-        self.loss_fun = self.get_loss(loss)
+        self.loss_fun = self.get_loss_fun(loss)
 
         self._version_record = CustomNetwork._parse_versions(version_record)
 
@@ -342,9 +342,10 @@ class Sup3rGan:
             logger.error(msg)
             raise KeyError(msg)
 
-    def get_loss(self, loss):
-        """Get the loss function class from the sup3r loss library or the
-        tensorflow losses.
+    @staticmethod
+    def get_loss_fun(loss):
+        """Get the initialized loss function class from the sup3r loss library
+        or the tensorflow losses.
 
         Parameters
         ----------
