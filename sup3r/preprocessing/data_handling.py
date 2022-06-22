@@ -307,7 +307,8 @@ class DataHandler(FeatureHandler):
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
 
-            self.data, self.val_data = self.split_data()
+            if self.data is not None:
+                self.data, self.val_data = self.split_data()
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')

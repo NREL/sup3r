@@ -79,20 +79,44 @@ def test_spatiotemporal_batch_caching(sample_shape):
 
 
 def test_data_caching():
-    """Test data extraction class"""
+    """Test data extraction class with data caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
         cache_prefix = os.path.join(td, 'cached_features_h5')
-        if os.path.exists(cache_prefix):
-            os.system(f'rm {cache_prefix}')
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=20,
                               cache_file_prefix=cache_prefix,
                               overwrite_cache=True)
+
         assert handler.data is None
+        assert handler.val_data is None
         handler.load_cached_data()
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
+        assert handler.data.dtype == np.dtype(np.float32)
+        assert handler.val_data.dtype == np.dtype(np.float32)
+
+        # test cache data but keep in memory
+        cache_prefix = os.path.join(td, 'new_1_cache')
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=20,
+                              val_split=0.1,
+                              cache_file_prefix=cache_prefix,
+                              overwrite_cache=True, load_cached=True)
+        assert handler.data is not None
+        assert handler.val_data is not None
+        assert handler.data.dtype == np.dtype(np.float32)
+        assert handler.val_data.dtype == np.dtype(np.float32)
+
+        # test cache data but keep in memory, with no val split
+        cache_prefix = os.path.join(td, 'new_2_cache')
+        handler = DataHandler(input_file, features, target=target,
+                              shape=shape, max_delta=20,
+                              val_split=0.0,
+                              cache_file_prefix=cache_prefix,
+                              overwrite_cache=False, load_cached=True)
+        assert handler.data is not None
+        assert handler.val_data is not None
         assert handler.data.dtype == np.dtype(np.float32)
         assert handler.val_data.dtype == np.dtype(np.float32)
 
