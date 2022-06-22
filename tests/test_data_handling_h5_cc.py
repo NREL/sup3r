@@ -11,7 +11,8 @@ from rex import Resource
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
                                                DataHandlerH5WindCC)
-from sup3r.preprocessing.batch_handling import BatchHandlerCC
+from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
+                                                SpatialBatchHandlerCC)
 from sup3r.utilities.utilities import nsrdb_sub_daily_sampler
 
 SHAPE = (20, 20)
@@ -196,6 +197,49 @@ def test_solar_batching(plot=False):
                 break
 
 
+def test_solar_batching_spatial(plot=False):
+    """Test batching of nsrdb data with spatial only enhancement"""
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
+                                   target=TARGET_S, shape=SHAPE,
+                                   temporal_slice=slice(None, None, 2),
+                                   time_roll=-7,
+                                   val_split=0.1,
+                                   sample_shape=(20, 20),
+                                   extract_workers=1,
+                                   compute_workers=1)
+
+    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+                                    s_enhance=2)
+
+    for batch in batcher:
+        assert batch.high_res.shape == (8, 20, 20, 3)
+        assert batch.low_res.shape == (8, 10, 10, 3)
+
+    if plot:
+        for p, batch in enumerate(batcher):
+            for i in range(batch.high_res.shape[3]):
+                _, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+                tmp = (batch.high_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[0].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Batch high res cs ratio')
+
+                tmp = (batch.low_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Batch low res cs ratio')
+
+                plt.savefig('./test_nsrdb_batch_{}_{}.png'.format(p, i),
+                            dpi=300, bbox_inches='tight')
+                plt.close()
+
+            if p > 4:
+                break
+
+
 def test_solar_batch_nan_stats():
     """Test that the batch handler calculates the correct statistics even with
     NaN data present"""
@@ -219,8 +263,8 @@ def test_solar_batch_nan_stats():
         orig_daily_means.append(handler.daily_data[..., f].mean())
         orig_daily_stdevs.append(handler.daily_data[..., f].std())
 
-    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10, s_enhance=1,
-                             sub_daily_shape=9)
+    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
+                             s_enhance=1, sub_daily_shape=9)
 
     assert np.allclose(true_means, batcher.means)
     assert np.allclose(true_stdevs, batcher.stds)
@@ -445,3 +489,46 @@ def test_wind_batching():
             truth = np.mean(hourly, axis=3)
             daily = batch.low_res[:, :, :, i, :]
             assert np.allclose(daily, truth, atol=1e-6)
+
+
+def test_wind_batching_spatial(plot=False):
+    """Test batching of wind data with spatial only enhancement"""
+    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
+                                  target=TARGET_W, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 2),
+                                  time_roll=-7,
+                                  val_split=0.1,
+                                  sample_shape=(20, 20),
+                                  extract_workers=1,
+                                  compute_workers=1)
+
+    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+                                    s_enhance=5)
+
+    for batch in batcher:
+        assert batch.high_res.shape == (8, 20, 20, 3)
+        assert batch.low_res.shape == (8, 4, 4, 3)
+
+    if plot:
+        for p, batch in enumerate(batcher):
+            for i in range(batch.high_res.shape[3]):
+                _, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+                tmp = (batch.high_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[0].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Batch high res cs ratio')
+
+                tmp = (batch.low_res[i, :, :, 0] * batcher.stds[0]
+                       + batcher.means[0])
+                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Batch low res cs ratio')
+
+                plt.savefig('./test_wind_batch_{}_{}.png'.format(p, i),
+                            dpi=300, bbox_inches='tight')
+                plt.close()
+
+            if p > 4:
+                break

@@ -3,10 +3,10 @@
 import numpy as np
 import tensorflow as tf
 
-from sup3r.models import Sup3rGan, Sup3rGanMmdMse, Sup3rGanCoarseMse
+from sup3r.utilities.loss_metrics import MmdMseLoss, CoarseMseLoss
 
 
-def test_mse_mmd_loss():
+def test_mmd_loss():
     """Test content loss using mse + mmd for content loss."""
 
     x = np.zeros((6, 10, 10, 8, 3))
@@ -16,8 +16,11 @@ def test_mse_mmd_loss():
 
     # distributions differing by only a small peak should give small mse and
     # larger mmd
-    mse = Sup3rGan.calc_loss_gen_content(x, y)
-    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(x, y)
+    mse_fun = tf.keras.losses.MeanSquaredError()
+    mmd_mse_fun = MmdMseLoss()
+
+    mse = mse_fun(x, y)
+    mmd_plus_mse = mmd_mse_fun(x, y)
 
     assert mmd_plus_mse > 2 * mse
 
@@ -27,13 +30,8 @@ def test_mse_mmd_loss():
     y /= np.max(y)
 
     # scaling the same distribution should give high mse and smaller mmd
-    mse = Sup3rGan.calc_loss_gen_content(5 * x, x)
-    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(5 * x, x)
-
-    assert isinstance(mse, tf.Tensor)
-    assert isinstance(mmd_plus_mse, tf.Tensor)
-    assert mse.numpy().size == 1
-    assert mmd_plus_mse.numpy().size == 1
+    mse = mse_fun(5 * x, x)
+    mmd_plus_mse = mmd_mse_fun(5 * x, x)
 
     assert mmd_plus_mse < 2 * mse
 
@@ -43,8 +41,11 @@ def test_coarse_mse_loss():
     x = np.random.uniform(0, 1, (6, 10, 10, 8, 3))
     y = np.random.uniform(0, 1, (6, 10, 10, 8, 3))
 
-    mse = Sup3rGan.calc_loss_gen_content(x, y)
-    coarse_mse = Sup3rGanCoarseMse.calc_loss_gen_content(x, y)
+    mse_fun = tf.keras.losses.MeanSquaredError()
+    cmse_fun = CoarseMseLoss()
+
+    mse = mse_fun(x, y)
+    coarse_mse = cmse_fun(x, y)
 
     assert isinstance(mse, tf.Tensor)
     assert isinstance(coarse_mse, tf.Tensor)

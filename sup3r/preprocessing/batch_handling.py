@@ -797,6 +797,70 @@ class BatchHandlerCC(BatchHandler):
         return high_res
 
 
+class SpatialBatchHandlerCC(BatchHandler):
+    """Batch handling class for climate change data with daily averages as the
+    coarse dataset with only spatial samples, e.g. the batch tensor shape is
+    (n_obs, spatial_1, spatial_2, features)
+    """
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
+
+    def __next__(self):
+        """Get the next iterator output.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate coarsening.
+        """
+
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(0, len(self.data_handlers))
+            self.current_handler_index = handler_index
+            handler = self.data_handlers[handler_index]
+
+            high_res = None
+
+            for i in range(self.batch_size):
+                _, obs_daily_avg = handler.get_next()
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                obs_daily_avg = self.BATCH_CLASS.reduce_features(
+                    obs_daily_avg, self.output_features_ind)
+
+                if high_res is None:
+                    hr_shape = (self.batch_size,) + obs_daily_avg.shape
+                    high_res = np.zeros(hr_shape, dtype=np.float32)
+
+                    msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
+                           'but received HR shape {} with n_temporal={}.'
+                           .format(hr_shape, hr_shape[3]))
+                    assert hr_shape[3] == 1, msg
+
+                high_res[i] = obs_daily_avg
+
+            low_res = spatial_coarsening(high_res, self.s_enhance)
+            low_res = low_res[:, :, :, 0, :]
+            high_res = high_res[:, :, :, 0, :]
+
+            if (self.output_features is not None
+                    and 'clearsky_ratio' in self.output_features):
+                i_cs = self.output_features.index('clearsky_ratio')
+                if np.isnan(high_res[..., i_cs]).any():
+                    high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+            batch = self.BATCH_CLASS(low_res, high_res)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 

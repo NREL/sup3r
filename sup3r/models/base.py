@@ -10,10 +10,11 @@ import pprint
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
-from tensorflow.keras.losses import MeanSquaredError
 from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 from warnings import warn
+
+import sup3r.utilities.loss_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,7 @@ logger = logging.getLogger(__name__)
 class Sup3rGan:
     """Basic sup3r GAN model."""
 
-    LOSS = MeanSquaredError()
-
-    def __init__(self, gen_layers, disc_layers,
+    def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
                  history=None, version_record=None, meta=None,
@@ -42,6 +41,10 @@ class Sup3rGan:
             discriminative model (spatial or spatiotemporal discriminator). Can
             also be a str filepath to a .json config file containing the input
             layers argument or a .pkl for a saved pre-trained model.
+        loss : str
+            Loss function class name from sup3r.utilities.loss_metrics
+            (prioritized) or tensorflow.keras.losses. Defaults to
+            tf.keras.losses.MeanSquaredError.
         optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
@@ -80,6 +83,9 @@ class Sup3rGan:
 
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
+
+        self.loss_name = loss
+        self.loss_fun = self.get_loss_fun(loss)
 
         self._version_record = CustomNetwork._parse_versions(version_record)
 
@@ -335,6 +341,39 @@ class Sup3rGan:
                            batch_handler.output_features))
             logger.error(msg)
             raise KeyError(msg)
+
+    @staticmethod
+    def get_loss_fun(loss):
+        """Get the initialized loss function class from the sup3r loss library
+        or the tensorflow losses.
+
+        Parameters
+        ----------
+        loss : str
+            Loss function class name from sup3r.utilities.loss_metrics
+            (prioritized) or tensorflow.keras.losses. Defaults to
+            tf.keras.losses.MeanSquaredError.
+
+        Returns
+        -------
+        out : tf.keras.losses.Loss
+            Initialized loss function class that is callable, e.g. if
+            "MeanSquaredError" is requested, this will return
+            an instance of tf.keras.losses.MeanSquaredError()
+        """
+
+        out = getattr(sup3r.utilities.loss_metrics, loss, None)
+        if out is None:
+            out = getattr(tf.keras.losses, loss, None)
+
+        if out is None:
+            msg = ('Could not find requested loss function "{}" in '
+                   'sup3r.utilities.loss_metrics or tf.keras.losses.'
+                   .format(loss))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        return out()
 
     @staticmethod
     def seed(s=0):
@@ -692,6 +731,7 @@ class Sup3rGan:
         config_optm_d = self.get_optimizer_config(self.optimizer_disc)
 
         model_params = {'name': self.name,
+                        'loss': self.loss_name,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
                         'optimizer_disc': config_optm_d,
@@ -994,9 +1034,8 @@ class Sup3rGan:
 
         return loss_details
 
-    @classmethod
     @tf.function
-    def calc_loss_gen_content(cls, hi_res_true, hi_res_gen):
+    def calc_loss_gen_content(self, hi_res_true, hi_res_gen):
         """Calculate the content loss term for the generator model.
 
         Parameters
@@ -1014,7 +1053,7 @@ class Sup3rGan:
             hi res ground truth to the hi res synthetically generated output.
         """
 
-        loss_gen_content = cls.LOSS(hi_res_true, hi_res_gen)
+        loss_gen_content = self.loss_fun(hi_res_true, hi_res_gen)
 
         return loss_gen_content
 

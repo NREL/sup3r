@@ -172,6 +172,10 @@ class DataHandler(FeatureHandler):
             Whether to overwrite any previously saved cache files.
         load_cached : bool
             Whether to load data from cache files
+        train_only_features : list | tuple | None
+            List of feature names or patt*erns that should only be included in
+            the training set and not the output. If None (default), this will
+            default to the class TRAIN_ONLY_FEATURES attribute.
         """
 
         check = ((target is not None and shape is not None)
@@ -181,6 +185,7 @@ class DataHandler(FeatureHandler):
         assert check, msg
 
         super().__init__()
+
         if isinstance(file_paths, str):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
@@ -188,7 +193,8 @@ class DataHandler(FeatureHandler):
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
 
-        if train_only_features is None:
+        self.train_only_features = train_only_features
+        if self.train_only_features is None:
             self.train_only_features = self.TRAIN_ONLY_FEATURES
 
         self.features = features
@@ -203,7 +209,7 @@ class DataHandler(FeatureHandler):
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_paths)
-        self.time_index = self.raw_time_index[temporal_slice]
+        self.time_index = self.raw_time_index[self.temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
@@ -215,34 +221,7 @@ class DataHandler(FeatureHandler):
         self.compute_workers = compute_workers
         self.lat_lon = None
 
-        n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
-        n_steps = len(n_steps)
-        msg = (f'Temporal slice step ({temporal_slice.step}) does not evenly '
-               f'divide the number of time steps ({n_steps})')
-        check = temporal_slice.step is None
-        check = check or n_steps % temporal_slice.step == 0
-        if not check:
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
-               'than the number of time steps in the raw data '
-               f'({len(self.raw_time_index)}).')
-        assert len(self.raw_time_index) >= self.sample_shape[2], msg
-
-        msg = (f'The requested time slice {temporal_slice} conflicts with the '
-               f'number of time steps ({len(self.raw_time_index)}) '
-               'in the raw data')
-        t_slice_is_subset = (temporal_slice.start is not None
-                             and temporal_slice.stop is not None)
-        good_subset = (t_slice_is_subset
-                       and (temporal_slice.stop - temporal_slice.start
-                            <= len(self.raw_time_index))
-                       and temporal_slice.stop <= len(self.raw_time_index)
-                       and temporal_slice.start <= len(self.raw_time_index))
-        if t_slice_is_subset and not good_subset:
-            logger.error(msg)
-            raise RuntimeError(msg)
+        self.preflight()
 
         try_load = (cache_file_prefix is not None
                     and not self.overwrite_cache
@@ -293,14 +272,51 @@ class DataHandler(FeatureHandler):
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
 
-            if cache_file_prefix is None:
-                self.data, self.val_data = self.split_data()
-            else:
+            if cache_file_prefix is not None:
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
 
+            if self.data is not None:
+                self.data, self.val_data = self.split_data()
+
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    def preflight(self):
+        """Run some preflight checks and verify that the inputs are valid"""
+        if len(self.sample_shape) == 2:
+            logger.info('Found 2D sample shape of {}. Adding spatial dim of 1'
+                        .format(self.sample_shape))
+            self.sample_shape = self.sample_shape + (1,)
+
+        start = self.temporal_slice.start
+        stop = self.temporal_slice.stop
+        n_steps = self.raw_time_index[start:stop]
+        n_steps = len(n_steps)
+        msg = (f'Temporal slice step ({self.temporal_slice.step}) does not '
+               f'evenly divide the number of time steps ({n_steps})')
+        check = self.temporal_slice.step is None
+        check = check or n_steps % self.temporal_slice.step == 0
+        if not check:
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({len(self.raw_time_index)}).')
+        assert len(self.raw_time_index) >= self.sample_shape[2], msg
+
+        msg = (f'The requested time slice {self.temporal_slice} conflicts '
+               f'with the number of time steps ({len(self.raw_time_index)}) '
+               'in the raw data')
+        t_slice_is_subset = (start is not None and stop is not None)
+        good_subset = (t_slice_is_subset
+                       and (stop - start <= len(self.raw_time_index))
+                       and stop <= len(self.raw_time_index)
+                       and start <= len(self.raw_time_index))
+        if t_slice_is_subset and not good_subset:
+            logger.error(msg)
+            raise RuntimeError(msg)
 
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, time_slice):
@@ -415,7 +431,7 @@ class DataHandler(FeatureHandler):
         out = []
         for feature in self.features:
             ignore = any(fnmatch(feature.lower(), pattern.lower())
-                         for pattern in self.TRAIN_ONLY_FEATURES)
+                         for pattern in self.train_only_features)
             if not ignore:
                 out.append(feature)
         return out
@@ -1374,7 +1390,16 @@ class DataHandlerH5WindCC(DataHandlerH5):
         **kwargs : dict
             Same keyword args as DataHandlerH5
         """
-        t_shape = kwargs.get('sample_shape', (10, 10, 1))[-1]
+        sample_shape = kwargs.get('sample_shape', (10, 10, 24))
+        t_shape = sample_shape[-1]
+
+        if len(sample_shape) == 2:
+            logger.info('Found 2D sample shape of {}. Adding spatial dim of 24'
+                        .format(sample_shape))
+            sample_shape = sample_shape + (24,)
+            t_shape = sample_shape[-1]
+            kwargs['sample_shape'] = sample_shape
+
         if t_shape < 24 or t_shape % 24 != 0:
             msg = ('Climate Change DataHandler can only work with temporal '
                    'sample shapes that are one or more days of hourly data '
@@ -1395,8 +1420,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
     def run_daily_averages(self):
         """Calculate daily average data and store as attribute."""
         msg = ('Data needs to be hourly with at least 24 hours, but data '
-               'shape is {} and val data shape is {}'
-               .format(self.data.shape, self.val_data.shape))
+               'shape is {}.'.format(self.data.shape))
         assert self.data.shape[2] % 24 == 0, msg
         assert self.data.shape[2] > 24, msg
 

@@ -4,6 +4,7 @@ applications"""
 import os
 import numpy as np
 import tempfile
+from tensorflow.keras.losses import MeanAbsoluteError
 
 from rex import init_logger
 
@@ -12,7 +13,8 @@ from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
                                                DataHandlerH5WindCC)
-from sup3r.preprocessing.batch_handling import BatchHandlerCC
+from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
+                                                SpatialBatchHandlerCC)
 
 
 SHAPE = (20, 20)
@@ -50,7 +52,8 @@ def test_solar_cc_model(log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
+                     loss='MeanAbsoluteError')
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -63,6 +66,15 @@ def test_solar_cc_model(log=False):
         assert model.meta['output_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
+        out_dir = os.path.join(td, 'cc_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        assert isinstance(model.loss_fun, MeanAbsoluteError)
+        assert isinstance(loaded.loss_fun, MeanAbsoluteError)
+        assert model.meta['class'] == 'Sup3rGan'
+        assert loaded.meta['class'] == 'Sup3rGan'
+
     x = np.random.uniform(0, 1, (1, 30, 30, 3, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
@@ -70,6 +82,51 @@ def test_solar_cc_model(log=False):
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == x.shape[3] * 3
     assert y.shape[4] == x.shape[4]
+
+
+def test_solar_cc_model_spatial(log=False):
+    """Test the solar climate change nsrdb super res model with spatial
+    enhancement only.
+    """
+
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, ('clearsky_ratio', 'ghi'),
+                                   target=TARGET_S, shape=SHAPE,
+                                   temporal_slice=slice(None, None, 2),
+                                   time_roll=-7,
+                                   val_split=0.1,
+                                   sample_shape=(20, 20),
+                                   extract_workers=1,
+                                   compute_workers=1)
+
+    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+                                    s_enhance=2)
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batcher, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=None,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert 'test_0' in os.listdir(td)
+        assert model.meta['output_features'] == ['clearsky_ratio', 'ghi']
+        assert model.meta['class'] == 'Sup3rGan'
+
+    x = np.random.uniform(0, 1, (4, 30, 30, 2))
+    y = model.generate(x)
+    assert y.shape[0] == x.shape[0]
+    assert y.shape[1] == x.shape[1] * 2
+    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[3] == x.shape[3]
 
 
 def test_wind_cc_model(log=False):
@@ -116,3 +173,48 @@ def test_wind_cc_model(log=False):
     assert y.shape[2] == x.shape[2] * 4
     assert y.shape[3] == x.shape[3] * 24
     assert y.shape[4] == x.shape[4]
+
+
+def test_wind_cc_model_spatial(log=False):
+    """Test the wind climate change wtk super res model with spatial
+    enhancement only.
+    """
+
+    handler = DataHandlerH5WindCC(INPUT_FILE_W, ('U_100m', 'V_100m'),
+                                  target=TARGET_W, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 2),
+                                  time_roll=-7,
+                                  val_split=0.1,
+                                  sample_shape=(20, 20),
+                                  extract_workers=1,
+                                  compute_workers=1)
+
+    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+                                    s_enhance=2)
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batcher, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=None,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert 'test_0' in os.listdir(td)
+        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['class'] == 'Sup3rGan'
+
+    x = np.random.uniform(0, 1, (4, 30, 30, 2))
+    y = model.generate(x)
+    assert y.shape[0] == x.shape[0]
+    assert y.shape[1] == x.shape[1] * 2
+    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[3] == x.shape[3]
