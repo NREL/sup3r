@@ -13,13 +13,13 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
-from sup3r.models.modified_loss import Sup3rGanMmdMse
 from sup3r.models.data_centric import Sup3rGanDC
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerDCforH5)
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 BatchHandlerDC,
                                                 SpatialBatchHandler)
+from sup3r.utilities.loss_metrics import MmdMseLoss
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -37,7 +37,8 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6)
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6,
+                     loss='MeanAbsoluteError')
 
     # need to reduce the number of temporal examples to test faster
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -74,6 +75,11 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         out_dir = os.path.join(td, 'spatial_gan')
         model.save(out_dir)
         loaded = model.load(out_dir)
+
+        assert isinstance(dummy.loss_fun, tf.keras.losses.MeanSquaredError)
+        assert isinstance(model.loss_fun, tf.keras.losses.MeanAbsoluteError)
+        assert isinstance(loaded.loss_fun, tf.keras.losses.MeanAbsoluteError)
+
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
             out_dummy = dummy._tf_generate(batch.low_res)
@@ -143,33 +149,6 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                 assert weight_new < weight_old
 
 
-def test_mmd_loss():
-    """Test content loss using mse + mmd for content loss."""
-
-    x = np.zeros((6, 10, 10, 8, 3))
-    y = np.zeros((6, 10, 10, 8, 3))
-    x[:, 7:9, 7:9, :, :] = 1
-    y[:, 2:5, 2:5, :, :] = 1
-
-    # distributions differing by only a small peak should give small mse and
-    # larger mmd
-    mse = Sup3rGan.calc_loss_gen_content(x, y)
-    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(x, y)
-
-    assert mmd_plus_mse > 2 * mse
-
-    x = np.random.rand(6, 10, 10, 8, 3)
-    x /= np.max(x)
-    y = np.random.rand(6, 10, 10, 8, 3)
-    y /= np.max(y)
-
-    # scaling the same distribution should give high mse and smaller mmd
-    mse = Sup3rGan.calc_loss_gen_content(5 * x, x)
-    mmd_plus_mse = Sup3rGanMmdMse.calc_loss_gen_content(5 * x, x)
-
-    assert mmd_plus_mse < 2 * mse
-
-
 def test_train_st_dc(n_epoch=2, log=False):
     """Test data-centric spatiotemporal model training. Check that the temporal
     weights give the correct number of observations from each temporal bin"""
@@ -181,7 +160,7 @@ def test_train_st_dc(n_epoch=2, log=False):
 
     Sup3rGan.seed()
     model = Sup3rGanDC(fp_gen, fp_disc, learning_rate=1e-4,
-                       learning_rate_disc=3e-4)
+                       learning_rate_disc=3e-4, loss='MmdMseLoss')
 
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
                                  shape=(20, 20),
@@ -209,6 +188,15 @@ def test_train_st_dc(n_epoch=2, log=False):
         assert np.allclose(batch_handler.old_temporal_weights,
                            batch_handler.normalized_sample_record,
                            atol=deviation)
+
+        out_dir = os.path.join(td, 'dc_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        assert isinstance(model.loss_fun, MmdMseLoss)
+        assert isinstance(loaded.loss_fun, MmdMseLoss)
+        assert model.meta['class'] == 'Sup3rGanDC'
+        assert loaded.meta['class'] == 'Sup3rGanDC'
 
 
 def test_train_st(n_epoch=4, log=False):

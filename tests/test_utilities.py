@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """pytests for general utilities"""
-
 import numpy as np
 import pytest
 
