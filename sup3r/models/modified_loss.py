@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """Sup3r models with modified content loss functions"""
 
-
+from tensorflow.keras.losses import MeanAbsoluteError
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.loss_metrics import (ExpLoss, MmdMseLoss, MmdLoss,
                                           CoarseMseLoss, MseExpLoss)
+
+
+class Sup3rGanMae(Sup3rGan):
+    """Sup3rGan sub class using mean absolute error as the content loss"""
+    LOSS = MeanAbsoluteError()
 
 
 class Sup3rGanMmd(Sup3rGan):

@@ -9,7 +9,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGan, Sup3rGanMae
 from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
                                                DataHandlerH5WindCC)
 from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
@@ -50,8 +50,8 @@ def test_solar_cc_model(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_2x_3x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    Sup3rGanMae.seed()
+    model = Sup3rGanMae(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -62,7 +62,7 @@ def test_solar_cc_model(log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['clearsky_ratio']
-        assert model.meta['class'] == 'Sup3rGan'
+        assert model.meta['class'] == 'Sup3rGanMae'
 
     x = np.random.uniform(0, 1, (1, 30, 30, 3, 1))
     y = model.generate(x)
@@ -207,8 +207,3 @@ def test_wind_cc_model_spatial(log=False):
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == x.shape[3]
-
-
-if __name__ == '__main__':
-    test_solar_cc_model_spatial(True)
-    test_wind_cc_model_spatial(True)

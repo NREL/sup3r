@@ -6,7 +6,7 @@ import logging
 import json
 
 from sup3r.models.modified_loss import (Sup3rGanMmdMse, Sup3rGanMseExp,
-                                        Sup3rGanExp)
+                                        Sup3rGanExp, Sup3rGanMae)
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.utilities import round_array
 
@@ -120,6 +120,10 @@ class Sup3rGanDC(Sup3rGan):
             content_losses), 3)
         loss_details['val_losses'] = json.dumps(round_array(total_losses))
         return loss_details
+
+
+class Sup3rGanDCwithMae(Sup3rGanDC, Sup3rGanMae):
+    """Sup3rGan with MAE loss and Data-Centric observation selection"""
 
 
 class Sup3rGanDCwithMmdMse(Sup3rGanDC, Sup3rGanMmdMse):
