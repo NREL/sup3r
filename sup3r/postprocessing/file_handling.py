@@ -29,10 +29,10 @@ H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
                             'units': 'C', 'dtype': 'int32'},
             'pressure': {'fill_value': 65535, 'scale_factor': 0.1,
                          'units': 'Pa', 'dtype': 'uint16'},
-            'bvfmo': {'fill_value': 65535, 'scale_factor': 0.1,
-                      'units': 'm s-2', 'dtype': 'uint16'},
-            'bvf_squared': {'fill_value': 65535, 'scale_factor': 0.1,
-                            'units': 's-2', 'dtype': 'int16'}}
+            'bvf_mo': {'fill_value': 65535, 'scale_factor': 0.1,
+                       'units': 'm s-2', 'dtype': 'uint16'},
+            'bvf2': {'fill_value': 65535, 'scale_factor': 0.1,
+                     'units': 's-2', 'dtype': 'int16'}}
 
 
 class OutputHandler:

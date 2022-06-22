@@ -312,7 +312,9 @@ def test_temporal_coarsening(method, t_enhance):
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance,
-                                 temporal_coarsening_method=method)
+                                 temporal_coarsening_method=method,
+                                 norm_workers=1,
+                                 load_workers=1)
 
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -346,7 +348,9 @@ def test_spatiotemporal_validation_batching(method):
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance,
-                                 temporal_coarsening_method=method)
+                                 temporal_coarsening_method=method,
+                                 load_workers=1,
+                                 norm_workers=1)
 
     for batch in batch_handler.val_data:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -380,7 +384,9 @@ def test_spatiotemporal_batch_observations(sample_shape):
     batch_handler = BatchHandler([data_handler], batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
-                                 t_enhance=t_enhance)
+                                 t_enhance=t_enhance,
+                                 load_workers=1,
+                                 norm_workers=1)
 
     for batch in batch_handler:
         for i, index in enumerate(batch_handler.current_batch_indices):
@@ -415,7 +421,9 @@ def test_spatiotemporal_batch_indices(sample_shape):
     batch_handler = BatchHandler([data_handler], batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
-                                 t_enhance=t_enhance)
+                                 t_enhance=t_enhance,
+                                 load_workers=1,
+                                 norm_workers=1)
 
     all_spatial_tuples = []
     for _ in batch_handler:
@@ -456,7 +464,9 @@ def test_spatiotemporal_batch_handling(plot=False):
     batch_handler = BatchHandler([data_handler], batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
-                                 t_enhance=t_enhance)
+                                 t_enhance=t_enhance,
+                                 load_workers=1,
+                                 norm_workers=1)
 
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -499,7 +509,9 @@ def test_batch_handling(plot=False):
     batch_handler = SpatialBatchHandler([data_handler],
                                         batch_size=batch_size,
                                         n_batches=n_batches,
-                                        s_enhance=s_enhance)
+                                        s_enhance=s_enhance,
+                                        load_workers=1,
+                                        norm_workers=1)
 
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -542,7 +554,9 @@ def test_val_data_storage():
     batch_handler = SpatialBatchHandler([data_handler],
                                         batch_size=batch_size,
                                         n_batches=n_batches,
-                                        s_enhance=s_enhance)
+                                        s_enhance=s_enhance,
+                                        load_workers=1,
+                                        norm_workers=1)
 
     val_observations = 0
     batch_handler.val_data._i = 0

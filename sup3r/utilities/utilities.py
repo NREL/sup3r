@@ -64,13 +64,13 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     slices = []
     start = indices[0]
     stop = start + step * chunk_size
+    stop = np.min([stop, indices[-1] + 1])
+
     while start < indices[-1] + 1:
         slices.append(slice(start, stop, step))
         start = stop
         stop += step * chunk_size
-        if stop > indices[-1] + 1:
-            stop = indices[-1] + 1
-
+        stop = np.min([stop, indices[-1] + 1])
     return slices
 
 
@@ -690,19 +690,15 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
                         + [raster_index[1]])
                     array_in = array_in[idx]
                 elif 'west_east' in d:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + [raster_index[0]]
-                        + [slice(raster_index[1].start,
-                                 raster_index[1].stop + 1)])
+                    idx = tuple([time_slice] + [slice(None)]
+                                + [raster_index[0]]
+                                + [slice(raster_index[1].start,
+                                         raster_index[1].stop + 1)])
                     array_in = array_in[idx]
                 else:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + raster_index)
+                    idx = tuple([time_slice] + [slice(None)] + raster_index)
                     array_in = array_in[idx]
-                array_in = np.apply_along_axis(
-                    forward_average, i, array_in)
+                array_in = np.apply_along_axis(forward_average, i, array_in)
     return array_in
 
 
@@ -833,7 +829,6 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
     """
 
     logger.debug(f'Interpolating {var} to heights: {heights}')
-
     return interp3D(unstagger_var(data, var, raster_index, time_slice),
                     calc_height(data, raster_index, time_slice),
                     heights)[0]
@@ -856,6 +851,27 @@ def potential_temperature(T, P):
     """
     out = (T + np.float32(273.15))
     out *= (np.float32(100000) / P) ** np.float32(0.286)
+    return out
+
+
+def invert_pot_temp(PT, P):
+
+    """Potential temperature of fluid at pressure P and temperature T
+
+    Parameters
+    ----------
+    PT : ndarray
+        Potential temperature in Kelvin
+    P : ndarray
+        Pressure of fluid in Pa
+
+    Returns
+    -------
+    ndarray
+        Temperature in celsius
+    """
+    out = PT / (np.float32(100000) / P) ** np.float32(0.286)
+    out -= np.float32(273.15)
     return out
 
 
@@ -914,40 +930,27 @@ def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
             + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
 
 
-def inverse_mo_length(U_surf, V_surf, W_surf, PT_surf):
+def inverse_mo_length(U_star, flux_surf):
     """Inverse Monin - Obukhov Length
 
     Parameters
     ----------
-    U_surf : ndarray
+    U_star : ndarray
         (spatial_1, spatial_2, temporal)
-        Surface U wind component
-    V_surf : ndarray
+        Frictional wind speed
+    flux_surf : ndarray
         (spatial_1, spatial_2, temporal)
-        Surface V wind component
-    W_surf : ndarray
-        (spatial_1, spatial_2, temporal)
-        Surface W wind component
-    PT_surf : ndarray
-        (spatial_1, spatial_2, temporal)
-        Surface potential temperature
+        Surface heat flux
 
     Returns
     -------
     ndarray
         (spatial_1, spatial_2, temporal)
-        Monin - Obukhov Length
+        Inverse Monin - Obukhov Length
     """
 
-    U_eddy = U_surf - np.mean(U_surf, axis=2)[:, :, np.newaxis]
-    V_eddy = V_surf - np.mean(V_surf, axis=2)[:, :, np.newaxis]
-    W_eddy = W_surf - np.mean(W_surf, axis=2)[:, :, np.newaxis]
-
-    PT_flux = W_eddy * (PT_surf - np.mean(PT_surf, axis=2)[:, :, np.newaxis])
-
-    ws_friction = ((U_eddy * W_eddy) ** 2 + (V_eddy * W_eddy) ** 2) ** 0.25
-    denom = -ws_friction ** 3 * PT_surf
-    numer = (0.41 * 9.81 * PT_flux)
+    denom = -U_star ** 3 * 300
+    numer = (0.41 * 9.81 * flux_surf)
     return numer / denom
 
 
@@ -1074,6 +1077,73 @@ def ignore_case_path_fetch(fp):
         if fnmatch(file.lower(), basename.lower()):
             return os.path.join(dirname, file)
     return None
+
+
+def rotor_area(h_bottom, h_top, radius=40):
+    """Area of circular section between two heights
+
+    Parameters
+    ----------
+    h_bottom : float
+        Lower height
+    h_top : float
+        Upper height
+    radius : float
+        Radius of rotor. Default is 40 meters
+
+    Returns
+    -------
+    area : float
+    """
+
+    x_bottom = np.sqrt(radius**2 - h_bottom**2)
+    x_top = np.sqrt(radius**2 - h_top**2)
+    area = h_top * x_top - h_bottom * x_bottom
+    area += radius**2 * np.arctan2(h_top, x_top)
+    area -= radius**2 * np.arctan2(h_bottom, x_bottom)
+    return area
+
+
+def rotor_equiv_ws(data, heights):
+    """Calculate rotor equivalent wind speed. Follows implementation in 'How
+    wind speed shear and directional veer affect the power production of a
+    megawatt-scale operational wind turbine. DOI:10.5194/wes-2019-86'
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary of arrays for windspeeds/winddirections at different hub
+        heights.
+        Each dictionary entry has (spatial_1, spatial_2, temporal)
+    heights : list
+        List of heights corresponding to the windspeeds/winddirections.
+        rotor is assumed to be at mean(heights).
+
+    Returns
+    -------
+    rews : ndarray
+        Array of rotor equivalent windspeeds.
+        (spatial_1, spatial_2, temporal)
+    """
+
+    rotor_center = np.mean(heights)
+    rel_heights = [h - rotor_center for h in heights]
+    areas = [rotor_area(rel_heights[i], rel_heights[i + 1])
+             for i in range(len(rel_heights) - 1)]
+    total_area = np.sum(areas)
+    areas /= total_area
+    rews = np.zeros(data[list(data.keys())[0]].shape)
+    for i in range(len(heights) - 1):
+        ws_0 = data[f'windspeed_{heights[i]}m']
+        ws_1 = data[f'windspeed_{heights[i + 1]}m']
+        wd_0 = data[f'winddirection_{heights[i]}m']
+        wd_1 = data[f'winddirection_{heights[i + 1]}m']
+        ws_cos_0 = np.cos(np.radians(wd_0)) * ws_0
+        ws_cos_1 = np.cos(np.radians(wd_1)) * ws_1
+        rews += areas[i] * (ws_cos_0 + ws_cos_1)**3
+
+    rews = 0.5 * np.cbrt(rews)
+    return rews
 
 
 def get_source_type(file_paths):

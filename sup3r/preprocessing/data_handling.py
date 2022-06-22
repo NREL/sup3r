@@ -34,18 +34,24 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        spatial_coarsening)
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
-                                                  BVFreqMonH5,
-                                                  BVFreqMonNC,
+                                                  BVFreqMon,
                                                   BVFreqSquaredH5,
                                                   BVFreqSquaredNC,
+                                                  InverseMonNC,
                                                   LatLonNC,
+                                                  TempNC,
                                                   UWindH5,
                                                   VWindH5,
                                                   UWindNsrdb,
                                                   VWindNsrdb,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
-                                                  CloudMaskH5)
+                                                  CloudMaskH5,
+                                                  WindspeedNC,
+                                                  WinddirectionNC,
+                                                  Shear,
+                                                  Rews
+                                                  )
 
 np.random.seed(42)
 
@@ -79,7 +85,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF_*', 'inversemoninobukhovlength_*')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=50,
@@ -452,7 +458,7 @@ class DataHandler(FeatureHandler):
                                     stds[i])
                 futures[future] = i
 
-            logger.info(f'Started normalizing all {self.shape[-1]} features '
+            logger.info(f'Started normalizing {self.shape[-1]} features '
                         f'in {dt.now() - now}. ')
 
             for i, future in enumerate(as_completed(futures)):
@@ -837,7 +843,9 @@ class DataHandler(FeatureHandler):
             file_paths, features, cache_files=cache_files,
             overwrite_cache=overwrite_cache, load_cached=load_cached)
 
-        raw_features = cls.get_raw_feature_list(file_paths, extract_features)
+        handle_features = cls.get_handle_features(file_paths)
+        raw_features = cls.get_raw_feature_list(extract_features,
+                                                handle_features)
 
         logger.info(f'Starting {extract_features} extraction for '
                     f'{cls.file_info_logging(file_paths)}')
@@ -850,7 +858,7 @@ class DataHandler(FeatureHandler):
 
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
-                                        compute_workers)
+                                        handle_features, compute_workers)
 
         logger.info(f'Finished computing {extract_features} for '
                     f'{cls.file_info_logging(file_paths)}')
@@ -933,31 +941,37 @@ class DataHandlerNC(DataHandler):
             Method registry
         """
         registry = {
-            'BVF_squared_(.*)': BVFreqSquaredNC,
-            'BVF_MO_(.*)': BVFreqMonNC,
-            'lat_lon': LatLonNC}
+            'BVF2_(.*)m': BVFreqSquaredNC,
+            'BVF_MO_(.*)m': BVFreqMon,
+            'RMOL': InverseMonNC,
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
+            'lat_lon': LatLonNC,
+            'Shear_(.*)m': Shear,
+            'REWS_(.*)m': Rews,
+            'Temperature_(.*)m': TempNC,
+            'Pressure_(.*)m': 'P_(.*)m'}
         return registry
 
     @classmethod
-    def get_raw_feature_list(cls, file_paths, features):
+    def get_handle_features(cls, file_paths):
         """Lookup inputs needed to compute feature
+
         Parameters
         ----------
         file_paths : list
             List of data file paths
-        feature : str
-            Feature to lookup in registry
+
         Returns
         -------
         list
-            List of input features
+            List of available features in data
         """
 
         with xr.open_mfdataset(file_paths, combine='nested',
                                concat_dim='Time') as handle:
-            input_features = cls.get_raw_feature_list_from_handle(
-                features, handle)
-        return input_features
+            handle_features = [Feature.get_basename(r) for r in handle]
+        return handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
@@ -1006,13 +1020,9 @@ class DataHandlerNC(DataHandler):
                                     tuple([time_slice] + [0] + raster_index)],
                                 dtype=np.float32)
                         else:
-                            logger.debug(
-                                f'Interpolating {basename}'
-                                f' at height {interp_height}m')
-                            fdata = interp_var(
-                                handle, basename, raster_index,
-                                np.float32(interp_height),
-                                time_slice)
+                            fdata = interp_var(handle, basename, raster_index,
+                                               np.float32(interp_height),
+                                               time_slice)
                     else:
                         fdata = np.array(
                             handle[feature][
@@ -1084,7 +1094,9 @@ class DataHandlerNC(DataHandler):
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
-            raster_index = np.load(self.raster_file)
+            raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
+                                   allow_pickle=True)
+            raster_index = list(raster_index)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
@@ -1124,7 +1136,7 @@ class DataHandlerNC(DataHandler):
 
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
-                np.save(self.raster_file, raster_index)
+                np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index
 
     @property
@@ -1163,37 +1175,42 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def feature_registry(cls):
-        """Registry of methods for computing features
+        """Registry of methods for computing features or extracting renamed
+        features
+
         Returns
         -------
         dict
             Method registry
         """
         registry = {
-            'BVF_squared_(.*)': BVFreqSquaredH5,
-            'BVF_MO_(.*)': BVFreqMonH5,
+            'BVF2_(.*)m': BVFreqSquaredH5,
+            'BVF_MO_(.*)m': BVFreqMon,
             'U_(.*)m': UWindH5,
             'V_(.*)m': VWindH5,
-            'lat_lon': LatLonH5}
+            'lat_lon': LatLonH5,
+            'REWS_(.*)m': Rews,
+            'RMOL': 'inversemoninobukhovlength_2m',
+            'P_(.*)m': 'pressure_(.*)m'}
         return registry
 
     @classmethod
-    def get_raw_feature_list(cls, file_paths, features):
+    def get_handle_features(cls, file_paths):
         """Lookup inputs needed to compute feature
         Parameters
         ----------
-        feature : str
-            Feature to lookup in registry
+        file_paths : list
+            path to data file
+
         Returns
         -------
         list
-            List of input features
+            List of available features in data
         """
 
         with cls.REX_HANDLER(file_paths) as handle:
-            input_features = cls.get_raw_feature_list_from_handle(
-                features, handle)
-        return input_features
+            handle_features = [Feature.get_basename(r) for r in handle]
+        return handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
@@ -1217,26 +1234,21 @@ class DataHandlerH5(DataHandler):
         """
 
         with cls.REX_HANDLER(file_paths) as handle:
-
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
                 return method(file_paths, raster_index)
-
             else:
                 try:
-                    fdata = handle[
-                        tuple([feature] + [time_slice]
-                              + [raster_index.flatten()])]
-
+                    fdata = handle[tuple([feature] + [time_slice]
+                                         + [raster_index.flatten()])]
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
                     logger.exception(msg)
                     raise ValueError(msg) from e
 
-        fdata = fdata.reshape(
-            (-1, raster_index.shape[0], raster_index.shape[1]))
+        fdata = fdata.reshape((-1, raster_index.shape[0],
+                               raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
-
         return fdata.astype(np.float32)
 
     def get_raster_index(self, file_paths, target, shape):
@@ -1267,13 +1279,10 @@ class DataHandlerH5(DataHandler):
             with self.REX_HANDLER(file_paths[0]) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
-
             self.lat_lon = self.get_lat_lon(file_paths, raster_index,
                                             self.temporal_slice)
-
             if self.raster_file is not None:
-                logger.debug(
-                    f'Saving raster index: {self.raster_file}')
+                logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
 

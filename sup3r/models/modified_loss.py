@@ -4,7 +4,7 @@
 
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.loss_metrics import (ExpLoss, MmdMseLoss, MmdLoss,
-                                          CoarseMseLoss)
+                                          CoarseMseLoss, MseExpLoss)
 
 
 class Sup3rGanMmd(Sup3rGan):
@@ -24,6 +24,13 @@ class Sup3rGanExp(Sup3rGan):
     of mse"""
 
     LOSS = ExpLoss()
+
+
+class Sup3rGanMseExp(Sup3rGan):
+    """Sup3rGan sub class using mse + exponential difference for content loss
+    instead of just mse"""
+
+    LOSS = MseExpLoss()
 
 
 class Sup3rGanCoarseMse(Sup3rGan):
