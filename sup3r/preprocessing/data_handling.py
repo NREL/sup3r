@@ -185,6 +185,7 @@ class DataHandler(FeatureHandler):
         assert check, msg
 
         super().__init__()
+
         if isinstance(file_paths, str):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
@@ -208,7 +209,7 @@ class DataHandler(FeatureHandler):
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.raw_time_index = get_time_index(self.file_paths)
-        self.time_index = self.raw_time_index[temporal_slice]
+        self.time_index = self.raw_time_index[self.temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
@@ -220,39 +221,7 @@ class DataHandler(FeatureHandler):
         self.compute_workers = compute_workers
         self.lat_lon = None
 
-        if len(self.sample_shape) == 2:
-            logger.info('Found 2D sample shape of {}. Adding spatial dim of 1'
-                        .format(self.sample_shape))
-            self.sample_shape = self.sample_shape + (1,)
-
-        n_steps = self.raw_time_index[temporal_slice.start:temporal_slice.stop]
-        n_steps = len(n_steps)
-        msg = (f'Temporal slice step ({temporal_slice.step}) does not evenly '
-               f'divide the number of time steps ({n_steps})')
-        check = temporal_slice.step is None
-        check = check or n_steps % temporal_slice.step == 0
-        if not check:
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
-               'than the number of time steps in the raw data '
-               f'({len(self.raw_time_index)}).')
-        assert len(self.raw_time_index) >= self.sample_shape[2], msg
-
-        msg = (f'The requested time slice {temporal_slice} conflicts with the '
-               f'number of time steps ({len(self.raw_time_index)}) '
-               'in the raw data')
-        t_slice_is_subset = (temporal_slice.start is not None
-                             and temporal_slice.stop is not None)
-        good_subset = (t_slice_is_subset
-                       and (temporal_slice.stop - temporal_slice.start
-                            <= len(self.raw_time_index))
-                       and temporal_slice.stop <= len(self.raw_time_index)
-                       and temporal_slice.start <= len(self.raw_time_index))
-        if t_slice_is_subset and not good_subset:
-            logger.error(msg)
-            raise RuntimeError(msg)
+        self.preflight()
 
         try_load = (cache_file_prefix is not None
                     and not self.overwrite_cache
@@ -312,6 +281,42 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    def preflight(self):
+        """Run some preflight checks and verify that the inputs are valid"""
+        if len(self.sample_shape) == 2:
+            logger.info('Found 2D sample shape of {}. Adding spatial dim of 1'
+                        .format(self.sample_shape))
+            self.sample_shape = self.sample_shape + (1,)
+
+        start = self.temporal_slice.start
+        stop = self.temporal_slice.stop
+        n_steps = self.raw_time_index[start:stop]
+        n_steps = len(n_steps)
+        msg = (f'Temporal slice step ({self.temporal_slice.step}) does not '
+               f'evenly divide the number of time steps ({n_steps})')
+        check = self.temporal_slice.step is None
+        check = check or n_steps % self.temporal_slice.step == 0
+        if not check:
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({len(self.raw_time_index)}).')
+        assert len(self.raw_time_index) >= self.sample_shape[2], msg
+
+        msg = (f'The requested time slice {self.temporal_slice} conflicts '
+               f'with the number of time steps ({len(self.raw_time_index)}) '
+               'in the raw data')
+        t_slice_is_subset = (start is not None and stop is not None)
+        good_subset = (t_slice_is_subset
+                       and (stop - start <= len(self.raw_time_index))
+                       and stop <= len(self.raw_time_index)
+                       and start <= len(self.raw_time_index))
+        if t_slice_is_subset and not good_subset:
+            logger.error(msg)
+            raise RuntimeError(msg)
 
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, time_slice):
