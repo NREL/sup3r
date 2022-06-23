@@ -7,6 +7,7 @@ Sup3r preprocessing module.
 from abc import abstractmethod
 from fnmatch import fnmatch
 import logging
+from pandas import concat
 import xarray as xr
 import numpy as np
 import os
@@ -21,13 +22,13 @@ from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities.utilities import (get_chunk_slices,
+                                       interp_var_to_height,
+                                       interp_var_to_pressure,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
-                                       interp_var,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
-                                       get_time_index,
                                        get_source_type,
                                        get_wrf_date_range,
                                        daily_temporal_coarsening,
@@ -39,6 +40,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
                                                   LatLonNC,
+                                                  LatLonNCforCC,
                                                   TempNC,
                                                   UWindH5,
                                                   VWindH5,
@@ -208,7 +210,7 @@ class DataHandler(FeatureHandler):
         self.temporal_slice = temporal_slice
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
-        self.raw_time_index = get_time_index(self.file_paths)
+        self.raw_time_index = self.get_time_index(self.file_paths)
         self.time_index = self.raw_time_index[self.temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
@@ -866,7 +868,7 @@ class DataHandler(FeatureHandler):
         logger.debug(f'Loading data for raster of shape {shape}')
 
         # get the file-native time index without pruning
-        time_index = get_time_index(file_paths)
+        time_index = cls.get_time_index(file_paths)
         n_steps = len(time_index[temporal_slice])
 
         data_array = np.zeros((shape[0], shape[1], n_steps, len(features)),
@@ -950,9 +952,48 @@ class DataHandler(FeatureHandler):
             slices for NETCDF
         """
 
+    @classmethod
+    @abstractmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from input files"""
+
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
+
+    @classmethod
+    def xr_handler(cls, file_paths):
+        """Xarray data handler
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+
+        Returns
+        -------
+        data : xarray.Dataset
+        """
+        return xr.open_mfdataset(file_paths, combine='nested',
+                                 concat_dim='Time')
+
+    @classmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+
+        Returns
+        -------
+        time_index : np.ndarray
+            Time index from nc source file(s)
+        """
+        with cls.xr_handler(file_paths) as handle:
+            time_index = handle.XTIME.values
+        return time_index
 
     @classmethod
     def file_info_logging(cls, file_paths):
@@ -1013,8 +1054,7 @@ class DataHandlerNC(DataHandler):
             List of available features in data
         """
 
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
+        with cls.xr_handler(file_paths) as handle:
             handle_features = [Feature.get_basename(r) for r in handle]
         return handle_features
 
@@ -1041,11 +1081,10 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-
+        with cls.xr_handler(file_paths) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
+            interp_pressure = f_info.pressure
             basename = f_info.basename
 
             method = cls.lookup(feature, 'compute')
@@ -1061,15 +1100,19 @@ class DataHandlerNC(DataHandler):
                             dtype=np.float32)
 
                     elif len(handle[basename].shape) > 3:
-                        if interp_height is None:
+                        if interp_height is None and interp_pressure is None:
                             fdata = np.array(
                                 handle[feature][
                                     tuple([time_slice] + [0] + raster_index)],
                                 dtype=np.float32)
-                        else:
-                            fdata = interp_var(handle, basename, raster_index,
-                                               np.float32(interp_height),
-                                               time_slice)
+                        elif interp_height is not None:
+                            fdata = interp_var_to_height(
+                                handle, basename, raster_index,
+                                np.float32(interp_height), time_slice)
+                        elif interp_pressure is not None:
+                            fdata = interp_var_to_pressure(
+                                handle, basename, raster_index,
+                                np.float32(interp_pressure), time_slice)
                     else:
                         fdata = np.array(
                             handle[feature][
@@ -1199,8 +1242,7 @@ class DataHandlerNC(DataHandler):
         dict
             Dictionary of attributes
         """
-        with xr.open_mfdataset(self.file_paths, combine='nested',
-                               concat_dim='Time') as handle:
+        with self.xr_handler(self.file_paths) as handle:
             desc = handle.attrs
         return desc
 
@@ -1213,10 +1255,83 @@ class DataHandlerNC(DataHandler):
         time_description : string
             Description of time. e.g. minutes since 2016-01-30 00:00:00
         """
-        with xr.open_mfdataset(self.file_paths, combine='nested',
-                               concat_dim='Time') as handle:
+        with self.xr_handler(self.file_paths) as handle:
             desc = handle.XTIME.attrs['description']
         return desc
+
+
+class DataHandlerNCforCC(DataHandlerNC):
+    """Data Handler for NETCDF climate change data"""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U_(.*)': 'ua_(.*)',
+            'V_(.*)': 'va_(.*)',
+            'lat_lon': LatLonNCforCC}
+        return registry
+
+    @classmethod
+    def xr_handler(cls, file_paths):
+        """Xarray data handler
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+
+        Returns
+        -------
+        data : xarray.Dataset
+        """
+        return xr.open_mfdataset(file_paths, decode_cf=False)
+
+    @classmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+
+        Returns
+        -------
+        time_index : np.ndarray
+            Time index from nc source file(s)
+        """
+        with cls.xr_handler(file_paths) as handle:
+            time_index = handle.time.values
+        return time_index
+
+    @classmethod
+    def file_info_logging(cls, file_paths):
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
+
+        Parameters
+        ----------
+        file_paths : list
+            List of file paths
+
+        Returns
+        -------
+        str
+            message to append to log output that does not include a huge info
+            dump of file paths
+        """
+
+        msg = (f'source files: {file_paths}')
+        return msg
 
 
 class DataHandlerH5(DataHandler):
@@ -1224,6 +1339,24 @@ class DataHandlerH5(DataHandler):
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
+
+    @classmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+
+        Returns
+        -------
+        time_index : pd.DateTimeIndex
+            Time index from h5 source file(s)
+        """
+        with cls.REX_HANDLER(file_paths) as handle:
+            time_index = handle.time_index
+        return time_index
 
     @classmethod
     def feature_registry(cls):

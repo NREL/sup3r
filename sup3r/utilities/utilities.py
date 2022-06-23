@@ -722,22 +722,55 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
-    phb = unstagger_var(data, 'PHB', raster_index, time_slice)
-    # Perturbation Geopotential (m^2/s^2)
-    ph = unstagger_var(data, 'PH', raster_index, time_slice)
-    # Terrain Height (m)
-    hgt = data['HGT'][tuple([time_slice] + raster_index)]
+    if all(field in data for field in ('PHB', 'PH', 'HGT')):
+        phb = unstagger_var(data, 'PHB', raster_index, time_slice)
+        # Perturbation Geopotential (m^2/s^2)
+        ph = unstagger_var(data, 'PH', raster_index, time_slice)
+        # Terrain Height (m)
+        hgt = data['HGT'][tuple([time_slice] + raster_index)]
 
-    if phb.shape != hgt.shape:
-        hgt = np.expand_dims(hgt, axis=1)
-        hgt = np.repeat(hgt, phb.shape[-3], axis=1)
+        if phb.shape != hgt.shape:
+            hgt = np.expand_dims(hgt, axis=1)
+            hgt = np.repeat(hgt, phb.shape[-3], axis=1)
+        hgt = (ph + phb) / 9.81 - hgt
 
-    hgt = (ph + phb) / 9.81 - hgt
-    del ph, phb
+    else:
+        hgt = data['zg'][tuple([time_slice] + [slice(None)] + raster_index)]
+        hgt -= data['zg'][tuple([time_slice] + [0] + raster_index)]
+        hgt = np.array(hgt.values)
+
     return hgt
 
 
-def interp3D(var_array, h_array, heights):
+def calc_pressure(data, var, raster_index, time_slice=slice(None)):
+    """Calculate pressure array
+
+    Parameters
+    ----------
+    data : xarray
+        netcdf data object
+    var : str
+        Feature to extract from data
+    raster_index : list
+        List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
+
+    Returns
+    -------
+    height_arr : ndarray
+        (temporal, vertical_level, spatial_1, spatial_2)
+        4D array of pressure levels in pascals
+    """
+    p_array = np.zeros(data[var][tuple([time_slice] + [slice(None)]
+                                       + raster_index)].shape)
+    for i in range(p_array.shape[1]):
+        p_array[:, i, ...] = data.plev[i]
+
+    return p_array
+
+
+def interp_to_level(var_array, lev_array, levels):
     """Interpolate var_array to given level(s) based on h_array. Interpolation
     is linear and done for every 'z' column of [var, h] data.
 
@@ -745,9 +778,9 @@ def interp3D(var_array, h_array, heights):
     ----------
     var_array : ndarray
         Array of variable values
-    h_array : ndarray
-        Array of heigh values corresponding to the wrf source data
-    heights : float | list
+    lev_array : ndarray
+        Array of height or pressure values corresponding to the wrf source data
+    levels : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
 
     Returns
@@ -758,14 +791,14 @@ def interp3D(var_array, h_array, heights):
 
     msg = ('Input arrays must be the same shape.'
            f'\nvar_array: {var_array.shape}'
-           f'\nh_array: {h_array.shape}')
-    assert var_array.shape == h_array.shape, msg
+           f'\nh_array: {lev_array.shape}')
+    assert var_array.shape == lev_array.shape, msg
 
-    heights = [heights] if isinstance(
-        heights, (int, float, np.float32)) else heights
-    h_min = np.nanmin(h_array)
-    h_max = np.nanmax(h_array)
-    height_check = (h_min < min(heights) and max(heights) < h_max)
+    levels = [levels] if isinstance(
+        levels, (int, float, np.float32)) else levels
+    h_min = np.nanmin(lev_array)
+    h_max = np.nanmax(lev_array)
+    height_check = (h_min < min(levels) and max(levels) < h_max)
 
     if np.isnan(h_min):
         msg = 'All pressure level height data is NaN!'
@@ -773,7 +806,7 @@ def interp3D(var_array, h_array, heights):
         raise RuntimeError(msg)
 
     if not height_check:
-        msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
+        msg = (f'Levels {levels} exceed the bounds of the pressure levels: '
                f'({h_min}, {h_max})')
         logger.warning(msg)
         warn(msg)
@@ -782,32 +815,33 @@ def interp3D(var_array, h_array, heights):
 
     # Flatten h_array and var_array along lat, long axis
     out_array = np.zeros(
-        (len(heights), array_shape[-4], np.product(array_shape[-2:]))).T
+        (len(levels), array_shape[-4], np.product(array_shape[-2:]))).T
 
     for i in range(array_shape[0]):
-        h_tmp = h_array[i].reshape(
+        h_tmp = lev_array[i].reshape(
             (array_shape[-3], np.product(array_shape[-2:]))).T
         var_tmp = var_array[i].reshape(
             (array_shape[-3], np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
         out_array[:, i, :] = np.array(
-            [np.interp(heights, h, var)
+            [np.interp(levels, h, var)
              for h, var in zip(h_tmp, var_tmp)])
 
     # Reshape out_array
-    if isinstance(heights, (float, np.float32, int)):
+    if isinstance(levels, (float, np.float32, int)):
         out_array = out_array.T.reshape(
             (1, array_shape[-4], array_shape[-2], array_shape[-1]))
     else:
         out_array = out_array.T.reshape(
-            (len(heights), array_shape[-4],
+            (len(levels), array_shape[-4],
              array_shape[-2], array_shape[-1]))
 
     return out_array
 
 
-def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
+def interp_var_to_height(data, var, raster_index, heights,
+                         time_slice=slice(None)):
     """Interpolate var_array to given level(s) based on h_array. Interpolation
     is linear and done for every 'z' column of [var, h] data.
 
@@ -830,10 +864,40 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
         Array of interpolated values.
     """
 
-    logger.debug(f'Interpolating {var} to heights: {heights}')
-    return interp3D(unstagger_var(data, var, raster_index, time_slice),
-                    calc_height(data, raster_index, time_slice),
-                    heights)[0]
+    logger.debug(f'Interpolating {var} to heights (m): {heights}')
+    return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
+                           calc_height(data, raster_index, time_slice),
+                           heights)[0]
+
+
+def interp_var_to_pressure(data, var, raster_index, pressures,
+                           time_slice=slice(None)):
+    """Interpolate var_array to given level(s) based on h_array. Interpolation
+    is linear and done for every 'z' column of [var, h] data.
+
+    Parameters
+    ----------
+    data : xarray
+        netcdf data object
+    var : str
+        Name of variable to be interpolated
+    raster_index : list
+        List of slices for raster index of spatial domain
+    pressures : float | list
+        level or levels to interpolate to (e.g. final desired hub heights)
+    time_slice : slice
+        slice of time to extract
+
+    Returns
+    -------
+    out_array : ndarray
+        Array of interpolated values.
+    """
+
+    logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
+    return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
+                           calc_pressure(data, var, raster_index, time_slice),
+                           pressures)[0]
 
 
 def potential_temperature(T, P):
@@ -1173,26 +1237,3 @@ def get_source_type(file_paths):
         return 'h5'
     else:
         return 'nc'
-
-
-def get_time_index(file_paths):
-    """Get data file handle based on file type
-
-    Parameters
-    ----------
-    file_paths : list
-        path to data file
-
-    Returns
-    -------
-    time_index : pd.DateTimeIndex | np.ndarray
-        Time index from h5 or nc source file(s)
-    """
-    if get_source_type(file_paths) == 'h5':
-        with Resource(file_paths[0], hsds=False) as handle:
-            time_index = handle.time_index
-    else:
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-            time_index = handle.XTIME.values
-    return time_index

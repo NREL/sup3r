@@ -833,6 +833,38 @@ class LatLonNC:
         return lat_lon
 
 
+class LatLonNCforCC:
+    """Lat Lon feature class with compute method"""
+
+    @classmethod
+    def compute(cls, file_paths, raster_index):
+        """Get lats and lons
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : list
+            List of slices for raster
+
+        Returns
+        -------
+        ndarray
+            lat lon array
+            (spatial_1, spatial_2, 2)
+        """
+        with xr.open_dataset(file_paths[0]) as handle:
+            lats = (handle.lat.values if 'time' not
+                    in handle.lat.dims else handle.lat.values[0])
+            lons = (handle.lon.values if 'time' not
+                    in handle.lon.dims else handle.lon.values[0])
+            lats, lons = np.meshgrid(lats, lons)
+            lat_lon = np.concatenate(
+                [lats[tuple(raster_index)][..., np.newaxis],
+                 lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
+        return lat_lon
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
@@ -881,6 +913,7 @@ class Feature:
         """
         self.raw_name = feature
         self.height = self.get_height(feature)
+        self.pressure = self.get_pressure(feature)
         self.basename = self.get_basename(feature)
         if self.raw_name in handle:
             self.handle_input = self.raw_name
@@ -905,9 +938,10 @@ class Feature:
         """
 
         height = Feature.get_height(feature)
-        if height is not None:
+        pressure = Feature.get_pressure(feature)
+        if height is not None or pressure is not None:
             suffix = feature.split('_')[-1]
-            basename = feature.strip(f'_{suffix}')
+            basename = feature.replace(f'_{suffix}', '')
         else:
             basename = feature
         return basename
@@ -927,10 +961,33 @@ class Feature:
             height to use for interpolation
             in meters
         """
-        height = feature.split('_')[-1].strip('m')
-        if not height.isdigit():
-            height = None
+        height = re.search('_(.*)m', feature)
+        if height:
+            height = height.group(0).strip('_').strip('m')
+            if not height.isdigit():
+                height = None
         return height
+
+    @staticmethod
+    def get_pressure(feature):
+        """Get pressure from feature name to use in pressure interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100pa
+
+        Returns
+        -------
+        float | None
+            pressure to use for interpolation in pascals
+        """
+        pressure = re.search('_(.*)pa', feature)
+        if pressure:
+            pressure = pressure.group(0).strip('_').strip('pa')
+            if not pressure.isdigit():
+                pressure = None
+        return pressure
 
 
 class FeatureHandler:
@@ -1348,7 +1405,11 @@ class FeatureHandler:
             return getattr(out, attr_name, None)
         elif attr_name == 'inputs':
             height = Feature.get_height(feature)
-            out = (out if height is None else out.replace('(.*)', height))
+            pressure = Feature.get_pressure(feature)
+            if height is not None:
+                out = out.split('(.*)')[0] + f'{height}m'
+            if pressure is not None:
+                out = out.split('(.*)')[0] + f'{pressure}pa'
             method = lambda x: [out]
             return method
 
