@@ -1,17 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
-import copy
-import os
-import time
-import json
 import logging
 import numpy as np
-import pprint
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras import optimizers
-from rex.utilities.utilities import safe_json_load
-from phygnn import CustomNetwork
 from warnings import warn
 
 from sup3r.models.base import Sup3rGan
@@ -77,10 +67,7 @@ class MultiStepGan:
                     s_all_same = False
                     break
 
-        if m_all_same and s_all_same:
-            return True
-        else:
-            return False
+        return m_all_same and s_all_same
 
     @property
     def models(self):
@@ -242,6 +229,8 @@ class MultiStepGan:
             try:
                 hi_res = model.generate(hi_res, norm_in=i_norm_in,
                                         un_norm_out=i_un_norm_out)
+                logger.debug('Data output from model #{} of {} has shape {}'
+                             .format(i + 1, len(self.models), hi_res.shape))
             except Exception as e:
                 msg = ('Could not run model #{} of {} "{}" '
                        'on tensor of shape {}'
@@ -295,3 +284,83 @@ class MultiStepGan:
         tuple
         """
         return tuple(model.model_params for model in self.models)
+
+
+class SpatialFirstGan(MultiStepGan):
+    """A two-step GAN where the first step is a spatial-only enhancement on a
+    4D tensor and the second step is a spatiotemporal enhancement on a 5D
+    tensor.
+
+    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
+    the shape (temporal, spatial_1, spatial_2, features) where temporal
+    (usually the observation index) is a series of sequential timesteps that
+    will be transposed to a 5D tensor of shape
+    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
+    2nd-step spatiotemporal GAN.
+    """
+
+    def __init__(self, model_dirs):
+        """
+        Parameters
+        ----------
+        model_dirs : list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+        """
+        msg = ('SpatialFirstGan can only have two steps: a spatial-only GAN, '
+               'and then a spatiotemporal GAN, but received {} model inputs.'
+               .format(len(model_dirs)))
+        assert len(model_dirs) == 2, msg
+        super().__init__(model_dirs)
+
+    def generate(self, low_res, norm_in=True, un_norm_out=True):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data to the 1st step spatial GAN, which is a
+            4D array of shape: (temporal, spatial_1, spatial_2, n_features)
+        norm_in : bool
+            Flag to normalize low_res input data if the self.means,
+            self.stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the 2nd
+            step spatiotemporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+        """
+
+        try:
+            hi_res = self.models[0].generate(low_res, norm_in=norm_in,
+                                             un_norm_out=True)
+        except Exception as e:
+            msg = ('Could not run the 1st step spatial-only GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.error(msg)
+            raise RuntimeError(msg) from e
+
+        logger.debug('Data output from the 1st step spatial-only '
+                     'enhancement has shape {}'.format(hi_res.shape))
+        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
+        hi_res = np.expand_dims(hi_res, axis=0)
+        logger.debug('Data from the 1st step spatial-only enhancement has '
+                     'been reshaped to {}'.format(hi_res.shape))
+
+        try:
+            hi_res = self.models[1].generate(hi_res, norm_in=True,
+                                             un_norm_out=un_norm_out)
+        except Exception as e:
+            msg = ('Could not run the 2nd step spatiotemporal GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.error(msg)
+            raise RuntimeError(msg) from e
+
+        return hi_res
