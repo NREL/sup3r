@@ -253,13 +253,15 @@ class Sup3rGan:
         """
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        fp_history = os.path.join(out_dir, 'history.csv')
-
         with open(fp_params, 'r') as f:
             params = json.load(f)
 
         # using the saved model dir makes this more portable
-        params['history'] = fp_history
+        fp_history = os.path.join(out_dir, 'history.csv')
+        if os.path.exists(fp_history):
+            params['history'] = fp_history
+        else:
+            params['history'] = None
 
         if 'version_record' in params:
             logger.info('Loading GAN from disk that was created with the '
@@ -292,15 +294,16 @@ class Sup3rGan:
         """
         return self._stdevs
 
-    def set_norm_stats(self, batch_handler):
+    def set_norm_stats(self, new_means, new_stdevs):
         """Set the normalization statistics associated with a data batch
         handler to model attributes.
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
-            Data batch handler with a multi_data_handler attribute with
-            normalization stats.
+        new_means : list | tuple | np.ndarray
+            1D iterable of mean values with same length as number of features.
+        new_stdevs : list | tuple | np.ndarray
+            1D iterable of stdev values with same length as number of features.
         """
 
         if self._means is not None:
@@ -310,35 +313,46 @@ class Sup3rGan:
             logger.info("Model's previous data stdev values: {}"
                         .format(self._stdevs))
 
-        self._means = batch_handler.means
-        self._stdevs = batch_handler.stds
+        self._means = new_means
+        self._stdevs = new_stdevs
+
+        if not isinstance(self._means, np.ndarray):
+            self._means = np.array(self._means)
+        if not isinstance(self._stdevs, np.ndarray):
+            self._stdevs = np.array(self._stdevs)
 
         logger.info('Set data normalization mean values: {}'
                     .format(self._means))
         logger.info('Set data normalization stdev values: {}'
                     .format(self._stdevs))
 
-    def set_feature_names(self, batch_handler):
+    def set_feature_names(self, training_features, output_features):
         """Set the list of feature names input/output to/from the generative
-        model and the discriminator(s)"""
+        model and the discriminator(s)
+
+        Parameters
+        ----------
+        training_features : list
+            List of features names on the input side of the GAN
+        output_features : list
+            List of feature names output by the GAN
+        """
 
         if self.training_features is None:
-            self.meta['training_features'] = batch_handler.training_features
-        elif self.training_features != batch_handler.training_features:
+            self.meta['training_features'] = training_features
+        elif self.training_features != training_features:
             msg = ('GAN was previously trained on feature list {} but '
                    'received new features {}'
-                   .format(self.training_features,
-                           batch_handler.training_features))
+                   .format(self.training_features, training_features))
             logger.error(msg)
             raise KeyError(msg)
 
         if self.output_features is None:
-            self.meta['output_features'] = batch_handler.output_features
-        elif self.output_features != batch_handler.output_features:
+            self.meta['output_features'] = output_features
+        elif self.output_features != output_features:
             msg = ('GAN was previously trained to output features {} but '
                    'received data to output new features {}'
-                   .format(self.output_features,
-                           batch_handler.output_features))
+                   .format(self.output_features, output_features))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -414,7 +428,9 @@ class Sup3rGan:
         Parameters
         ----------
         low_res : np.ndarray
-            Real low-resolution data
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -426,7 +442,10 @@ class Sup3rGan:
         Returns
         -------
         hi_res : ndarray
-            Synthetically generated high-resolution data
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
 
         if norm_in and self._means is not None:
@@ -1410,8 +1429,9 @@ class Sup3rGan:
             adaptive updates
         """
 
-        self.set_norm_stats(batch_handler)
-        self.set_feature_names(batch_handler)
+        self.set_norm_stats(batch_handler.means, batch_handler.stds)
+        self.set_feature_names(batch_handler.training_features,
+                               batch_handler.output_features)
 
         epochs = list(range(n_epoch))
 
