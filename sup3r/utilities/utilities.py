@@ -93,10 +93,63 @@ def get_file_t_steps(file_paths):
 
     if file_type == 'nc':
         with xr.open_dataset(file_paths[0]) as handle:
-            return len(handle.XTIME.values)
+            if hasattr(handle, 'XTIME'):
+                return len(handle.XTIME.values)
+            elif hasattr(handle, 'time'):
+                return len(handle.time.values)
     elif file_type == 'h5':
         with Resource(file_paths[0]) as handle:
             return len(handle.time_index)
+
+
+def get_time_index(file_path):
+    """Get time index for single file
+
+    Parameters
+    ----------
+    file_path : str
+        Single netcdf or h5 file
+
+    Returns
+    -------
+    time_index : ndarray
+        Array of time indices
+    """
+    file_type = get_source_type(file_path)
+
+    if file_type == 'nc':
+        with xr.open_dataset(file_path) as handle:
+            if hasattr(handle, 'XTIME'):
+                times = handle.XTIME.values
+            elif hasattr(handle, 'time'):
+                times = handle.time.values
+    elif file_type == 'h5':
+        with Resource(file_path) as handle:
+            times = handle.time_index
+    return times
+
+
+def is_time_series(file_paths):
+    """Check if file list is list of files with different time indices or
+    different datasets
+
+    Parameters
+    ----------
+    file_paths : list
+        List of netcdf or h5 file paths
+
+    Returns
+    -------
+    bool
+        Whether files have different time indices or have the same time indices
+        with different datasets
+    """
+
+    if len(file_paths) > 1:
+        times_0 = get_time_index(file_paths[0])
+        times_1 = get_time_index(file_paths[1])
+        return not all(times_0 == times_1)
+    return True
 
 
 def get_raster_shape(raster_index):
@@ -129,9 +182,11 @@ def get_wrf_date_range(files):
     """
 
     date_start = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                           files[0])[0]
+                           files[0])
+    date_start = date_start if date_start is None else date_start[0]
     date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                         files[-1])[0]
+                         files[-1])
+    date_end = date_end if date_end is None else date_end[0]
 
     date_start = date_start.replace(':', '_')
     date_end = date_end.replace(':', '_')

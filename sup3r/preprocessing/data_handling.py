@@ -7,7 +7,6 @@ Sup3r preprocessing module.
 from abc import abstractmethod
 from fnmatch import fnmatch
 import logging
-from pandas import concat
 import xarray as xr
 import numpy as np
 import os
@@ -30,7 +29,6 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
                                        get_source_type,
-                                       get_wrf_date_range,
                                        daily_temporal_coarsening,
                                        spatial_coarsening)
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -992,30 +990,11 @@ class DataHandlerNC(DataHandler):
             Time index from nc source file(s)
         """
         with cls.xr_handler(file_paths) as handle:
-            time_index = handle.XTIME.values
+            if hasattr(handle, 'XTIME'):
+                time_index = handle.XTIME.values
+            elif hasattr(handle, 'time'):
+                time_index = handle.time.values
         return time_index
-
-    @classmethod
-    def file_info_logging(cls, file_paths):
-        """More concise file info about NETCDF files
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-
-        dirname = os.path.dirname(file_paths[0])
-        date_start, date_end = get_wrf_date_range(file_paths)
-        msg = (f'{len(file_paths)} files from {dirname} '
-               f'with date range: {date_start} - {date_end}')
-        return msg
 
     @classmethod
     def feature_registry(cls):
@@ -1091,38 +1070,25 @@ class DataHandlerNC(DataHandler):
             if method is not None and basename not in handle:
                 return method(file_paths, raster_index)
 
+            elif feature in handle:
+                idx = tuple([time_slice] + raster_index)
+                fdata = np.array(handle[feature][idx],
+                                 dtype=np.float32)
+            elif basename in handle:
+                if interp_height is not None:
+                    fdata = interp_var_to_height(handle, basename,
+                                                 raster_index,
+                                                 np.float32(interp_height),
+                                                 time_slice)
+                elif interp_pressure is not None:
+                    fdata = interp_var_to_pressure(handle, basename,
+                                                   raster_index,
+                                                   np.float32(interp_pressure),
+                                                   time_slice)
             else:
-                try:
-                    if feature in handle:
-                        fdata = np.array(
-                            handle[feature][
-                                tuple([time_slice] + raster_index)],
-                            dtype=np.float32)
-
-                    elif len(handle[basename].shape) > 3:
-                        if interp_height is None and interp_pressure is None:
-                            fdata = np.array(
-                                handle[feature][
-                                    tuple([time_slice] + [0] + raster_index)],
-                                dtype=np.float32)
-                        elif interp_height is not None:
-                            fdata = interp_var_to_height(
-                                handle, basename, raster_index,
-                                np.float32(interp_height), time_slice)
-                        elif interp_pressure is not None:
-                            fdata = interp_var_to_pressure(
-                                handle, basename, raster_index,
-                                np.float32(interp_pressure), time_slice)
-                    else:
-                        fdata = np.array(
-                            handle[feature][
-                                tuple([time_slice] + raster_index)],
-                            dtype=np.float32)
-
-                except ValueError as e:
-                    msg = f'{feature} cannot be extracted from source data'
-                    logger.exception(msg)
-                    raise ValueError(msg) from e
+                msg = f'{feature} cannot be extracted from source data'
+                logger.exception(msg)
+                raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
@@ -1293,45 +1259,6 @@ class DataHandlerNCforCC(DataHandlerNC):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, decode_cf=False)
-
-    @classmethod
-    def get_time_index(cls, file_paths):
-        """Get time index from data files
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-
-        Returns
-        -------
-        time_index : np.ndarray
-            Time index from nc source file(s)
-        """
-        with cls.xr_handler(file_paths) as handle:
-            time_index = handle.time.values
-        return time_index
-
-    @classmethod
-    def file_info_logging(cls, file_paths):
-        """Method to provide info about files in log output. Since NETCDF files
-        have single time slices printing out all the file paths is just a text
-        dump without much info.
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-
-        msg = (f'source files: {file_paths}')
-        return msg
 
 
 class DataHandlerH5(DataHandler):

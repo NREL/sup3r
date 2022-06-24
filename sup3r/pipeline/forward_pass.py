@@ -16,13 +16,14 @@ import glob
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
+from sup3r.preprocessing.data_handling import (DataHandlerH5,
+                                               DataHandlerNC,
+                                               DataHandlerNCforCC)
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
                                                 OutputHandlerNC)
-from sup3r.utilities.utilities import (get_wrf_date_range,
-                                       get_file_t_steps,
-                                       get_chunk_slices,
-                                       get_source_type)
+from sup3r.utilities.utilities import (get_chunk_slices,
+                                       get_source_type,
+                                       is_time_series)
 from sup3r.models import Sup3rGan
 
 np.random.seed(42)
@@ -142,7 +143,7 @@ class ForwardPassStrategy:
         self.input_type = get_source_type(file_paths)
         self.output_type = get_source_type(out_pattern)
         self._i = 0
-        self.file_t_steps = get_file_t_steps(self.file_paths)
+        self.time_series_files = is_time_series(self.file_paths)
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
@@ -159,22 +160,23 @@ class ForwardPassStrategy:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
-        self.file_overlap = int(np.ceil(temporal_overlap / self.file_t_steps))
-        self.fp_chunk_size = int(np.ceil(forward_pass_chunk_shape[2]
-                                         / self.file_t_steps))
 
         if self.input_type == 'nc':
             self.data_handler_class = DataHandlerNC
+            if not self.time_series_files:
+                self.data_handler_class = DataHandlerNCforCC
         elif self.input_type == 'h5':
             self.data_handler_class = DataHandlerH5
 
-        out = self.get_file_slices(self.file_paths)
-        self.file_slices, self.padded_file_slices = out[:2]
-        self.hr_cropped_file_slices, self.lr_cropped_file_slices = out[2:-1]
-        self.temporal_slices = out[-1]
+        time_indices = self.data_handler_class.get_time_index(self.file_paths)
+        self.time_indices = time_indices
+        out = self.get_time_chunks(time_indices, temporal_slice,
+                                   forward_pass_chunk_shape, temporal_overlap)
+        self.ti_slices, self.ti_pad_slices, self.file_ids = out
 
-        self.file_ids = self.get_file_ids(
-            file_paths=file_paths, file_slices=self.file_slices)
+        self.ti_hr_crop_slices = self.get_ti_hr_crop_slices(self.ti_slices,
+                                                            self.ti_pad_slices)
+
         self.out_files = self.get_output_file_names(
             out_files=out_pattern, file_ids=self.file_ids)
 
@@ -192,11 +194,10 @@ class ForwardPassStrategy:
 
         msg = ('Using a padded chunk size '
                f'{forward_pass_chunk_shape[2] + 2 * temporal_overlap} '
-               'larger than the full temporal domain '
-               f'{self.file_t_steps * len(file_paths)}. Should just run '
-               'without temporal chunking. ')
+               f'larger than the full temporal domain {len(time_indices)}. '
+               'Should just run without temporal chunking. ')
         if (forward_pass_chunk_shape[2] + 2 * temporal_overlap
-                >= self.file_t_steps * len(file_paths)):
+                >= len(time_indices)):
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -222,18 +223,16 @@ class ForwardPassStrategy:
                    f'file chunks and the index requested was {node_index}.')
             raise ValueError(msg)
 
-        file_paths = self.file_paths[self.padded_file_slices[node_index]]
-        hr_cropped_file_slice = self.hr_cropped_file_slices[node_index]
-        lr_cropped_file_slice = self.lr_cropped_file_slices[node_index]
         out_file = self.out_files[node_index]
-        temporal_slice = self.temporal_slices[node_index]
-        ts_indices = np.arange(len(file_paths) * self.file_t_steps)
+        ti_pad_slice = self.ti_pad_slices[node_index]
+        ti_slice = self.ti_slices[node_index]
+        ti_hr_crop_slice = self.ti_hr_crop_slices[node_index]
         data_shape = (self.shape[0], self.shape[1],
-                      len(ts_indices[temporal_slice]))
+                      len(self.time_indices[ti_pad_slice]))
         cache_file_prefix = (None if self.cache_file_prefix is None
                              else f'{self.cache_file_prefix}_{node_index}')
 
-        out = self.get_chunk_slices(data_shape=data_shape)
+        out = self.get_spatial_chunks(data_shape=data_shape)
         lr_slices, lr_pad_slices = out[:2]
         hr_slices, hr_crop_slices = out[2:]
 
@@ -241,11 +240,11 @@ class ForwardPassStrategy:
                        lr_slices[0][1].stop - lr_slices[0][1].start,
                        data_shape[2])
 
-        kwargs = dict(file_paths=file_paths,
-                      hr_cropped_file_slice=hr_cropped_file_slice,
-                      lr_cropped_file_slice=lr_cropped_file_slice,
+        kwargs = dict(file_paths=self.file_paths,
                       out_file=out_file,
-                      temporal_slice=temporal_slice,
+                      ti_pad_slice=ti_pad_slice,
+                      ti_slice=ti_slice,
+                      ti_hr_crop_slice=ti_hr_crop_slice,
                       lr_slices=lr_slices,
                       lr_pad_slices=lr_pad_slices,
                       hr_slices=hr_slices,
@@ -276,7 +275,7 @@ class ForwardPassStrategy:
             Stops iteration after reaching last file chunk
         """
 
-        if self._i < len(self.file_slices):
+        if self._i < len(self.ti_slices):
             kwargs = self.get_node_kwargs(self._i)
             self._i += 1
             return kwargs
@@ -288,7 +287,7 @@ class ForwardPassStrategy:
         """Get the number of nodes that this strategy should distribute work
         to, calculated as the source time index divided by the temporal part of
         the forward_pass_chunk_shape"""
-        return len(self.file_slices)
+        return len(self.ti_slices)
 
     def file_info_logging(self, file_paths):
         """More concise file info about data files
@@ -304,8 +303,63 @@ class ForwardPassStrategy:
             message to append to log output that does not include a huge info
             dump of file paths
         """
-
         return self.data_handler_class.file_info_logging(file_paths)
+
+    @classmethod
+    def get_time_chunks(cls, time_index, temporal_slice, fp_chunk_size,
+                        time_overlap):
+        """Calculate the number of time chunks across the full time index
+
+        Parameters
+        ----------
+        time_index : ndarray
+            Array of time indices across all input files
+        temporal_slice : slice
+            Slice selecting range for full time index
+        fp_chunk_size : tuple
+            Shape of data chunks passed to generator
+        time_overlap : int
+            Size of temporal overlap between time chunks
+
+        Returns
+        -------
+        ti_chunks : list
+            List of time index slices
+        ti_pad_chunks : list
+            List of padded time index slices
+        file_ids : list
+            List of ids corresponding to start and end of time index slices.
+            Used to name output files.
+        """
+
+        n_chunks = len(time_index[temporal_slice]) / fp_chunk_size[2]
+        n_chunks = np.int(np.ceil(n_chunks))
+        ti_chunks = np.array_split(np.arange(len(time_index[temporal_slice])),
+                                   n_chunks)
+        ti_pad_chunks = []
+        file_ids = []
+        for i, chunk in enumerate(ti_chunks):
+            if len(ti_chunks) > 1:
+                if i == 0:
+                    tmp = np.concatenate([chunk, ti_chunks[1][:time_overlap]])
+                elif i == len(ti_chunks) - 1:
+                    tmp = np.concatenate([ti_chunks[-2][-time_overlap:],
+                                          chunk])
+                else:
+                    tmp = np.concatenate([ti_chunks[i - 1][-time_overlap:],
+                                          chunk,
+                                          ti_chunks[i + 1][:time_overlap]])
+            else:
+                tmp = chunk
+            ti_pad_chunks.append(tmp)
+            start_id = chunk[0]
+            stop_id = chunk[-1]
+            file_ids.append(f'{start_id}_{stop_id}')
+
+        ti_chunks = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_chunks]
+        ti_pad_chunks = [slice(chunk[0], chunk[-1] + 1)
+                         for chunk in ti_pad_chunks]
+        return ti_chunks, ti_pad_chunks, file_ids
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -342,119 +396,7 @@ class ForwardPassStrategy:
             out_file_list = [None] * len(file_ids)
         return out_file_list
 
-    def get_combined_output_file_name(self, out_files, file_paths):
-        """Get combined output file name. Use same file name format for
-        chunked output files.
-
-        Parameters
-        ----------
-        out_files : str
-            Out files string pattern
-        file_paths : list
-            A list of files to extract raster data from
-
-        Returns
-        -------
-        str
-            Combined output file name
-        """
-        file_id = self.get_file_ids(file_paths, slice(None))
-        outfile = self.get_output_file_names(out_files, file_id)
-        return outfile[0]
-
-    @staticmethod
-    def get_file_ids(file_paths, file_slices):
-        """Get file ids for naming logs, cache_files, and output files
-
-        Parameters
-        ----------
-        file_paths : list
-            A list of files to extract raster data from
-        file_slices : list
-            List of slices specifying file chunks sent to different nodes
-
-        Returns
-        -------
-        list
-            List of file_ids for naming corresponding logs, outputs, and cache
-        """
-        file_ids = []
-        for chunk in file_slices:
-            start, end = get_wrf_date_range(file_paths[chunk])
-            file_ids.append(f'{start}_{end}')
-        return file_ids
-
-    def get_file_slices(self, file_paths):
-        """
-        Get slices for the provided file list. These sets of slices are used to
-        specify which files are passed to each node for data extraction and to
-        account for temporal overlap of files.
-
-        Parameters
-        ----------
-        file_paths : list
-            A list of files to extract raster data from
-
-        Returns
-        -------
-        file_slices : list
-            List of file slices
-        padded_file_slices : list
-            List of file slices including specified file overlap
-        hr_cropped_file_slices : list
-            List of temporal slices used to crop the overlap associated with
-            the file slice padding after super-resolution
-        lr_cropped_file_slices : list
-            List of temporal slices used to crop the overlap associated with
-            the file slice padding prior to super-resolution
-        temporal_slices : list
-            List of slices used to specify requested temporal extent for file
-            set passed to data handler.
-        """
-
-        hr_cropped_f_slices = []
-        lr_cropped_f_slices = []
-        padded_f_slices = []
-
-        file_slices = get_chunk_slices(len(file_paths), self.fp_chunk_size)
-
-        for f in file_slices:
-            start = max(f.start - self.file_overlap, 0)
-            stop = min(f.stop + self.file_overlap, len(self.file_paths))
-            padded_f_slices.append(slice(start, stop))
-
-        for f, fp in zip(file_slices, padded_f_slices):
-            start = self.file_t_steps * self.t_enhance * (f.start - fp.start)
-            if start <= 0:
-                start = None
-
-            stop = self.file_t_steps * self.t_enhance * (f.stop - fp.stop)
-            if stop >= 0:
-                stop = None
-            hr_cropped_f_slices.append(slice(start, stop))
-
-            start = self.file_t_steps * (f.start - fp.start)
-            if start <= 0:
-                start = None
-
-            stop = self.file_t_steps * (f.stop - fp.stop)
-            if stop >= 0:
-                stop = None
-            lr_cropped_f_slices.append(slice(start, stop))
-
-        temporal_slices = [slice(None, None, self.temporal_slice.step)]
-        temporal_slices = temporal_slices * len(file_slices)
-        temporal_slices[0] = slice(self.temporal_slice.start, None,
-                                   self.temporal_slice.step)
-        stop = self.temporal_slice.stop
-        if stop is not None and stop > 0:
-            stop = stop % self.file_t_steps
-        temporal_slices[-1] = slice(None, stop, self.temporal_slice.step)
-
-        return (file_slices, padded_f_slices, hr_cropped_f_slices,
-                lr_cropped_f_slices, temporal_slices)
-
-    def get_chunk_slices(self, data_shape=None):
+    def get_spatial_chunks(self, data_shape=None):
         """
         Get slices for small data chunks that are passed through generator
 
@@ -484,11 +426,7 @@ class ForwardPassStrategy:
                                      self.forward_pass_chunk_shape[0])
         s2_slices = get_chunk_slices(data_shape[1],
                                      self.forward_pass_chunk_shape[1])
-        if self.file_t_steps < self.forward_pass_chunk_shape[2]:
-            t_slices = [slice(None)]
-        else:
-            t_slices = get_chunk_slices(data_shape[2],
-                                        self.forward_pass_chunk_shape[2])
+        t_slices = [slice(None)]
 
         lr_pad_slices = []
         lr_slices = []
@@ -583,6 +521,42 @@ class ForwardPassStrategy:
 
         return hr_slices
 
+    def get_ti_hr_crop_slices(self, ti_slices, ti_pad_slices):
+        """Get cropped temporal slices for stitching
+
+        Parameters
+        ----------
+        ti_slices : list
+            List of unpadded slices for time chunks
+            (temporal)
+        ti_pad_slices : list
+            List of padded slices for time chunks
+            (temporal)
+
+        Returns
+        -------
+        list
+            List of cropped slices
+            (temporal)
+        """
+
+        cropped_slices = []
+        for _, (ps, s) in enumerate(zip(ti_pad_slices, ti_slices)):
+            start = s.start
+            stop = s.stop
+            if start is not None:
+                start = self.t_enhance * (s.start - ps.start)
+            if stop is not None:
+                stop = self.t_enhance * (s.stop - ps.stop)
+
+            if start is not None and start <= 0:
+                start = None
+            if stop is not None and stop >= 0:
+                stop = None
+
+            cropped_slices.append(slice(start, stop))
+        return cropped_slices
+
     def get_hr_cropped_slices(self, lr_slices, lr_pad_slices):
         """Get cropped spatial and temporal slices for stitching
 
@@ -656,10 +630,10 @@ class ForwardPass:
         kwargs = strategy.get_node_kwargs(node_index)
 
         self.file_paths = kwargs['file_paths']
-        self.hr_cropped_file_slice = kwargs['hr_cropped_file_slice']
-        self.lr_cropped_file_slice = kwargs['lr_cropped_file_slice']
         self.out_file = kwargs['out_file']
-        self.temporal_slice = kwargs['temporal_slice']
+        self.ti_slice = kwargs['ti_slice']
+        self.ti_pad_slice = kwargs['ti_pad_slice']
+        self.ti_hr_crop_slice = kwargs['ti_hr_crop_slice']
         self.lr_slices = kwargs['lr_slices']
         self.lr_pad_slices = kwargs['lr_pad_slices']
         self.hr_slices = kwargs['hr_slices']
@@ -668,10 +642,7 @@ class ForwardPass:
         self.chunk_shape = kwargs['chunk_shape']
         self.cache_file_prefix = kwargs['cache_file_prefix']
 
-        if strategy.input_type == 'nc':
-            self.data_handler_class = DataHandlerNC
-        elif strategy.input_type == 'h5':
-            self.data_handler_class = DataHandlerH5
+        self.data_handler_class = strategy.data_handler_class
 
         if strategy.output_type == 'nc':
             self.output_handler_class = OutputHandlerNC
@@ -680,7 +651,7 @@ class ForwardPass:
 
         self.data_handler = self.data_handler_class(
             self.file_paths, self.features, target=self.strategy.target,
-            shape=self.strategy.shape, temporal_slice=self.temporal_slice,
+            shape=self.strategy.shape, temporal_slice=self.ti_pad_slice,
             raster_file=self.strategy.raster_file,
             extract_workers=self.strategy.extract_workers,
             compute_workers=self.strategy.compute_workers,
@@ -815,14 +786,14 @@ class ForwardPass:
                                      'passes completed.')
 
         logger.info('All forward passes are complete.')
-        data = data[:, :, self.hr_cropped_file_slice, :]
+        data = data[:, :, self.ti_hr_crop_slice, :]
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
-                self.data_handler.time_index[self.lr_cropped_file_slice],
+                self.strategy.time_indices[self.ti_slice],
                 self.data_handler.time_description,
                 self.out_file, meta_data=self.meta_data,
                 max_workers=self.data_handler.extract_workers)
