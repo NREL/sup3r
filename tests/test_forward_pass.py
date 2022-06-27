@@ -12,7 +12,6 @@ from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.models import Sup3rGan
 
 from rex import ResourceX
@@ -69,7 +68,7 @@ def test_forward_pass_nc_cc():
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
     features = ['U_100m', 'V_100m']
-    target = (-90, 0)
+    target = (13.67, 125.0)
 
     # only use wind features since model output only gives 2 features
     handler = DataHandlerH5(FP_WTK, features, target=TARGET_COORD,

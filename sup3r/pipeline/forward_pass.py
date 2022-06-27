@@ -51,7 +51,7 @@ class ForwardPassStrategy:
                  t_enhance=4,
                  extract_workers=None,
                  compute_workers=None,
-                 max_pass_workers=None,
+                 pass_workers=None,
                  temporal_extract_chunk_size=100,
                  cache_file_prefix=None,
                  out_pattern=None,
@@ -106,9 +106,9 @@ class ForwardPassStrategy:
         extract_workers : int | None
             max number of workers to use for data extraction. If
             extract_workers == 1 then extraction will be serialized.
-        max_pass_workers : int | None
+        pass_workers : int | None
             Max number of workers to use for forward passes on each node. If
-            max_pass_workers == 1 then forward passes on chunks will be
+            pass_workers == 1 then forward passes on chunks will be
             serialized.
         temporal_extract_chunk_size : int
             Size of chunks to split time dimension into for parallel data
@@ -149,7 +149,7 @@ class ForwardPassStrategy:
         self.shape = shape
         self.forward_pass_chunk_shape = forward_pass_chunk_shape
         self.temporal_slice = temporal_slice
-        self.max_pass_workers = max_pass_workers
+        self.pass_workers = pass_workers
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
         self.cache_file_prefix = cache_file_prefix
@@ -749,7 +749,7 @@ class ForwardPass:
              self.strategy.t_enhance * self.data_shape[2], 2),
             dtype=np.float32)
 
-        if self.strategy.max_pass_workers == 1:
+        if self.strategy.pass_workers == 1:
             for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
                                                       self.lr_pad_slices,
                                                       self.hr_crop_slices):
@@ -762,7 +762,7 @@ class ForwardPass:
             futures = {}
             now = dt.now()
             with SpawnProcessPool(
-                    max_workers=self.strategy.max_pass_workers) as exe:
+                    max_workers=self.strategy.pass_workers) as exe:
                 for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
                                                           self.lr_pad_slices,
                                                           self.hr_crop_slices):

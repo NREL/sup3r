@@ -7,11 +7,13 @@ import pytest
 import glob
 import shutil
 from netCDF4 import Dataset
+from rex import ResourceX
 
 from click.testing import CliRunner
 
 from sup3r.pipeline.forward_pass_cli import from_config as fp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
+from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.models.base import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import BatchHandler
@@ -90,6 +92,108 @@ def test_fwd_pass_cli(runner):
         fp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fp_chunk_shape[2] + 1
         cache_prefix = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        log_prefix = os.path.join(td, 'log')
+        config = {'file_paths': input_files,
+                  'target': (19.3, -123.5),
+                  'model_path': out_dir,
+                  'out_pattern': out_files,
+                  'cache_file_prefix': cache_prefix,
+                  'log_file_prefix': log_prefix,
+                  'shape': (8, 8),
+                  'forward_pass_chunk_shape': fp_chunk_shape,
+                  'temporal_extract_chunk_size': 10,
+                  's_enhance': 3,
+                  't_enhance': 4,
+                  'extract_workers': None,
+                  'spatial_overlap': 5,
+                  'temporal_overlap': 5,
+                  'pass_workers': None,
+                  'overwrite_cache': False,
+                  'execution_control': {
+                      "nodes": 1,
+                      "option": "local"}}
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(fp_main, ['-c', config_path, '-v'])
+        out_files = glob.glob(os.path.join(td, 'out_*.h5'))
+        assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES * n_nodes)
+        assert len(glob.glob(f'{log_prefix}*')) == n_nodes
+        assert len(out_files) == n_nodes
+
+        features = ['windspeed_100m', 'winddirection_100m']
+        fp_out = os.path.join(td, 'out_combined.h5')
+        config = {'file_paths': out_files,
+                  'fp_out': fp_out,
+                  'features': ['windspeed_100m', 'winddirection_100m'],
+                  'execution_control': {
+                      "nodes": 1,
+                      "option": "local"}}
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(dc_main, ['-c', config_path, '-v'])
+
+        assert os.path.exists(fp_out)
+        with ResourceX(fp_out) as fh:
+            assert all(f in fh for f in features)
+            full_ti = fh.time_index
+            combined_ti = []
+            for f in out_files:
+                with ResourceX(f) as fh_i:
+                    combined_ti += list(fh_i.time_index)
+            assert len(full_ti) == len(combined_ti)
+
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
+
+
+def test_fwd_pass_cli(runner):
+    """Test cli call to run forward pass"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            extract_workers=1,
+                            compute_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=3,
+                                 t_enhance=4,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+
+        input_files = make_fake_nc_files(td)
+
+        model.train(batch_handler, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        fp_chunk_shape = (4, 4, 6)
+        n_nodes = len(input_files) // fp_chunk_shape[2] + 1
+        cache_prefix = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log')
         config = {'file_paths': input_files,
@@ -106,7 +210,7 @@ def test_fwd_pass_cli(runner):
                   'extract_workers': None,
                   'spatial_overlap': 5,
                   'temporal_overlap': 5,
-                  'max_pass_workers': None,
+                  'pass_workers': None,
                   'overwrite_cache': False,
                   'execution_control': {
                       "nodes": 1,

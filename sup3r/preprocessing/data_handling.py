@@ -993,7 +993,11 @@ class DataHandlerNC(DataHandler):
             if hasattr(handle, 'XTIME'):
                 time_index = handle.XTIME.values
             elif hasattr(handle, 'time'):
-                time_index = handle.time.values
+                time_index = handle.indexes['time']
+                time_index = [dt.strptime(str(t), '%Y-%m-%d %H:%M:%S')
+                              for t in time_index]
+                time_index = [np.datetime64(t) for t in time_index]
+                time_index = np.array(time_index)
         return time_index
 
     @classmethod
@@ -1245,7 +1249,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, decode_cf=False)
+        return xr.open_mfdataset(file_paths)
 
 
 class DataHandlerH5(DataHandler):
