@@ -1212,19 +1212,6 @@ class DataHandlerNC(DataHandler):
             desc = handle.attrs
         return desc
 
-    @property
-    def time_description(self):
-        """Get description of time index
-
-        Returns
-        -------
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-        """
-        with self.xr_handler(self.file_paths) as handle:
-            desc = handle.XTIME.attrs['description']
-        return desc
-
 
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
@@ -1415,17 +1402,6 @@ class DataHandlerH5(DataHandler):
         with self.REX_HANDLER(self.file_paths) as handle:
             desc = handle.attrs
         return desc
-
-    @property
-    def time_description(self):
-        """Get description of time index
-
-        Returns
-        -------
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-        """
-        return self.attrs['time_index']
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

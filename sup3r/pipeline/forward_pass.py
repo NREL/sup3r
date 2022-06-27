@@ -794,7 +794,6 @@ class ForwardPass:
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
                 self.strategy.time_indices[self.ti_slice],
-                self.data_handler.time_description,
                 self.out_file, meta_data=self.meta_data,
                 max_workers=self.data_handler.extract_workers)
         else:

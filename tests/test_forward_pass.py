@@ -56,9 +56,8 @@ def make_fake_nc_files(td):
     return fake_files
 
 
-def test_repeated_forward_pass_nc():
-    """Test forward pass handler output with second pass on output files.
-    Writing to netcdf"""
+def test_forward_pass_nc_cc():
+    """Test forward pass handler output for netcdf write with cc data."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -66,8 +65,14 @@ def test_repeated_forward_pass_nc():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
+    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+    features = ['U_100m', 'V_100m']
+    target = (-90, 0)
+
     # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, FEATURES[:2], target=TARGET_COORD,
+    handler = DataHandlerH5(FP_WTK, features, target=TARGET_COORD,
                             shape=(20, 20),
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
@@ -80,7 +85,6 @@ def test_repeated_forward_pass_nc():
                                  t_enhance=t_enhance,
                                  n_batches=4)
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
@@ -102,22 +106,13 @@ def test_repeated_forward_pass_nc():
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
 
-        # 2nd forward pass
-        new_shape = (s_enhance * shape[0], s_enhance * shape[1])
-        new_lat_lon = OutputHandler.get_lat_lon(
-            forward_pass.data_handler.lat_lon, new_shape)
-        new_target = (np.min(new_lat_lon[..., 0]), np.min(new_lat_lon[..., 1]))
-        handler = ForwardPassStrategy(
-            handler.out_files, target=new_target, shape=new_shape,
-            temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
-        data = forward_pass.run()
-        assert data.shape == (
-            s_enhance**2 * shape[0], s_enhance**2 * shape[1],
-            t_enhance * len(handler.time_indices), 2)
+        with xr.open_dataset(handler.out_files[0]) as fh:
+            assert fh[FEATURES[0]].shape == (
+                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                s_enhance * shape[1])
+            assert fh[FEATURES[1]].shape == (
+                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                s_enhance * shape[1])
 
 
 def test_forward_pass_nc():
