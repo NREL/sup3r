@@ -54,8 +54,8 @@ def runner():
     return CliRunner()
 
 
-def test_fwd_pass_cli(runner):
-    """Test cli call to run forward pass"""
+def test_data_collection_cli(runner):
+    """Test cli call to data collection on forward pass output"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -77,9 +77,7 @@ def test_fwd_pass_cli(runner):
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-
         input_files = make_fake_nc_files(td)
-
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
