@@ -16,7 +16,7 @@ import json
 from sup3r.utilities.utilities import invert_uv
 from sup3r.preprocessing.feature_handling import Feature
 
-from reV.handlers.outputs import Outputs
+from rex.outputs import Outputs
 
 logger = logging.getLogger(__name__)
 

@@ -69,6 +69,7 @@ def from_config(ctx, config_file, verbose):
     ctx.obj['NAME'] = name
 
     cmd = Collector.get_node_cmd(config)
+    logger.debug(f'Running command: {cmd}')
 
     if hardware_option.lower() in ('eagle', 'slurm'):
         kickoff_slurm_job(ctx, cmd, **exec_kwargs)

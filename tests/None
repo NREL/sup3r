@@ -1,0 +1,29 @@
+INFO - 2022-06-28 11:18:19,587 [collection.py:520] : Collecting data from ['C://Users//bbenton//AppData//Local//Temp//1//tmpf1bqk8mk//out_0_3.h5', 'C://Users//bbenton//AppData//Local//Temp//1//tmpf1bqk8mk//out_4_7.h5'] to C:/Users/bbenton/AppData/Local/Temp/1/tmpf1bqk8mk/out_combined.h5
+INFO - 2022-06-28 11:18:19,603 [collection.py:272] : Initializing collection output file: C:/Users/bbenton/AppData/Local/Temp/1/tmpf1bqk8mk/out_combined.h5
+INFO - 2022-06-28 11:18:19,610 [collection.py:275] : Initializing collection output file with shape (32, 576) and meta data:
+      latitude   longitude
+gid                       
+0    19.300362 -123.455620
+1    19.302258 -123.449982
+2    19.304152 -123.444351
+3    19.306046 -123.438721
+4    19.307941 -123.433098
+..         ...         ...
+571  19.458622 -123.394760
+572  19.460516 -123.389122
+573  19.462408 -123.383484
+574  19.464300 -123.377838
+575  19.466190 -123.372208
+
+[576 rows x 2 columns]
+INFO - 2022-06-28 11:18:19,616 [collection.py:542] : Collecting file list chunk 1 out of 1 
+INFO - 2022-06-28 11:18:19,626 [collection.py:358] : Running parallel collection on None workers.
+INFO - 2022-06-28 11:18:29,771 [collection.py:377] : Collection futures completed: 1 out of 2. Current memory usage is 17.310 GB out of 34.138 GB total.
+INFO - 2022-06-28 11:18:29,795 [collection.py:377] : Collection futures completed: 2 out of 2. Current memory usage is 17.318 GB out of 34.138 GB total.
+INFO - 2022-06-28 11:18:30,391 [collection.py:296] : Initializing dataset "windspeed_100m" with shape (32, 576) and dtype uint16
+INFO - 2022-06-28 11:18:30,397 [collection.py:542] : Collecting file list chunk 1 out of 1 
+INFO - 2022-06-28 11:18:30,404 [collection.py:358] : Running parallel collection on None workers.
+INFO - 2022-06-28 11:18:40,407 [collection.py:377] : Collection futures completed: 1 out of 2. Current memory usage is 17.343 GB out of 34.138 GB total.
+INFO - 2022-06-28 11:18:40,496 [collection.py:377] : Collection futures completed: 2 out of 2. Current memory usage is 17.325 GB out of 34.138 GB total.
+INFO - 2022-06-28 11:18:41,067 [collection.py:296] : Initializing dataset "winddirection_100m" with shape (32, 576) and dtype int16
+INFO - 2022-06-28 11:18:41,073 [collection.py:555] : Finished file collection.

@@ -370,7 +370,7 @@ class DataHandler(FeatureHandler):
 
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"data_handler = {dh_init_str};\'\n")
+               f"data_handler = {dh_init_str};\'\n").replace('\\', '/')
 
         return cmd
 

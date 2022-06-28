@@ -12,7 +12,6 @@ import os
 import warnings
 import glob
 
-
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -726,7 +725,7 @@ class ForwardPass:
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
                f"fwp = {cls.__name__}({fwp_arg_str});\n"
-               "fwp.run()\'\n")
+               "fwp.run()\'\n").replace('\\', '/')
 
         return cmd
 
