@@ -853,7 +853,7 @@ def interp_to_level(var_array, lev_array, levels):
         levels, (int, float, np.float32)) else levels
     h_min = np.nanmin(lev_array)
     h_max = np.nanmax(lev_array)
-    height_check = (h_min < min(levels) and max(levels) < h_max)
+    height_check = (h_min <= min(levels) and max(levels) <= h_max)
 
     if np.isnan(h_min):
         msg = 'All pressure level height data is NaN!'
@@ -950,9 +950,10 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     """
 
     logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
-    return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
-                           calc_pressure(data, var, raster_index, time_slice),
-                           pressures)[0]
+    return interp_to_level(
+        unstagger_var(data, var, raster_index, time_slice)[:, ::-1, ...],
+        calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
+        pressures)[0]
 
 
 def potential_temperature(T, P):

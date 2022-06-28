@@ -190,9 +190,6 @@ class DataHandler(FeatureHandler):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
 
-        logger.info('Initializing DataHandler '
-                    f'{self.file_info_logging(self.file_paths)}')
-
         self.train_only_features = train_only_features
         if self.train_only_features is None:
             self.train_only_features = self.TRAIN_ONLY_FEATURES
@@ -220,6 +217,9 @@ class DataHandler(FeatureHandler):
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
         self.lat_lon = None
+
+        logger.info('Initializing DataHandler '
+                    f'{self.file_info_logging(self.file_paths)}')
 
         self.preflight()
 
@@ -974,6 +974,27 @@ class DataHandlerNC(DataHandler):
         """
         return xr.open_mfdataset(file_paths, combine='nested',
                                  concat_dim='Time')
+
+    @classmethod
+    def file_info_logging(cls, file_paths):
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
+
+        Parameters
+        ----------
+        file_paths : list
+            List of file paths
+
+        Returns
+        -------
+        str
+            message to append to log output that does not include a huge info
+            dump of file paths
+        """
+        ti = cls.get_time_index(file_paths)
+        msg = (f'source files for dates from {ti[0]} to {ti[-1]}')
+        return msg
 
     @classmethod
     def get_time_index(cls, file_paths):

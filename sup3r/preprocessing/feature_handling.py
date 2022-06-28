@@ -961,9 +961,9 @@ class Feature:
             height to use for interpolation
             in meters
         """
-        height = re.search('_(.*)m', feature)
+        height = re.search(r'\d+m', feature)
         if height:
-            height = height.group(0).strip('_').strip('m')
+            height = height.group(0).strip('m')
             if not height.isdigit():
                 height = None
         return height
@@ -982,9 +982,9 @@ class Feature:
         float | None
             pressure to use for interpolation in pascals
         """
-        pressure = re.search('_(.*)pa', feature)
+        pressure = re.search(r'\d+pa', feature)
         if pressure:
-            pressure = pressure.group(0).strip('_').strip('pa')
+            pressure = pressure.group(0).strip('pa')
             if not pressure.isdigit():
                 pressure = None
         return pressure
