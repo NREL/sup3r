@@ -71,7 +71,7 @@ class Collector:
         import_str = ('from sup3r.postprocessing.collection '
                       'import Collector; from rex import init_logger')
 
-        dc_arg_str = get_fun_call_str(cls, config)
+        dc_fun_str = get_fun_call_str(cls.collect, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -81,7 +81,7 @@ class Collector:
 
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"Colletor.collect({dc_arg_str});\'\n")
+               f"{dc_fun_str};\'\n")
 
         return cmd
 

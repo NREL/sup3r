@@ -125,8 +125,8 @@ def test_data_collection_cli(runner):
         features = ['windspeed_100m', 'winddirection_100m']
         fp_out = os.path.join(td, 'out_combined.h5')
         config = {'file_paths': out_files,
-                  'fp_out': fp_out,
-                  'features': ['windspeed_100m', 'winddirection_100m'],
+                  'f_out': fp_out,
+                  'features': features,
                   'execution_control': {
                       "nodes": 1,
                       "option": "local"}}
