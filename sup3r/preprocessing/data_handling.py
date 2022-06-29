@@ -1367,7 +1367,7 @@ class DataHandlerH5(DataHandler):
             else:
                 try:
                     fdata = handle[(feature, time_slice,)
-                                   + tuple(raster_index.flatten())]
+                                   + tuple([raster_index.flatten()])]
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
                     logger.exception(msg)
