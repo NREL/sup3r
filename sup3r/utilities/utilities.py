@@ -732,27 +732,24 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     array_in = np.array(data[var], np.float32)
 
     if all('stag' not in d for d in data[var].dims):
-        array_in = array_in[
-            tuple([time_slice] + [slice(None)] + raster_index)]
+        array_in = array_in[(time_slice, slice(None),) + tuple(raster_index)]
 
     else:
         for i, d in enumerate(data[var].dims):
             if 'stag' in d:
                 if 'south_north' in d:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + [slice(raster_index[0].start,
-                                 raster_index[0].stop + 1)]
-                        + [raster_index[1]])
+                    idx = (time_slice, slice(None),
+                           slice(raster_index[0].start,
+                                 raster_index[0].stop + 1),
+                           raster_index[1])
                     array_in = array_in[idx]
                 elif 'west_east' in d:
-                    idx = tuple([time_slice] + [slice(None)]
-                                + [raster_index[0]]
-                                + [slice(raster_index[1].start,
-                                         raster_index[1].stop + 1)])
+                    idx = (time_slice, slice(None), raster_index[0],
+                           slice(raster_index[1].start,
+                                 raster_index[1].stop + 1))
                     array_in = array_in[idx]
                 else:
-                    idx = tuple([time_slice] + [slice(None)] + raster_index)
+                    idx = (time_slice, slice(None),) + tuple(raster_index)
                     array_in = array_in[idx]
                 array_in = np.apply_along_axis(forward_average, i, array_in)
     return array_in
@@ -782,7 +779,7 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         # Perturbation Geopotential (m^2/s^2)
         ph = unstagger_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
-        hgt = data['HGT'][tuple([time_slice] + raster_index)]
+        hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
 
         if phb.shape != hgt.shape:
             hgt = np.expand_dims(hgt, axis=1)
@@ -790,8 +787,8 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         hgt = (ph + phb) / 9.81 - hgt
 
     else:
-        hgt = data['zg'][tuple([time_slice] + [slice(None)] + raster_index)]
-        hgt -= data['zg'][tuple([time_slice] + [0] + raster_index)]
+        hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
+        hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
         hgt = np.array(hgt.values)
 
     return hgt
@@ -817,8 +814,8 @@ def calc_pressure(data, var, raster_index, time_slice=slice(None)):
         (temporal, vertical_level, spatial_1, spatial_2)
         4D array of pressure levels in pascals
     """
-    p_array = np.zeros(data[var][tuple([time_slice] + [slice(None)]
-                                       + raster_index)].shape)
+    p_array = np.zeros(data[var][(time_slice, slice(None),)
+                                 + tuple(raster_index)].shape)
     for i in range(p_array.shape[1]):
         p_array[:, i, ...] = data.plev[i]
 

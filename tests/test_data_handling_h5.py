@@ -521,7 +521,7 @@ def test_spatiotemporal_batch_indices(sample_shape):
             spatial_tuples = []
             for s1 in spatial_1_slice:
                 for s2 in spatial_2_slice:
-                    spatial_tuples.append(tuple([s1, s2]))
+                    spatial_tuples.append((s1, s2))
             assert len(spatial_tuples) == len(list(set(spatial_tuples)))
 
             all_spatial_tuples.append(np.array(spatial_tuples))

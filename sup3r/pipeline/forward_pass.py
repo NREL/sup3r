@@ -436,18 +436,18 @@ class ForwardPassStrategy:
             for s2 in s2_slices:
                 for t in t_slices:
 
-                    lr_slices.append(tuple([s1, s2, t, slice(None)]))
+                    lr_slices.append((s1, s2, t, slice(None)))
 
                     hr_slice = self.get_hr_slices([s1, s2, t])
-                    hr_slices.append(tuple(hr_slice + [slice(None)]))
+                    hr_slices.append((hr_slice + (slice(None),)))
 
                     p_slice = self.get_padded_slices([s1, s2, t],
                                                      ends=list(data_shape))
-                    lr_pad_slices.append(tuple(p_slice + [slice(None)]))
+                    lr_pad_slices.append((p_slice + (slice(None),)))
 
                     hrc_slice = self.get_hr_cropped_slices([s1, s2, t],
                                                            p_slice)
-                    hr_crop_slices.append(tuple(hrc_slice + [slice(None)]))
+                    hr_crop_slices.append((hrc_slice + (slice(None),)))
 
         return (lr_slices, lr_pad_slices, hr_slices, hr_crop_slices)
 
