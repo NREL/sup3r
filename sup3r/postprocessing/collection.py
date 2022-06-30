@@ -2,7 +2,6 @@
 """H5 file collection.
 """
 from concurrent.futures import as_completed
-import json
 import logging
 import numpy as np
 import os
