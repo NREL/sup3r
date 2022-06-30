@@ -253,3 +253,18 @@ def test_transform_rotate():
 
     assert np.allclose(u, u_target, atol=1e-5)
     assert np.allclose(v, v_target, atol=1e-5)
+
+    # wd = 45 -> u = -1/sqrt(2) and v = -1/sqrt(2)
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+    winddirection[...] = 45
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = -1 / np.sqrt(2)
+    v_target = np.zeros(v.shape)
+    v_target[...] = -1 / np.sqrt(2)
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
