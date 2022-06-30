@@ -8,6 +8,7 @@ import glob
 import shutil
 from netCDF4 import Dataset
 from rex import ResourceX
+import numpy as np
 
 from click.testing import CliRunner
 
@@ -144,6 +145,12 @@ def test_data_collection_cli(runner):
             combined_ti = []
             for f in out_files:
                 with ResourceX(f) as fh_i:
+                    idx = slice(len(combined_ti),
+                                len(combined_ti) + len(fh_i.time_index))
+                    tmp = fh['windspeed_100m'][idx, ...]
+                    assert np.allclose(tmp, fh_i['windspeed_100m'])
+                    tmp = fh['winddirection_100m'][idx, ...]
+                    assert np.allclose(tmp, fh_i['winddirection_100m'])
                     combined_ti += list(fh_i.time_index)
             assert len(full_ti) == len(combined_ti)
 

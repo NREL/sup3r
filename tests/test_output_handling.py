@@ -168,5 +168,12 @@ def test_forward_pass_collection():
             combined_ti = []
             for f in handler.out_files:
                 with ResourceX(f) as fh_i:
+                    print(fh['windspeed_100m'].shape)
+                    idx = slice(len(combined_ti),
+                                len(combined_ti) + len(fh_i.time_index))
+                    tmp = fh['windspeed_100m'][idx, ...]
+                    assert np.allclose(tmp, fh_i['windspeed_100m'])
+                    tmp = fh['winddirection_100m'][idx, ...]
+                    assert np.allclose(tmp, fh_i['winddirection_100m'])
                     combined_ti += list(fh_i.time_index)
             assert len(full_ti) == len(combined_ti)

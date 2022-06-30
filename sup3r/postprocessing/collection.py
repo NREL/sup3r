@@ -201,8 +201,11 @@ class Collector:
 
         Parameters
         ----------
-        file_paths : list
-            List of chunked filenames to collect.
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
         feature : str
             Dataset name to collect.
         sort : bool
@@ -306,8 +309,11 @@ class Collector:
 
         Parameters
         ----------
-        flist : list
-            List of chunked filenames in collect_dir to collect.
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
         collect_dir : str
             Directory of chunked files (flist).
         f_out : str
@@ -397,84 +403,6 @@ class Collector:
                      .format(feature, y_write_slice, x_write_slice,
                              os.path.basename(f_out)))
 
-    @staticmethod
-    def collect_flist_lowmem(flist, f_out, dset, sort=False, sort_key=None,
-                             log_level=None, log_file=None, write_status=False,
-                             job_name=None):
-        """Collect a file list without data pre-init for low memory utilization
-
-        Collects data that can be chunked in both space and time as long as
-        f_out is pre-initialized.
-
-        Parameters
-        ----------
-        flist : list | str
-            List of chunked filenames in collect_dir to collect. Can also be a
-            json.dumps(flist).
-        f_out : str
-            File path of final output file. Must already be initialized with
-            full time index and meta.
-        dset : str
-            Dataset name to collect.
-        sort : bool
-            flag to sort flist to determine meta data order.
-        sort_key : None | fun
-            Optional sort key to sort flist by (determines how meta is built
-            if f_out does not exist).
-        var_meta : str | pd.DataFrame | None
-            CSV file or dataframe containing meta data for all NSRDB variables.
-            Defaults to the NSRDB var meta csv in git repo.
-        log_level : str | None
-            Desired log level, None will not initialize logging.
-        log_file : str | None
-            Target log file. None logs to stdout.
-        write_status : bool
-            Flag to write status file once complete if running from pipeline.
-        job_name : str
-            Job name for status file if running from pipeline.
-        """
-        t0 = time.time()
-
-        if log_level is not None:
-            init_logger('sup3r.postprocessing', log_file=log_file,
-                        log_level=log_level)
-
-        if not os.path.exists(f_out):
-            time_index, meta, _, _ = Collector._get_collection_attrs(
-                flist, dset, sort=sort, sort_key=sort_key)
-
-            Collector._init_collected_h5(f_out, time_index, meta)
-
-        if isinstance(flist, str):
-            if '[' in flist and ']' in flist:
-                flist = json.loads(flist)
-
-        with Outputs(f_out, mode='a') as f:
-            time_index = f.time_index
-            meta = f.meta
-            dtype = f.get_dset_properties(dset)[1]
-            scale_factor = f.get_scale_factor(dset)
-
-            for fname in flist:
-                logger.debug('Collecting file "{}".'.format(fname))
-
-                data, rows, cols = Collector.get_data(fname, dset, time_index,
-                                                      meta, scale_factor,
-                                                      dtype)
-                f[dset, rows, cols] = data
-
-        if write_status and job_name is not None:
-            status = {'out_dir': os.path.dirname(f_out),
-                      'fout': f_out,
-                      'flist': flist,
-                      'job_status': 'successful',
-                      'runtime': (time.time() - t0) / 60,
-                      'dset': dset}
-            Status.make_job_file(os.path.dirname(f_out), 'collect-flist',
-                                 job_name, status)
-
-        logger.info('Finished file list collection.')
-
     @classmethod
     def collect(cls, file_paths, f_out, features, n_writes=1,
                 max_workers=None, log_level=None, log_file=None,
@@ -489,7 +417,10 @@ class Collector:
         Parameters
         ----------
         file_paths : list | str
-            File paths that data is being collected from
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
         f_out : str
             File path of final output file.
         features : list

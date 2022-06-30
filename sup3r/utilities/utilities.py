@@ -786,10 +786,15 @@ def calc_height(data, raster_index, time_slice=slice(None)):
             hgt = np.repeat(hgt, phb.shape[-3], axis=1)
         hgt = (ph + phb) / 9.81 - hgt
 
-    else:
+    elif 'zg' in data:
         hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
         hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
         hgt = np.array(hgt.values)
+
+    else:
+        msg = ('Need either PHB/PH/HGT or zg in data to perform height '
+               'interpolation')
+        raise ValueError(msg)
 
     return hgt
 
