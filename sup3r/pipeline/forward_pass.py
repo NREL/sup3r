@@ -351,9 +351,7 @@ class ForwardPassStrategy:
             else:
                 tmp = chunk
             ti_pad_chunks.append(tmp)
-            start_id = chunk[0]
-            stop_id = chunk[-1]
-            file_ids.append(f'{start_id}_{stop_id}')
+            file_ids.append(i)
 
         ti_chunks = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_chunks]
         ti_pad_chunks = [slice(chunk[0], chunk[-1] + 1)
