@@ -401,13 +401,13 @@ def transform_rotate_wind(ws, wd, lat_lon):
     theta = (np.pi / 2) - np.arctan2(dy, dx)
     del dy, dx
     theta[0] = theta[1]  # fix the roll row
-    wd = np.radians(wd - 180.0)
+    wd = np.radians(wd)
 
-    u_rot = np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-    u_rot += np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+    u_rot = np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+    u_rot += np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
 
-    v_rot = np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
-    v_rot -= np.sin(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+    v_rot = -np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
+    v_rot += np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
     del theta, ws, wd
     return u_rot, v_rot
 
@@ -444,17 +444,16 @@ def invert_uv(u, v, lat_lon):
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
-    del dy, dx
     theta[0] = theta[1]  # fix the roll row
 
-    u_rot = -np.sin(theta)[:, :, np.newaxis] * u
-    u_rot += np.cos(theta)[:, :, np.newaxis] * v
+    u_rot = np.cos(theta)[:, :, np.newaxis] * u
+    u_rot -= np.sin(theta)[:, :, np.newaxis] * v
 
-    v_rot = np.cos(theta)[:, :, np.newaxis] * u
-    v_rot += np.sin(theta)[:, :, np.newaxis] * v
+    v_rot = np.sin(theta)[:, :, np.newaxis] * u
+    v_rot += np.cos(theta)[:, :, np.newaxis] * v
 
     ws = np.sqrt(u_rot**2 + v_rot**2)
-    wd = np.degrees(np.arctan2(u_rot, v_rot)) + 180.0
+    wd = (np.degrees(np.arctan2(u_rot, v_rot)) + 360) % 360
 
     return ws, wd
 

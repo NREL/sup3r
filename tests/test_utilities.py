@@ -7,7 +7,8 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
                                        uniform_box_sampler,
-                                       spatial_coarsening)
+                                       spatial_coarsening,
+                                       transform_rotate_wind)
 
 
 def test_get_chunk_slices():
@@ -184,3 +185,86 @@ def test_s_enhance_3D_no_obs(s_enhance):
 
                 assert np.allclose(coarse[i_lr, j_lr, f],
                                    arr[i_hr, j_hr, f].mean())
+
+
+def test_transform_rotate():
+    """Make sure inverse uv transform returns inputs"""
+    lats = np.array([[1, 1, 1], [0, 0, 0]])
+    lons = np.array([[-120, -100, -80], [-120, -100, -80]])
+    lat_lon = np.concatenate([np.expand_dims(lats, axis=-1),
+                              np.expand_dims(lons, axis=-1)], axis=-1)
+    windspeed = np.ones((lat_lon.shape[0], lat_lon.shape[1], 1))
+
+    # wd = 0 -> u = 0 and v = -1
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = 0
+    v_target = np.zeros(v.shape)
+    v_target[...] = -1
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
+
+    # wd = 90 -> u = -1 and v = 0
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+    winddirection[...] = 90
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = -1
+    v_target = np.zeros(v.shape)
+    v_target[...] = 0
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
+
+    # wd = 270 -> u = 1 and v = 0
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+    winddirection[...] = 270
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = 1
+    v_target = np.zeros(v.shape)
+    v_target[...] = 0
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
+
+    # wd = 180 -> u = 0 and v = 1
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+    winddirection[...] = 180
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = 0
+    v_target = np.zeros(v.shape)
+    v_target[...] = 1
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
+
+    # wd = 45 -> u = -1/sqrt(2) and v = -1/sqrt(2)
+    winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
+    winddirection[...] = 45
+
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+    u_target = np.zeros(u.shape)
+    u_target[...] = -1 / np.sqrt(2)
+    v_target = np.zeros(v.shape)
+    v_target[...] = -1 / np.sqrt(2)
+
+    assert np.allclose(u, u_target, atol=1e-5)
+    assert np.allclose(v, v_target, atol=1e-5)
