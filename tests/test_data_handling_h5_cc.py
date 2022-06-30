@@ -336,11 +336,11 @@ def test_solar_ancillary_vars():
 
     assert handler.data.shape[-1] == 4
 
-    assert np.allclose(np.min(handler.data[:, :, :, 1]), -9.3, atol=1)
+    assert np.allclose(np.min(handler.data[:, :, :, 1]), -6.1, atol=1)
     assert np.allclose(np.max(handler.data[:, :, :, 1]), 9.7, atol=1)
 
     assert np.allclose(np.min(handler.data[:, :, :, 2]), -9.8, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 2]), 6.1, atol=1)
+    assert np.allclose(np.max(handler.data[:, :, :, 2]), 9.3, atol=1)
 
     assert np.allclose(np.min(handler.data[:, :, :, 3]), -18.3, atol=1)
     assert np.allclose(np.max(handler.data[:, :, :, 3]), 22.9, atol=1)
