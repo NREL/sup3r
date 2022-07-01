@@ -1318,8 +1318,8 @@ class FeatureHandler:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
                         tmp = cls.get_input_arrays(data, t, f, handle_features)
-                        future = exe.submit(
-                            cls.recursive_compute, data=tmp, feature=f)
+                        future = exe.submit(cls.recursive_compute,
+                                            data=tmp, feature=f)
 
                         meta = {'feature': f,
                                 'chunk': t}
