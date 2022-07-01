@@ -69,7 +69,7 @@ def test_forward_pass_nc_cc():
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
-    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['training_features'] = features
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
@@ -104,7 +104,7 @@ def test_forward_pass_nc():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td)

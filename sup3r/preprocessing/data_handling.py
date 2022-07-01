@@ -329,7 +329,7 @@ class DataHandler(FeatureHandler):
 
     @classmethod
     def get_compute_workers(cls, compute_workers, raster_shape, time_index,
-                            raw_features, extract_features):
+                            extract_features, handle_features):
         """Get max number of workers based on available system memory
 
         Parameters
@@ -340,16 +340,19 @@ class DataHandler(FeatureHandler):
             Shape of spatial raster for full domain
         time_index : np.ndarray
             Array of time indices to extract for features
-        raw_features : list
-            List of all needed features, including those for computations
         extract_features : list
             List of all features to extract or compute
+        handle_features : list
+            List of all features available in data
 
         Returns
         -------
         compute_workers : int
             Max number of workers for computing features
         """
+        raw_features = []
+        for f in extract_features:
+            raw_features += cls.get_raw_feature_list([f], handle_features)
         if compute_workers is None:
             worker_mem = cls.feature_mem(raster_shape, time_index)
             mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
@@ -961,20 +964,20 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(extract_features,
                                                 handle_features)
 
-        logger.info(f'Starting {extract_features} extraction for '
+        logger.info(f'Starting {raw_features} extraction for '
                     f'{cls.file_info_logging(file_paths)}. Using '
                     f'extract_workers={extract_workers}. ')
 
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)
 
-        logger.info(f'Finished extracting {extract_features} for '
+        logger.info(f'Finished extracting {raw_features} for '
                     f'{cls.file_info_logging(file_paths)}')
 
         compute_workers = cls.get_compute_workers(compute_workers, shape,
                                                   time_index[temporal_slice],
-                                                  raw_features,
-                                                  extract_features)
+                                                  extract_features,
+                                                  handle_features)
 
         logger.info('Starting feature computation with '
                     f'compute_workers={compute_workers}.')

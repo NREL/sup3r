@@ -1318,16 +1318,12 @@ class FeatureHandler:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
                         tmp = cls.get_input_arrays(data, t, f, handle_features)
-                        future = exe.submit(cls.recursive_compute,
-                                            data=tmp, feature=f)
-
-                        meta = {'feature': f,
-                                'chunk': t}
-
+                        future = exe.submit(cls.recursive_compute, data=tmp,
+                                            feature=f)
+                        meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
-                    cls.pop_old_data(
-                        data, t, all_features)
+                    cls.pop_old_data(data, t, all_features)
 
                 shape = get_raster_shape(raster_index)
                 time_shape = time_chunks[0].stop - time_chunks[0].start
