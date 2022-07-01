@@ -18,7 +18,6 @@ from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.models.base import Sup3rGan
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import BatchHandler
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
