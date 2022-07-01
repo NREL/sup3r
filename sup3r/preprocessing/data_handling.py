@@ -14,13 +14,14 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
+import sys
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.utilities.utilities import (get_chunk_slices,
+from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
                                        interp_var_to_height,
                                        interp_var_to_pressure,
                                        uniform_box_sampler,
@@ -87,7 +88,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=50,
@@ -218,6 +219,10 @@ class DataHandler(FeatureHandler):
         self.compute_workers = compute_workers
         self.lat_lon = None
 
+        if self.extract_workers is None:
+            worker_mem = self.feature_mem(self.grid_shape, self.raw_time_index)
+            self.extract_workers = estimate_max_workers(worker_mem)
+
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
 
@@ -266,8 +271,8 @@ class DataHandler(FeatureHandler):
                 temporal_slice=self.temporal_slice,
                 hr_spatial_coarsen=self.hr_spatial_coarsen,
                 time_roll=self.time_roll,
-                extract_workers=extract_workers,
-                compute_workers=compute_workers,
+                extract_workers=self.extract_workers,
+                compute_workers=self.compute_workers,
                 time_chunk_size=time_chunk_size,
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
@@ -281,6 +286,66 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    @classmethod
+    def feature_mem(cls, raster_shape, time_index):
+        """Estimate memory used to extract a single feature
+
+        Parameters
+        ----------
+        raster_shape : np.ndarray
+            Shape of spatial raster for full domain
+        time_index : np.ndarray
+            Array of time indices to extract for features
+
+        Returns
+        -------
+        int
+            Number of bytes used by a single feature
+        """
+        n_elems = np.product(raster_shape) * len(time_index)
+        feature_mem = n_elems * 4
+        return feature_mem
+
+    @classmethod
+    def get_max_workers(cls, extract_workers, compute_workers, raster_shape,
+                        time_index, raw_features, extract_features):
+        """Get max number of workers based on available system memory
+
+        Parameters
+        ----------
+        extract_workers : int
+            Max number of workers for extracting data
+        compute_workers : int
+            Max number of workers for computing features
+        data_handlers : list
+            List of data handlers
+        raster_shape : np.ndarray
+            Shape of spatial raster for full domain
+        time_index : np.ndarray
+            Array of time indices to extract for features
+        raw_features : list
+            List of all needed features, including those for computations
+        extract_features : list
+            List of all features to extract or compute
+
+        Returns
+        -------
+        extract_workers : int
+            Max number of workers for extracting data
+        compute_workers : int
+            Max number of workers for computing features
+        """
+        if extract_workers is None:
+            worker_mem = cls.feature_mem(raster_shape, time_index)
+            extract_workers = estimate_max_workers(worker_mem)
+
+        if compute_workers is None:
+            worker_mem = cls.feature_mem(raster_shape, time_index)
+            mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
+            worker_mem *= mult
+            compute_workers = estimate_max_workers(worker_mem)
+        return extract_workers, compute_workers
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
@@ -476,7 +541,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
+        with ThreadPoolExecutor(max_workers=self.extract_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
@@ -816,8 +881,7 @@ class DataHandler(FeatureHandler):
         file_paths : str | list
             path to data file
         raster_index : np.ndarray
-            2D array of grid indices for H5 or list of
-            slices for NETCDF
+            2D array of grid indices for H5 or list of slices for NETCDF
         features : list
             list of features to extract
         temporal_slice : slice
@@ -887,8 +951,14 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(extract_features,
                                                 handle_features)
 
+        extract_workers, compute_workers = cls.get_max_workers(
+            extract_workers, compute_workers, shape, time_index,
+            raw_features, extract_features)
+
         logger.info(f'Starting {extract_features} extraction for '
-                    f'{cls.file_info_logging(file_paths)}')
+                    f'{cls.file_info_logging(file_paths)}. Using '
+                    f'extract_workers={extract_workers} '
+                    f'and compute_workers={compute_workers}')
 
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)

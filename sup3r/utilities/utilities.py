@@ -13,12 +13,33 @@ import os
 import xarray as xr
 import re
 from warnings import warn
+import psutil
 
 from rex import Resource
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def estimate_max_workers(worker_mem):
+    """Estimate max number of workers based on available memory
+
+    Parameters
+    ----------
+    worker_mem : int
+        Number of bytes used for a single process
+
+    Returns
+    -------
+    int
+        Max number of workers available
+    """
+    total_mem = psutil.virtual_memory().total
+    max_workers = int(0.9 * total_mem / worker_mem)
+    max_workers = np.min([max_workers, os.cpu_count()])
+    max_workers = np.max([max_workers, 1])
+    return max_workers
 
 
 def round_array(arr, digits=3):
