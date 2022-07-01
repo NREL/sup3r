@@ -35,8 +35,9 @@ def estimate_max_workers(worker_mem):
     int
         Max number of workers available
     """
-    total_mem = psutil.virtual_memory().total
-    max_workers = int(0.9 * total_mem / worker_mem)
+    mem = psutil.virtual_memory()
+    avail_mem = mem.total - mem.used
+    max_workers = int(0.9 * avail_mem / worker_mem)
     max_workers = np.min([max_workers, os.cpu_count()])
     max_workers = np.max([max_workers, 1])
     return max_workers

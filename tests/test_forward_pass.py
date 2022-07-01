@@ -69,27 +69,9 @@ def test_forward_pass_nc_cc():
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
-
-    # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, features, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    model.meta['training_features'] = features
     with tempfile.TemporaryDirectory() as td:
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -122,28 +104,10 @@ def test_forward_pass_nc():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, FEATURES[:2], target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    model.meta['training_features'] = FEATURES
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -177,29 +141,10 @@ def test_forward_pass_h5():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, ['U_100m', 'V_100m'],
-                            target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    model.meta['training_features'] = ['U_100m', 'V_100m']
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 

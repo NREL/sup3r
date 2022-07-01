@@ -362,12 +362,9 @@ class BatchHandler:
         now = dt.now()
         self.data_handlers = data_handlers
 
-        load_workers, norm_workers = self.get_max_workers(load_workers,
-                                                          norm_workers,
-                                                          data_handlers)
+        load_workers = self.get_max_workers(load_workers, data_handlers)
         logger.info('Initializing batch handler with '
-                    f'load_workers={load_workers} and '
-                    f'norm_workers={norm_workers}')
+                    f'load_workers={load_workers}.')
         self.parallel_load(load_workers)
         logger.debug(f'Finished loading data of shape {self.shape} '
                      f'for BatchHandler in {dt.now() - now}.')
@@ -392,7 +389,9 @@ class BatchHandler:
         self.overwrite_stats = overwrite_stats
 
         if norm:
-            logger.debug('Normalizing data for BatchHandler.')
+            norm_workers = self.get_max_workers(norm_workers, data_handlers)
+            logger.debug('Normalizing data for BatchHandler. Using '
+                         f'norm_workers={norm_workers}.')
             self.means, self.stds = self.check_cached_stats()
             self.normalize(self.means, self.stds, norm_workers)
             self.cache_stats()
@@ -408,35 +407,28 @@ class BatchHandler:
         logger.info('Finished initializing BatchHandler.')
 
     @staticmethod
-    def get_max_workers(load_workers, norm_workers, data_handlers):
+    def get_max_workers(max_workers, data_handlers):
         """Get max number of workers based on available system memory
 
         Parameters
         ----------
-        load_workers : int
-            Max number of workers for loading data
-        norm_workers : int
-            Max number of workers for normalization
+        max_workers : int
+            Max number of workers for loading or normalizing data
         data_handlers : list
             List of data handlers
 
         Returns
         -------
-        load_workers : int
+        max_workers : int
             Max number of workers for loading data
-        norm_workers : int
-            Max number of workers for normalization
         """
-        if load_workers is None or norm_workers is None:
+        if max_workers is None:
             worker_mem = np.product(data_handlers[0].grid_shape)
             worker_mem *= len(data_handlers[0].time_index)
             worker_mem *= 4 * len(data_handlers[0].features)
-        if load_workers is None:
-            load_workers = estimate_max_workers(worker_mem)
-        if norm_workers is None:
-            norm_workers = estimate_max_workers(worker_mem)
+            max_workers = estimate_max_workers(worker_mem)
 
-        return load_workers, norm_workers
+        return max_workers
 
     def parallel_normalization(self, max_workers=None):
         """Normalize data in all data handlers in parallel.

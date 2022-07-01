@@ -14,7 +14,6 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
-import sys
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
@@ -215,13 +214,11 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
-        self.extract_workers = extract_workers
-        self.compute_workers = compute_workers
         self.lat_lon = None
-
-        if self.extract_workers is None:
-            worker_mem = self.feature_mem(self.grid_shape, self.raw_time_index)
-            self.extract_workers = estimate_max_workers(worker_mem)
+        self.compute_workers = compute_workers
+        self.extract_workers = self.get_extract_workers(extract_workers,
+                                                        self.grid_shape,
+                                                        self.time_index)
 
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
@@ -308,18 +305,37 @@ class DataHandler(FeatureHandler):
         return feature_mem
 
     @classmethod
-    def get_max_workers(cls, extract_workers, compute_workers, raster_shape,
-                        time_index, raw_features, extract_features):
+    def get_extract_workers(cls, extract_workers, raster_shape, time_index):
         """Get max number of workers based on available system memory
 
         Parameters
         ----------
         extract_workers : int
             Max number of workers for extracting data
+        raster_shape : np.ndarray
+            Shape of spatial raster for full domain
+        time_index : np.ndarray
+            Array of time indices to extract for features
+
+        Returns
+        -------
+        extract_workers : int
+            Max number of workers for extracting data
+        """
+        if extract_workers is None:
+            worker_mem = cls.feature_mem(raster_shape, time_index)
+            extract_workers = estimate_max_workers(worker_mem)
+        return extract_workers
+
+    @classmethod
+    def get_compute_workers(cls, compute_workers, raster_shape, time_index,
+                            raw_features, extract_features):
+        """Get max number of workers based on available system memory
+
+        Parameters
+        ----------
         compute_workers : int
             Max number of workers for computing features
-        data_handlers : list
-            List of data handlers
         raster_shape : np.ndarray
             Shape of spatial raster for full domain
         time_index : np.ndarray
@@ -331,21 +347,15 @@ class DataHandler(FeatureHandler):
 
         Returns
         -------
-        extract_workers : int
-            Max number of workers for extracting data
         compute_workers : int
             Max number of workers for computing features
         """
-        if extract_workers is None:
-            worker_mem = cls.feature_mem(raster_shape, time_index)
-            extract_workers = estimate_max_workers(worker_mem)
-
         if compute_workers is None:
             worker_mem = cls.feature_mem(raster_shape, time_index)
             mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
             worker_mem *= mult
             compute_workers = estimate_max_workers(worker_mem)
-        return extract_workers, compute_workers
+        return compute_workers
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
@@ -951,20 +961,23 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(extract_features,
                                                 handle_features)
 
-        extract_workers, compute_workers = cls.get_max_workers(
-            extract_workers, compute_workers, shape, time_index,
-            raw_features, extract_features)
-
         logger.info(f'Starting {extract_features} extraction for '
                     f'{cls.file_info_logging(file_paths)}. Using '
-                    f'extract_workers={extract_workers} '
-                    f'and compute_workers={compute_workers}')
+                    f'extract_workers={extract_workers}. ')
 
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)
 
         logger.info(f'Finished extracting {extract_features} for '
                     f'{cls.file_info_logging(file_paths)}')
+
+        compute_workers = cls.get_compute_workers(compute_workers, shape,
+                                                  time_index[temporal_slice],
+                                                  raw_features,
+                                                  extract_features)
+
+        logger.info('Starting feature computation with '
+                    f'compute_workers={compute_workers}.')
 
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
