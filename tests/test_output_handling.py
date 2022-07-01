@@ -8,26 +8,13 @@ from netCDF4 import Dataset
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
-from sup3r.preprocessing.data_handling import DataHandlerH5
-from sup3r.preprocessing.batch_handling import BatchHandler
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.models.base import Sup3rGan
-from sup3r import TEST_DATA_DIR, CONFIG_DIR
+from sup3r import TEST_DATA_DIR
 
 from rex import ResourceX
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-target = (19.3, -123.5)
-shape = (8, 8)
-sample_shape = (8, 8, 6)
-temporal_slice = slice(None, None, 1)
-list_chunk_size = 10
-forward_pass_chunk_shape = (4, 4, 4)
-s_enhance = 3
-t_enhance = 4
-
 INPUT_FILES = [
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
     os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
@@ -115,58 +102,17 @@ def test_invert_uv_inplace():
 def test_forward_pass_collection():
     """Test forward pass collection."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    # only use wind features since model output only gives 2 features
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-
-        cache_file_prefix = os.path.join(td, 'cache')
-        out_files = os.path.join(td, 'out_{file_id}.h5')
-        handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
-            overwrite_cache=True, out_pattern=out_files, pass_workers=1)
-
-        for i in range(handler.nodes):
-            forward_pass = ForwardPass(handler, model_path=out_dir,
-                                       node_index=i)
-            forward_pass.run()
-
+        out_files = [os.path.join(TEST_DATA_DIR, 'fp_out_0.h5'),
+                     os.path.join(TEST_DATA_DIR, 'fp_out_1.h5')]
         fp_out = os.path.join(td, 'out_combined.h5')
-        Collector.collect(handler.out_files, fp_out,
+        Collector.collect(out_files, fp_out,
                           features=['windspeed_100m', 'winddirection_100m'])
 
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []
-            for i, f in enumerate(handler.out_files):
+            for i, f in enumerate(out_files):
                 with ResourceX(f) as fh_i:
                     if i == 0:
                         ws = fh_i['windspeed_100m']
