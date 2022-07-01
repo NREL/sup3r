@@ -9,11 +9,9 @@ import numpy as np
 from datetime import datetime as dt
 import os
 import pickle
-import sys
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
-from yaml import load
 
 from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
