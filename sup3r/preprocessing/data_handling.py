@@ -465,10 +465,6 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-
-        logger.debug(
-            f'Normalizing data for {self.file_info_logging(self.file_paths)}')
-
         if self.extract_workers == 1:
             for i in range(self.shape[-1]):
                 self._normalize_data(i, means[i], stds[i])
@@ -499,7 +495,8 @@ class DataHandler(FeatureHandler):
                 futures[future] = i
 
             logger.info(f'Started normalizing {self.shape[-1]} features '
-                        f'in {dt.now() - now}. ')
+                        f'in {dt.now() - now}. Using '
+                        f'max_workers={max_workers}')
 
             for i, future in enumerate(as_completed(futures)):
                 future.result()

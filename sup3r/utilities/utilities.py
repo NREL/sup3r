@@ -43,11 +43,9 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
         return max_workers
     mem = psutil.virtual_memory()
     avail_mem = 0.95 * (mem.total - mem.used)
-    logger.debug('Available memory for processes: '
-                 f'{round(avail_mem / 1e9, 3)} GB')
-    msg = (f'Not enough memory ({avail_mem / 1e9} GB) for each process '
+    msg = (f'Not enough memory ({mem.total / 1e9} GB) for each process '
            f'({process_mem / 1e9} GB)')
-    assert avail_mem > process_mem, msg
+    assert mem.total > process_mem, msg
     max_workers = int(avail_mem / process_mem)
     max_workers = np.min([max_workers, n_processes, os.cpu_count()])
     max_workers = np.max([max_workers, 1])

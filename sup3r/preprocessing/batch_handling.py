@@ -387,7 +387,6 @@ class BatchHandler:
         if norm:
             self.means, self.stds = self.check_cached_stats()
             self.normalize(self.means, self.stds, norm_workers)
-            self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
         self.val_data = self.VAL_CLASS(
@@ -608,6 +607,7 @@ class BatchHandler:
         logger.info('Calculating stdevs/means.')
         self.parallel_stats(max_workers=max_workers)
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
+        self.cache_stats()
 
     def get_stats_for_feature(self, feature):
         """Get standard deviation and mean for requested feature
