@@ -216,9 +216,7 @@ class DataHandler(FeatureHandler):
         self.val_data = None
         self.lat_lon = None
         self.compute_workers = compute_workers
-        self.extract_workers = self.get_extract_workers(extract_workers,
-                                                        self.grid_shape,
-                                                        self.time_index)
+        self.extract_workers = extract_workers
 
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
@@ -240,10 +238,9 @@ class DataHandler(FeatureHandler):
 
         elif try_load and not self.load_cached:
             self.data = None
-            logger.info(f'All {self.cache_files} exist. Call the '
-                        'load_cached_data() method or use load_cache=True '
-                        'to load this data from cache files.')
-
+            logger.info(f'All {self.cache_files} exist. Call '
+                        'load_cached_data() or use load_cache=True to load '
+                        'this data from cache files.')
         else:
             if overwrite:
                 logger.info(f'{self.cache_files} exists but overwrite_cache '
@@ -263,8 +260,7 @@ class DataHandler(FeatureHandler):
                 warnings.warn(msg)
 
             self.data = self.extract_data(
-                self.file_paths, self.raster_index,
-                self.features,
+                self.file_paths, self.raster_index, self.features,
                 temporal_slice=self.temporal_slice,
                 hr_spatial_coarsen=self.hr_spatial_coarsen,
                 time_roll=self.time_roll,
@@ -284,81 +280,18 @@ class DataHandler(FeatureHandler):
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
-    @classmethod
-    def feature_mem(cls, raster_shape, time_index):
-        """Estimate memory used to extract a single feature
-
-        Parameters
-        ----------
-        raster_shape : np.ndarray
-            Shape of spatial raster for full domain
-        time_index : np.ndarray
-            Array of time indices to extract for features
+    @property
+    def feature_mem(self):
+        """Number of bytes for a single feature array. Used to estimate
+        max_workers.
 
         Returns
         -------
         int
-            Number of bytes used by a single feature
+            Number of bytes for a single feature array
         """
-        n_elems = np.product(raster_shape) * len(time_index)
-        feature_mem = n_elems * 4
-        return feature_mem
-
-    @classmethod
-    def get_extract_workers(cls, extract_workers, raster_shape, time_index):
-        """Get max number of workers based on available system memory
-
-        Parameters
-        ----------
-        extract_workers : int
-            Max number of workers for extracting data
-        raster_shape : np.ndarray
-            Shape of spatial raster for full domain
-        time_index : np.ndarray
-            Array of time indices to extract for features
-
-        Returns
-        -------
-        extract_workers : int
-            Max number of workers for extracting data
-        """
-        if extract_workers is None:
-            worker_mem = cls.feature_mem(raster_shape, time_index)
-            extract_workers = estimate_max_workers(worker_mem)
-        return extract_workers
-
-    @classmethod
-    def get_compute_workers(cls, compute_workers, raster_shape, time_index,
-                            extract_features, handle_features):
-        """Get max number of workers based on available system memory
-
-        Parameters
-        ----------
-        compute_workers : int
-            Max number of workers for computing features
-        raster_shape : np.ndarray
-            Shape of spatial raster for full domain
-        time_index : np.ndarray
-            Array of time indices to extract for features
-        extract_features : list
-            List of all features to extract or compute
-        handle_features : list
-            List of all features available in data
-
-        Returns
-        -------
-        compute_workers : int
-            Max number of workers for computing features
-        """
-        raw_features = []
-        for f in extract_features:
-            raw_features += cls.get_raw_feature_list([f], handle_features)
-        if compute_workers is None:
-            worker_mem = cls.feature_mem(raster_shape, time_index)
-            mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
-            worker_mem *= mult
-            compute_workers = estimate_max_workers(worker_mem)
-        return compute_workers
+        feature_mem = np.product(self.grid_shape) * len(self.time_index)
+        return 4 * feature_mem
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
@@ -536,7 +469,7 @@ class DataHandler(FeatureHandler):
         logger.debug(
             f'Normalizing data for {self.file_info_logging(self.file_paths)}')
 
-        if self.compute_workers == 1:
+        if self.extract_workers == 1:
             for i in range(self.shape[-1]):
                 self._normalize_data(i, means[i], stds[i])
         else:
@@ -554,7 +487,10 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ThreadPoolExecutor(max_workers=self.extract_workers) as exe:
+        max_workers = estimate_max_workers(self.extract_workers,
+                                           2 * self.feature_mem,
+                                           self.shape[-1])
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
@@ -717,7 +653,8 @@ class DataHandler(FeatureHandler):
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-
+        max_workers = estimate_max_workers(max_workers, 2 * self.feature_mem,
+                                           len(self.cache_files))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
@@ -727,7 +664,8 @@ class DataHandler(FeatureHandler):
 
             logger.info(
                 f'Started loading all {len(self.cache_files)} cache files '
-                f'in {dt.now() - now}. ')
+                f'in {dt.now() - now}. Using max_workers={max_workers}. ')
+            log_mem(logger)
 
             for i, future in enumerate(as_completed(futures)):
                 future.result()
@@ -964,24 +902,19 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(extract_features,
                                                 handle_features)
 
-        logger.info(f'Starting {raw_features} extraction for '
-                    f'{cls.file_info_logging(file_paths)}. Using '
-                    f'extract_workers={extract_workers}. ')
-
+        feature_mem = 4 * np.product(shape) * len(time_index[temporal_slice])
+        extract_workers = estimate_max_workers(extract_workers, feature_mem,
+                                               len(extract_features))
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)
 
         logger.info(f'Finished extracting {raw_features} for '
                     f'{cls.file_info_logging(file_paths)}')
 
-        compute_workers = cls.get_compute_workers(compute_workers, shape,
-                                                  time_index[temporal_slice],
-                                                  extract_features,
-                                                  handle_features)
-
-        logger.info('Starting feature computation with '
-                    f'compute_workers={compute_workers}.')
-
+        mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
+        worker_mem = mult * feature_mem
+        compute_workers = estimate_max_workers(compute_workers, worker_mem,
+                                               len(extract_features))
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
                                         handle_features, compute_workers)
@@ -1268,6 +1201,7 @@ class DataHandlerNC(DataHandler):
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
             raster_index = list(raster_index)
+            self.grid_shape = get_raster_shape(raster_index)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
@@ -1488,6 +1422,7 @@ class DataHandlerH5(DataHandler):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+            self.grid_shape = get_raster_shape(raster_index)
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')

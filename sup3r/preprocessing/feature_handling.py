@@ -1136,8 +1136,8 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
 
-        logger.info(f'Extracting {input_features}')
-
+        logger.info(f'Starting {input_features} extraction using '
+                    f'extract_workers={max_workers}. ')
         futures = {}
         now = dt.now()
 
@@ -1160,8 +1160,7 @@ class FeatureHandler:
                                             raster_index=raster_index,
                                             feature=f,
                                             time_slice=t_slice)
-                        meta = {'feature': f,
-                                'chunk': t}
+                        meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
                 for f in time_ind_features:
@@ -1306,7 +1305,8 @@ class FeatureHandler:
         if len(derived_features) == 0:
             return data
         else:
-            logger.info(f'Computing {derived_features}')
+            logger.info(f'Starting {derived_features} computation with '
+                        f'compute_workers={max_workers}.')
 
         futures = {}
         now = dt.now()

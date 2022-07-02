@@ -5,6 +5,7 @@ training data
 @author: bbenton
 """
 
+from concurrent.futures import process
 import numpy as np
 import logging
 from scipy import ndimage as nd
@@ -22,23 +23,34 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def estimate_max_workers(worker_mem):
+def estimate_max_workers(max_workers, process_mem, n_processes):
     """Estimate max number of workers based on available memory
 
     Parameters
     ----------
-    worker_mem : int
-        Number of bytes used for a single process
+    max_workers : int | None
+        Max number of workers available
+    process_mem : int
+        Total number of bytes for minimum size process
+    n_processes : int
+        Number of processes
 
     Returns
     -------
     int
         Max number of workers available
     """
+    if max_workers is not None:
+        return max_workers
     mem = psutil.virtual_memory()
-    avail_mem = mem.total - mem.used
-    max_workers = int(avail_mem / worker_mem)
-    max_workers = np.min([max_workers, os.cpu_count()])
+    avail_mem = 0.95 * (mem.total - mem.used)
+    logger.debug('Available memory for processes: '
+                 f'{round(avail_mem / 1e9, 3)} GB')
+    msg = (f'Not enough memory ({avail_mem / 1e9} GB) for each process '
+           f'({process_mem / 1e9} GB)')
+    assert avail_mem > process_mem, msg
+    max_workers = int(avail_mem / process_mem)
+    max_workers = np.min([max_workers, n_processes, os.cpu_count()])
     max_workers = np.max([max_workers, 1])
     return max_workers
 
