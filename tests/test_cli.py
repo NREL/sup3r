@@ -7,14 +7,15 @@ import pytest
 import glob
 import shutil
 from netCDF4 import Dataset
+from rex import ResourceX
+import numpy as np
 
 from click.testing import CliRunner
 
 from sup3r.pipeline.forward_pass_cli import from_config as fp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
+from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.models.base import Sup3rGan
-from sup3r.preprocessing.data_handling import DataHandlerH5
-from sup3r.preprocessing.batch_handling import BatchHandler
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
@@ -31,6 +32,11 @@ INPUT_FILES = sorted(input_files)
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+forward_pass_chunk_shape = (4, 4, 4)
+s_enhance = 3
+t_enhance = 4
+target = (19.3, -123.5)
+shape = (8, 8)
 
 
 def make_fake_nc_files(td):
@@ -52,6 +58,54 @@ def runner():
     return CliRunner()
 
 
+def test_data_collection_cli(runner):
+    """Test cli call to data collection on forward pass output"""
+
+    with tempfile.TemporaryDirectory() as td:
+        out_files = [os.path.join(TEST_DATA_DIR, 'fp_out_0.h5'),
+                     os.path.join(TEST_DATA_DIR, 'fp_out_1.h5')]
+        features = ['windspeed_100m', 'winddirection_100m']
+        fp_out = os.path.join(td, 'out_combined.h5')
+        config = {'file_paths': out_files,
+                  'f_out': fp_out,
+                  'features': features,
+                  'log_file': os.path.join(td, 'log.log'),
+                  'execution_control': {
+                      "option": "local"}}
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(dc_main, ['-c', config_path, '-v'])
+
+        assert os.path.exists(fp_out)
+        with ResourceX(fp_out) as fh:
+            assert all(f in fh for f in features)
+            full_ti = fh.time_index
+            combined_ti = []
+            for i, f in enumerate(out_files):
+                with ResourceX(f) as fh_i:
+                    if i == 0:
+                        ws = fh_i['windspeed_100m']
+                        wd = fh_i['winddirection_100m']
+                    else:
+                        ws = np.concatenate([ws, fh_i['windspeed_100m']],
+                                            axis=0)
+                        wd = np.concatenate([wd, fh_i['winddirection_100m']],
+                                            axis=0)
+                    combined_ti += list(fh_i.time_index)
+            assert len(full_ti) == len(combined_ti)
+            assert np.allclose(ws, fh['windspeed_100m'])
+            assert np.allclose(wd, fh['winddirection_100m'])
+
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
+
+
 def test_fwd_pass_cli(runner):
     """Test cli call to run forward pass"""
 
@@ -60,30 +114,11 @@ def test_fwd_pass_cli(runner):
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=3,
-                                 t_enhance=4,
-                                 n_batches=4)
+    _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
+    model.meta['training_features'] = FEATURES
 
     with tempfile.TemporaryDirectory() as td:
-
         input_files = make_fake_nc_files(td)
-
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -106,7 +141,7 @@ def test_fwd_pass_cli(runner):
                   'extract_workers': None,
                   'spatial_overlap': 5,
                   'temporal_overlap': 5,
-                  'max_pass_workers': None,
+                  'pass_workers': None,
                   'overwrite_cache': False,
                   'execution_control': {
                       "nodes": 1,

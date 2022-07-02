@@ -13,7 +13,8 @@ from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (weighted_time_sampler,
+from sup3r.utilities.utilities import (estimate_max_workers,
+                                       weighted_time_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        nsrdb_reduce_daily_data,
@@ -305,7 +306,8 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, norm_workers=None, load_workers=None):
+                 means_file=None, norm_workers=None, load_workers=None,
+                 overwrite_stats=False):
         """
         Parameters
         ----------
@@ -322,7 +324,7 @@ class BatchHandler:
         means : np.ndarray
             dimensions (features)
             array of means for all features with same ordering as data
-            features.  If not None and norm is True these will be used for
+            features. If not None and norm is True these will be used for
             normalization
         stds : np.ndarray
             dimensions (features)
@@ -349,6 +351,8 @@ class BatchHandler:
         norm_workers : int | None
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
+        overwrite_stats : bool
+            Whether to overwrite stats cache files.
         """
 
         handler_shapes = np.array(
@@ -357,14 +361,10 @@ class BatchHandler:
 
         now = dt.now()
         self.data_handlers = data_handlers
-        if load_workers == 1:
-            for d in self.data_handlers:
-                d.load_cached_data()
-        else:
-            self.parallel_load(load_workers)
+        self.parallel_load(load_workers)
         logger.debug(f'Finished loading data of shape {self.shape} '
                      f'for BatchHandler in {dt.now() - now}.')
-        log_mem(logger)
+        log_mem(logger, log_level='INFO')
 
         self._i = 0
         self.low_res = None
@@ -382,12 +382,11 @@ class BatchHandler:
         self.current_handler_index = None
         self.stdevs_file = stdevs_file
         self.means_file = means_file
+        self.overwrite_stats = overwrite_stats
 
         if norm:
-            logger.debug('Normalizing data for BatchHandler.')
             self.means, self.stds = self.check_cached_stats()
             self.normalize(self.means, self.stds, norm_workers)
-            self.cache_stats()
 
         logger.debug('Getting validation data for BatchHandler.')
         self.val_data = self.VAL_CLASS(
@@ -408,21 +407,30 @@ class BatchHandler:
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
         """
-        futures = {}
-        now = dt.now()
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            for i, d in enumerate(self.data_handlers):
-                future = exe.submit(d.normalize, self.means, self.stds)
-                futures[future] = i
+        handler_mem = len(self.data_handlers[0].features)
+        handler_mem *= self.data_handlers[0].feature_mem
+        max_workers = estimate_max_workers(max_workers, handler_mem,
+                                           len(self.data_handlers))
 
-            logger.info(
-                f'Started normalizing {len(self.data_handlers)} data handlers '
-                f'in {dt.now() - now}. ')
+        if max_workers == 1:
+            for d in self.data_handlers:
+                d.normalize(self.means, self.stds)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for i, d in enumerate(self.data_handlers):
+                    future = exe.submit(d.normalize, self.means, self.stds)
+                    futures[future] = i
 
-            for i, _ in enumerate(as_completed(futures)):
-                future.result()
-                logger.debug(
-                    f'{i + 1} out of {len(futures)} data handlers normalized.')
+                logger.info(f'Started normalizing {len(self.data_handlers)} '
+                            f'data handlers in {dt.now() - now}. Using '
+                            f'max_workers={max_workers}.')
+
+                for i, _ in enumerate(as_completed(futures)):
+                    future.result()
+                    logger.debug(f'{i + 1} out of {len(futures)} data handlers'
+                                 ' normalized.')
 
     def parallel_load(self, max_workers=None):
         """Load data handler data in parallel
@@ -433,23 +441,31 @@ class BatchHandler:
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
+        handler_mem = len(self.data_handlers[0].features)
+        handler_mem *= self.data_handlers[0].feature_mem
+        max_workers = estimate_max_workers(max_workers, handler_mem,
+                                           len(self.data_handlers))
+        logger.info(f'Loading {len(self.data_handlers)} data handlers with '
+                    f'max_workers={max_workers}.')
+        if max_workers == 1:
+            for d in self.data_handlers:
+                d.load_cached_data()
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for i, d in enumerate(self.data_handlers):
+                    if d.data is None:
+                        future = exe.submit(d.load_cached_data)
+                        futures[future] = i
 
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            futures = {}
-            now = dt.now()
-            for i, d in enumerate(self.data_handlers):
-                if d.data is None:
-                    future = exe.submit(d.load_cached_data)
-                    futures[future] = i
+                logger.info(f'Started loading all {len(self.data_handlers)} '
+                            f'data handlers in {dt.now() - now}.')
 
-            logger.info(
-                f'Started loading all {len(self.data_handlers)} data handlers '
-                f'in {dt.now() - now}. ')
-
-            for i, future in enumerate(as_completed(futures)):
-                future.result()
-                logger.debug(
-                    f'{i + 1} out of {len(futures)} handlers loaded.')
+                for i, future in enumerate(as_completed(futures)):
+                    future.result()
+                    logger.debug(f'{i + 1} out of {len(futures)} handlers '
+                                 'loaded.')
 
     def parallel_stats(self, max_workers=None):
         """Get standard deviations and means for training features in parallel
@@ -460,22 +476,31 @@ class BatchHandler:
             Max number of workers to use for parallel stats computation. If
             None the max number of available workers will be used.
         """
+        feature_mem = len(self.data_handlers)
+        feature_mem *= self.data_handlers[0].feature_mem
+        max_workers = estimate_max_workers(max_workers, 2 * feature_mem,
+                                           len(self.training_features))
+        if max_workers == 1:
+            for f in self.training_features:
+                self.get_stats_for_feature(f)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for i, f in enumerate(self.training_features):
+                    future = exe.submit(self.get_stats_for_feature, f)
+                    futures[future] = i
 
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            futures = {}
-            now = dt.now()
-            for i, f in enumerate(self.training_features):
-                future = exe.submit(self.get_stats_for_feature, f)
-                futures[future] = i
+                logger.info('Started calculating stats for '
+                            f'{len(self.training_features)} features in '
+                            f'{dt.now() - now}. Using '
+                            f'max_workers={max_workers}')
 
-            logger.info(
-                f'Started calculating stats for {len(self.training_features)} '
-                f'features in {dt.now() - now}. ')
-
-            for i, future in enumerate(as_completed(futures)):
-                future.result()
-                logger.debug(f'{i + 1} out of {len(self.training_features)} '
-                             'stats calculated.')
+                for i, future in enumerate(as_completed(futures)):
+                    future.result()
+                    logger.debug(f'{i + 1} out of '
+                                 f'{len(self.training_features)} stats '
+                                 'calculated.')
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -536,9 +561,11 @@ class BatchHandler:
         stds : ndarray
             Array of stdevs for each feature
         """
-        stdevs_check = (self.stdevs_file is not None)
+        stdevs_check = (self.stdevs_file is not None
+                        and not self.overwrite_stats)
         stdevs_check = stdevs_check and os.path.exists(self.stdevs_file)
-        means_check = (self.means_file is not None)
+        means_check = (self.means_file is not None
+                       and not self.overwrite_stats)
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
@@ -576,13 +603,11 @@ class BatchHandler:
         self.means = np.zeros((self.shape[-1]), dtype=np.float32)
         self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
 
-        logger.info(
-            f'Calculating stdevs/means with max_workers={max_workers}')
-        if max_workers == 1:
-            for f in self.training_features:
-                self.get_stats_for_feature(f)
-        else:
-            self.parallel_stats(max_workers=max_workers)
+        now = dt.now()
+        logger.info('Calculating stdevs/means.')
+        self.parallel_stats(max_workers=max_workers)
+        logger.info(f'Finished calculating stats in {dt.now() - now}.')
+        self.cache_stats()
 
     def get_stats_for_feature(self, feature):
         """Get standard deviation and mean for requested feature
@@ -633,15 +658,9 @@ class BatchHandler:
 
         now = dt.now()
         logger.info('Normalizing data in each data handler.')
-        if norm_workers == 1:
-            for d in self.data_handlers:
-                d.normalize(self.means, self.stds)
-        else:
-            self.parallel_normalization(norm_workers)
-
-        logger.info('Finished normalizing data in all data handlers.')
-        logger.debug(f'Normalized data in {dt.now() - now} with '
-                     f'norm_workers={norm_workers}')
+        self.parallel_normalization(norm_workers)
+        logger.info('Finished normalizing data in all data handlers in '
+                    f'{dt.now() - now}.')
 
     def unnormalize(self):
         """Remove normalization from stored means and stds"""

@@ -833,6 +833,38 @@ class LatLonNC:
         return lat_lon
 
 
+class LatLonNCforCC:
+    """Lat Lon feature class with compute method"""
+
+    @classmethod
+    def compute(cls, file_paths, raster_index):
+        """Get lats and lons
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : list
+            List of slices for raster
+
+        Returns
+        -------
+        ndarray
+            lat lon array
+            (spatial_1, spatial_2, 2)
+        """
+        with xr.open_dataset(file_paths[0]) as handle:
+            lats = (handle.lat.values if 'time' not
+                    in handle.lat.dims else handle.lat.values[0])
+            lons = (handle.lon.values if 'time' not
+                    in handle.lon.dims else handle.lon.values[0])
+            lats, lons = np.meshgrid(lats, lons)
+            lat_lon = np.concatenate(
+                [lats[tuple(raster_index)][..., np.newaxis],
+                 lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
+        return lat_lon
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
@@ -881,6 +913,7 @@ class Feature:
         """
         self.raw_name = feature
         self.height = self.get_height(feature)
+        self.pressure = self.get_pressure(feature)
         self.basename = self.get_basename(feature)
         if self.raw_name in handle:
             self.handle_input = self.raw_name
@@ -905,9 +938,10 @@ class Feature:
         """
 
         height = Feature.get_height(feature)
-        if height is not None:
+        pressure = Feature.get_pressure(feature)
+        if height is not None or pressure is not None:
             suffix = feature.split('_')[-1]
-            basename = feature.strip(f'_{suffix}')
+            basename = feature.replace(f'_{suffix}', '')
         else:
             basename = feature
         return basename
@@ -927,10 +961,33 @@ class Feature:
             height to use for interpolation
             in meters
         """
-        height = feature.split('_')[-1].strip('m')
-        if not height.isdigit():
-            height = None
+        height = re.search(r'\d+m', feature)
+        if height:
+            height = height.group(0).strip('m')
+            if not height.isdigit():
+                height = None
         return height
+
+    @staticmethod
+    def get_pressure(feature):
+        """Get pressure from feature name to use in pressure interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100pa
+
+        Returns
+        -------
+        float | None
+            pressure to use for interpolation in pascals
+        """
+        pressure = re.search(r'\d+pa', feature)
+        if pressure:
+            pressure = pressure.group(0).strip('pa')
+            if not pressure.isdigit():
+                pressure = None
+        return pressure
 
 
 class FeatureHandler:
@@ -1079,8 +1136,8 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
 
-        logger.info(f'Extracting {input_features}')
-
+        logger.info(f'Starting {input_features} extraction using '
+                    f'extract_workers={max_workers}. ')
         futures = {}
         now = dt.now()
 
@@ -1103,8 +1160,7 @@ class FeatureHandler:
                                             raster_index=raster_index,
                                             feature=f,
                                             time_slice=t_slice)
-                        meta = {'feature': f,
-                                'chunk': t}
+                        meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
                 for f in time_ind_features:
@@ -1249,7 +1305,8 @@ class FeatureHandler:
         if len(derived_features) == 0:
             return data
         else:
-            logger.info(f'Computing {derived_features}')
+            logger.info(f'Starting {derived_features} computation with '
+                        f'compute_workers={max_workers}.')
 
         futures = {}
         now = dt.now()
@@ -1261,16 +1318,12 @@ class FeatureHandler:
                 for t, _ in enumerate(time_chunks):
                     for f in derived_features:
                         tmp = cls.get_input_arrays(data, t, f, handle_features)
-                        future = exe.submit(
-                            cls.recursive_compute, data=tmp, feature=f)
-
-                        meta = {'feature': f,
-                                'chunk': t}
-
+                        future = exe.submit(cls.recursive_compute, data=tmp,
+                                            feature=f)
+                        meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
-                    cls.pop_old_data(
-                        data, t, all_features)
+                    cls.pop_old_data(data, t, all_features)
 
                 shape = get_raster_shape(raster_index)
                 time_shape = time_chunks[0].stop - time_chunks[0].start
@@ -1348,7 +1401,11 @@ class FeatureHandler:
             return getattr(out, attr_name, None)
         elif attr_name == 'inputs':
             height = Feature.get_height(feature)
-            out = (out if height is None else out.replace('(.*)', height))
+            pressure = Feature.get_pressure(feature)
+            if height is not None:
+                out = out.split('(.*)')[0] + f'{height}m'
+            if pressure is not None:
+                out = out.split('(.*)')[0] + f'{pressure}pa'
             method = lambda x: [out]
             return method
 

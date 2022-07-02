@@ -6,6 +6,7 @@ import copy
 import click
 import logging
 from inspect import signature
+import os
 
 from reV.pipeline.status import Status
 
@@ -77,7 +78,7 @@ def from_config(ctx, config_file, verbose):
     for i in range(strategy.nodes):
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
-        node_config['log_file'] = (f'{log_prefix}_{i}.log'
+        node_config['log_file'] = (os.path.normpath(f'{log_prefix}_{i}.log')
                                    if log_prefix is not None else log_prefix)
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name

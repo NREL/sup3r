@@ -13,12 +13,43 @@ import os
 import xarray as xr
 import re
 from warnings import warn
+import psutil
 
 from rex import Resource
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def estimate_max_workers(max_workers, process_mem, n_processes):
+    """Estimate max number of workers based on available memory
+
+    Parameters
+    ----------
+    max_workers : int | None
+        Max number of workers available
+    process_mem : int
+        Total number of bytes for minimum size process
+    n_processes : int
+        Number of processes
+
+    Returns
+    -------
+    int
+        Max number of workers available
+    """
+    if max_workers is not None:
+        return max_workers
+    mem = psutil.virtual_memory()
+    avail_mem = 0.95 * (mem.total - mem.used)
+    msg = (f'Not enough memory ({mem.total / 1e9} GB) for each process '
+           f'({process_mem / 1e9} GB)')
+    assert mem.total > process_mem, msg
+    max_workers = int(avail_mem / process_mem)
+    max_workers = np.min([max_workers, n_processes, os.cpu_count()])
+    max_workers = np.max([max_workers, 1])
+    return max_workers
 
 
 def round_array(arr, digits=3):
@@ -93,10 +124,63 @@ def get_file_t_steps(file_paths):
 
     if file_type == 'nc':
         with xr.open_dataset(file_paths[0]) as handle:
-            return len(handle.XTIME.values)
+            if hasattr(handle, 'XTIME'):
+                return len(handle.XTIME.values)
+            elif hasattr(handle, 'time'):
+                return len(handle.time.values)
     elif file_type == 'h5':
         with Resource(file_paths[0]) as handle:
             return len(handle.time_index)
+
+
+def get_time_index(file_path):
+    """Get time index for single file
+
+    Parameters
+    ----------
+    file_path : str
+        Single netcdf or h5 file
+
+    Returns
+    -------
+    time_index : ndarray
+        Array of time indices
+    """
+    file_type = get_source_type(file_path)
+
+    if file_type == 'nc':
+        with xr.open_dataset(file_path) as handle:
+            if hasattr(handle, 'XTIME'):
+                times = handle.XTIME.values
+            elif hasattr(handle, 'time'):
+                times = handle.time.values
+    elif file_type == 'h5':
+        with Resource(file_path) as handle:
+            times = handle.time_index
+    return times
+
+
+def is_time_series(file_paths):
+    """Check if file list is list of files with different time indices or
+    different datasets
+
+    Parameters
+    ----------
+    file_paths : list
+        List of netcdf or h5 file paths
+
+    Returns
+    -------
+    bool
+        Whether files have different time indices or have the same time indices
+        with different datasets
+    """
+
+    if len(file_paths) > 1:
+        times_0 = get_time_index(file_paths[0])
+        times_1 = get_time_index(file_paths[1])
+        return not all(times_0 == times_1)
+    return True
 
 
 def get_raster_shape(raster_index):
@@ -129,9 +213,11 @@ def get_wrf_date_range(files):
     """
 
     date_start = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                           files[0])[0]
+                           files[0])
+    date_start = date_start if date_start is None else date_start[0]
     date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                         files[-1])[0]
+                         files[-1])
+    date_end = date_end if date_end is None else date_end[0]
 
     date_start = date_start.replace(':', '_')
     date_end = date_end.replace(':', '_')
@@ -677,27 +763,24 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     array_in = np.array(data[var], np.float32)
 
     if all('stag' not in d for d in data[var].dims):
-        array_in = array_in[
-            tuple([time_slice] + [slice(None)] + raster_index)]
+        array_in = array_in[(time_slice, slice(None),) + tuple(raster_index)]
 
     else:
         for i, d in enumerate(data[var].dims):
             if 'stag' in d:
                 if 'south_north' in d:
-                    idx = tuple(
-                        [time_slice] + [slice(None)]
-                        + [slice(raster_index[0].start,
-                                 raster_index[0].stop + 1)]
-                        + [raster_index[1]])
+                    idx = (time_slice, slice(None),
+                           slice(raster_index[0].start,
+                                 raster_index[0].stop + 1),
+                           raster_index[1])
                     array_in = array_in[idx]
                 elif 'west_east' in d:
-                    idx = tuple([time_slice] + [slice(None)]
-                                + [raster_index[0]]
-                                + [slice(raster_index[1].start,
-                                         raster_index[1].stop + 1)])
+                    idx = (time_slice, slice(None), raster_index[0],
+                           slice(raster_index[1].start,
+                                 raster_index[1].stop + 1))
                     array_in = array_in[idx]
                 else:
-                    idx = tuple([time_slice] + [slice(None)] + raster_index)
+                    idx = (time_slice, slice(None),) + tuple(raster_index)
                     array_in = array_in[idx]
                 array_in = np.apply_along_axis(forward_average, i, array_in)
     return array_in
@@ -722,22 +805,60 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         4D array of heights above ground. In meters.
     """
     # Base-state Geopotential(m^2/s^2)
-    phb = unstagger_var(data, 'PHB', raster_index, time_slice)
-    # Perturbation Geopotential (m^2/s^2)
-    ph = unstagger_var(data, 'PH', raster_index, time_slice)
-    # Terrain Height (m)
-    hgt = data['HGT'][tuple([time_slice] + raster_index)]
+    if all(field in data for field in ('PHB', 'PH', 'HGT')):
+        phb = unstagger_var(data, 'PHB', raster_index, time_slice)
+        # Perturbation Geopotential (m^2/s^2)
+        ph = unstagger_var(data, 'PH', raster_index, time_slice)
+        # Terrain Height (m)
+        hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
 
-    if phb.shape != hgt.shape:
-        hgt = np.expand_dims(hgt, axis=1)
-        hgt = np.repeat(hgt, phb.shape[-3], axis=1)
+        if phb.shape != hgt.shape:
+            hgt = np.expand_dims(hgt, axis=1)
+            hgt = np.repeat(hgt, phb.shape[-3], axis=1)
+        hgt = (ph + phb) / 9.81 - hgt
 
-    hgt = (ph + phb) / 9.81 - hgt
-    del ph, phb
+    elif 'zg' in data:
+        hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
+        hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
+        hgt = np.array(hgt.values)
+
+    else:
+        msg = ('Need either PHB/PH/HGT or zg in data to perform height '
+               'interpolation')
+        raise ValueError(msg)
+
     return hgt
 
 
-def interp3D(var_array, h_array, heights):
+def calc_pressure(data, var, raster_index, time_slice=slice(None)):
+    """Calculate pressure array
+
+    Parameters
+    ----------
+    data : xarray
+        netcdf data object
+    var : str
+        Feature to extract from data
+    raster_index : list
+        List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
+
+    Returns
+    -------
+    height_arr : ndarray
+        (temporal, vertical_level, spatial_1, spatial_2)
+        4D array of pressure levels in pascals
+    """
+    p_array = np.zeros(data[var][(time_slice, slice(None),)
+                                 + tuple(raster_index)].shape)
+    for i in range(p_array.shape[1]):
+        p_array[:, i, ...] = data.plev[i]
+
+    return p_array
+
+
+def interp_to_level(var_array, lev_array, levels):
     """Interpolate var_array to given level(s) based on h_array. Interpolation
     is linear and done for every 'z' column of [var, h] data.
 
@@ -745,9 +866,9 @@ def interp3D(var_array, h_array, heights):
     ----------
     var_array : ndarray
         Array of variable values
-    h_array : ndarray
-        Array of heigh values corresponding to the wrf source data
-    heights : float | list
+    lev_array : ndarray
+        Array of height or pressure values corresponding to the wrf source data
+    levels : float | list
         level or levels to interpolate to (e.g. final desired hub heights)
 
     Returns
@@ -758,14 +879,14 @@ def interp3D(var_array, h_array, heights):
 
     msg = ('Input arrays must be the same shape.'
            f'\nvar_array: {var_array.shape}'
-           f'\nh_array: {h_array.shape}')
-    assert var_array.shape == h_array.shape, msg
+           f'\nh_array: {lev_array.shape}')
+    assert var_array.shape == lev_array.shape, msg
 
-    heights = [heights] if isinstance(
-        heights, (int, float, np.float32)) else heights
-    h_min = np.nanmin(h_array)
-    h_max = np.nanmax(h_array)
-    height_check = (h_min < min(heights) and max(heights) < h_max)
+    levels = [levels] if isinstance(
+        levels, (int, float, np.float32)) else levels
+    h_min = np.nanmin(lev_array)
+    h_max = np.nanmax(lev_array)
+    height_check = (h_min <= min(levels) and max(levels) <= h_max)
 
     if np.isnan(h_min):
         msg = 'All pressure level height data is NaN!'
@@ -773,7 +894,7 @@ def interp3D(var_array, h_array, heights):
         raise RuntimeError(msg)
 
     if not height_check:
-        msg = (f'Heights {heights} exceed the bounds of the pressure levels: '
+        msg = (f'Levels {levels} exceed the bounds of the pressure levels: '
                f'({h_min}, {h_max})')
         logger.warning(msg)
         warn(msg)
@@ -782,32 +903,33 @@ def interp3D(var_array, h_array, heights):
 
     # Flatten h_array and var_array along lat, long axis
     out_array = np.zeros(
-        (len(heights), array_shape[-4], np.product(array_shape[-2:]))).T
+        (len(levels), array_shape[-4], np.product(array_shape[-2:]))).T
 
     for i in range(array_shape[0]):
-        h_tmp = h_array[i].reshape(
+        h_tmp = lev_array[i].reshape(
             (array_shape[-3], np.product(array_shape[-2:]))).T
         var_tmp = var_array[i].reshape(
             (array_shape[-3], np.product(array_shape[-2:]))).T
 
     # Interpolate each column of height and var to specified levels
         out_array[:, i, :] = np.array(
-            [np.interp(heights, h, var)
+            [np.interp(levels, h, var)
              for h, var in zip(h_tmp, var_tmp)])
 
     # Reshape out_array
-    if isinstance(heights, (float, np.float32, int)):
+    if isinstance(levels, (float, np.float32, int)):
         out_array = out_array.T.reshape(
             (1, array_shape[-4], array_shape[-2], array_shape[-1]))
     else:
         out_array = out_array.T.reshape(
-            (len(heights), array_shape[-4],
+            (len(levels), array_shape[-4],
              array_shape[-2], array_shape[-1]))
 
     return out_array
 
 
-def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
+def interp_var_to_height(data, var, raster_index, heights,
+                         time_slice=slice(None)):
     """Interpolate var_array to given level(s) based on h_array. Interpolation
     is linear and done for every 'z' column of [var, h] data.
 
@@ -830,10 +952,41 @@ def interp_var(data, var, raster_index, heights, time_slice=slice(None)):
         Array of interpolated values.
     """
 
-    logger.debug(f'Interpolating {var} to heights: {heights}')
-    return interp3D(unstagger_var(data, var, raster_index, time_slice),
-                    calc_height(data, raster_index, time_slice),
-                    heights)[0]
+    logger.debug(f'Interpolating {var} to heights (m): {heights}')
+    return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
+                           calc_height(data, raster_index, time_slice),
+                           heights)[0]
+
+
+def interp_var_to_pressure(data, var, raster_index, pressures,
+                           time_slice=slice(None)):
+    """Interpolate var_array to given level(s) based on h_array. Interpolation
+    is linear and done for every 'z' column of [var, h] data.
+
+    Parameters
+    ----------
+    data : xarray
+        netcdf data object
+    var : str
+        Name of variable to be interpolated
+    raster_index : list
+        List of slices for raster index of spatial domain
+    pressures : float | list
+        level or levels to interpolate to (e.g. final desired hub heights)
+    time_slice : slice
+        slice of time to extract
+
+    Returns
+    -------
+    out_array : ndarray
+        Array of interpolated values.
+    """
+
+    logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
+    return interp_to_level(
+        unstagger_var(data, var, raster_index, time_slice)[:, ::-1, ...],
+        calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
+        pressures)[0]
 
 
 def potential_temperature(T, P):
@@ -1173,26 +1326,3 @@ def get_source_type(file_paths):
         return 'h5'
     else:
         return 'nc'
-
-
-def get_time_index(file_paths):
-    """Get data file handle based on file type
-
-    Parameters
-    ----------
-    file_paths : list
-        path to data file
-
-    Returns
-    -------
-    time_index : pd.DateTimeIndex | np.ndarray
-        Time index from h5 or nc source file(s)
-    """
-    if get_source_type(file_paths) == 'h5':
-        with Resource(file_paths[0], hsds=False) as handle:
-            time_index = handle.time_index
-    else:
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-            time_index = handle.XTIME.values
-    return time_index

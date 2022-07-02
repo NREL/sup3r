@@ -20,16 +20,15 @@ from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.utilities.utilities import (get_chunk_slices,
+from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
+                                       interp_var_to_height,
+                                       interp_var_to_pressure,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
-                                       interp_var,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
-                                       get_time_index,
                                        get_source_type,
-                                       get_wrf_date_range,
                                        daily_temporal_coarsening,
                                        spatial_coarsening)
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -39,6 +38,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
                                                   LatLonNC,
+                                                  LatLonNCforCC,
                                                   TempNC,
                                                   UWindH5,
                                                   VWindH5,
@@ -87,7 +87,7 @@ class DataHandler(FeatureHandler):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=50,
@@ -190,9 +190,6 @@ class DataHandler(FeatureHandler):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
 
-        logger.info('Initializing DataHandler '
-                    f'{self.file_info_logging(self.file_paths)}')
-
         self.train_only_features = train_only_features
         if self.train_only_features is None:
             self.train_only_features = self.TRAIN_ONLY_FEATURES
@@ -208,7 +205,7 @@ class DataHandler(FeatureHandler):
         self.temporal_slice = temporal_slice
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
-        self.raw_time_index = get_time_index(self.file_paths)
+        self.raw_time_index = self.get_time_index(self.file_paths)
         self.time_index = self.raw_time_index[self.temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
@@ -217,9 +214,12 @@ class DataHandler(FeatureHandler):
         self.cache_files = self.get_cache_file_names(cache_file_prefix)
         self.data = None
         self.val_data = None
-        self.extract_workers = extract_workers
-        self.compute_workers = compute_workers
         self.lat_lon = None
+        self.compute_workers = compute_workers
+        self.extract_workers = extract_workers
+
+        logger.info('Initializing DataHandler '
+                    f'{self.file_info_logging(self.file_paths)}')
 
         self.preflight()
 
@@ -238,10 +238,9 @@ class DataHandler(FeatureHandler):
 
         elif try_load and not self.load_cached:
             self.data = None
-            logger.info(f'All {self.cache_files} exist. Call the '
-                        'load_cached_data() method or use load_cache=True '
-                        'to load this data from cache files.')
-
+            logger.info(f'All {self.cache_files} exist. Call '
+                        'load_cached_data() or use load_cache=True to load '
+                        'this data from cache files.')
         else:
             if overwrite:
                 logger.info(f'{self.cache_files} exists but overwrite_cache '
@@ -261,13 +260,12 @@ class DataHandler(FeatureHandler):
                 warnings.warn(msg)
 
             self.data = self.extract_data(
-                self.file_paths, self.raster_index,
-                self.features,
+                self.file_paths, self.raster_index, self.features,
                 temporal_slice=self.temporal_slice,
                 hr_spatial_coarsen=self.hr_spatial_coarsen,
                 time_roll=self.time_roll,
-                extract_workers=extract_workers,
-                compute_workers=compute_workers,
+                extract_workers=self.extract_workers,
+                compute_workers=self.compute_workers,
                 time_chunk_size=time_chunk_size,
                 cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache)
@@ -281,6 +279,19 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    @property
+    def feature_mem(self):
+        """Number of bytes for a single feature array. Used to estimate
+        max_workers.
+
+        Returns
+        -------
+        int
+            Number of bytes for a single feature array
+        """
+        feature_mem = np.product(self.grid_shape) * len(self.time_index)
+        return 4 * feature_mem
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
@@ -370,7 +381,7 @@ class DataHandler(FeatureHandler):
 
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"data_handler = {dh_init_str};\'\n")
+               f"data_handler = {dh_init_str};\'\n").replace('\\', '/')
 
         return cmd
 
@@ -454,11 +465,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-
-        logger.debug(
-            f'Normalizing data for {self.file_info_logging(self.file_paths)}')
-
-        if self.compute_workers == 1:
+        if self.extract_workers == 1:
             for i in range(self.shape[-1]):
                 self._normalize_data(i, means[i], stds[i])
         else:
@@ -476,7 +483,10 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        with ThreadPoolExecutor(max_workers=self.compute_workers) as exe:
+        max_workers = estimate_max_workers(self.extract_workers,
+                                           2 * self.feature_mem,
+                                           self.shape[-1])
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
@@ -485,7 +495,8 @@ class DataHandler(FeatureHandler):
                 futures[future] = i
 
             logger.info(f'Started normalizing {self.shape[-1]} features '
-                        f'in {dt.now() - now}. ')
+                        f'in {dt.now() - now}. Using '
+                        f'max_workers={max_workers}')
 
             for i, future in enumerate(as_completed(futures)):
                 future.result()
@@ -639,7 +650,8 @@ class DataHandler(FeatureHandler):
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-
+        max_workers = estimate_max_workers(max_workers, 2 * self.feature_mem,
+                                           len(self.cache_files))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
@@ -649,7 +661,8 @@ class DataHandler(FeatureHandler):
 
             logger.info(
                 f'Started loading all {len(self.cache_files)} cache files '
-                f'in {dt.now() - now}. ')
+                f'in {dt.now() - now}. Using max_workers={max_workers}. ')
+            log_mem(logger)
 
             for i, future in enumerate(as_completed(futures)):
                 future.result()
@@ -816,8 +829,7 @@ class DataHandler(FeatureHandler):
         file_paths : str | list
             path to data file
         raster_index : np.ndarray
-            2D array of grid indices for H5 or list of
-            slices for NETCDF
+            2D array of grid indices for H5 or list of slices for NETCDF
         features : list
             list of features to extract
         temporal_slice : slice
@@ -866,7 +878,7 @@ class DataHandler(FeatureHandler):
         logger.debug(f'Loading data for raster of shape {shape}')
 
         # get the file-native time index without pruning
-        time_index = get_time_index(file_paths)
+        time_index = cls.get_time_index(file_paths)
         n_steps = len(time_index[temporal_slice])
 
         data_array = np.zeros((shape[0], shape[1], n_steps, len(features)),
@@ -887,15 +899,19 @@ class DataHandler(FeatureHandler):
         raw_features = cls.get_raw_feature_list(extract_features,
                                                 handle_features)
 
-        logger.info(f'Starting {extract_features} extraction for '
-                    f'{cls.file_info_logging(file_paths)}')
-
+        feature_mem = 4 * np.product(shape) * len(time_index[temporal_slice])
+        extract_workers = estimate_max_workers(extract_workers, feature_mem,
+                                               len(extract_features))
         raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
                                         raw_features, extract_workers)
 
-        logger.info(f'Finished extracting {extract_features} for '
+        logger.info(f'Finished extracting {raw_features} for '
                     f'{cls.file_info_logging(file_paths)}')
 
+        mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
+        worker_mem = mult * feature_mem
+        compute_workers = estimate_max_workers(compute_workers, worker_mem,
+                                               len(extract_features))
         raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
                                         raw_features, extract_features,
                                         handle_features, compute_workers)
@@ -950,13 +966,36 @@ class DataHandler(FeatureHandler):
             slices for NETCDF
         """
 
+    @classmethod
+    @abstractmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from input files"""
+
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
     @classmethod
+    def xr_handler(cls, file_paths):
+        """Xarray data handler
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+
+        Returns
+        -------
+        data : xarray.Dataset
+        """
+        return xr.open_mfdataset(file_paths, combine='nested',
+                                 concat_dim='Time')
+
+    @classmethod
     def file_info_logging(cls, file_paths):
-        """More concise file info about NETCDF files
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
 
         Parameters
         ----------
@@ -969,12 +1008,34 @@ class DataHandlerNC(DataHandler):
             message to append to log output that does not include a huge info
             dump of file paths
         """
-
-        dirname = os.path.dirname(file_paths[0])
-        date_start, date_end = get_wrf_date_range(file_paths)
-        msg = (f'{len(file_paths)} files from {dirname} '
-               f'with date range: {date_start} - {date_end}')
+        ti = cls.get_time_index(file_paths)
+        msg = (f'source files for dates from {ti[0]} to {ti[-1]}')
         return msg
+
+    @classmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+
+        Returns
+        -------
+        time_index : np.ndarray
+            Time index from nc source file(s)
+        """
+        with cls.xr_handler(file_paths) as handle:
+            if hasattr(handle, 'XTIME'):
+                time_index = handle.XTIME.values
+            elif hasattr(handle, 'time'):
+                time_index = handle.indexes['time']
+                time_index = [dt.strptime(str(t), '%Y-%m-%d %H:%M:%S')
+                              for t in time_index]
+                time_index = [np.datetime64(t) for t in time_index]
+                time_index = np.array(time_index)
+        return time_index
 
     @classmethod
     def feature_registry(cls):
@@ -1013,8 +1074,7 @@ class DataHandlerNC(DataHandler):
             List of available features in data
         """
 
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
+        with cls.xr_handler(file_paths) as handle:
             handle_features = [Feature.get_basename(r) for r in handle]
         return handle_features
 
@@ -1041,45 +1101,35 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with xr.open_mfdataset(file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-
+        with cls.xr_handler(file_paths) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
+            interp_pressure = f_info.pressure
             basename = f_info.basename
 
             method = cls.lookup(feature, 'compute')
             if method is not None and basename not in handle:
                 return method(file_paths, raster_index)
 
+            elif feature in handle:
+                idx = tuple([time_slice] + raster_index)
+                fdata = np.array(handle[feature][idx],
+                                 dtype=np.float32)
+            elif basename in handle:
+                if interp_height is not None:
+                    fdata = interp_var_to_height(handle, basename,
+                                                 raster_index,
+                                                 np.float32(interp_height),
+                                                 time_slice)
+                elif interp_pressure is not None:
+                    fdata = interp_var_to_pressure(handle, basename,
+                                                   raster_index,
+                                                   np.float32(interp_pressure),
+                                                   time_slice)
             else:
-                try:
-                    if feature in handle:
-                        fdata = np.array(
-                            handle[feature][
-                                tuple([time_slice] + raster_index)],
-                            dtype=np.float32)
-
-                    elif len(handle[basename].shape) > 3:
-                        if interp_height is None:
-                            fdata = np.array(
-                                handle[feature][
-                                    tuple([time_slice] + [0] + raster_index)],
-                                dtype=np.float32)
-                        else:
-                            fdata = interp_var(handle, basename, raster_index,
-                                               np.float32(interp_height),
-                                               time_slice)
-                    else:
-                        fdata = np.array(
-                            handle[feature][
-                                tuple([time_slice] + raster_index)],
-                            dtype=np.float32)
-
-                except ValueError as e:
-                    msg = f'{feature} cannot be extracted from source data'
-                    logger.exception(msg)
-                    raise ValueError(msg) from e
+                msg = f'{feature} cannot be extracted from source data'
+                logger.exception(msg)
+                raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
@@ -1148,6 +1198,7 @@ class DataHandlerNC(DataHandler):
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
             raster_index = list(raster_index)
+            self.grid_shape = get_raster_shape(raster_index)
         else:
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
@@ -1199,24 +1250,44 @@ class DataHandlerNC(DataHandler):
         dict
             Dictionary of attributes
         """
-        with xr.open_mfdataset(self.file_paths, combine='nested',
-                               concat_dim='Time') as handle:
+        with self.xr_handler(self.file_paths) as handle:
             desc = handle.attrs
         return desc
 
-    @property
-    def time_description(self):
-        """Get description of time index
+
+class DataHandlerNCforCC(DataHandlerNC):
+    """Data Handler for NETCDF climate change data"""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
 
         Returns
         -------
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
+        dict
+            Method registry
         """
-        with xr.open_mfdataset(self.file_paths, combine='nested',
-                               concat_dim='Time') as handle:
-            desc = handle.XTIME.attrs['description']
-        return desc
+        registry = {
+            'U_(.*)': 'ua_(.*)',
+            'V_(.*)': 'va_(.*)',
+            'lat_lon': LatLonNCforCC}
+        return registry
+
+    @classmethod
+    def xr_handler(cls, file_paths):
+        """Xarray data handler
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+
+        Returns
+        -------
+        data : xarray.Dataset
+        """
+        return xr.open_mfdataset(file_paths)
 
 
 class DataHandlerH5(DataHandler):
@@ -1224,6 +1295,24 @@ class DataHandlerH5(DataHandler):
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
+
+    @classmethod
+    def get_time_index(cls, file_paths):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+
+        Returns
+        -------
+        time_index : pd.DateTimeIndex
+            Time index from h5 source file(s)
+        """
+        with cls.REX_HANDLER(file_paths) as handle:
+            time_index = handle.time_index
+        return time_index
 
     @classmethod
     def feature_registry(cls):
@@ -1294,8 +1383,8 @@ class DataHandlerH5(DataHandler):
                 return method(file_paths, raster_index)
             else:
                 try:
-                    fdata = handle[tuple([feature] + [time_slice]
-                                         + [raster_index.flatten()])]
+                    fdata = handle[(feature, time_slice,)
+                                   + tuple([raster_index.flatten()])]
                 except ValueError as e:
                     msg = f'{feature} cannot be extracted from source data'
                     logger.exception(msg)
@@ -1330,6 +1419,7 @@ class DataHandlerH5(DataHandler):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+            self.grid_shape = get_raster_shape(raster_index)
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
@@ -1355,17 +1445,6 @@ class DataHandlerH5(DataHandler):
         with self.REX_HANDLER(self.file_paths) as handle:
             desc = handle.attrs
         return desc
-
-    @property
-    def time_description(self):
-        """Get description of time index
-
-        Returns
-        -------
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
-        """
-        return self.attrs['time_index']
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

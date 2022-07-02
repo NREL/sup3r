@@ -1,8 +1,42 @@
 """Output method tests"""
 import numpy as np
+import os
+import tempfile
+import shutil
+from netCDF4 import Dataset
 
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
+from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r import TEST_DATA_DIR
+
+from rex import ResourceX
+
+FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+TARGET_COORD = (39.01, -105.15)
+FEATURES = ['U_100m', 'V_100m']
+INPUT_FILES = [
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
+    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
+
+
+def make_fake_nc_files(td):
+    """Make dummy nc files with increasing times"""
+    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(8)]
+    fake_times = list(range(8))
+
+    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
+    for i, f in enumerate(INPUT_FILES):
+        shutil.copy(f, fake_files[i])
+        with Dataset(fake_files[i], 'r+') as dset:
+            dset['XTIME'][:] = fake_times[i]
+    return fake_files
 
 
 def test_get_lat_lon():
@@ -63,3 +97,32 @@ def test_invert_uv_inplace():
 
     assert np.allclose(data[..., 0], ws)
     assert np.allclose(data[..., 1], wd)
+
+
+def test_forward_pass_collection():
+    """Test forward pass collection."""
+
+    with tempfile.TemporaryDirectory() as td:
+        out_files = [os.path.join(TEST_DATA_DIR, 'fp_out_0.h5'),
+                     os.path.join(TEST_DATA_DIR, 'fp_out_1.h5')]
+        fp_out = os.path.join(td, 'out_combined.h5')
+        Collector.collect(out_files, fp_out,
+                          features=['windspeed_100m', 'winddirection_100m'])
+
+        with ResourceX(fp_out) as fh:
+            full_ti = fh.time_index
+            combined_ti = []
+            for i, f in enumerate(out_files):
+                with ResourceX(f) as fh_i:
+                    if i == 0:
+                        ws = fh_i['windspeed_100m']
+                        wd = fh_i['winddirection_100m']
+                    else:
+                        ws = np.concatenate([ws, fh_i['windspeed_100m']],
+                                            axis=0)
+                        wd = np.concatenate([wd, fh_i['winddirection_100m']],
+                                            axis=0)
+                    combined_ti += list(fh_i.time_index)
+            assert len(full_ti) == len(combined_ti)
+            assert np.allclose(ws, fh['windspeed_100m'])
+            assert np.allclose(wd, fh['winddirection_100m'])

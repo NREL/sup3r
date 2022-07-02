@@ -16,7 +16,7 @@ import json
 from sup3r.utilities.utilities import invert_uv
 from sup3r.preprocessing.feature_handling import Feature
 
-from reV.handlers.outputs import Outputs
+from rex.outputs import Outputs
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ class OutputHandlerNC(OutputHandler):
     # pylint: disable=W0613
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, time_description, out_file,
+                     low_res_times, out_file,
                      meta_data=None, max_workers=None):
         """Write forward pass output to NETCDF file
 
@@ -141,8 +141,6 @@ class OutputHandlerNC(OutputHandler):
             Last dimension has ordering (lat, lon)
         low_res_times : list
             List of np.datetime64 objects for input data.
-        time_description : string
-            Description of time. e.g. minutes since 2016-01-30 00:00:00
         out_file : string
             Output file path
         meta_data : dict | None
@@ -153,8 +151,7 @@ class OutputHandlerNC(OutputHandler):
 
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
-        coords = {'XTIME': (['Time'], times,
-                            {'description': time_description}),
+        coords = {'XTIME': (['Time'], times),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
                   'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
 
@@ -291,7 +288,7 @@ class OutputHandlerH5(OutputHandler):
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, time_description, out_file,
+                     low_res_times, out_file,
                      meta_data=None, max_workers=None):
         """Write forward pass output to H5 file
 
@@ -308,9 +305,6 @@ class OutputHandlerH5(OutputHandler):
             Last dimension has ordering (lat, lon)
         low_res_times : list
             List of np.datetime64 objects for input data.
-        time_description : dict
-            Description of time. e.g.
-            {'description': 'UTC'}
         out_file : string
             Output file path
         meta_data : dict | None
@@ -332,9 +326,7 @@ class OutputHandlerH5(OutputHandler):
 
         with Outputs(out_file, 'w') as fh:
             fh.meta = meta
-            fh._set_time_index(
-                'time_index', times,
-                attrs={'description': f'Original data had {time_description}'})
+            fh._set_time_index('time_index', times)
 
             for i, f in enumerate(renamed_features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
