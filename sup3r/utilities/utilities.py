@@ -5,7 +5,6 @@ training data
 @author: bbenton
 """
 
-from concurrent.futures import process
 import numpy as np
 import logging
 from scipy import ndimage as nd
