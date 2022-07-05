@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime as dt
 import os
 import pickle
+from memory_profiler import profile
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
@@ -397,6 +398,7 @@ class BatchHandler:
             output_features=self.output_features)
 
         logger.info('Finished initializing BatchHandler.')
+        log_mem(logger, log_level='INFO')
 
     def parallel_normalization(self, max_workers=None):
         """Normalize data in all data handlers in parallel.
@@ -407,11 +409,11 @@ class BatchHandler:
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
         """
-        handler_mem = len(self.data_handlers[0].features)
-        handler_mem *= self.data_handlers[0].feature_mem
-        max_workers = estimate_max_workers(max_workers, handler_mem,
+        proc_mem = len(self.data_handlers[0].features)
+        proc_mem *= 2 * self.data_handlers[0].feature_mem
+        logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
+        max_workers = estimate_max_workers(max_workers, proc_mem,
                                            len(self.data_handlers))
-
         if max_workers == 1:
             for d in self.data_handlers:
                 d.normalize(self.means, self.stds)
@@ -424,8 +426,7 @@ class BatchHandler:
                     futures[future] = i
 
                 logger.info(f'Started normalizing {len(self.data_handlers)} '
-                            f'data handlers in {dt.now() - now}. Using '
-                            f'max_workers={max_workers}.')
+                            f'data handlers in {dt.now() - now}.')
 
                 for i, _ in enumerate(as_completed(futures)):
                     future.result()
@@ -441,12 +442,11 @@ class BatchHandler:
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-        handler_mem = len(self.data_handlers[0].features)
-        handler_mem *= self.data_handlers[0].feature_mem
-        max_workers = estimate_max_workers(max_workers, handler_mem,
+        proc_mem = len(self.data_handlers[0].features)
+        proc_mem *= 2 * self.data_handlers[0].feature_mem
+        logger.info(f'Loading {len(self.data_handlers)} data handlers.')
+        max_workers = estimate_max_workers(max_workers, proc_mem,
                                            len(self.data_handlers))
-        logger.info(f'Loading {len(self.data_handlers)} data handlers with '
-                    f'max_workers={max_workers}.')
         if max_workers == 1:
             for d in self.data_handlers:
                 d.load_cached_data()
@@ -476,9 +476,11 @@ class BatchHandler:
             Max number of workers to use for parallel stats computation. If
             None the max number of available workers will be used.
         """
-        feature_mem = len(self.data_handlers)
-        feature_mem *= self.data_handlers[0].feature_mem
-        max_workers = estimate_max_workers(max_workers, 2 * feature_mem,
+        proc_mem = len(self.data_handlers)
+        proc_mem *= 2 * self.data_handlers[0].feature_mem
+        logger.info(f'Calculating stats for {len(self.training_features)} '
+                    'features.')
+        max_workers = estimate_max_workers(max_workers, proc_mem,
                                            len(self.training_features))
         if max_workers == 1:
             for f in self.training_features:
@@ -493,8 +495,7 @@ class BatchHandler:
 
                 logger.info('Started calculating stats for '
                             f'{len(self.training_features)} features in '
-                            f'{dt.now() - now}. Using '
-                            f'max_workers={max_workers}')
+                            f'{dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
                     future.result()
@@ -968,62 +969,16 @@ class BatchHandlerDC(BatchHandler):
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = DataHandlerDCforH5
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
-                 means=None, stds=None, norm=True, n_batches=10,
-                 temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, norm_workers=None, load_workers=None):
+    def __init__(self, *args, **kwargs):
         """
         Parameters
         ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances
-        batch_size : int
-            Number of observations in a batch
-        s_enhance : int
-            Factor by which to coarsen spatial dimensions of the high
-            resolution data to generate low res data
-        t_enhance : int
-            Factor by which to coarsen temporal dimension of the high
-            resolution data to generate low res data
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features.  If not None and norm is True these will be used for
-            normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features.  If not None and norm is True these will be used form
-            normalization
-        norm : bool
-            Whether to normalize the data or not
-        n_batches : int
-            Number of batches in an epoch, this sets the iteration limit for
-            this object.
-        temporal_coarsening_method : str
-            [subsample, average, total]
-            Subsample will take every t_enhance-th time step, average will
-            average over t_enhance time steps, total will sum over t_enhance
-            time steps
-        stdevs_file : str | None
-            Path to stdevs data or where to save data after calling get_stats
-        means_file : str | None
-            Path to means data or where to save data after calling get_stats
-        load_workers : int | None
-            Max number of workers to use for parallel data loading. If None
-            the max number of available workers will be used.
-        norm_workers : int | None
-            Max number of workers to use for parallel data normalization. If
-            None the max number of available workers will be used.
+        *args : list
+            Same positional args as BatchHandler
+        **kwargs : dict
+            Same keyword args as BatchHandler
         """
-
-        super().__init__(data_handlers=data_handlers, batch_size=batch_size,
-                         s_enhance=s_enhance, t_enhance=t_enhance,
-                         means=means, stds=stds, norm=norm,
-                         n_batches=n_batches,
-                         temporal_coarsening_method=temporal_coarsening_method,
-                         stdevs_file=stdevs_file, means_file=means_file,
-                         norm_workers=norm_workers, load_workers=load_workers)
+        super().__init__(*args, **kwargs)
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
@@ -1036,9 +991,8 @@ class BatchHandlerDC(BatchHandler):
                                             self.val_data.N_TIME_BINS)
         self.temporal_bins = [b[0] for b in self.temporal_bins]
 
-        logger.info(
-            'Using temporal weights: '
-            f'{[round(w, 3) for w in self.temporal_weights]}')
+        logger.info('Using temporal weights: '
+                    f'{[round(w, 3) for w in self.temporal_weights]}')
 
     def update_training_sample_record(self):
         """Keep track of number of observations from each temporal bin"""

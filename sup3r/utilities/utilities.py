@@ -14,6 +14,7 @@ import xarray as xr
 import re
 from warnings import warn
 import psutil
+import warnings
 
 from rex import Resource
 
@@ -43,12 +44,18 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
         return max_workers
     mem = psutil.virtual_memory()
     avail_mem = 0.95 * (mem.total - mem.used)
-    msg = (f'Not enough memory ({mem.total / 1e9} GB) for each process '
-           f'({process_mem / 1e9} GB)')
-    assert mem.total > process_mem, msg
+    msg = ('Estimated upper bound for process memory '
+           f'({round(process_mem / 1e9, 3)} GB) exceeds available memory '
+           f'({round(avail_mem / 1e9, 3)} GB).')
+    if process_mem > avail_mem:
+        logger.warning(msg)
+        warnings.warn(msg)
     max_workers = int(avail_mem / process_mem)
     max_workers = np.min([max_workers, n_processes, os.cpu_count()])
     max_workers = np.max([max_workers, 1])
+    logger.info(f'Available memory: {round(avail_mem / 1e9, 3)} GB. '
+                f'Max workers: {max_workers}. '
+                f'Memory per process: {round(process_mem / 1e9, 3)} GB.')
     return max_workers
 
 
