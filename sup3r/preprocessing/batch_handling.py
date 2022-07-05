@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Sup3r batch_handling module.
-
 @author: bbenton
 """
 import logging
@@ -9,7 +8,6 @@ import numpy as np
 from datetime import datetime as dt
 import os
 import pickle
-from memory_profiler import profile
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem

@@ -14,7 +14,6 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
-from memory_profiler import profile
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
