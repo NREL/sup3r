@@ -56,7 +56,7 @@ def from_config(ctx, config_file, verbose):
     """
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
-    ctx.obj['OUT_DIR'] = os.path.abspath(config_file)
+    ctx.obj['OUT_DIR'] = os.path.dirname(os.path.abspath(config_file))
     config = safe_json_load(config_file)
     config_verbose = config.get('log_level', 'INFO')
     config_verbose = (config_verbose == 'DEBUG')

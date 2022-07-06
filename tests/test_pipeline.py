@@ -61,7 +61,6 @@ def test_pipeline():
         model.save(out_dir)
 
         fp_chunk_shape = (4, 4, 3)
-        n_nodes = len(input_files) // fp_chunk_shape[2] + 1
         cache_prefix = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
