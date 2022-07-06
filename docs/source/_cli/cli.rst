@@ -5,3 +5,4 @@ Command Line Interfaces (CLIs)
 
    forward_pass
    data_extract
+   data_collect

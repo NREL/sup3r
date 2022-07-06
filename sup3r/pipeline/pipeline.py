@@ -8,6 +8,7 @@ from reV.pipeline.pipeline import Pipeline
 from rex.utilities.loggers import init_logger
 
 from sup3r.pipeline.config import Sup3rPipelineConfig
+from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,12 @@ logger = logging.getLogger(__name__)
 class Sup3rPipeline(Pipeline):
     """NSRDB pipeline execution framework."""
 
-    CMD_BASE = 'python -m sup3r.cli config -c {fp_config} -cmd {command}'
-
-    COMMANDS = ('preprocessing')
+    CMD_BASE = 'python -m sup3r.cli -c {fp_config} {command}'
+    COMMANDS = ModuleName.all_names()
+    RETURN_CODES = {0: 'successful',
+                    1: 'running',
+                    2: 'failed',
+                    3: 'complete'}
 
     def __init__(self, pipeline, monitor=True, verbose=False):
         """
