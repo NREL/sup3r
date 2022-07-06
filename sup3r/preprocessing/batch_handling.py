@@ -3,7 +3,6 @@
 Sup3r batch_handling module.
 @author: bbenton
 """
-from cgitb import handler
 import logging
 import numpy as np
 from datetime import datetime as dt
