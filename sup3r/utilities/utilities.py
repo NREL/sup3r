@@ -45,17 +45,17 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
     mem = psutil.virtual_memory()
     avail_mem = 0.7 * (mem.total - mem.used)
     msg = ('Estimated upper bound for process memory '
-           f'({round(process_mem / 1e9, 3)} GB) exceeds available memory '
-           f'({round(avail_mem / 1e9, 3)} GB).')
+           f'({process_mem / 1e9:.3f} GB) exceeds available memory '
+           f'({avail_mem / 1e9:.3f} GB).')
     if process_mem > avail_mem:
         logger.warning(msg)
         warnings.warn(msg)
     max_workers = int(avail_mem / process_mem)
     max_workers = np.min([max_workers, n_processes, os.cpu_count()])
     max_workers = np.max([max_workers, 1])
-    logger.info(f'Available memory: {round(avail_mem / 1e9, 3)} GB. '
+    logger.info(f'Available memory: {avail_mem / 1e9:.3f} GB. '
                 f'Max workers: {max_workers}. '
-                f'Memory per process: {round(process_mem / 1e9, 3)} GB.')
+                f'Memory per process: {process_mem / 1e9:.3f} GB.')
     return max_workers
 
 

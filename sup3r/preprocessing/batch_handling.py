@@ -93,8 +93,8 @@ class Batch:
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
                          output_features=None):
-        """Coarsen high res data and return Batch with
-        high res and low res data
+        """Coarsen high res data and return Batch with high res and
+        low res data
 
         Parameters
         ----------
@@ -122,13 +122,11 @@ class Batch:
         Batch
             Batch instance with low and high res data
         """
-        low_res = spatial_coarsening(
-            high_res, s_enhance)
+        low_res = spatial_coarsening(high_res, s_enhance)
 
         if t_enhance != 1:
-            low_res = temporal_coarsening(
-                low_res, t_enhance,
-                temporal_coarsening_method)
+            low_res = temporal_coarsening(low_res, t_enhance,
+                                          temporal_coarsening_method)
 
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
@@ -1131,7 +1129,7 @@ class BatchHandlerDC(BatchHandler):
             return batch
         else:
             total_count = self.n_batches * self.batch_size
-            self.normalized_sample_record = [c / (total_count) for c
+            self.normalized_sample_record = [c / total_count for c
                                              in self.training_sample_record]
             self.old_temporal_weights = self.temporal_weights.copy()
             raise StopIteration
