@@ -3,6 +3,7 @@
 Sup3r batch_handling module.
 @author: bbenton
 """
+from cgitb import handler
 import logging
 import numpy as np
 from datetime import datetime as dt
@@ -382,6 +383,8 @@ class BatchHandler:
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
+        self.norm_workers = norm_workers
+        self.load_workers = load_workers
 
         if norm:
             self.means, self.stds = self.check_cached_stats()
@@ -474,8 +477,7 @@ class BatchHandler:
             Max number of workers to use for parallel stats computation. If
             None the max number of available workers will be used.
         """
-        proc_mem = len(self.data_handlers)
-        proc_mem *= 2 * self.data_handlers[0].feature_mem
+        proc_mem = 2 * self.data_handlers[0].feature_mem
         logger.info(f'Calculating stats for {len(self.training_features)} '
                     'features.')
         max_workers = estimate_max_workers(max_workers, proc_mem,
@@ -608,6 +610,43 @@ class BatchHandler:
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
         self.cache_stats()
 
+    def get_handler_mean(self, feature_idx, handler_idx):
+        """Get feature mean for a given handler
+
+        Parameters
+        ----------
+        feature_idx : int
+            Index of feature to get mean for
+        handler_idx : int
+            Index of data handler to get mean for
+
+        Returns
+        -------
+        float
+            Feature mean
+        """
+        return np.nanmean(
+            self.data_handlers[handler_idx].data[..., feature_idx])
+
+    def get_handler_stdev(self, feature_idx, handler_idx, mean):
+        """Get feature stdev for a given handler
+
+        Parameters
+        ----------
+        feature_idx : int
+            Index of feature to get stdev for
+        handler_idx : int
+            Index of data handler to get stdev for
+
+        Returns
+        -------
+        float
+            Feature stdev
+        """
+        istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
+        istd = istd**2
+        return np.nanmean(istd)
+
     def get_stats_for_feature(self, feature):
         """Get standard deviation and mean for requested feature
 
@@ -618,18 +657,82 @@ class BatchHandler:
         """
         idx = self.training_features.index(feature)
         logger.debug(f'Calculating stdev/mean for {feature}')
+        self.means[idx] = self.get_means_for_feature(feature)
+        self.stds[idx] = self.get_stdevs_for_feature(feature)
 
-        for data_handler in self.data_handlers:
-            self.means[idx] += np.nanmean(data_handler.data[..., idx])
+    def get_means_for_feature(self, feature):
+        """Get mean for requested feature
 
+        Parameters
+        ----------
+        feature : str
+            Feature to get mean for
+        """
+        idx = self.training_features.index(feature)
+        logger.debug(f'Calculating mean for {feature}')
+        proc_mem = 2 * self.data_handlers[0].feature_mem
+        max_workers = estimate_max_workers(self.norm_workers, proc_mem,
+                                           len(self.data_handlers))
+
+        if max_workers == 1:
+            for didx, _ in enumerate(self.data_handlers):
+                self.means[idx] += self.get_handler_mean(idx, didx)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for didx, _ in enumerate(self.data_handlers):
+                    future = exe.submit(self.get_handler_mean, idx, didx)
+                    futures[future] = didx
+
+                logger.info('Started calculating means for '
+                            f'{len(self.data_handlers)} data_handlers in '
+                            f'{dt.now() - now}.')
+
+                for i, future in enumerate(as_completed(futures)):
+                    self.means[idx] += future.result()
+                    logger.debug(f'{i + 1} out of {len(self.data_handlers)} '
+                                 'means calculated.')
         self.means[idx] /= len(self.data_handlers)
+        return self.means[idx]
 
-        for data_handler in self.data_handlers:
-            istd = (data_handler.data[..., idx] - self.means[idx])**2
-            self.stds[idx] += np.nanmean(istd)
+    def get_stdevs_for_feature(self, feature):
+        """Get stdev for requested feature
 
+        Parameters
+        ----------
+        feature : str
+            Feature to get stdev for
+        """
+        idx = self.training_features.index(feature)
+        logger.debug(f'Calculating stdev for {feature}')
+        proc_mem = 2 * self.data_handlers[0].feature_mem
+        max_workers = estimate_max_workers(self.norm_workers, proc_mem,
+                                           len(self.data_handlers))
+        if max_workers == 1:
+            for didx, _ in enumerate(self.data_handlers):
+                self.stds[idx] += self.get_handler_stdev(idx, didx,
+                                                         self.means[idx])
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for didx, _ in enumerate(self.data_handlers):
+                    future = exe.submit(self.get_handler_stdev, idx, didx,
+                                        self.means[idx])
+                    futures[future] = didx
+
+                logger.info('Started calculating stdevs for '
+                            f'{len(self.data_handlers)} data_handlers in '
+                            f'{dt.now() - now}.')
+
+                for i, future in enumerate(as_completed(futures)):
+                    self.stds[idx] += future.result()
+                    logger.debug(f'{i + 1} out of {len(self.data_handlers)} '
+                                 'stdevs calculated.')
         self.stds[idx] /= len(self.data_handlers)
         self.stds[idx] = np.sqrt(self.stds[idx])
+        return self.stds[idx]
 
     def normalize(self, means=None, stds=None, norm_workers=None):
         """Compute means and stds for each feature across all datasets and
@@ -654,7 +757,6 @@ class BatchHandler:
                 self.unnormalize()
             self.means = means
             self.stds = stds
-
         now = dt.now()
         logger.info('Normalizing data in each data handler.')
         self.parallel_normalization(norm_workers)

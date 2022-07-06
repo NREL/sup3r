@@ -43,7 +43,7 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
     if max_workers is not None:
         return max_workers
     mem = psutil.virtual_memory()
-    avail_mem = 0.95 * (mem.total - mem.used)
+    avail_mem = 0.7 * (mem.total - mem.used)
     msg = ('Estimated upper bound for process memory '
            f'({round(process_mem / 1e9, 3)} GB) exceeds available memory '
            f'({round(avail_mem / 1e9, 3)} GB).')

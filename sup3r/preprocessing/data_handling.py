@@ -281,6 +281,43 @@ class DataHandler(FeatureHandler):
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
+    @classmethod
+    @abstractmethod
+    def source_handler(cls, file_paths):
+        """Handler for source data. Can use xarray, ResourceX, etc."""
+
+    @property
+    def attrs(self):
+        """Get atttributes of input data
+
+        Returns
+        -------
+        dict
+            Dictionary of attributes
+        """
+        with self.source_handler(self.file_paths) as handle:
+            desc = handle.attrs
+        return desc
+
+    @classmethod
+    def get_handle_features(cls, file_paths):
+        """Lookup inputs needed to compute feature
+
+        Parameters
+        ----------
+        file_paths : list
+            List of data file paths
+
+        Returns
+        -------
+        list
+            List of available features in data
+        """
+
+        with cls.source_handler(file_paths) as handle:
+            handle_features = [Feature.get_basename(r) for r in handle]
+        return handle_features
+
     @property
     def feature_mem(self):
         """Number of bytes for a single feature array. Used to estimate
@@ -658,7 +695,7 @@ class DataHandler(FeatureHandler):
             now = dt.now()
             for i, fp in enumerate(self.cache_files):
                 future = exe.submit(self.load_single_cached_feature, fp=fp)
-                futures[future] = i
+                futures[future] = {'idx': i, 'fp': os.path.basename(fp)}
 
             logger.info(f'Started loading all {len(self.cache_files)} cache '
                         f'files in {dt.now() - now}.')
@@ -666,7 +703,7 @@ class DataHandler(FeatureHandler):
             for i, future in enumerate(as_completed(futures)):
                 future.result()
                 logger.debug(f'{i + 1} out of {len(futures)} cache files '
-                             'loaded.')
+                             f'loaded: {futures[future]["fp"]}')
 
     def load_single_cached_feature(self, fp):
         """Load single feature from given file
@@ -684,7 +721,8 @@ class DataHandler(FeatureHandler):
         idx = self.cache_files.index(fp)
         assert self.features[idx].lower() in fp.lower()
         fp = ignore_case_path_fetch(fp)
-        logger.info(f'Loading {self.features[idx]} from {fp}')
+        logger.info(f'Loading {self.features[idx]} from '
+                    f'{os.path.basename(fp)}')
 
         with open(fp, 'rb') as fh:
             try:
@@ -787,19 +825,19 @@ class DataHandler(FeatureHandler):
                 if check:
                     if not overwrite_cache:
                         if load_cached:
-                            logger.info(
-                                f'{f} found in cache file {cache_files[i]}. '
-                                'Loading from cache instead of extracting '
-                                f'from {file_paths}')
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Loading from cache instead of extracting '
+                                   f'from {file_paths}')
+                            logger.info(msg)
                         else:
-                            logger.info(
-                                f'{f} found in cache file {cache_files[i]}. '
-                                'Call load_cached_data() or use '
-                                'load_cached=True to load this data.')
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Call load_cached_data() or use '
+                                   'load_cached=True to load this data.')
+                            logger.info(msg)
                     else:
-                        logger.info(
-                            f'{cache_files[i]} exists but overwrite_cache is '
-                            'set to True. Proceeding with extraction.')
+                        msg = (f'{cache_files[i]} exists but overwrite_cache '
+                               'is set to True. Proceeding with extraction.')
+                        logger.info(msg)
                         extract_features.append(f)
                 else:
                     extract_features.append(f)
@@ -968,7 +1006,7 @@ class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
     @classmethod
-    def xr_handler(cls, file_paths):
+    def source_handler(cls, file_paths):
         """Xarray data handler
 
         Parameters
@@ -1018,7 +1056,7 @@ class DataHandlerNC(DataHandler):
         time_index : np.ndarray
             Time index from nc source file(s)
         """
-        with cls.xr_handler(file_paths) as handle:
+        with cls.source_handler(file_paths) as handle:
             if hasattr(handle, 'XTIME'):
                 time_index = handle.XTIME.values
             elif hasattr(handle, 'time'):
@@ -1066,7 +1104,7 @@ class DataHandlerNC(DataHandler):
             List of available features in data
         """
 
-        with cls.xr_handler(file_paths) as handle:
+        with cls.source_handler(file_paths) as handle:
             handle_features = [Feature.get_basename(r) for r in handle]
         return handle_features
 
@@ -1093,7 +1131,7 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with cls.xr_handler(file_paths) as handle:
+        with cls.source_handler(file_paths) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
             interp_pressure = f_info.pressure
@@ -1118,7 +1156,7 @@ class DataHandlerNC(DataHandler):
                                                    np.float32(interp_pressure),
                                                    time_slice)
             else:
-                msg = f'{feature} cannot be extracted from source data'
+                msg = f'{feature} cannot be extracted from source data.'
                 logger.exception(msg)
                 raise ValueError(msg)
 
@@ -1155,8 +1193,9 @@ class DataHandlerNC(DataHandler):
                 lon = lat_lon[i, j, 1]
                 tmp_lat_diff = lat - target[0]
                 tmp_lon_diff = lon - target[1]
-                if (0 <= tmp_lat_diff < lat_diff
-                        and 0 <= tmp_lon_diff < lon_diff):
+                check = (0 <= tmp_lat_diff < lat_diff
+                         and 0 <= tmp_lon_diff < lon_diff)
+                if check:
                     lat_diff = np.abs(lat - target[0])
                     lon_diff = np.abs(lon - target[1])
                     row = i
@@ -1216,12 +1255,12 @@ class DataHandlerNC(DataHandler):
 
             if (raster_index[0].stop > lat_lon.shape[0]
                or raster_index[1].stop > lat_lon.shape[1]):
-                raise ValueError(
-                    f'Invalid target {target}, shape {shape}, and raster '
-                    f'{raster_index} for data domain of size '
-                    f'{lat_lon.shape[:-1]} with lower left corner '
-                    f'({np.min(lat_lon[..., 0])}, '
-                    f'{np.min(lat_lon[..., 1])}).')
+                msg = (f'Invalid target {target}, shape {shape}, and raster '
+                       f'{raster_index} for data domain of size '
+                       f'{lat_lon.shape[:-1]} with lower left corner '
+                       f'({np.min(lat_lon[..., 0])}, '
+                       f'{np.min(lat_lon[..., 1])}).')
+                raise ValueError(msg)
 
             self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
 
@@ -1237,19 +1276,6 @@ class DataHandlerNC(DataHandler):
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index
-
-    @property
-    def attrs(self):
-        """Get atttributes of input data
-
-        Returns
-        -------
-        dict
-            Dictionary of attributes
-        """
-        with self.xr_handler(self.file_paths) as handle:
-            desc = handle.attrs
-        return desc
 
 
 class DataHandlerNCforCC(DataHandlerNC):
@@ -1272,7 +1298,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         return registry
 
     @classmethod
-    def xr_handler(cls, file_paths):
+    def source_handler(cls, file_paths):
         """Xarray data handler
 
         Parameters
@@ -1294,6 +1320,21 @@ class DataHandlerH5(DataHandler):
     REX_HANDLER = MultiFileWindX
 
     @classmethod
+    def source_handler(cls, file_paths):
+        """rex data handler
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+
+        Returns
+        -------
+        data : ResourceX
+        """
+        return cls.REX_HANDLER(file_paths)
+
+    @classmethod
     def get_time_index(cls, file_paths):
         """Get time index from data files
 
@@ -1307,7 +1348,7 @@ class DataHandlerH5(DataHandler):
         time_index : pd.DateTimeIndex
             Time index from h5 source file(s)
         """
-        with cls.REX_HANDLER(file_paths) as handle:
+        with cls.source_handler(file_paths) as handle:
             time_index = handle.time_index
         return time_index
 
@@ -1333,25 +1374,6 @@ class DataHandlerH5(DataHandler):
         return registry
 
     @classmethod
-    def get_handle_features(cls, file_paths):
-        """Lookup inputs needed to compute feature
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-
-        Returns
-        -------
-        list
-            List of available features in data
-        """
-
-        with cls.REX_HANDLER(file_paths) as handle:
-            handle_features = [Feature.get_basename(r) for r in handle]
-        return handle_features
-
-    @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
                         time_slice=slice(None)) -> np.dtype(np.float32):
         """Extract single feature from data source
@@ -1374,7 +1396,7 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
 
-        with cls.REX_HANDLER(file_paths) as handle:
+        with cls.source_handler(file_paths) as handle:
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
                 return method(file_paths, raster_index)
@@ -1426,7 +1448,7 @@ class DataHandlerH5(DataHandler):
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')
-            with self.REX_HANDLER(file_paths[0]) as handle:
+            with self.source_handler(file_paths[0]) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
             self.lat_lon = self.get_lat_lon(file_paths, raster_index,
@@ -1435,19 +1457,6 @@ class DataHandlerH5(DataHandler):
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
-
-    @property
-    def attrs(self):
-        """Get atttributes of input data
-
-        Returns
-        -------
-        dict
-            Dictionary of attributes
-        """
-        with self.REX_HANDLER(self.file_paths) as handle:
-            desc = handle.attrs
-        return desc
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

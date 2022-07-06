@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""H5 file collection.
-"""
+"""H5 file collection."""
 from concurrent.futures import as_completed
 import logging
 import numpy as np
@@ -50,7 +49,10 @@ class Collector:
         Parameters
         ----------
         file_paths : list | str
-            File paths that data is being collected from
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
         """
         if not isinstance(file_paths, list):
             file_paths = glob.glob(file_paths)
