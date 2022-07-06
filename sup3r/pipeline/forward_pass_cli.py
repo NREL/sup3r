@@ -7,6 +7,7 @@ import click
 import logging
 from inspect import signature
 import os
+import time
 
 from reV.pipeline.status import Status
 
@@ -177,7 +178,9 @@ def kickoff_local_job(ctx, cmd):
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
-
+    t0 = time.time()
+    subprocess_manager = SubprocessManager
+    print(f'out_dir: {out_dir}')
     status = Status.retrieve_job_status(out_dir,
                                         module=ModuleName.FORWARD_PASS,
                                         job_name=name)
@@ -194,7 +197,10 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
                        job_name=name, replace=True,
                        job_attrs={'hardware': 'local'})
-        SubprocessManager.submit(cmd)
+        subprocess_manager.submit(cmd)
+        runtime = (time.time() - t0) / 60
+        status = {'job_status': 'successful', 'runtime': runtime}
+        Status.make_job_file(out_dir, ModuleName.FORWARD_PASS, name, status)
 
     click.echo(msg)
     logger.info(msg)

@@ -5,6 +5,7 @@ sup3r data extraction CLI entry points.
 import click
 import logging
 import os
+import time
 
 from reV.pipeline.status import Status
 
@@ -96,7 +97,9 @@ def kickoff_local_job(ctx, cmd):
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
+    t0 = time.time()
 
+    subprocess_manager = SubprocessManager
     status = Status.retrieve_job_status(out_dir,
                                         module=ModuleName.DATA_EXTRACT,
                                         job_name=name)
@@ -113,7 +116,10 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.DATA_EXTRACT,
                        job_name=name, replace=True,
                        job_attrs={'hardware': 'local'})
-        SubprocessManager.submit(cmd)
+        subprocess_manager.submit(cmd)
+        runtime = (time.time() - t0) / 60
+        status = {'job_status': 'successful', 'runtime': runtime}
+        Status.make_job_file(out_dir, ModuleName.DATA_EXTRACT, name, status)
 
     click.echo(msg)
     logger.info(msg)

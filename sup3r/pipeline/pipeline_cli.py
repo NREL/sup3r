@@ -4,6 +4,7 @@
 Pipeline CLI entry points.
 """
 import click
+import logging
 
 from sup3r.pipeline.config import Sup3rPipelineConfig as PipelineConfig
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
@@ -12,6 +13,9 @@ from sup3r import __version__
 from rex.utilities.cli_dtypes import STR
 from rex.utilities.utilities import get_class_properties
 from rex.utilities.execution import SubprocessManager
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -81,4 +85,8 @@ def pipeline_monitor_background(config_file, verbose=False):
 
 
 if __name__ == '__main__':
-    main(obj={})
+    try:
+        main(obj={})
+    except Exception:
+        logger.exception('Error running sup3r pipeline CLI')
+        raise
