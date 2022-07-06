@@ -14,6 +14,7 @@ from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 from warnings import warn
 
+from sup3r.utilities import VERSION_RECORD
 import sup3r.utilities.loss_metrics
 
 
@@ -26,7 +27,7 @@ class Sup3rGan:
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
-                 history=None, version_record=None, meta=None,
+                 history=None, meta=None,
                  means=None, stdevs=None, name=None):
         """
         Parameters
@@ -63,10 +64,6 @@ class Sup3rGan:
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
             history
-        version_record : dict | None
-            Optional record of import package versions. None (default) will
-            save active environment versions. A dictionary will be interpreted
-            as versions from a loaded model and will be saved as an attribute.
         meta : dict | None
             Model meta data that describes how the model was created.
         means : np.ndarray | list | None
@@ -81,13 +78,15 @@ class Sup3rGan:
             Optional name for the GAN.
         """
 
+        self._version_record = VERSION_RECORD
+        logger.info('Active python environment versions: \n{}'
+                    .format(pprint.pformat(self._version_record, indent=4)))
+
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
         self.loss_name = loss
         self.loss_fun = self.get_loss_fun(loss)
-
-        self._version_record = CustomNetwork._parse_versions(version_record)
 
         self._history = history
         if isinstance(self._history, str):
@@ -264,13 +263,10 @@ class Sup3rGan:
             params['history'] = None
 
         if 'version_record' in params:
+            version_record = params.pop('version_record')
             logger.info('Loading GAN from disk that was created with the '
                         'following package versions: \n{}'
-                        .format(pprint.pformat(params['version_record'],
-                                               indent=2)))
-            active_versions = CustomNetwork._parse_versions(None)
-            logger.info('Active python environment versions: \n{}'
-                        .format(pprint.pformat(active_versions, indent=2)))
+                        .format(pprint.pformat(version_record, indent=2)))
 
         return params
 

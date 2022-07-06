@@ -7,16 +7,12 @@
 import os
 import logging
 import sys
-import tensorflow as tf
-import sklearn
-import pandas as pd
-import numpy as np
 import pprint
 
 from rex import init_logger
 from rex.utilities.loggers import create_dirs
 
-from sup3r import __version__
+from sup3r.utilities import VERSION_RECORD
 
 
 logger = logging.getLogger(__name__)
@@ -88,48 +84,13 @@ class SUP3R:
                 init_logger(name, log_level=log_level, log_file=log_file)
 
         if log_version:
-            self._log_version()
+            is_64bits = sys.maxsize > 2 ** 32
+            if is_64bits:
+                logger.info(
+                    f'Running on 64-bit python, sys.maxsize: {sys.maxsize}')
+            else:
+                logger.warning(
+                    f'Running 32-bit python, sys.maxsize: {sys.maxsize}')
 
-    @staticmethod
-    def _parse_versions(version_record=None):
-        """Parse version record if not provided by init.
-        Parameters
-        ----------
-        version_record : dict | None
-            Optional record of import package versions. None (default) will
-            save active environment versions. A dictionary will be interpreted
-            as versions from a loaded model and will be saved as an attribute.
-        Returns
-        -------
-        version_record : dict
-            A record of important versions that this model was built with.
-        """
-        active_versions = {'sup3r': __version__,
-                           'tensorflow': tf.__version__,
-                           'sklearn': sklearn.__version__,
-                           'pandas': pd.__version__,
-                           'numpy': np.__version__,
-                           'python': sys.version,
-                           }
-        logger.info('Active python environment versions: \n{}'
-                    .format(pprint.pformat(active_versions, indent=4)))
-
-        if version_record is None:
-            version_record = active_versions
-
-        return version_record
-
-    @staticmethod
-    def _log_version():
-        """Check SUP3R and python version and 64-bit and print to logger."""
-
-        logger.info('Active python environment versions: \n{}'
-                    .format(pprint.pformat(SUP3R._parse_versions(), indent=4)))
-
-        is_64bits = sys.maxsize > 2 ** 32
-        if is_64bits:
-            logger.info(
-                f'Running on 64-bit python, sys.maxsize: {sys.maxsize}')
-        else:
-            logger.warning(
-                f'Running 32-bit python, sys.maxsize: {sys.maxsize}')
+            logger.info('Active python environment versions: \n{}'
+                        .format(pprint.pformat(VERSION_RECORD, indent=2)))
