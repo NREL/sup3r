@@ -20,8 +20,8 @@ Welcome to SUP3R!
 .. image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg?token=WQ95L11SRS
     :target: https://codecov.io/gh/nrel/sup3r
 
-.. image:: https://zenodo.org/badge/253541811.svg
-   :target: https://zenodo.org/badge/latestdoi/253541811
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6808547.svg
+    :target: https://doi.org/10.5281/zenodo.6808547
 
 .. inclusion-intro
 
