@@ -31,6 +31,7 @@ from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
                                        get_source_type,
                                        daily_temporal_coarsening,
                                        spatial_coarsening)
+from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
                                                   BVFreqMon,
@@ -416,11 +417,22 @@ class DataHandler(FeatureHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
+        job_name = config.get('job_name', None)
+        status_dir = config.get('status_dir', None)
+        status_file_arg_str = f'\"{status_dir}\", '
+        status_file_arg_str += f'module={ModuleName.DATA_EXTRACT}, '
+        status_file_arg_str += f'job_name={job_name}, '
+        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
+
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"data_handler = {dh_init_str};\'\n").replace('\\', '/')
+               f"data_handler = {dh_init_str}")
+        if job_name is not None:
+            cmd += (";\nfrom reV.pipeline.status import Status;\n"
+                    f"Status.make_job_file({status_file_arg_str})\'\n")
 
-        return cmd
+        cmd += (";\'\n")
+        return cmd.replace('\\', '/')
 
     def get_cache_file_names(self, cache_file_prefix):
         """Get names of cache files from cache_file_prefix and feature names

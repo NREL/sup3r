@@ -5,7 +5,6 @@ sup3r data extraction CLI entry points.
 import click
 import logging
 import os
-import time
 
 from reV.pipeline.status import Status
 
@@ -54,7 +53,8 @@ def from_config(ctx, config_file, verbose):
     """
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
-    ctx.obj['OUT_DIR'] = os.path.dirname(os.path.abspath(config_file))
+    status_dir = os.path.dirname(os.path.abspath(config_file))
+    ctx.obj['OUT_DIR'] = status_dir
     config = safe_json_load(config_file)
     config_verbose = config.get('log_level', 'INFO')
     config_verbose = (config_verbose == 'DEBUG')
@@ -73,6 +73,8 @@ def from_config(ctx, config_file, verbose):
 
     name = 'sup3r_data_extract'
     ctx.obj['NAME'] = name
+    config['job_name'] = name
+    config['status_dir'] = status_dir
 
     cmd = HANDLER_CLASS.get_node_cmd(config)
     logger.debug(f'Running command: {cmd}')
@@ -97,8 +99,6 @@ def kickoff_local_job(ctx, cmd):
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
-    t0 = time.time()
-
     subprocess_manager = SubprocessManager
     status = Status.retrieve_job_status(out_dir,
                                         module=ModuleName.DATA_EXTRACT,
@@ -114,12 +114,9 @@ def kickoff_local_job(ctx, cmd):
         logger.info('Running sup3r data extraction locally with job name "{}".'
                     .format(name))
         Status.add_job(out_dir, module=ModuleName.DATA_EXTRACT,
-                       job_name=name, replace=True,
-                       job_attrs={'hardware': 'local'})
+                       job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        runtime = (time.time() - t0) / 60
-        status = {'job_status': 'successful', 'runtime': runtime}
-        Status.make_job_file(out_dir, ModuleName.DATA_EXTRACT, name, status)
+        msg = ('Kicked off sup3r data extraction job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)

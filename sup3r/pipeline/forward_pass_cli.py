@@ -7,7 +7,6 @@ import click
 import logging
 from inspect import signature
 import os
-import time
 
 from reV.pipeline.status import Status
 
@@ -57,8 +56,10 @@ def from_config(ctx, config_file, verbose):
     """
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
-    ctx.obj['OUT_DIR'] = os.path.dirname(os.path.abspath(config_file))
+    status_dir = os.path.dirname(os.path.abspath(config_file))
+    ctx.obj['OUT_DIR'] = status_dir
     config = safe_json_load(config_file)
+    config['status_dir'] = status_dir
     config_verbose = config.get('log_level', 'INFO')
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
@@ -84,6 +85,7 @@ def from_config(ctx, config_file, verbose):
                                    if log_prefix is not None else log_prefix)
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
+        node_config['job_name'] = name
         cmd = ForwardPass.get_node_cmd(node_config)
         logger.debug(f'Running command: {cmd}')
 
@@ -121,7 +123,6 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
-
     slurm_manager = ctx.obj.get('SLURM_MANAGER', None)
     if slurm_manager is None:
         slurm_manager = SLURM()
@@ -178,9 +179,7 @@ def kickoff_local_job(ctx, cmd):
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
-    t0 = time.time()
     subprocess_manager = SubprocessManager
-    print(f'out_dir: {out_dir}')
     status = Status.retrieve_job_status(out_dir,
                                         module=ModuleName.FORWARD_PASS,
                                         job_name=name)
@@ -195,12 +194,9 @@ def kickoff_local_job(ctx, cmd):
         logger.info('Running sup3r forward pass locally with job name "{}".'
                     .format(name))
         Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
-                       job_name=name, replace=True,
-                       job_attrs={'hardware': 'local'})
+                       job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        runtime = (time.time() - t0) / 60
-        status = {'job_status': 'successful', 'runtime': runtime}
-        Status.make_job_file(out_dir, ModuleName.FORWARD_PASS, name, status)
+        msg = ('Kicked off sup3r forward pass job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)

@@ -23,6 +23,7 @@ from sup3r.postprocessing.file_handling import (OutputHandlerH5,
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        is_time_series)
+from sup3r.utilities import ModuleName
 from sup3r.models import Sup3rGan
 
 np.random.seed(42)
@@ -719,13 +720,25 @@ class ForwardPass:
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
+        job_name = config.get('job_name', None)
+        status_dir = config.get('status_dir', None)
+        status_file_arg_str = f'\"{status_dir}\", '
+        status_file_arg_str += f'module=\"{ModuleName.FORWARD_PASS}\", '
+        status_file_arg_str += f'job_name=\"{job_name}\", '
+        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
+
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fps_init_str};\n"
                f"fwp = {cls.__name__}({fwp_arg_str});\n"
-               "fwp.run()\'\n").replace('\\', '/')
+               "fwp.run()")
 
-        return cmd
+        if job_name is not None:
+            cmd += (";\nfrom reV.pipeline.status import Status;\n"
+                    f"Status.make_job_file({status_file_arg_str})")
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
 
     def run(self):
         """ForwardPass is initialized with a file_slice_index. This index

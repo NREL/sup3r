@@ -4,6 +4,7 @@ import os
 import json
 import shutil
 import numpy as np
+import glob
 
 from netCDF4 import Dataset
 
@@ -110,3 +111,10 @@ def test_pipeline():
         Pipeline.run(tmp_fpipeline, monitor=True)
 
         assert os.path.exists(fp_out)
+
+        status_file = glob.glob(os.path.join(td, '*_status.json'))
+        with open(status_file, 'r') as fh:
+            status = json.load(fh)
+            assert all(s not in str(status)
+                       for s in ('fail', 'pending', 'submitted'))
+            assert 'successful' in str(status)
