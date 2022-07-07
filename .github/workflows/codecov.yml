@@ -6,25 +6,29 @@ on:
 
 jobs:
   run:
-    name: Codecov
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 3
+      matrix:
+        os: [ubuntu-latest]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: '3.7'
     steps:
     - uses: actions/checkout@v2
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.9
+        python-version: 3.7
     - name: Install dependencies
       run: |
-        pip install --upgrade pip
-        pip install pytest
-        pip install pytest-cov
-        pip install -e .
+        python -m pip install --upgrade pip
+        python -m pip install pytest
+        python -m pip install pytest-cov
+        python -m pip install .
     - name: Generate coverage report
       run: |
-        pip install pytest-cov
-        cd tests
-        pytest --disable-warnings --cov=./ --cov-report=xml:coverage.xml
+        python -m  pytest --cov=./ --cov-report=xml:coverage.xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
