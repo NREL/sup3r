@@ -5,8 +5,6 @@ import os
 import tempfile
 import pytest
 import glob
-import shutil
-from netCDF4 import Dataset
 from rex import ResourceX
 import numpy as np
 

@@ -2,8 +2,6 @@
 import numpy as np
 import os
 import tempfile
-import shutil
-from netCDF4 import Dataset
 
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector

@@ -4,8 +4,6 @@
 import os
 import tempfile
 import numpy as np
-import shutil
-from netCDF4 import Dataset
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
