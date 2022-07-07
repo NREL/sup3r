@@ -82,7 +82,7 @@ def test_pipeline():
 
         assert os.path.exists(fp_out)
 
-        status_file = glob.glob(os.path.join(td, '*_status.json'))
+        status_file = glob.glob(os.path.join(td, '*_status.json'))[0]
         with open(status_file, 'r') as fh:
             status = json.load(fh)
             assert all(s not in str(status)
