@@ -1,0 +1,37 @@
+name: Codecov
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  run:
+    name: Codecov
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pytest
+        pip install pytest-cov
+        pip install -e .
+    - name: Generate coverage report
+      run: |
+        pip install pytest-cov
+        cd tests
+        pytest --disable-warnings --cov=./ --cov-report=xml:coverage.xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        flags: unittests
+        env_vars: OS,PYTHON
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        verbose: true
