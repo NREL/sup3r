@@ -20,8 +20,8 @@ Welcome to SUP3R!
 .. image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg?token=WQ95L11SRS
     :target: https://codecov.io/gh/nrel/sup3r
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6808547.svg
-    :target: https://doi.org/10.5281/zenodo.6808547
+.. image:: https://zenodo.org/badge/422324608.svg
+    :target: https://zenodo.org/badge/latestdoi/422324608
 
 .. inclusion-intro
 
@@ -69,8 +69,6 @@ Option 2: Clone repo (recommended for developers)
 Recommended Citation
 ====================
 
-Update with current version:
+Update with current version and DOI:
 
-Brandon Benton, Grant Buster, Andrew Glaws, Ryan King. Super Resolution for
-Renewable Resource Data (sup3r).
-https://github.com/NREL/sup3r (version v0.0.0), 2022.
+Brandon Benton, Grant Buster, Andrew Glaws, Ryan King. Super Resolution for Renewable Resource Data (sup3r). https://github.com/NREL/sup3r (version v0.0.0), 2022. DOI: 10.5281/zenodo.6808547
