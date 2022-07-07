@@ -17,12 +17,6 @@ Welcome to SUP3R!
 .. image:: https://badge.fury.io/py/NREL-sup3r.svg
     :target: https://badge.fury.io/py/NREL-sup3r
 
-.. image:: https://anaconda.org/nrel/nrel-sup3r/badges/version.svg
-    :target: https://anaconda.org/nrel/nrel-sup3r
-
-.. image:: https://anaconda.org/nrel/nrel-sup3r/badges/license.svg
-    :target: https://anaconda.org/nrel/nrel-sup3r
-
 .. image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg?token=WQ95L11SRS
     :target: https://codecov.io/gh/nrel/sup3r
 
