@@ -6,43 +6,13 @@ import shutil
 import numpy as np
 import glob
 
-from netCDF4 import Dataset
-
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.models.base import Sup3rGan
+from sup3r.utilities.test_utils import make_fake_nc_files
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
-input_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-INPUT_FILES = sorted(input_files)
-TARGET_COORD = (39.01, -105.15)
+INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-forward_pass_chunk_shape = (4, 4, 4)
-s_enhance = 3
-t_enhance = 4
-target = (19.3, -123.5)
-shape = (8, 8)
-
-
-def make_fake_nc_files(td):
-    """Make dummy nc files with increasing times"""
-    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(8)]
-    fake_times = list(range(8))
-
-    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
-    for i, f in enumerate(INPUT_FILES):
-        shutil.copy(f, fake_files[i])
-        with Dataset(fake_files[i], 'r+') as dset:
-            dset['XTIME'][:] = fake_times[i]
-    return fake_files
 
 
 def test_pipeline():
@@ -57,7 +27,7 @@ def test_pipeline():
     model.meta['training_features'] = FEATURES
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 

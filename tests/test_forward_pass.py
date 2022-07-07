@@ -13,6 +13,7 @@ from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
+from sup3r.utilities.test_utils import make_fake_nc_files
 
 from rex import ResourceX
 
@@ -20,19 +21,8 @@ from rex import ResourceX
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
-
-input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-INPUT_FILES = [
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
+INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
-targets = target
 shape = (8, 8)
 sample_shape = (8, 8, 6)
 temporal_slice = slice(None, None, 1)
@@ -40,19 +30,6 @@ list_chunk_size = 10
 forward_pass_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
-
-
-def make_fake_nc_files(td):
-    """Make dummy nc files with increasing times"""
-    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(8)]
-    fake_times = list(range(8))
-
-    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
-    for i, f in enumerate(INPUT_FILES):
-        shutil.copy(f, fake_files[i])
-        with Dataset(fake_files[i], 'r+') as dset:
-            dset['XTIME'][:] = fake_times[i]
-    return fake_files
 
 
 def test_forward_pass_nc_cc():
@@ -107,7 +84,7 @@ def test_forward_pass_nc():
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -144,7 +121,7 @@ def test_forward_pass_h5():
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
     model.meta['training_features'] = ['U_100m', 'V_100m']
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -191,7 +168,7 @@ def test_fwd_pass_handler():
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
@@ -241,7 +218,7 @@ def test_fwd_pass_chunking():
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
@@ -297,7 +274,7 @@ def test_fwd_pass_nochunking():
                                  n_batches=4)
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         model.train(batch_handler, n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
