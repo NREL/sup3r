@@ -420,8 +420,8 @@ class DataHandler(FeatureHandler):
         job_name = config.get('job_name', None)
         status_dir = config.get('status_dir', None)
         status_file_arg_str = f'\"{status_dir}\", '
-        status_file_arg_str += f'module={ModuleName.DATA_EXTRACT}, '
-        status_file_arg_str += f'job_name={job_name}, '
+        status_file_arg_str += f'module=\"{ModuleName.DATA_EXTRACT}\", '
+        status_file_arg_str += f'job_name=\"{job_name}\", '
         status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
 
         cmd = (f"python -c \'{import_str};\n"
@@ -429,7 +429,7 @@ class DataHandler(FeatureHandler):
                f"data_handler = {dh_init_str}")
         if job_name is not None:
             cmd += (";\nfrom reV.pipeline.status import Status;\n"
-                    f"Status.make_job_file({status_file_arg_str})\'\n")
+                    f"Status.make_job_file({status_file_arg_str})")
 
         cmd += (";\'\n")
         return cmd.replace('\\', '/')
