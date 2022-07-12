@@ -32,7 +32,6 @@ def main(ctx, config_file, verbose):
     ctx.obj['VERBOSE'] = verbose
 
 
-@main.group(invoke_without_command=True)
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
@@ -44,7 +43,6 @@ def forward_pass(ctx, verbose):
         ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
 
 
-@main.group(invoke_without_command=True)
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
@@ -56,19 +54,6 @@ def data_extract(ctx, verbose):
         ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
 
 
-@main.group(invoke_without_command=True)
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
-@click.pass_context
-def data_collect(ctx, verbose):
-    """sup3r data collection following forward pass."""
-    if ctx.invoked_subcommand is None:
-        config_file = ctx.obj['CONFIG_FILE']
-        verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(dc_cli, config_file=config_file, verbose=verbose)
-
-
-@main.group(invoke_without_command=True)
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context

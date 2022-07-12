@@ -85,6 +85,7 @@ def test_pipeline():
         status_file = glob.glob(os.path.join(td, '*_status.json'))[0]
         with open(status_file, 'r') as fh:
             status = json.load(fh)
+            assert all(s in status for s in ('forward-pass', 'data-collect'))
             assert all(s not in str(status)
                        for s in ('fail', 'pending', 'submitted'))
             assert 'successful' in str(status)
