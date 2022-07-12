@@ -2,8 +2,6 @@
 import numpy as np
 import os
 import tempfile
-import shutil
-from netCDF4 import Dataset
 
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
@@ -11,32 +9,6 @@ from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 from sup3r import TEST_DATA_DIR
 
 from rex import ResourceX
-
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
-INPUT_FILES = [
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-
-
-def make_fake_nc_files(td):
-    """Make dummy nc files with increasing times"""
-    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(8)]
-    fake_times = list(range(8))
-
-    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
-    for i, f in enumerate(INPUT_FILES):
-        shutil.copy(f, fake_files[i])
-        with Dataset(fake_files[i], 'r+') as dset:
-            dset['XTIME'][:] = fake_times[i]
-    return fake_files
 
 
 def test_get_lat_lon():

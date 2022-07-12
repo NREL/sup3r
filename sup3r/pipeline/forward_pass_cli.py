@@ -56,7 +56,10 @@ def from_config(ctx, config_file, verbose):
     """
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
+    status_dir = os.path.dirname(os.path.abspath(config_file))
+    ctx.obj['OUT_DIR'] = status_dir
     config = safe_json_load(config_file)
+    config['status_dir'] = status_dir
     config_verbose = config.get('log_level', 'INFO')
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
@@ -82,13 +85,14 @@ def from_config(ctx, config_file, verbose):
                                    if log_prefix is not None else log_prefix)
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
+        node_config['job_name'] = name
         cmd = ForwardPass.get_node_cmd(node_config)
         logger.debug(f'Running command: {cmd}')
 
         if hardware_option.lower() in ('eagle', 'slurm'):
             kickoff_slurm_job(ctx, cmd, **exec_kwargs)
         else:
-            SubprocessManager.submit(cmd)
+            kickoff_local_job(ctx, cmd)
 
 
 def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
@@ -119,8 +123,6 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
 
     name = ctx.obj['NAME']
     out_dir = ctx.obj['OUT_DIR']
-    fn_out = ctx.obj['FN_OUT']
-
     slurm_manager = ctx.obj.get('SLURM_MANAGER', None)
     if slurm_manager is None:
         slurm_manager = SLURM()
@@ -157,8 +159,44 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         # add job to sup3r status file.
         Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
                        job_name=name, replace=True,
-                       job_attrs={'job_id': out, 'hardware': 'slurm',
-                                  'fn_out': fn_out, 'out_dir': out_dir})
+                       job_attrs={'job_id': out, 'hardware': 'slurm'})
+
+    click.echo(msg)
+    logger.info(msg)
+
+
+def kickoff_local_job(ctx, cmd):
+    """Run sup3r forward pass locally.
+
+    Parameters
+    ----------
+    ctx : click.pass_context
+        Click context object where ctx.obj is a dictionary
+    cmd : str
+        Command to be submitted in shell script. Example:
+            'python -m sup3r.cli forward_pass -c <config_file>'
+    """
+
+    name = ctx.obj['NAME']
+    out_dir = ctx.obj['OUT_DIR']
+    subprocess_manager = SubprocessManager
+    status = Status.retrieve_job_status(out_dir,
+                                        module=ModuleName.FORWARD_PASS,
+                                        job_name=name)
+    msg = 'sup3r forward pass CLI failed to submit jobs!'
+    if status == 'successful':
+        msg = ('Job "{}" is successful in status json found in "{}", '
+               'not re-running.'.format(name, out_dir))
+    elif 'fail' not in str(status).lower() and status is not None:
+        msg = ('Job "{}" was found with status "{}", not resubmitting'
+               .format(name, status))
+    else:
+        logger.info('Running sup3r forward pass locally with job name "{}".'
+                    .format(name))
+        Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
+                       job_name=name, replace=True)
+        subprocess_manager.submit(cmd)
+        msg = ('Kicked off sup3r forward pass job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)

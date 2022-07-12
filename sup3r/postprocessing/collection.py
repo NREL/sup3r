@@ -17,6 +17,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.pipeline import Status
 from sup3r.postprocessing.file_handling import H5_ATTRS
 from sup3r.preprocessing.feature_handling import Feature
+from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +81,21 @@ class Collector:
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
 
+        job_name = config.get('job_name', None)
+        status_dir = config.get('status_dir', None)
+        status_file_arg_str = f'\"{status_dir}\", '
+        status_file_arg_str += f'module=\"{ModuleName.DATA_COLLECT}\", '
+        status_file_arg_str += f'job_name=\"{job_name}\", '
+        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
+
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"{dc_fun_str};\'\n").replace('\\', '/')
-
-        return cmd
+               f"{dc_fun_str}")
+        if job_name is not None:
+            cmd += (";\nfrom reV.pipeline.status import Status;\n"
+                    f"Status.make_job_file({status_file_arg_str})")
+        cmd += (";\'\n")
+        return cmd.replace('\\', '/')
 
     @staticmethod
     def get_slices(final_time_index, final_meta, new_time_index, new_meta):

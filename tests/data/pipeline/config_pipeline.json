@@ -1,0 +1,14 @@
+{
+  "logging": {
+    "log_file": null,
+    "log_level": "INFO"
+  },
+  "pipeline": [
+    {
+      "forward-pass": "./fp_config.json"
+    },
+    {
+      "data-collect": "./collect_config.json"
+    }
+  ]
+}

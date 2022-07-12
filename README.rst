@@ -30,6 +30,7 @@ sup3r command line tools
 
 - `forward_pass <https://nrel.github.io/sup3r/_cli/forward_pass.html#forward_pass>`_
 - `data_extract <https://nrel.github.io/sup3r/_cli/data_extract.html#data_extract>`_
+- `data_collect <https://nrel.github.io/sup3r/_cli/data_collect.html#data_collect>`_
 
 Installing sup3r
 ================
