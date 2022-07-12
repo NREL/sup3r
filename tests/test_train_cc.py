@@ -10,7 +10,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGan, SolarCC
 from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
                                                DataHandlerH5WindCC)
 from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
@@ -218,3 +218,34 @@ def test_wind_cc_model_spatial(log=False):
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == x.shape[3]
+
+
+def test_solar_custom_loss(log=False):
+    """Test custom solar loss with only disc and content over daylight hours"""
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
+                                   target=TARGET_S, shape=SHAPE,
+                                   temporal_slice=slice(None, None, 2),
+                                   time_roll=-7,
+                                   sample_shape=(5, 5, 72),
+                                   extract_workers=1,
+                                   compute_workers=1)
+
+    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=1,
+                             s_enhance=1, sub_daily_shape=None)
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_24x_1f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = SolarCC(fp_gen, fp_disc, learning_rate=1e-4,
+                    loss='MeanAbsoluteError')
+
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batcher, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=None,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
