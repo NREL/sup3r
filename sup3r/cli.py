@@ -31,6 +31,7 @@ def main(ctx, config_file, verbose):
     ctx.obj['VERBOSE'] = verbose
 
 
+@main.command()
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
@@ -42,6 +43,7 @@ def forward_pass(ctx, verbose):
         ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
 
 
+@main.command()
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
@@ -53,6 +55,7 @@ def data_extract(ctx, verbose):
         ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
 
 
+@main.command()
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
