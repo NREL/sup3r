@@ -37,10 +37,9 @@ def main(ctx, config_file, verbose):
 @click.pass_context
 def forward_pass(ctx, verbose):
     """sup3r forward pass to super-resolve data."""
-    if ctx.invoked_subcommand is None:
-        config_file = ctx.obj['CONFIG_FILE']
-        verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
@@ -49,10 +48,9 @@ def forward_pass(ctx, verbose):
 @click.pass_context
 def data_extract(ctx, verbose):
     """sup3r data extraction and caching prior to training or forward pass."""
-    if ctx.invoked_subcommand is None:
-        config_file = ctx.obj['CONFIG_FILE']
-        verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
@@ -61,10 +59,9 @@ def data_extract(ctx, verbose):
 @click.pass_context
 def data_collect(ctx, verbose):
     """sup3r data collection following forward pass."""
-    if ctx.invoked_subcommand is None:
-        config_file = ctx.obj['CONFIG_FILE']
-        verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(dc_cli, config_file=config_file, verbose=verbose)
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(dc_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)
