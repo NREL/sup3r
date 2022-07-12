@@ -2,7 +2,6 @@
 """
 sup3r command line interface (CLI).
 """
-from operator import inv
 import click
 import logging
 
