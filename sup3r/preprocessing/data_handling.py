@@ -1069,14 +1069,16 @@ class DataHandlerNC(DataHandler):
             Time index from nc source file(s)
         """
         with cls.source_handler(file_paths) as handle:
-            if hasattr(handle, 'XTIME'):
-                time_index = handle.XTIME.values
+            if hasattr(handle, 'Times'):
+                time_index = handle.Times.values
             elif hasattr(handle, 'time'):
                 time_index = handle.indexes['time']
                 time_index = [dt.strptime(str(t), '%Y-%m-%d %H:%M:%S')
                               for t in time_index]
                 time_index = [np.datetime64(t) for t in time_index]
                 time_index = np.array(time_index)
+            else:
+                raise ValueError(f'Could not get time_index for {file_paths}')
         return time_index
 
     @classmethod
@@ -1233,13 +1235,6 @@ class DataHandlerNC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
-
-        check = (self.raster_file is not None
-                 and os.path.exists(self.raster_file))
-        check = check or (shape is not None and target is not None)
-        msg = ('Must provide raster file or shape + target to get '
-               'raster index')
-        assert check, msg
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
@@ -1248,14 +1243,21 @@ class DataHandlerNC(DataHandler):
             raster_index = list(raster_index)
             self.grid_shape = get_raster_shape(raster_index)
         else:
-            logger.debug('Calculating raster index from WRF file '
-                         f'for shape {shape} and target {target}')
             lat_lon = self.get_lat_lon(file_paths, [slice(None), slice(None)],
                                        self.temporal_slice)
             min_lat = np.min(lat_lon[..., 0])
             min_lon = np.min(lat_lon[..., 1])
             max_lat = np.max(lat_lon[..., 0])
             max_lon = np.max(lat_lon[..., 1])
+            if target is None:
+                logger.warning('target is None. Using minimum available '
+                               'lat / lon.')
+                self.target = target = (min_lat, min_lon)
+            if shape is None:
+                logger.warning('shape is None. Using full domain available.')
+                self.grid_shape = shape = (lat_lon.shape[0], lat_lon.shape[1])
+            logger.debug('Calculating raster index from WRF file '
+                         f'for shape {shape} and target {target}')
             msg = (f'target {target} out of bounds with min lat/lon {min_lat}/'
                    f'{min_lon} and max lat/lon {max_lat}/{max_lon}')
             assert (min_lat <= target[0] <= max_lat

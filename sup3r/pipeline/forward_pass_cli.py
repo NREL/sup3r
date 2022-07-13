@@ -69,8 +69,8 @@ def from_config(ctx, config_file, verbose):
 
     exec_kwargs = config.get('execution_control', {})
     log_prefix = config.get('log_file_prefix', None)
-    hardware_option = exec_kwargs.get('option', 'local')
     logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    hardware_option = exec_kwargs.pop('option', 'local')
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     sig = signature(ForwardPassStrategy)
@@ -144,7 +144,6 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
     else:
         logger.info('Running sup3r forward pass on SLURM with node name "{}".'
                     .format(name))
-
         out = slurm_manager.sbatch(cmd,
                                    alloc=alloc,
                                    memory=memory,

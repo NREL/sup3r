@@ -157,10 +157,12 @@ def get_time_index(file_path):
 
     if file_type == 'nc':
         with xr.open_dataset(file_path) as handle:
-            if hasattr(handle, 'XTIME'):
-                times = handle.XTIME.values
+            if hasattr(handle, 'Times'):
+                times = handle.Times.values
             elif hasattr(handle, 'time'):
                 times = handle.time.values
+            else:
+                raise ValueError(f'Could not get time index for {file_path}')
     elif file_type == 'h5':
         with Resource(file_path) as handle:
             times = handle.time_index
@@ -1323,7 +1325,7 @@ def get_source_type(file_paths):
         Either h5 or nc
     """
     if file_paths is None:
-        return None
+        raise ValueError('file_paths is None')
 
     if not isinstance(file_paths, list):
         file_paths = [file_paths]

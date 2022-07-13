@@ -121,7 +121,6 @@ def test_fwd_pass_cli(runner):
                   'pass_workers': None,
                   'overwrite_cache': False,
                   'execution_control': {
-                      "nodes": 1,
                       "option": "local"}}
 
         config_path = os.path.join(td, 'config.json')

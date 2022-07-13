@@ -140,10 +140,8 @@ class ForwardPassStrategy:
         if isinstance(file_paths, str):
             file_paths = glob.glob(file_paths)
         self.file_paths = sorted(file_paths)
-        self.input_type = get_source_type(file_paths)
-        self.output_type = get_source_type(out_pattern)
+        self.out_pattern = out_pattern
         self._i = 0
-        self.time_series_files = is_time_series(self.file_paths)
         self.raster_file = raster_file
         self.target = target
         self.shape = shape
@@ -160,13 +158,6 @@ class ForwardPassStrategy:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
-
-        if self.input_type == 'nc':
-            self.data_handler_class = DataHandlerNC
-            if not self.time_series_files:
-                self.data_handler_class = DataHandlerNCforCC
-        elif self.input_type == 'h5':
-            self.data_handler_class = DataHandlerH5
 
         time_indices = self.data_handler_class.get_time_index(self.file_paths)
         self.time_indices = time_indices
@@ -200,6 +191,46 @@ class ForwardPassStrategy:
                 >= len(time_indices)):
             logger.warning(msg)
             warnings.warn(msg)
+
+    @property
+    def input_type(self):
+        """Get input data type
+
+        Returns
+        -------
+        input_type
+            e.g. 'nc' or 'h5'
+        """
+        return get_source_type(self.file_paths)
+
+    @property
+    def output_type(self):
+        """Get output data type
+
+        Returns
+        -------
+        output_type
+            e.g. 'nc' or 'h5'
+        """
+        return get_source_type(self.out_pattern)
+
+    @property
+    def data_handler_class(self):
+        """Get data handler class used to handle input
+
+        Returns
+        -------
+        data_handler_class
+            e.g. DataHandlerNC, DataHandlerH5, etc
+        """
+        time_series_files = is_time_series(self.file_paths)
+        if self.input_type == 'nc':
+            data_handler_class = DataHandlerNC
+            if not time_series_files:
+                data_handler_class = DataHandlerNCforCC
+        elif self.input_type == 'h5':
+            data_handler_class = DataHandlerH5
+        return data_handler_class
 
     def get_node_kwargs(self, node_index):
         """Get node specific variables given an associated index
