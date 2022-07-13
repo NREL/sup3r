@@ -617,19 +617,15 @@ def test_val_data_storage():
         assert list(batch.low_res.shape[1:3]) == [s // s_enhance for s
                                                   in sample_shape[:2]]
         val_observations += batch.low_res.shape[0]
-
     n_observations = 0
     for f in input_files:
-
         handler = DataHandler(f, features, target, shape,
                               max_delta, raster_file=raster_file,
                               val_split=val_split,
                               temporal_slice=temporal_slice)
-        data = handler.extract_data(
-            f, handler.raster_index,
-            features, temporal_slice)
+        data = handler.extract_data(f, handler.raster_index, features,
+                                    temporal_slice)
         n_observations += data.shape[2]
-
     assert val_observations == int(val_split * n_observations)
 
 
@@ -649,7 +645,6 @@ def test_no_val_data():
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance)
-
     n = 0
     for _ in batch_handler.val_data:
         n += 1

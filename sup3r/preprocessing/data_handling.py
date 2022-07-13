@@ -201,24 +201,25 @@ class DataHandler(FeatureHandler):
         self.target = target
         self.max_delta = max_delta
         self.raster_file = raster_file
-        self.raster_index = None
         self.val_split = val_split
         self.sample_shape = sample_shape
         self.temporal_slice = temporal_slice
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
-        self.raw_time_index = self.get_time_index(self.file_paths)
-        self.time_index = self.raw_time_index[self.temporal_slice]
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
         self.load_cached = load_cached
-        self.cache_files = self.get_cache_file_names(cache_file_prefix)
-        self.data = None
-        self.val_data = None
-        self.lat_lon = None
+        self.cache_prefix = cache_file_prefix
         self.compute_workers = compute_workers
         self.extract_workers = extract_workers
+        self.data = None
+        self.val_data = None
+        self._cache_files = None
+        self._raw_time_index = None
+        self._time_index = None
+        self._lat_lon = None
+        self._raster_index = None
 
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
@@ -247,11 +248,6 @@ class DataHandler(FeatureHandler):
             if overwrite:
                 logger.info(f'{self.cache_files} exists but overwrite_cache '
                             'is set to True. Proceeding with extraction.')
-
-            self.raster_index = self.get_raster_index(self.file_paths,
-                                                      self.target,
-                                                      self.grid_shape)
-
             raster_shape = get_raster_shape(self.raster_index)
             bad_shape = (sample_shape[0] > raster_shape[0]
                          and sample_shape[1] > raster_shape[1])
@@ -300,6 +296,55 @@ class DataHandler(FeatureHandler):
             desc = handle.attrs
         return desc
 
+    @property
+    def cache_files(self):
+        """Cache files for storing extracted data"""
+        if self._cache_files is None:
+            self._cache_files = self.get_cache_file_names(self.cache_prefix)
+        return self._cache_files
+
+    @property
+    def raw_time_index(self):
+        """Time index for input data without time pruning"""
+        if self._raw_time_index is None:
+            self._raw_time_index = self.get_time_index(self.file_paths)
+        return self._raw_time_index
+
+    @property
+    def time_index(self):
+        """Time index for input data with time pruning"""
+        if self._time_index is None:
+            self._time_index = self.raw_time_index[self.temporal_slice]
+        return self._time_index
+
+    @time_index.setter
+    def time_index(self, time_index):
+        """Update time index"""
+        self._time_index = time_index
+
+    @property
+    def lat_lon(self):
+        """lat lon grid for data"""
+        if self._lat_lon is None:
+            self._lat_lon = self.get_lat_lon(self.file_paths,
+                                             self.raster_index,
+                                             self.temporal_slice)
+        return self._lat_lon
+
+    @lat_lon.setter
+    def lat_lon(self, lat_lon):
+        """Update lat lon"""
+        self._lat_lon = lat_lon
+
+    @property
+    def raster_index(self):
+        """Raster index property"""
+        if self._raster_index is None:
+            self._raster_index = self.get_raster_index(self.file_paths,
+                                                       self.target,
+                                                       self.grid_shape)
+        return self._raster_index
+
     @classmethod
     def get_handle_features(cls, file_paths):
         """Lookup inputs needed to compute feature
@@ -329,8 +374,6 @@ class DataHandler(FeatureHandler):
         int
             Number of bytes for a single feature array
         """
-        if self.raster_index is None:
-            self.raster_index = self.get_raster_index(self.file_paths)
         feature_mem = np.product(self.grid_shape) * len(self.time_index)
         return 4 * feature_mem
 
@@ -766,11 +809,6 @@ class DataHandler(FeatureHandler):
             warnings.warn(msg)
 
         elif self.data is None:
-            self.raster_index = getattr(self, 'raster_index', None)
-            if self.raster_index is None:
-                self.raster_index = self.get_raster_index(
-                    self.file_paths, self.target, self.grid_shape)
-
             shape = get_raster_shape(self.raster_index)
             requested_shape = (shape[0] // self.hr_spatial_coarsen,
                                shape[1] // self.hr_spatial_coarsen,
@@ -1465,8 +1503,6 @@ class DataHandlerH5(DataHandler):
             with self.source_handler(file_paths[0]) as handle:
                 raster_index = handle.get_raster_index(
                     target, shape, max_delta=self.max_delta)
-            self.lat_lon = self.get_lat_lon(file_paths, raster_index,
-                                            self.temporal_slice)
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
