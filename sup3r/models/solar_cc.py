@@ -24,7 +24,10 @@ class SolarCC(Sup3rGan):
     # These are the slices of a 72-hour high res sample that are noon-centered
     # daylight slices. The disc will only see these slices from the true high
     # res data.
-    DAYLIGHT_SLICES = (slice(8, 16), slice(32, 40), slice(56, 66))
+    DAYLIGHT_HOURS = 8
+    DAYLIGHT_SLICES = (slice(8, 8 + DAYLIGHT_HOURS),
+                       slice(32, 32 + DAYLIGHT_HOURS),
+                       slice(56, 56 + DAYLIGHT_HOURS))
 
     @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
@@ -85,11 +88,11 @@ class SolarCC(Sup3rGan):
             disc_out_true.append(disc_t)
             loss_gen_content += gen_c
 
-        time_samples = tf.random.categorical(tf.math.log([[1.0] * 72]),
-                                             len(self.DAYLIGHT_SLICES))
+        logits = [[1.0] * (72 - self.DAYLIGHT_HOURS)]
+        time_samples = tf.random.categorical(logits, len(self.DAYLIGHT_SLICES))
         for i in range(len(self.DAYLIGHT_SLICES)):
             t0 = time_samples[0, i]
-            t1 = t0 + 8
+            t1 = t0 + self.DAYLIGHT_HOURS
             disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
             disc_out_gen.append(disc_g)
 

@@ -338,6 +338,8 @@ class SpatialFirstGan(MultiStepGan):
             (1, spatial_1, spatial_2, n_temporal, n_features)
         """
 
+        logger.debug('Data input to the 1st step spatial-only '
+                     'enhancement has shape {}'.format(low_res.shape))
         try:
             hi_res = self.models[0].generate(low_res, norm_in=norm_in,
                                              un_norm_out=True)
@@ -362,5 +364,8 @@ class SpatialFirstGan(MultiStepGan):
                    'shape {}'.format(low_res.shape))
             logger.error(msg)
             raise RuntimeError(msg) from e
+
+        logger.debug('Final multistep GAN output has shape: {}'
+                     .format(hi_res.shape))
 
         return hi_res

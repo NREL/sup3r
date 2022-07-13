@@ -249,3 +249,20 @@ def test_solar_custom_loss(log=False):
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
                     out_dir=os.path.join(td, 'test_{epoch}'))
+
+        shape = (1, 4, 4, 72, 1)
+        hi_res_true = np.random.uniform(0, 1, shape).astype(np.float32)
+        hi_res_gen = np.random.uniform(0, 1, shape).astype(np.float32)
+        loss1, _ = model.calc_loss(hi_res_true, hi_res_gen,
+                                   weight_gen_advers=0.0,
+                                   train_gen=True, train_disc=False)
+
+        for tslice in SolarCC.DAYLIGHT_SLICES:
+            hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
+
+        loss2, _ = model.calc_loss(hi_res_true, hi_res_gen,
+                                   weight_gen_advers=0.0,
+                                   train_gen=True, train_disc=False)
+
+        assert loss1 > loss2
+        assert loss2 == 0
