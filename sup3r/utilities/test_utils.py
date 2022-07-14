@@ -1,8 +1,6 @@
 """Utilities used across multiple test files"""
 
-import shutil
 import os
-from netCDF4 import Dataset
 import numpy as np
 import xarray as xr
 
@@ -24,7 +22,6 @@ def make_fake_nc_files(td, input_file, n_files):
     """
     fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(n_files)]
     fake_times = [f'2014-10-01 0{i}:00:00' for i in range(n_files)]
-
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
         input_dset = xr.open_dataset(input_file)
