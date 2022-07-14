@@ -101,7 +101,7 @@ class DataHandler(FeatureHandler):
                  shuffle_time=False,
                  extract_workers=None,
                  compute_workers=None,
-                 time_chunk_size=100,
+                 time_chunk_size=None,
                  cache_file_prefix=None,
                  overwrite_cache=False,
                  load_cached=False,
@@ -187,16 +187,8 @@ class DataHandler(FeatureHandler):
 
         super().__init__()
 
-        if isinstance(file_paths, str):
-            file_paths = glob.glob(file_paths)
-        self.file_paths = sorted(file_paths)
-
-        self.train_only_features = train_only_features
-        if self.train_only_features is None:
-            self.train_only_features = self.TRAIN_ONLY_FEATURES
-
+        self.file_paths = file_paths
         self.features = features
-        self.grid_shape = shape
         self.val_time_index = None
         self.target = target
         self.max_delta = max_delta
@@ -211,15 +203,21 @@ class DataHandler(FeatureHandler):
         self.overwrite_cache = overwrite_cache
         self.load_cached = load_cached
         self.cache_prefix = cache_file_prefix
-        self.compute_workers = compute_workers
-        self.extract_workers = extract_workers
         self.data = None
         self.val_data = None
+        self._grid_shape = shape
+        self._train_only_features = train_only_features
+        self._compute_workers = compute_workers
+        self._extract_workers = extract_workers
+        self._time_chunk_size = time_chunk_size
         self._cache_files = None
         self._raw_time_index = None
         self._time_index = None
         self._lat_lon = None
         self._raster_index = None
+        self._handle_features = None
+        self._extract_features = None
+        self._raw_features = None
 
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}')
@@ -248,25 +246,15 @@ class DataHandler(FeatureHandler):
             if overwrite:
                 logger.info(f'{self.cache_files} exists but overwrite_cache '
                             'is set to True. Proceeding with extraction.')
-            raster_shape = get_raster_shape(self.raster_index)
-            bad_shape = (sample_shape[0] > raster_shape[0]
-                         and sample_shape[1] > raster_shape[1])
+            bad_shape = (sample_shape[0] > self.grid_shape[0]
+                         and sample_shape[1] > self.grid_shape[1])
             if bad_shape:
                 msg = (f'spatial_sample_shape {sample_shape[:2]} is larger '
-                       f'than the raster size {raster_shape}')
+                       f'than the raster size {self.grid_shape}')
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            self.data = self.extract_data(
-                self.file_paths, self.raster_index, self.features,
-                temporal_slice=self.temporal_slice,
-                hr_spatial_coarsen=self.hr_spatial_coarsen,
-                time_roll=self.time_roll,
-                extract_workers=self.extract_workers,
-                compute_workers=self.compute_workers,
-                time_chunk_size=time_chunk_size,
-                cache_files=self.cache_files,
-                overwrite_cache=self.overwrite_cache)
+            self.data = self.extract_data()
 
             if cache_file_prefix is not None:
                 self.cache_data(self.cache_files)
@@ -297,6 +285,80 @@ class DataHandler(FeatureHandler):
         return desc
 
     @property
+    def temporal_slice(self):
+        return self._temporal_slice
+
+    @temporal_slice.setter
+    def temporal_slice(self, temporal_slice):
+        """Make sure temporal_slice is a slice. Need to do this because json
+        cannot save slices so we can instead save as list and then convert."""
+        check = (isinstance(temporal_slice, tuple)
+                 or isinstance(temporal_slice, list)
+                 or isinstance(temporal_slice, slice))
+        msg = ('temporal_slice must be tuple, list, or slice')
+        assert check, msg
+        if isinstance(temporal_slice, slice):
+            self._temporal_slice = temporal_slice
+        else:
+            check = len(temporal_slice) <= 3
+            msg = ('If providing list or tuple for temporal_slice length must '
+                   'be <= 3')
+            assert check, msg
+            self._temporal_slice = slice(*temporal_slice)
+
+    @property
+    def train_only_features(self):
+        """Features to use for training only and not output"""
+        if self._train_only_features is None:
+            self._train_only_features = self.TRAIN_ONLY_FEATURES
+        return self._train_only_features
+
+    @property
+    def file_paths(self):
+        return self._file_paths
+
+    @file_paths.setter
+    def file_paths(self, file_paths):
+        """Set file paths attr and do initial glob / sort"""
+        self._file_paths = file_paths
+        if isinstance(self._file_paths, str):
+            self._file_paths = glob.glob(self._file_paths)
+        self._file_paths = sorted(self._file_paths)
+
+    @property
+    def extract_workers(self):
+        """Get upper bound for extract workers based on memory limits"""
+        proc_mem = 8 * np.product(self.grid_shape) * len(self.time_index)
+        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
+                                               len(self.extract_features))
+        return extract_workers
+
+    @property
+    def compute_workers(self):
+        """Get upper bound for compute workers based on memory limits"""
+        proc_mem = 8 * np.product(self.grid_shape) * len(self.time_index)
+        proc_mem *= np.int(np.ceil(len(self.raw_features)
+                                   / len(self.extract_features)))
+        compute_workers = estimate_max_workers(self._compute_workers, proc_mem,
+                                               len(self.extract_features))
+        return compute_workers
+
+    @property
+    def time_chunk_size(self):
+        """Get upper bound on time chunk size based on memory limits"""
+        if self._time_chunk_size is None:
+            step_mem = 8 * np.product(self.grid_shape) * len(self.raw_features)
+            self._time_chunk_size = np.int(1e9 / step_mem)
+        return self._time_chunk_size
+
+    @property
+    def grid_shape(self):
+        """Get shape of spatial grid"""
+        if self._grid_shape is None:
+            self._grid_shape = get_raster_shape(self.raster_index)
+        return self._grid_shape
+
+    @property
     def cache_files(self):
         """Cache files for storing extracted data"""
         if self._cache_files is None:
@@ -314,7 +376,8 @@ class DataHandler(FeatureHandler):
     def time_index(self):
         """Time index for input data with time pruning"""
         if self._time_index is None:
-            self._time_index = self.raw_time_index[self.temporal_slice]
+            self._time_index = self.get_time_index(self.file_paths)
+            self._time_index = self._time_index[self.temporal_slice]
         return self._time_index
 
     @time_index.setter
@@ -344,6 +407,42 @@ class DataHandler(FeatureHandler):
                                                        self.target,
                                                        self.grid_shape)
         return self._raster_index
+
+    @property
+    def handle_features(self):
+        """All features available in raw input"""
+        if self._handle_features is None:
+            self._handle_features = self.get_handle_features(self.file_paths)
+        return self._handle_features
+
+    @property
+    def extract_features(self):
+        """Get list of features needing extraction or derivation"""
+        if self._extract_features is None:
+            self._extract_features = self.check_cached_features(
+                self.file_paths, self.features, cache_files=self.cache_files,
+                overwrite_cache=self.overwrite_cache,
+                load_cached=self.load_cached)
+        return self._extract_features
+
+    @property
+    def derive_features(self):
+        """List of features which need to be derived from other features"""
+        return [f for f in self.extract_features if f not in self.raw_features]
+
+    @property
+    def cached_features(self):
+        """List of features which have been requested but have been determined
+        not to need extraction. Thus they have been cached already."""
+        return [f for f in self.features if f not in self.extract_features]
+
+    @property
+    def raw_features(self):
+        """Get list of features needed for computations"""
+        if self._raw_features is None:
+            self._raw_features = self.get_raw_feature_list(
+                self.extract_features, self.handle_features)
+        return self._raw_features
 
     @classmethod
     def get_handle_features(cls, file_paths):
@@ -896,54 +995,9 @@ class DataHandler(FeatureHandler):
 
         return extract_features
 
-    @classmethod
-    def extract_data(cls, file_paths, raster_index, features,
-                     temporal_slice=slice(None, None, 1),
-                     hr_spatial_coarsen=None, time_roll=0,
-                     extract_workers=None, compute_workers=None,
-                     time_chunk_size=100, cache_files=None,
-                     overwrite_cache=False, load_cached=False):
+    def extract_data(self):
         """Building base 4D data array. Can handle multiple files but assumes
         each file has the same spatial domain
-
-        Parameters
-        ----------
-        file_paths : str | list
-            path to data file
-        raster_index : np.ndarray
-            2D array of grid indices for H5 or list of slices for NETCDF
-        features : list
-            list of features to extract
-        temporal_slice : slice
-            Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
-            the full time dimension is selected.
-        hr_spatial_coarsen : int | None
-            Optional input to coarsen the high-resolution spatial field. This
-            can be used if (for example) you have 2km source data, but you want
-            the final high res prediction target to be 4km resolution, then
-            hr_spatial_coarsen would be 2 so that the GAN is trained on
-            aggregated 4km high-res data.
-        time_roll : int
-            The number of places by which elements are shifted in the time
-            axis. Can be used to convert data to different timezones. This is
-            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
-            temporal_slice operation.
-        compute_workers : int | None
-            max number of workers to use for computing features.
-            If compute_workers == 1 then extraction will be serialized.
-        extract_workers : int | None
-            max number of workers to use for data extraction.
-            If extract_workers == 1 then extraction will be serialized.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for smaller data
-            extractions
-        cache_files : list | None
-            Path to files with saved feature data
-        overwrite_cache : bool
-            Whether to overwrite cached files
-        load_cached : bool
-            Whether to load data from cache files
 
         Returns
         -------
@@ -951,76 +1005,61 @@ class DataHandler(FeatureHandler):
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
         """
-
         now = dt.now()
-        if not isinstance(file_paths, list):
-            file_paths = [file_paths]
-
-        shape = get_raster_shape(raster_index)
-        logger.debug(f'Loading data for raster of shape {shape}')
+        logger.debug(f'Loading data for raster of shape {self.grid_shape}')
 
         # get the file-native time index without pruning
-        time_index = cls.get_time_index(file_paths)
-        n_steps = len(time_index[temporal_slice])
+        time_index = self.raw_time_index
+        n_steps = len(time_index[self.temporal_slice])
 
-        data_array = np.zeros((shape[0], shape[1], n_steps, len(features)),
-                              dtype=np.float32)
+        data_array = np.zeros((self.grid_shape[0], self.grid_shape[1], n_steps,
+                               len(self.features)), dtype=np.float32)
 
         # split time dimension into smaller slices which can be
         # extracted in parallel
-        time_chunks = get_chunk_slices(len(time_index), time_chunk_size,
-                                       temporal_slice)
-        shifted_time_chunks = get_chunk_slices(n_steps, time_chunk_size)
+        time_chunks = get_chunk_slices(len(time_index), self.time_chunk_size,
+                                       self.temporal_slice)
+        shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
+        logger.info(f'Extracting time range: {self.time_index[0]} - '
+                    f'{self.time_index[-1]}')
+        raw_data = self.parallel_extract(self.file_paths, self.raster_index,
+                                         time_chunks, self.raw_features,
+                                         self.extract_workers)
 
-        extract_features = cls.check_cached_features(
-            file_paths, features, cache_files=cache_files,
-            overwrite_cache=overwrite_cache, load_cached=load_cached)
+        logger.info(f'Finished extracting {self.raw_features} for '
+                    f'{self.file_info_logging(self.file_paths)}')
 
-        handle_features = cls.get_handle_features(file_paths)
-        raw_features = cls.get_raw_feature_list(extract_features,
-                                                handle_features)
+        raw_data = self.parallel_compute(raw_data, self.raster_index,
+                                         time_chunks,
+                                         self.derive_features,
+                                         self.extract_features,
+                                         self.handle_features,
+                                         self.compute_workers)
 
-        proc_mem = 8 * np.product(shape) * len(time_index[temporal_slice])
-        extract_workers = estimate_max_workers(extract_workers, proc_mem,
-                                               len(extract_features))
-        raw_data = cls.parallel_extract(file_paths, raster_index, time_chunks,
-                                        raw_features, extract_workers)
-
-        logger.info(f'Finished extracting {raw_features} for '
-                    f'{cls.file_info_logging(file_paths)}')
-
-        mult = np.int(np.ceil(len(raw_features) / len(extract_features)))
-        proc_mem = mult * proc_mem
-        compute_workers = estimate_max_workers(compute_workers, proc_mem,
-                                               len(extract_features))
-        raw_data = cls.parallel_compute(raw_data, raster_index, time_chunks,
-                                        raw_features, extract_features,
-                                        handle_features, compute_workers)
-
-        logger.info(f'Finished computing {extract_features} for '
-                    f'{cls.file_info_logging(file_paths)}')
+        logger.info(f'Finished computing {self.derive_features} for '
+                    f'{self.file_info_logging(self.file_paths)}')
 
         for t, t_slice in enumerate(shifted_time_chunks):
-            for _, f in enumerate(extract_features):
-                f_index = features.index(f)
+            for _, f in enumerate(self.extract_features):
+                f_index = self.features.index(f)
                 data_array[..., t_slice, f_index] = raw_data[t][f]
             raw_data.pop(t)
 
-        data_array = np.roll(data_array, time_roll, axis=2)
+        data_array = np.roll(data_array, self.time_roll, axis=2)
 
-        hr_spatial_coarsen = hr_spatial_coarsen or 1
-        if hr_spatial_coarsen > 1:
+        if self.hr_spatial_coarsen > 1:
             data_array = spatial_coarsening(data_array,
-                                            s_enhance=hr_spatial_coarsen,
+                                            s_enhance=self.hr_spatial_coarsen,
                                             obs_axis=False)
-        if load_cached:
-            for f in [f for f in features if f not in extract_features]:
-                f_index = features.index(f)
-                with open(cache_files[f_index], 'rb') as fh:
+        if self.load_cached:
+            for f in self.cached_features:
+                f_index = self.features.index(f)
+                with open(self.cache_files[f_index], 'rb') as fh:
                     data_array[..., f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data for '
-                    f'{cls.file_info_logging(file_paths)} in {dt.now() - now}')
+                    f'{self.file_info_logging(self.file_paths)} in '
+                    f'{dt.now() - now}')
 
         return data_array
 
@@ -1162,7 +1201,7 @@ class DataHandlerNC(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)) -> np.dtype(np.float32):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters
@@ -1214,6 +1253,29 @@ class DataHandlerNC(DataHandler):
 
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
+
+    @classmethod
+    def get_full_domain(cls, file_paths):
+        """Get full shape and min available lat lon. To simplify processing
+        of full domain without needing to specify target and shape.
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data files
+
+        Returns
+        -------
+        target : tuple
+            (lat, lon) for lower left corner
+        shape : tuple
+            (n_rows, n_cols) grid size
+        """
+        lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)],
+                                  slice(None))
+        target = (np.min(lat_lon[..., 0]), np.min(lat_lon[..., 1]))
+        shape = lat_lon.shape[:-1]
+        return target, shape
 
     @staticmethod
     def get_closest_lat_lon(lat_lon, target):
@@ -1273,13 +1335,19 @@ class DataHandlerNC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
+        check = (self.raster_file is not None
+                 and os.path.exists(self.raster_file))
+        check = check or (shape is not None and target is not None)
+        msg = ('Must provide raster file or shape + target to get '
+               'raster index')
+        assert check, msg
+
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
             raster_index = list(raster_index)
-            self.grid_shape = get_raster_shape(raster_index)
         else:
             lat_lon = self.get_lat_lon(file_paths, [slice(None), slice(None)],
                                        self.temporal_slice)
@@ -1287,13 +1355,6 @@ class DataHandlerNC(DataHandler):
             min_lon = np.min(lat_lon[..., 1])
             max_lat = np.max(lat_lon[..., 0])
             max_lon = np.max(lat_lon[..., 1])
-            if target is None:
-                logger.warning('target is None. Using minimum available '
-                               'lat / lon.')
-                self.target = target = (min_lat, min_lon)
-            if shape is None:
-                logger.warning('shape is None. Using full domain available.')
-                self.grid_shape = shape = (lat_lon.shape[0], lat_lon.shape[1])
             logger.debug('Calculating raster index from WRF file '
                          f'for shape {shape} and target {target}')
             msg = (f'target {target} out of bounds with min lat/lon {min_lat}/'
@@ -1496,7 +1557,6 @@ class DataHandlerH5(DataHandler):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.file_info_logging(self.file_paths)}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
-            self.grid_shape = get_raster_shape(raster_index)
         else:
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {shape} and target {target}')

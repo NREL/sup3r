@@ -1137,7 +1137,8 @@ class FeatureHandler:
         """
 
         logger.info(f'Starting {input_features} extraction using '
-                    f'extract_workers={max_workers}. ')
+                    f'extract_workers={max_workers} and {len(time_chunks)} '
+                    'time_chunks. ')
         futures = {}
         now = dt.now()
 
@@ -1149,8 +1150,8 @@ class FeatureHandler:
         data = defaultdict(dict)
 
         if max_workers == 1:
-            return cls.serial_extract(
-                file_paths, raster_index, time_chunks, input_features)
+            return cls.serial_extract(file_paths, raster_index, time_chunks,
+                                      input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
@@ -1223,7 +1224,7 @@ class FeatureHandler:
         return data[feature]
 
     @classmethod
-    def serial_compute(cls, data, time_chunks, input_features, all_features,
+    def serial_compute(cls, data, time_chunks, derived_features, all_features,
                        handle_features):
         """Compute features in series
 
@@ -1236,8 +1237,8 @@ class FeatureHandler:
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
-        input_features : list
-            list of input feature strings
+        derived_features : list
+            list of feature strings which need to be derived
         all_features : list
             list of all features including those requiring derivation from
             input features
@@ -1252,9 +1253,6 @@ class FeatureHandler:
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
-        derived_features = [f for f in all_features if f not in input_features]
-
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
@@ -1265,7 +1263,7 @@ class FeatureHandler:
 
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
-                         input_features, all_features, handle_features,
+                         derived_features, all_features, handle_features,
                          max_workers=None):
         """Compute features using parallel subprocesses
 
@@ -1281,8 +1279,8 @@ class FeatureHandler:
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
-        input_features : list
-            list of input feature strings
+        derived_features : list
+            list of feature strings which need to be derived
         all_features : list
             list of all features including those requiring derivation from
             input features
@@ -1300,8 +1298,6 @@ class FeatureHandler:
             data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
-        derived_features = [f for f in all_features if f not in input_features]
         if len(derived_features) == 0:
             return data
         else:
@@ -1311,7 +1307,7 @@ class FeatureHandler:
         futures = {}
         now = dt.now()
         if max_workers == 1:
-            return cls.serial_compute(data, time_chunks, input_features,
+            return cls.serial_compute(data, time_chunks, derived_features,
                                       all_features, handle_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:

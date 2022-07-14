@@ -112,34 +112,6 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     return slices
 
 
-def get_file_t_steps(file_paths):
-    """Get number of time steps in each file. We assume that each file in a
-    file list passed to the handling classes has the same number of time steps.
-
-    Parameters
-    ----------
-    file_paths : list
-        List of netcdf or h5 file paths
-
-    Returns
-    -------
-    int
-        Number of time steps in each file
-    """
-
-    file_type = get_source_type(file_paths)
-
-    if file_type == 'nc':
-        with xr.open_dataset(file_paths[0]) as handle:
-            if hasattr(handle, 'XTIME'):
-                return len(handle.XTIME.values)
-            elif hasattr(handle, 'time'):
-                return len(handle.time.values)
-    elif file_type == 'h5':
-        with Resource(file_paths[0]) as handle:
-            return len(handle.time_index)
-
-
 def get_time_index(file_path):
     """Get time index for single file
 
@@ -1325,7 +1297,7 @@ def get_source_type(file_paths):
         Either h5 or nc
     """
     if file_paths is None:
-        raise ValueError('file_paths is None')
+        return None
 
     if not isinstance(file_paths, list):
         file_paths = [file_paths]

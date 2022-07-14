@@ -352,17 +352,12 @@ class BatchHandler:
             Whether to overwrite stats cache files.
         """
 
+        msg = ('All data handlers must have the same sample_shape')
         handler_shapes = np.array(
             [d.sample_shape for d in data_handlers])
-        assert np.all(handler_shapes[0] == handler_shapes)
+        assert np.all(handler_shapes[0] == handler_shapes), msg
 
-        now = dt.now()
         self.data_handlers = data_handlers
-        self.parallel_load(load_workers)
-        logger.debug(f'Finished loading data of shape {self.shape} '
-                     f'for BatchHandler in {dt.now() - now}.')
-        log_mem(logger, log_level='INFO')
-
         self._i = 0
         self.low_res = None
         self.high_res = None
@@ -383,6 +378,12 @@ class BatchHandler:
         self.norm_workers = norm_workers
         self.load_workers = load_workers
 
+        now = dt.now()
+        self.parallel_load(load_workers)
+        logger.debug(f'Finished loading data of shape {self.shape} '
+                     f'for BatchHandler in {dt.now() - now}.')
+        log_mem(logger, log_level='INFO')
+
         if norm:
             self.means, self.stds = self.check_cached_stats()
             self.normalize(self.means, self.stds, norm_workers)
@@ -398,6 +399,11 @@ class BatchHandler:
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
 
+    @property
+    def feature_mem(self):
+        """Get memory used by each feature in data handlers"""
+        return self.data_handlers[0].feature_mem
+
     def parallel_normalization(self, max_workers=None):
         """Normalize data in all data handlers in parallel.
 
@@ -407,9 +413,8 @@ class BatchHandler:
             Max number of workers to use for parallel data normalization. If
             None the max number of available workers will be used.
         """
-        proc_mem = len(self.data_handlers[0].features)
-        proc_mem *= 2 * self.data_handlers[0].feature_mem
         logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
+        proc_mem = 2 * len(self.data_handlers[0].features) * self.feature_mem
         max_workers = estimate_max_workers(max_workers, proc_mem,
                                            len(self.data_handlers))
         if max_workers == 1:
@@ -440,9 +445,8 @@ class BatchHandler:
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-        proc_mem = len(self.data_handlers[0].features)
-        proc_mem *= 2 * self.data_handlers[0].feature_mem
         logger.info(f'Loading {len(self.data_handlers)} data handlers.')
+        proc_mem = 2 * len(self.data_handlers[0].features) * self.feature_mem
         max_workers = estimate_max_workers(max_workers, proc_mem,
                                            len(self.data_handlers))
         if max_workers == 1:
@@ -474,7 +478,7 @@ class BatchHandler:
             Max number of workers to use for parallel stats computation. If
             None the max number of available workers will be used.
         """
-        proc_mem = 2 * self.data_handlers[0].feature_mem
+        proc_mem = 2 * self.feature_mem
         logger.info(f'Calculating stats for {len(self.training_features)} '
                     'features.')
         max_workers = estimate_max_workers(max_workers, proc_mem,
@@ -667,7 +671,7 @@ class BatchHandler:
         """
         idx = self.training_features.index(feature)
         logger.debug(f'Calculating mean for {feature}')
-        proc_mem = 2 * self.data_handlers[0].feature_mem
+        proc_mem = 2 * self.feature_mem
         max_workers = estimate_max_workers(self.norm_workers, proc_mem,
                                            len(self.data_handlers))
 
@@ -703,7 +707,7 @@ class BatchHandler:
         """
         idx = self.training_features.index(feature)
         logger.debug(f'Calculating stdev for {feature}')
-        proc_mem = 2 * self.data_handlers[0].feature_mem
+        proc_mem = 2 * self.feature_mem
         max_workers = estimate_max_workers(self.norm_workers, proc_mem,
                                            len(self.data_handlers))
         if max_workers == 1:

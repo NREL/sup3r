@@ -121,11 +121,9 @@ def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
     handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=max_delta, raster_file=raster_file)
-
-    tmp = handler.extract_data(
-        input_file, handler.raster_index,
-        features, temporal_slice)
+                          max_delta=max_delta, raster_file=raster_file,
+                          temporal_slice=temporal_slice)
+    tmp = handler.extract_data()
     assert tmp.dtype == np.dtype(np.float32)
 
     vars = {}
@@ -623,8 +621,7 @@ def test_val_data_storage():
                               max_delta, raster_file=raster_file,
                               val_split=val_split,
                               temporal_slice=temporal_slice)
-        data = handler.extract_data(f, handler.raster_index, features,
-                                    temporal_slice)
+        data = handler.extract_data()
         n_observations += data.shape[2]
     assert val_observations == int(val_split * n_observations)
 

@@ -45,19 +45,19 @@ class ForwardPassStrategy:
     def __init__(self, file_paths,
                  target=None, shape=None,
                  temporal_slice=slice(None),
-                 forward_pass_chunk_shape=(100, 100, 100),
+                 forward_pass_chunk_shape=(20, 20, 20),
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
                  extract_workers=None,
                  compute_workers=None,
                  pass_workers=None,
-                 temporal_extract_chunk_size=100,
+                 temporal_extract_chunk_size=None,
                  cache_file_prefix=None,
                  out_pattern=None,
                  overwrite_cache=False,
-                 spatial_overlap=15,
-                 temporal_overlap=15):
+                 spatial_overlap=5,
+                 temporal_overlap=5):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -137,14 +137,11 @@ class ForwardPassStrategy:
             results of the forward passes
         """
 
-        if isinstance(file_paths, str):
-            file_paths = glob.glob(file_paths)
-        self.file_paths = sorted(file_paths)
+        self.file_paths = file_paths
         self.out_pattern = out_pattern
         self._i = 0
         self.raster_file = raster_file
         self.target = target
-        self.shape = shape
         self.forward_pass_chunk_shape = forward_pass_chunk_shape
         self.temporal_slice = temporal_slice
         self.pass_workers = pass_workers
@@ -158,16 +155,15 @@ class ForwardPassStrategy:
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
+        self.shape = shape
 
         time_indices = self.data_handler_class.get_time_index(self.file_paths)
         self.time_indices = time_indices
         out = self.get_time_chunks(time_indices, temporal_slice,
                                    forward_pass_chunk_shape, temporal_overlap)
         self.ti_slices, self.ti_pad_slices, self.file_ids = out
-
         self.ti_hr_crop_slices = self.get_ti_hr_crop_slices(self.ti_slices,
                                                             self.ti_pad_slices)
-
         self.out_files = self.get_output_file_names(
             out_files=out_pattern, file_ids=self.file_ids)
 
@@ -191,6 +187,40 @@ class ForwardPassStrategy:
                 >= len(time_indices)):
             logger.warning(msg)
             warnings.warn(msg)
+
+    @property
+    def temporal_slice(self):
+        return self._temporal_slice
+
+    @temporal_slice.setter
+    def temporal_slice(self, temporal_slice):
+        """Make sure temporal_slice is a slice. Need to do this because json
+        cannot save slices so we can instead save as list and then convert."""
+        check = (isinstance(temporal_slice, tuple)
+                 or isinstance(temporal_slice, list)
+                 or isinstance(temporal_slice, slice))
+        msg = ('temporal_slice must be tuple, list, or slice')
+        assert check, msg
+        if isinstance(temporal_slice, slice):
+            self._temporal_slice = temporal_slice
+        else:
+            check = len(temporal_slice) <= 3
+            msg = ('If providing list or tuple for temporal_slice length must '
+                   'be <= 3')
+            assert check, msg
+            self._temporal_slice = slice(*temporal_slice)
+
+    @property
+    def file_paths(self):
+        return self._file_paths
+
+    @file_paths.setter
+    def file_paths(self, file_paths):
+        """Set file paths attr and do initial glob / sort"""
+        self._file_paths = file_paths
+        if isinstance(self._file_paths, str):
+            self._file_paths = glob.glob(self._file_paths)
+        self._file_paths = sorted(self._file_paths)
 
     @property
     def input_type(self):

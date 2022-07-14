@@ -108,6 +108,9 @@ class OutputHandler:
             1800-01-01.
         """
         t_enhance = int(shape / len(low_res_times))
+        if isinstance(low_res_times[0], np.bytes_):
+            low_res_times = [x.decode('ASCII') for x in low_res_times]
+            low_res_times = [np.datetime64(x) for x in low_res_times]
         offset = (low_res_times[1] - low_res_times[0])
         time_index = np.array([low_res_times[0] + i * offset / t_enhance
                                for i in range(shape)])
