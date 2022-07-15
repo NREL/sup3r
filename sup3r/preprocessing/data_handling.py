@@ -91,7 +91,7 @@ class DataHandler(FeatureHandler):
     TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=50,
+                 max_delta=20,
                  temporal_slice=slice(None),
                  hr_spatial_coarsen=None,
                  time_roll=0,
@@ -220,7 +220,9 @@ class DataHandler(FeatureHandler):
         self._raw_features = None
 
         logger.info('Initializing DataHandler '
-                    f'{self.file_info_logging(self.file_paths)}')
+                    f'{self.file_info_logging(self.file_paths)}. '
+                    f'Getting temporal range {str(self.time_index[0])} to '
+                    f'{str(self.time_index[-1])}')
 
         self.preflight()
 
@@ -238,7 +240,7 @@ class DataHandler(FeatureHandler):
             self.load_cached_data()
 
         elif try_load and not self.load_cached:
-            self.data = None
+            self.clear_data()
             logger.info(f'All {self.cache_files} exist. Call '
                         'load_cached_data() or use load_cache=True to load '
                         'this data from cache files.')
@@ -265,6 +267,11 @@ class DataHandler(FeatureHandler):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    def clear_data(self):
+        """Free memory used for data arrays"""
+        self.data = None
+        self.val_data = None
 
     @classmethod
     @abstractmethod
@@ -328,17 +335,17 @@ class DataHandler(FeatureHandler):
     @property
     def extract_workers(self):
         """Get upper bound for extract workers based on memory limits"""
-        proc_mem = 8 * np.product(self.grid_shape) * len(self.time_index)
-        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
+        extract_workers = estimate_max_workers(self._extract_workers,
+                                               self.feature_mem,
                                                len(self.extract_features))
         return extract_workers
 
     @property
     def compute_workers(self):
         """Get upper bound for compute workers based on memory limits"""
-        proc_mem = 8 * np.product(self.grid_shape) * len(self.time_index)
-        proc_mem *= np.int(np.ceil(len(self.raw_features)
-                                   / len(self.extract_features)))
+        proc_mem = np.int(np.ceil(len(self.raw_features)
+                                  / len(self.extract_features)))
+        proc_mem *= self.feature_mem
         compute_workers = estimate_max_workers(self._compute_workers, proc_mem,
                                                len(self.extract_features))
         return compute_workers
@@ -347,7 +354,8 @@ class DataHandler(FeatureHandler):
     def time_chunk_size(self):
         """Get upper bound on time chunk size based on memory limits"""
         if self._time_chunk_size is None:
-            step_mem = 8 * np.product(self.grid_shape) * len(self.raw_features)
+            step_mem = self.feature_mem * len(self.raw_features)
+            step_mem /= len(self.time_index)
             self._time_chunk_size = np.int(1e9 / step_mem)
         return self._time_chunk_size
 
@@ -473,7 +481,7 @@ class DataHandler(FeatureHandler):
         int
             Number of bytes for a single feature array
         """
-        feature_mem = np.product(self.grid_shape) * len(self.time_index)
+        feature_mem = np.product(self.grid_shape) * len(self.raw_time_index)
         return 4 * feature_mem
 
     def preflight(self):
@@ -621,7 +629,6 @@ class DataHandler(FeatureHandler):
             message to append to log output that does not include a huge info
             dump of file paths
         """
-
         msg = (f'source files: {file_paths}')
         return msg
 
@@ -673,10 +680,9 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        proc_mem = 2 * self.feature_mem
         logger.info(f'Normalizing {self.shape[-1]} features.')
         max_workers = estimate_max_workers(self.extract_workers,
-                                           proc_mem, self.shape[-1])
+                                           self.feature_mem, self.shape[-1])
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
@@ -840,9 +846,8 @@ class DataHandler(FeatureHandler):
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-        proc_mem = 2 * self.feature_mem
         logger.info(f'Loading {len(self.cache_files)} cache files.')
-        max_workers = estimate_max_workers(max_workers, proc_mem,
+        max_workers = estimate_max_workers(max_workers, self.feature_mem,
                                            len(self.cache_files))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
@@ -1020,8 +1025,6 @@ class DataHandler(FeatureHandler):
         time_chunks = get_chunk_slices(len(time_index), self.time_chunk_size,
                                        self.temporal_slice)
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        logger.info(f'Extracting time range: {self.time_index[0]} - '
-                    f'{self.time_index[-1]}')
         raw_data = self.parallel_extract(self.file_paths, self.raster_index,
                                          time_chunks, self.raw_features,
                                          self.extract_workers)
@@ -1128,7 +1131,7 @@ class DataHandlerNC(DataHandler):
             dump of file paths
         """
         ti = cls.get_time_index(file_paths)
-        msg = (f'source files for dates from {ti[0]} to {ti[-1]}')
+        msg = (f'source files with dates from {str(ti[0])} to {str(ti[-1])}')
         return msg
 
     @classmethod
@@ -1156,7 +1159,15 @@ class DataHandlerNC(DataHandler):
                 time_index = np.array(time_index)
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
-        return time_index
+        decoded_times = []
+        for _, x in enumerate(time_index):
+            if isinstance(x, np.bytes_):
+                val = ' '.join(x.decode('utf-8').split('_'))
+                val = np.datetime64(val)
+                decoded_times.append(val)
+            else:
+                decoded_times.append(x)
+        return np.array(decoded_times)
 
     @classmethod
     def feature_registry(cls):
@@ -1488,7 +1499,7 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)) -> np.dtype(np.float32):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters

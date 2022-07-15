@@ -11,9 +11,11 @@ from datetime import datetime as dt
 import os
 import warnings
 import glob
+import pickle
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
+from rex import log_mem
 
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
@@ -137,9 +139,9 @@ class ForwardPassStrategy:
             results of the forward passes
         """
 
+        self._i = 0
         self.file_paths = file_paths
         self.out_pattern = out_pattern
-        self._i = 0
         self.raster_file = raster_file
         self.target = target
         self.forward_pass_chunk_shape = forward_pass_chunk_shape
@@ -148,7 +150,6 @@ class ForwardPassStrategy:
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
         self.cache_file_prefix = cache_file_prefix
-        self.out_files = out_pattern
         self.temporal_extract_chunk_size = temporal_extract_chunk_size
         self.overwrite_cache = overwrite_cache
         self.t_enhance = t_enhance
@@ -156,16 +157,12 @@ class ForwardPassStrategy:
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
         self.shape = shape
+        self._time_indices = None
+        self._out_files = None
+        self._file_ids = None
 
-        time_indices = self.data_handler_class.get_time_index(self.file_paths)
-        self.time_indices = time_indices
-        out = self.get_time_chunks(time_indices, temporal_slice,
-                                   forward_pass_chunk_shape, temporal_overlap)
-        self.ti_slices, self.ti_pad_slices, self.file_ids = out
-        self.ti_hr_crop_slices = self.get_ti_hr_crop_slices(self.ti_slices,
-                                                            self.ti_pad_slices)
-        self.out_files = self.get_output_file_names(
-            out_files=out_pattern, file_ids=self.file_ids)
+        out = self.get_time_slices(forward_pass_chunk_shape, temporal_overlap)
+        self.ti_slices, self.ti_pad_slices, self.ti_hr_crop_slices = out
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
                f'temporal_chunk_size {forward_pass_chunk_shape[2]}.')
@@ -181,12 +178,39 @@ class ForwardPassStrategy:
 
         msg = ('Using a padded chunk size '
                f'{forward_pass_chunk_shape[2] + 2 * temporal_overlap} '
-               f'larger than the full temporal domain {len(time_indices)}. '
-               'Should just run without temporal chunking. ')
+               'larger than the full temporal domain '
+               f'{len(self.time_indices)}. Should just run without temporal '
+               'chunking. ')
         if (forward_pass_chunk_shape[2] + 2 * temporal_overlap
-                >= len(time_indices)):
+                >= len(self.time_indices)):
             logger.warning(msg)
             warnings.warn(msg)
+
+    @property
+    def time_indices(self):
+        """Get time index for input data"""
+        if self._time_indices is None:
+            self._time_indices = self.data_handler_class.get_time_index(
+                self.file_paths)
+        return self._time_indices
+
+    @property
+    def file_ids(self):
+        """Get file id for each output file"""
+        if self._file_ids is None:
+            n_chunks = len(self.time_indices[self.temporal_slice])
+            n_chunks /= self.forward_pass_chunk_shape[2]
+            n_chunks = np.int(np.ceil(n_chunks))
+            self._file_ids = list(range(n_chunks))
+        return self._file_ids
+
+    @property
+    def out_files(self):
+        """Get output file names for forward pass output"""
+        if self._out_files is None:
+            self._out_files = self.get_output_file_names(
+                out_files=self.out_pattern, file_ids=self.file_ids)
+        return self._out_files
 
     @property
     def temporal_slice(self):
@@ -285,6 +309,8 @@ class ForwardPassStrategy:
             raise ValueError(msg)
 
         out_file = self.out_files[node_index]
+        cache_file = (None if out_file is None
+                      else out_file.split('.')[0] + '_tmp.pkl')
         ti_pad_slice = self.ti_pad_slices[node_index]
         ti_slice = self.ti_slices[node_index]
         ti_hr_crop_slice = self.ti_hr_crop_slices[node_index]
@@ -293,7 +319,7 @@ class ForwardPassStrategy:
         cache_file_prefix = (None if self.cache_file_prefix is None
                              else f'{self.cache_file_prefix}_{node_index}')
 
-        out = self.get_spatial_chunks(data_shape=data_shape)
+        out = self.get_spatial_slices(data_shape=data_shape)
         lr_slices, lr_pad_slices = out[:2]
         hr_slices, hr_crop_slices = out[2:]
 
@@ -303,6 +329,7 @@ class ForwardPassStrategy:
 
         kwargs = dict(file_paths=self.file_paths,
                       out_file=out_file,
+                      cache_file=cache_file,
                       ti_pad_slice=ti_pad_slice,
                       ti_slice=ti_slice,
                       ti_hr_crop_slice=ti_hr_crop_slice,
@@ -366,17 +393,11 @@ class ForwardPassStrategy:
         """
         return self.data_handler_class.file_info_logging(file_paths)
 
-    @classmethod
-    def get_time_chunks(cls, time_index, temporal_slice, fp_chunk_size,
-                        time_overlap):
+    def get_time_slices(self, fp_chunk_size, time_overlap):
         """Calculate the number of time chunks across the full time index
 
         Parameters
         ----------
-        time_index : ndarray
-            Array of time indices across all input files
-        temporal_slice : slice
-            Slice selecting range for full time index
         fp_chunk_size : tuple
             Shape of data chunks passed to generator
         time_overlap : int
@@ -388,17 +409,15 @@ class ForwardPassStrategy:
             List of time index slices
         ti_pad_chunks : list
             List of padded time index slices
-        file_ids : list
-            List of ids corresponding to start and end of time index slices.
-            Used to name output files.
+        ti_hr_crop_chunks : list
+            List of cropped chunks for stitching high res output
         """
-
-        n_chunks = len(time_index[temporal_slice]) / fp_chunk_size[2]
+        n_chunks = len(self.time_indices[self.temporal_slice])
+        n_chunks /= fp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_chunks = np.array_split(np.arange(len(time_index[temporal_slice])),
-                                   n_chunks)
+        ti_chunks = np.arange(len(self.time_indices[self.temporal_slice]))
+        ti_chunks = np.array_split(ti_chunks, n_chunks)
         ti_pad_chunks = []
-        file_ids = []
         for i, chunk in enumerate(ti_chunks):
             if len(ti_chunks) > 1:
                 if i == 0:
@@ -413,12 +432,13 @@ class ForwardPassStrategy:
             else:
                 tmp = chunk
             ti_pad_chunks.append(tmp)
-            file_ids.append(i)
 
         ti_chunks = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_chunks]
         ti_pad_chunks = [slice(chunk[0], chunk[-1] + 1)
                          for chunk in ti_pad_chunks]
-        return ti_chunks, ti_pad_chunks, file_ids
+        ti_hr_crop_chunks = self.get_ti_hr_crop_slices(ti_chunks,
+                                                       ti_pad_chunks)
+        return ti_chunks, ti_pad_chunks, ti_hr_crop_chunks
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -455,7 +475,7 @@ class ForwardPassStrategy:
             out_file_list = [None] * len(file_ids)
         return out_file_list
 
-    def get_spatial_chunks(self, data_shape=None):
+    def get_spatial_slices(self, data_shape=None):
         """
         Get slices for small data chunks that are passed through generator
 
@@ -682,14 +702,17 @@ class ForwardPass:
         """
         self.strategy = strategy
         self.model_path = model_path
-        self.features = Sup3rGan.load(model_path).training_features
-        self.meta_data = Sup3rGan.load(model_path).model_params
+        model = Sup3rGan.load(model_path)
+        self.features = model.training_features
+        self.output_features = model.output_features
+        self.meta_data = model.model_params
         self.node_index = node_index
 
         kwargs = strategy.get_node_kwargs(node_index)
 
         self.file_paths = kwargs['file_paths']
         self.out_file = kwargs['out_file']
+        self.cache_file = kwargs['cache_file']
         self.ti_slice = kwargs['ti_slice']
         self.ti_pad_slice = kwargs['ti_pad_slice']
         self.ti_hr_crop_slice = kwargs['ti_hr_crop_slice']
@@ -719,7 +742,9 @@ class ForwardPass:
             overwrite_cache=self.strategy.overwrite_cache,
             val_split=0.0)
 
-        if self.cache_file_prefix is not None:
+        load_check = (self.cache_file_prefix is not None
+                      and not os.path.exists(self.cache_file))
+        if load_check:
             self.data_handler.load_cached_data()
 
     @staticmethod
@@ -748,9 +773,7 @@ class ForwardPass:
 
         model = Sup3rGan.load(model_path)
         data_chunk = np.expand_dims(data_chunk, axis=0)
-
         hi_res = model.generate(data_chunk)
-
         return hi_res[0][crop_slices]
 
     @classmethod
@@ -807,65 +830,79 @@ class ForwardPass:
         This routine runs forward passes on all data chunks associated with
         this file subset.
         """
-        logger.info(
-            f'Starting forward passes on data shape {self.data_shape}. Using '
-            f'{len(self.lr_slices)} chunks each with shape of '
-            f'{self.chunk_shape}, spatial_overlap of '
-            f'{self.strategy.spatial_overlap} and temporal_overlap of '
-            f'{self.strategy.temporal_overlap}')
-
-        data = np.zeros(
-            (self.strategy.s_enhance * self.data_shape[0],
-             self.strategy.s_enhance * self.data_shape[1],
-             self.strategy.t_enhance * self.data_shape[2], 2),
-            dtype=np.float32)
-
-        if self.strategy.pass_workers == 1:
-            for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
-                                                      self.lr_pad_slices,
-                                                      self.hr_crop_slices):
-
-                data_chunk = self.data_handler.data[s_low_pad]
-                data[s_high] = ForwardPass.forward_pass_chunk(
-                    data_chunk, crop_slices=s_high_crop,
-                    model_path=self.model_path)
+        if os.path.exists(self.cache_file):
+            logger.info('Loading forward pass output from cache file: '
+                        f'{self.cache_file}')
+            with open(self.cache_file, 'rb') as f:
+                data = pickle.load(f)
         else:
-            futures = {}
-            now = dt.now()
-            with SpawnProcessPool(
-                    max_workers=self.strategy.pass_workers) as exe:
-                for s_high, s_low_pad, s_high_crop in zip(self.hr_slices,
-                                                          self.lr_pad_slices,
-                                                          self.hr_crop_slices):
+            msg = (f'Starting forward passes on data shape {self.data_shape}. '
+                   f'Using {len(self.lr_slices)} chunks each with shape of '
+                   f'{self.chunk_shape}, spatial_overlap of '
+                   f'{self.strategy.spatial_overlap} and temporal_overlap of '
+                   f'{self.strategy.temporal_overlap}. Using '
+                   f'max_workers={self.strategy.pass_workers}')
+            logger.info(msg)
 
-                    data_chunk = self.data_handler.data[s_low_pad]
-                    future = exe.submit(ForwardPass.forward_pass_chunk,
-                                        data_chunk=data_chunk,
-                                        crop_slices=s_high_crop,
-                                        model_path=self.model_path)
-                    meta = {'s_high': s_high}
-                    futures[future] = meta
+            data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
+                             self.strategy.s_enhance * self.data_shape[1],
+                             self.strategy.t_enhance * self.data_shape[2],
+                             len(self.output_features)),
+                            dtype=np.float32)
+            max_workers = self.strategy.pass_workers
+            if max_workers == 1:
+                for i, (sh, slp, shc) in enumerate(zip(self.hr_slices,
+                                                       self.lr_pad_slices,
+                                                       self.hr_crop_slices)):
+                    data[sh] = ForwardPass.forward_pass_chunk(
+                        self.data_handler.data[slp], crop_slices=shc,
+                        model_path=self.model_path)
+                    interval = len(self.hr_slices) // 10
+                    if (interval > 0 and i % interval == 0):
+                        logger.debug(f'{i+1} out of {len(self.hr_slices)} '
+                                     'forward passes completed.')
+            else:
+                futures = {}
+                now = dt.now()
+                with SpawnProcessPool(max_workers=max_workers) as exe:
+                    for sh, slp, shc in zip(self.hr_slices, self.lr_pad_slices,
+                                            self.hr_crop_slices):
+                        future = exe.submit(
+                            ForwardPass.forward_pass_chunk,
+                            data_chunk=self.data_handler.data[slp],
+                            crop_slices=shc, model_path=self.model_path)
+                        meta = {'s_high': sh}
+                        futures[future] = meta
 
-                logger.info(f'Started forward pass for {len(self.hr_slices)} '
-                            f'chunks in {dt.now() - now}.')
+                    logger.info('Started forward pass for '
+                                f'{len(self.hr_slices)} chunks in '
+                                f'{dt.now() - now}.')
 
-                for i, future in enumerate(as_completed(futures)):
-                    slices = futures[future]
-                    data[slices['s_high']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} forward '
-                                     'passes completed.')
+                    interval = len(futures) // 10
+                    for i, future in enumerate(as_completed(futures)):
+                        slices = futures[future]
+                        data[slices['s_high']] = future.result()
+                        if (interval > 0 and i % interval == 0):
+                            logger.debug(f'{i+1} out of {len(futures)} forward'
+                                         ' passes completed.')
 
-        logger.info('All forward passes are complete.')
-        data = data[:, :, self.ti_hr_crop_slice, :]
+            logger.info('All forward passes are complete.')
+            data = data[:, :, self.ti_hr_crop_slice, :]
+            if self.cache_file is not None:
+                with open(self.cache_file, 'wb') as f:
+                    pickle.dump(data, f, protocol=4)
+                    logger.info('Saved forward pass output to temp file: '
+                                f'{self.cache_file}')
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
+            log_mem(logger, log_level='DEBUG')
             self.output_handler_class.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
                 self.strategy.time_indices[self.ti_slice],
                 self.out_file, meta_data=self.meta_data,
                 max_workers=self.data_handler.extract_workers)
+            os.remove(self.cache_file)
         else:
             return data

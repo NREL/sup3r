@@ -78,7 +78,9 @@ def from_config(ctx, config_file, verbose):
                        if k in sig.parameters.keys()}
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
-    for i in range(strategy.nodes):
+    node_index = config.get('node_index', None)
+    nodes = [node_index] if node_index is not None else range(strategy.nodes)
+    for i in nodes:
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
         node_config['log_file'] = (os.path.normpath(f'{log_prefix}_{i}.log')
@@ -195,7 +197,7 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        msg = ('Kicked off sup3r forward pass job "{}".'.format(name))
+        msg = ('Completed sup3r forward pass job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)

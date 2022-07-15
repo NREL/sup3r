@@ -1182,10 +1182,11 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(input_features)} features')
 
+                interval = len(futures) // 10
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
                     data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
+                    if (interval > 0 and i % interval == 0):
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
 
@@ -1330,10 +1331,11 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(derived_features)} features')
 
+                interval = len(futures) // 10
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
                     data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
+                    if (interval > 0 and i % interval == 0):
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
 

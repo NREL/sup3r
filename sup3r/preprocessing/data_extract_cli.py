@@ -116,7 +116,7 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.DATA_EXTRACT,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        msg = ('Kicked off sup3r data extraction job "{}".'.format(name))
+        msg = ('Completed sup3r data extraction job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)
