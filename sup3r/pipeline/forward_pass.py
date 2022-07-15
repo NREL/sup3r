@@ -195,7 +195,14 @@ class ForwardPassStrategy:
 
     @property
     def file_ids(self):
-        """Get file id for each output file"""
+        """Get file id for each output file
+
+        Returns
+        -------
+        _file_ids : list
+            List of file ids for each output file. Will be used to name output
+            files of the form filename_{file_id}.ext
+        """
         if self._file_ids is None:
             n_chunks = len(self.time_indices[self.temporal_slice])
             n_chunks /= self.forward_pass_chunk_shape[2]
@@ -205,7 +212,13 @@ class ForwardPassStrategy:
 
     @property
     def out_files(self):
-        """Get output file names for forward pass output"""
+        """Get output file names for forward pass output
+
+        Returns
+        -------
+        _out_files : list
+            List of output files for forward pass output data
+        """
         if self._out_files is None:
             self._out_files = self.get_output_file_names(
                 out_files=self.out_pattern, file_ids=self.file_ids)
@@ -213,17 +226,24 @@ class ForwardPassStrategy:
 
     @property
     def temporal_slice(self):
+        """Get temporal range to extract from input data"""
         return self._temporal_slice
 
     @temporal_slice.setter
     def temporal_slice(self, temporal_slice):
         """Make sure temporal_slice is a slice. Need to do this because json
-        cannot save slices so we can instead save as list and then convert."""
-        check = (isinstance(temporal_slice, tuple)
-                 or isinstance(temporal_slice, list)
-                 or isinstance(temporal_slice, slice))
+        cannot save slices so we can instead save as list and then convert.
+
+        Parameters
+        ----------
+        temporal_slice : tuple | list | slice
+            Time range to extract from input data. If a list or tuple it will
+            be concerted to a slice. Tuple or list must have at least two
+            elements and no more than three, corresponding to the inputs of
+            slice()
+        """
         msg = ('temporal_slice must be tuple, list, or slice')
-        assert check, msg
+        assert isinstance(temporal_slice, (tuple, list, slice)), msg
         if isinstance(temporal_slice, slice):
             self._temporal_slice = temporal_slice
         else:
@@ -235,11 +255,26 @@ class ForwardPassStrategy:
 
     @property
     def file_paths(self):
+        """Get file paths for input data
+
+        Returns
+        -------
+        _file_paths : list
+            List of input files
+        """
         return self._file_paths
 
     @file_paths.setter
     def file_paths(self, file_paths):
-        """Set file paths attr and do initial glob / sort"""
+        """Set file paths attr and do initial glob / sort
+
+        Parameters
+        ----------
+        file_paths : str | list
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string with a
+            unix-style file path which will be passed through glob.glob
+        """
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
             self._file_paths = glob.glob(self._file_paths)

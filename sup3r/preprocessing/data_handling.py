@@ -299,7 +299,16 @@ class DataHandler(FeatureHandler):
     @temporal_slice.setter
     def temporal_slice(self, temporal_slice):
         """Make sure temporal_slice is a slice. Need to do this because json
-        cannot save slices so we can instead save as list and then convert."""
+        cannot save slices so we can instead save as list and then convert.
+
+        Parameters
+        ----------
+        temporal_slice : tuple | list | slice
+            Time range to extract from input data. If a list or tuple it will
+            be concerted to a slice. Tuple or list must have at least two
+            elements and no more than three, corresponding to the inputs of
+            slice()
+        """
         msg = ('temporal_slice must be tuple, list, or slice')
         assert isinstance(temporal_slice, (tuple, list, slice)), msg
         if isinstance(temporal_slice, slice):
@@ -325,7 +334,15 @@ class DataHandler(FeatureHandler):
 
     @file_paths.setter
     def file_paths(self, file_paths):
-        """Set file paths attr and do initial glob / sort"""
+        """Set file paths attr and do initial glob / sort
+
+        Parameters
+        ----------
+        file_paths : str | list
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string with a
+            unix-style file path which will be passed through glob.glob
+        """
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
             self._file_paths = glob.glob(self._file_paths)
@@ -360,7 +377,13 @@ class DataHandler(FeatureHandler):
 
     @property
     def grid_shape(self):
-        """Get shape of spatial grid"""
+        """Get shape of spatial grid
+
+        Returns
+        -------
+        _grid_shape : tuple
+            Tuple with number of lat / lon grid points
+        """
         if self._grid_shape is None:
             self._grid_shape = get_raster_shape(self.raster_index)
         return self._grid_shape
@@ -374,14 +397,16 @@ class DataHandler(FeatureHandler):
 
     @property
     def raw_time_index(self):
-        """Time index for input data without time pruning"""
+        """Time index for input data without time pruning. This is the base
+        time index for the raw input data."""
         if self._raw_time_index is None:
             self._raw_time_index = self.get_time_index(self.file_paths)
         return self._raw_time_index
 
     @property
     def time_index(self):
-        """Time index for input data with time pruning"""
+        """Time index for input data with time pruning. This is the raw time
+        index with a cropped range and time step applied."""
         if self._time_index is None:
             self._time_index = self.get_time_index(self.file_paths)
             self._time_index = self._time_index[self.temporal_slice]
