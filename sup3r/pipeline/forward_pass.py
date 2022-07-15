@@ -15,7 +15,6 @@ import pickle
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
-from rex import log_mem
 
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
