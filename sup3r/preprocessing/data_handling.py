@@ -293,17 +293,15 @@ class DataHandler(FeatureHandler):
 
     @property
     def temporal_slice(self):
+        """Get temporal range to extract from full dataset"""
         return self._temporal_slice
 
     @temporal_slice.setter
     def temporal_slice(self, temporal_slice):
         """Make sure temporal_slice is a slice. Need to do this because json
         cannot save slices so we can instead save as list and then convert."""
-        check = (isinstance(temporal_slice, tuple)
-                 or isinstance(temporal_slice, list)
-                 or isinstance(temporal_slice, slice))
         msg = ('temporal_slice must be tuple, list, or slice')
-        assert check, msg
+        assert isinstance(temporal_slice, (tuple, list, slice)), msg
         if isinstance(temporal_slice, slice):
             self._temporal_slice = temporal_slice
         else:
@@ -322,6 +320,7 @@ class DataHandler(FeatureHandler):
 
     @property
     def file_paths(self):
+        """Get file paths for input data"""
         return self._file_paths
 
     @file_paths.setter

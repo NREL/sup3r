@@ -896,7 +896,6 @@ class ForwardPass:
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
-            log_mem(logger, log_level='DEBUG')
             self.output_handler_class.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
