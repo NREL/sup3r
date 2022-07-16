@@ -30,7 +30,8 @@ from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
                                        ignore_case_path_fetch,
                                        get_source_type,
                                        daily_temporal_coarsening,
-                                       spatial_coarsening)
+                                       spatial_coarsening,
+                                       is_time_series)
 from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -76,12 +77,72 @@ def get_handler_class(file_paths):
         HandlerClass = DataHandlerH5
         if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
             HandlerClass = DataHandlerH5SolarCC
+    elif not is_time_series(file_paths):
+        HandlerClass = DataHandlerNCforCC
     else:
         HandlerClass = DataHandlerNC
     return HandlerClass
 
 
-class DataHandler(FeatureHandler):
+class BaseProperties:
+    """Class for properties used in data handlers and forward pass strategy"""
+
+    def __init__(self):
+        self._temporal_slice = None
+        self._file_paths = None
+
+    @property
+    def temporal_slice(self):
+        """Get temporal range to extract from full dataset"""
+        return self._temporal_slice
+
+    @temporal_slice.setter
+    def temporal_slice(self, temporal_slice):
+        """Make sure temporal_slice is a slice. Need to do this because json
+        cannot save slices so we can instead save as list and then convert.
+
+        Parameters
+        ----------
+        temporal_slice : tuple | list | slice
+            Time range to extract from input data. If a list or tuple it will
+            be concerted to a slice. Tuple or list must have at least two
+            elements and no more than three, corresponding to the inputs of
+            slice()
+        """
+        msg = ('temporal_slice must be tuple, list, or slice')
+        assert isinstance(temporal_slice, (tuple, list, slice)), msg
+        if isinstance(temporal_slice, slice):
+            self._temporal_slice = temporal_slice
+        else:
+            check = len(temporal_slice) <= 3
+            msg = ('If providing list or tuple for temporal_slice length must '
+                   'be <= 3')
+            assert check, msg
+            self._temporal_slice = slice(*temporal_slice)
+
+    @property
+    def file_paths(self):
+        """Get file paths for input data"""
+        return self._file_paths
+
+    @file_paths.setter
+    def file_paths(self, file_paths):
+        """Set file paths attr and do initial glob / sort
+
+        Parameters
+        ----------
+        file_paths : str | list
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string with a
+            unix-style file path which will be passed through glob.glob
+        """
+        self._file_paths = file_paths
+        if isinstance(self._file_paths, str):
+            self._file_paths = glob.glob(self._file_paths)
+        self._file_paths = sorted(self._file_paths)
+
+
+class DataHandler(BaseProperties, FeatureHandler):
     """Sup3r data handling and extraction"""
 
     # list of features / feature name patterns that are input to the generative
@@ -99,8 +160,7 @@ class DataHandler(FeatureHandler):
                  sample_shape=(10, 10, 1),
                  raster_file=None,
                  shuffle_time=False,
-                 extract_workers=None,
-                 compute_workers=None,
+                 max_workers=None,
                  time_chunk_size=None,
                  cache_file_prefix=None,
                  overwrite_cache=False,
@@ -154,12 +214,9 @@ class DataHandler(FeatureHandler):
             or raster_file.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        compute_workers : int | None
-            max number of workers to use for computing features. If
-            compute_workers == 1 then extraction will be serialized.
-        extract_workers : int | None
-            max number of workers to use for data extraction. If
-            extract_workers == 1 then extraction will be serialized.
+        max_workers : int | None
+            max number of workers to use for data extraction and feature
+            computation. If max_workers == 1 then processes will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
@@ -185,7 +242,7 @@ class DataHandler(FeatureHandler):
                ' raster_file input.')
         assert check, msg
 
-        super().__init__()
+        FeatureHandler().__init__()
 
         self.file_paths = file_paths
         self.features = features
@@ -207,8 +264,7 @@ class DataHandler(FeatureHandler):
         self.val_data = None
         self._grid_shape = shape
         self._train_only_features = train_only_features
-        self._compute_workers = compute_workers
-        self._extract_workers = extract_workers
+        self._max_workers = max_workers
         self._time_chunk_size = time_chunk_size
         self._cache_files = None
         self._raw_time_index = None
@@ -218,6 +274,7 @@ class DataHandler(FeatureHandler):
         self._handle_features = None
         self._extract_features = None
         self._raw_features = None
+        self._raw_data = None
 
         logger.info('Initializing DataHandler '
                     f'{self.file_info_logging(self.file_paths)}. '
@@ -237,7 +294,7 @@ class DataHandler(FeatureHandler):
         if try_load and self.load_cached:
             logger.info(f'All {self.cache_files} exist. Loading from cache '
                         f'instead of extracting from {self.file_paths}')
-            self.load_cached_data()
+            self.load_cached_data(max_workers)
 
         elif try_load and not self.load_cached:
             self.clear_data()
@@ -292,35 +349,6 @@ class DataHandler(FeatureHandler):
         return desc
 
     @property
-    def temporal_slice(self):
-        """Get temporal range to extract from full dataset"""
-        return self._temporal_slice
-
-    @temporal_slice.setter
-    def temporal_slice(self, temporal_slice):
-        """Make sure temporal_slice is a slice. Need to do this because json
-        cannot save slices so we can instead save as list and then convert.
-
-        Parameters
-        ----------
-        temporal_slice : tuple | list | slice
-            Time range to extract from input data. If a list or tuple it will
-            be concerted to a slice. Tuple or list must have at least two
-            elements and no more than three, corresponding to the inputs of
-            slice()
-        """
-        msg = ('temporal_slice must be tuple, list, or slice')
-        assert isinstance(temporal_slice, (tuple, list, slice)), msg
-        if isinstance(temporal_slice, slice):
-            self._temporal_slice = temporal_slice
-        else:
-            check = len(temporal_slice) <= 3
-            msg = ('If providing list or tuple for temporal_slice length must '
-                   'be <= 3')
-            assert check, msg
-            self._temporal_slice = slice(*temporal_slice)
-
-    @property
     def train_only_features(self):
         """Features to use for training only and not output"""
         if self._train_only_features is None:
@@ -328,43 +356,45 @@ class DataHandler(FeatureHandler):
         return self._train_only_features
 
     @property
-    def file_paths(self):
-        """Get file paths for input data"""
-        return self._file_paths
-
-    @file_paths.setter
-    def file_paths(self, file_paths):
-        """Set file paths attr and do initial glob / sort
-
-        Parameters
-        ----------
-        file_paths : str | list
-            A list of files to extract raster data from. Each file must have
-            the same number of timesteps. Can also pass a string with a
-            unix-style file path which will be passed through glob.glob
-        """
-        self._file_paths = file_paths
-        if isinstance(self._file_paths, str):
-            self._file_paths = glob.glob(self._file_paths)
-        self._file_paths = sorted(self._file_paths)
-
-    @property
     def extract_workers(self):
-        """Get upper bound for extract workers based on memory limits"""
-        extract_workers = estimate_max_workers(self._extract_workers,
-                                               self.feature_mem,
-                                               len(self.extract_features))
+        """Get upper bound for extract workers based on memory limits. Used to
+        extract data from source dataset"""
+        proc_mem = self.grid_mem * self.time_chunk_size
+        n_procs = len(self.time_index) / self.time_chunk_size
+        n_procs *= len(self.raw_features)
+        extract_workers = estimate_max_workers(self._max_workers,
+                                               proc_mem, n_procs)
         return extract_workers
 
     @property
     def compute_workers(self):
-        """Get upper bound for compute workers based on memory limits"""
+        """Get upper bound for compute workers based on memory limits. Used to
+        compute derived features from source dataset."""
         proc_mem = np.int(np.ceil(len(self.raw_features)
                                   / len(self.extract_features)))
-        proc_mem *= self.feature_mem
-        compute_workers = estimate_max_workers(self._compute_workers, proc_mem,
-                                               len(self.extract_features))
+        proc_mem *= self.grid_mem * self.time_chunk_size
+        n_procs = len(self.time_index) / self.time_chunk_size
+        n_procs *= len(self.derive_features)
+        compute_workers = estimate_max_workers(self._max_workers, proc_mem,
+                                               n_procs)
         return compute_workers
+
+    @property
+    def load_workers(self):
+        """Get upper bound on load workers based on memory limits. Used to load
+        cached data."""
+        proc_mem = self.feature_mem
+        n_procs = len(self.cache_files)
+        load_workers = estimate_max_workers(self._max_workers, proc_mem,
+                                            n_procs)
+        return load_workers
+
+    @property
+    def norm_workers(self):
+        """Get upper bound on workers used for normalization."""
+        norm_workers = estimate_max_workers(self._max_workers,
+                                            self.feature_mem, self.shape[-1])
+        return norm_workers
 
     @property
     def time_chunk_size(self):
@@ -444,7 +474,9 @@ class DataHandler(FeatureHandler):
     def handle_features(self):
         """All features available in raw input"""
         if self._handle_features is None:
-            self._handle_features = self.get_handle_features(self.file_paths)
+            with self.source_handler(self.file_paths) as handle:
+                self._handle_features = [Feature.get_basename(r)
+                                         for r in handle]
         return self._handle_features
 
     @property
@@ -476,24 +508,30 @@ class DataHandler(FeatureHandler):
                 self.extract_features, self.handle_features)
         return self._raw_features
 
-    @classmethod
-    def get_handle_features(cls, file_paths):
-        """Lookup inputs needed to compute feature
+    @property
+    def output_features(self):
+        """Get a list of features that should be output by the generative model
+        corresponding to the features in the high res batch array."""
+        out = []
+        for feature in self.features:
+            ignore = any(fnmatch(feature.lower(), pattern.lower())
+                         for pattern in self.train_only_features)
+            if not ignore:
+                out.append(feature)
+        return out
 
-        Parameters
-        ----------
-        file_paths : list
-            List of data file paths
+    @property
+    def grid_mem(self):
+        """Get memory used by a feature at a single time step
 
         Returns
         -------
-        list
-            List of available features in data
+        int
+            Number of bytes for a single feature array at a single time step
         """
-
-        with cls.source_handler(file_paths) as handle:
-            handle_features = [Feature.get_basename(r) for r in handle]
-        return handle_features
+        grid_mem = np.product(self.grid_shape)
+        # assuming feature arrays are float32 (4 bytes)
+        return 4 * grid_mem
 
     @property
     def feature_mem(self):
@@ -505,8 +543,8 @@ class DataHandler(FeatureHandler):
         int
             Number of bytes for a single feature array
         """
-        feature_mem = np.product(self.grid_shape) * len(self.raw_time_index)
-        return 4 * feature_mem
+        feature_mem = self.grid_mem * len(self.time_index)
+        return feature_mem
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
@@ -625,8 +663,8 @@ class DataHandler(FeatureHandler):
             basedir = os.path.dirname(cache_file_prefix)
             if not os.path.exists(basedir):
                 os.makedirs(basedir)
-            cache_files = [
-                f'{cache_file_prefix}_{f.lower()}.pkl' for f in self.features]
+            cache_files = [f'{cache_file_prefix}_{f.lower()}.pkl'
+                           for f in self.features]
             for i, fp in enumerate(cache_files):
                 fp_check = ignore_case_path_fetch(fp)
                 if fp_check is not None:
@@ -656,25 +694,13 @@ class DataHandler(FeatureHandler):
         msg = (f'source files: {file_paths}')
         return msg
 
-    @property
-    def output_features(self):
-        """Get a list of features that should be output by the generative model
-        corresponding to the features in the high res batch array."""
-        out = []
-        for feature in self.features:
-            ignore = any(fnmatch(feature.lower(), pattern.lower())
-                         for pattern in self.train_only_features)
-            if not ignore:
-                out.append(feature)
-        return out
-
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
         for i in range(self.shape[-1]):
             self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
             self.data[..., i] = self.data[..., i] * stds[i] + means[i]
 
-    def normalize(self, means, stds):
+    def normalize(self, means, stds, max_workers=None):
         """Normalize all data features
 
         Parameters
@@ -686,7 +712,7 @@ class DataHandler(FeatureHandler):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        if self.extract_workers == 1:
+        if max_workers == 1:
             for i in range(self.shape[-1]):
                 self._normalize_data(i, means[i], stds[i])
         else:
@@ -705,8 +731,7 @@ class DataHandler(FeatureHandler):
             array of means for all features with same ordering as data features
         """
         logger.info(f'Normalizing {self.shape[-1]} features.')
-        max_workers = estimate_max_workers(self.extract_workers,
-                                           self.feature_mem, self.shape[-1])
+        max_workers = self.norm_workers
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
@@ -871,8 +896,6 @@ class DataHandler(FeatureHandler):
             the max number of available workers will be used.
         """
         logger.info(f'Loading {len(self.cache_files)} cache files.')
-        max_workers = estimate_max_workers(max_workers, self.feature_mem,
-                                           len(self.cache_files))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
@@ -920,7 +943,7 @@ class DataHandler(FeatureHandler):
                        .format(fp, idx, self.data.shape))
                 raise RuntimeError(msg) from e
 
-    def load_cached_data(self):
+    def load_cached_data(self, max_workers=None):
         """Load data from cache files and split into training and validation
 
         Parameters
@@ -930,7 +953,6 @@ class DataHandler(FeatureHandler):
             max available workers will be used. If 1 cached data will be loaded
             in serial
         """
-
         if self.data is not None:
             msg = ('Called load_cached_data() but self.data is not None')
             logger.warning(msg)
@@ -952,11 +974,13 @@ class DataHandler(FeatureHandler):
             self.data = np.full(shape=requested_shape, fill_value=np.nan,
                                 dtype=np.float32)
 
-            if self.extract_workers == 1:
+            logger.info(f'Loading cached data from: {self.cache_files}')
+            max_workers = self.load_workers
+            if max_workers == 1:
                 for _, fp in enumerate(self.cache_files):
                     self.load_single_cached_feature(fp)
             else:
-                self.parallel_load(max_workers=self.extract_workers)
+                self.parallel_load(max_workers=max_workers)
 
             nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
             if nan_perc > 0:
@@ -1041,9 +1065,6 @@ class DataHandler(FeatureHandler):
         time_index = self.raw_time_index
         n_steps = len(time_index[self.temporal_slice])
 
-        data_array = np.zeros((self.grid_shape[0], self.grid_shape[1], n_steps,
-                               len(self.features)), dtype=np.float32)
-
         # split time dimension into smaller slices which can be
         # extracted in parallel
         time_chunks = get_chunk_slices(len(time_index), self.time_chunk_size,
@@ -1056,39 +1077,105 @@ class DataHandler(FeatureHandler):
         logger.info(f'Finished extracting {self.raw_features} for '
                     f'{self.file_info_logging(self.file_paths)}')
 
-        raw_data = self.parallel_compute(raw_data, self.raster_index,
-                                         time_chunks,
-                                         self.derive_features,
-                                         self.extract_features,
-                                         self.handle_features,
-                                         self.compute_workers)
+        self._raw_data = self.parallel_compute(raw_data, self.raster_index,
+                                               time_chunks,
+                                               self.derive_features,
+                                               self.extract_features,
+                                               self.handle_features,
+                                               self.compute_workers)
 
         logger.info(f'Finished computing {self.derive_features} for '
                     f'{self.file_info_logging(self.file_paths)}')
 
-        for t, t_slice in enumerate(shifted_time_chunks):
-            for _, f in enumerate(self.extract_features):
-                f_index = self.features.index(f)
-                data_array[..., t_slice, f_index] = raw_data[t][f]
-            raw_data.pop(t)
+        logger.info('Building final data array')
+        self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
 
-        data_array = np.roll(data_array, self.time_roll, axis=2)
+        if self.time_roll != 0:
+            logger.debug('Applying time roll to data array')
+            self.data = np.roll(self.data, self.time_roll, axis=2)
 
         if self.hr_spatial_coarsen > 1:
-            data_array = spatial_coarsening(data_array,
-                                            s_enhance=self.hr_spatial_coarsen,
-                                            obs_axis=False)
+            logger.debug('Applying hr spatial coarsening to data array')
+            self.data = spatial_coarsening(self.data,
+                                           s_enhance=self.hr_spatial_coarsen,
+                                           obs_axis=False)
         if self.load_cached:
             for f in self.cached_features:
                 f_index = self.features.index(f)
+                logger.info(f'Loading {f} from {self.cache_files[f_index]}')
                 with open(self.cache_files[f_index], 'rb') as fh:
-                    data_array[..., f_index] = pickle.load(fh)
+                    self.data[..., f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data for '
                     f'{self.file_info_logging(self.file_paths)} in '
                     f'{dt.now() - now}')
 
-        return data_array
+        return self.data
+
+    def data_fill(self, t, t_slice, f_index, f):
+        """Place single extracted / computed chunk in final data array
+
+        Parameters
+        ----------
+        t : int
+            Index of time slice in extracted / computed raw data dictionary
+        t_slice : slice
+            Time slice corresponding to the location in the final data array
+        f_index : int
+            Index of feature in the final data array
+        f : str
+            Name of corresponding feature in the raw data dictionary
+        """
+        self.data[..., t_slice, f_index] = self._raw_data[t][f]
+
+    def parallel_data_fill(self, shifted_time_chunks, max_workers=None):
+        """Fill final data array with extracted / computed chunks
+
+        Parameters
+        ----------
+        shifted_time_chunks : list
+            List of time slices corresponding to the appropriate location of
+            extracted / computed chunks in the final data array
+        max_workers : int | None
+            Max number of workers to use for building final data array. If None
+            max available workers will be used. If 1 cached data will be loaded
+            in serial
+        """
+        time_index = self.raw_time_index
+        n_steps = len(time_index[self.temporal_slice])
+        self.data = np.zeros((self.grid_shape[0], self.grid_shape[1],
+                              n_steps, len(self.features)), dtype=np.float32)
+
+        if max_workers == 1:
+            for t, ts in enumerate(shifted_time_chunks):
+                for _, f in enumerate(self.extract_features):
+                    f_index = self.features.index(f)
+                    self.data[..., ts, f_index] = self._raw_data[t][f]
+                interval = np.int(np.ceil(len(shifted_time_chunks) / 10))
+                if interval > 0 and t % interval == 0:
+                    logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
+                                'chunks to final data array')
+                self._raw_data.pop(t)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for t, ts in enumerate(shifted_time_chunks):
+                    for _, f in enumerate(self.extract_features):
+                        f_index = self.features.index(f)
+                        future = exe.submit(self.data_fill, t, ts, f_index, f)
+                        futures[future] = {'t': t, 'fidx': f_index}
+
+                logger.info(f'Started adding {len(futures)} chunks '
+                            f'to data array in {dt.now() - now}.')
+
+                interval = np.int(np.ceil(len(futures) / 10))
+                for i, future in enumerate(as_completed(futures)):
+                    future.result()
+                    if interval > 0 and i % interval == 0:
+                        logger.debug(f'Added {i + 1} out of {len(futures)} '
+                                     'chunks to final data array')
+        logger.info('Finished building data array')
 
     @abstractmethod
     def get_raster_index(self, file_paths, target, shape):
@@ -1214,25 +1301,6 @@ class DataHandlerNC(DataHandler):
             'Temperature_(.*)m': TempNC,
             'Pressure_(.*)m': 'P_(.*)m'}
         return registry
-
-    @classmethod
-    def get_handle_features(cls, file_paths):
-        """Lookup inputs needed to compute feature
-
-        Parameters
-        ----------
-        file_paths : list
-            List of data file paths
-
-        Returns
-        -------
-        list
-            List of available features in data
-        """
-
-        with cls.source_handler(file_paths) as handle:
-            handle_features = [Feature.get_basename(r) for r in handle]
-        return handle_features
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
@@ -1384,7 +1452,8 @@ class DataHandlerNC(DataHandler):
                                    allow_pickle=True)
             raster_index = list(raster_index)
         else:
-            lat_lon = self.get_lat_lon(file_paths, [slice(None), slice(None)],
+            lat_lon = self.get_lat_lon(file_paths[:1],
+                                       [slice(None), slice(None)],
                                        self.temporal_slice)
             min_lat = np.min(lat_lon[..., 0])
             min_lon = np.min(lat_lon[..., 1])

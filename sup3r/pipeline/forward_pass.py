@@ -18,7 +18,8 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
-                                               DataHandlerNCforCC)
+                                               DataHandlerNCforCC,
+                                               BaseProperties)
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
                                                 OutputHandlerNC)
 from sup3r.utilities.utilities import (get_chunk_slices,
@@ -32,7 +33,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class ForwardPassStrategy:
+class ForwardPassStrategy(BaseProperties):
     """Class to prepare data for forward passes through generator.
 
     A full file list of contiguous times is provided.  This file list is split
@@ -223,62 +224,6 @@ class ForwardPassStrategy:
             self._out_files = self.get_output_file_names(
                 out_files=self.out_pattern, file_ids=self.file_ids)
         return self._out_files
-
-    @property
-    def temporal_slice(self):
-        """Get temporal range to extract from input data"""
-        return self._temporal_slice
-
-    @temporal_slice.setter
-    def temporal_slice(self, temporal_slice):
-        """Make sure temporal_slice is a slice. Need to do this because json
-        cannot save slices so we can instead save as list and then convert.
-
-        Parameters
-        ----------
-        temporal_slice : tuple | list | slice
-            Time range to extract from input data. If a list or tuple it will
-            be concerted to a slice. Tuple or list must have at least two
-            elements and no more than three, corresponding to the inputs of
-            slice()
-        """
-        msg = ('temporal_slice must be tuple, list, or slice')
-        assert isinstance(temporal_slice, (tuple, list, slice)), msg
-        if isinstance(temporal_slice, slice):
-            self._temporal_slice = temporal_slice
-        else:
-            check = len(temporal_slice) <= 3
-            msg = ('If providing list or tuple for temporal_slice length must '
-                   'be <= 3')
-            assert check, msg
-            self._temporal_slice = slice(*temporal_slice)
-
-    @property
-    def file_paths(self):
-        """Get file paths for input data
-
-        Returns
-        -------
-        _file_paths : list
-            List of input files
-        """
-        return self._file_paths
-
-    @file_paths.setter
-    def file_paths(self, file_paths):
-        """Set file paths attr and do initial glob / sort
-
-        Parameters
-        ----------
-        file_paths : str | list
-            A list of files to extract raster data from. Each file must have
-            the same number of timesteps. Can also pass a string with a
-            unix-style file path which will be passed through glob.glob
-        """
-        self._file_paths = file_paths
-        if isinstance(self._file_paths, str):
-            self._file_paths = glob.glob(self._file_paths)
-        self._file_paths = sorted(self._file_paths)
 
     @property
     def input_type(self):
@@ -891,8 +836,8 @@ class ForwardPass:
                     data[sh] = ForwardPass.forward_pass_chunk(
                         self.data_handler.data[slp], crop_slices=shc,
                         model_path=self.model_path)
-                    interval = len(self.hr_slices) // 10
-                    if (interval > 0 and i % interval == 0):
+                    interval = np.int(np.ceil(len(self.hr_slices) / 10))
+                    if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(self.hr_slices)} '
                                      'forward passes completed.')
             else:
@@ -912,11 +857,11 @@ class ForwardPass:
                                 f'{len(self.hr_slices)} chunks in '
                                 f'{dt.now() - now}.')
 
-                    interval = len(futures) // 10
+                    interval = np.int(np.ceil(len(futures) / 10))
                     for i, future in enumerate(as_completed(futures)):
                         slices = futures[future]
                         data[slices['s_high']] = future.result()
-                        if (interval > 0 and i % interval == 0):
+                        if interval > 0 and i % interval == 0:
                             logger.debug(f'{i+1} out of {len(futures)} forward'
                                          ' passes completed.')
 

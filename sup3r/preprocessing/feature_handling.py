@@ -1102,6 +1102,10 @@ class FeatureHandler:
             for f in time_dep_features:
                 data[t][f] = cls.extract_feature(
                     file_paths, raster_index, f, t_slice)
+            interval = np.int(np.ceil(len(time_chunks) / 10))
+            if interval > 0 and t % interval == 0:
+                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                             'chunks extracted.')
         for f in time_ind_features:
             data[-1][f] = cls.extract_feature(
                 file_paths, raster_index, f)
@@ -1182,11 +1186,11 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(input_features)} features')
 
-                interval = len(futures) // 10
+                interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
                     data[v['chunk']][v['feature']] = future.result()
-                    if (interval > 0 and i % interval == 0):
+                    if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
 
@@ -1259,7 +1263,10 @@ class FeatureHandler:
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(data=tmp, feature=f)
             cls.pop_old_data(data, t, all_features)
-
+            interval = np.int(np.ceil(len(time_chunks) / 10))
+            if interval > 0 and t % interval == 0:
+                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                             'chunks computed.')
         return data
 
     @classmethod
@@ -1331,11 +1338,11 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(derived_features)} features')
 
-                interval = len(futures) // 10
+                interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
                     data[v['chunk']][v['feature']] = future.result()
-                    if (interval > 0 and i % interval == 0):
+                    if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
 
@@ -1386,7 +1393,6 @@ class FeatureHandler:
         method | None
             Feature registry method corresponding to feature
         """
-
         out = None
         for k, v in cls.feature_registry().items():
             if re.match(k.lower(), feature.lower()):
@@ -1474,11 +1480,6 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def get_handle_features(cls, file_paths):
-        """Get available features from data"""
-
-    @classmethod
-    @abstractmethod
     def feature_registry(cls):
         """Registry of methods for computing features
 
@@ -1491,7 +1492,7 @@ class FeatureHandler:
     @classmethod
     @abstractmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)) -> np.dtype(np.float32):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters
