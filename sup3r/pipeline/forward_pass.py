@@ -448,12 +448,11 @@ class ForwardPassStrategy(InputHandler):
         list
             List of output file paths
         """
-
-        if '{file_id}' not in out_files:
-            out_files = out_files.split('.')
-            out_files = ''.join(out_files[:-1]) + '{file_id}' + out_files[-1]
         out_file_list = []
         if out_files is not None:
+            if '{file_id}' not in out_files:
+                tmp = out_files.split('.')
+                out_files = ''.join(tmp[:-1]) + '{file_id}' + tmp[-1]
             dirname = os.path.dirname(out_files)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
