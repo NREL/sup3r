@@ -1189,7 +1189,12 @@ class FeatureHandler:
                 interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
-                    data[v['chunk']][v['feature']] = future.result()
+                    try:
+                        data[v['chunk']][v['feature']] = future.result()
+                    except Exception as e:
+                        logger.error(f'Error extracting chunk {v["chunk"]} for'
+                                     f' {v["feature"]}')
+                        raise e
                     if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
@@ -1308,9 +1313,6 @@ class FeatureHandler:
         """
         if len(derived_features) == 0:
             return data
-        else:
-            logger.info(f'Starting {derived_features} computation with '
-                        f'compute_workers={max_workers}.')
 
         futures = {}
         now = dt.now()

@@ -169,8 +169,7 @@ class ValidationData:
             List of Generative model output feature names
         """
 
-        handler_shapes = np.array(
-            [d.sample_shape for d in data_handlers])
+        handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
         self.handlers = data_handlers
@@ -350,8 +349,7 @@ class BatchHandler:
         """
 
         msg = ('All data handlers must have the same sample_shape')
-        handler_shapes = np.array(
-            [d.sample_shape for d in data_handlers])
+        handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes), msg
 
         self.data_handlers = data_handlers
@@ -421,7 +419,7 @@ class BatchHandler:
     def norm_workers(self):
         """Get max workers used for calculating and normalization across
         features"""
-        proc_mem = self.feature_mem
+        proc_mem = 2 * self.feature_mem
         norm_workers = estimate_max_workers(self._max_workers, proc_mem,
                                             len(self.training_features))
         return norm_workers
@@ -483,8 +481,13 @@ class BatchHandler:
                             f'data handlers in {dt.now() - now}.')
 
                 for i, _ in enumerate(as_completed(futures)):
-                    future.result()
-                    logger.debug(f'{i + 1} out of {len(futures)} data handlers'
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error('Error normalizing data handler number '
+                                     f'{futures[future]}')
+                        raise e
+                    logger.debug(f'{i+1} out of {len(futures)} data handlers'
                                  ' normalized.')
 
     def parallel_load(self):
@@ -507,8 +510,13 @@ class BatchHandler:
                             f'data handlers in {dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
-                    future.result()
-                    logger.debug(f'{i + 1} out of {len(futures)} handlers '
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error('Error loading data handler number '
+                                     f'{futures[future]}')
+                        raise e
+                    logger.debug(f'{i+1} out of {len(futures)} handlers '
                                  'loaded.')
 
     def parallel_stats(self):
@@ -533,8 +541,14 @@ class BatchHandler:
                             f'{dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
-                    future.result()
-                    logger.debug(f'{i + 1} out of '
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error(
+                            'Error calculating stats for '
+                            f'{self.training_features[futures[future]]}')
+                        raise e
+                    logger.debug(f'{i+1} out of '
                                  f'{len(self.training_features)} stats '
                                  'calculated.')
 
@@ -691,7 +705,7 @@ class BatchHandler:
 
                 for i, future in enumerate(as_completed(futures)):
                     self.means[idx] += future.result()
-                    logger.debug(f'{i + 1} out of {len(self.data_handlers)} '
+                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                  'means calculated.')
         self.means[idx] /= len(self.data_handlers)
         return self.means[idx]
@@ -728,7 +742,7 @@ class BatchHandler:
 
                 for i, future in enumerate(as_completed(futures)):
                     self.stds[idx] += future.result()
-                    logger.debug(f'{i + 1} out of {len(self.data_handlers)} '
+                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                  'stdevs calculated.')
         self.stds[idx] /= len(self.data_handlers)
         self.stds[idx] = np.sqrt(self.stds[idx])

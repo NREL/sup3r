@@ -129,6 +129,8 @@ disable=
         dict-items-not-iterating,
         dict-keys-not-iterating,
         dict-values-not-iterating,
+        consider-using-f-string,
+        unspecified-encoding,
         # Custom
         protected-access,
         fixme,

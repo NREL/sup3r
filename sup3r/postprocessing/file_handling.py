@@ -13,7 +13,7 @@ import re
 from datetime import datetime as dt
 import json
 
-from sup3r.utilities.utilities import invert_uv
+from sup3r.utilities.utilities import invert_uv, estimate_max_workers
 from sup3r.preprocessing.feature_handling import Feature
 
 from rex.outputs import Outputs
@@ -243,6 +243,10 @@ class OutputHandlerH5(OutputHandler):
             if re.match('U_(.*?)m'.lower(), f.lower()):
                 heights.append(Feature.get_height(f))
 
+        proc_mem = 4 * np.product(data.shape[:-1])
+        n_procs = len(heights)
+        max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
+
         futures = {}
         now = dt.now()
         if max_workers == 1:
@@ -265,7 +269,7 @@ class OutputHandlerH5(OutputHandler):
 
                 for i, _ in enumerate(as_completed(futures)):
                     future.result()
-                    logger.debug(f'{i + 1} out of {len(futures)} inverse '
+                    logger.debug(f'{i+1} out of {len(futures)} inverse '
                                  'transforms completed.')
 
     @staticmethod

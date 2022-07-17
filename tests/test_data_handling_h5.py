@@ -37,22 +37,22 @@ t_enhance = 2
 def test_spatiotemporal_batch_caching(sample_shape):
     """Test that batch observations are found in source data"""
 
-    cache_prefixes = []
+    cache_patternes = []
     with tempfile.TemporaryDirectory() as td:
         for i in range(len(input_files)):
             tmp = os.path.join(td, f'cache_{i}')
             if os.path.exists(tmp):
                 os.system(f'rm {tmp}')
-            cache_prefixes.append(tmp)
+            cache_patternes.append(tmp)
 
         data_handlers = []
-        for input_file, cache_prefix in zip(input_files, cache_prefixes):
+        for input_file, cache_pattern in zip(input_files, cache_patternes):
             data_handler = DataHandler(input_file, features, target,
                                        shape=shape, max_delta=max_delta,
                                        val_split=val_split,
                                        sample_shape=sample_shape,
                                        temporal_slice=temporal_slice,
-                                       cache_file_prefix=cache_prefix)
+                                       cache_pattern=cache_pattern)
             data_handlers.append(data_handler)
         st_batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
                                         n_batches=n_batches,
@@ -78,10 +78,10 @@ def test_data_caching():
     """Test data extraction class with data caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
-        cache_prefix = os.path.join(td, 'cached_features_h5')
+        cache_pattern = os.path.join(td, 'cached_features_h5')
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=20,
-                              cache_file_prefix=cache_prefix,
+                              cache_pattern=cache_pattern,
                               overwrite_cache=True)
 
         assert handler.data is None
@@ -93,11 +93,11 @@ def test_data_caching():
         assert handler.val_data.dtype == np.dtype(np.float32)
 
         # test cache data but keep in memory
-        cache_prefix = os.path.join(td, 'new_1_cache')
+        cache_pattern = os.path.join(td, 'new_1_cache')
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=20,
                               val_split=0.1,
-                              cache_file_prefix=cache_prefix,
+                              cache_pattern=cache_pattern,
                               overwrite_cache=True, load_cached=True)
         assert handler.data is not None
         assert handler.val_data is not None
@@ -105,11 +105,11 @@ def test_data_caching():
         assert handler.val_data.dtype == np.dtype(np.float32)
 
         # test cache data but keep in memory, with no val split
-        cache_prefix = os.path.join(td, 'new_2_cache')
+        cache_pattern = os.path.join(td, 'new_2_cache')
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=20,
                               val_split=0.0,
-                              cache_file_prefix=cache_prefix,
+                              cache_pattern=cache_pattern,
                               overwrite_cache=False, load_cached=True)
         assert handler.data is not None
         assert handler.val_data is not None
@@ -219,7 +219,7 @@ def test_stats_caching():
                                      t_enhance=t_enhance,
                                      stdevs_file=stdevs_file,
                                      means_file=means_file,
-                                     norm_workers=None)
+                                     max_workers=None)
         assert os.path.exists(means_file)
         assert os.path.exists(stdevs_file)
 
@@ -257,7 +257,7 @@ def test_normalization():
     batch_handler = SpatialBatchHandler(data_handlers, batch_size=batch_size,
                                         n_batches=n_batches,
                                         s_enhance=s_enhance,
-                                        norm_workers=None)
+                                        max_workers=None)
     stacked_data = np.concatenate(
         [d.data for d in batch_handler.data_handlers], axis=2)
 
@@ -316,13 +316,13 @@ def test_hr_coarsening():
     assert handler.val_data.dtype == np.dtype(np.float32)
 
     with tempfile.TemporaryDirectory() as td:
-        cache_prefix = os.path.join(td, 'cached_features_h5')
-        if os.path.exists(cache_prefix):
-            os.system(f'rm {cache_prefix}')
+        cache_pattern = os.path.join(td, 'cached_features_h5')
+        if os.path.exists(cache_pattern):
+            os.system(f'rm {cache_pattern}')
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=20,
                               hr_spatial_coarsen=2,
-                              cache_file_prefix=cache_prefix,
+                              cache_pattern=cache_pattern,
                               overwrite_cache=True)
         assert handler.data is None
         handler.load_cached_data()
@@ -633,8 +633,7 @@ def test_no_val_data():
         data_handler = DataHandler(input_file, features, target,
                                    shape=shape, max_delta=max_delta,
                                    val_split=0,
-                                   compute_workers=1,
-                                   extract_workers=1,
+                                   max_workers=1,
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)

@@ -25,6 +25,7 @@ def test_pipeline():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:2]
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -32,24 +33,22 @@ def test_pipeline():
         model.save(out_dir)
 
         fp_chunk_shape = (4, 4, 3)
-        cache_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         config = {'file_paths': input_files,
                   'target': (19.3, -123.5),
                   'model_path': out_dir,
                   'out_pattern': out_files,
-                  'cache_file_prefix': cache_prefix,
-                  'log_file_prefix': log_prefix,
+                  'cache_pattern': cache_pattern,
+                  'log_pattern': log_prefix,
                   'shape': (8, 8),
-                  'forward_pass_chunk_shape': fp_chunk_shape,
-                  'temporal_extract_chunk_size': 10,
+                  'fp_chunk_shape': fp_chunk_shape,
+                  'time_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
-                  'extract_workers': None,
                   'spatial_overlap': 2,
                   'temporal_overlap': 2,
-                  'pass_workers': None,
                   'overwrite_cache': True,
                   'execution_control': {
                       "nodes": 1,
@@ -63,7 +62,7 @@ def test_pipeline():
         features = ['windspeed_100m', 'winddirection_100m']
         fp_out = os.path.join(td, 'out_combined.h5')
         config = {'file_paths': out_files,
-                  'f_out': fp_out,
+                  'out_file': fp_out,
                   'features': features,
                   'log_file': os.path.join(td, 'log.log'),
                   'execution_control': {

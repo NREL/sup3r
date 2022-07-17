@@ -22,7 +22,7 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-forward_pass_chunk_shape = (4, 4, 4)
+fp_chunk_shape = (4, 4, 4)
 s_enhance = 3
 t_enhance = 4
 target = (19.3, -123.5)
@@ -44,7 +44,7 @@ def test_data_collection_cli(runner):
         features = ['windspeed_100m', 'winddirection_100m']
         fp_out = os.path.join(td, 'out_combined.h5')
         config = {'file_paths': out_files,
-                  'f_out': fp_out,
+                  'out_file': fp_out,
                   'features': features,
                   'log_file': os.path.join(td, 'log.log'),
                   'execution_control': {
@@ -93,6 +93,7 @@ def test_fwd_pass_cli(runner):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:2]
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -101,21 +102,21 @@ def test_fwd_pass_cli(runner):
 
         fp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fp_chunk_shape[2] + 1
-        cache_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
-        log_prefix = os.path.join(td, 'log')
+        log_prefix = os.path.join(td, 'log.log')
         config = {'file_paths': input_files,
                   'target': (19.3, -123.5),
                   'model_path': out_dir,
                   'out_pattern': out_files,
-                  'cache_file_prefix': cache_prefix,
-                  'log_file_prefix': log_prefix,
+                  'cache_pattern': cache_pattern,
+                  'log_pattern': log_prefix,
                   'shape': (8, 8),
-                  'forward_pass_chunk_shape': fp_chunk_shape,
-                  'temporal_extract_chunk_size': 10,
+                  'fp_chunk_shape': fp_chunk_shape,
+                  'time_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
-                  'extract_workers': None,
+                  'max_workers': 1,
                   'spatial_overlap': 5,
                   'temporal_overlap': 5,
                   'pass_workers': None,
@@ -128,9 +129,9 @@ def test_fwd_pass_cli(runner):
             json.dump(config, fh)
 
         result = runner.invoke(fp_main, ['-c', config_path, '-v'])
-        assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES * n_nodes)
-        assert len(glob.glob(f'{log_prefix}*')) == n_nodes
-        assert len(glob.glob(os.path.join(td, 'out_*.nc'))) == n_nodes
+        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
+        assert len(glob.glob(f'{td}/log*')) == n_nodes
+        assert len(glob.glob(f'{td}/out*')) == n_nodes
 
         if result.exit_code != 0:
             import traceback
@@ -142,14 +143,14 @@ def test_fwd_pass_cli(runner):
 def test_data_extract_cli(runner):
     """Test cli call to run data extraction"""
     with tempfile.TemporaryDirectory() as td:
-        cache_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         log_file = os.path.join(td, 'log.log')
         config = {'file_paths': FP_WTK,
                   'target': TARGET_COORD,
                   'features': FEATURES,
                   'shape': (20, 20),
                   'sample_shape': (20, 20, 12),
-                  'cache_file_prefix': cache_prefix,
+                  'cache_pattern': cache_pattern,
                   'log_file': log_file,
                   'val_split': 0.05,
                   'handler_class': 'DataHandlerH5'}
@@ -160,7 +161,7 @@ def test_data_extract_cli(runner):
 
         result = runner.invoke(dh_main, ['-c', config_path, '-v'])
 
-        assert len(glob.glob(f'{cache_prefix}*')) == len(FEATURES)
+        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
         assert len(glob.glob(f'{log_file}')) == 1
 
         if result.exit_code != 0:

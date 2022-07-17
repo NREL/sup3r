@@ -25,7 +25,7 @@ shape = (8, 8)
 sample_shape = (8, 8, 6)
 temporal_slice = slice(None, None, 1)
 list_chunk_size = 10
-forward_pass_chunk_shape = (4, 4, 150)
+fp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
 
@@ -46,18 +46,19 @@ def test_forward_pass_nc_cc():
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
     model.meta['training_features'] = features
+    model.meta['output_features'] = features
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
@@ -81,19 +82,20 @@ def test_forward_pass_nc():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = ['U_100m', 'V_100m']
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
@@ -118,19 +120,20 @@ def test_forward_pass_h5():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
     model.meta['training_features'] = ['U_100m', 'V_100m']
+    model.meta['output_features'] = ['U_100m', 'V_100m']
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         forward_pass.run()
@@ -157,8 +160,7 @@ def test_fwd_pass_handler():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -176,12 +178,12 @@ def test_fwd_pass_handler():
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         data = forward_pass.run()
@@ -207,8 +209,7 @@ def test_fwd_pass_chunking():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -226,12 +227,12 @@ def test_fwd_pass_chunking():
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=forward_pass_chunk_shape,
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         data_chunked = forward_pass.run()
@@ -263,8 +264,7 @@ def test_fwd_pass_nochunking():
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=s_enhance,
@@ -282,12 +282,12 @@ def test_fwd_pass_nochunking():
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_file_prefix = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
-            cache_file_prefix=cache_file_prefix,
-            forward_pass_chunk_shape=(shape[0], shape[1], list_chunk_size),
+            cache_pattern=cache_pattern,
+            fp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
         forward_pass = ForwardPass(handler, model_path=out_dir)
         data_chunked = forward_pass.run()
@@ -295,9 +295,8 @@ def test_fwd_pass_nochunking():
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
                                   temporal_slice=temporal_slice,
-                                  extract_workers=None,
-                                  compute_workers=None,
-                                  cache_file_prefix=None,
+                                  max_workers=None,
+                                  cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
                                   val_split=0.0)
