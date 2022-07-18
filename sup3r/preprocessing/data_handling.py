@@ -90,6 +90,8 @@ class InputHandler:
     def __init__(self):
         self.raster_file = None
         self.raw_time_index = None
+        self.raster_index = None
+        self.lat_lon = None
         self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
@@ -234,8 +236,13 @@ class InputHandler:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            self._target, self._grid_shape = self.full_domain
+            self._target = tuple(self.lat_lon[-1, 0, :])
         return self._target
+
+    @target.setter
+    def target(self, target):
+        """Update target property"""
+        self._target = target
 
     @property
     def grid_shape(self):
@@ -247,8 +254,18 @@ class InputHandler:
             (rows, cols) grid size.
         """
         if self._grid_shape is None:
-            self._target, self._grid_shape = self.full_domain
+            check = (self.raster_file is not None
+                     and os.path.exists(self.raster_file))
+            if check:
+                self._grid_shape = get_raster_shape(self.raster_index)
+            else:
+                self._target, self._grid_shape = self.full_domain
         return self._grid_shape
+
+    @grid_shape.setter
+    def grid_shape(self, grid_shape):
+        """Update grid_shape property"""
+        self._grid_shape = grid_shape
 
 
 class DataHandler(FeatureHandler, InputHandler):
@@ -265,7 +282,7 @@ class DataHandler(FeatureHandler, InputHandler):
                  temporal_slice=slice(None),
                  hr_spatial_coarsen=None,
                  time_roll=0,
-                 val_split=0.0,
+                 val_split=0.05,
                  sample_shape=(10, 10, 1),
                  raster_file=None,
                  shuffle_time=False,
@@ -361,9 +378,9 @@ class DataHandler(FeatureHandler, InputHandler):
         self.load_cached = load_cached
         self.data = None
         self.val_data = None
-        self._target = target
+        self.target = target
+        self.grid_shape = shape
         self._cache_pattern = cache_pattern
-        self._grid_shape = shape
         self._train_only_features = train_only_features
         self._max_workers = max_workers
         self._time_chunk_size = time_chunk_size
@@ -584,10 +601,13 @@ class DataHandler(FeatureHandler, InputHandler):
     def raster_index(self):
         """Raster index property"""
         if self._raster_index is None:
-            self._raster_index = self.get_raster_index(self.file_paths,
-                                                       self.target,
-                                                       self.grid_shape)
+            self._raster_index = self.get_raster_index()
         return self._raster_index
+
+    @raster_index.setter
+    def raster_index(self, raster_index):
+        """Update raster index property"""
+        self._raster_index = raster_index
 
     @property
     def handle_features(self):
@@ -1175,6 +1195,9 @@ class DataHandler(FeatureHandler, InputHandler):
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
         """
+        if self.data is not None:
+            return self.data
+
         now = dt.now()
         logger.debug(f'Loading data for raster of shape {self.grid_shape}')
 
@@ -1225,7 +1248,6 @@ class DataHandler(FeatureHandler, InputHandler):
         logger.info('Finished extracting data for '
                     f'{self.input_file_info} in '
                     f'{dt.now() - now}')
-
         return self.data
 
     def data_fill(self, t, t_slice, f_index, f):
@@ -1311,19 +1333,10 @@ class DataHandler(FeatureHandler, InputHandler):
         logger.info('Finished building data array')
 
     @abstractmethod
-    def get_raster_index(self, file_paths, target, shape):
+    def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in
         file_paths all have data with the same spatial domain. We use the first
         file in the list to compute the raster
-
-        Parameters
-        ----------
-        file_paths : str | list
-            path to data file
-        target : tuple
-            (lat, lon) for lower left corner
-        shape : tuple
-            (n_rows, n_cols) grid size
 
         Returns
         -------
@@ -1369,7 +1382,7 @@ class DataHandlerNC(DataHandler):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, combine='nested',
-                                 concat_dim='Time', parallel=True, **kwargs)
+                                 concat_dim='Time', **kwargs)
 
     @classmethod
     def get_time_index(cls, file_paths):
@@ -1545,40 +1558,28 @@ class DataHandlerNC(DataHandler):
                     col = j
         return row, col
 
-    def get_raster_index(self, file_paths, target=None, shape=None):
+    def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in
         file_paths all have data with the same spatial domain. We use the first
         file in the list to compute the raster.
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data files
-        target : tuple
-            (lat, lon) for lower left corner
-        shape : tuple
-            (n_rows, n_cols) grid size
 
         Returns
         -------
         raster_index : np.ndarray
             2D array of grid indices
         """
-        check = (self.raster_file is not None
-                 and os.path.exists(self.raster_file))
-        check = check or (shape is not None and target is not None)
-        msg = ('Must provide raster file or shape + target to get '
-               'raster index')
-        assert check, msg
-
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
-            raster_index = list(raster_index)
+            self.raster_index = list(raster_index)
         else:
-            lat_lon = self.get_lat_lon(file_paths[:1],
+            check = (self.grid_shape is not None and self.target is not None)
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
+            assert check, msg
+            lat_lon = self.get_lat_lon(self.file_paths[:1],
                                        [slice(None), slice(None)],
                                        self.temporal_slice)
             min_lat = np.min(lat_lon[..., 0])
@@ -1586,19 +1587,21 @@ class DataHandlerNC(DataHandler):
             max_lat = np.max(lat_lon[..., 0])
             max_lon = np.max(lat_lon[..., 1])
             logger.debug('Calculating raster index from WRF file '
-                         f'for shape {shape} and target {target}')
-            msg = (f'target {target} out of bounds with min lat/lon {min_lat}/'
-                   f'{min_lon} and max lat/lon {max_lat}/{max_lon}')
-            assert (min_lat <= target[0] <= max_lat
-                    and min_lon <= target[1] <= max_lon), msg
+                         f'for shape {self.grid_shape} and target '
+                         f'{self.target}')
+            msg = (f'target {self.target} out of bounds with min lat/lon '
+                   f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
+            assert (min_lat <= self.target[0] <= max_lat
+                    and min_lon <= self._target[1] <= max_lon), msg
 
-            row, col = self.get_closest_lat_lon(lat_lon, target)
-            raster_index = [slice(row, row + shape[0]),
-                            slice(col, col + shape[1])]
+            row, col = self.get_closest_lat_lon(lat_lon, self.target)
+            raster_index = [slice(row, row + self.grid_shape[0]),
+                            slice(col, col + self.grid_shape[1])]
 
             if (raster_index[0].stop > lat_lon.shape[0]
                or raster_index[1].stop > lat_lon.shape[1]):
-                msg = (f'Invalid target {target}, shape {shape}, and raster '
+                msg = (f'Invalid target {self.target}, shape '
+                       f'{self.grid_shape}, and raster '
                        f'{raster_index} for data domain of size '
                        f'{lat_lon.shape[:-1]} with lower left corner '
                        f'({np.min(lat_lon[..., 0])}, '
@@ -1607,11 +1610,11 @@ class DataHandlerNC(DataHandler):
 
             self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
 
-            mask = ((self.lat_lon[..., 0] >= target[0])
-                    & (self.lat_lon[..., 1] >= target[1]))
-            if mask.sum() != np.product(shape):
+            mask = ((self.lat_lon[..., 0] >= self.target[0])
+                    & (self.lat_lon[..., 1] >= self.target[1]))
+            if mask.sum() != np.product(self.grid_shape):
                 msg = (f'Found {mask.sum()} coordinates but should have found '
-                       f'{shape[0]} by {shape[1]}')
+                       f'{self.grid_shape[0]} by {self.grid_shape[1]}')
                 logger.warning(msg)
                 warnings.warn(msg)
 
@@ -1653,7 +1656,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, parallel=True, **kwargs)
+        return xr.open_mfdataset(file_paths, **kwargs)
 
 
 class DataHandlerH5(DataHandler):
@@ -1765,42 +1768,31 @@ class DataHandlerH5(DataHandler):
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
 
-    def get_raster_index(self, file_paths, target=None, shape=None):
+    def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in
         file_paths all have data with the same spatial domain. We use the first
         file in the list to compute the raster.
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        target : tuple
-            (lat, lon) for lower left corner
-        shape : tuple
-            (n_rows, n_cols) grid size
 
         Returns
         -------
         raster_index : np.ndarray
             2D array of grid indices
         """
-        check = (self.raster_file is not None
-                 and os.path.exists(self.raster_file))
-        check = check or (shape is not None and target is not None)
-        msg = ('Must provide raster file or shape + target to get '
-               'raster index')
-        assert check, msg
-
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
-            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+            self.raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
+            check = (self.grid_shape is not None and self.target is not None)
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
+            assert check, msg
             logger.debug('Calculating raster index from WTK file '
-                         f'for shape {shape} and target {target}')
-            with self.source_handler(file_paths[0]) as handle:
+                         f'for shape {self.grid_shape} and target '
+                         f'{self.target}')
+            with self.source_handler(self.file_paths[0]) as handle:
                 raster_index = handle.get_raster_index(
-                    target, shape, max_delta=self.max_delta)
+                    self.target, self.grid_shape, max_delta=self.max_delta)
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)

@@ -218,7 +218,7 @@ class BVFreqSquaredNC(DerivedFeature):
         # base potential temperature is 300K
         bvf2 = np.float32(9.81 / 100)
         bvf2 *= (data[f'T_{height}m'] - data[f'T_{int(height) - 100}m'])
-        bvf2 /= (data[f'T_{height}m'] - 600 + data[f'T_{int(height) - 100}m'])
+        bvf2 /= (data[f'T_{height}m'] + data[f'T_{int(height) - 100}m'] + 600)
         bvf2 /= np.float32(2)
         return bvf2
 

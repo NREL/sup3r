@@ -45,7 +45,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
-                            max_workers=1)
+                            max_workers=1, val_split=0.1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
                                         n_batches=10)

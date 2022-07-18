@@ -147,7 +147,7 @@ def test_feature_handler():
                           sample_shape=sample_shape,
                           temporal_slice=temporal_slice,
                           max_delta=max_delta)
-    tmp = handler.extract_data()
+    tmp = handler.data
     assert tmp.dtype == np.dtype(np.float32)
 
     var_names = {'T_bottom': ['T', 100],
@@ -171,13 +171,12 @@ def test_raster_index_caching():
                               shape=shape, max_delta=max_delta,
                               sample_shape=sample_shape,
                               raster_file=raster_file)
-        handler.get_raster_index(input_files, target, shape)
 
         # loading raster file
-        handler = DataHandler(input_files, features, target=target,
+        handler = DataHandler(input_files, features,
                               sample_shape=sample_shape,
-                              shape=shape, max_delta=max_delta,
-                              raster_file=raster_file)
+                              max_delta=max_delta,
+                              raster_file=handler.raster_file)
 
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
@@ -408,7 +407,8 @@ def test_spatiotemporal_batch_indices(sample_shape):
                                shape=shape, max_delta=max_delta,
                                val_split=val_split,
                                sample_shape=sample_shape,
-                               temporal_slice=temporal_slice)
+                               temporal_slice=temporal_slice,
+                               max_workers=1)
     batch_handler = BatchHandler([data_handler], batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
