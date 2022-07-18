@@ -886,13 +886,11 @@ class LatLonH5:
             lat lon array
             (spatial_1, spatial_2, 2)
         """
-
         with Resource(file_paths[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
             lat_lon = lat_lon.reshape((raster_index.shape[0],
                                        raster_index.shape[1],
                                        2))
-
         return lat_lon
 
 

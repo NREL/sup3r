@@ -115,7 +115,7 @@ class InputHandler:
             dump of file paths
         """
         msg = (f'source files with dates from {str(self.raw_time_index[0])} to'
-               f'{str(self.raw_time_index[-1])}')
+               f' {str(self.raw_time_index[-1])}')
         return msg
 
     @property
@@ -265,7 +265,7 @@ class DataHandler(FeatureHandler, InputHandler):
                  temporal_slice=slice(None),
                  hr_spatial_coarsen=None,
                  time_roll=0,
-                 val_split=0.1,
+                 val_split=0.0,
                  sample_shape=(10, 10, 1),
                  raster_file=None,
                  shuffle_time=False,
@@ -523,12 +523,18 @@ class DataHandler(FeatureHandler, InputHandler):
         return self._time_chunks
 
     @property
+    def n_tsteps(self):
+        """Get number of time steps to extract"""
+        return len(self.time_index)
+
+    @property
     def time_chunk_size(self):
         """Get upper bound on time chunk size based on memory limits"""
         if self._time_chunk_size is None:
             step_mem = self.feature_mem * len(self.raw_features)
             step_mem /= len(self.time_index)
-            self._time_chunk_size = np.int(1e9 / step_mem)
+            self._time_chunk_size = np.min([np.int(1e9 / step_mem),
+                                            self.n_tsteps])
         return self._time_chunk_size
 
     @property
@@ -1379,7 +1385,6 @@ class DataHandlerNC(DataHandler):
         time_index : np.ndarray
             Time index from nc source file(s)
         """
-        logger.debug('Getting time index for input files')
         with cls.source_handler(file_paths, data_vars='minimal') as handle:
             if hasattr(handle, 'Times'):
                 time_index = handle.Times.values
@@ -1392,7 +1397,6 @@ class DataHandlerNC(DataHandler):
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
         decoded_times = []
-        logger.debug('Decoding time indices')
         for _, x in enumerate(time_index):
             if isinstance(x, np.bytes_):
                 val = ' '.join(x.decode('utf-8').split('_'))
