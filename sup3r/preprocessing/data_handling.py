@@ -186,10 +186,8 @@ class InputHandler:
         check = check and (self._target is None or self._grid_shape is None)
         if check:
             new_target, new_shape = self.get_full_domain(self.file_paths)
-            self._target = (self._target if self._target is not None
-                            else new_target)
-            self._grid_shape = (self._grid_shape if self._grid_shape
-                                is not None else new_shape)
+            self._target = self._target or new_target
+            self._grid_shape = self._grid_shape or new_shape
             logger.info('Target + shape not specified. Getting full domain '
                         f'with target={self._target} and '
                         f'shape={self._grid_shape}')

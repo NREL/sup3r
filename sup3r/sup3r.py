@@ -128,7 +128,8 @@ class SUP3R:
                      'model_path': model_path,
                      'out_pattern': out_pattern,
                      'cache_pattern': cache_pattern,
-                     'log_pattern': log_pattern}
+                     'log_pattern': log_pattern,
+                     'overwrite_cache': True}
         fp_kwargs = {k: v for k, v in kwargs.items() if k != 'file_paths'}
         fp_config.update(fp_kwargs)
         fp_config_file = os.path.join(out_dir, 'fp_config.json')
@@ -138,7 +139,8 @@ class SUP3R:
 
         collect_file = os.path.join(obj._output_dir, 'out_collection.h5')
         log_file = os.path.join(obj._log_dir, 'collect.log')
-        col_config = {'file_paths': out_pattern,
+        input_files = os.path.join(obj._output_dir, 'fp_out_*.h5')
+        col_config = {'file_paths': input_files,
                       'out_file': collect_file,
                       'features': features,
                       'log_file': log_file}
