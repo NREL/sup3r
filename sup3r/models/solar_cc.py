@@ -13,21 +13,19 @@ class SolarCC(Sup3rGan):
     """Solar climate change model.
 
     Modifications to standard Sup3rGan:
-        - Content loss is only on the 3x center 8 daylight hours of the 72 hour
-          true+synthetic high res samples
-        - Discriminator only sees 3x center 8 daylight hours of the 72 hour
-          true high res sample.
-        - Discriminator sees random 3x 8-hour samples of the 72 hour synthetic
-          high res sample.
+        - Content loss is only on the n_days of the center 8 daylight hours of
+          the daily true+synthetic high res samples
+        - Discriminator only sees n_days of the center 8 daylight hours of the
+          daily true high res sample.
+        - Discriminator sees random n_days of 8-hour samples of the daily
+          synthetic high res sample.
     """
 
-    # These are the slices of a 72-hour high res sample that are noon-centered
-    # daylight slices. The disc will only see these slices from the true high
-    # res data.
+    # starting hour is the hour that daylight starts at, daylight hours is the
+    # number of daylight hours to sample, so for example if 8 and 8, the
+    # daylight slice will be slice(8, 16)
+    STARTING_HOUR = 8
     DAYLIGHT_HOURS = 8
-    DAYLIGHT_SLICES = (slice(8, 8 + DAYLIGHT_HOURS),
-                       slice(32, 32 + DAYLIGHT_HOURS),
-                       slice(56, 56 + DAYLIGHT_HOURS))
 
     @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
@@ -68,29 +66,35 @@ class SolarCC(Sup3rGan):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        msg = ('Special SolarCC model can only accept 72 hourly high res '
-               'data in the axis=3 position but received shape {}'
-               .format(hi_res_true.shape))
-        assert hi_res_true.shape[3] == 72
+        msg = ('Special SolarCC model can only accept multi-day hourly '
+               '(multiple of 24) high res data in the axis=3 position but '
+               'received shape {}'.format(hi_res_true.shape))
+        assert hi_res_true.shape[3] % 24 == 0
 
-        msg = ('Special SolarCC model can only accept 72 hourly synthetic '
-               'high res data in the axis=3 position but received shape {}'
-               .format(hi_res_true.shape))
-        assert hi_res_gen.shape[3] == 72
+        msg = ('Special SolarCC model can only accept multi-day hourly '
+               '(multiple of 24) high res synthetic data in the axis=3 '
+               'position but received shape {}'.format(hi_res_gen.shape))
+        assert hi_res_gen.shape[3] % 24 == 0
+
+        t_len = hi_res_true.shape[3]
+        n_days = int(t_len // 24)
+        day_slices = [slice(self.STARTING_HOUR + x,
+                            self.STARTING_HOUR + x + self.DAYLIGHT_HOURS)
+                      for x in range(0, 24 * n_days, 24)]
 
         disc_out_true = []
         disc_out_gen = []
         loss_gen_content = 0.0
-        for tslice in self.DAYLIGHT_SLICES:
+        for tslice in day_slices:
             disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice, :])
             gen_c = self.calc_loss_gen_content(hi_res_true[:, :, :, tslice, :],
                                                hi_res_gen[:, :, :, tslice, :])
             disc_out_true.append(disc_t)
             loss_gen_content += gen_c
 
-        logits = [[1.0] * (72 - self.DAYLIGHT_HOURS)]
-        time_samples = tf.random.categorical(logits, len(self.DAYLIGHT_SLICES))
-        for i in range(len(self.DAYLIGHT_SLICES)):
+        logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS)]
+        time_samples = tf.random.categorical(logits, len(day_slices))
+        for i in range(len(day_slices)):
             t0 = time_samples[0, i]
             t1 = t0 + self.DAYLIGHT_HOURS
             disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
@@ -100,7 +104,7 @@ class SolarCC(Sup3rGan):
         disc_out_gen = tf.concat([disc_out_gen], axis=0)
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
-        loss_gen_content /= len(self.DAYLIGHT_SLICES)
+        loss_gen_content /= len(day_slices)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = (loss_gen_content + weight_gen_advers * loss_gen_advers)
 
