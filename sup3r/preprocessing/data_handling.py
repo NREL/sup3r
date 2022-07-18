@@ -89,6 +89,7 @@ class InputHandler:
 
     def __init__(self):
         self.raster_file = None
+        self.raw_time_index = None
         self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
@@ -100,6 +101,22 @@ class InputHandler:
     def get_full_domain(cls, file_paths):
         """Get target and shape for largest domain possible when target + shape
         are not specified"""
+
+    @property
+    def input_file_info(self):
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
+
+        Returns
+        -------
+        str
+            message to append to log output that does not include a huge info
+            dump of file paths
+        """
+        msg = (f'source files with dates from {str(self.raw_time_index[0])} to'
+               f'{str(self.raw_time_index[-1])}')
+        return msg
 
     @property
     def temporal_slice(self):
@@ -153,7 +170,13 @@ class InputHandler:
 
     @property
     def cache_pattern(self):
-        """Get correct cache file pattern for formatting"""
+        """Get correct cache file pattern for formatting.
+
+        Returns
+        -------
+        _cache_pattern : str
+            The cache file pattern with formatting keys included.
+        """
         if self._cache_pattern is not None:
             if '.pkl' not in self._cache_pattern:
                 self._cache_pattern += '.pkl'
@@ -180,7 +203,15 @@ class InputHandler:
     @property
     def full_domain(self):
         """Get target and shape for full domain if not specified and raster
-        file is None or does not exist"""
+        file is None or does not exist
+
+        Returns
+        -------
+        _target: tuple
+            (lat, lon) lower left corner of raster.
+        _grid_shape: tuple
+            (rows, cols) grid size.
+        """
         check = (self.raster_file is None
                  or not os.path.exists(self.raster_file))
         check = check and (self._target is None or self._grid_shape is None)
@@ -195,14 +226,26 @@ class InputHandler:
 
     @property
     def target(self):
-        """Get lower left corner of raster"""
+        """Get lower left corner of raster
+
+        Returns
+        -------
+        _target: tuple
+            (lat, lon) lower left corner of raster.
+        """
         if self._target is None:
             self._target, self._grid_shape = self.full_domain
         return self._target
 
     @property
     def grid_shape(self):
-        """Get shape of raster"""
+        """Get shape of raster
+
+        Returns
+        -------
+        _grid_shape: tuple
+            (rows, cols) grid size.
+        """
         if self._grid_shape is None:
             self._target, self._grid_shape = self.full_domain
         return self._grid_shape
@@ -335,10 +378,10 @@ class DataHandler(FeatureHandler, InputHandler):
         self._raw_data = None
         self._time_chunks = None
 
-        logger.info('Initializing DataHandler '
-                    f'{self.file_info_logging(self.file_paths)}. '
-                    f'Getting temporal range {str(self.time_index[0])} to '
-                    f'{str(self.time_index[-1])}')
+        msg = (f'Initializing DataHandler {self.input_file_info}. '
+               f'Getting temporal range {str(self.time_index[0])} to '
+               f'{str(self.time_index[-1])}')
+        logger.info(msg)
 
         self.preflight()
 
@@ -396,7 +439,7 @@ class DataHandler(FeatureHandler, InputHandler):
 
     @classmethod
     @abstractmethod
-    def source_handler(cls, file_paths):
+    def source_handler(cls, file_paths, **kwargs):
         """Handler for source data. Can use xarray, ResourceX, etc."""
 
     @property
@@ -508,7 +551,7 @@ class DataHandler(FeatureHandler, InputHandler):
         """Time index for input data with time pruning. This is the raw time
         index with a cropped range and time step applied."""
         if self._time_index is None:
-            self._time_index = self.get_time_index(self.file_paths)
+            self._time_index = self.raw_time_index
             self._time_index = self._time_index[self.temporal_slice]
         return self._time_index
 
@@ -751,26 +794,6 @@ class DataHandler(FeatureHandler, InputHandler):
             cache_files = None
 
         return cache_files
-
-    @classmethod
-    def file_info_logging(cls, file_paths):
-        """Method to provide info about files in log output. Since NETCDF files
-        have single time slices printing out all the file paths is just a text
-        dump without much info.
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-        msg = (f'source files: {file_paths}')
-        return msg
 
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
@@ -1078,7 +1101,7 @@ class DataHandler(FeatureHandler, InputHandler):
 
             logger.debug('Splitting data into training / validation sets '
                          f'({1 - self.val_split}, {self.val_split}) '
-                         f'for {self.file_info_logging(self.file_paths)}')
+                         f'for {self.input_file_info}')
             self.data, self.val_data = self.split_data()
 
     @classmethod
@@ -1162,7 +1185,7 @@ class DataHandler(FeatureHandler, InputHandler):
                                          self.extract_workers)
 
         logger.info(f'Finished extracting {self.raw_features} for '
-                    f'{self.file_info_logging(self.file_paths)}')
+                    f'{self.input_file_info}')
         logger.info(f'Starting compution of {self.derive_features}')
         self._raw_data = self.parallel_compute(raw_data, self.raster_index,
                                                time_chunks,
@@ -1172,7 +1195,7 @@ class DataHandler(FeatureHandler, InputHandler):
                                                self.compute_workers)
 
         logger.info(f'Finished computing {self.derive_features} for '
-                    f'{self.file_info_logging(self.file_paths)}')
+                    f'{self.input_file_info}')
 
         logger.info('Building final data array')
         self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
@@ -1194,7 +1217,7 @@ class DataHandler(FeatureHandler, InputHandler):
                     self.data[..., f_index] = pickle.load(fh)
 
         logger.info('Finished extracting data for '
-                    f'{self.file_info_logging(self.file_paths)} in '
+                    f'{self.input_file_info} in '
                     f'{dt.now() - now}')
 
         return self.data
@@ -1327,7 +1350,7 @@ class DataHandlerNC(DataHandler):
         return extract_workers
 
     @classmethod
-    def source_handler(cls, file_paths):
+    def source_handler(cls, file_paths, **kwargs):
         """Xarray data handler
 
         Parameters
@@ -1340,28 +1363,7 @@ class DataHandlerNC(DataHandler):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, combine='nested',
-                                 concat_dim='Time')
-
-    @classmethod
-    def file_info_logging(cls, file_paths):
-        """Method to provide info about files in log output. Since NETCDF files
-        have single time slices printing out all the file paths is just a text
-        dump without much info.
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-        ti = cls.get_time_index(file_paths)
-        msg = (f'source files with dates from {str(ti[0])} to {str(ti[-1])}')
-        return msg
+                                 concat_dim='Time', parallel=True, **kwargs)
 
     @classmethod
     def get_time_index(cls, file_paths):
@@ -1377,7 +1379,8 @@ class DataHandlerNC(DataHandler):
         time_index : np.ndarray
             Time index from nc source file(s)
         """
-        with cls.source_handler(file_paths) as handle:
+        logger.debug('Getting time index for input files')
+        with cls.source_handler(file_paths, data_vars='minimal') as handle:
             if hasattr(handle, 'Times'):
                 time_index = handle.Times.values
             elif hasattr(handle, 'time'):
@@ -1389,6 +1392,7 @@ class DataHandlerNC(DataHandler):
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
         decoded_times = []
+        logger.debug('Decoding time indices')
         for _, x in enumerate(time_index):
             if isinstance(x, np.bytes_):
                 val = ' '.join(x.decode('utf-8').split('_'))
@@ -1565,7 +1569,7 @@ class DataHandlerNC(DataHandler):
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
-                         f'for {self.file_info_logging(self.file_paths)}')
+                         f'for {self.input_file_info}')
             raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
                                    allow_pickle=True)
             raster_index = list(raster_index)
@@ -1633,7 +1637,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         return registry
 
     @classmethod
-    def source_handler(cls, file_paths):
+    def source_handler(cls, file_paths, **kwargs):
         """Xarray data handler
 
         Parameters
@@ -1645,7 +1649,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths)
+        return xr.open_mfdataset(file_paths, parallel=True, **kwargs)
 
 
 class DataHandlerH5(DataHandler):
@@ -1785,7 +1789,7 @@ class DataHandlerH5(DataHandler):
 
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
-                         f'for {self.file_info_logging(self.file_paths)}')
+                         f'for {self.input_file_info}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             logger.debug('Calculating raster index from WTK file '

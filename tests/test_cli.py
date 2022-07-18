@@ -119,7 +119,6 @@ def test_fwd_pass_cli(runner):
                   'max_workers': 1,
                   'spatial_overlap': 5,
                   'temporal_overlap': 5,
-                  'pass_workers': None,
                   'overwrite_cache': False,
                   'execution_control': {
                       "option": "local"}}

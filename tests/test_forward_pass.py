@@ -65,10 +65,10 @@ def test_forward_pass_nc_cc():
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                t_enhance * len(handler.time_index), s_enhance * shape[0],
                 s_enhance * shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                t_enhance * len(handler.time_index), s_enhance * shape[0],
                 s_enhance * shape[1])
 
 
@@ -102,10 +102,10 @@ def test_forward_pass_nc():
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                t_enhance * len(handler.time_index), s_enhance * shape[0],
                 s_enhance * shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_indices), s_enhance * shape[0],
+                t_enhance * len(handler.time_index), s_enhance * shape[0],
                 s_enhance * shape[1])
 
 

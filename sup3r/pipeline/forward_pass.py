@@ -52,7 +52,6 @@ class ForwardPassStrategy(InputHandler):
                  s_enhance=3,
                  t_enhance=4,
                  max_workers=None,
-                 pass_workers=None,
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
@@ -102,13 +101,9 @@ class ForwardPassStrategy(InputHandler):
             Factor by which to enhance temporal dimension of low resolution
             data
         max_workers : int | None
-            max number of workers to use for extracting and computing features.
-            This is passed to the data handler routine. If max_workers == 1
-            then processes will be serialized.
-        pass_workers : int | None
-            Max number of workers to use for forward passes on each node. If
-            pass_workers == 1 then forward passes on chunks will be
-            serialized.
+            max number of workers to use for extracting and computing features
+            as well as doing forward passes. If max_workers == 1 then
+            processes will be serialized.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -144,23 +139,22 @@ class ForwardPassStrategy(InputHandler):
         self.raster_file = raster_file
         self.fp_chunk_shape = fp_chunk_shape
         self.temporal_slice = temporal_slice
-        self.pass_workers = pass_workers
-        self.max_workers = max_workers
         self.time_chunk_size = time_chunk_size
         self.overwrite_cache = overwrite_cache
         self.t_enhance = t_enhance
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
+        self.max_workers = max_workers
         self._cache_pattern = cache_pattern
         self._grid_shape = shape
         self._target = target
-        self._time_indices = None
+        self._time_index = None
         self._out_files = None
         self._file_ids = None
 
         logger.info('Initializing ForwardPassStrategy for '
-                    f'{self.file_info_logging(self.file_paths)}')
+                    f'{self.input_file_info}')
 
         if self.cache_pattern is not None:
             if '{node_index}' not in self.cache_pattern:
@@ -185,10 +179,10 @@ class ForwardPassStrategy(InputHandler):
         msg = ('Using a padded chunk size '
                f'{fp_chunk_shape[2] + 2 * temporal_overlap} '
                'larger than the full temporal domain '
-               f'{len(self.time_indices)}. Should just run without temporal '
+               f'{len(self.time_index)}. Should just run without temporal '
                'chunking. ')
         if (fp_chunk_shape[2] + 2 * temporal_overlap
-                >= len(self.time_indices)):
+                >= len(self.time_index)):
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -197,12 +191,17 @@ class ForwardPassStrategy(InputHandler):
         return self.data_handler_class.get_full_domain(file_paths)
 
     @property
-    def time_indices(self):
+    def time_index(self):
+        """Raw time index is the same as time_index"""
+        return self._raw_time_index
+
+    @property
+    def raw_time_index(self):
         """Get time index for input data"""
-        if self._time_indices is None:
-            self._time_indices = self.data_handler_class.get_time_index(
+        if self._raw_time_index is None:
+            self._raw_time_index = self.data_handler_class.get_time_index(
                 self.file_paths)
-        return self._time_indices
+        return self._raw_time_index
 
     @property
     def file_ids(self):
@@ -215,7 +214,7 @@ class ForwardPassStrategy(InputHandler):
             files of the form filename_{file_id}.ext
         """
         if self._file_ids is None:
-            n_chunks = len(self.time_indices[self.temporal_slice])
+            n_chunks = len(self.time_index[self.temporal_slice])
             n_chunks /= self.fp_chunk_shape[2]
             n_chunks = np.int(np.ceil(n_chunks))
             self._file_ids = list(range(n_chunks))
@@ -304,7 +303,7 @@ class ForwardPassStrategy(InputHandler):
         ti_slice = self.ti_slices[node_index]
         ti_hr_crop_slice = self.ti_hr_crop_slices[node_index]
         data_shape = (self.grid_shape[0], self.grid_shape[1],
-                      len(self.time_indices[ti_pad_slice]))
+                      len(self.time_index[ti_pad_slice]))
         cache_pattern = (
             None if self.cache_pattern is None
             else self.cache_pattern.replace('{node_index}', str(node_index)))
@@ -367,22 +366,6 @@ class ForwardPassStrategy(InputHandler):
         the fp_chunk_shape"""
         return len(self.ti_slices)
 
-    def file_info_logging(self, file_paths):
-        """More concise file info about data files
-
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-        return self.data_handler_class.file_info_logging(file_paths)
-
     def get_time_slices(self, fp_chunk_size, time_overlap):
         """Calculate the number of time chunks across the full time index
 
@@ -402,10 +385,10 @@ class ForwardPassStrategy(InputHandler):
         ti_hr_crop_chunks : list
             List of cropped chunks for stitching high res output
         """
-        n_chunks = len(self.time_indices[self.temporal_slice])
+        n_chunks = len(self.time_index[self.temporal_slice])
         n_chunks /= fp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_chunks = np.arange(len(self.time_indices[self.temporal_slice]))
+        ti_chunks = np.arange(len(self.time_index[self.temporal_slice]))
         ti_chunks = np.array_split(ti_chunks, n_chunks)
         ti_pad_chunks = []
         for i, chunk in enumerate(ti_chunks):
@@ -739,12 +722,12 @@ class ForwardPass:
             self.data_handler.load_cached_data()
 
     @property
-    def pass_workers(self):
+    def max_workers(self):
         """Get estimate for max pass workers based on memory usage"""
         proc_mem = 8 * np.product(self.strategy.fp_chunk_shape)
         proc_mem *= self.strategy.s_enhance**2 * self.strategy.t_enhance
         n_procs = len(self.hr_slices)
-        max_workers = estimate_max_workers(self.strategy.pass_workers,
+        max_workers = estimate_max_workers(self.strategy.max_workers,
                                            proc_mem, n_procs)
         return max_workers
 
@@ -843,7 +826,7 @@ class ForwardPass:
                    f'{self.strategy.spatial_overlap} and temporal_overlap of '
                    f'{self.strategy.temporal_overlap}.')
             logger.info(msg)
-            max_workers = self.pass_workers
+            max_workers = self.max_workers
             data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
                              self.strategy.s_enhance * self.data_shape[1],
                              self.strategy.t_enhance * self.data_shape[2],
@@ -899,7 +882,7 @@ class ForwardPass:
             self.output_handler_class.write_output(
                 data, self.data_handler.output_features,
                 self.data_handler.lat_lon,
-                self.strategy.time_indices[self.ti_slice],
+                self.strategy.time_index[self.ti_slice],
                 self.out_file, meta_data=self.meta_data,
                 max_workers=self.strategy.max_workers)
             os.remove(self.cache_file)
