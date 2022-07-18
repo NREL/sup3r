@@ -47,7 +47,7 @@ class ForwardPassStrategy(InputHandler):
     def __init__(self, file_paths,
                  target=None, shape=None,
                  temporal_slice=slice(None),
-                 fp_chunk_shape=(20, 20, 20),
+                 fp_chunk_shape=(30, 30, 30),
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
