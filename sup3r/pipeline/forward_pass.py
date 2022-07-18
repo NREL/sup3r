@@ -181,7 +181,7 @@ class ForwardPassStrategy(InputHandler):
                'larger than the full temporal domain '
                f'{len(self.time_index)}. Should just run without temporal '
                'chunking. ')
-        if (fp_chunk_shape[2] + 2 * temporal_overlap >= len(self.time_index)):
+        if fp_chunk_shape[2] + 2 * temporal_overlap >= len(self.time_index):
             logger.warning(msg)
             warnings.warn(msg)
 
