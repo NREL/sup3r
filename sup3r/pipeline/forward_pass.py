@@ -181,8 +181,7 @@ class ForwardPassStrategy(InputHandler):
                'larger than the full temporal domain '
                f'{len(self.time_index)}. Should just run without temporal '
                'chunking. ')
-        if (fp_chunk_shape[2] + 2 * temporal_overlap
-                >= len(self.time_index)):
+        if (fp_chunk_shape[2] + 2 * temporal_overlap >= len(self.time_index)):
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -312,8 +311,8 @@ class ForwardPassStrategy(InputHandler):
         lr_slices, lr_pad_slices = out[:2]
         hr_slices, hr_crop_slices = out[2:]
 
-        chunk_shape = (lr_slices[0][0].stop - lr_slices[0][0].start,
-                       lr_slices[0][1].stop - lr_slices[0][1].start,
+        chunk_shape = (lr_pad_slices[0][0].stop - lr_pad_slices[0][0].start,
+                       lr_pad_slices[0][1].stop - lr_pad_slices[0][1].start,
                        data_shape[2])
 
         kwargs = dict(file_paths=self.file_paths,
@@ -472,10 +471,8 @@ class ForwardPassStrategy(InputHandler):
             when forward passes are performed on overlapping chunks
         """
 
-        s1_slices = get_chunk_slices(data_shape[0],
-                                     self.fp_chunk_shape[0])
-        s2_slices = get_chunk_slices(data_shape[1],
-                                     self.fp_chunk_shape[1])
+        s1_slices = get_chunk_slices(data_shape[0], self.fp_chunk_shape[0])
+        s2_slices = get_chunk_slices(data_shape[1], self.fp_chunk_shape[1])
         t_slices = [slice(None)]
 
         lr_pad_slices = []
