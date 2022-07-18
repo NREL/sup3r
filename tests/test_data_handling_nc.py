@@ -166,17 +166,21 @@ def test_raster_index_caching():
     # saving raster file
 
     with tempfile.TemporaryDirectory() as td:
-        raster_file = os.path.join(td, 'raster.txt')
+        raster_file = os.path.join(td, 'raster.npy')
         handler = DataHandler(input_files, features, target=target,
                               shape=shape, max_delta=max_delta,
                               sample_shape=sample_shape,
                               raster_file=raster_file)
 
+        print(handler.data.shape)
+        print(handler.raster_index)
         # loading raster file
         handler = DataHandler(input_files, features,
                               sample_shape=sample_shape,
                               max_delta=max_delta,
-                              raster_file=handler.raster_file)
+                              raster_file=raster_file)
+
+        print(handler.raster_index)
 
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))

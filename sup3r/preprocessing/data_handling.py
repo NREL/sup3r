@@ -1568,12 +1568,14 @@ class DataHandlerNC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
+        self.raster_file = (self.raster_file
+                            or self.raster_file.replace('.txt', '.npy'))
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
-            raster_index = np.load(self.raster_file.replace('.txt', '.npy'),
-                                   allow_pickle=True)
-            self.raster_index = list(raster_index)
+            print('loading raster index')
+            raster_index = np.load(self.raster_file, allow_pickle=True)
+            raster_index = list(raster_index)
         else:
             check = (self.grid_shape is not None and self.target is not None)
             msg = ('Must provide raster file or shape + target to get '
@@ -1619,6 +1621,7 @@ class DataHandlerNC(DataHandler):
                 warnings.warn(msg)
 
             if self.raster_file is not None:
+                print(f'saving raster index: {self.raster_file}')
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index
@@ -1781,7 +1784,7 @@ class DataHandlerH5(DataHandler):
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
-            self.raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             check = (self.grid_shape is not None and self.target is not None)
             msg = ('Must provide raster file or shape + target to get '
