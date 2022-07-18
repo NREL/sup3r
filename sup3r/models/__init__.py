@@ -3,4 +3,4 @@
 from .base import Sup3rGan
 from .solar_cc import SolarCC
 from .data_centric import Sup3rGanDC
-from .multi_step import MultiStepGan, SpatialFirstGan
+from .multi_step import MultiStepGan, SpatialThenTemporalGan

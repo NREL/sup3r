@@ -6,7 +6,7 @@ import pytest
 import tempfile
 
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan, MultiStepGan, SpatialFirstGan
+from sup3r.models import Sup3rGan, MultiStepGan, SpatialThenTemporalGan
 
 FEATURES = ['U_100m', 'V_100m']
 
@@ -93,7 +93,7 @@ def test_multi_step_norm(norm_option):
         assert np.allclose(out, out3, atol=5e-4)
 
 
-def test_spatial_first_gan():
+def test_spatial_then_temporal_gan():
     """Test the 2-step spatial-then-spatiotemporal GAN"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -116,7 +116,7 @@ def test_spatial_first_gan():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialFirstGan.load([fp1, fp2])
+        ms_model = SpatialThenTemporalGan(fp1, fp2)
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)
