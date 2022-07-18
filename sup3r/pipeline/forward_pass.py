@@ -149,7 +149,7 @@ class ForwardPassStrategy(InputHandler):
         self._cache_pattern = cache_pattern
         self._grid_shape = shape
         self._target = target
-        self._time_index = None
+        self._raw_time_index = None
         self._out_files = None
         self._file_ids = None
 
