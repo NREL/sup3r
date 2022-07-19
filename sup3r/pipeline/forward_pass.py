@@ -109,11 +109,12 @@ class ForwardPassStrategy(InputMixIn):
             extraction. If running in serial this can be set to the size
             of the full time index for best performance.
         cache_pattern : str | None
-            Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl. Cache file format keys will be added to
-            the file name pattern according to the InputMixIn class method.
-            Each feature will be saved to a file with the feature name replaced
-            in cache_pattern.
+            Pattern for files for saving feature data. e.g. file_path.pkl. Can
+            include format keys in the path as well. e.g.
+            file_path_{feature}_{shape}_{target}.pkl. If these format keys are
+            not included they will be added according to the InputMixIn class
+            method.  Each feature will be saved to a file with the feature name
+            replaced in cache_pattern.
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data

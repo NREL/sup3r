@@ -1216,22 +1216,24 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        raw_data = self.parallel_extract(self.file_paths, self.raster_index,
-                                         time_chunks, self.raw_features,
-                                         self.extract_workers)
+        self._raw_data = self.parallel_extract(self.file_paths,
+                                               self.raster_index,
+                                               time_chunks, self.raw_features,
+                                               self.extract_workers)
 
         logger.info(f'Finished extracting {self.raw_features} for '
                     f'{self.input_file_info}')
-        logger.info(f'Starting compution of {self.derive_features}')
-        self._raw_data = self.parallel_compute(raw_data, self.raster_index,
-                                               time_chunks,
-                                               self.derive_features,
-                                               self.extract_features,
-                                               self.handle_features,
-                                               self.compute_workers)
-
-        logger.info(f'Finished computing {self.derive_features} for '
-                    f'{self.input_file_info}')
+        if self.derive_features:
+            logger.info(f'Starting compution of {self.derive_features}')
+            self._raw_data = self.parallel_compute(self._raw_data,
+                                                   self.raster_index,
+                                                   time_chunks,
+                                                   self.derive_features,
+                                                   self.extract_features,
+                                                   self.handle_features,
+                                                   self.compute_workers)
+            logger.info(f'Finished computing {self.derive_features} for '
+                        f'{self.input_file_info}')
 
         logger.info('Building final data array')
         self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
