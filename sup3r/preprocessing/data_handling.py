@@ -576,26 +576,6 @@ class DataHandler(FeatureHandler, InputMixIn):
                                             self.shape[-1])
         return norm_workers
 
-    @extract_workers.setter
-    def extract_workers(self, extract_workers):
-        """Update extract workers value"""
-        self._extract_workers = extract_workers
-
-    @compute_workers.setter
-    def compute_workers(self, compute_workers):
-        """Update compute workers value"""
-        self._compute_workers = compute_workers
-
-    @load_workers.setter
-    def load_workers(self, load_workers):
-        """Update load workers value"""
-        self._load_workers = load_workers
-
-    @norm_workers.setter
-    def norm_workers(self, norm_workers):
-        """Update norm workers value"""
-        self._norm_workers = norm_workers
-
     @property
     def time_chunks(self):
         """Get time chunks which will be extracted from source data
