@@ -218,7 +218,7 @@ class BVFreqSquaredNC(DerivedFeature):
         # base potential temperature is 300K
         bvf2 = np.float32(9.81 / 100)
         bvf2 *= (data[f'T_{height}m'] - data[f'T_{int(height) - 100}m'])
-        bvf2 /= (data[f'T_{height}m'] - 600 + data[f'T_{int(height) - 100}m'])
+        bvf2 /= (data[f'T_{height}m'] + data[f'T_{int(height) - 100}m'] + 600)
         bvf2 /= np.float32(2)
         return bvf2
 
@@ -886,13 +886,11 @@ class LatLonH5:
             lat lon array
             (spatial_1, spatial_2, 2)
         """
-
         with Resource(file_paths[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
             lat_lon = lat_lon.reshape((raster_index.shape[0],
                                        raster_index.shape[1],
                                        2))
-
         return lat_lon
 
 
@@ -1102,6 +1100,10 @@ class FeatureHandler:
             for f in time_dep_features:
                 data[t][f] = cls.extract_feature(
                     file_paths, raster_index, f, t_slice)
+            interval = np.int(np.ceil(len(time_chunks) / 10))
+            if interval > 0 and t % interval == 0:
+                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                             'chunks extracted.')
         for f in time_ind_features:
             data[-1][f] = cls.extract_feature(
                 file_paths, raster_index, f)
@@ -1137,7 +1139,8 @@ class FeatureHandler:
         """
 
         logger.info(f'Starting {input_features} extraction using '
-                    f'extract_workers={max_workers}. ')
+                    f'extract_workers={max_workers} and {len(time_chunks)} '
+                    'time_chunks. ')
         futures = {}
         now = dt.now()
 
@@ -1149,8 +1152,8 @@ class FeatureHandler:
         data = defaultdict(dict)
 
         if max_workers == 1:
-            return cls.serial_extract(
-                file_paths, raster_index, time_chunks, input_features)
+            return cls.serial_extract(file_paths, raster_index, time_chunks,
+                                      input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
@@ -1181,10 +1184,17 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(input_features)} features')
 
+                interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
-                    data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
+                    try:
+                        data[v['chunk']][v['feature']] = future.result()
+                    except Exception as e:
+                        msg = (f'Error extracting chunk {v["chunk"]} for'
+                               f' {v["feature"]}')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
+                    if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')
 
@@ -1223,7 +1233,7 @@ class FeatureHandler:
         return data[feature]
 
     @classmethod
-    def serial_compute(cls, data, time_chunks, input_features, all_features,
+    def serial_compute(cls, data, time_chunks, derived_features, all_features,
                        handle_features):
         """Compute features in series
 
@@ -1236,8 +1246,8 @@ class FeatureHandler:
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
-        input_features : list
-            list of input feature strings
+        derived_features : list
+            list of feature strings which need to be derived
         all_features : list
             list of all features including those requiring derivation from
             input features
@@ -1252,20 +1262,20 @@ class FeatureHandler:
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
-        derived_features = [f for f in all_features if f not in input_features]
-
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(data=tmp, feature=f)
             cls.pop_old_data(data, t, all_features)
-
+            interval = np.int(np.ceil(len(time_chunks) / 10))
+            if interval > 0 and t % interval == 0:
+                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                             'chunks computed.')
         return data
 
     @classmethod
     def parallel_compute(cls, data, raster_index, time_chunks,
-                         input_features, all_features, handle_features,
+                         derived_features, all_features, handle_features,
                          max_workers=None):
         """Compute features using parallel subprocesses
 
@@ -1281,8 +1291,8 @@ class FeatureHandler:
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
-        input_features : list
-            list of input feature strings
+        derived_features : list
+            list of feature strings which need to be derived
         all_features : list
             list of all features including those requiring derivation from
             input features
@@ -1300,18 +1310,13 @@ class FeatureHandler:
             data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
-        derived_features = [f for f in all_features if f not in input_features]
         if len(derived_features) == 0:
             return data
-        else:
-            logger.info(f'Starting {derived_features} computation with '
-                        f'compute_workers={max_workers}.')
 
         futures = {}
         now = dt.now()
         if max_workers == 1:
-            return cls.serial_compute(data, time_chunks, input_features,
+            return cls.serial_compute(data, time_chunks, derived_features,
                                       all_features, handle_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
@@ -1334,10 +1339,11 @@ class FeatureHandler:
                     f' time chunks of shape ({shape[0]}, {shape[1]}, '
                     f'{time_shape}) for {len(derived_features)} features')
 
+                interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
                     data[v['chunk']][v['feature']] = future.result()
-                    if i % (len(futures) // 10 + 1) == 0:
+                    if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
 
@@ -1388,7 +1394,6 @@ class FeatureHandler:
         method | None
             Feature registry method corresponding to feature
         """
-
         out = None
         for k, v in cls.feature_registry().items():
             if re.match(k.lower(), feature.lower()):
@@ -1476,11 +1481,6 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def get_handle_features(cls, file_paths):
-        """Get available features from data"""
-
-    @classmethod
-    @abstractmethod
     def feature_registry(cls):
         """Registry of methods for computing features
 
@@ -1493,7 +1493,7 @@ class FeatureHandler:
     @classmethod
     @abstractmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)) -> np.dtype(np.float32):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters

@@ -13,7 +13,7 @@ import re
 from datetime import datetime as dt
 import json
 
-from sup3r.utilities.utilities import invert_uv
+from sup3r.utilities.utilities import invert_uv, estimate_max_workers
 from sup3r.preprocessing.feature_handling import Feature
 
 from rex.outputs import Outputs
@@ -59,12 +59,13 @@ class OutputHandler:
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
-
+        logger.debug('Getting high resolution lat / lon grid')
         s_enhance = shape[0] // low_res_lat_lon.shape[0]
-        old_points = np.zeros((np.product(low_res_lat_lon.shape[:-1]), 2))
-        new_points = np.zeros((np.product(shape), 2))
-        old_lats = low_res_lat_lon[..., 0].flatten()
-        old_lons = low_res_lat_lon[..., 1].flatten()
+        old_points = np.zeros((np.product(low_res_lat_lon.shape[:-1]), 2),
+                              dtype=np.float32)
+        new_points = np.zeros((np.product(shape), 2), dtype=np.float32)
+        lats = low_res_lat_lon[..., 0].flatten()
+        lons = low_res_lat_lon[..., 1].flatten()
 
         # This shifts the indices for the old points by the downsampling
         # fraction so that we can calculate the centers of the new points with
@@ -83,12 +84,11 @@ class OutputHandler:
                 new_points[new_count, 0] = i
                 new_points[new_count, 1] = j
                 new_count += 1
+        lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
+        lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
 
-        new_lats = RBFInterpolator(old_points, old_lats)(new_points)
-        new_lons = RBFInterpolator(old_points, old_lons)(new_points)
-
-        return np.concatenate([new_lats.reshape(shape)[..., np.newaxis],
-                               new_lons.reshape(shape)[..., np.newaxis]],
+        return np.concatenate([lats.reshape(shape)[..., np.newaxis],
+                               lons.reshape(shape)[..., np.newaxis]],
                               axis=-1)
 
     @staticmethod
@@ -107,6 +107,7 @@ class OutputHandler:
             Array of times for high res NETCDF output file. In hours since
             1800-01-01.
         """
+        logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
         offset = (low_res_times[1] - low_res_times[0])
         time_index = np.array([low_res_times[0] + i * offset / t_enhance
@@ -151,7 +152,7 @@ class OutputHandlerNC(OutputHandler):
 
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
-        coords = {'XTIME': (['Time'], times),
+        coords = {'Times': (['Time'], times),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
                   'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
 
@@ -232,14 +233,19 @@ class OutputHandlerH5(OutputHandler):
             High res lat/lon array
             (spatial_1, spatial_2, 2)
         max_workers : int | None
-            Max workers to use for inverse transform. If None the maximum
-            available workers will be used.
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
         """
 
+        logger.info('Converting u/v to windspeed/winddirection for h5 output')
         heights = []
         for f in features:
             if re.match('U_(.*?)m'.lower(), f.lower()):
                 heights.append(Feature.get_height(f))
+
+        proc_mem = 4 * np.product(data.shape[:-1])
+        n_procs = len(heights)
+        max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
 
         futures = {}
         now = dt.now()
@@ -248,6 +254,7 @@ class OutputHandlerH5(OutputHandler):
                 u_idx = features.index(f'U_{height}m')
                 v_idx = features.index(f'V_{height}m')
                 cls.invert_uv_single_pair(data, lat_lon, u_idx, v_idx)
+                logger.info(f'U/V pair at height {height}m inverted.')
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for height in heights:
@@ -258,11 +265,11 @@ class OutputHandlerH5(OutputHandler):
                     futures[future] = height
 
                 logger.info(f'Started inverse transforms on {len(heights)} '
-                            f'u/v pairs in {dt.now() - now}. ')
+                            f'U/V pairs in {dt.now() - now}. ')
 
                 for i, _ in enumerate(as_completed(futures)):
                     future.result()
-                    logger.debug(f'{i + 1} out of {len(futures)} inverse '
+                    logger.debug(f'{i+1} out of {len(futures)} inverse '
                                  'transforms completed.')
 
     @staticmethod
@@ -310,8 +317,8 @@ class OutputHandlerH5(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
-            Max workers to use for inverse transform. If None the maximum
-            available workers will be used.
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
@@ -334,6 +341,7 @@ class OutputHandlerH5(OutputHandler):
                 flat_data = np.transpose(flat_data, (1, 0))
                 Outputs.add_dataset(out_file, f, flat_data,
                                     dtype=attrs['dtype'], attrs=attrs)
+                logger.debug(f'Added {f} to output file')
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}

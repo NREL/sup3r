@@ -14,7 +14,6 @@ import xarray as xr
 import re
 from warnings import warn
 import psutil
-import warnings
 
 from rex import Resource
 
@@ -37,23 +36,27 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
 
     Returns
     -------
-    int
+    max_workers : int
         Max number of workers available
     """
-    if max_workers is not None:
-        return max_workers
+    if n_processes == 0:
+        if max_workers is None:
+            return 1
+        else:
+            return max_workers
     mem = psutil.virtual_memory()
     avail_mem = 0.7 * (mem.total - mem.used)
-    msg = ('Estimated upper bound for process memory '
-           f'({process_mem / 1e9:.3f} GB) exceeds available memory '
-           f'({avail_mem / 1e9:.3f} GB).')
-    if process_mem > avail_mem:
-        logger.warning(msg)
-        warnings.warn(msg)
-    max_workers = int(avail_mem / process_mem)
-    max_workers = np.min([max_workers, n_processes, os.cpu_count()])
-    max_workers = np.max([max_workers, 1])
+    cpu_count = os.cpu_count() / 2
+    mult = np.min([cpu_count / n_processes, 1])
+    if max_workers is not None:
+        max_workers = np.min([max_workers, n_processes])
+    else:
+        max_workers = mult * avail_mem / process_mem
+        max_workers = np.min([max_workers, n_processes, cpu_count])
+        max_workers = int(np.max([max_workers, 1]))
     logger.info(f'Available memory: {avail_mem / 1e9:.3f} GB. '
+                f'Available cores: {cpu_count}. '
+                f'Number of processes: {n_processes}. '
                 f'Max workers: {max_workers}. '
                 f'Memory per process: {process_mem / 1e9:.3f} GB.')
     return max_workers
@@ -112,34 +115,6 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     return slices
 
 
-def get_file_t_steps(file_paths):
-    """Get number of time steps in each file. We assume that each file in a
-    file list passed to the handling classes has the same number of time steps.
-
-    Parameters
-    ----------
-    file_paths : list
-        List of netcdf or h5 file paths
-
-    Returns
-    -------
-    int
-        Number of time steps in each file
-    """
-
-    file_type = get_source_type(file_paths)
-
-    if file_type == 'nc':
-        with xr.open_dataset(file_paths[0]) as handle:
-            if hasattr(handle, 'XTIME'):
-                return len(handle.XTIME.values)
-            elif hasattr(handle, 'time'):
-                return len(handle.time.values)
-    elif file_type == 'h5':
-        with Resource(file_paths[0]) as handle:
-            return len(handle.time_index)
-
-
 def get_time_index(file_path):
     """Get time index for single file
 
@@ -157,10 +132,12 @@ def get_time_index(file_path):
 
     if file_type == 'nc':
         with xr.open_dataset(file_path) as handle:
-            if hasattr(handle, 'XTIME'):
-                times = handle.XTIME.values
+            if hasattr(handle, 'Times'):
+                times = handle.Times.values
             elif hasattr(handle, 'time'):
                 times = handle.time.values
+            else:
+                raise ValueError(f'Could not get time index for {file_path}')
     elif file_type == 'h5':
         with Resource(file_path) as handle:
             times = handle.time_index
@@ -767,27 +744,27 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     """
 
     # Import Variable values from nc database instance
-    array_in = np.array(data[var], np.float32)
+    idx = (time_slice, slice(None), slice(None), slice(None))
+    array_in = np.array(data[var][idx], dtype=np.float32)
 
     if all('stag' not in d for d in data[var].dims):
-        array_in = array_in[(time_slice, slice(None),) + tuple(raster_index)]
-
+        array_in = array_in[(slice(None), slice(None),) + tuple(raster_index)]
     else:
         for i, d in enumerate(data[var].dims):
             if 'stag' in d:
                 if 'south_north' in d:
-                    idx = (time_slice, slice(None),
+                    idx = (slice(None), slice(None),
                            slice(raster_index[0].start,
                                  raster_index[0].stop + 1),
                            raster_index[1])
                     array_in = array_in[idx]
                 elif 'west_east' in d:
-                    idx = (time_slice, slice(None), raster_index[0],
+                    idx = (slice(None), slice(None), raster_index[0],
                            slice(raster_index[1].start,
                                  raster_index[1].stop + 1))
                     array_in = array_in[idx]
                 else:
-                    idx = (time_slice, slice(None),) + tuple(raster_index)
+                    idx = (slice(None), slice(None),) + tuple(raster_index)
                     array_in = array_in[idx]
                 array_in = np.apply_along_axis(forward_average, i, array_in)
     return array_in
@@ -813,27 +790,26 @@ def calc_height(data, raster_index, time_slice=slice(None)):
     """
     # Base-state Geopotential(m^2/s^2)
     if all(field in data for field in ('PHB', 'PH', 'HGT')):
-        phb = unstagger_var(data, 'PHB', raster_index, time_slice)
+        gp = unstagger_var(data, 'PHB', raster_index, time_slice)
         # Perturbation Geopotential (m^2/s^2)
-        ph = unstagger_var(data, 'PH', raster_index, time_slice)
+        gp += unstagger_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
 
-        if phb.shape != hgt.shape:
-            hgt = np.expand_dims(hgt, axis=1)
-            hgt = np.repeat(hgt, phb.shape[-3], axis=1)
-        hgt = (ph + phb) / 9.81 - hgt
+        if gp.shape != hgt.shape:
+            hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1)
+        hgt = gp / 9.81 - hgt
+        del gp
 
     elif 'zg' in data:
         hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
         hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
-        hgt = np.array(hgt.values)
+        hgt = np.array(hgt.values, dtype=np.float32)
 
     else:
         msg = ('Need either PHB/PH/HGT or zg in data to perform height '
                'interpolation')
         raise ValueError(msg)
-
     return hgt
 
 
@@ -857,8 +833,8 @@ def calc_pressure(data, var, raster_index, time_slice=slice(None)):
         (temporal, vertical_level, spatial_1, spatial_2)
         4D array of pressure levels in pascals
     """
-    p_array = np.zeros(data[var][(time_slice, slice(None),)
-                                 + tuple(raster_index)].shape)
+    idx = (time_slice, slice(None),) + tuple(raster_index)
+    p_array = np.zeros(data[var][idx].shape, dtype=np.float32)
     for i in range(p_array.shape[1]):
         p_array[:, i, ...] = data.plev[i]
 
@@ -889,8 +865,8 @@ def interp_to_level(var_array, lev_array, levels):
            f'\nh_array: {lev_array.shape}')
     assert var_array.shape == lev_array.shape, msg
 
-    levels = [levels] if isinstance(
-        levels, (int, float, np.float32)) else levels
+    levels = ([levels] if isinstance(levels, (int, float, np.float32))
+              else levels)
     h_min = np.nanmin(lev_array)
     h_max = np.nanmax(lev_array)
     height_check = (h_min <= min(levels) and max(levels) <= h_max)
@@ -909,28 +885,27 @@ def interp_to_level(var_array, lev_array, levels):
     array_shape = var_array.shape
 
     # Flatten h_array and var_array along lat, long axis
-    out_array = np.zeros(
-        (len(levels), array_shape[-4], np.product(array_shape[-2:]))).T
+    shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
+    out_array = np.zeros(shape, dtype=np.float32).T
 
     for i in range(array_shape[0]):
-        h_tmp = lev_array[i].reshape(
-            (array_shape[-3], np.product(array_shape[-2:]))).T
-        var_tmp = var_array[i].reshape(
-            (array_shape[-3], np.product(array_shape[-2:]))).T
+        shape = (array_shape[-3], np.product(array_shape[-2:]))
+        h_tmp = lev_array[i].reshape(shape).T
+        var_tmp = var_array[i].reshape(shape).T
 
     # Interpolate each column of height and var to specified levels
-        out_array[:, i, :] = np.array(
-            [np.interp(levels, h, var)
-             for h, var in zip(h_tmp, var_tmp)])
+        out_array[:, i, :] = np.array([np.interp(levels, h, var)
+                                       for h, var in zip(h_tmp, var_tmp)],
+                                      dtype=np.float32)
 
     # Reshape out_array
     if isinstance(levels, (float, np.float32, int)):
-        out_array = out_array.T.reshape(
-            (1, array_shape[-4], array_shape[-2], array_shape[-1]))
+        shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])
+        out_array = out_array.T.reshape(shape)
     else:
-        out_array = out_array.T.reshape(
-            (len(levels), array_shape[-4],
-             array_shape[-2], array_shape[-1]))
+        shape = (len(levels), array_shape[-4], array_shape[-2],
+                 array_shape[-1])
+        out_array = out_array.T.reshape(shape)
 
     return out_array
 

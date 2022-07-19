@@ -68,9 +68,15 @@ def from_config(ctx, config_file, verbose):
               verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    log_prefix = config.get('log_file_prefix', None)
-    hardware_option = exec_kwargs.get('option', 'local')
+    log_pattern = config.get('log_pattern', None)
+    if log_pattern is not None:
+        if '.log' not in log_pattern:
+            log_pattern += '.log'
+        if '{node_index}' not in log_pattern:
+            log_pattern = log_pattern.replace('.log', '_{node_index}.log')
+
     logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    hardware_option = exec_kwargs.pop('option', 'local')
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     sig = signature(ForwardPassStrategy)
@@ -78,11 +84,14 @@ def from_config(ctx, config_file, verbose):
                        if k in sig.parameters.keys()}
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
-    for i in range(strategy.nodes):
+    node_index = config.get('node_index', None)
+    nodes = [node_index] if node_index is not None else range(strategy.nodes)
+    for i in nodes:
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
-        node_config['log_file'] = (os.path.normpath(f'{log_prefix}_{i}.log')
-                                   if log_prefix is not None else log_prefix)
+        node_config['log_file'] = (
+            log_pattern if log_pattern is None
+            else os.path.normpath(log_pattern.format(node_index=i)))
         name = 'sup3r_fwp_{}'.format(str(i).zfill(4))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
@@ -144,7 +153,6 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
     else:
         logger.info('Running sup3r forward pass on SLURM with node name "{}".'
                     .format(name))
-
         out = slurm_manager.sbatch(cmd,
                                    alloc=alloc,
                                    memory=memory,
@@ -196,7 +204,7 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.FORWARD_PASS,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        msg = ('Kicked off sup3r forward pass job "{}".'.format(name))
+        msg = ('Completed sup3r forward pass job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)

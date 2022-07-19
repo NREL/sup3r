@@ -45,8 +45,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1, val_split=0.1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
                                         n_batches=10)
@@ -115,8 +114,7 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=3, t_enhance=4,
@@ -167,8 +165,7 @@ def test_train_st_dc(n_epoch=2, log=False):
                                  sample_shape=(18, 18, 24),
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
-                                 extract_workers=1,
-                                 compute_workers=1)
+                                 max_workers=1)
     batch_size = 4
     n_batches = 20
     total_count = batch_size * n_batches
@@ -216,8 +213,7 @@ def test_train_st(n_epoch=4, log=False):
                             sample_shape=(18, 18, 24),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            extract_workers=1,
-                            compute_workers=1)
+                            max_workers=1)
 
     batch_handler = BatchHandler([handler], batch_size=4,
                                  s_enhance=3, t_enhance=4,

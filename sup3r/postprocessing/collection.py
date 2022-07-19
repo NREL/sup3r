@@ -224,7 +224,7 @@ class Collector:
             flag to sort flist to determine meta data order.
         sort_key : None | fun
             Optional sort key to sort flist by (determines how meta is built
-            if f_out does not exist).
+            if out_file does not exist).
 
         Returns
         -------
@@ -269,12 +269,12 @@ class Collector:
         return time_index, meta, shape, dtype
 
     @staticmethod
-    def _init_collected_h5(f_out, time_index, meta):
+    def _init_collected_h5(out_file, time_index, meta):
         """Initialize the output h5 file to save collected data to.
 
         Parameters
         ----------
-        f_out : str
+        out_file : str
             Output file path - must not yet exist.
         time_index : pd.datetimeindex
             Full datetime index of collected data.
@@ -282,9 +282,9 @@ class Collector:
             Full meta dataframe collected data.
         """
 
-        with Outputs(f_out, mode='w-') as f:
+        with Outputs(out_file, mode='w-') as f:
             logger.info('Initializing collection output file: {}'
-                        .format(f_out))
+                        .format(out_file))
             logger.info('Initializing collection output file with shape {} '
                         'and meta data:\n{}'
                         .format((len(time_index), len(meta)), meta))
@@ -292,11 +292,11 @@ class Collector:
             f['meta'] = meta
 
     @staticmethod
-    def _ensure_dset_in_output(f_out, dset, data=None):
-        """Ensure that dset is initialized in f_out and initialize if not.
+    def _ensure_dset_in_output(out_file, dset, data=None):
+        """Ensure that dset is initialized in out_file and initialize if not.
         Parameters
         ----------
-        f_out : str
+        out_file : str
             Pre-existing H5 file output path
         dset : str
             Dataset name
@@ -304,7 +304,7 @@ class Collector:
             Optional data to write to dataset if initializing.
         """
 
-        with Outputs(f_out, mode='a') as f:
+        with Outputs(out_file, mode='a') as f:
             if dset not in f.dsets:
                 attrs, dtype = get_dset_attrs(dset)
                 logger.info('Initializing dataset "{}" with shape {} and '
@@ -313,7 +313,7 @@ class Collector:
                                attrs=attrs, data=data)
 
     @staticmethod
-    def collect_flist(file_paths, f_out, feature, sort=False, sort_key=None,
+    def collect_flist(file_paths, out_file, feature, sort=False, sort_key=None,
                       max_workers=None):
         """Collect a dataset from a file list with data pre-init.
 
@@ -328,7 +328,7 @@ class Collector:
             overlapping meta dataset.
         collect_dir : str
             Directory of chunked files (flist).
-        f_out : str
+        out_file : str
             File path of final output file.
         dset : str
             Dataset name to collect.
@@ -336,7 +336,7 @@ class Collector:
             flag to sort flist to determine meta data order.
         sort_key : None | fun
             Optional sort key to sort flist by (determines how meta is built
-            if f_out does not exist).
+            if out_file does not exist).
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None uses all available.
@@ -396,27 +396,27 @@ class Collector:
                     f_data, row_slice, col_slice = future.result()
                     data[row_slice, col_slice] = f_data
 
-        if not os.path.exists(f_out):
-            Collector._init_collected_h5(f_out, time_index, meta)
+        if not os.path.exists(out_file):
+            Collector._init_collected_h5(out_file, time_index, meta)
             x_write_slice, y_write_slice = slice(None), slice(None)
         else:
-            with Outputs(f_out, 'r') as f:
+            with Outputs(out_file, 'r') as f:
                 target_meta = f.meta
                 target_ti = f.time_index
             y_write_slice, x_write_slice = Collector.get_slices(target_ti,
                                                                 target_meta,
                                                                 time_index,
                                                                 meta)
-        Collector._ensure_dset_in_output(f_out, feature)
-        with Outputs(f_out, mode='a') as f:
+        Collector._ensure_dset_in_output(out_file, feature)
+        with Outputs(out_file, mode='a') as f:
             f[feature, y_write_slice, x_write_slice] = data
 
         logger.debug('Finished writing "{}" for row {} and col {} to: {}'
                      .format(feature, y_write_slice, x_write_slice,
-                             os.path.basename(f_out)))
+                             os.path.basename(out_file)))
 
     @classmethod
-    def collect(cls, file_paths, f_out, features, n_writes=1,
+    def collect(cls, file_paths, out_file, features, n_writes=1,
                 max_workers=None, log_level=None, log_file=None,
                 write_status=False, job_name=None):
         """Collect data files from a dir to one output file.
@@ -433,7 +433,7 @@ class Collector:
             or a single string with unix-style /search/patt*ern.h5. Files
             should have non-overlapping time_index dataset and fully
             overlapping meta dataset.
-        f_out : str
+        out_file : str
             File path of final output file.
         features : list
             List of dsets to collect
@@ -460,7 +460,8 @@ class Collector:
             init_logger('sup3r.preprocessing', log_file=log_file,
                         log_level=log_level)
 
-        logger.info('Collecting data from {} to {}'.format(file_paths, f_out))
+        logger.info('Collecting data from {} to {}'.format(file_paths,
+                                                           out_file))
 
         collector = cls(file_paths)
         for _, dset in enumerate(features):
@@ -472,10 +473,10 @@ class Collector:
                 logger.error(e)
                 raise ValueError(e)
 
-            if not os.path.exists(f_out):
+            if not os.path.exists(out_file):
                 time_index, meta, _, _ = \
                     collector._get_collection_attrs(collector.flist, dset)
-                collector._init_collected_h5(f_out, time_index, meta)
+                collector._init_collected_h5(out_file, time_index, meta)
 
             flist_chunks = np.array_split(np.array(collector.flist),
                                           n_writes)
@@ -483,16 +484,16 @@ class Collector:
             for j, flist in enumerate(flist_chunks):
                 logger.info('Collecting file list chunk {} out of {} '
                             .format(j + 1, len(flist_chunks)))
-                collector.collect_flist(flist, f_out, dset,
+                collector.collect_flist(flist, out_file, dset,
                                         max_workers=max_workers)
 
         if write_status and job_name is not None:
-            status = {'out_dir': os.path.dirname(f_out),
-                      'fout': f_out,
+            status = {'out_dir': os.path.dirname(out_file),
+                      'fout': out_file,
                       'flist': file_paths,
                       'job_status': 'successful',
                       'runtime': (time.time() - t0) / 60}
-            Status.make_job_file(os.path.dirname(f_out), 'collect',
+            Status.make_job_file(os.path.dirname(out_file), 'collect',
                                  job_name, status)
 
         logger.info('Finished file collection.')

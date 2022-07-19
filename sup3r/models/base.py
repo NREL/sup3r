@@ -229,12 +229,12 @@ class Sup3rGan:
 
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         fp_disc = os.path.join(out_dir, 'model_disc.pkl')
-        params = cls._load_saved_params(out_dir)
+        params = cls.load_saved_params(out_dir)
 
         return cls(fp_gen, fp_disc, **params)
 
     @staticmethod
-    def _load_saved_params(out_dir):
+    def load_saved_params(out_dir, verbose=True):
         """Load saved GAN model_params (you need this and the gen+disc models
         to load a full GAN).
 
@@ -242,6 +242,8 @@ class Sup3rGan:
         ----------
         out_dir : str
             Directory to load GAN model files from.
+        verbose : bool
+            Whether to print version record
 
         Returns
         -------
@@ -264,9 +266,10 @@ class Sup3rGan:
 
         if 'version_record' in params:
             version_record = params.pop('version_record')
-            logger.info('Loading GAN from disk that was created with the '
-                        'following package versions: \n{}'
-                        .format(pprint.pformat(version_record, indent=2)))
+            if verbose:
+                logger.info('Loading GAN from disk that was created with the '
+                            'following package versions: \n{}'
+                            .format(pprint.pformat(version_record, indent=2)))
 
         return params
 

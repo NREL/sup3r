@@ -64,8 +64,8 @@ def from_config(ctx, config_file, verbose):
               verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    hardware_option = exec_kwargs.get('option', 'local')
     logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    hardware_option = exec_kwargs.pop('option', 'local')
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     name = 'sup3r_data_collect'
@@ -113,7 +113,7 @@ def kickoff_local_job(ctx, cmd):
         Status.add_job(out_dir, module=ModuleName.DATA_COLLECT,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        msg = ('Kicked off sup3r data collection job "{}".'.format(name))
+        msg = ('Completed sup3r data collection job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)
