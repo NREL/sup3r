@@ -49,8 +49,6 @@ class ForwardPassStrategy(InputMixIn):
                  temporal_slice=slice(None),
                  fp_chunk_shape=(30, 30, 30),
                  raster_file=None,
-                 s_enhance=3,
-                 t_enhance=4,
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
@@ -907,20 +905,25 @@ class ForwardPass:
         data : ndarray
             Array filled with forward pass output
         """
-        for i, (sh, slp, shc) in enumerate(zip(self.hr_slices,
-                                               self.lr_pad_slices,
-                                               self.hr_crop_slices)):
-
+        logger.info('Starting serial iteration through forward pass chunks.')
+        zip_iter = zip(self.hr_slices, self.lr_pad_slices, self.hr_crop_slices)
+        for i, (sh, slp, shc) in enumerate(zip_iter):
             data[sh] = ForwardPass.forward_pass_chunk(
                 self.data_handler.data[slp], crop_slices=shc,
                 model_path=self.model_path,
                 s_enhance=self.strategy.s_enhance,
                 t_enhance=self.strategy.t_enhance)
 
+            if i == 0:
+                logger.info('Coarse data chunks being passed to model '
+                            'with shape {} which is slice {} of full shape {}.'
+                            .format(self.data_handler.data[slp].shape, slp,
+                                    self.data_handler.data.shape))
+
             interval = np.int(np.ceil(len(self.hr_slices) / 10))
             if interval > 0 and i % interval == 0:
-                logger.debug(f'{i+1} out of {len(self.hr_slices)} '
-                             'forward passes completed.')
+                logger.info(f'{i+1} out of {len(self.hr_slices)} '
+                            'forward passes completed.')
         return data
 
     def _run_parallel(self, data, max_workers=None):
@@ -940,18 +943,29 @@ class ForwardPass:
         """
         futures = {}
         now = dt.now()
+        logger.info('Starting process pool with {} workers'
+                    .format(max_workers))
         with SpawnProcessPool(max_workers=max_workers) as exe:
-            for i, (sh, slp, shc) in enumerate(zip(
-                    self.hr_slices, self.lr_pad_slices,
-                    self.hr_crop_slices)):
-                future = exe.submit(
-                    ForwardPass.forward_pass_chunk,
-                    data_chunk=self.data_handler.data[slp],
-                    crop_slices=shc, model_path=self.model_path,
-                    s_enhance=self.strategy.s_enhance,
-                    t_enhance=self.strategy.t_enhance)
+            zip_iter = zip(self.hr_slices, self.lr_pad_slices,
+                           self.hr_crop_slices)
+            for i, (sh, slp, shc) in enumerate(zip_iter):
+
+                future = exe.submit(ForwardPass.forward_pass_chunk,
+                                    data_chunk=self.data_handler.data[slp],
+                                    crop_slices=shc,
+                                    model_path=self.model_path,
+                                    s_enhance=self.strategy.s_enhance,
+                                    t_enhance=self.strategy.t_enhance)
+
                 meta = {'s_high': sh, 'idx': i}
                 futures[future] = meta
+
+                if i == 0:
+                    logger.info('Coarse data chunks being passed to model '
+                                'with shape {} which is slice {} '
+                                'of full shape {}.'
+                                .format(self.data_handler.data[slp].shape, slp,
+                                        self.data_handler.data.shape))
 
             logger.info('Started forward pass for '
                         f'{len(self.hr_slices)} chunks in '
@@ -962,8 +976,8 @@ class ForwardPass:
                 slices = futures[future]
                 data[slices['s_high']] = future.result()
                 if interval > 0 and i % interval == 0:
-                    logger.debug(f'{i+1} out of {len(futures)} forward'
-                                 ' passes completed.')
+                    logger.info(f'{i+1} out of {len(futures)} forward'
+                                ' passes completed.')
             return data
 
     def run(self):
@@ -984,6 +998,7 @@ class ForwardPass:
                          self.strategy.t_enhance * self.data_shape[2],
                          len(self.output_features)),
                         dtype=np.float32)
+
         if max_workers == 1:
             data = self._run_serial(data)
         else:
