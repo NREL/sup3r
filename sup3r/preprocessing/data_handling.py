@@ -1664,6 +1664,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
+            'temperature_2m': 'tas',
+            'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
         return registry
 

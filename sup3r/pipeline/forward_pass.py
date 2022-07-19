@@ -44,7 +44,7 @@ class ForwardPassStrategy(InputMixIn):
     stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths,
+    def __init__(self, file_paths, s_enhance, t_enhance,
                  target=None, shape=None,
                  temporal_slice=slice(None),
                  fp_chunk_shape=(30, 30, 30),
@@ -74,6 +74,12 @@ class ForwardPassStrategy(InputMixIn):
             A list of files to extract raster data from. Each file must have
             the same number of timesteps. Can also pass a string with a
             unix-style file path which will be passed through glob.glob
+        s_enhance : int
+            Factor by which to enhance spatial dimensions of low resolution
+            data
+        t_enhance : int
+            Factor by which to enhance temporal dimension of low resolution
+            data
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -100,12 +106,6 @@ class ForwardPassStrategy(InputMixIn):
             if it exists or written to the file if it does not yet exist.
             If None raster_index will be calculated directly. Either need
             target+shape or raster_file.
-        s_enhance : int
-            Factor by which to enhance spatial dimensions of low resolution
-            data
-        t_enhance : int
-            Factor by which to enhance temporal dimension of low resolution
-            data
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -796,7 +796,8 @@ class ForwardPass:
         self._pass_workers = pass_workers
 
     @staticmethod
-    def forward_pass_chunk(data_chunk, crop_slices, model_path):
+    def forward_pass_chunk(data_chunk, crop_slices, model_path,
+                           s_enhance=None, t_enhance=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
         shape given by self.strategy.fp_chunk_shape.
 
@@ -822,6 +823,23 @@ class ForwardPass:
         model = Sup3rGan.load(model_path)
         data_chunk = np.expand_dims(data_chunk, axis=0)
         hi_res = model.generate(data_chunk)
+
+        if (s_enhance is not None
+                and hi_res.shape[1] != s_enhance * data_chunk.shape[1]):
+            msg = ('The stated spatial enhancement of {}x did not match '
+                   'the low res / high res shapes of {} -> {}'
+                   .format(s_enhance, data_chunk.shape, hi_res.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        if (t_enhance is not None
+                and hi_res.shape[3] != t_enhance * data_chunk.shape[3]):
+            msg = ('The stated temporal enhancement of {}x did not match '
+                   'the low res / high res shapes of {} -> {}'
+                   .format(t_enhance, data_chunk.shape, hi_res.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         return hi_res[0][crop_slices]
 
     @classmethod
@@ -839,7 +857,7 @@ class ForwardPass:
         use_cpu = config.get('use_cpu', False)
         import_str = ''
         if use_cpu:
-            import_str = 'import os; os.environ[\"CUDA_VISIBLE_DEVICES\"] = '
+            import_str += 'import os; os.environ[\"CUDA_VISIBLE_DEVICES\"] = '
             import_str += '\"-1\"; '
         import_str += 'from sup3r.pipeline.forward_pass '
         import_str += f'import ForwardPassStrategy, {cls.__name__}; '
@@ -892,9 +910,13 @@ class ForwardPass:
         for i, (sh, slp, shc) in enumerate(zip(self.hr_slices,
                                                self.lr_pad_slices,
                                                self.hr_crop_slices)):
+
             data[sh] = ForwardPass.forward_pass_chunk(
                 self.data_handler.data[slp], crop_slices=shc,
-                model_path=self.model_path)
+                model_path=self.model_path,
+                s_enhance=self.strategy.s_enhance,
+                t_enhance=self.strategy.t_enhance)
+
             interval = np.int(np.ceil(len(self.hr_slices) / 10))
             if interval > 0 and i % interval == 0:
                 logger.debug(f'{i+1} out of {len(self.hr_slices)} '
@@ -925,7 +947,9 @@ class ForwardPass:
                 future = exe.submit(
                     ForwardPass.forward_pass_chunk,
                     data_chunk=self.data_handler.data[slp],
-                    crop_slices=shc, model_path=self.model_path)
+                    crop_slices=shc, model_path=self.model_path,
+                    s_enhance=self.strategy.s_enhance,
+                    t_enhance=self.strategy.t_enhance)
                 meta = {'s_high': sh, 'idx': i}
                 futures[future] = meta
 
