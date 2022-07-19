@@ -1195,9 +1195,6 @@ class DataHandler(FeatureHandler, InputHandler):
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
         """
-        if self.data is not None:
-            return self.data
-
         now = dt.now()
         logger.debug(f'Loading data for raster of shape {self.grid_shape}')
 
