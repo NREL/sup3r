@@ -769,8 +769,9 @@ class ForwardPass:
             initialize ForwardPassStrategy and run ForwardPass on a single
             node.
         """
-
-        import_str = ('from sup3r.pipeline.forward_pass '
+        import_str = ('import os; '
+                      'os.environ[\"CUDA_VISIBLE_DEVICES\"] = \"-1\"; '
+                      'from sup3r.pipeline.forward_pass '
                       f'import ForwardPassStrategy, {cls.__name__}; '
                       'from rex import init_logger')
 

@@ -165,15 +165,12 @@ def test_raster_index_caching():
         handler = DataHandler(input_file, features, target=target,
                               shape=shape, max_delta=max_delta,
                               raster_file=raster_file)
-        _ = handler.get_raster_index()
-
         # loading raster file
-        handler = DataHandler(input_file, features, target=target,
-                              shape=shape, max_delta=max_delta,
-                              raster_file=raster_file)
-
+        handler = DataHandler(input_file, features, raster_file=raster_file)
+        assert np.allclose(handler.target, target, atol=1)
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
+        assert handler.grid_shape == (shape[0], shape[1])
 
 
 def test_normalization_input():

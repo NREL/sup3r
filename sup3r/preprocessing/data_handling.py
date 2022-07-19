@@ -236,7 +236,8 @@ class InputHandler:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            self._target = tuple(self.lat_lon[-1, 0, :])
+            self._target = (np.min(self.lat_lon[..., 0]),
+                            np.min(self.lat_lon[..., 1]))
         return self._target
 
     @target.setter

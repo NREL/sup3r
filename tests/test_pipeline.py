@@ -10,9 +10,33 @@ from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.test_utils import make_fake_nc_files
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
+from sup3r.sup3r import SUP3R
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
+
+
+def test_config_gen():
+    """Test configuration generation for forward pass and collect"""
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
+    model.meta['training_features'] = ['U_100m', 'V_100m']
+    model.meta['output_features'] = ['U_100m', 'V_100m']
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        fp_config = os.path.join(td, 'fp_config.json')
+        dc_config = os.path.join(td, 'collect_config.json')
+        pipe_config = os.path.join(td, 'pipeline_config.json')
+        SUP3R.init_pass_collect(td, input_files, out_dir)
+        assert os.path.exists(fp_config)
+        assert os.path.exists(dc_config)
+        assert os.path.exists(pipe_config)
 
 
 def test_pipeline():

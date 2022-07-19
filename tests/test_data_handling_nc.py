@@ -160,11 +160,20 @@ def test_feature_handler():
         assert tmp.dtype == np.dtype(np.float32)
 
 
+def test_get_full_domain():
+    """Test data handling without target, shape, or raster_file input"""
+    handler = DataHandler(input_files, features)
+    tmp = xr.open_dataset(input_files[0])
+    shape = np.array(tmp.XLAT.values).shape[1:]
+    target = (np.min(tmp.XLAT.values), np.min(tmp.XLONG.values))
+    assert handler.grid_shape == shape
+    assert handler.target == target
+
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
     # saving raster file
-
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.npy')
         handler = DataHandler(input_files, features, target=target,
@@ -175,15 +184,11 @@ def test_raster_index_caching():
         print(handler.data.shape)
         print(handler.raster_index)
         # loading raster file
-        handler = DataHandler(input_files, features,
-                              sample_shape=sample_shape,
-                              max_delta=max_delta,
-                              raster_file=raster_file)
-
-        print(handler.raster_index)
-
+        handler = DataHandler(input_files, features, raster_file=raster_file)
+        assert np.allclose(handler.target, target, atol=1)
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
+        assert handler.grid_shape == (shape[0], shape[1])
 
 
 def test_normalization_input():

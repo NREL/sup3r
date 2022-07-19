@@ -154,13 +154,13 @@ class SUP3R:
         pipe_config = {'logging': {'log_level': 'DEBUG'},
                        'pipeline': [{'forward-pass': fp_config_file},
                                     {'data-collect': col_config_file}]}
-        pipeline_file = os.path.join(out_dir, 'config_pipeline.json')
+        pipeline_file = os.path.join(out_dir, 'pipeline_config.json')
         with open(pipeline_file, 'w') as f:
             json.dump(pipe_config, f)
             logger.info(f'Saved pipeline config file: {pipeline_file}.')
 
         script_file = os.path.join(out_dir, 'run.sh')
         with open(script_file, 'w') as f:
-            cmd = 'python -m sup3r.cli -c config_pipeline.json pipeline'
+            cmd = 'python -m sup3r.cli -c pipeline_config.json pipeline'
             f.write(cmd)
             logger.info(f'Saved script file: {script_file}.')
