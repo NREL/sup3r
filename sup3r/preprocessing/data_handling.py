@@ -84,14 +84,15 @@ def get_handler_class(file_paths):
     return HandlerClass
 
 
-class InputHandler:
-    """Class for properties used in data handlers and forward pass strategy"""
+class InputMixIn:
+    """MixIn class for input handling methods and properties"""
 
     def __init__(self):
         self.raster_file = None
-        self.raw_time_index = None
         self.raster_index = None
         self.lat_lon = None
+        self._raw_time_index = None
+        self._time_index = None
         self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
@@ -103,6 +104,11 @@ class InputHandler:
     def get_full_domain(cls, file_paths):
         """Get target and shape for largest domain possible when target + shape
         are not specified"""
+
+    @classmethod
+    @abstractmethod
+    def get_time_index(cls, file_paths):
+        """Get raw time index for source data"""
 
     @property
     def input_file_info(self):
@@ -268,8 +274,30 @@ class InputHandler:
         """Update grid_shape property"""
         self._grid_shape = grid_shape
 
+    @property
+    def raw_time_index(self):
+        """Time index for input data without time pruning. This is the base
+        time index for the raw input data."""
+        if self._raw_time_index is None:
+            self._raw_time_index = self.get_time_index(self.file_paths)
+        return self._raw_time_index
 
-class DataHandler(FeatureHandler, InputHandler):
+    @property
+    def time_index(self):
+        """Time index for input data with time pruning. This is the raw time
+        index with a cropped range and time step applied."""
+        if self._time_index is None:
+            self._time_index = self.raw_time_index
+            self._time_index = self._time_index[self.temporal_slice]
+        return self._time_index
+
+    @time_index.setter
+    def time_index(self, time_index):
+        """Update time index"""
+        self._time_index = time_index
+
+
+class DataHandler(FeatureHandler, InputMixIn):
     """Sup3r data handling and extraction"""
 
     # list of features / feature name patterns that are input to the generative
@@ -344,6 +372,7 @@ class DataHandler(FeatureHandler, InputHandler):
         max_workers : int | None
             max number of workers to use for data extraction and feature
             computation. If max_workers == 1 then processes will be serialized.
+            If None max_workers will be estimated based on memory limits.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
@@ -561,28 +590,6 @@ class DataHandler(FeatureHandler, InputHandler):
         if self._cache_files is None:
             self._cache_files = self.get_cache_file_names(self.cache_pattern)
         return self._cache_files
-
-    @property
-    def raw_time_index(self):
-        """Time index for input data without time pruning. This is the base
-        time index for the raw input data."""
-        if self._raw_time_index is None:
-            self._raw_time_index = self.get_time_index(self.file_paths)
-        return self._raw_time_index
-
-    @property
-    def time_index(self):
-        """Time index for input data with time pruning. This is the raw time
-        index with a cropped range and time step applied."""
-        if self._time_index is None:
-            self._time_index = self.raw_time_index
-            self._time_index = self._time_index[self.temporal_slice]
-        return self._time_index
-
-    @time_index.setter
-    def time_index(self, time_index):
-        """Update time index"""
-        self._time_index = time_index
 
     @property
     def lat_lon(self):
@@ -875,9 +882,10 @@ class DataHandler(FeatureHandler, InputHandler):
                 try:
                     future.result()
                 except Exception as e:
-                    logger.error('Error while normalizing future number '
-                                 f'{futures[future]}.')
-                    raise e
+                    msg = ('Error while normalizing future number '
+                           f'{futures[future]}.')
+                    logger.error(msg)
+                    raise RuntimeError(msg) from e
                 logger.debug(f'{i+1} out of {self.shape[-1]} features '
                              'normalized.')
 
@@ -1043,9 +1051,10 @@ class DataHandler(FeatureHandler, InputHandler):
                 try:
                     future.result()
                 except Exception as e:
-                    logger.error('Error while loading '
-                                 f'{self.cache_files[futures[future]["idx"]]}')
-                    raise e
+                    msg = ('Error while loading '
+                           f'{self.cache_files[futures[future]["idx"]]}')
+                    logger.error(msg)
+                    raise RuntimeError(msg) from e
                 logger.debug(f'{i+1} out of {len(futures)} cache files '
                              f'loaded: {futures[future]["fp"]}')
 
@@ -1321,10 +1330,11 @@ class DataHandler(FeatureHandler, InputHandler):
                     try:
                         future.result()
                     except Exception as e:
-                        logger.error(f'Error adding ({futures[future]["t"]}, '
-                                     f'{futures[future]["fidx"]}) chunk to '
-                                     'final data array.')
-                        raise e
+                        msg = (f'Error adding ({futures[future]["t"]}, '
+                               f'{futures[future]["fidx"]}) chunk to '
+                               'final data array.')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     if interval > 0 and i % interval == 0:
                         logger.debug(f'Added {i+1} out of {len(futures)} '
                                      'chunks to final data array')
@@ -1342,11 +1352,6 @@ class DataHandler(FeatureHandler, InputHandler):
             2D array of grid indices for H5 or list of
             slices for NETCDF
         """
-
-    @classmethod
-    @abstractmethod
-    def get_time_index(cls, file_paths):
-        """Get time index from input files"""
 
 
 class DataHandlerNC(DataHandler):
@@ -1374,6 +1379,8 @@ class DataHandlerNC(DataHandler):
         ----------
         file_paths : str | list
             paths to data files
+        kwargs : dict
+            Dictionary of keyword args passed to xarray.open_mfdataset()
 
         Returns
         -------

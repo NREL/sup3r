@@ -343,7 +343,7 @@ class BatchHandler:
         max_workers : int | None
             Max number of workers to use for parallel data loading and
             normalization. If None the max number of available workers will be
-            used.
+            estimated based on memory limits.
         overwrite_stats : bool
             Whether to overwrite stats cache files.
         """
@@ -484,9 +484,10 @@ class BatchHandler:
                     try:
                         future.result()
                     except Exception as e:
-                        logger.error('Error normalizing data handler number '
-                                     f'{futures[future]}')
-                        raise e
+                        msg = ('Error normalizing data handler number '
+                               f'{futures[future]}')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of {len(futures)} data handlers'
                                  ' normalized.')
 
@@ -513,9 +514,10 @@ class BatchHandler:
                     try:
                         future.result()
                     except Exception as e:
-                        logger.error('Error loading data handler number '
-                                     f'{futures[future]}')
-                        raise e
+                        msg = ('Error loading data handler number '
+                               f'{futures[future]}')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of {len(futures)} handlers '
                                  'loaded.')
 
@@ -544,10 +546,10 @@ class BatchHandler:
                     try:
                         future.result()
                     except Exception as e:
-                        logger.error(
-                            'Error calculating stats for '
-                            f'{self.training_features[futures[future]]}')
-                        raise e
+                        msg = ('Error calculating stats for '
+                               f'{self.training_features[futures[future]]}')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of '
                                  f'{len(self.training_features)} stats '
                                  'calculated.')
@@ -759,9 +761,6 @@ class BatchHandler:
             Array of means for each feature. If None it will be calculated.
         stds : ndarray | None
             Array of stdevs for each feature. If None it will be calculated.
-        max_workers : int | None
-            Max number of workers to use for parallel data normalization. If
-            None the max number of available workers will be used.
         """
         if means is None or stds is None:
             self.get_stats()

@@ -1190,9 +1190,10 @@ class FeatureHandler:
                     try:
                         data[v['chunk']][v['feature']] = future.result()
                     except Exception as e:
-                        logger.error(f'Error extracting chunk {v["chunk"]} for'
-                                     f' {v["feature"]}')
-                        raise e
+                        msg = (f'Error extracting chunk {v["chunk"]} for'
+                               f' {v["feature"]}')
+                        logger.error(msg)
+                        raise RuntimeError(msg) from e
                     if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks extracted.')

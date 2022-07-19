@@ -233,8 +233,8 @@ class OutputHandlerH5(OutputHandler):
             High res lat/lon array
             (spatial_1, spatial_2, 2)
         max_workers : int | None
-            Max workers to use for inverse transform. If None the maximum
-            available workers will be used.
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
         """
 
         logger.info('Converting u/v to windspeed/winddirection for h5 output')
@@ -317,8 +317,8 @@ class OutputHandlerH5(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
-            Max workers to use for inverse transform. If None the maximum
-            available workers will be used.
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
