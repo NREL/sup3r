@@ -51,7 +51,7 @@ class Sup3rPipeline(Pipeline):
 
     @classmethod
     def init_pass_collect(cls, out_dir, file_paths, model_path,
-                          fp_kwargs, dc_kwargs):
+                          fp_kwargs=None, dc_kwargs=None):
         """Generate config files for forward pass and collection
 
         Parameters
@@ -70,6 +70,8 @@ class Sup3rPipeline(Pipeline):
             Dictionary of keyword args passed to the Collection.collect()
             method.
         """
+        fp_kwargs = fp_kwargs or {}
+        dc_kwargs = dc_kwargs or {}
         logger.info('Generating config files for forward pass and data '
                     'collection')
         log_dir = os.path.join(out_dir, 'logs/')

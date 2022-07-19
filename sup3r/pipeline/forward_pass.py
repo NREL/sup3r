@@ -770,6 +770,7 @@ class ForwardPass:
             node.
         """
         use_cpu = config.get('use_cpu', False)
+        import_str = ''
         if use_cpu:
             import_str = 'import os; os.environ[\"CUDA_VISIBLE_DEVICES\"] = '
             import_str += '\"-1\"; '

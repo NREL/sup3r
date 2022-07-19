@@ -883,7 +883,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 except Exception as e:
                     msg = ('Error while normalizing future number '
                            f'{futures[future]}.')
-                    logger.error(msg)
+                    logger.exception(msg)
                     raise RuntimeError(msg) from e
                 logger.debug(f'{i+1} out of {self.shape[-1]} features '
                              'normalized.')
@@ -1052,7 +1052,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 except Exception as e:
                     msg = ('Error while loading '
                            f'{self.cache_files[futures[future]["idx"]]}')
-                    logger.error(msg)
+                    logger.exception(msg)
                     raise RuntimeError(msg) from e
                 logger.debug(f'{i+1} out of {len(futures)} cache files '
                              f'loaded: {futures[future]["fp"]}')
@@ -1332,7 +1332,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                         msg = (f'Error adding ({futures[future]["t"]}, '
                                f'{futures[future]["fidx"]}) chunk to '
                                'final data array.')
-                        logger.error(msg)
+                        logger.exception(msg)
                         raise RuntimeError(msg) from e
                     if interval > 0 and i % interval == 0:
                         logger.debug(f'Added {i+1} out of {len(futures)} '

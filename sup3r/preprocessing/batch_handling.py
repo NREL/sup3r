@@ -486,7 +486,7 @@ class BatchHandler:
                     except Exception as e:
                         msg = ('Error normalizing data handler number '
                                f'{futures[future]}')
-                        logger.error(msg)
+                        logger.exception(msg)
                         raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of {len(futures)} data handlers'
                                  ' normalized.')
@@ -516,7 +516,7 @@ class BatchHandler:
                     except Exception as e:
                         msg = ('Error loading data handler number '
                                f'{futures[future]}')
-                        logger.error(msg)
+                        logger.exception(msg)
                         raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of {len(futures)} handlers '
                                  'loaded.')
@@ -548,7 +548,7 @@ class BatchHandler:
                     except Exception as e:
                         msg = ('Error calculating stats for '
                                f'{self.training_features[futures[future]]}')
-                        logger.error(msg)
+                        logger.exception(msg)
                         raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of '
                                  f'{len(self.training_features)} stats '
