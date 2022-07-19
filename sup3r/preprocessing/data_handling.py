@@ -287,8 +287,7 @@ class InputMixIn:
         """Time index for input data with time pruning. This is the raw time
         index with a cropped range and time step applied."""
         if self._time_index is None:
-            self._time_index = self.raw_time_index
-            self._time_index = self._time_index[self.temporal_slice]
+            self._time_index = self.raw_time_index[self.temporal_slice]
         return self._time_index
 
     @time_index.setter
@@ -442,7 +441,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         if try_load and self.load_cached:
             logger.info(f'All {self.cache_files} exist. Loading from cache '
-                        f'instead of extracting from {self.file_paths}')
+                        f'instead of extracting from source files.')
             self.load_cached_data(max_workers)
 
         elif try_load and not self.load_cached:
@@ -631,7 +630,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Get list of features needing extraction or derivation"""
         if self._extract_features is None:
             self._extract_features = self.check_cached_features(
-                self.file_paths, self.features, cache_files=self.cache_files,
+                self.features, cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache,
                 load_cached=self.load_cached)
         return self._extract_features
@@ -1141,15 +1140,13 @@ class DataHandler(FeatureHandler, InputMixIn):
             self.data, self.val_data = self.split_data()
 
     @classmethod
-    def check_cached_features(cls, file_paths, features, cache_files=None,
+    def check_cached_features(cls, features, cache_files=None,
                               overwrite_cache=False, load_cached=False):
         """Check which features have been cached and check flags to determine
         whether to load or extract this features again
 
         Parameters
         ----------
-        file_paths : str | list
-            path to data file
         features : list
             list of features to extract
         cache_files : list | None
@@ -1176,7 +1173,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                         if load_cached:
                             msg = (f'{f} found in cache file {cache_files[i]}.'
                                    ' Loading from cache instead of extracting '
-                                   f'from {file_paths}')
+                                   'from source files')
                             logger.info(msg)
                         else:
                             msg = (f'{f} found in cache file {cache_files[i]}.'

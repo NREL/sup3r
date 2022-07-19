@@ -152,6 +152,7 @@ class ForwardPassStrategy(InputMixIn):
         self._cache_pattern = cache_pattern
         self._grid_shape = shape
         self._target = target
+        self._time_index = None
         self._raw_time_index = None
         self._out_files = None
         self._file_ids = None
@@ -222,7 +223,7 @@ class ForwardPassStrategy(InputMixIn):
             n_chunks = len(self.time_index)
             n_chunks /= self.fp_chunk_shape[2]
             n_chunks = np.int(np.ceil(n_chunks))
-            self._file_ids = [str(fid).zfill(5) for fid in self._file_ids]
+            self._file_ids = [str(fid).zfill(5) for fid in range(n_chunks)]
         return self._file_ids
 
     @property
