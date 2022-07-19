@@ -1568,8 +1568,8 @@ class DataHandlerNC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
-        self.raster_file = (self.raster_file
-                            or self.raster_file.replace('.txt', '.npy'))
+        self.raster_file = (self.raster_file if self.raster_file is None
+                            else self.raster_file.replace('.txt', '.npy'))
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
