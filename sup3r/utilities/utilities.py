@@ -43,7 +43,7 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
         return 0
     mem = psutil.virtual_memory()
     avail_mem = 0.7 * (mem.total - mem.used)
-    cpu_count = len(os.sched_getaffinity(0)) / 2
+    cpu_count = len(os.cpu_count()) / 2
     mult = np.min([cpu_count / n_processes, 1])
     if max_workers is not None:
         max_workers = np.min([max_workers, n_processes])
