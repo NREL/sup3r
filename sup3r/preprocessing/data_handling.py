@@ -314,12 +314,16 @@ class DataHandler(FeatureHandler, InputMixIn):
                  sample_shape=(10, 10, 1),
                  raster_file=None,
                  shuffle_time=False,
-                 max_workers=None,
                  time_chunk_size=None,
                  cache_pattern=None,
                  overwrite_cache=False,
                  load_cached=False,
-                 train_only_features=None):
+                 train_only_features=None,
+                 max_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
+                 load_workers=None,
+                 norm_workers=None):
         """Data handling and extraction
 
         Parameters
@@ -368,10 +372,6 @@ class DataHandler(FeatureHandler, InputMixIn):
             or raster_file.
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
-        max_workers : int | None
-            max number of workers to use for data extraction and feature
-            computation. If max_workers == 1 then processes will be serialized.
-            If None max_workers will be estimated based on memory limits.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
@@ -390,7 +390,28 @@ class DataHandler(FeatureHandler, InputMixIn):
             List of feature names or patt*erns that should only be included in
             the training set and not the output. If None (default), this will
             default to the class TRAIN_ONLY_FEATURES attribute.
+        max_workers : int | None
+            Providing a value for max workers will be used to set the value of
+            extract_workers, compute_workers, load_workers, and norm_workers.
+            If max_workers == 1 then all processes will be serialized. If None
+            extract_workers, compute_workers, load_workers, and norm_workers
+            will use their own provided values.
+        extract_workers : int | None
+            max number of workers to use for extracting features from source
+            data. If None max workers will be estimated based on memory limits.
+            If 1 processes will be serialized.
+        compute_workers : int | None
+            max number of workers to use for computing derived features from
+            raw features in source data.
+        load_workers : int | None
+            max number of workers to use for loading cached feature data.
+        norm_workers : int | None
+            max number of workers to use for normalizing feature data.
         """
+        if max_workers is not None:
+            extract_workers = compute_workers = max_workers
+            load_workers = norm_workers = max_workers
+
         self.file_paths = file_paths
         self.features = features
         self.val_time_index = None
@@ -411,7 +432,10 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.grid_shape = shape
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
-        self._max_workers = max_workers
+        self._extract_workers = extract_workers
+        self._norm_workers = norm_workers
+        self._load_workers = load_workers
+        self._compute_workers = compute_workers
         self._time_chunk_size = time_chunk_size
         self._cache_files = None
         self._raw_time_index = None
@@ -442,7 +466,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         if try_load and self.load_cached:
             logger.info(f'All {self.cache_files} exist. Loading from cache '
                         f'instead of extracting from source files.')
-            self.load_cached_data(max_workers)
+            self.load_cached_data()
 
         elif try_load and not self.load_cached:
             self.clear_data()
@@ -516,7 +540,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.raw_features)
         n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(self._max_workers, proc_mem,
+        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
                                                n_procs)
         return extract_workers
 
@@ -530,7 +554,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.derive_features)
         n_procs = int(np.ceil(n_procs))
-        compute_workers = estimate_max_workers(self._max_workers, proc_mem,
+        compute_workers = estimate_max_workers(self._compute_workers, proc_mem,
                                                n_procs)
         return compute_workers
 
@@ -540,17 +564,37 @@ class DataHandler(FeatureHandler, InputMixIn):
         cached data."""
         proc_mem = 2 * self.feature_mem
         n_procs = len(self.cache_files)
-        load_workers = estimate_max_workers(self._max_workers, proc_mem,
+        load_workers = estimate_max_workers(self._load_workers, proc_mem,
                                             n_procs)
         return load_workers
 
     @property
     def norm_workers(self):
         """Get upper bound on workers used for normalization."""
-        norm_workers = estimate_max_workers(self._max_workers,
+        norm_workers = estimate_max_workers(self._norm_workers,
                                             2 * self.feature_mem,
                                             self.shape[-1])
         return norm_workers
+
+    @extract_workers.setter
+    def extract_workers(self, extract_workers):
+        """Update extract workers value"""
+        self._extract_workers = extract_workers
+
+    @compute_workers.setter
+    def compute_workers(self, compute_workers):
+        """Update compute workers value"""
+        self._compute_workers = compute_workers
+
+    @load_workers.setter
+    def load_workers(self, load_workers):
+        """Update load workers value"""
+        self._load_workers = load_workers
+
+    @norm_workers.setter
+    def norm_workers(self, norm_workers):
+        """Update norm workers value"""
+        self._norm_workers = norm_workers
 
     @property
     def time_chunks(self):
@@ -1089,15 +1133,8 @@ class DataHandler(FeatureHandler, InputMixIn):
                        .format(fp, idx, self.data.shape))
                 raise RuntimeError(msg) from e
 
-    def load_cached_data(self, max_workers=None):
+    def load_cached_data(self):
         """Load data from cache files and split into training and validation
-
-        Parameters
-        ----------
-        max_workers : int | None
-            Max number of workers to use for loading cached features. If None
-            max available workers will be used. If 1 cached data will be loaded
-            in serial
         """
         if self.data is not None:
             msg = ('Called load_cached_data() but self.data is not None')
@@ -1366,7 +1403,7 @@ class DataHandlerNC(DataHandler):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.raw_features)
         n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(self._max_workers, proc_mem,
+        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
                                                n_procs)
         return extract_workers
 

@@ -14,6 +14,7 @@ import warnings
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
+import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
                                                DataHandlerNCforCC,
@@ -50,13 +51,19 @@ class ForwardPassStrategy(InputMixIn):
                  raster_file=None,
                  s_enhance=3,
                  t_enhance=4,
-                 max_workers=None,
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
                  overwrite_cache=False,
                  spatial_overlap=5,
-                 temporal_overlap=5):
+                 temporal_overlap=5,
+                 handler_class=None,
+                 max_workers=None,
+                 pass_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
+                 load_workers=None,
+                 output_workers=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -99,11 +106,6 @@ class ForwardPassStrategy(InputMixIn):
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
             data
-        max_workers : int | None
-            max number of workers to use for extracting and computing features
-            as well as doing forward passes. If max_workers == 1 then processes
-            will be serialized. If None max_workers will be estimated based on
-            memory limits.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -134,7 +136,35 @@ class ForwardPassStrategy(InputMixIn):
             Either nc (netcdf) or h5. This selects the extension for output
             files and determines which output handler to use when writing the
             results of the forward passes
+        handler_class : str
+            data handler class to use for input data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        max_workers : int | None
+            Providing a value for max workers will be used to set the value of
+            pass_workers, extract_workers, compute_workers, output_workers, and
+            load_workers.  If max_workers == 1 then all processes will be
+            serialized. If None extract_workers, compute_workers, load_workers,
+            output_workers, and pass_workers will use their own provided
+            values.
+        pass_workers : int | None
+            max number of workers to use for forward passes. If max_workers ==
+            1 then processes will be serialized. If None max_workers will be
+            estimated based on memory limits.
+        extract_workers : int | None
+            max number of workers to use for extracting features from source
+            data.
+        compute_workers : int | None
+            max number of workers to use for computing derived features from
+            raw features in source data.
+        load_workers : int | None
+            max number of workers to use for loading cached feature data.
+        output_workers : int | None
+            max number of workers to use for writing forward pass output.
         """
+        if max_workers is not None:
+            extract_workers = compute_workers = max_workers
+            load_workers = pass_workers = output_workers = max_workers
 
         self._i = 0
         self.file_paths = file_paths
@@ -148,8 +178,14 @@ class ForwardPassStrategy(InputMixIn):
         self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
+        self.pass_workers = pass_workers
         self.max_workers = max_workers
+        self.extract_workers = extract_workers
+        self.compute_workers = compute_workers
+        self.load_workers = load_workers
+        self.output_workers = output_workers
         self._cache_pattern = cache_pattern
+        self._handler_class = handler_class
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -268,17 +304,28 @@ class ForwardPassStrategy(InputMixIn):
 
         Returns
         -------
-        data_handler_class
+        _handler_class
             e.g. DataHandlerNC, DataHandlerH5, etc
         """
-        time_series_files = is_time_series(self.file_paths)
-        if self.input_type == 'nc':
-            data_handler_class = DataHandlerNC
-            if not time_series_files:
-                data_handler_class = DataHandlerNCforCC
-        elif self.input_type == 'h5':
-            data_handler_class = DataHandlerH5
-        return data_handler_class
+        if self._handler_class is None:
+            time_series_files = is_time_series(self.file_paths)
+            if self.input_type == 'nc':
+                self._handler_class = DataHandlerNC
+                if not time_series_files:
+                    self._handler_class = DataHandlerNCforCC
+            elif self.input_type == 'h5':
+                self._handler_class = DataHandlerH5
+        elif isinstance(self._handler_class, str):
+            out = getattr(sup3r.preprocessing.data_handling,
+                          self._handler_class, None)
+            self._handler_class = out
+            if out is None:
+                msg = ('Could not find requested data handler class '
+                       f'"{self._handler_class}" in '
+                       'sup3r.preprocessing.data_handling.')
+                logger.error(msg)
+                raise KeyError(msg)
+        return self._handler_class
 
     def get_node_kwargs(self, node_index):
         """Get node specific variables given an associated index
@@ -332,7 +379,13 @@ class ForwardPassStrategy(InputMixIn):
                       data_shape=data_shape,
                       chunk_shape=chunk_shape,
                       cache_pattern=cache_pattern,
-                      node_index=node_index)
+                      node_index=node_index,
+                      max_workers=self.max_workers,
+                      pass_workers=self.pass_workers,
+                      extract_workers=self.extract_workers,
+                      compute_workers=self.compute_workers,
+                      load_workers=self.load_workers,
+                      output_workers=self.output_workers)
 
         return kwargs
 
@@ -698,6 +751,12 @@ class ForwardPass:
         self.data_shape = kwargs['data_shape']
         self.chunk_shape = kwargs['chunk_shape']
         self.cache_pattern = kwargs['cache_pattern']
+        self.max_workers = kwargs['max_workers']
+        self.pass_workers = kwargs['pass_workers']
+        self.extract_workers = kwargs['extract_workers']
+        self.compute_workers = kwargs['compute_workers']
+        self.load_workers = kwargs['load_workers']
+        self.output_workers = kwargs['output_workers']
 
         self.data_handler_class = strategy.data_handler_class
 
@@ -710,23 +769,31 @@ class ForwardPass:
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.grid_shape, temporal_slice=self.ti_pad_slice,
             raster_file=self.strategy.raster_file,
-            max_workers=self.strategy.max_workers,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
-            val_split=0.0)
+            val_split=0.0,
+            max_workers=self.max_workers,
+            extract_workers=self.extract_workers,
+            compute_workers=self.compute_workers,
+            load_workers=self.load_workers)
 
         self.data_handler.load_cached_data()
 
     @property
-    def max_workers(self):
+    def pass_workers(self):
         """Get estimate for max pass workers based on memory usage"""
         proc_mem = 8 * np.product(self.strategy.fp_chunk_shape)
         proc_mem *= self.strategy.s_enhance**2 * self.strategy.t_enhance
         n_procs = len(self.hr_slices)
-        max_workers = estimate_max_workers(self.strategy.max_workers,
+        max_workers = estimate_max_workers(self._pass_workers,
                                            proc_mem, n_procs)
         return max_workers
+
+    @pass_workers.setter
+    def pass_workers(self, pass_workers):
+        """Update pass workers value"""
+        self._pass_workers = pass_workers
 
     @staticmethod
     def forward_pass_chunk(data_chunk, crop_slices, model_path):
@@ -887,7 +954,7 @@ class ForwardPass:
                f'{self.strategy.spatial_overlap} and temporal_overlap of '
                f'{self.strategy.temporal_overlap}.')
         logger.info(msg)
-        max_workers = self.max_workers
+        max_workers = self.pass_workers
         data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
                          self.strategy.s_enhance * self.data_shape[1],
                          self.strategy.t_enhance * self.data_shape[2],
@@ -907,6 +974,6 @@ class ForwardPass:
                 low_res_lat_lon=self.data_handler.lat_lon,
                 low_res_times=self.strategy.time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.strategy.max_workers)
+                max_workers=self.output_workers)
         else:
             return data

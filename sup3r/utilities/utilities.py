@@ -40,7 +40,10 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
         Max number of workers available
     """
     if n_processes == 0:
-        return 0
+        if max_workers is None:
+            return 1
+        else:
+            return max_workers
     mem = psutil.virtual_memory()
     avail_mem = 0.7 * (mem.total - mem.used)
     cpu_count = os.cpu_count() / 2

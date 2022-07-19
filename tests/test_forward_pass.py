@@ -54,13 +54,21 @@ def test_forward_pass_nc_cc():
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
+        max_workers = 1
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             fp_chunk_shape=fp_chunk_shape,
-            overwrite_cache=True, out_pattern=out_files)
+            overwrite_cache=True, out_pattern=out_files,
+            max_workers=max_workers)
         forward_pass = ForwardPass(handler, model_path=out_dir)
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
         forward_pass.run()
 
         with xr.open_dataset(handler.out_files[0]) as fh:
@@ -91,13 +99,21 @@ def test_forward_pass_nc():
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
+        max_workers = 1
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             fp_chunk_shape=fp_chunk_shape,
-            overwrite_cache=True, out_pattern=out_files)
+            overwrite_cache=True, out_pattern=out_files,
+            max_workers=max_workers)
         forward_pass = ForwardPass(handler, model_path=out_dir)
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
         forward_pass.run()
 
         with xr.open_dataset(handler.out_files[0]) as fh:
@@ -129,13 +145,21 @@ def test_forward_pass_h5():
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
+        max_workers = 1
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             fp_chunk_shape=fp_chunk_shape,
-            overwrite_cache=True, out_pattern=out_files)
+            overwrite_cache=True, out_pattern=out_files,
+            max_workers=max_workers)
         forward_pass = ForwardPass(handler, model_path=out_dir)
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
@@ -178,14 +202,21 @@ def test_fwd_pass_handler():
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
+        max_workers = 1
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             fp_chunk_shape=fp_chunk_shape,
-            overwrite_cache=True)
+            overwrite_cache=True,
+            max_workers=max_workers)
         forward_pass = ForwardPass(handler, model_path=out_dir)
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
         data = forward_pass.run()
 
         assert data.shape == (s_enhance * shape[0],
