@@ -8,6 +8,8 @@ import numpy as np
 from datetime import datetime as dt
 import os
 import pickle
+from scipy.ndimage.filters import gaussian_filter
+
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
@@ -92,7 +94,8 @@ class Batch:
                          s_enhance, t_enhance=1,
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
-                         output_features=None):
+                         output_features=None,
+                         smoothing=None):
         """Coarsen high res data and return Batch with high res and
         low res data
 
@@ -116,6 +119,9 @@ class Batch:
             output, without any feature indices used only for training.
         output_features : list
             List of Generative model output feature names
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. If None no smoothing is performed.
 
         Returns
         -------
@@ -127,7 +133,8 @@ class Batch:
         if t_enhance != 1:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
-
+        if smoothing is not None:
+            low_res = gaussian_filter(low_res, smoothing, mode='constant')
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
 
@@ -302,7 +309,8 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, max_workers=None, overwrite_stats=False):
+                 means_file=None, max_workers=None, overwrite_stats=False,
+                 smoothing=None):
         """
         Parameters
         ----------
@@ -346,6 +354,9 @@ class BatchHandler:
             estimated based on memory limits.
         overwrite_stats : bool
             Whether to overwrite stats cache files.
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. If None no smoothing is performed.
         """
 
         msg = ('All data handlers must have the same sample_shape')
@@ -370,6 +381,7 @@ class BatchHandler:
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
+        self.smoothing = smoothing
         self._max_workers = max_workers
 
         now = dt.now()
@@ -811,7 +823,7 @@ class BatchHandler:
                 high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
-                output_features=self.output_features)
+                output_features=self.output_features, smoothing=self.smoothing)
 
             self._i += 1
             return batch

@@ -1137,10 +1137,6 @@ class FeatureHandler:
             keys for features.  e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
-        logger.info(f'Starting {input_features} extraction using '
-                    f'extract_workers={max_workers} and {len(time_chunks)} '
-                    'time_chunks. ')
         futures = {}
         now = dt.now()
 

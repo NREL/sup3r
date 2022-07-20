@@ -16,13 +16,15 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
+from pandas import Timestamp
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
+from sup3r.utilities.utilities import (estimate_max_workers,
+                                       get_chunk_slices,
                                        interp_var_to_height,
                                        interp_var_to_pressure,
                                        uniform_box_sampler,
@@ -124,8 +126,11 @@ class InputMixIn:
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        msg = (f'source files with dates from {str(self.raw_time_index[0])} to'
-               f' {str(self.raw_time_index[-1])}')
+        start_time = self.raw_time_index[0]
+        end_time = self.raw_time_index[-1]
+        start_time = dt.strftime(Timestamp(start_time), format='%Y%m%d%M')
+        end_time = dt.strftime(Timestamp(end_time), format='%Y%m%d%M')
+        msg = (f'source files with dates from {start_time} to {end_time}')
         return msg
 
     @property
@@ -409,7 +414,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             full time index for best performance.
         cache_pattern : str | None
             Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl Each feature will be saved to a file with
+            file_path_{feature}.pkl. Each feature will be saved to a file with
             the feature name replaced in cache_pattern. If not None
             feature arrays will be saved here and not stored in self.data until
             load_cached_data is called. The cache_pattern can also include
@@ -1287,6 +1292,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
+        logger.info(f'Starting extraction of {self.raw_features} using '
+                    f'{len(time_chunks)} time_chunks. ')
         self._raw_data = self.parallel_extract(self.file_paths,
                                                self.raster_index,
                                                time_chunks, self.raw_features,
