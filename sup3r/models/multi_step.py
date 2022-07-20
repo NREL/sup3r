@@ -468,7 +468,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         if isinstance(temporal_model_dirs, str):
             temporal_model_dirs = [temporal_model_dirs]
 
-        spatial_models = MultiStepGan.load(spatial_model_dirs)
-        temporal_models = MultiStepGan.load(temporal_model_dirs)
+        s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
+        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
 
-        return cls(spatial_models, temporal_models)
+        return cls(s_models, t_models)
