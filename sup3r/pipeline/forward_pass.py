@@ -14,6 +14,7 @@ import warnings
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
+import sup3r.models
 import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
@@ -26,7 +27,6 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        is_time_series,
                                        estimate_max_workers)
 from sup3r.utilities import ModuleName
-from sup3r.models import Sup3rGan
 
 np.random.seed(42)
 
@@ -44,7 +44,8 @@ class ForwardPassStrategy(InputMixIn):
     stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths, s_enhance, t_enhance,
+    def __init__(self, file_paths, model_args, s_enhance, t_enhance,
+                 model_class='Sup3rGan',
                  target=None, shape=None,
                  temporal_slice=slice(None),
                  fp_chunk_shape=(30, 30, 30),
@@ -72,12 +73,20 @@ class ForwardPassStrategy(InputMixIn):
             A list of files to extract raster data from. Each file must have
             the same number of timesteps. Can also pass a string with a
             unix-style file path which will be passed through glob.glob
+        model_args : str | list
+            Positional arguments to send to `model_class.load(*model_args)` to
+            initialize the GAN. Typically this is just the string path to the
+            model directory, but can be multiple models or arguments for more
+            complex models.
         s_enhance : int
             Factor by which to enhance spatial dimensions of low resolution
             data
         t_enhance : int
             Factor by which to enhance temporal dimension of low resolution
             data
+        model_class : str
+            Name of the sup3r class for the GAN model to load. This will be
+            loaded from sup3r.models
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -109,12 +118,13 @@ class ForwardPassStrategy(InputMixIn):
             extraction. If running in serial this can be set to the size
             of the full time index for best performance.
         cache_pattern : str | None
-            Pattern for files for saving feature data. e.g. file_path.pkl. Can
-            include format keys in the path as well. e.g.
-            file_path_{feature}_{shape}_{target}.pkl. If these format keys are
-            not included they will be added according to the InputMixIn class
-            method.  Each feature will be saved to a file with the feature name
-            replaced in cache_pattern.
+            Pattern for files for saving feature data. e.g.
+            file_path_{feature}.pkl Each feature will be saved to a file with
+            the feature name replaced in cache_pattern. If not None
+            feature arrays will be saved here and not stored in self.data until
+            load_cached_data is called. The cache_pattern can also include
+            {shape}, {target}, {times} which will help ensure unique cache
+            files for complex problems.
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data
@@ -166,14 +176,16 @@ class ForwardPassStrategy(InputMixIn):
 
         self._i = 0
         self.file_paths = file_paths
+        self.t_enhance = t_enhance
+        self.s_enhance = s_enhance
+        self.model_args = model_args
+        self.model_class = model_class
         self.out_pattern = out_pattern
         self.raster_file = raster_file
         self.fp_chunk_shape = fp_chunk_shape
         self.temporal_slice = temporal_slice
         self.time_chunk_size = time_chunk_size
         self.overwrite_cache = overwrite_cache
-        self.t_enhance = t_enhance
-        self.s_enhance = s_enhance
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
         self.pass_workers = pass_workers
@@ -190,6 +202,9 @@ class ForwardPassStrategy(InputMixIn):
         self._raw_time_index = None
         self._out_files = None
         self._file_ids = None
+
+        if isinstance(self.model_args, str):
+            self.model_args = [self.model_args]
 
         logger.info('Initializing ForwardPassStrategy for '
                     f'{self.input_file_info}')
@@ -709,7 +724,7 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
-    def __init__(self, strategy, model_path, node_index=0):
+    def __init__(self, strategy, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
 
@@ -718,8 +733,6 @@ class ForwardPass:
         strategy : ForwardPassStrategy
             ForwardPassStrategy instance with information on data chunks to run
             forward passes on.
-        model_path : str
-            Path to Sup3rGan used to generate high resolution data
         node_index : int
             Index used to select subset of full file list on which to run
             forward passes on a single node.
@@ -727,12 +740,22 @@ class ForwardPass:
         logger.info(f'Initializing ForwardPass for node={node_index}')
 
         self.strategy = strategy
-        self.model_path = model_path
-        model_params = Sup3rGan.load_saved_params(model_path,
-                                                  verbose=False)['meta']
-        self.features = model_params['training_features']
-        self.output_features = model_params['output_features']
-        self.meta_data = model_params
+        self.model_args = self.strategy.model_args
+        self.model_class = self.strategy.model_class
+        model_class = getattr(sup3r.models, self.model_class, None)
+
+        if model_class is None:
+            msg = ('Could not load requested model class "{}" from '
+                   'sup3r.models, Make sure you typed in the model class '
+                   'name correctly.'.format(self.model_class))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        self.model = model_class.load(*self.model_args)
+
+        self.features = self.model.training_features
+        self.output_features = self.model.output_features
+        self.meta_data = self.model.meta
         self.node_index = node_index
 
         kwargs = strategy.get_node_kwargs(node_index)
@@ -794,7 +817,8 @@ class ForwardPass:
         self._pass_workers = pass_workers
 
     @staticmethod
-    def forward_pass_chunk(data_chunk, crop_slices, model_path,
+    def forward_pass_chunk(data_chunk, crop_slices,
+                           model=None, model_args=None, model_class=None,
                            s_enhance=None, t_enhance=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
         shape given by self.strategy.fp_chunk_shape.
@@ -808,6 +832,19 @@ class ForwardPass:
             List of slices for extracting cropped region of interest from
             output. Output can include an extra overlapping boundary to
             facilitate stitching of chunks
+        model : Sup3rGan
+            A loaded Sup3rGan model (any model imported from sup3r.models).
+            You need to provide either model or (model_args and model_class)
+        model_args : str | list
+            Positional arguments to send to `model_class.load(*model_args)` to
+            initialize the GAN. Typically this is just the string path to the
+            model directory, but can be multiple models or arguments for more
+            complex models.
+            You need to provide either model or (model_args and model_class)
+        model_class : str
+            Name of the sup3r class for the GAN model to load. This will be
+            loaded from sup3r.models
+            You need to provide either model or (model_args and model_class)
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
@@ -818,7 +855,13 @@ class ForwardPass:
             High resolution data generated by GAN
         """
 
-        model = Sup3rGan.load(model_path)
+        if model is None:
+            msg = 'If model not provided, model_args and model_class must be'
+            assert model_args is not None, msg
+            assert model_class is not None, msg
+            model_class = getattr(sup3r.models, model_class)
+            model = model_class.load(*model_args, verbose=False)
+
         data_chunk = np.expand_dims(data_chunk, axis=0)
         hi_res = model.generate(data_chunk)
 
@@ -910,7 +953,9 @@ class ForwardPass:
         for i, (sh, slp, shc) in enumerate(zip_iter):
             data[sh] = ForwardPass.forward_pass_chunk(
                 self.data_handler.data[slp], crop_slices=shc,
-                model_path=self.model_path,
+                model=self.model,
+                model_args=self.model_args,
+                model_class=self.model_class,
                 s_enhance=self.strategy.s_enhance,
                 t_enhance=self.strategy.t_enhance)
 
@@ -953,7 +998,8 @@ class ForwardPass:
                 future = exe.submit(ForwardPass.forward_pass_chunk,
                                     data_chunk=self.data_handler.data[slp],
                                     crop_slices=shc,
-                                    model_path=self.model_path,
+                                    model_args=self.model_args,
+                                    model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
                                     t_enhance=self.strategy.t_enhance)
 
