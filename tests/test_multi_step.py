@@ -116,7 +116,7 @@ def test_spatial_then_temporal_gan():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialThenTemporalGan(fp1, fp2)
+        ms_model = SpatialThenTemporalGan.load(fp1, fp2)
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)
