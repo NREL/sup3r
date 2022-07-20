@@ -89,7 +89,7 @@ class Sup3rPipeline(Pipeline):
         features = model_params['output_features']
         features = OutputHandlerH5.get_renamed_features(features)
         fp_config = {'file_paths': file_paths,
-                     'model_path': model_path,
+                     'model_args': model_path,
                      'out_pattern': out_pattern,
                      'cache_pattern': cache_pattern,
                      'log_pattern': log_pattern}
