@@ -45,7 +45,7 @@ class ForwardPassStrategy(InputMixIn):
     """
 
     def __init__(self, file_paths, model_args, s_enhance, t_enhance,
-                 fp_chunk_shape, spatial_overlap, temporal_overlap,
+                 fwp_chunk_shape, spatial_overlap, temporal_overlap,
                  model_class='Sup3rGan',
                  target=None, shape=None,
                  temporal_slice=slice(None),
@@ -82,9 +82,9 @@ class ForwardPassStrategy(InputMixIn):
         t_enhance : int
             Factor by which the Sup3rGan model will enhance temporal dimension
             of low resolution data
-        fp_chunk_shape : tuple
-            Max shape (spatial_1, spatial_2, temporal) of an unpadded chunk to
-            use for a forward pass. The number of nodes that the
+        fwp_chunk_shape : tuple
+            Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
+            chunk to use for a forward pass. The number of nodes that the
             ForwardPassStrategy is set to distribute to is calculated by
             dividing up the total time index from all file_paths by the
             temporal part of this chunk shape. Each node will then be
@@ -94,15 +94,15 @@ class ForwardPassStrategy(InputMixIn):
             serial set this equal to the shape of the full spatiotemporal data
             volume for best performance.
         spatial_overlap : int
-            Size of spatial overlap between chunks passed to forward passes
-            for subsequent spatial stitching. This overlap will pad both sides
-            of the fp_chunk_shape. Note that the first and last chunks in any
-            of the spatial dimension will not be padded.
+            Size of spatial overlap between coarse chunks passed to forward
+            passes for subsequent spatial stitching. This overlap will pad both
+            sides of the fwp_chunk_shape. Note that the first and last chunks
+            in any of the spatial dimension will not be padded.
         temporal_overlap : int
-            Size of temporal overlap between chunks passed to forward passes
-            for subsequent temporal stitching. This overlap will pad both sides
-            of the fp_chunk_shape. Note that the first and last chunks in the
-            temporal dimension will not be padded.
+            Size of temporal overlap between coarse chunks passed to forward
+            passes for subsequent temporal stitching. This overlap will pad
+            both sides of the fwp_chunk_shape. Note that the first and last
+            chunks in the temporal dimension will not be padded.
         model_class : str
             Name of the sup3r model class for the GAN model to load. The
             default is the basic spatial / spatiotemporal Sup3rGan model. This
@@ -182,7 +182,7 @@ class ForwardPassStrategy(InputMixIn):
         self.model_args = model_args
         self.t_enhance = t_enhance
         self.s_enhance = s_enhance
-        self.fp_chunk_shape = fp_chunk_shape
+        self.fwp_chunk_shape = fwp_chunk_shape
         self.spatial_overlap = spatial_overlap
         self.temporal_overlap = temporal_overlap
         self.model_class = model_class
@@ -217,27 +217,27 @@ class ForwardPassStrategy(InputMixIn):
                 self.cache_pattern = self.cache_pattern.replace(
                     '.pkl', '_{node_index}.pkl')
 
-        out = self.get_time_slices(fp_chunk_shape, temporal_overlap)
+        out = self.get_time_slices(fwp_chunk_shape, temporal_overlap)
         self.ti_slices, self.ti_pad_slices, self.ti_hr_crop_slices = out
 
         msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
-               f'temporal_chunk_size {fp_chunk_shape[2]}.')
-        if temporal_overlap > fp_chunk_shape[2]:
+               f'temporal_chunk_size {fwp_chunk_shape[2]}.')
+        if temporal_overlap > fwp_chunk_shape[2]:
             logger.warning(msg)
             warnings.warn(msg)
 
         msg = (f'Using a larger spatial_overlap {spatial_overlap} than '
-               f'spatial_chunk_size {fp_chunk_shape[:2]}.')
-        if any(spatial_overlap > sc for sc in fp_chunk_shape[:2]):
+               f'spatial_chunk_size {fwp_chunk_shape[:2]}.')
+        if any(spatial_overlap > sc for sc in fwp_chunk_shape[:2]):
             logger.warning(msg)
             warnings.warn(msg)
 
         msg = ('Using a padded chunk size '
-               f'{fp_chunk_shape[2] + 2 * temporal_overlap} '
+               f'{fwp_chunk_shape[2] + 2 * temporal_overlap} '
                'larger than the full temporal domain '
                f'{len(self.raw_time_index)}. Should just run without temporal '
                'chunking. ')
-        if (fp_chunk_shape[2] + 2 * temporal_overlap
+        if (fwp_chunk_shape[2] + 2 * temporal_overlap
                 >= len(self.raw_time_index)):
             logger.warning(msg)
             warnings.warn(msg)
@@ -273,7 +273,7 @@ class ForwardPassStrategy(InputMixIn):
         """
         if self._file_ids is None:
             n_chunks = len(self.time_index)
-            n_chunks /= self.fp_chunk_shape[2]
+            n_chunks /= self.fwp_chunk_shape[2]
             n_chunks = np.int(np.ceil(n_chunks))
             self._file_ids = [str(fid).zfill(5) for fid in range(n_chunks)]
         return self._file_ids
@@ -435,15 +435,15 @@ class ForwardPassStrategy(InputMixIn):
     def nodes(self):
         """Get the number of nodes that this strategy should distribute work
         to, calculated as the source time index divided by the temporal part of
-        the fp_chunk_shape"""
+        the fwp_chunk_shape"""
         return len(self.ti_slices)
 
-    def get_time_slices(self, fp_chunk_size, time_overlap):
+    def get_time_slices(self, fwp_chunk_size, time_overlap):
         """Calculate the number of time chunks across the full time index
 
         Parameters
         ----------
-        fp_chunk_size : tuple
+        fwp_chunk_size : tuple
             Shape of data chunks passed to generator
         time_overlap : int
             Size of temporal overlap between time chunks
@@ -458,7 +458,7 @@ class ForwardPassStrategy(InputMixIn):
             List of cropped chunks for stitching high res output
         """
         n_chunks = len(self.time_index)
-        n_chunks /= fp_chunk_size[2]
+        n_chunks /= fwp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
         ti_chunks = np.arange(len(self.time_index))
         ti_chunks = np.array_split(ti_chunks, n_chunks)
@@ -545,8 +545,8 @@ class ForwardPassStrategy(InputMixIn):
             when forward passes are performed on overlapping chunks
         """
 
-        s1_slices = get_chunk_slices(data_shape[0], self.fp_chunk_shape[0])
-        s2_slices = get_chunk_slices(data_shape[1], self.fp_chunk_shape[1])
+        s1_slices = get_chunk_slices(data_shape[0], self.fwp_chunk_shape[0])
+        s2_slices = get_chunk_slices(data_shape[1], self.fwp_chunk_shape[1])
         t_slices = [slice(None)]
 
         lr_pad_slices = []
@@ -807,7 +807,7 @@ class ForwardPass:
     @property
     def pass_workers(self):
         """Get estimate for max pass workers based on memory usage"""
-        proc_mem = 8 * np.product(self.strategy.fp_chunk_shape)
+        proc_mem = 8 * np.product(self.strategy.fwp_chunk_shape)
         proc_mem *= self.strategy.s_enhance**2 * self.strategy.t_enhance
         n_procs = len(self.hr_slices)
         max_workers = estimate_max_workers(self._pass_workers,
@@ -824,7 +824,7 @@ class ForwardPass:
                            model=None, model_args=None, model_class=None,
                            s_enhance=None, t_enhance=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
-        shape given by self.strategy.fp_chunk_shape.
+        shape given by self.strategy.fwp_chunk_shape.
 
         Parameters
         ----------
@@ -899,7 +899,7 @@ class ForwardPass:
             initialize ForwardPassStrategy and run ForwardPass on a single
             node.
         """
-        use_cpu = config.get('use_cpu', False)
+        use_cpu = config.get('use_cpu', True)
         import_str = ''
         if use_cpu:
             import_str += 'import os; os.environ[\"CUDA_VISIBLE_DEVICES\"] = '
@@ -908,11 +908,10 @@ class ForwardPass:
         import_str += f'import ForwardPassStrategy, {cls.__name__}; '
         import_str += 'from rex import init_logger'
 
-        fps_init_str = get_fun_call_str(ForwardPassStrategy, config)
+        fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
-        model_path = config['model_path']
         node_index = config['node_index']
-        fwp_arg_str = f'strategy, \"{model_path}\", node_index={node_index}'
+        fwp_arg_str = f'strategy, node_index={node_index}'
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
         log_arg_str = '\"sup3r\", '
@@ -928,7 +927,7 @@ class ForwardPass:
 
         cmd = (f"python -c \'{import_str};\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"strategy = {fps_init_str};\n"
+               f"strategy = {fwps_init_str};\n"
                f"fwp = {cls.__name__}({fwp_arg_str});\n"
                "fwp.run()")
 

@@ -29,7 +29,7 @@ def test_multi_step_model():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = MultiStepGan([fp1, fp2])
+        ms_model = MultiStepGan.load([fp1, fp2])
 
         x = np.ones((4, 5, 5, 6, len(FEATURES)))
         out = ms_model.generate(x)
@@ -79,7 +79,7 @@ def test_multi_step_norm(norm_option):
         model2.save(fp2)
         model3.save(fp3)
 
-        ms_model = MultiStepGan([fp1, fp2, fp3])
+        ms_model = MultiStepGan.load([fp1, fp2, fp3])
 
         x = np.ones((1, 4, 4, 4, len(FEATURES)))
         out = ms_model.generate(x)
@@ -116,7 +116,7 @@ def test_spatial_first_gan():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialFirstGan([fp1, fp2])
+        ms_model = SpatialFirstGan.load([fp1, fp2])
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)

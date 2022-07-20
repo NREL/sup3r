@@ -10,7 +10,7 @@ import numpy as np
 
 from click.testing import CliRunner
 
-from sup3r.pipeline.forward_pass_cli import from_config as fp_main
+from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.models.base import Sup3rGan
@@ -22,7 +22,7 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-fp_chunk_shape = (4, 4, 4)
+fwp_chunk_shape = (4, 4, 4)
 s_enhance = 3
 t_enhance = 4
 target = (19.3, -123.5)
@@ -100,19 +100,19 @@ def test_fwd_pass_cli(runner):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        fp_chunk_shape = (4, 4, 6)
-        n_nodes = len(input_files) // fp_chunk_shape[2] + 1
+        fwp_chunk_shape = (4, 4, 6)
+        n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
         config = {'file_paths': input_files,
                   'target': (19.3, -123.5),
-                  'model_path': out_dir,
+                  'model_args': out_dir,
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
                   'shape': (8, 8),
-                  'fp_chunk_shape': fp_chunk_shape,
+                  'fwp_chunk_shape': fwp_chunk_shape,
                   'time_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
@@ -127,7 +127,7 @@ def test_fwd_pass_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(fp_main, ['-c', config_path, '-v'])
+        result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
         assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
         assert len(glob.glob(f'{td}/log*')) == n_nodes
         assert len(glob.glob(f'{td}/out*')) == n_nodes
