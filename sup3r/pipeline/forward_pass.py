@@ -959,11 +959,10 @@ class ForwardPass:
                 s_enhance=self.strategy.s_enhance,
                 t_enhance=self.strategy.t_enhance)
 
-            if i == 0:
-                logger.info('Coarse data chunks being passed to model '
-                            'with shape {} which is slice {} of full shape {}.'
-                            .format(self.data_handler.data[slp].shape, slp,
-                                    self.data_handler.data.shape))
+            logger.debug('Coarse data chunks being passed to model '
+                         'with shape {} which is slice {} of full shape {}.'
+                         .format(self.data_handler.data[slp].shape, slp,
+                                 self.data_handler.data.shape))
 
             interval = np.int(np.ceil(len(self.hr_slices) / 10))
             if interval > 0 and i % interval == 0:
@@ -1006,12 +1005,11 @@ class ForwardPass:
                 meta = {'s_high': sh, 'idx': i}
                 futures[future] = meta
 
-                if i == 0:
-                    logger.info('Coarse data chunks being passed to model '
-                                'with shape {} which is slice {} '
-                                'of full shape {}.'
-                                .format(self.data_handler.data[slp].shape, slp,
-                                        self.data_handler.data.shape))
+                logger.debug('Coarse data chunks being passed to model '
+                             'with shape {} which is slice {} '
+                             'of full shape {}.'
+                             .format(self.data_handler.data[slp].shape, slp,
+                                     self.data_handler.data.shape))
 
             logger.info('Started forward pass for '
                         f'{len(self.hr_slices)} chunks in '
