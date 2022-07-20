@@ -4,6 +4,7 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
+import psutil
 import numpy as np
 import logging
 from concurrent.futures import as_completed
@@ -969,8 +970,13 @@ class ForwardPass:
 
             interval = np.int(np.ceil(len(self.hr_slices) / 10))
             if interval > 0 and i % interval == 0:
+                mem = psutil.virtual_memory()
                 logger.info(f'{i+1} out of {len(self.hr_slices)} '
-                            'forward passes completed.')
+                            'forward pass chunks completed. '
+                            'Memory utilization is '
+                            f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                            f'total ({100*mem.used/mem.total:.1f}% used)')
+
         return data
 
     def _run_parallel(self, data, max_workers=None):
@@ -1023,8 +1029,12 @@ class ForwardPass:
                 slices = futures[future]
                 data[slices['s_high']] = future.result()
                 if interval > 0 and i % interval == 0:
-                    logger.info(f'{i+1} out of {len(futures)} forward'
-                                ' passes completed.')
+                    mem = psutil.virtual_memory()
+                    logger.info(f'{i+1} out of {len(futures)} '
+                                'forward pass chunks completed. '
+                                'Memory utilization is '
+                                f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                                f'total ({100*mem.used/mem.total:.1f}% used)')
             return data
 
     def run(self):

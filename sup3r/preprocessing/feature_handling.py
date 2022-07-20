@@ -1231,7 +1231,8 @@ class FeatureHandler:
                     data[feature] = method(data, height)
                 else:
                     for r in inputs(feature):
-                        data[r] = cls.recursive_compute(data, r)
+                        data[r] = cls.recursive_compute(data, r,
+                                                        handle_features)
                     data[feature] = method(data, height)
 
         return data[feature]
