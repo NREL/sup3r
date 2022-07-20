@@ -45,17 +45,15 @@ class ForwardPassStrategy(InputMixIn):
     """
 
     def __init__(self, file_paths, model_args, s_enhance, t_enhance,
+                 fp_chunk_shape, spatial_overlap, temporal_overlap,
                  model_class='Sup3rGan',
                  target=None, shape=None,
                  temporal_slice=slice(None),
-                 fp_chunk_shape=(30, 30, 30),
                  raster_file=None,
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
                  overwrite_cache=False,
-                 spatial_overlap=5,
-                 temporal_overlap=5,
                  handler_class=None,
                  max_workers=None,
                  pass_workers=None,
@@ -79,23 +77,11 @@ class ForwardPassStrategy(InputMixIn):
             model directory, but can be multiple models or arguments for more
             complex models.
         s_enhance : int
-            Factor by which to enhance spatial dimensions of low resolution
-            data
+            Factor by which the Sup3rGan model will enhance the spatial
+            dimensions of low resolution data
         t_enhance : int
-            Factor by which to enhance temporal dimension of low resolution
-            data
-        model_class : str
-            Name of the sup3r class for the GAN model to load. This will be
-            loaded from sup3r.models
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        temporal_slice : slice
-            Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then temporal_slice = slice(None) will
-            select all 25 time steps.
+            Factor by which the Sup3rGan model will enhance temporal dimension
+            of low resolution data
         fp_chunk_shape : tuple
             Max shape (spatial_1, spatial_2, temporal) of an unpadded chunk to
             use for a forward pass. The number of nodes that the
@@ -107,6 +93,29 @@ class ForwardPassStrategy(InputMixIn):
             to the generator can be bigger than this shape. If running in
             serial set this equal to the shape of the full spatiotemporal data
             volume for best performance.
+        spatial_overlap : int
+            Size of spatial overlap between chunks passed to forward passes
+            for subsequent spatial stitching. This overlap will pad both sides
+            of the fp_chunk_shape. Note that the first and last chunks in any
+            of the spatial dimension will not be padded.
+        temporal_overlap : int
+            Size of temporal overlap between chunks passed to forward passes
+            for subsequent temporal stitching. This overlap will pad both sides
+            of the fp_chunk_shape. Note that the first and last chunks in the
+            temporal dimension will not be padded.
+        model_class : str
+            Name of the sup3r model class for the GAN model to load. The
+            default is the basic spatial / spatiotemporal Sup3rGan model. This
+            will be loaded from sup3r.models
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
+        temporal_slice : slice
+            Slice defining size of full temporal domain. e.g. If we have 5
+            files each with 5 time steps then temporal_slice = slice(None) will
+            select all 25 time steps.
         raster_file : str | None
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
@@ -134,12 +143,6 @@ class ForwardPassStrategy(InputMixIn):
             Each output file will have a unique file_id filled in and the ext
             determines the output type. If None then data will be returned in
             an array and not saved.
-        spatial_overlap : int
-            Size of spatial overlap between chunks passed to forward passes
-            for subsequent spatial stitching
-        temporal_overlap : int
-            Size of temporal overlap between chunks passed to forward passes
-            for subsequent temporal stitching
         output_type : str
             Either nc (netcdf) or h5. This selects the extension for output
             files and determines which output handler to use when writing the
@@ -176,18 +179,18 @@ class ForwardPassStrategy(InputMixIn):
 
         self._i = 0
         self.file_paths = file_paths
+        self.model_args = model_args
         self.t_enhance = t_enhance
         self.s_enhance = s_enhance
-        self.model_args = model_args
+        self.fp_chunk_shape = fp_chunk_shape
+        self.spatial_overlap = spatial_overlap
+        self.temporal_overlap = temporal_overlap
         self.model_class = model_class
         self.out_pattern = out_pattern
         self.raster_file = raster_file
-        self.fp_chunk_shape = fp_chunk_shape
         self.temporal_slice = temporal_slice
         self.time_chunk_size = time_chunk_size
         self.overwrite_cache = overwrite_cache
-        self.spatial_overlap = spatial_overlap
-        self.temporal_overlap = temporal_overlap
         self.pass_workers = pass_workers
         self.max_workers = max_workers
         self.extract_workers = extract_workers
@@ -842,8 +845,9 @@ class ForwardPass:
             complex models.
             You need to provide either model or (model_args and model_class)
         model_class : str
-            Name of the sup3r class for the GAN model to load. This will be
-            loaded from sup3r.models
+            Name of the sup3r model class for the GAN model to load. The
+            default is the basic spatial / spatiotemporal Sup3rGan model. This
+            will be loaded from sup3r.models
             You need to provide either model or (model_args and model_class)
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
