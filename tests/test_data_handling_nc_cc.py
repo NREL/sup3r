@@ -33,8 +33,8 @@ def test_data_handling_nc_cc():
                                            f'V_{int(plevel)}pa'],
                                  target=target, shape=(20, 20),
                                  val_split=0.0)
-
+    if handler.invert_lat:
+        handler.data = handler.data[::-1]
     assert handler.data.shape == (20, 20, 20, 2)
-
     assert np.allclose(ua, handler.data[..., 0])
     assert np.allclose(va, handler.data[..., 1])

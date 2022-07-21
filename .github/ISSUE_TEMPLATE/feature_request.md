@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Request a new phygnn feature
+about: Request a new sup3r feature
 title: ''
 labels: feature
 assignees: ''

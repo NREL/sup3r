@@ -483,6 +483,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.val_data = None
         self.target = target
         self.grid_shape = shape
+        self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
         self._extract_workers = extract_workers
@@ -577,6 +578,18 @@ class DataHandler(FeatureHandler, InputMixIn):
         with self.source_handler(self.file_paths) as handle:
             desc = handle.attrs
         return desc
+
+    @property
+    def invert_lat(self):
+        """Whether to invert the latitude axis during data extraction. This is
+        to enforce a descending latitude ordering so that the lower left corner
+        of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
+        if self._invert_lat is None:
+            lat_lon = self.get_lat_lon(self.file_paths[:1],
+                                       self.raster_index,
+                                       invert_lat=False)
+            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
+        return self._invert_lat
 
     @property
     def train_only_features(self):
@@ -675,7 +688,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._lat_lon is None:
             self._lat_lon = self.get_lat_lon(self.file_paths,
                                              self.raster_index,
-                                             self.temporal_slice)
+                                             self.temporal_slice,
+                                             invert_lat=self.invert_lat)
         return self._lat_lon
 
     @lat_lon.setter
@@ -808,7 +822,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, time_slice=None):
+    def get_lat_lon(cls, file_paths, raster_index, time_slice=slice(None),
+                    invert_lat=False):
         """Store lat lon for future output
 
         Parameters
@@ -819,6 +834,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             Raster index array or list of slices
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Flag to invert data along the latitude axis. Wrf data tends to use
+            an increasing ordering for latitude while wtk uses a decreasing
+            ordering.
 
         Returns
         -------
@@ -827,7 +846,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             dimension
         """
         return cls.extract_feature(file_paths, raster_index, 'lat_lon',
-                                   time_slice)
+                                   time_slice, invert_lat=invert_lat)
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1312,7 +1331,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._raw_data = self.parallel_extract(self.file_paths,
                                                self.raster_index,
                                                time_chunks, self.raw_features,
-                                               self.extract_workers)
+                                               self.extract_workers,
+                                               invert_lat=self.invert_lat)
 
         logger.info(f'Finished extracting {self.raw_features} for '
                     f'{self.input_file_info}')
@@ -1531,7 +1551,7 @@ class DataHandlerNC(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), invert_lat=True):
         """Extract single feature from data source
 
         Parameters
@@ -1544,6 +1564,10 @@ class DataHandlerNC(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Flag to invert data along the latitude axis. Wrf data tends to use
+            an increasing ordering for latitude while wtk uses a decreasing
+            ordering.
 
         Returns
         -------
@@ -1561,6 +1585,8 @@ class DataHandlerNC(DataHandler):
             method = cls.lookup(feature, 'compute')
             if method is not None and basename not in handle:
                 fdata = method(file_paths, raster_index)
+                if invert_lat:
+                    fdata = fdata[::-1]
                 return fdata
 
             elif feature in handle:
@@ -1583,6 +1609,8 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
+        if invert_lat:
+            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     @classmethod
@@ -1671,7 +1699,7 @@ class DataHandlerNC(DataHandler):
             assert check, msg
             lat_lon = self.get_lat_lon(self.file_paths[:1],
                                        [slice(None), slice(None)],
-                                       self.temporal_slice)
+                                       invert_lat=False)
             min_lat = np.min(lat_lon[..., 0])
             min_lon = np.min(lat_lon[..., 1])
             max_lat = np.max(lat_lon[..., 0])
@@ -1698,9 +1726,9 @@ class DataHandlerNC(DataHandler):
                        f'{np.min(lat_lon[..., 1])}).')
                 raise ValueError(msg)
 
-            self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
-            mask = ((self.lat_lon[..., 0] >= self.target[0])
-                    & (self.lat_lon[..., 1] >= self.target[1]))
+            lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
+            mask = ((lat_lon[..., 0] >= self.target[0])
+                    & (lat_lon[..., 1] >= self.target[1]))
             if mask.sum() != np.product(self.grid_shape):
                 msg = (f'Found {mask.sum()} coordinates but should have found '
                        f'{self.grid_shape[0]} by {self.grid_shape[1]}')
@@ -1820,7 +1848,7 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), invert_lat=False):
         """Extract single feature from data source
 
         Parameters
@@ -1833,6 +1861,8 @@ class DataHandlerH5(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Placeholder to match super class function signature.
 
         Returns
         -------
