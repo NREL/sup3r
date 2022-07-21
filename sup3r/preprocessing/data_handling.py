@@ -9,7 +9,6 @@ import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
-import pandas as pd
 import numpy as np
 import os
 from datetime import datetime as dt
