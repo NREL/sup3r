@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
                           'units': 'm s-1', 'dtype': 'uint16'},
-            'winddirection': {'fill_value': 65535, 'scale_factor': 100.0,
+            'winddirection': {'fill_value': 65535, 'scale_factor': 10.0,
                               'units': 'degree', 'dtype': 'int16'},
             'temperature': {'fill_value': 32767, 'scale_factor': 100.0,
                             'units': 'C', 'dtype': 'int32'},
@@ -264,7 +264,8 @@ class OutputHandlerH5(OutputHandler):
             High res data from forward pass
             (spatial_1, spatial_2, temporal, features)
         features : list
-            List of output features
+            List of output features. If this doesnt contain any names matching
+            U_*m, this method will do nothing.
         lat_lon : ndarray
             High res lat/lon array
             (spatial_1, spatial_2, 2)
