@@ -14,6 +14,7 @@ from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 from warnings import warn
 
+from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.utilities import VERSION_RECORD
 import sup3r.utilities.loss_metrics
 
@@ -21,7 +22,7 @@ import sup3r.utilities.loss_metrics
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGan:
+class Sup3rGan(AbstractSup3rGan):
     """Basic sup3r GAN model."""
 
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
@@ -210,14 +211,16 @@ class Sup3rGan:
         logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
 
     @classmethod
-    def load(cls, out_dir):
+    def load(cls, model_dir, verbose=True):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
         Parameters
         ----------
-        out_dir : str
+        model_dir : str
             Directory to load GAN model files from.
+        verbose : bool
+            Flag to log information about the loaded model.
 
         Returns
         -------
@@ -225,11 +228,11 @@ class Sup3rGan:
             Returns a pretrained gan model that was previously saved to out_dir
         """
 
-        logger.info('Loading GAN from disk in directory: {}'.format(out_dir))
+        logger.info('Loading GAN from disk in directory: {}'.format(model_dir))
 
-        fp_gen = os.path.join(out_dir, 'model_gen.pkl')
-        fp_disc = os.path.join(out_dir, 'model_disc.pkl')
-        params = cls.load_saved_params(out_dir)
+        fp_gen = os.path.join(model_dir, 'model_gen.pkl')
+        fp_disc = os.path.join(model_dir, 'model_disc.pkl')
+        params = cls.load_saved_params(model_dir, verbose=verbose)
 
         return cls(fp_gen, fp_disc, **params)
 
@@ -243,7 +246,7 @@ class Sup3rGan:
         out_dir : str
             Directory to load GAN model files from.
         verbose : bool
-            Whether to print version record
+            Flag to log information about the loaded model.
 
         Returns
         -------
@@ -387,18 +390,6 @@ class Sup3rGan:
             raise KeyError(msg)
 
         return out()
-
-    @staticmethod
-    def seed(s=0):
-        """
-        Set the random seed for reproducible results.
-
-        Parameters
-        ----------
-        s : int
-            Random seed
-        """
-        CustomNetwork.seed(s=s)
 
     @property
     def generator(self):

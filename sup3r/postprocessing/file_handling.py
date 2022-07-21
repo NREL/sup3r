@@ -27,12 +27,15 @@ H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
                               'units': 'degree', 'dtype': 'int16'},
             'temperature': {'fill_value': 32767, 'scale_factor': 100.0,
                             'units': 'C', 'dtype': 'int32'},
+            'relativehumidity': {'scale_factor': 10.0, 'units': 'percent',
+                                 'dtype': 'uint16'},
             'pressure': {'fill_value': 65535, 'scale_factor': 0.1,
                          'units': 'Pa', 'dtype': 'uint16'},
             'bvf_mo': {'fill_value': 65535, 'scale_factor': 0.1,
                        'units': 'm s-2', 'dtype': 'uint16'},
             'bvf2': {'fill_value': 65535, 'scale_factor': 0.1,
-                     'units': 's-2', 'dtype': 'int16'}}
+                     'units': 's-2', 'dtype': 'int16'},
+            }
 
 
 class OutputHandler:
@@ -98,9 +101,11 @@ class OutputHandler:
         Parameters
         ----------
         low_res_times : list
-            List of np.datetime64 objects for input data.
+            List of np.datetime64 objects for input data. If there is only a
+            single low res timestep, it is assumed the data is daily.
         shape : int
             Number of time steps for high res time array
+
         Returns
         -------
         ndarray
@@ -109,7 +114,12 @@ class OutputHandler:
         """
         logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
-        offset = (low_res_times[1] - low_res_times[0])
+
+        if len(low_res_times) > 1:
+            offset = (low_res_times[1] - low_res_times[0])
+        else:
+            offset = np.timedelta64(24, 'h')
+
         time_index = np.array([low_res_times[0] + i * offset / t_enhance
                                for i in range(shape)])
         return time_index

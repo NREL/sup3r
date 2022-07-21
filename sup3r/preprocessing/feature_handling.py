@@ -1201,7 +1201,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def recursive_compute(cls, data, feature):
+    def recursive_compute(cls, data, feature, handle_features):
         """Compute intermediate features recursively
 
         Parameters
@@ -1211,6 +1211,8 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         feature : str
             Name of feature to compute
+        handle_features : list
+            Features available in raw data
 
         Returns
         -------
@@ -1218,7 +1220,8 @@ class FeatureHandler:
             Array of computed feature data
         """
         if feature not in data:
-            inputs = cls.lookup(feature, 'inputs')
+            inputs = cls.lookup(feature, 'inputs',
+                                handle_features=handle_features)
             method = cls.lookup(feature, 'compute')
             height = Feature.get_height(feature)
             if inputs is not None:
@@ -1228,8 +1231,10 @@ class FeatureHandler:
                     data[feature] = method(data, height)
                 else:
                     for r in inputs(feature):
-                        data[r] = cls.recursive_compute(data, r)
+                        data[r] = cls.recursive_compute(data, r,
+                                                        handle_features)
                     data[feature] = method(data, height)
+
         return data[feature]
 
     @classmethod
@@ -1265,7 +1270,8 @@ class FeatureHandler:
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
-                data[t][f] = cls.recursive_compute(data=tmp, feature=f)
+                data[t][f] = cls.recursive_compute(
+                    data=tmp, feature=f, handle_features=handle_features)
             cls.pop_old_data(data, t, all_features)
             interval = np.int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
@@ -1324,7 +1330,8 @@ class FeatureHandler:
                     for f in derived_features:
                         tmp = cls.get_input_arrays(data, t, f, handle_features)
                         future = exe.submit(cls.recursive_compute, data=tmp,
-                                            feature=f)
+                                            feature=f,
+                                            handle_features=handle_features)
                         meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
@@ -1379,7 +1386,7 @@ class FeatureHandler:
         return tmp
 
     @classmethod
-    def lookup(cls, feature, attr_name):
+    def lookup(cls, feature, attr_name, handle_features=None):
         """Lookup feature in feature registry
 
         Parameters
@@ -1388,31 +1395,46 @@ class FeatureHandler:
             Feature to lookup in registry
         attr_name : str
             Type of method to lookup. e.g. inputs or compute
+        handle_features : list
+            List of feature names (datasets) available in the source file. If
+            feature is found explicitly in this list, height/pressure suffixes
+            will not be appended to the output.
 
         Returns
         -------
         method | None
             Feature registry method corresponding to feature
         """
+
+        if handle_features is None:
+            handle_features = []
+
         out = None
         for k, v in cls.feature_registry().items():
             if re.match(k.lower(), feature.lower()):
                 out = v
                 break
+
         if out is None:
             return None
 
         if not isinstance(out, str):
             return getattr(out, attr_name, None)
+
         elif attr_name == 'inputs':
+
+            if out in handle_features:
+                return lambda x: [out]
+
             height = Feature.get_height(feature)
-            pressure = Feature.get_pressure(feature)
             if height is not None:
                 out = out.split('(.*)')[0] + f'{height}m'
+
+            pressure = Feature.get_pressure(feature)
             if pressure is not None:
                 out = out.split('(.*)')[0] + f'{pressure}pa'
-            method = lambda x: [out]
-            return method
+
+            return lambda x: [out]
 
     @classmethod
     def get_inputs_recursive(cls, feature, handle_features):
@@ -1432,22 +1454,25 @@ class FeatureHandler:
             List of input features
         """
         raw_features = []
-        method = cls.lookup(feature, 'inputs')
-        if (method is None or cls.valid_handle_features([feature],
-                                                        handle_features)):
+        method = cls.lookup(feature, 'inputs', handle_features=handle_features)
 
-            if feature not in raw_features:
-                raw_features.append(feature)
+        check1 = feature not in raw_features
+        check2 = (cls.valid_handle_features([feature], handle_features)
+                  or method is None)
+        if check1 and check2:
+            raw_features.append(feature)
+
         else:
             for f in method(feature):
-                if (cls.lookup(f, 'inputs') is None
-                        or cls.valid_handle_features([f], handle_features)):
-                    if f not in raw_features:
-                        raw_features.append(f)
+                lkup = cls.lookup(f, 'inputs', handle_features=handle_features)
+                valid = cls.valid_handle_features([f], handle_features)
+                if (lkup is None or valid) and f not in raw_features:
+                    raw_features.append(f)
                 else:
                     for r in cls.get_inputs_recursive(f, handle_features):
                         if r not in raw_features:
                             raw_features.append(r)
+
         return raw_features
 
     @classmethod
@@ -1474,8 +1499,11 @@ class FeatureHandler:
                     if r not in raw_features:
                         raw_features.append(r)
             else:
+                req = cls.lookup(f, "inputs", handle_features=handle_features)
+                req = req(f)
                 msg = (f'Cannot compute {f} from the provided data. '
-                       f'Requested features: {cls.lookup(f, "inputs")(f)}')
+                       f'Requested features: {req}')
+                logger.error(msg)
                 raise ValueError(msg)
         return raw_features
 

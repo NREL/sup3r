@@ -8,6 +8,7 @@ from abc import abstractmethod
 from fnmatch import fnmatch
 import logging
 import xarray as xr
+import pandas as pd
 import numpy as np
 import os
 from datetime import datetime as dt
@@ -188,15 +189,6 @@ class InputMixIn:
         if self._cache_pattern is not None:
             if '.pkl' not in self._cache_pattern:
                 self._cache_pattern += '.pkl'
-            if '{shape}' not in self._cache_pattern:
-                self._cache_pattern = self._cache_pattern.replace(
-                    '.pkl', '_{shape}.pkl')
-            if '{target}' not in self._cache_pattern:
-                self._cache_pattern = self._cache_pattern.replace(
-                    '.pkl', '_{target}.pkl')
-            if '{times}' not in self._cache_pattern:
-                self._cache_pattern = self._cache_pattern.replace(
-                    '.pkl', '_{times}.pkl')
             if '{feature}' not in self._cache_pattern:
                 self._cache_pattern = self._cache_pattern.replace(
                     '.pkl', '_{feature}.pkl')
@@ -295,6 +287,44 @@ class InputMixIn:
         """Update time index"""
         self._time_index = time_index
 
+    @property
+    def timestamp_0(self):
+        """Get a string timestamp for the first time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        time_stamp = self.time_index[0]
+        if isinstance(time_stamp, np.datetime64):
+            time_stamp = pd.Timestamp(time_stamp)
+
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
+        ts0 = yyyy + mm + dd + hh + min + ss
+
+        return ts0
+
+    @property
+    def timestamp_1(self):
+        """Get a string timestamp for the last time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        time_stamp = self.time_index[-1]
+        if isinstance(time_stamp, np.datetime64):
+            time_stamp = pd.Timestamp(time_stamp)
+
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
+        ts1 = yyyy + mm + dd + hh + min + ss
+
+        return ts1
+
 
 class DataHandler(FeatureHandler, InputMixIn):
     """Sup3r data handling and extraction"""
@@ -381,7 +411,9 @@ class DataHandler(FeatureHandler, InputMixIn):
             file_path_{feature}.pkl Each feature will be saved to a file with
             the feature name replaced in cache_pattern. If not None
             feature arrays will be saved here and not stored in self.data until
-            load_cached_data is called.
+            load_cached_data is called. The cache_pattern can also include
+            {shape}, {target}, {times} which will help ensure unique cache
+            files for complex problems.
         overwrite_cache : bool
             Whether to overwrite any previously saved cache files.
         load_cached : bool
@@ -835,14 +867,20 @@ class DataHandler(FeatureHandler, InputMixIn):
                 os.makedirs(basedir)
             cache_files = [cache_pattern.replace('{feature}', f.lower())
                            for f in self.features]
+
             for i, f in enumerate(cache_files):
-                shape = f'{self.grid_shape[0]}x{self.grid_shape[1]}'
-                target = f'{self.target[0]:.2f}_{self.target[1]:.2f}'
-                times = f'{str(self.time_index[0])}-{str(self.time_index[-1])}'
-                f_tmp = f.replace('{shape}', shape)
-                f_tmp = f_tmp.replace('{target}', target)
-                f_tmp = f_tmp.replace('{times}', times)
-                cache_files[i] = f_tmp
+                if '{shape}' in f:
+                    shape = f'{self.grid_shape[0]}x{self.grid_shape[1]}'
+                    f = f.replace('{shape}', shape)
+                if '{target}' in f:
+                    target = f'{self.target[0]:.2f}_{self.target[1]:.2f}'
+                    f = f.replace('{target}', target)
+                if '{times}' in f:
+                    times = f'{self.timestamp_0}_{self.timestamp_1}'
+                    f = f.replace('{times}', times)
+
+                cache_files[i] = f
+
             for i, fp in enumerate(cache_files):
                 fp_check = ignore_case_path_fetch(fp)
                 if fp_check is not None:
@@ -1664,6 +1702,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
+            'temperature_2m': 'tas',
+            'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
         return registry
 
@@ -1710,7 +1750,7 @@ class DataHandlerH5(DataHandler):
         msg = ('You must either provide the target+shape inputs or an '
                'existing raster_file input.')
         logger.error(msg)
-        raise ValueError
+        raise ValueError(msg)
 
     @classmethod
     def get_time_index(cls, file_paths):

@@ -4,27 +4,26 @@ import logging
 import numpy as np
 from warnings import warn
 
+from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.models.base import Sup3rGan
 
 
 logger = logging.getLogger(__name__)
 
 
-class MultiStepGan:
+class MultiStepGan(AbstractSup3rGan):
     """Multi-Step GAN, which is really just an abstraction layer on top of one
     or more Sup3rGan models that will perform their forward passes in
     serial."""
 
-    def __init__(self, model_dirs):
+    def __init__(self, models):
         """
         Parameters
         ----------
-        model_dirs : list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
+        models : list | tuple
+            An ordered list/tuple of one or more trained Sup3rGan models
         """
-        self._models = [Sup3rGan.load(model_dir) for model_dir in model_dirs]
-        self._models = tuple(self._models)
+        self._models = tuple(models)
         self._all_same_norm_stats = self._norm_stats_same()
 
     def _norm_stats_same(self):
@@ -68,6 +67,29 @@ class MultiStepGan:
                     break
 
         return m_all_same and s_all_same
+
+    @classmethod
+    def load(cls, model_dirs, verbose=True):
+        """Load the GANs with its sub-networks from a previously saved-to
+        output directory.
+
+        Parameters
+        ----------
+        model_dirs : list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        out : MultiStepGan
+            Returns a pretrained gan model that was previously saved to
+            model_dirs
+        """
+        models = [Sup3rGan.load(model_dir, verbose=verbose)
+                  for model_dir in model_dirs]
+        return cls(models)
 
     @property
     def models(self):
@@ -299,19 +321,18 @@ class SpatialFirstGan(MultiStepGan):
     2nd-step spatiotemporal GAN.
     """
 
-    def __init__(self, model_dirs):
+    def __init__(self, models):
         """
         Parameters
         ----------
-        model_dirs : list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
+        models : list | tuple
+            An ordered list/tuple of one or more trained Sup3rGan models
         """
         msg = ('SpatialFirstGan can only have two steps: a spatial-only GAN, '
                'and then a spatiotemporal GAN, but received {} model inputs.'
-               .format(len(model_dirs)))
-        assert len(model_dirs) == 2, msg
-        super().__init__(model_dirs)
+               .format(len(models)))
+        assert len(models) == 2, msg
+        super().__init__(models)
 
     def generate(self, low_res, norm_in=True, un_norm_out=True):
         """Use the generator model to generate high res data from low res
@@ -369,3 +390,26 @@ class SpatialFirstGan(MultiStepGan):
                      .format(hi_res.shape))
 
         return hi_res
+
+    @classmethod
+    def load(cls, model_dirs, verbose=True):
+        """Load the GANs with its sub-networks from a previously saved-to
+        output directory.
+
+        Parameters
+        ----------
+        model_dirs : list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        out : MultiStepGan
+            Returns a pretrained gan model that was previously saved to
+            model_dirs
+        """
+        models = [Sup3rGan.load(model_dir, verbose=verbose)
+                  for model_dir in model_dirs]
+        return cls(models)

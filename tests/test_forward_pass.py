@@ -25,7 +25,7 @@ shape = (8, 8)
 sample_shape = (8, 8, 6)
 temporal_slice = slice(None, None, 1)
 list_chunk_size = 10
-fp_chunk_shape = (4, 4, 150)
+fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
 
@@ -56,13 +56,16 @@ def test_forward_pass_nc_cc():
         # 1st forward pass
         max_workers = 1
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -101,13 +104,16 @@ def test_forward_pass_nc():
         # 1st forward pass
         max_workers = 1
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -147,13 +153,16 @@ def test_forward_pass_h5():
 
         max_workers = 1
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -205,13 +214,16 @@ def test_fwd_pass_handler():
         max_workers = 1
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True,
             max_workers=max_workers)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         assert forward_pass.pass_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -260,12 +272,15 @@ def test_fwd_pass_chunking():
 
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=fp_chunk_shape,
             overwrite_cache=True)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run()
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
@@ -315,12 +330,15 @@ def test_fwd_pass_nochunking():
 
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, target=target, shape=shape,
+            input_files, model_args=out_dir,
+            s_enhance=3, t_enhance=4,
+            fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
+            spatial_overlap=1, temporal_overlap=1,
+            target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            fp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             overwrite_cache=True)
-        forward_pass = ForwardPass(handler, model_path=out_dir)
+        forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run()
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
