@@ -29,7 +29,7 @@ def test_config_gen():
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-        fp_config = os.path.join(td, 'config_fp.json')
+        fp_config = os.path.join(td, 'config_fwp.json')
         dc_config = os.path.join(td, 'config_collect.json')
         pipe_config = os.path.join(td, 'config_pipeline.json')
         Pipeline.init_pass_collect(td, input_files, out_dir)
