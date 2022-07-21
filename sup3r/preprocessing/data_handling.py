@@ -8,6 +8,7 @@ from abc import abstractmethod
 from fnmatch import fnmatch
 import logging
 import xarray as xr
+import pandas as pd
 import numpy as np
 import os
 from datetime import datetime as dt
@@ -290,26 +291,38 @@ class InputMixIn:
     def timestamp_0(self):
         """Get a string timestamp for the first time index value with the
         format YYYYMMDDHHMMSS"""
-        yyyy = str(self.time_index[0].year)
-        mm = str(self.time_index[0].month).zfill(2)
-        dd = str(self.time_index[0].day).zfill(2)
-        hh = str(self.time_index[0].hour).zfill(2)
-        min = str(self.time_index[0].minute).zfill(2)
-        ss = str(self.time_index[0].second).zfill(2)
+
+        time_stamp = self.time_index[0]
+        if isinstance(time_stamp, np.datetime64):
+            time_stamp = pd.Timestamp(time_stamp)
+
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
         ts0 = yyyy + mm + dd + hh + min + ss
+
         return ts0
 
     @property
     def timestamp_1(self):
         """Get a string timestamp for the last time index value with the
         format YYYYMMDDHHMMSS"""
-        yyyy = str(self.time_index[-1].year)
-        mm = str(self.time_index[-1].month).zfill(2)
-        dd = str(self.time_index[-1].day).zfill(2)
-        hh = str(self.time_index[-1].hour).zfill(2)
-        min = str(self.time_index[-1].minute).zfill(2)
-        ss = str(self.time_index[-1].second).zfill(2)
+
+        time_stamp = self.time_index[-1]
+        if isinstance(time_stamp, np.datetime64):
+            time_stamp = pd.Timestamp(time_stamp)
+
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
         ts1 = yyyy + mm + dd + hh + min + ss
+
         return ts1
 
 
