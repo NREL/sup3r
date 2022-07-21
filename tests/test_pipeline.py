@@ -38,7 +38,7 @@ def test_config_gen():
         assert os.path.exists(pipe_config)
 
 
-def test_pipeline():
+def test_fwp_pipeline():
     """Test sup3r pipeline"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -56,16 +56,18 @@ def test_pipeline():
         model.save(out_dir)
 
         fp_chunk_shape = (4, 4, 3)
+        shape = (8, 8)
+        target = (19.3, -123.5)
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         config = {'file_paths': input_files,
-                  'target': (19.3, -123.5),
+                  'target': target,
                   'model_args': out_dir,
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
-                  'shape': (8, 8),
+                  'shape': shape,
                   'fwp_chunk_shape': fp_chunk_shape,
                   'time_chunk_size': 10,
                   's_enhance': 3,
@@ -83,7 +85,7 @@ def test_pipeline():
 
         out_files = os.path.join(td, 'fp_out_*.h5')
         features = ['windspeed_100m', 'winddirection_100m']
-        fp_out = os.path.join(td, 'out_combined.h5')
+        fp_out = os.path.join('/scratch/bbenton/fp_test', 'out_combined.h5')
         config = {'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,

@@ -983,7 +983,8 @@ class ForwardPass:
                 logger.info(f'{i+1} out of {len(self.hr_slices)} '
                             'forward pass chunks completed. '
                             'Memory utilization is '
-                            f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB '
                             f'total ({100*mem.used/mem.total:.1f}% used)')
 
     def _run_parallel(self, max_workers=None):
@@ -1028,7 +1029,8 @@ class ForwardPass:
                     logger.info(f'{i+1} out of {len(futures)} '
                                 'forward pass chunks completed. '
                                 'Memory utilization is '
-                                f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB '
                                 f'total ({100*mem.used/mem.total:.1f}% used)')
 
     def run(self):

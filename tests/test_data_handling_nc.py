@@ -181,8 +181,6 @@ def test_raster_index_caching():
                               sample_shape=sample_shape,
                               raster_file=raster_file)
 
-        print(handler.data.shape)
-        print(handler.raster_index)
         # loading raster file
         handler = DataHandler(input_files, features, raster_file=raster_file)
         assert np.allclose(handler.target, target, atol=1)

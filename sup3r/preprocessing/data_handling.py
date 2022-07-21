@@ -16,7 +16,6 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
-from pandas import Timestamp
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX
@@ -35,7 +34,8 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        get_source_type,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
-                                       is_time_series)
+                                       is_time_series,
+                                       np_to_pd_times)
 from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -126,11 +126,8 @@ class InputMixIn:
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        start_time = self.raw_time_index[0]
-        end_time = self.raw_time_index[-1]
-        start_time = dt.strftime(Timestamp(start_time), format='%Y%m%d%M')
-        end_time = dt.strftime(Timestamp(end_time), format='%Y%m%d%M')
-        msg = (f'source files with dates from {start_time} to {end_time}')
+        msg = (f'source files with dates from {self.raw_timestamp_0} to '
+               f'{self.raw_timestamp_1}')
         return msg
 
     @property
@@ -240,8 +237,7 @@ class InputMixIn:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            self._target = (np.min(self.lat_lon[..., 0]),
-                            np.min(self.lat_lon[..., 1]))
+            self._target = tuple(self.lat_lon[-1, 0, :])
         return self._target
 
     @target.setter
@@ -294,14 +290,39 @@ class InputMixIn:
         self._time_index = time_index
 
     @property
+    def raw_timestamp_0(self):
+        """Get a string timestamp for the first raw time index value with the
+        format YYYYMMDDHHMMSS"""
+        t0 = self.raw_time_index[0]
+        yyyy = str(t0.year)
+        mm = str(t0.month).zfill(2)
+        dd = str(t0.day).zfill(2)
+        hh = str(t0.hour).zfill(2)
+        min = str(t0.minute).zfill(2)
+        ss = str(t0.second).zfill(2)
+        ts0 = yyyy + mm + dd + hh + min + ss
+        return ts0
+
+    @property
+    def raw_timestamp_1(self):
+        """Get a string timestamp for the last raw time index value with the
+        format YYYYMMDDHHMMSS"""
+        t1 = self.raw_time_index[-1]
+        yyyy = str(t1.year)
+        mm = str(t1.month).zfill(2)
+        dd = str(t1.day).zfill(2)
+        hh = str(t1.hour).zfill(2)
+        min = str(t1.minute).zfill(2)
+        ss = str(t1.second).zfill(2)
+        ts1 = yyyy + mm + dd + hh + min + ss
+        return ts1
+
+    @property
     def timestamp_0(self):
         """Get a string timestamp for the first time index value with the
         format YYYYMMDDHHMMSS"""
 
         time_stamp = self.time_index[0]
-        if isinstance(time_stamp, np.datetime64):
-            time_stamp = pd.Timestamp(time_stamp)
-
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -309,7 +330,6 @@ class InputMixIn:
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
         ts0 = yyyy + mm + dd + hh + min + ss
-
         return ts0
 
     @property
@@ -318,9 +338,6 @@ class InputMixIn:
         format YYYYMMDDHHMMSS"""
 
         time_stamp = self.time_index[-1]
-        if isinstance(time_stamp, np.datetime64):
-            time_stamp = pd.Timestamp(time_stamp)
-
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -328,7 +345,6 @@ class InputMixIn:
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
         ts1 = yyyy + mm + dd + hh + min + ss
-
         return ts1
 
 
@@ -793,7 +809,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, time_slice):
+    def get_lat_lon(cls, file_paths, raster_index, time_slice=None):
         """Store lat lon for future output
 
         Parameters
@@ -1480,29 +1496,17 @@ class DataHandlerNC(DataHandler):
 
         Returns
         -------
-        time_index : np.ndarray
-            Time index from nc source file(s)
+        time_index : pd.Datetimeindex
+            List of times as a Datetimeindex
         """
         with cls.source_handler(file_paths, data_vars='minimal') as handle:
             if hasattr(handle, 'Times'):
-                time_index = handle.Times.values
+                time_index = np_to_pd_times(handle.Times.values)
             elif hasattr(handle, 'time'):
-                time_index = handle.indexes['time']
-                time_index = [dt.strptime(str(t), '%Y-%m-%d %H:%M:%S')
-                              for t in time_index]
-                time_index = [np.datetime64(t) for t in time_index]
-                time_index = np.array(time_index)
+                time_index = handle.indexes['time'].to_datetimeindex()
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
-        decoded_times = []
-        for _, x in enumerate(time_index):
-            if isinstance(x, np.bytes_):
-                val = ' '.join(x.decode('utf-8').split('_'))
-                val = np.datetime64(val)
-                decoded_times.append(val)
-            else:
-                decoded_times.append(x)
-        return np.array(decoded_times)
+        return time_index
 
     @classmethod
     def feature_registry(cls):
@@ -1557,7 +1561,8 @@ class DataHandlerNC(DataHandler):
 
             method = cls.lookup(feature, 'compute')
             if method is not None and basename not in handle:
-                return method(file_paths, raster_index)
+                fdata = method(file_paths, raster_index)
+                return fdata
 
             elif feature in handle:
                 idx = tuple([time_slice] + raster_index)
@@ -1658,7 +1663,6 @@ class DataHandlerNC(DataHandler):
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
-            print('loading raster index')
             raster_index = np.load(self.raster_file, allow_pickle=True)
             raster_index = list(raster_index)
         else:
@@ -1696,7 +1700,6 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
             self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
-
             mask = ((self.lat_lon[..., 0] >= self.target[0])
                     & (self.lat_lon[..., 1] >= self.target[1]))
             if mask.sum() != np.product(self.grid_shape):
@@ -1706,7 +1709,6 @@ class DataHandlerNC(DataHandler):
                 warnings.warn(msg)
 
             if self.raster_file is not None:
-                print(f'saving raster index: {self.raster_file}')
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index

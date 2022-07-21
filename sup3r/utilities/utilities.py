@@ -14,6 +14,7 @@ import xarray as xr
 import re
 from warnings import warn
 import psutil
+import pandas as pd
 
 from rex import Resource
 
@@ -1303,3 +1304,22 @@ def get_source_type(file_paths):
         return 'h5'
     else:
         return 'nc'
+
+
+def np_to_pd_times(times):
+    """Convert np.bytes_ times to DatetimeIndex
+
+    Parameters
+    ----------
+    times : ndarray | list
+        List of np.bytes_ objects for time indices
+
+    Returns
+    -------
+    times : pd.DatetimeIndex
+        DatetimeIndex for time indices
+    """
+    tmp = [t.decode('utf-8') for t in times]
+    tmp = [' '.join(t.split('_')) for t in tmp]
+    tmp = pd.DatetimeIndex(tmp)
+    return tmp

@@ -133,9 +133,9 @@ class OutputHandler:
 
         Parameters
         ----------
-        low_res_times : list
-            List of np.datetime64 objects for input data. If there is only a
-            single low res timestep, it is assumed the data is daily.
+        low_res_times : pd.Datetimeindex
+            List of times for low res input data. If there is only a single low
+            res timestep, it is assumed the data is daily.
         shape : int
             Number of time steps for high res time array
 
@@ -183,8 +183,8 @@ class OutputHandlerNC(OutputHandler):
             Array of lat/lon for input data.
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        low_res_times : list
-            List of np.datetime64 objects for input data.
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
         out_file : string
             Output file path
         meta_data : dict | None
@@ -353,8 +353,8 @@ class OutputHandlerH5(OutputHandler):
         low_res_lat_lon : ndarray
             Array of lat/lon for input data. (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        low_res_times : list
-            List of np.datetime64 objects for input data.
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
         out_file : string
             Output file path
         meta_data : dict | None
