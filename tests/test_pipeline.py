@@ -85,7 +85,7 @@ def test_fwp_pipeline():
 
         out_files = os.path.join(td, 'fp_out_*.h5')
         features = ['windspeed_100m', 'winddirection_100m']
-        fp_out = os.path.join('/scratch/bbenton/fp_test', 'out_combined.h5')
+        fp_out = os.path.join(td, 'out_combined.h5')
         config = {'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
