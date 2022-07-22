@@ -10,7 +10,6 @@ from sup3r.pipeline.config import Sup3rPipelineConfig as PipelineConfig
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r import __version__
 
-from rex.utilities.cli_dtypes import STR
 from rex.utilities.utilities import get_class_properties
 from rex.utilities.execution import SubprocessManager
 
