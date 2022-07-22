@@ -1834,7 +1834,7 @@ class DataHandlerH5(DataHandler):
         time_slice : slice
             slice of time to extract
         invert_lat : bool
-            Placeholder to match super class function signature.
+            Flag to invert latitude axis to enforce descending ordering
 
         Returns
         -------
@@ -1846,7 +1846,10 @@ class DataHandlerH5(DataHandler):
         with cls.source_handler(file_paths) as handle:
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
-                return method(file_paths, raster_index)
+                fdata = method(file_paths, raster_index)
+                if invert_lat:
+                    fdata = fdata[::-1]
+                return fdata
             else:
                 try:
                     fdata = handle[(feature, time_slice,)
@@ -1859,6 +1862,8 @@ class DataHandlerH5(DataHandler):
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
+        if invert_lat:
+            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     def get_raster_index(self):

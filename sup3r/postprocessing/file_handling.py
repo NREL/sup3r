@@ -25,25 +25,32 @@ logger = logging.getLogger(__name__)
 
 H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                           'units': 'm s-1',
-                          'dtype': 'uint16'},
+                          'dtype': 'uint16',
+                          'chunks': (2000, 500)},
             'winddirection': {'scale_factor': 100.0,
                               'units': 'degree',
-                              'dtype': 'uint16'},
+                              'dtype': 'uint16',
+                              'chunks': (2000, 500)},
             'temperature': {'scale_factor': 100.0,
                             'units': 'C',
-                            'dtype': 'int16'},
+                            'dtype': 'int16',
+                            'chunks': (2000, 500)},
             'relativehumidity': {'scale_factor': 100.0,
                                  'units': 'percent',
-                                 'dtype': 'uint16'},
+                                 'dtype': 'uint16',
+                                 'chunks': (2000, 500)},
             'pressure': {'scale_factor': 0.1,
                          'units': 'Pa',
-                         'dtype': 'uint16'},
+                         'dtype': 'uint16',
+                         'chunks': (2000, 500)},
             'bvf_mo': {'scale_factor': 0.1,
                        'units': 'm s-2',
-                       'dtype': 'uint16'},
+                       'dtype': 'uint16',
+                       'chunks': (2000, 500)},
             'bvf2': {'scale_factor': 0.1,
                      'units': 's-2',
-                     'dtype': 'int16'},
+                     'dtype': 'int16',
+                     'chunks': (2000, 500)},
             }
 
 
@@ -169,7 +176,7 @@ class OutputHandlerNC(OutputHandler):
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, out_file, meta_data=None,
-                     max_workers=None, chunks=None):
+                     max_workers=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -190,8 +197,6 @@ class OutputHandlerNC(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
-            Has no effect. For compliance with H5 output handler
-        chunks : tuple | None
             Has no effect. For compliance with H5 output handler
         """
 
@@ -342,8 +347,7 @@ class OutputHandlerH5(OutputHandler):
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, out_file,
-                     meta_data=None, max_workers=None,
-                     chunks=None):
+                     meta_data=None, max_workers=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -368,6 +372,12 @@ class OutputHandlerH5(OutputHandler):
         chunks : tuple
             Dataset chunk size
         """
+        invert_lat = False
+        if low_res_lat_lon[0, 0, 0] > low_res_lat_lon[-1, 0, 0]:
+            invert_lat = True
+        if invert_lat:
+            low_res_lat_lon = low_res_lat_lon[::-1]
+            data = data[::-1]
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         freq = (times[1] - times[0]) / np.timedelta64(1, 's')

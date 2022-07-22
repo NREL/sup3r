@@ -12,6 +12,7 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime as dt
 import os
 import warnings
+import pickle
 
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -1058,17 +1059,19 @@ class ForwardPass:
 
         logger.info('All forward passes are complete.')
         self.data = self.data[:, :, self.ti_hr_crop_slice, :]
-        t_chunk = self.strategy.t_enhance * self.strategy.fwp_chunk_shape[-1]
-        s_chunk = self.strategy.s_enhance**2
-        s_chunk *= self.strategy.fwp_chunk_shape[0]**2
         if self.out_file is not None:
+            with open(self.out_file.replace('.h5', '.pkl'), 'wb') as f:
+                tmp_dat = {'lat_lon': self.data_handler.lat_lon,
+                           'data': self.data,
+                           'invert_lat': self.data_handler.invert_lat}
+                pickle.dump(tmp_dat, f, protocol=4)
+
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data=self.data, features=self.data_handler.output_features,
                 low_res_lat_lon=self.data_handler.lat_lon,
                 low_res_times=self.strategy.time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers,
-                chunks=(t_chunk, s_chunk))
+                max_workers=self.output_workers)
         else:
             return self.data
