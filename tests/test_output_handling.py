@@ -1,6 +1,5 @@
 """Output method tests"""
 import json
-import pandas as pd
 import numpy as np
 import os
 import tensorflow as tf
@@ -10,6 +9,7 @@ from sup3r import __version__
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r.utilities.test_utils import make_fake_h5_chunks
 
 from rex import ResourceX
 
@@ -76,37 +76,12 @@ def test_invert_uv_inplace():
 
 def test_h5_out_and_collect():
     """Test h5 file output writing and collection with dummy data"""
-    features = ['windspeed_100m', 'winddirection_100m']
-    model_meta_data = {'foo': 'bar'}
-
-    # 5x spatial, 2x temporal
-    shape = (50, 50, 96, 1)
-    ws_true = np.random.uniform(0, 20, shape)
-    wd_true = np.random.uniform(0, 360, shape)
-    data = np.concatenate((ws_true, wd_true), axis=3)
-    lat = np.linspace(90, 0, 10)
-    lon = np.linspace(-180, 0, 10)
-    lon, lat = np.meshgrid(lon, lat)
-    low_res_lat_lon = np.dstack((lat, lon))
-
-    low_res_times = pd.date_range('20220101', '20220103', freq='1h',
-                                  inclusive='left').values
-
-    slices_lr = [slice(0, 24), slice(24, None)]
-    slices_hr = [slice(0, 48), slice(48, None)]
 
     with tempfile.TemporaryDirectory() as td:
-        out_files = [os.path.join(td, 'fp_out_0.h5'),
-                     os.path.join(td, 'fp_out_1.h5')]
         fp_out = os.path.join(td, 'out_combined.h5')
-
-        for i, (slice_lr, slice_hr) in enumerate(zip(slices_lr, slices_hr)):
-            OutputHandlerH5.write_output(data[:, :, slice_hr, :], features,
-                                         low_res_lat_lon,
-                                         low_res_times[slice_lr],
-                                         out_files[i],
-                                         model_meta_data,
-                                         max_workers=1)
+        out = make_fake_h5_chunks(td)
+        (out_files, data, ws_true, wd_true, features, slices_lr,
+            slices_hr, low_res_lat_lon, low_res_times) = out
 
         Collector.collect(out_files, fp_out, features=features)
 
@@ -114,7 +89,6 @@ def test_h5_out_and_collect():
             full_ti = fh.time_index
             combined_ti = []
             for i, f in enumerate(out_files):
-                slice_lr = slices_lr[i]
                 slice_hr = slices_hr[i]
                 with ResourceX(f) as fh_i:
                     combined_ti += list(fh_i.time_index)

@@ -344,8 +344,7 @@ class OutputHandlerH5(OutputHandler):
         features : list
             List of feature names corresponding to the last dimension of data
         low_res_lat_lon : ndarray
-            Array of lat/lon for input data.
-            (spatial_1, spatial_2, 2)
+            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         low_res_times : list
             List of np.datetime64 objects for input data.

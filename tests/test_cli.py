@@ -14,7 +14,7 @@ from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.models.base import Sup3rGan
-from sup3r.utilities.test_utils import make_fake_nc_files
+from sup3r.utilities.test_utils import make_fake_nc_files, make_fake_h5_chunks
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
@@ -39,10 +39,12 @@ def test_data_collection_cli(runner):
     """Test cli call to data collection on forward pass output"""
 
     with tempfile.TemporaryDirectory() as td:
-        out_files = [os.path.join(TEST_DATA_DIR, 'fp_out_0.h5'),
-                     os.path.join(TEST_DATA_DIR, 'fp_out_1.h5')]
-        features = ['windspeed_100m', 'winddirection_100m']
         fp_out = os.path.join(td, 'out_combined.h5')
+        out = make_fake_h5_chunks(td)
+        (out_files, data, ws_true, wd_true, features, slices_lr,
+            slices_hr, low_res_lat_lon, low_res_times) = out
+
+        features = ['windspeed_100m', 'winddirection_100m']
         config = {'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
@@ -55,6 +57,12 @@ def test_data_collection_cli(runner):
             json.dump(config, fh)
 
         result = runner.invoke(dc_main, ['-c', config_path, '-v'])
+
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
 
         assert os.path.exists(fp_out)
         with ResourceX(fp_out) as fh:
@@ -75,12 +83,6 @@ def test_data_collection_cli(runner):
             assert len(full_ti) == len(combined_ti)
             assert np.allclose(ws, fh['windspeed_100m'])
             assert np.allclose(wd, fh['winddirection_100m'])
-
-        if result.exit_code != 0:
-            import traceback
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
-            raise RuntimeError(msg)
 
 
 def test_fwd_pass_cli(runner):
@@ -128,15 +130,16 @@ def test_fwd_pass_cli(runner):
             json.dump(config, fh)
 
         result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
-        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
-        assert len(glob.glob(f'{td}/log*')) == n_nodes
-        assert len(glob.glob(f'{td}/out*')) == n_nodes
 
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
+
+        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
+        assert len(glob.glob(f'{td}/log*')) == n_nodes
+        assert len(glob.glob(f'{td}/out*')) == n_nodes
 
 
 def test_data_extract_cli(runner):
@@ -160,11 +163,11 @@ def test_data_extract_cli(runner):
 
         result = runner.invoke(dh_main, ['-c', config_path, '-v'])
 
-        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
-        assert len(glob.glob(f'{log_file}')) == 1
-
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
+
+        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
+        assert len(glob.glob(f'{log_file}')) == 1
