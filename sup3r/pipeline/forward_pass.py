@@ -12,7 +12,6 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime as dt
 import os
 import warnings
-import pickle
 
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -756,7 +755,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args, verbose=False)
+        self.model = model_class.load(*self.model_args, verbose=True)
 
         self.features = self.model.training_features
         self.output_features = self.model.output_features
@@ -1060,12 +1059,6 @@ class ForwardPass:
         logger.info('All forward passes are complete.')
         self.data = self.data[:, :, self.ti_hr_crop_slice, :]
         if self.out_file is not None:
-            with open(self.out_file.replace('.h5', '.pkl'), 'wb') as f:
-                tmp_dat = {'lat_lon': self.data_handler.lat_lon,
-                           'data': self.data,
-                           'invert_lat': self.data_handler.invert_lat}
-                pickle.dump(tmp_dat, f, protocol=4)
-
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data=self.data, features=self.data_handler.output_features,
