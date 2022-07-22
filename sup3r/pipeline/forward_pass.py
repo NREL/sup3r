@@ -1058,6 +1058,9 @@ class ForwardPass:
 
         logger.info('All forward passes are complete.')
         self.data = self.data[:, :, self.ti_hr_crop_slice, :]
+        t_chunk = self.strategy.t_enhance * self.strategy.fwp_chunk_shape[-1]
+        s_chunk = self.strategy.s_enhance**2
+        s_chunk *= self.strategy.fwp_chunk_shape[0]**2
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
@@ -1065,6 +1068,7 @@ class ForwardPass:
                 low_res_lat_lon=self.data_handler.lat_lon,
                 low_res_times=self.strategy.time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers)
+                max_workers=self.output_workers,
+                chunks=(t_chunk, s_chunk))
         else:
             return self.data

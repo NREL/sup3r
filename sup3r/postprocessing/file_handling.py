@@ -168,8 +168,8 @@ class OutputHandlerNC(OutputHandler):
     # pylint: disable=W0613
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, out_file,
-                     meta_data=None, max_workers=None):
+                     low_res_times, out_file, meta_data=None,
+                     max_workers=None, chunks=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -190,6 +190,8 @@ class OutputHandlerNC(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
+            Has no effect. For compliance with H5 output handler
+        chunks : tuple | None
             Has no effect. For compliance with H5 output handler
         """
 
@@ -340,7 +342,8 @@ class OutputHandlerH5(OutputHandler):
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, out_file,
-                     meta_data=None, max_workers=None):
+                     meta_data=None, max_workers=None,
+                     chunks=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -362,6 +365,8 @@ class OutputHandlerH5(OutputHandler):
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
+        chunks : tuple
+            Dataset chunk size
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
@@ -382,8 +387,8 @@ class OutputHandlerH5(OutputHandler):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                fh.add_dataset(out_file, f, flat_data,
-                               dtype=attrs['dtype'], attrs=attrs)
+                fh.add_dataset(out_file, f, flat_data, dtype=attrs['dtype'],
+                               attrs=attrs, chunks=attrs['chunks'])
                 logger.debug(f'Added {f} to output file')
 
             if meta_data is not None:
