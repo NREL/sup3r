@@ -182,6 +182,7 @@ def test_raster_index_caching():
                               sample_shape=sample_shape,
                               raster_file=raster_file)
         assert handler.lat_lon[0, 0, 0] > handler.lat_lon[-1, 0, 0]
+        assert np.allclose(handler.target, handler.lat_lon[-1, 0, :], atol=1)
 
         # loading raster file
         handler = DataHandler(input_files, features, raster_file=raster_file)

@@ -28,8 +28,7 @@ class Sup3rGan(AbstractSup3rGan):
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
-                 history=None, meta=None, means=None, stdevs=None, name=None,
-                 verbose=False):
+                 history=None, meta=None, means=None, stdevs=None, name=None):
         """
         Parameters
         ----------
@@ -82,10 +81,8 @@ class Sup3rGan(AbstractSup3rGan):
         """
 
         self._version_record = VERSION_RECORD
-        if verbose:
-            logger.info('Active python environment versions: \n{}'
-                        .format(pprint.pformat(self._version_record,
-                                               indent=4)))
+        logger.info('Active python environment versions: \n{}'
+                    .format(pprint.pformat(self._version_record, indent=4)))
 
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}

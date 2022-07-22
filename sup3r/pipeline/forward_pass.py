@@ -755,7 +755,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args)
+        self.model = model_class.load(*self.model_args, verbose=False)
 
         self.features = self.model.training_features
         self.output_features = self.model.output_features
@@ -991,7 +991,7 @@ class ForwardPass:
         """Run forward passes in parallel"""
         futures = {}
         now = dt.now()
-        logger.info('Starting process pool with {} workers'
+        logger.info('Starting thread pool with {} workers'
                     .format(max_workers))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for i, (sh, slp, shc) in enumerate(zip(

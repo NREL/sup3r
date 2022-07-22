@@ -125,8 +125,8 @@ class InputMixIn:
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        msg = (f'source files with dates from {self.raw_timestamp_0} to '
-               f'{self.raw_timestamp_1}')
+        msg = (f'source files with dates from {self.raw_time_index[0]} to '
+               f'{self.raw_time_index[-1]}')
         return msg
 
     @property
@@ -287,34 +287,6 @@ class InputMixIn:
     def time_index(self, time_index):
         """Update time index"""
         self._time_index = time_index
-
-    @property
-    def raw_timestamp_0(self):
-        """Get a string timestamp for the first raw time index value with the
-        format YYYYMMDDHHMMSS"""
-        t0 = self.raw_time_index[0]
-        yyyy = str(t0.year)
-        mm = str(t0.month).zfill(2)
-        dd = str(t0.day).zfill(2)
-        hh = str(t0.hour).zfill(2)
-        min = str(t0.minute).zfill(2)
-        ss = str(t0.second).zfill(2)
-        ts0 = yyyy + mm + dd + hh + min + ss
-        return ts0
-
-    @property
-    def raw_timestamp_1(self):
-        """Get a string timestamp for the last raw time index value with the
-        format YYYYMMDDHHMMSS"""
-        t1 = self.raw_time_index[-1]
-        yyyy = str(t1.year)
-        mm = str(t1.month).zfill(2)
-        dd = str(t1.day).zfill(2)
-        hh = str(t1.hour).zfill(2)
-        min = str(t1.minute).zfill(2)
-        ss = str(t1.second).zfill(2)
-        ts1 = yyyy + mm + dd + hh + min + ss
-        return ts1
 
     @property
     def timestamp_0(self):
