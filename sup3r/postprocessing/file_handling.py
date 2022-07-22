@@ -13,29 +13,62 @@ import re
 from datetime import datetime as dt
 import json
 
+from sup3r.version import __version__
+from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import invert_uv, estimate_max_workers
 from sup3r.preprocessing.feature_handling import Feature
 
-from rex.outputs import Outputs
+from rex.outputs import Outputs as BaseRexOutputs
 
 logger = logging.getLogger(__name__)
 
 
-H5_ATTRS = {'windspeed': {'fill_value': 65535, 'scale_factor': 100.0,
-                          'units': 'm s-1', 'dtype': 'uint16'},
-            'winddirection': {'fill_value': 65535, 'scale_factor': 100.0,
-                              'units': 'degree', 'dtype': 'int16'},
-            'temperature': {'fill_value': 32767, 'scale_factor': 100.0,
-                            'units': 'C', 'dtype': 'int32'},
-            'relativehumidity': {'scale_factor': 10.0, 'units': 'percent',
+H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
+                          'units': 'm s-1',
+                          'dtype': 'uint16'},
+            'winddirection': {'scale_factor': 100.0,
+                              'units': 'degree',
+                              'dtype': 'uint16'},
+            'temperature': {'scale_factor': 100.0,
+                            'units': 'C',
+                            'dtype': 'int16'},
+            'relativehumidity': {'scale_factor': 100.0,
+                                 'units': 'percent',
                                  'dtype': 'uint16'},
-            'pressure': {'fill_value': 65535, 'scale_factor': 0.1,
-                         'units': 'Pa', 'dtype': 'uint16'},
-            'bvf_mo': {'fill_value': 65535, 'scale_factor': 0.1,
-                       'units': 'm s-2', 'dtype': 'uint16'},
-            'bvf2': {'fill_value': 65535, 'scale_factor': 0.1,
-                     'units': 's-2', 'dtype': 'int16'},
+            'pressure': {'scale_factor': 0.1,
+                         'units': 'Pa',
+                         'dtype': 'uint16'},
+            'bvf_mo': {'scale_factor': 0.1,
+                       'units': 'm s-2',
+                       'dtype': 'uint16'},
+            'bvf2': {'scale_factor': 0.1,
+                     'units': 's-2',
+                     'dtype': 'int16'},
             }
+
+
+class RexOutputs(BaseRexOutputs):
+    """Base class to handle NREL h5 formatted output data"""
+
+    @property
+    def full_version_record(self):
+        """Get record of versions for dependencies
+
+        Returns
+        -------
+        dict
+            Dictionary of package versions for dependencies
+        """
+        versions = super().full_version_record
+        versions.update(VERSION_RECORD)
+        return versions
+
+    def set_version_attr(self):
+        """Set the version attribute to the h5 file."""
+        self.h5.attrs['version'] = __version__
+        self.h5.attrs['full_version_record'] = json.dumps(
+            self.full_version_record)
+        self.h5.attrs['package'] = 'sup3r'
 
 
 class OutputHandler:
@@ -238,7 +271,8 @@ class OutputHandlerH5(OutputHandler):
             High res data from forward pass
             (spatial_1, spatial_2, temporal, features)
         features : list
-            List of output features
+            List of output features. If this doesnt contain any names matching
+            U_*m, this method will do nothing.
         lat_lon : ndarray
             High res lat/lon array
             (spatial_1, spatial_2, 2)
@@ -317,8 +351,7 @@ class OutputHandlerH5(OutputHandler):
         features : list
             List of feature names corresponding to the last dimension of data
         low_res_lat_lon : ndarray
-            Array of lat/lon for input data.
-            (spatial_1, spatial_2, 2)
+            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         low_res_times : list
             List of np.datetime64 objects for input data.
@@ -341,7 +374,7 @@ class OutputHandlerH5(OutputHandler):
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
-        with Outputs(out_file, 'w') as fh:
+        with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh._set_time_index('time_index', times)
 
@@ -349,8 +382,8 @@ class OutputHandlerH5(OutputHandler):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                Outputs.add_dataset(out_file, f, flat_data,
-                                    dtype=attrs['dtype'], attrs=attrs)
+                fh.add_dataset(out_file, f, flat_data,
+                               dtype=attrs['dtype'], attrs=attrs)
                 logger.debug(f'Added {f} to output file')
 
             if meta_data is not None:

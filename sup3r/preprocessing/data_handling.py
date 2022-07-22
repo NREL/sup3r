@@ -595,7 +595,9 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Get upper bound on load workers based on memory limits. Used to load
         cached data."""
         proc_mem = 2 * self.feature_mem
-        n_procs = len(self.cache_files)
+        n_procs = 1
+        if self.cache_files is not None:
+            n_procs = len(self.cache_files)
         load_workers = estimate_max_workers(self._load_workers, proc_mem,
                                             n_procs)
         return load_workers

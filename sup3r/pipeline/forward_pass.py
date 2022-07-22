@@ -867,11 +867,19 @@ class ForwardPass:
             model_class = getattr(sup3r.models, model_class)
             model = model_class.load(*model_args, verbose=False)
 
-        data_chunk = np.expand_dims(data_chunk, axis=0)
+        if isinstance(model, sup3r.models.SpatialThenTemporalGan):
+            i_lr_t = 0
+            i_lr_s = 1
+            data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
+        else:
+            i_lr_t = 3
+            i_lr_s = 1
+            data_chunk = np.expand_dims(data_chunk, axis=0)
+
         hi_res = model.generate(data_chunk)
 
         if (s_enhance is not None
-                and hi_res.shape[1] != s_enhance * data_chunk.shape[1]):
+                and hi_res.shape[1] != s_enhance * data_chunk.shape[i_lr_s]):
             msg = ('The stated spatial enhancement of {}x did not match '
                    'the low res / high res shapes of {} -> {}'
                    .format(s_enhance, data_chunk.shape, hi_res.shape))
@@ -879,7 +887,7 @@ class ForwardPass:
             raise RuntimeError(msg)
 
         if (t_enhance is not None
-                and hi_res.shape[3] != t_enhance * data_chunk.shape[3]):
+                and hi_res.shape[3] != t_enhance * data_chunk.shape[i_lr_t]):
             msg = ('The stated temporal enhancement of {}x did not match '
                    'the low res / high res shapes of {} -> {}'
                    .format(t_enhance, data_chunk.shape, hi_res.shape))

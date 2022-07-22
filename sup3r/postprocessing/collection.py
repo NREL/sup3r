@@ -11,11 +11,10 @@ import glob
 
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.loggers import init_logger
-from rex import Outputs
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.pipeline import Status
-from sup3r.postprocessing.file_handling import H5_ATTRS
+from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import ModuleName
 
@@ -178,7 +177,7 @@ class Collector:
             final_meta[col_slice] = new_meta
         """
 
-        with Outputs(file_path, unscale=False, mode='r') as f:
+        with RexOutputs(file_path, unscale=False, mode='r') as f:
             f_ti = f.time_index
             f_meta = f.meta
             source_scale_factor = f.attrs[feature].get('scale_factor', 1)
@@ -238,6 +237,10 @@ class Collector:
             Output (collected) dataset shape
         dtype : str
             Dataset output (collected on disk) dataset data type.
+        global_attrs : dict
+            Global attributes from the first file in file_paths (it's assumed
+            that all the files in file_paths have the same global file
+            attributes).
         """
 
         if sort:
@@ -246,7 +249,7 @@ class Collector:
         time_index = None
         meta = []
         for fn in file_paths:
-            with Outputs(fn, mode='r') as f:
+            with RexOutputs(fn, mode='r') as f:
                 meta.append(f.meta)
 
                 if time_index is None:
@@ -263,13 +266,14 @@ class Collector:
 
         shape = (len(time_index), len(meta))
 
-        with Outputs(file_paths[0], mode='r') as fin:
+        with RexOutputs(file_paths[0], mode='r') as fin:
             dtype = fin.get_dset_properties(feature)[1]
+            global_attrs = fin.global_attrs
 
-        return time_index, meta, shape, dtype
+        return time_index, meta, shape, dtype, global_attrs
 
     @staticmethod
-    def _init_collected_h5(out_file, time_index, meta):
+    def _init_collected_h5(out_file, time_index, meta, global_attrs):
         """Initialize the output h5 file to save collected data to.
 
         Parameters
@@ -280,9 +284,13 @@ class Collector:
             Full datetime index of collected data.
         meta : pd.DataFrame
             Full meta dataframe collected data.
+        global_attrs : dict
+            Namespace of file-global attributes from one of the files being
+            collected that should be passed through to the final collected
+            file.
         """
 
-        with Outputs(out_file, mode='w-') as f:
+        with RexOutputs(out_file, mode='w-') as f:
             logger.info('Initializing collection output file: {}'
                         .format(out_file))
             logger.info('Initializing collection output file with shape {} '
@@ -290,6 +298,7 @@ class Collector:
                         .format((len(time_index), len(meta)), meta))
             f['time_index'] = time_index
             f['meta'] = meta
+            f.run_attrs = global_attrs
 
     @staticmethod
     def _ensure_dset_in_output(out_file, dset, data=None):
@@ -304,7 +313,7 @@ class Collector:
             Optional data to write to dataset if initializing.
         """
 
-        with Outputs(out_file, mode='a') as f:
+        with RexOutputs(out_file, mode='a') as f:
             if dset not in f.dsets:
                 attrs, dtype = get_dset_attrs(dset)
                 logger.info('Initializing dataset "{}" with shape {} and '
@@ -342,7 +351,7 @@ class Collector:
             None uses all available.
         """
 
-        time_index, meta, shape, _ = \
+        time_index, meta, shape, _, _ = \
             Collector._get_collection_attrs(file_paths, feature, sort=sort,
                                             sort_key=sort_key)
 
@@ -400,7 +409,7 @@ class Collector:
             Collector._init_collected_h5(out_file, time_index, meta)
             x_write_slice, y_write_slice = slice(None), slice(None)
         else:
-            with Outputs(out_file, 'r') as f:
+            with RexOutputs(out_file, 'r') as f:
                 target_meta = f.meta
                 target_ti = f.time_index
             y_write_slice, x_write_slice = Collector.get_slices(target_ti,
@@ -408,7 +417,7 @@ class Collector:
                                                                 time_index,
                                                                 meta)
         Collector._ensure_dset_in_output(out_file, feature)
-        with Outputs(out_file, mode='a') as f:
+        with RexOutputs(out_file, mode='a') as f:
             f[feature, y_write_slice, x_write_slice] = data
 
         logger.debug('Finished writing "{}" for row {} and col {} to: {}'
@@ -474,9 +483,10 @@ class Collector:
                 raise ValueError(e)
 
             if not os.path.exists(out_file):
-                time_index, meta, _, _ = \
+                time_index, meta, _, _, global_attrs = \
                     collector._get_collection_attrs(collector.flist, dset)
-                collector._init_collected_h5(out_file, time_index, meta)
+                collector._init_collected_h5(out_file, time_index, meta,
+                                             global_attrs)
 
             flist_chunks = np.array_split(np.array(collector.flist),
                                           n_writes)

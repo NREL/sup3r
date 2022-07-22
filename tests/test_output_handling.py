@@ -1,12 +1,15 @@
 """Output method tests"""
+import json
 import numpy as np
 import os
+import tensorflow as tf
 import tempfile
 
+from sup3r import __version__
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
-from sup3r import TEST_DATA_DIR
+from sup3r.utilities.test_utils import make_fake_h5_chunks
 
 from rex import ResourceX
 
@@ -71,21 +74,33 @@ def test_invert_uv_inplace():
     assert np.allclose(data[..., 1], wd)
 
 
-def test_forward_pass_collection():
-    """Test forward pass collection."""
+def test_h5_out_and_collect():
+    """Test h5 file output writing and collection with dummy data"""
 
     with tempfile.TemporaryDirectory() as td:
-        out_files = [os.path.join(TEST_DATA_DIR, 'fp_out_0.h5'),
-                     os.path.join(TEST_DATA_DIR, 'fp_out_1.h5')]
         fp_out = os.path.join(td, 'out_combined.h5')
-        Collector.collect(out_files, fp_out,
-                          features=['windspeed_100m', 'winddirection_100m'])
+        out = make_fake_h5_chunks(td)
+        (out_files, data, ws_true, wd_true, features, slices_lr,
+            slices_hr, low_res_lat_lon, low_res_times) = out
+
+        Collector.collect(out_files, fp_out, features=features)
 
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []
             for i, f in enumerate(out_files):
+                slice_hr = slices_hr[i]
                 with ResourceX(f) as fh_i:
+                    combined_ti += list(fh_i.time_index)
+
+                    ws_i = np.transpose(data[..., slice_hr, 0], axes=(2, 0, 1))
+                    wd_i = np.transpose(data[..., slice_hr, 1], axes=(2, 0, 1))
+                    ws_i = ws_i.reshape(48, 2500)
+                    wd_i = wd_i.reshape(48, 2500)
+                    assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
+                    assert np.allclose(wd_i, fh_i['winddirection_100m'],
+                                       atol=0.1)
+
                     if i == 0:
                         ws = fh_i['windspeed_100m']
                         wd = fh_i['winddirection_100m']
@@ -94,7 +109,28 @@ def test_forward_pass_collection():
                                             axis=0)
                         wd = np.concatenate([wd, fh_i['winddirection_100m']],
                                             axis=0)
-                    combined_ti += list(fh_i.time_index)
+
+                    for k, v in fh_i.global_attrs.items():
+                        assert k in fh.global_attrs, k
+                        assert fh.global_attrs[k] == v, k
+
             assert len(full_ti) == len(combined_ti)
+            assert len(full_ti) == 2 * len(low_res_times)
             assert np.allclose(ws, fh['windspeed_100m'])
             assert np.allclose(wd, fh['winddirection_100m'])
+            wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
+            ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
+            wd_true = wd_true.reshape(96, 2500)
+            ws_true = ws_true.reshape(96, 2500)
+            assert np.allclose(ws_true, fh['windspeed_100m'], atol=0.01)
+            assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
+
+            assert fh.global_attrs['package'] == 'sup3r'
+            assert fh.global_attrs['version'] == __version__
+            assert 'full_version_record' in fh.global_attrs
+            version_record = json.loads(fh.global_attrs['full_version_record'])
+            assert version_record['tensorflow'] == tf.__version__
+            assert 'gan_meta' in fh.global_attrs
+            gan_meta = json.loads(fh.global_attrs['gan_meta'])
+            assert isinstance(gan_meta, dict)
+            assert gan_meta['foo'] == 'bar'

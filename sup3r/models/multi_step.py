@@ -308,9 +308,9 @@ class MultiStepGan(AbstractSup3rGan):
         return tuple(model.model_params for model in self.models)
 
 
-class SpatialFirstGan(MultiStepGan):
+class SpatialThenTemporalGan(AbstractSup3rGan):
     """A two-step GAN where the first step is a spatial-only enhancement on a
-    4D tensor and the second step is a spatiotemporal enhancement on a 5D
+    4D tensor and the second step is a (spatio)temporal enhancement on a 5D
     tensor.
 
     NOTE: The low res input to the spatial enhancement should be a 4D tensor of
@@ -318,21 +318,67 @@ class SpatialFirstGan(MultiStepGan):
     (usually the observation index) is a series of sequential timesteps that
     will be transposed to a 5D tensor of shape
     (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
-    2nd-step spatiotemporal GAN.
+    2nd-step (spatio)temporal GAN.
     """
 
-    def __init__(self, models):
+    def __init__(self, spatial_models, temporal_models):
         """
         Parameters
         ----------
-        models : list | tuple
-            An ordered list/tuple of one or more trained Sup3rGan models
+        spatial_models : MultiStepGan
+            A loaded MultiStepGan object representing the one or more spatial
+            super resolution steps in this composite SpatialThenTemporalGan
+            model
+        temporal_models : MultiStepGan
+            A loaded MultiStepGan object representing the one or more
+            (spatio)temporal super resolution steps in this composite
+            SpatialThenTemporalGan model
         """
-        msg = ('SpatialFirstGan can only have two steps: a spatial-only GAN, '
-               'and then a spatiotemporal GAN, but received {} model inputs.'
-               .format(len(models)))
-        assert len(models) == 2, msg
-        super().__init__(models)
+
+        self._spatial_models = spatial_models
+        self._temporal_models = temporal_models
+
+    @property
+    def spatial_models(self):
+        """Get the MultiStepGan object for the spatial-only model(s)
+
+        Returns
+        -------
+        MultiStepGan
+        """
+        return self._spatial_models
+
+    @property
+    def temporal_models(self):
+        """Get the MultiStepGan object for the (spatio)temporal model(s)
+
+        Returns
+        -------
+        MultiStepGan
+        """
+        return self._temporal_models
+
+    @property
+    def meta(self):
+        """Get a tuple of meta data dictionaries for all models
+
+        Returns
+        -------
+        tuple
+        """
+        return self.spatial_models.meta + self.temporal_models.meta
+
+    @property
+    def training_features(self):
+        """Get the list of input feature names that the first spatial
+        generative model in this SpatialThenTemporalGan requires as input."""
+        return self.spatial_models.training_features
+
+    @property
+    def output_features(self):
+        """Get the list of output feature names that the last spatiotemporal
+        generative model in this SpatialThenTemporalGan outputs."""
+        return self.temporal_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True):
         """Use the generator model to generate high res data from low res
@@ -355,15 +401,15 @@ class SpatialFirstGan(MultiStepGan):
         -------
         hi_res : ndarray
             Synthetically generated high-resolution data output from the 2nd
-            step spatiotemporal GAN with a 5D array shape:
+            step (spatio)temporal GAN with a 5D array shape:
             (1, spatial_1, spatial_2, n_temporal, n_features)
         """
 
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
         try:
-            hi_res = self.models[0].generate(low_res, norm_in=norm_in,
-                                             un_norm_out=True)
+            hi_res = self.spatial_models.generate(low_res, norm_in=norm_in,
+                                                  un_norm_out=True)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-only GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -378,10 +424,10 @@ class SpatialFirstGan(MultiStepGan):
                      'been reshaped to {}'.format(hi_res.shape))
 
         try:
-            hi_res = self.models[1].generate(hi_res, norm_in=True,
-                                             un_norm_out=un_norm_out)
+            hi_res = self.temporal_models.generate(hi_res, norm_in=True,
+                                                   un_norm_out=un_norm_out)
         except Exception as e:
-            msg = ('Could not run the 2nd step spatiotemporal GAN on input '
+            msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
             logger.error(msg)
             raise RuntimeError(msg) from e
@@ -392,15 +438,22 @@ class SpatialFirstGan(MultiStepGan):
         return hi_res
 
     @classmethod
-    def load(cls, model_dirs, verbose=True):
+    def load(cls, spatial_model_dirs, temporal_model_dirs, verbose=True):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
         Parameters
         ----------
-        model_dirs : list | tuple
+        spatial_model_dirs : str | list | tuple
             An ordered list/tuple of one or more directories containing trained
             + saved Sup3rGan models created using the Sup3rGan.save() method.
+            This must contain only spatial models that input/output 4D
+            tensors.
+        temporal_model_dirs : str | list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+            This must contain only (spatio)temporal models that input/output 5D
+            tensors.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -410,6 +463,12 @@ class SpatialFirstGan(MultiStepGan):
             Returns a pretrained gan model that was previously saved to
             model_dirs
         """
-        models = [Sup3rGan.load(model_dir, verbose=verbose)
-                  for model_dir in model_dirs]
-        return cls(models)
+        if isinstance(spatial_model_dirs, str):
+            spatial_model_dirs = [spatial_model_dirs]
+        if isinstance(temporal_model_dirs, str):
+            temporal_model_dirs = [temporal_model_dirs]
+
+        s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
+        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
+
+        return cls(s_models, t_models)

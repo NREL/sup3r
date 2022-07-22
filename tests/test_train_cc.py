@@ -216,7 +216,7 @@ def test_wind_cc_model_spatial(log=False):
     assert y.shape[3] == x.shape[3]
 
 
-def test_solar_custom_loss(log=False):
+def test_solar_custom_loss(sub_daily_shape=24, log=False):
     """Test custom solar loss with only disc and content over daylight hours"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
@@ -226,12 +226,12 @@ def test_solar_custom_loss(log=False):
                                    max_workers=1)
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=1,
-                             s_enhance=1, sub_daily_shape=None)
+                             s_enhance=1, sub_daily_shape=sub_daily_shape)
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_24x_1f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
@@ -252,7 +252,13 @@ def test_solar_custom_loss(log=False):
                                    weight_gen_advers=0.0,
                                    train_gen=True, train_disc=False)
 
-        for tslice in SolarCC.DAYLIGHT_SLICES:
+        t_len = hi_res_true.shape[3]
+        n_days = int(t_len // 24)
+        day_slices = [slice(SolarCC.STARTING_HOUR + x,
+                            SolarCC.STARTING_HOUR + x + SolarCC.DAYLIGHT_HOURS)
+                      for x in range(0, 24 * n_days, 24)]
+
+        for tslice in day_slices:
             hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
 
         loss2, _ = model.calc_loss(hi_res_true, hi_res_gen,
