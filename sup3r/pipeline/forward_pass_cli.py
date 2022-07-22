@@ -38,22 +38,12 @@ def main(ctx, verbose):
 @main.command()
 @click.option('--config_file', '-c', required=True,
               type=click.Path(exists=True),
-              help='sup3r forward pass configuration json file.')
+              help='sup3r forward pass configuration .json file.')
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
 def from_config(ctx, config_file, verbose):
-    """Run sup3r forward pass from a config file.
-
-    Parameters
-    ----------
-    ctx : click.pass_context
-        Click context object where ctx.obj is a dictionary
-    config_file : str
-        Filepath to sup3r forward pass json file.
-    verbose : bool
-        Flag to turn on debug logging. Default is not verbose.
-    """
+    """Run sup3r forward pass from a config file."""
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
     status_dir = os.path.dirname(os.path.abspath(config_file))

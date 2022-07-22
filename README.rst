@@ -25,12 +25,11 @@ Welcome to SUP3R!
 
 .. inclusion-intro
 
-sup3r command line tools
-========================
-
-- `forward_pass <https://nrel.github.io/sup3r/_cli/forward_pass.html#forward_pass>`_
-- `data_extract <https://nrel.github.io/sup3r/_cli/data_extract.html#data_extract>`_
-- `data_collect <https://nrel.github.io/sup3r/_cli/data_collect.html#data_collect>`_
+The Super Resolution for Renewable Resource Data (sup3r) software uses
+generative adversarial networks to create synthetic high-resolution wind and
+solar spatiotemporal data from coarse low-resolution inputs. To get started,
+check out the sup3r command line interface (CLI) `here
+<https://nrel.github.io/sup3r/_cli/sup3r.html#sup3r>`_.
 
 Installing sup3r
 ================
@@ -42,15 +41,11 @@ as your package/environment manager.
 Option 1: Install from PIP or Conda (recommended for analysts):
 ---------------------------------------------------------------
 
-1. Create a new environment:
-    ``conda create --name sup3r``
+1. Create a new environment: ``conda create --name sup3r python=3.9``
 
-2. Activate directory:
-    ``conda activate sup3r``
+2. Activate directory: ``conda activate sup3r``
 
-3. Install sup3r:
-    1) ``pip install NREL-sup3r`` or
-    2) ``conda install nrel-sup3r --channel=nrel``
+3. Install sup3r: ``pip install NREL-sup3r``
 
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------

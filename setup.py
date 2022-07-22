@@ -51,7 +51,8 @@ setup(
     entry_points={
         "console_scripts": ["sup3r=sup3r.cli:main",
                             "sup3r-pipeline=sup3r.pipeline.pipeline_cli:main",
-                            "sup3r-fwp=sup3r.pipeline.forward_pass_cli:main",
+                            ("sup3r-forward-pass=sup3r.pipeline."
+                             "forward_pass_cli:main"),
                             ("sup3r-extract=sup3r.preprocessing."
                              "data_extract_cli:main"),
                             ("sup3r-collect=sup3r.postprocessing."
