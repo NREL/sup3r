@@ -949,12 +949,10 @@ class ForwardPass:
             f'"fwp_chunk_shape": {config.get("fwp_chunk_shape", "null")}, '
             f'"spatial_overlap": {config.get("spatial_overlap", "null")}, '
             f'"temporal_overlap": {config.get("temporal_overlap", "null")}, '
-            f'"out_pattern": {json.dumps(config.get("out_pattern", "null"))}'
-            )
+            f'"out_pattern": {json.dumps(config.get("out_pattern", "null"))}')
         job_attrs = '{' + job_attrs + '}'
 
         job_name = config.get('job_name', None)
-
         if job_name is not None:
             status_dir = config.get('status_dir', None)
             status_file_arg_str = f'"{status_dir}", '

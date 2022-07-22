@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """H5 file collection."""
 from concurrent.futures import as_completed
+import json
 import logging
 import numpy as np
 import os
@@ -70,30 +71,46 @@ class Collector:
         """
 
         import_str = ('from sup3r.postprocessing.collection '
-                      'import Collector; from rex import init_logger')
+                      'import Collector;\n'
+                      'from rex import init_logger;\n'
+                      'import time;\n'
+                      'from reV.pipeline.status import Status;\n')
 
         dc_fun_str = get_fun_call_str(cls.collect, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = '\"sup3r\", '
-        log_arg_str += f'log_file=\"{log_file}\", '
-        log_arg_str += f'log_level=\"{log_level}\"'
+        log_arg_str = (f'"sup3r", log_file="{log_file}", '
+                       f'log_level="{log_level}"')
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"{dc_fun_str};\n"
+               "t_elap = time.time() - t0;\n"
+               )
+
+        job_attrs = (
+            '"job_status": "successful", '
+            '"time": t_elap, '
+            f'"file_paths": {json.dumps(config.get("file_paths", "null"))}, '
+            f'"features": {json.dumps(config.get("features", "null"))}, '
+            f'"out_file": {json.dumps(config.get("out_file", "null"))}')
+        job_attrs = '{' + job_attrs + '}'
 
         job_name = config.get('job_name', None)
-        status_dir = config.get('status_dir', None)
-        status_file_arg_str = f'\"{status_dir}\", '
-        status_file_arg_str += f'module=\"{ModuleName.DATA_COLLECT}\", '
-        status_file_arg_str += f'job_name=\"{job_name}\", '
-        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
-
-        cmd = (f"python -c \'{import_str};\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"{dc_fun_str}")
         if job_name is not None:
-            cmd += (";\nfrom reV.pipeline.status import Status;\n"
-                    f"Status.make_job_file({status_file_arg_str})")
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.DATA_COLLECT}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += f'job_attrs = {job_attrs};\n'
+            cmd += f"Status.make_job_file({status_file_arg_str})"
+
         cmd += (";\'\n")
+
         return cmd.replace('\\', '/')
 
     @staticmethod
