@@ -869,7 +869,7 @@ class ForwardPass:
             model_class = getattr(sup3r.models, model_class)
             model = model_class.load(*model_args, verbose=False)
 
-        data_chunk = np.expand_dims(self.data_handler.data[lr_slices], axis=0)
+        data_chunk = self.data_handler.data[lr_slices]
         if isinstance(model, sup3r.models.SpatialThenTemporalGan):
             i_lr_t = 0
             i_lr_s = 1
@@ -878,7 +878,6 @@ class ForwardPass:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
-
         hi_res = model.generate(data_chunk)
 
         if (s_enhance is not None

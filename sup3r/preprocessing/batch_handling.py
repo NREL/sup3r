@@ -356,7 +356,10 @@ class BatchHandler:
             Whether to overwrite stats cache files.
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
-            data. If None no smoothing is performed.
+            data. This can be used to make the coarsened data look more like
+            a direct low res simulation since the simulation will not have the
+            same finer features as coarsened high res simulation. If None no
+            smoothing is performed.
         """
 
         msg = ('All data handlers must have the same sample_shape')
