@@ -35,7 +35,7 @@ def make_fake_nc_files(td, input_file, n_files):
     return fake_files
 
 
-def make_fake_h5_chunks(td):
+def make_fake_h5_chunks(td, lats, lons):
     """Make fake h5 chunked output files for a 5x spatial 2x temporal
     multi-node forward pass output.
 
@@ -43,6 +43,10 @@ def make_fake_h5_chunks(td):
     ----------
     td : tempfile.TemporaryDirectory
         Test TemporaryDirectory
+    lats : list
+        List of latitudes
+    lons : list
+        List of longitudes
 
     Returns
     -------
@@ -75,9 +79,7 @@ def make_fake_h5_chunks(td):
     ws_true = np.random.uniform(0, 20, shape)
     wd_true = np.random.uniform(0, 360, shape)
     data = np.concatenate((ws_true, wd_true), axis=3)
-    lat = np.linspace(90, 0, 10)
-    lon = np.linspace(-180, 0, 10)
-    lon, lat = np.meshgrid(lon, lat)
+    lon, lat = np.meshgrid(lons, lats)
     low_res_lat_lon = np.dstack((lat, lon))
 
     low_res_times = pd.date_range('20220101', '20220103', freq='1h',

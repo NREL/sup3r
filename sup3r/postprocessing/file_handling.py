@@ -102,12 +102,6 @@ class OutputHandler:
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
-        invert_lat = False
-        if low_res_lat_lon[0, 0, 0] > low_res_lat_lon[-1, 0, 0]:
-            invert_lat = True
-        if invert_lat:
-            low_res_lat_lon = low_res_lat_lon[::-1]
-
         logger.debug('Getting high resolution lat / lon grid')
         s_enhance = shape[0] // low_res_lat_lon.shape[0]
         old_points = np.zeros((np.product(low_res_lat_lon.shape[:-1]), 2),
@@ -135,10 +129,7 @@ class OutputHandler:
                 new_count += 1
         lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
-
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
-        if invert_lat:
-            lat_lon = lat_lon[::-1]
         return lat_lon
 
     @staticmethod
@@ -352,6 +343,49 @@ class OutputHandlerH5(OutputHandler):
         data[..., v_idx] = wd
 
     @classmethod
+    def _prep_output(cls, data, features, low_res_lat_lon,
+                     low_res_times, max_workers=None):
+        """Prep forward pass output for writing to H5 file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        low_res_lat_lon : ndarray
+            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
+
+        Returns
+        -------
+        data : ndarray
+            Data with u/v inverted
+        lat_lon : ndarray
+            High res lat lon
+        times : pd.Datetimeindex
+            High res times
+        """
+        print(low_res_lat_lon.shape)
+        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
+        times = cls.get_times(low_res_times, data.shape[-2])
+        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
+        freq = pd.tseries.offsets.DateOffset(seconds=freq)
+        times = pd.date_range(times[0], times[-1], freq=freq)
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        if lat_lon[0, 0, 0] > lat_lon[-1, 0, 0]:
+            lat_lon = lat_lon[::-1]
+            data = data[::-1]
+        return data, lat_lon, times
+
+    @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, out_file,
                      meta_data=None, max_workers=None):
@@ -376,16 +410,10 @@ class OutputHandlerH5(OutputHandler):
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
-        chunks : tuple
-            Dataset chunk size
         """
-        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
-        times = cls.get_times(low_res_times, data.shape[-2])
-        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
-        freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd.date_range(times[0], times[-1], freq=freq)
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
+        data, lat_lon, times = cls._prep_output(data, features,
+                                                low_res_lat_lon,
+                                                low_res_times, max_workers)
         renamed_features = cls.get_renamed_features(features)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
