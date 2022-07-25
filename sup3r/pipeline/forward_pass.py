@@ -4,6 +4,7 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
+import json
 import psutil
 import numpy as np
 import logging
@@ -911,38 +912,48 @@ class ForwardPass:
         use_cpu = config.get('use_cpu', True)
         import_str = ''
         if use_cpu:
-            import_str += 'import os; os.environ[\"CUDA_VISIBLE_DEVICES\"] = '
-            import_str += '\"-1\"; '
-        import_str += 'from sup3r.pipeline.forward_pass '
-        import_str += f'import ForwardPassStrategy, {cls.__name__}; '
-        import_str += 'from rex import init_logger'
+            import_str += 'import os;\n'
+            import_str += 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1";\n'
+        import_str += 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += ('from sup3r.pipeline.forward_pass '
+                       f'import ForwardPassStrategy, {cls.__name__};\n')
 
         fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         node_index = config['node_index']
-        fwp_arg_str = f'strategy, node_index={node_index}'
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = '\"sup3r\", '
-        log_arg_str += f'log_file=\"{log_file}\", '
-        log_arg_str += f'log_level=\"{log_level}\"'
 
-        job_name = config.get('job_name', None)
-        status_dir = config.get('status_dir', None)
-        status_file_arg_str = f'\"{status_dir}\", '
-        status_file_arg_str += f'module=\"{ModuleName.FORWARD_PASS}\", '
-        status_file_arg_str += f'job_name=\"{job_name}\", '
-        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
+        fwp_arg_str = f'strategy, node_index={node_index}'
+        log_arg_str = (f'"sup3r", log_file="{log_file}", '
+                       f'log_level="{log_level}"')
 
-        cmd = (f"python -c \'{import_str};\n"
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fwps_init_str};\n"
                f"fwp = {cls.__name__}({fwp_arg_str});\n"
-               "fwp.run()")
+               "fwp.run();\n"
+               "t_elap = time.time() - t0;\n")
 
+        job_name = config.get('job_name', None)
         if job_name is not None:
-            cmd += (";\nfrom reV.pipeline.status import Status;\n"
-                    f"Status.make_job_file({status_file_arg_str})")
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.FORWARD_PASS}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
         cmd += (";\'\n")
 
         return cmd.replace('\\', '/')

@@ -5,6 +5,7 @@ Sup3r preprocessing module.
 """
 
 from abc import abstractmethod
+import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
@@ -820,32 +821,48 @@ class DataHandler(FeatureHandler, InputMixIn):
         """
 
         import_str = ('from sup3r.preprocessing.data_handling '
-                      f'import {cls.__name__}; from rex import init_logger')
+                      f'import {cls.__name__};\n'
+                      'import time;\n'
+                      'from reV.pipeline.status import Status;\n'
+                      'from rex import init_logger;\n')
+
         dh_init_str = get_fun_call_str(cls, config)
+
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
         log_arg_str = '\"sup3r\", '
         log_arg_str += f'log_file=\"{log_file}\", '
         log_arg_str += f'log_level=\"{log_level}\"'
+
         cache_check = config.get('cache_pattern', False)
+
         msg = ('No cache file prefix provided.')
         if not cache_check:
             logger.warning(msg)
             warnings.warn(msg)
 
         job_name = config.get('job_name', None)
-        status_dir = config.get('status_dir', None)
-        status_file_arg_str = f'\"{status_dir}\", '
-        status_file_arg_str += f'module=\"{ModuleName.DATA_EXTRACT}\", '
-        status_file_arg_str += f'job_name=\"{job_name}\", '
-        status_file_arg_str += 'attrs={\"job_status\": \"successful\"}'
 
-        cmd = (f"python -c \'{import_str};\n"
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"data_handler = {dh_init_str}")
+               f"data_handler = {dh_init_str};\n"
+               "t_elap = time.time() - t0;\n")
+
         if job_name is not None:
-            cmd += (";\nfrom reV.pipeline.status import Status;\n"
-                    f"Status.make_job_file({status_file_arg_str})")
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'\"{status_dir}\", '
+            status_file_arg_str += f'module=\"{ModuleName.DATA_EXTRACT}\", '
+            status_file_arg_str += f'job_name=\"{job_name}\", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += (f"Status.make_job_file({status_file_arg_str})")
 
         cmd += (";\'\n")
         return cmd.replace('\\', '/')
