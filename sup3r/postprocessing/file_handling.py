@@ -102,6 +102,12 @@ class OutputHandler:
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
+        invert_lat = False
+        if low_res_lat_lon[0, 0, 0] > low_res_lat_lon[-1, 0, 0]:
+            invert_lat = True
+        if invert_lat:
+            low_res_lat_lon = low_res_lat_lon[::-1]
+
         logger.debug('Getting high resolution lat / lon grid')
         s_enhance = shape[0] // low_res_lat_lon.shape[0]
         old_points = np.zeros((np.product(low_res_lat_lon.shape[:-1]), 2),
@@ -130,9 +136,10 @@ class OutputHandler:
         lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
 
-        return np.concatenate([lats.reshape(shape)[..., np.newaxis],
-                               lons.reshape(shape)[..., np.newaxis]],
-                              axis=-1)
+        lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
+        if invert_lat:
+            lat_lon = lat_lon[::-1]
+        return lat_lon
 
     @staticmethod
     def get_times(low_res_times, shape):
@@ -372,12 +379,6 @@ class OutputHandlerH5(OutputHandler):
         chunks : tuple
             Dataset chunk size
         """
-        invert_lat = False
-        if low_res_lat_lon[0, 0, 0] > low_res_lat_lon[-1, 0, 0]:
-            invert_lat = True
-        if invert_lat:
-            low_res_lat_lon = low_res_lat_lon[::-1]
-            data = data[::-1]
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         freq = (times[1] - times[0]) / np.timedelta64(1, 's')

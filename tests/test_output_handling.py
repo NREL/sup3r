@@ -80,8 +80,8 @@ def test_h5_out_and_collect():
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, slices_lr,
-            slices_hr, low_res_lat_lon, low_res_times) = out
+        (out_files, data, ws_true, wd_true, features, _,
+         slices_hr, _, low_res_times) = out
 
         Collector.collect(out_files, fp_out, features=features)
 
