@@ -843,10 +843,10 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         job_name = config.get('job_name', None)
 
-        cmd = (f"python -c \'{import_str};\n"
+        cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"data_handler = {dh_init_str};\nj"
+               f"data_handler = {dh_init_str};\n"
                "t_elap = time.time() - t0;\n")
 
         if job_name is not None:
