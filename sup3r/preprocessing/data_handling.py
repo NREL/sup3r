@@ -5,6 +5,7 @@ Sup3r preprocessing module.
 """
 
 from abc import abstractmethod
+import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
@@ -855,7 +856,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             status_file_arg_str += f'job_name=\"{job_name}\", '
             status_file_arg_str += 'attrs=job_attrs'
 
-            cmd += f'job_attrs = {config};\n'
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += (f"Status.make_job_file({status_file_arg_str})")
