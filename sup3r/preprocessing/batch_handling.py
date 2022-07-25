@@ -309,8 +309,9 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, max_workers=None, overwrite_stats=False,
-                 smoothing=None):
+                 means_file=None, overwrite_stats=False, smoothing=None,
+                 stats_workers=None, norm_workers=None, load_workers=None,
+                 max_workers=None):
         """
         Parameters
         ----------
@@ -348,10 +349,6 @@ class BatchHandler:
             Path to stdevs data or where to save data after calling get_stats
         means_file : str | None
             Path to means data or where to save data after calling get_stats
-        max_workers : int | None
-            Max number of workers to use for parallel data loading and
-            normalization. If None the max number of available workers will be
-            estimated based on memory limits.
         overwrite_stats : bool
             Whether to overwrite stats cache files.
         smoothing : float | None
@@ -360,7 +357,23 @@ class BatchHandler:
             a direct low res simulation since the simulation will not have the
             same finer features as coarsened high res simulation. If None no
             smoothing is performed.
+        max_workers : int | None
+            Providing a value for max workers will be used to set the value of
+            norm_workers, stats_workers, and load_workers.
+            If max_workers == 1 then all processes will be serialized. If None
+            stats_workers, load_workers, and norm_workers will use their own
+            provided values.
+        load_workers : int | None
+            max number of workers to use for loading data handlers.
+        norm_workers : int | None
+            max number of workers to use for normalizing data handlers.
+        stats_workers : int | None
+            max number of workers to use for computing stats across data
+            handlers.
         """
+
+        if max_workers is not None:
+            norm_workers = stats_workers = load_workers = max_workers
 
         msg = ('All data handlers must have the same sample_shape')
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -385,7 +398,11 @@ class BatchHandler:
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
-        self._max_workers = max_workers
+        self._stats_workers = stats_workers
+        self._norm_workers = norm_workers
+        self._load_workers = load_workers
+
+        logger.info(f'Initializing BatchHandler with smoothing={smoothing}')
 
         now = dt.now()
         self.parallel_load()
@@ -417,16 +434,15 @@ class BatchHandler:
     def stats_workers(self):
         """Get max workers for calculating stats based on memory usage"""
         proc_mem = self.feature_mem
-        stats_workers = estimate_max_workers(self._max_workers, proc_mem,
+        stats_workers = estimate_max_workers(self._stats_workers, proc_mem,
                                              len(self.data_handlers))
         return stats_workers
 
     @property
-    def max_workers(self):
-        """Get max workers for loading and normalization based on memory
-        usage"""
+    def load_workers(self):
+        """Get max workers for loading data handler based on memory usage"""
         proc_mem = len(self.data_handlers[0].features) * self.feature_mem
-        max_workers = estimate_max_workers(self._max_workers, proc_mem,
+        max_workers = estimate_max_workers(self._load_workers, proc_mem,
                                            len(self.data_handlers))
         return max_workers
 
@@ -435,7 +451,7 @@ class BatchHandler:
         """Get max workers used for calculating and normalization across
         features"""
         proc_mem = 2 * self.feature_mem
-        norm_workers = estimate_max_workers(self._max_workers, proc_mem,
+        norm_workers = estimate_max_workers(self._norm_workers, proc_mem,
                                             len(self.training_features))
         return norm_workers
 
@@ -480,7 +496,7 @@ class BatchHandler:
     def parallel_normalization(self):
         """Normalize data in all data handlers in parallel."""
         logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
-        max_workers = self.max_workers
+        max_workers = self.load_workers
         if max_workers == 1:
             for d in self.data_handlers:
                 d.normalize(self.means, self.stds)
@@ -509,7 +525,7 @@ class BatchHandler:
     def parallel_load(self):
         """Load data handler data in parallel"""
         logger.info(f'Loading {len(self.data_handlers)} data handlers')
-        max_workers = self.max_workers
+        max_workers = self.load_workers
         if max_workers == 1:
             for d in self.data_handlers:
                 d.load_cached_data()

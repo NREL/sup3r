@@ -375,11 +375,16 @@ def test_temporal_coarsening(method, t_enhance):
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
+    max_workers = 1
     batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance,
-                                 temporal_coarsening_method=method)
+                                 temporal_coarsening_method=method,
+                                 max_workers=max_workers)
+    assert batch_handler.load_workers == max_workers
+    assert batch_handler.norm_workers == max_workers
+    assert batch_handler.stats_workers == max_workers
 
     for batch in batch_handler:
         assert batch.low_res.shape[0] == batch.high_res.shape[0]
