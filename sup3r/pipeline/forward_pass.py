@@ -936,21 +936,7 @@ class ForwardPass:
                f"strategy = {fwps_init_str};\n"
                f"fwp = {cls.__name__}({fwp_arg_str});\n"
                "fwp.run();\n"
-               "t_elap = time.time() - t0;\n"
-               )
-
-        job_attrs = (
-            '"job_status": "successful", '
-            '"time": t_elap, '
-            f'"file_paths": {json.dumps(config.get("file_paths", "null"))}, '
-            f'"model_args": {json.dumps(config.get("model_args", "null"))}, '
-            f'"s_enhance": {config.get("s_enhance", "null")}, '
-            f'"t_enhance": {config.get("t_enhance", "null")}, '
-            f'"fwp_chunk_shape": {config.get("fwp_chunk_shape", "null")}, '
-            f'"spatial_overlap": {config.get("spatial_overlap", "null")}, '
-            f'"temporal_overlap": {config.get("temporal_overlap", "null")}, '
-            f'"out_pattern": {json.dumps(config.get("out_pattern", "null"))}')
-        job_attrs = '{' + job_attrs + '}'
+               "t_elap = time.time() - t0;\n")
 
         job_name = config.get('job_name', None)
         if job_name is not None:
@@ -960,7 +946,9 @@ class ForwardPass:
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
-            cmd += f'job_attrs = {job_attrs};\n'
+            cmd += f'job_attrs = {config};\n'
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f'Status.make_job_file({status_file_arg_str})'
 
         cmd += (";\'\n")

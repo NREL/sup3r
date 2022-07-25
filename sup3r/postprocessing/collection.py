@@ -90,14 +90,6 @@ class Collector:
                "t_elap = time.time() - t0;\n"
                )
 
-        job_attrs = (
-            '"job_status": "successful", '
-            '"time": t_elap, '
-            f'"file_paths": {json.dumps(config.get("file_paths", "null"))}, '
-            f'"features": {json.dumps(config.get("features", "null"))}, '
-            f'"out_file": {json.dumps(config.get("out_file", "null"))}')
-        job_attrs = '{' + job_attrs + '}'
-
         job_name = config.get('job_name', None)
         if job_name is not None:
             status_dir = config.get('status_dir', None)
@@ -106,7 +98,9 @@ class Collector:
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
-            cmd += f'job_attrs = {job_attrs};\n'
+            cmd += f'job_attrs = {config};\n'
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f"Status.make_job_file({status_file_arg_str})"
 
         cmd += (";\'\n")
