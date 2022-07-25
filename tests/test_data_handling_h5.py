@@ -10,7 +10,7 @@ import pickle
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
-from sup3r.preprocessing.batch_handling import (BatchHandler,
+from sup3r.preprocessing.batch_handling import (BatchHandler, Batch,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
 
@@ -649,3 +649,14 @@ def test_no_val_data():
 
     assert n == 0
     assert not batch_handler.val_data.any()
+
+
+def test_smoothing():
+    """Check gaussian filtering on low res"""
+    high_res = np.random.rand(5, 12, 12, 24, 3)
+    smooth_batch = Batch.get_coarse_batch(high_res, 3, 4, smoothing=0.6)
+    batch = Batch.get_coarse_batch(high_res, 3, 4, smoothing=None)
+
+    assert not np.allclose(batch.low_res, smooth_batch.low_res)
+    assert np.allclose(batch.high_res, smooth_batch.high_res)
+    assert np.allclose(batch.low_res, smooth_batch.low_res, atol=0.5)
