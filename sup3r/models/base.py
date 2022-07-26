@@ -28,8 +28,7 @@ class Sup3rGan(AbstractSup3rGan):
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
-                 history=None, meta=None,
-                 means=None, stdevs=None, name=None):
+                 history=None, meta=None, means=None, stdevs=None, name=None):
         """
         Parameters
         ----------
@@ -80,9 +79,6 @@ class Sup3rGan(AbstractSup3rGan):
         """
 
         self._version_record = VERSION_RECORD
-        logger.info('Active python environment versions: \n{}'
-                    .format(pprint.pformat(self._version_record, indent=4)))
-
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
@@ -227,8 +223,12 @@ class Sup3rGan(AbstractSup3rGan):
         out : BaseModel
             Returns a pretrained gan model that was previously saved to out_dir
         """
-
-        logger.info('Loading GAN from disk in directory: {}'.format(model_dir))
+        if verbose:
+            logger.info('Loading GAN from disk in directory: {}'
+                        .format(model_dir))
+            msg = ('Active python environment versions: \n{}'
+                   .format(pprint.pformat(VERSION_RECORD, indent=4)))
+            logger.info(msg)
 
         fp_gen = os.path.join(model_dir, 'model_gen.pkl')
         fp_disc = os.path.join(model_dir, 'model_disc.pkl')

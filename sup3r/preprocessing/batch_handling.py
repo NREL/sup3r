@@ -8,6 +8,8 @@ import numpy as np
 from datetime import datetime as dt
 import os
 import pickle
+from scipy.ndimage.filters import gaussian_filter
+
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex.utilities import log_mem
@@ -92,7 +94,8 @@ class Batch:
                          s_enhance, t_enhance=1,
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
-                         output_features=None):
+                         output_features=None,
+                         smoothing=None):
         """Coarsen high res data and return Batch with high res and
         low res data
 
@@ -116,6 +119,9 @@ class Batch:
             output, without any feature indices used only for training.
         output_features : list
             List of Generative model output feature names
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. If None no smoothing is performed.
 
         Returns
         -------
@@ -127,7 +133,8 @@ class Batch:
         if t_enhance != 1:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
-
+        if smoothing is not None:
+            low_res = gaussian_filter(low_res, smoothing, mode='constant')
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
 
@@ -302,7 +309,9 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, max_workers=None, overwrite_stats=False):
+                 means_file=None, overwrite_stats=False, smoothing=None,
+                 stats_workers=None, norm_workers=None, load_workers=None,
+                 max_workers=None):
         """
         Parameters
         ----------
@@ -340,13 +349,31 @@ class BatchHandler:
             Path to stdevs data or where to save data after calling get_stats
         means_file : str | None
             Path to means data or where to save data after calling get_stats
-        max_workers : int | None
-            Max number of workers to use for parallel data loading and
-            normalization. If None the max number of available workers will be
-            estimated based on memory limits.
         overwrite_stats : bool
             Whether to overwrite stats cache files.
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. This can be used to make the coarsened data look more like
+            a direct low res simulation since the simulation will not have the
+            same finer features as coarsened high res simulation. If None no
+            smoothing is performed.
+        max_workers : int | None
+            Providing a value for max workers will be used to set the value of
+            norm_workers, stats_workers, and load_workers.
+            If max_workers == 1 then all processes will be serialized. If None
+            stats_workers, load_workers, and norm_workers will use their own
+            provided values.
+        load_workers : int | None
+            max number of workers to use for loading data handlers.
+        norm_workers : int | None
+            max number of workers to use for normalizing data handlers.
+        stats_workers : int | None
+            max number of workers to use for computing stats across data
+            handlers.
         """
+
+        if max_workers is not None:
+            norm_workers = stats_workers = load_workers = max_workers
 
         msg = ('All data handlers must have the same sample_shape')
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -370,7 +397,12 @@ class BatchHandler:
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
-        self._max_workers = max_workers
+        self.smoothing = smoothing
+        self._stats_workers = stats_workers
+        self._norm_workers = norm_workers
+        self._load_workers = load_workers
+
+        logger.info(f'Initializing BatchHandler with smoothing={smoothing}')
 
         now = dt.now()
         self.parallel_load()
@@ -402,16 +434,15 @@ class BatchHandler:
     def stats_workers(self):
         """Get max workers for calculating stats based on memory usage"""
         proc_mem = self.feature_mem
-        stats_workers = estimate_max_workers(self._max_workers, proc_mem,
+        stats_workers = estimate_max_workers(self._stats_workers, proc_mem,
                                              len(self.data_handlers))
         return stats_workers
 
     @property
-    def max_workers(self):
-        """Get max workers for loading and normalization based on memory
-        usage"""
+    def load_workers(self):
+        """Get max workers for loading data handler based on memory usage"""
         proc_mem = len(self.data_handlers[0].features) * self.feature_mem
-        max_workers = estimate_max_workers(self._max_workers, proc_mem,
+        max_workers = estimate_max_workers(self._load_workers, proc_mem,
                                            len(self.data_handlers))
         return max_workers
 
@@ -420,7 +451,7 @@ class BatchHandler:
         """Get max workers used for calculating and normalization across
         features"""
         proc_mem = 2 * self.feature_mem
-        norm_workers = estimate_max_workers(self._max_workers, proc_mem,
+        norm_workers = estimate_max_workers(self._norm_workers, proc_mem,
                                             len(self.training_features))
         return norm_workers
 
@@ -465,7 +496,7 @@ class BatchHandler:
     def parallel_normalization(self):
         """Normalize data in all data handlers in parallel."""
         logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
-        max_workers = self.max_workers
+        max_workers = self.load_workers
         if max_workers == 1:
             for d in self.data_handlers:
                 d.normalize(self.means, self.stds)
@@ -494,7 +525,7 @@ class BatchHandler:
     def parallel_load(self):
         """Load data handler data in parallel"""
         logger.info(f'Loading {len(self.data_handlers)} data handlers')
-        max_workers = self.max_workers
+        max_workers = self.load_workers
         if max_workers == 1:
             for d in self.data_handlers:
                 d.load_cached_data()
@@ -811,7 +842,7 @@ class BatchHandler:
                 high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
-                output_features=self.output_features)
+                output_features=self.output_features, smoothing=self.smoothing)
 
             self._i += 1
             return batch

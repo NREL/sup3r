@@ -14,6 +14,7 @@ import xarray as xr
 import re
 from warnings import warn
 import psutil
+import pandas as pd
 
 from rex import Resource
 
@@ -39,24 +40,15 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
     max_workers : int
         Max number of workers available
     """
-
-    if n_processes == 0 and max_workers is None:
-        return 1
-    elif n_processes == 0:
-        return max_workers
-
     mem = psutil.virtual_memory()
     avail_mem = 0.7 * (mem.total - mem.used)
-    cpu_count = os.cpu_count() / 2
-    mult = np.min([cpu_count / n_processes, 1])
-
+    cpu_count = os.cpu_count()
     if max_workers is not None:
         max_workers = np.min([max_workers, n_processes])
     else:
-        max_workers = mult * avail_mem / process_mem
+        max_workers = avail_mem / process_mem
         max_workers = np.min([max_workers, n_processes, cpu_count])
-        max_workers = int(np.max([max_workers, 1]))
-
+    max_workers = int(np.max([max_workers, 1]))
     logger.info(f'Available memory: {avail_mem / 1e9:.3f} GB. '
                 f'Available cores: {cpu_count}. '
                 f'Number of processes: {n_processes}. '
@@ -1312,3 +1304,22 @@ def get_source_type(file_paths):
         return 'h5'
     else:
         return 'nc'
+
+
+def np_to_pd_times(times):
+    """Convert np.bytes_ times to DatetimeIndex
+
+    Parameters
+    ----------
+    times : ndarray | list
+        List of np.bytes_ objects for time indices
+
+    Returns
+    -------
+    times : pd.DatetimeIndex
+        DatetimeIndex for time indices
+    """
+    tmp = [t.decode('utf-8') for t in times]
+    tmp = [' '.join(t.split('_')) for t in tmp]
+    tmp = pd.DatetimeIndex(tmp)
+    return tmp

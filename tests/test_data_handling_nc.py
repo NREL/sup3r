@@ -58,8 +58,9 @@ def test_height_interpolation():
         input_files, concat_dim='Time', combine='nested')
 
     U_tmp = utilities.unstagger_var(tmp, 'U', raster_index)
-
     h_array = utilities.calc_height(tmp, raster_index)
+    if handler.invert_lat:
+        data = data[::-1]
 
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
@@ -180,9 +181,9 @@ def test_raster_index_caching():
                               shape=shape, max_delta=max_delta,
                               sample_shape=sample_shape,
                               raster_file=raster_file)
+        assert handler.lat_lon[0, 0, 0] > handler.lat_lon[-1, 0, 0]
+        assert np.allclose(handler.target, handler.lat_lon[-1, 0, :], atol=1)
 
-        print(handler.data.shape)
-        print(handler.raster_index)
         # loading raster file
         handler = DataHandler(input_files, features, raster_file=raster_file)
         assert np.allclose(handler.target, target, atol=1)

@@ -9,7 +9,6 @@ import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
-import pandas as pd
 import numpy as np
 import os
 from datetime import datetime as dt
@@ -22,7 +21,8 @@ from rex import MultiFileWindX, MultiFileNSRDBX
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
+from sup3r.utilities.utilities import (estimate_max_workers,
+                                       get_chunk_slices,
                                        interp_var_to_height,
                                        interp_var_to_pressure,
                                        uniform_box_sampler,
@@ -33,7 +33,8 @@ from sup3r.utilities.utilities import (estimate_max_workers, get_chunk_slices,
                                        get_source_type,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
-                                       is_time_series)
+                                       is_time_series,
+                                       np_to_pd_times)
 from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
@@ -124,8 +125,8 @@ class InputMixIn:
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        msg = (f'source files with dates from {str(self.raw_time_index[0])} to'
-               f' {str(self.raw_time_index[-1])}')
+        msg = (f'source files with dates from {self.raw_time_index[0]} to '
+               f'{self.raw_time_index[-1]}')
         return msg
 
     @property
@@ -235,8 +236,7 @@ class InputMixIn:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            self._target = (np.min(self.lat_lon[..., 0]),
-                            np.min(self.lat_lon[..., 1]))
+            self._target = tuple(self.lat_lon[-1, 0, :])
         return self._target
 
     @target.setter
@@ -294,9 +294,6 @@ class InputMixIn:
         format YYYYMMDDHHMMSS"""
 
         time_stamp = self.time_index[0]
-        if isinstance(time_stamp, np.datetime64):
-            time_stamp = pd.Timestamp(time_stamp)
-
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -304,7 +301,6 @@ class InputMixIn:
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
         ts0 = yyyy + mm + dd + hh + min + ss
-
         return ts0
 
     @property
@@ -313,9 +309,6 @@ class InputMixIn:
         format YYYYMMDDHHMMSS"""
 
         time_stamp = self.time_index[-1]
-        if isinstance(time_stamp, np.datetime64):
-            time_stamp = pd.Timestamp(time_stamp)
-
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -323,7 +316,6 @@ class InputMixIn:
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
         ts1 = yyyy + mm + dd + hh + min + ss
-
         return ts1
 
 
@@ -409,7 +401,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             full time index for best performance.
         cache_pattern : str | None
             Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl Each feature will be saved to a file with
+            file_path_{feature}.pkl. Each feature will be saved to a file with
             the feature name replaced in cache_pattern. If not None
             feature arrays will be saved here and not stored in self.data until
             load_cached_data is called. The cache_pattern can also include
@@ -463,6 +455,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.val_data = None
         self.target = target
         self.grid_shape = shape
+        self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
         self._extract_workers = extract_workers
@@ -557,6 +550,18 @@ class DataHandler(FeatureHandler, InputMixIn):
         with self.source_handler(self.file_paths) as handle:
             desc = handle.attrs
         return desc
+
+    @property
+    def invert_lat(self):
+        """Whether to invert the latitude axis during data extraction. This is
+        to enforce a descending latitude ordering so that the lower left corner
+        of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
+        if self._invert_lat is None:
+            lat_lon = self.get_lat_lon(self.file_paths[:1],
+                                       self.raster_index,
+                                       invert_lat=False)
+            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
+        return self._invert_lat
 
     @property
     def train_only_features(self):
@@ -655,7 +660,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._lat_lon is None:
             self._lat_lon = self.get_lat_lon(self.file_paths,
                                              self.raster_index,
-                                             self.temporal_slice)
+                                             self.temporal_slice,
+                                             invert_lat=self.invert_lat)
         return self._lat_lon
 
     @lat_lon.setter
@@ -788,7 +794,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, time_slice):
+    def get_lat_lon(cls, file_paths, raster_index, time_slice=slice(None),
+                    invert_lat=False):
         """Store lat lon for future output
 
         Parameters
@@ -799,6 +806,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             Raster index array or list of slices
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Flag to invert data along the latitude axis. Wrf data tends to use
+            an increasing ordering for latitude while wtk uses a decreasing
+            ordering.
 
         Returns
         -------
@@ -807,7 +818,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             dimension
         """
         return cls.extract_feature(file_paths, raster_index, 'lat_lon',
-                                   time_slice)
+                                   time_slice, invert_lat=invert_lat)
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1287,10 +1298,13 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
+        logger.info(f'Starting extraction of {self.raw_features} using '
+                    f'{len(time_chunks)} time_chunks. ')
         self._raw_data = self.parallel_extract(self.file_paths,
                                                self.raster_index,
                                                time_chunks, self.raw_features,
-                                               self.extract_workers)
+                                               self.extract_workers,
+                                               invert_lat=self.invert_lat)
 
         logger.info(f'Finished extracting {self.raw_features} for '
                     f'{self.input_file_info}')
@@ -1473,29 +1487,17 @@ class DataHandlerNC(DataHandler):
 
         Returns
         -------
-        time_index : np.ndarray
-            Time index from nc source file(s)
+        time_index : pd.Datetimeindex
+            List of times as a Datetimeindex
         """
         with cls.source_handler(file_paths, data_vars='minimal') as handle:
             if hasattr(handle, 'Times'):
-                time_index = handle.Times.values
+                time_index = np_to_pd_times(handle.Times.values)
             elif hasattr(handle, 'time'):
-                time_index = handle.indexes['time']
-                time_index = [dt.strptime(str(t), '%Y-%m-%d %H:%M:%S')
-                              for t in time_index]
-                time_index = [np.datetime64(t) for t in time_index]
-                time_index = np.array(time_index)
+                time_index = handle.indexes['time'].to_datetimeindex()
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
-        decoded_times = []
-        for _, x in enumerate(time_index):
-            if isinstance(x, np.bytes_):
-                val = ' '.join(x.decode('utf-8').split('_'))
-                val = np.datetime64(val)
-                decoded_times.append(val)
-            else:
-                decoded_times.append(x)
-        return np.array(decoded_times)
+        return time_index
 
     @classmethod
     def feature_registry(cls):
@@ -1521,7 +1523,7 @@ class DataHandlerNC(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), invert_lat=True):
         """Extract single feature from data source
 
         Parameters
@@ -1534,6 +1536,10 @@ class DataHandlerNC(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Flag to invert data along the latitude axis. Wrf data tends to use
+            an increasing ordering for latitude while wtk uses a decreasing
+            ordering.
 
         Returns
         -------
@@ -1550,7 +1556,10 @@ class DataHandlerNC(DataHandler):
 
             method = cls.lookup(feature, 'compute')
             if method is not None and basename not in handle:
-                return method(file_paths, raster_index)
+                fdata = method(file_paths, raster_index)
+                if invert_lat:
+                    fdata = fdata[::-1]
+                return fdata
 
             elif feature in handle:
                 idx = tuple([time_slice] + raster_index)
@@ -1572,6 +1581,8 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
+        if invert_lat:
+            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     @classmethod
@@ -1651,7 +1662,6 @@ class DataHandlerNC(DataHandler):
         if self.raster_file is not None and os.path.exists(self.raster_file):
             logger.debug(f'Loading raster index: {self.raster_file} '
                          f'for {self.input_file_info}')
-            print('loading raster index')
             raster_index = np.load(self.raster_file, allow_pickle=True)
             raster_index = list(raster_index)
         else:
@@ -1661,7 +1671,7 @@ class DataHandlerNC(DataHandler):
             assert check, msg
             lat_lon = self.get_lat_lon(self.file_paths[:1],
                                        [slice(None), slice(None)],
-                                       self.temporal_slice)
+                                       invert_lat=False)
             min_lat = np.min(lat_lon[..., 0])
             min_lon = np.min(lat_lon[..., 1])
             max_lat = np.max(lat_lon[..., 0])
@@ -1688,10 +1698,9 @@ class DataHandlerNC(DataHandler):
                        f'{np.min(lat_lon[..., 1])}).')
                 raise ValueError(msg)
 
-            self.lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
-
-            mask = ((self.lat_lon[..., 0] >= self.target[0])
-                    & (self.lat_lon[..., 1] >= self.target[1]))
+            lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
+            mask = ((lat_lon[..., 0] >= self.target[0])
+                    & (lat_lon[..., 1] >= self.target[1]))
             if mask.sum() != np.product(self.grid_shape):
                 msg = (f'Found {mask.sum()} coordinates but should have found '
                        f'{self.grid_shape[0]} by {self.grid_shape[1]}')
@@ -1699,7 +1708,6 @@ class DataHandlerNC(DataHandler):
                 warnings.warn(msg)
 
             if self.raster_file is not None:
-                print(f'saving raster index: {self.raster_file}')
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
         return raster_index
@@ -1812,7 +1820,7 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), invert_lat=False):
         """Extract single feature from data source
 
         Parameters
@@ -1825,6 +1833,8 @@ class DataHandlerH5(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
+        invert_lat : bool
+            Flag to invert latitude axis to enforce descending ordering
 
         Returns
         -------
@@ -1836,7 +1846,10 @@ class DataHandlerH5(DataHandler):
         with cls.source_handler(file_paths) as handle:
             method = cls.lookup(feature, 'compute')
             if method is not None and feature not in handle:
-                return method(file_paths, raster_index)
+                fdata = method(file_paths, raster_index)
+                if invert_lat:
+                    fdata = fdata[::-1]
+                return fdata
             else:
                 try:
                     fdata = handle[(feature, time_slice,)
@@ -1849,6 +1862,8 @@ class DataHandlerH5(DataHandler):
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
+        if invert_lat:
+            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     def get_raster_index(self):

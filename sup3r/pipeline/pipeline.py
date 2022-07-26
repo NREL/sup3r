@@ -51,7 +51,7 @@ class Sup3rPipeline(Pipeline):
 
     @classmethod
     def init_pass_collect(cls, out_dir, file_paths, model_path,
-                          fp_kwargs=None, dc_kwargs=None):
+                          fwp_kwargs=None, dc_kwargs=None):
         """Generate config files for forward pass and collection
 
         Parameters
@@ -64,13 +64,13 @@ class Sup3rPipeline(Pipeline):
             file path which will be passed through glob.glob
         model_path : str
             Path to gan model for forward pass
-        fp_kwargs : dict
+        fwp_kwargs : dict
             Dictionary of keyword args passed to the ForwardPassStrategy class.
         dc_kwargs : dict
             Dictionary of keyword args passed to the Collection.collect()
             method.
         """
-        fp_kwargs = fp_kwargs or {}
+        fwp_kwargs = fwp_kwargs or {}
         dc_kwargs = dc_kwargs or {}
         logger.info('Generating config files for forward pass and data '
                     'collection')
@@ -81,27 +81,27 @@ class Sup3rPipeline(Pipeline):
         all_dirs = [out_dir, log_dir, cache_dir, output_dir, std_out_dir]
         for d in all_dirs:
             create_dirs(d)
-        out_pattern = os.path.join(output_dir, 'fp_out_{file_id}.h5')
+        out_pattern = os.path.join(output_dir, 'fwp_out_{file_id}.h5')
         cache_pattern = os.path.join(cache_dir, 'cache_{feature}.pkl')
         log_pattern = os.path.join(log_dir, 'log_{node_index}.log')
         model_params = Sup3rGan.load_saved_params(model_path,
                                                   verbose=False)['meta']
         features = model_params['output_features']
         features = OutputHandlerH5.get_renamed_features(features)
-        fp_config = {'file_paths': file_paths,
-                     'model_path': model_path,
-                     'out_pattern': out_pattern,
-                     'cache_pattern': cache_pattern,
-                     'log_pattern': log_pattern}
-        fp_config.update(fp_kwargs)
-        fp_config_file = os.path.join(out_dir, 'config_fp.json')
-        with open(fp_config_file, 'w') as f:
-            json.dump(fp_config, f, sort_keys=True, indent=4)
-            logger.info(f'Saved forward-pass config file: {fp_config_file}.')
+        fwp_config = {'file_paths': file_paths,
+                      'model_args': model_path,
+                      'out_pattern': out_pattern,
+                      'cache_pattern': cache_pattern,
+                      'log_pattern': log_pattern}
+        fwp_config.update(fwp_kwargs)
+        fwp_config_file = os.path.join(out_dir, 'config_fwp.json')
+        with open(fwp_config_file, 'w') as f:
+            json.dump(fwp_config, f, sort_keys=True, indent=4)
+            logger.info(f'Saved forward-pass config file: {fwp_config_file}.')
 
         collect_file = os.path.join(output_dir, 'out_collection.h5')
         log_file = os.path.join(log_dir, 'collect.log')
-        input_files = os.path.join(output_dir, 'fp_out_*.h5')
+        input_files = os.path.join(output_dir, 'fwp_out_*.h5')
         col_config = {'file_paths': input_files,
                       'out_file': collect_file,
                       'features': features,
@@ -113,7 +113,7 @@ class Sup3rPipeline(Pipeline):
             logger.info(f'Saved data-collect config file: {col_config_file}.')
 
         pipe_config = {'logging': {'log_level': 'DEBUG'},
-                       'pipeline': [{'forward-pass': fp_config_file},
+                       'pipeline': [{'forward-pass': fwp_config_file},
                                     {'data-collect': col_config_file}]}
         pipeline_file = os.path.join(out_dir, 'config_pipeline.json')
         with open(pipeline_file, 'w') as f:

@@ -32,6 +32,18 @@ def test_get_lat_lon():
     assert np.allclose(new_lons[:, 0], -125)
     assert np.allclose(new_lons[:, -1], -75)
 
+    lat_lon = lat_lon[::-1]
+    new_lat_lon = OutputHandlerNC.get_lat_lon(lat_lon, shape)
+
+    new_lats = np.round(new_lat_lon[..., 0], 2)
+    new_lons = np.round(new_lat_lon[..., 1], 2)
+
+    assert np.allclose(new_lats[0, :], -0.25)
+    assert np.allclose(new_lats[-1, :], 1.25)
+
+    assert np.allclose(new_lons[:, 0], -125)
+    assert np.allclose(new_lons[:, -1], -75)
+
 
 def test_invert_uv():
     """Make sure inverse uv transform returns inputs"""
@@ -42,6 +54,16 @@ def test_invert_uv():
     windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
     winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
 
+    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
+                                 np.array(winddirection, dtype=np.float32),
+                                 lat_lon)
+
+    ws, wd = invert_uv(u, v, lat_lon)
+
+    assert np.allclose(windspeed, ws)
+    assert np.allclose(winddirection, wd)
+
+    lat_lon = lat_lon[::-1]
     u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
                                  np.array(winddirection, dtype=np.float32),
                                  lat_lon)
@@ -65,7 +87,16 @@ def test_invert_uv_inplace():
 
     data = np.concatenate([np.expand_dims(u, axis=-1),
                            np.expand_dims(v, axis=-1)], axis=-1)
+    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
 
+    ws, wd = invert_uv(u, v, lat_lon)
+
+    assert np.allclose(data[..., 0], ws)
+    assert np.allclose(data[..., 1], wd)
+
+    lat_lon = lat_lon[::-1]
+    data = np.concatenate([np.expand_dims(u, axis=-1),
+                           np.expand_dims(v, axis=-1)], axis=-1)
     OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
@@ -79,12 +110,12 @@ def test_h5_out_and_collect():
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
+
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, slices_lr,
-            slices_hr, low_res_lat_lon, low_res_times) = out
+        (out_files, data, ws_true, wd_true, features, _,
+         slices_hr, _, low_res_times) = out
 
         Collector.collect(out_files, fp_out, features=features)
-
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []

@@ -8,12 +8,11 @@ import json
 import psutil
 import numpy as np
 import logging
-from concurrent.futures import as_completed
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime as dt
 import os
 import warnings
 
-from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.models
@@ -743,7 +742,7 @@ class ForwardPass:
             forward passes on a single node.
         """
         logger.info(f'Initializing ForwardPass for node={node_index}')
-
+        self.data = None
         self.strategy = strategy
         self.model_args = self.strategy.model_args
         self.model_class = self.strategy.model_class
@@ -756,7 +755,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args)
+        self.model = model_class.load(*self.model_args, verbose=True)
 
         self.features = self.model.training_features
         self.output_features = self.model.output_features
@@ -821,18 +820,20 @@ class ForwardPass:
         """Update pass workers value"""
         self._pass_workers = pass_workers
 
-    @staticmethod
-    def forward_pass_chunk(data_chunk, crop_slices,
-                           model=None, model_args=None, model_class=None,
-                           s_enhance=None, t_enhance=None):
+    def forward_pass_chunk(self, lr_slices, hr_slices, crop_slices, model=None,
+                           model_args=None, model_class=None, s_enhance=None,
+                           t_enhance=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
         shape given by self.strategy.fwp_chunk_shape.
 
         Parameters
         ----------
-        data_chunk : ndarray
-            Data chunk to run through model generator
-            (spatial_1, spatial_2, temporal, features)
+        lr_slices : list
+            List of slices for extracting padded region from low res source
+            data.
+        hr_slices : list
+            List of high res slices used for placing correct forward pass
+            output into final data array.
         crop_slices : list
             List of slices for extracting cropped region of interest from
             output. Output can include an extra overlapping boundary to
@@ -868,6 +869,7 @@ class ForwardPass:
             model_class = getattr(sup3r.models, model_class)
             model = model_class.load(*model_args, verbose=False)
 
+        data_chunk = self.data_handler.data[lr_slices]
         if isinstance(model, sup3r.models.SpatialThenTemporalGan):
             i_lr_t = 0
             i_lr_s = 1
@@ -876,7 +878,6 @@ class ForwardPass:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
-
         hi_res = model.generate(data_chunk)
 
         if (s_enhance is not None
@@ -895,7 +896,7 @@ class ForwardPass:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        return hi_res[0][crop_slices]
+        self.data[hr_slices] = hi_res[0][crop_slices]
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -958,29 +959,17 @@ class ForwardPass:
 
         return cmd.replace('\\', '/')
 
-    def _run_serial(self, data):
-        """Run forward passes in serial
-
-        Parameters
-        ----------
-        data : ndarray
-            Array to fill with forward pass output
-
-        Returns
-        -------
-        data : ndarray
-            Array filled with forward pass output
-        """
+    def _run_serial(self):
+        """Run forward passes in serial"""
         logger.info('Starting serial iteration through forward pass chunks.')
         zip_iter = zip(self.hr_slices, self.lr_pad_slices, self.hr_crop_slices)
         for i, (sh, slp, shc) in enumerate(zip_iter):
-            data[sh] = ForwardPass.forward_pass_chunk(
-                self.data_handler.data[slp], crop_slices=shc,
-                model=self.model,
-                model_args=self.model_args,
-                model_class=self.model_class,
-                s_enhance=self.strategy.s_enhance,
-                t_enhance=self.strategy.t_enhance)
+            self.forward_pass_chunk(lr_slices=slp, hr_slices=sh,
+                                    crop_slices=shc, model=self.model,
+                                    model_args=self.model_args,
+                                    model_class=self.model_class,
+                                    s_enhance=self.strategy.s_enhance,
+                                    t_enhance=self.strategy.t_enhance)
 
             logger.debug('Coarse data chunks being passed to model '
                          'with shape {} which is slice {} of full shape {}.'
@@ -993,45 +982,27 @@ class ForwardPass:
                 logger.info(f'{i+1} out of {len(self.hr_slices)} '
                             'forward pass chunks completed. '
                             'Memory utilization is '
-                            f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB '
                             f'total ({100*mem.used/mem.total:.1f}% used)')
 
-        return data
-
-    def _run_parallel(self, data, max_workers=None):
-        """Run forward passes in parallel
-
-        Parameters
-        ----------
-        data : ndarray
-            Array to fill with forward pass output
-        max_workers : int | None
-            Number of workers to use for parallel forward passes
-
-        Returns
-        -------
-        data : ndarray
-            Array filled with forward pass output
-        """
+    def _run_parallel(self, max_workers=None):
+        """Run forward passes in parallel"""
         futures = {}
         now = dt.now()
-        logger.info('Starting process pool with {} workers'
+        logger.info('Starting thread pool with {} workers'
                     .format(max_workers))
-        with SpawnProcessPool(max_workers=max_workers) as exe:
-            zip_iter = zip(self.hr_slices, self.lr_pad_slices,
-                           self.hr_crop_slices)
-            for i, (sh, slp, shc) in enumerate(zip_iter):
-
-                future = exe.submit(ForwardPass.forward_pass_chunk,
-                                    data_chunk=self.data_handler.data[slp],
-                                    crop_slices=shc,
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            for i, (sh, slp, shc) in enumerate(zip(
+                    self.hr_slices, self.lr_pad_slices,
+                    self.hr_crop_slices)):
+                future = exe.submit(self.forward_pass_chunk, lr_slices=slp,
+                                    hr_slices=sh, crop_slices=shc,
                                     model_args=self.model_args,
                                     model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
                                     t_enhance=self.strategy.t_enhance)
-
-                meta = {'s_high': sh, 'idx': i}
-                futures[future] = meta
+                futures[future] = i
 
                 logger.debug('Coarse data chunks being passed to model '
                              'with shape {} which is slice {} '
@@ -1045,16 +1016,21 @@ class ForwardPass:
 
             interval = np.int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
-                slices = futures[future]
-                data[slices['s_high']] = future.result()
+                try:
+                    future.result()
+                except Exception as e:
+                    msg = ('Error doing forward pass for chunk '
+                           f'{futures[future]}.')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
                 if interval > 0 and i % interval == 0:
                     mem = psutil.virtual_memory()
                     logger.info(f'{i+1} out of {len(futures)} '
                                 'forward pass chunks completed. '
                                 'Memory utilization is '
-                                f'{mem.used:.3f} GB out of {mem.total:.3f} GB '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB '
                                 f'total ({100*mem.used/mem.total:.1f}% used)')
-            return data
 
     def run(self):
         """ForwardPass is initialized with a file_slice_index. This index
@@ -1069,26 +1045,25 @@ class ForwardPass:
                f'{self.strategy.temporal_overlap}.')
         logger.info(msg)
         max_workers = self.pass_workers
-        data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
-                         self.strategy.s_enhance * self.data_shape[1],
-                         self.strategy.t_enhance * self.data_shape[2],
-                         len(self.output_features)),
-                        dtype=np.float32)
-
+        self.data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
+                              self.strategy.s_enhance * self.data_shape[1],
+                              self.strategy.t_enhance * self.data_shape[2],
+                              len(self.output_features)),
+                             dtype=np.float32)
         if max_workers == 1:
-            data = self._run_serial(data)
+            self._run_serial()
         else:
-            data = self._run_parallel(data, max_workers)
+            self._run_parallel(max_workers)
 
         logger.info('All forward passes are complete.')
-        data = data[:, :, self.ti_hr_crop_slice, :]
+        self.data = self.data[:, :, self.ti_hr_crop_slice, :]
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
-                data=data, features=self.data_handler.output_features,
+                data=self.data, features=self.data_handler.output_features,
                 low_res_lat_lon=self.data_handler.lat_lon,
                 low_res_times=self.strategy.time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
                 max_workers=self.output_workers)
         else:
-            return data
+            return self.data

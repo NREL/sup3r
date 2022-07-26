@@ -25,25 +25,32 @@ logger = logging.getLogger(__name__)
 
 H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                           'units': 'm s-1',
-                          'dtype': 'uint16'},
+                          'dtype': 'uint16',
+                          'chunks': (2000, 500)},
             'winddirection': {'scale_factor': 100.0,
                               'units': 'degree',
-                              'dtype': 'uint16'},
+                              'dtype': 'uint16',
+                              'chunks': (2000, 500)},
             'temperature': {'scale_factor': 100.0,
                             'units': 'C',
-                            'dtype': 'int16'},
+                            'dtype': 'int16',
+                            'chunks': (2000, 500)},
             'relativehumidity': {'scale_factor': 100.0,
                                  'units': 'percent',
-                                 'dtype': 'uint16'},
+                                 'dtype': 'uint16',
+                                 'chunks': (2000, 500)},
             'pressure': {'scale_factor': 0.1,
                          'units': 'Pa',
-                         'dtype': 'uint16'},
+                         'dtype': 'uint16',
+                         'chunks': (2000, 500)},
             'bvf_mo': {'scale_factor': 0.1,
                        'units': 'm s-2',
-                       'dtype': 'uint16'},
+                       'dtype': 'uint16',
+                       'chunks': (2000, 500)},
             'bvf2': {'scale_factor': 0.1,
                      'units': 's-2',
-                     'dtype': 'int16'},
+                     'dtype': 'int16',
+                     'chunks': (2000, 500)},
             }
 
 
@@ -122,10 +129,8 @@ class OutputHandler:
                 new_count += 1
         lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
-
-        return np.concatenate([lats.reshape(shape)[..., np.newaxis],
-                               lons.reshape(shape)[..., np.newaxis]],
-                              axis=-1)
+        lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
+        return lat_lon
 
     @staticmethod
     def get_times(low_res_times, shape):
@@ -133,9 +138,9 @@ class OutputHandler:
 
         Parameters
         ----------
-        low_res_times : list
-            List of np.datetime64 objects for input data. If there is only a
-            single low res timestep, it is assumed the data is daily.
+        low_res_times : pd.Datetimeindex
+            List of times for low res input data. If there is only a single low
+            res timestep, it is assumed the data is daily.
         shape : int
             Number of time steps for high res time array
 
@@ -168,8 +173,8 @@ class OutputHandlerNC(OutputHandler):
     # pylint: disable=W0613
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, out_file,
-                     meta_data=None, max_workers=None):
+                     low_res_times, out_file, meta_data=None,
+                     max_workers=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -183,8 +188,8 @@ class OutputHandlerNC(OutputHandler):
             Array of lat/lon for input data.
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        low_res_times : list
-            List of np.datetime64 objects for input data.
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
         out_file : string
             Output file path
         meta_data : dict | None
@@ -338,6 +343,45 @@ class OutputHandlerH5(OutputHandler):
         data[..., v_idx] = wd
 
     @classmethod
+    def _prep_output(cls, data, features, low_res_lat_lon,
+                     low_res_times, max_workers=None):
+        """Prep forward pass output for writing to H5 file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        low_res_lat_lon : ndarray
+            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
+
+        Returns
+        -------
+        data : ndarray
+            Data with u/v inverted
+        lat_lon : ndarray
+            High res lat lon
+        times : pd.Datetimeindex
+            High res times
+        """
+        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
+        times = cls.get_times(low_res_times, data.shape[-2])
+        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
+        freq = pd.tseries.offsets.DateOffset(seconds=freq)
+        times = pd.date_range(times[0], times[-1], freq=freq)
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        return data, lat_lon, times
+
+    @classmethod
     def write_output(cls, data, features, low_res_lat_lon,
                      low_res_times, out_file,
                      meta_data=None, max_workers=None):
@@ -353,8 +397,8 @@ class OutputHandlerH5(OutputHandler):
         low_res_lat_lon : ndarray
             Array of lat/lon for input data. (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        low_res_times : list
-            List of np.datetime64 objects for input data.
+        low_res_times : pd.Datetimeindex
+            List of times for low res source data
         out_file : string
             Output file path
         meta_data : dict | None
@@ -363,13 +407,9 @@ class OutputHandlerH5(OutputHandler):
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
         """
-        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
-        times = cls.get_times(low_res_times, data.shape[-2])
-        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
-        freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd.date_range(times[0], times[-1], freq=freq)
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
+        data, lat_lon, times = cls._prep_output(data, features,
+                                                low_res_lat_lon,
+                                                low_res_times, max_workers)
         renamed_features = cls.get_renamed_features(features)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
@@ -382,8 +422,8 @@ class OutputHandlerH5(OutputHandler):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                fh.add_dataset(out_file, f, flat_data,
-                               dtype=attrs['dtype'], attrs=attrs)
+                fh.add_dataset(out_file, f, flat_data, dtype=attrs['dtype'],
+                               attrs=attrs, chunks=attrs['chunks'])
                 logger.debug(f'Added {f} to output file')
 
             if meta_data is not None:

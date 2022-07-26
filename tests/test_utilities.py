@@ -58,7 +58,6 @@ def test_weighted_time_sampler():
     weights_4[5] = 1
 
     slice_4 = weighted_time_sampler(data, shape, weights_4)
-    print(slice_4)
     assert weights_4[slice_4.start] == 1
 
 
