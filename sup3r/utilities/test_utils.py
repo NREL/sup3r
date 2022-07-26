@@ -1,10 +1,10 @@
 """Utilities used across multiple test files"""
 import os
-import pandas as pd
 import numpy as np
 import xarray as xr
 
 from sup3r.postprocessing.file_handling import OutputHandlerH5
+from sup3r.utilities.utilities import pd_date_range
 
 
 def make_fake_nc_files(td, input_file, n_files):
@@ -80,7 +80,7 @@ def make_fake_h5_chunks(td):
     lon, lat = np.meshgrid(lon, lat)
     low_res_lat_lon = np.dstack((lat, lon))
 
-    low_res_times = pd.date_range('20220101', '20220103', freq='1h',
+    low_res_times = pd_date_range('20220101', '20220103', freq='1h',
                                   inclusive='left').values
 
     slices_lr = [slice(0, 24), slice(24, None)]
