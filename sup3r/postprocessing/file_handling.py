@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                           'units': 'm s-1',
                           'dtype': 'uint16',
-                          'chunks': (2000, 500)},
+                          'chunks': (2000, 500),
+                          'min': 0},
             'winddirection': {'scale_factor': 100.0,
                               'units': 'degree',
                               'dtype': 'uint16',
@@ -108,7 +109,7 @@ class OutputHandler:
             max = attrs.get('max', np.inf)
             min = attrs.get('min', -np.inf)
             data[data[..., i] < min, i] = min
-            data[data[..., i] > min, i] = max
+            data[data[..., i] > max, i] = max
         return data
 
     @staticmethod
