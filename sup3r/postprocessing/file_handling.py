@@ -372,7 +372,6 @@ class OutputHandlerH5(OutputHandler):
         times : pd.Datetimeindex
             High res times
         """
-        print(low_res_lat_lon.shape)
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         freq = (times[1] - times[0]) / np.timedelta64(1, 's')
@@ -380,9 +379,6 @@ class OutputHandlerH5(OutputHandler):
         times = pd.date_range(times[0], times[-1], freq=freq)
         cls.invert_uv_features(data, features, lat_lon,
                                max_workers=max_workers)
-        if lat_lon[0, 0, 0] > lat_lon[-1, 0, 0]:
-            lat_lon = lat_lon[::-1]
-            data = data[::-1]
         return data, lat_lon, times
 
     @classmethod

@@ -111,16 +111,11 @@ def test_h5_out_and_collect():
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
 
-        lat = np.linspace(90, 0, 10)
-        lon = np.linspace(-180, 0, 10)
-        out = make_fake_h5_chunks(td, lat, lon)
+        out = make_fake_h5_chunks(td)
         (out_files, data, ws_true, wd_true, features, _,
          slices_hr, _, low_res_times) = out
 
         Collector.collect(out_files, fp_out, features=features)
-        data = data[::-1]
-        ws_true = ws_true[::-1]
-        wd_true = wd_true[::-1]
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []
@@ -170,46 +165,3 @@ def test_h5_out_and_collect():
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
             assert gan_meta['foo'] == 'bar'
-
-        # check with inverted lats
-        out = make_fake_h5_chunks(td, lat[::-1], lon)
-        (out_files, data, ws_true, wd_true, features, _,
-         slices_hr, _, low_res_times) = out
-
-        Collector.collect(out_files, fp_out, features=features)
-
-        with ResourceX(fp_out) as fh:
-            full_ti = fh.time_index
-            combined_ti = []
-            for i, f in enumerate(out_files):
-                slice_hr = slices_hr[i]
-                with ResourceX(f) as fh_i:
-                    combined_ti += list(fh_i.time_index)
-
-                    ws_i = np.transpose(data[..., slice_hr, 0], axes=(2, 0, 1))
-                    wd_i = np.transpose(data[..., slice_hr, 1], axes=(2, 0, 1))
-                    ws_i = ws_i.reshape(48, 2500)
-                    wd_i = wd_i.reshape(48, 2500)
-                    assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(wd_i, fh_i['winddirection_100m'],
-                                       atol=0.1)
-
-                    if i == 0:
-                        ws = fh_i['windspeed_100m']
-                        wd = fh_i['winddirection_100m']
-                    else:
-                        ws = np.concatenate([ws, fh_i['windspeed_100m']],
-                                            axis=0)
-                        wd = np.concatenate([wd, fh_i['winddirection_100m']],
-                                            axis=0)
-
-            assert len(full_ti) == len(combined_ti)
-            assert len(full_ti) == 2 * len(low_res_times)
-            assert np.allclose(ws, fh['windspeed_100m'])
-            assert np.allclose(wd, fh['winddirection_100m'])
-            wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
-            ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
-            wd_true = wd_true.reshape(96, 2500)
-            ws_true = ws_true.reshape(96, 2500)
-            assert np.allclose(ws_true, fh['windspeed_100m'], atol=0.01)
-            assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
