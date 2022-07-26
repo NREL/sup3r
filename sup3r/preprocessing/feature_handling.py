@@ -823,10 +823,20 @@ class LatLonNC:
             (spatial_1, spatial_2, 2)
         """
         with xr.open_dataset(file_paths[0]) as handle:
-            lats = (handle.XLAT.values if 'Time' not
-                    in handle.XLAT.dims else handle.XLAT.values[0])
-            lons = (handle.XLONG.values if 'Time' not
-                    in handle.XLONG.dims else handle.XLONG.values[0])
+            lat_key = 'XLAT'
+            lon_key = 'XLONG'
+            if lat_key not in handle.variables:
+                lat_key = 'latitude'
+            if lon_key not in handle.variables:
+                lon_key = 'longitude'
+            if len(handle.variables[lat_key].dims) == 4:
+                idx = (0, slice(None), slice(None), slice(None))
+            elif len(handle.variables[lat_key].dims) == 3:
+                idx = (0, slice(None), slice(None))
+            else:
+                idx = (slice(None), slice(None))
+            lats = handle.variables[lat_key].values[idx]
+            lons = handle.variables[lon_key].values[idx]
             lat_lon = np.concatenate(
                 [lats[tuple(raster_index)][..., np.newaxis],
                  lons[tuple(raster_index)][..., np.newaxis]], axis=-1)

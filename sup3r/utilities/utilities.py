@@ -930,7 +930,8 @@ def interp_var_to_height(data, var, raster_index, heights,
     out_array : ndarray
         Array of interpolated values.
     """
-
+    if len(data[var].dims) == 5:
+        raster_index = [0] + raster_index
     logger.debug(f'Interpolating {var} to heights (m): {heights}')
     return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
                            calc_height(data, raster_index, time_slice),
@@ -962,6 +963,8 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     """
 
     logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
+    if len(data[var].dims) == 5:
+        raster_index = [0] + raster_index
     return interp_to_level(
         unstagger_var(data, var, raster_index, time_slice)[:, ::-1, ...],
         calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
@@ -1320,7 +1323,7 @@ def np_to_pd_times(times):
     times : pd.DatetimeIndex
         DatetimeIndex for time indices
     """
-    tmp = [t.decode('utf-8') for t in times]
+    tmp = [t.decode('utf-8') for t in times.flatten()]
     tmp = [' '.join(t.split('_')) for t in tmp]
     tmp = pd.DatetimeIndex(tmp)
     return tmp

@@ -39,7 +39,9 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
             'relativehumidity': {'scale_factor': 100.0,
                                  'units': 'percent',
                                  'dtype': 'uint16',
-                                 'chunks': (2000, 500)},
+                                 'chunks': (2000, 500),
+                                 'max': 100,
+                                 'min': 0},
             'pressure': {'scale_factor': 0.1,
                          'units': 'Pa',
                          'dtype': 'uint16',
@@ -83,6 +85,31 @@ class OutputHandler:
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
+
+    @staticmethod
+    def enforce_limits(features, data):
+        """Enforce physical limits for feature data
+
+        Parameters
+        ----------
+        features : list
+            List of features with ordering corresponding to last channel of
+            data array.
+        data : ndarray
+            Array of feature data
+
+        Returns
+        -------
+        data : ndarray
+            Array of feature data with physical limits enforced
+        """
+        for i, f in enumerate(features):
+            attrs = H5_ATTRS[Feature.get_basename(f)]
+            max = attrs.get('max', np.inf)
+            min = attrs.get('min', -np.inf)
+            data[data[..., i] < min, i] = min
+            data[data[..., i] > min, i] = max
+        return data
 
     @staticmethod
     def get_lat_lon(low_res_lat_lon, shape):
@@ -418,6 +445,8 @@ class OutputHandlerH5(OutputHandler):
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh._set_time_index('time_index', times)
+
+            data = cls.enforce_limits(renamed_features, data)
 
             for i, f in enumerate(renamed_features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]

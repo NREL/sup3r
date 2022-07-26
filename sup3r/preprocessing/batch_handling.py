@@ -121,7 +121,10 @@ class Batch:
             List of Generative model output feature names
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
-            data. If None no smoothing is performed.
+            data. This can be tuned by matching the kinetic energy of a low
+            resolution simulation with the kinetic energy of a coarsened and
+            smoothed high resolution simulation. If None no smoothing is
+            performed.
 
         Returns
         -------
@@ -353,10 +356,10 @@ class BatchHandler:
             Whether to overwrite stats cache files.
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
-            data. This can be used to make the coarsened data look more like
-            a direct low res simulation since the simulation will not have the
-            same finer features as coarsened high res simulation. If None no
-            smoothing is performed.
+            data. This can be tuned by matching the kinetic energy of a low
+            resolution simulation with the kinetic energy of a coarsened and
+            smoothed high resolution simulation. If None no smoothing is
+            performed.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             norm_workers, stats_workers, and load_workers.
@@ -402,7 +405,9 @@ class BatchHandler:
         self._norm_workers = norm_workers
         self._load_workers = load_workers
 
-        logger.info(f'Initializing BatchHandler with smoothing={smoothing}')
+        if smoothing is not None:
+            logger.info('Initializing BatchHandler with '
+                        f'smoothing={smoothing}')
 
         now = dt.now()
         self.parallel_load()

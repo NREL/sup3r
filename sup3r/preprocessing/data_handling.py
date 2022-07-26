@@ -794,8 +794,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, time_slice=slice(None),
-                    invert_lat=False):
+    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
         """Store lat lon for future output
 
         Parameters
@@ -804,8 +803,6 @@ class DataHandler(FeatureHandler, InputMixIn):
             path to data file
         raster_index : ndarray | list
             Raster index array or list of slices
-        time_slice : slice
-            slice of time to extract
         invert_lat : bool
             Flag to invert data along the latitude axis. Wrf data tends to use
             an increasing ordering for latitude while wtk uses a decreasing
@@ -817,8 +814,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last
             dimension
         """
-        return cls.extract_feature(file_paths, raster_index, 'lat_lon',
-                                   time_slice, invert_lat=invert_lat)
+        lat_lon = cls.lookup('lat_lon', 'compute')(file_paths, raster_index)
+        if invert_lat:
+            lat_lon = lat_lon[::-1]
+        return lat_lon
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1490,11 +1489,13 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        with cls.source_handler(file_paths, data_vars='minimal') as handle:
+        with cls.source_handler(file_paths) as handle:
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
-            elif hasattr(handle, 'time'):
+            elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
                 time_index = handle.indexes['time'].to_datetimeindex()
+            elif hasattr(handle, 'times'):
+                time_index = np_to_pd_times(handle.times.values)
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
         return time_index
@@ -1512,6 +1513,8 @@ class DataHandlerNC(DataHandler):
             'BVF2_(.*)m': BVFreqSquaredNC,
             'BVF_MO_(.*)m': BVFreqMon,
             'RMOL': InverseMonNC,
+            'U_(.*)': UWindH5,
+            'V_(.*)': VWindH5,
             'Windspeed_(.*)m': WindspeedNC,
             'Winddirection_(.*)m': WinddirectionNC,
             'lat_lon': LatLonNC,
@@ -1547,22 +1550,19 @@ class DataHandlerNC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-
+        logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
             interp_pressure = f_info.pressure
             basename = f_info.basename
-
-            method = cls.lookup(feature, 'compute')
-            if method is not None and basename not in handle:
-                fdata = method(file_paths, raster_index)
-                if invert_lat:
-                    fdata = fdata[::-1]
-                return fdata
-
-            elif feature in handle:
-                idx = tuple([time_slice] + raster_index)
+            if feature == 'lat_lon':
+                return cls.get_lat_lon(file_paths, raster_index, invert_lat)
+            if feature in handle:
+                if len(handle[feature].dims) == 4:
+                    idx = tuple([time_slice] + [0] + raster_index)
+                else:
+                    idx = tuple([time_slice] + raster_index)
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
             elif basename in handle:
                 if interp_height is not None:
@@ -1842,22 +1842,17 @@ class DataHandlerH5(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-
+        logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
-            method = cls.lookup(feature, 'compute')
-            if method is not None and feature not in handle:
-                fdata = method(file_paths, raster_index)
-                if invert_lat:
-                    fdata = fdata[::-1]
-                return fdata
-            else:
-                try:
-                    fdata = handle[(feature, time_slice,)
-                                   + tuple([raster_index.flatten()])]
-                except ValueError as e:
-                    msg = f'{feature} cannot be extracted from source data'
-                    logger.exception(msg)
-                    raise ValueError(msg) from e
+            if feature == 'lat_lon':
+                return cls.get_lat_lon(file_paths, raster_index, invert_lat)
+            try:
+                fdata = handle[(feature, time_slice,)
+                               + tuple([raster_index.flatten()])]
+            except ValueError as e:
+                msg = f'{feature} cannot be extracted from source data'
+                logger.exception(msg)
+                raise ValueError(msg) from e
 
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
