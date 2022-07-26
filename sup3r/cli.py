@@ -32,13 +32,13 @@ def main(ctx, config_file, verbose):
 
         $ sup3r --help
 
-        $ sup3r-pipeline --help
+        $ sup3r -c config.json pipeline --help
 
-        $ sup3r-forward-pass --help
+        $ sup3r -c config.json forward-pass --help
 
-        $ sup3r-data-collect --help
+        $ sup3r -c config.json data-collect --help
 
-        $ sup3r-data-extract --help
+        $ sup3r -c config.json data-extract --help
 
     Typically, a good place to start is to set up a sup3r job with a pipeline
     config that points to several sup3r modules that you want to run in serial.
