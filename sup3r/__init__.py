@@ -3,8 +3,8 @@
 import os
 from sup3r.version import __version__
 
-__author__ = """Ryan King"""
-__email__ = "ryan.king@nrel.gov"
+__author__ = """Brandon Benton"""
+__email__ = "brandon.benton@nrel.gov"
 
 SUP3R_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_DIR = os.path.join(SUP3R_DIR, 'configs')

@@ -15,7 +15,8 @@ import json
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import invert_uv, estimate_max_workers
+from sup3r.utilities.utilities import (invert_uv, estimate_max_workers,
+                                       pd_date_range)
 from sup3r.preprocessing.feature_handling import Feature
 
 from rex.outputs import Outputs as BaseRexOutputs
@@ -376,7 +377,7 @@ class OutputHandlerH5(OutputHandler):
         times = cls.get_times(low_res_times, data.shape[-2])
         freq = (times[1] - times[0]) / np.timedelta64(1, 's')
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd.date_range(times[0], times[-1], freq=freq)
+        times = pd_date_range(times[0], times[-1], freq=freq)
         cls.invert_uv_features(data, features, lat_lon,
                                max_workers=max_workers)
         return data, lat_lon, times

@@ -46,8 +46,19 @@ setup(
     version=version,
     description="Super Resolving Renewable Resource Data (sup3r)",
     long_description=readme,
-    author="Ryan King",
-    author_email="ryan.king@nrel.gov",
+    author="Brandon Benton",
+    author_email="brandon.benton@nrel.gov",
+    entry_points={
+        "console_scripts": ["sup3r=sup3r.cli:main",
+                            "sup3r-pipeline=sup3r.pipeline.pipeline_cli:main",
+                            ("sup3r-forward-pass=sup3r.pipeline."
+                             "forward_pass_cli:main"),
+                            ("sup3r-extract=sup3r.preprocessing."
+                             "data_extract_cli:main"),
+                            ("sup3r-collect=sup3r.postprocessing."
+                             "data_collect_cli:main"),
+                            ],
+    },
     url="https://github.com/NREL/sup3r",
     packages=find_packages(),
     package_dir={"sup3r": "sup3r"},

@@ -3,7 +3,6 @@
 
 import os
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from rex import Resource
@@ -13,7 +12,7 @@ from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
                                                DataHandlerH5WindCC)
 from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
                                                 SpatialBatchHandlerCC)
-from sup3r.utilities.utilities import nsrdb_sub_daily_sampler
+from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
 
 SHAPE = (20, 20)
 
@@ -361,7 +360,7 @@ def test_nsrdb_sub_daily_sampler():
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
                                    max_workers=1)
-    ti = pd.date_range('20220101', '20230101', freq='1h', inclusive='left')
+    ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
     ti = ti[0:handler.data.shape[2]]
 
     for _ in range(100):

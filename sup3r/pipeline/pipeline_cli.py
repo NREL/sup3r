@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
 def main(ctx, verbose):
-    """sup3r Pipeline Command Line Interface"""
+    """Sup3r Pipeline Command Line Interface"""
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
 
