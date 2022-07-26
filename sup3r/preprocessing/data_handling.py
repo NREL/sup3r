@@ -660,7 +660,6 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._lat_lon is None:
             self._lat_lon = self.get_lat_lon(self.file_paths,
                                              self.raster_index,
-                                             self.temporal_slice,
                                              invert_lat=self.invert_lat)
         return self._lat_lon
 
@@ -1557,7 +1556,8 @@ class DataHandlerNC(DataHandler):
             interp_pressure = f_info.pressure
             basename = f_info.basename
             if feature == 'lat_lon':
-                return cls.get_lat_lon(file_paths, raster_index, invert_lat)
+                return cls.get_lat_lon(file_paths, raster_index,
+                                       invert_lat=invert_lat)
             if feature in handle:
                 if len(handle[feature].dims) == 4:
                     idx = tuple([time_slice] + [0] + raster_index)
@@ -1845,7 +1845,8 @@ class DataHandlerH5(DataHandler):
         logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
             if feature == 'lat_lon':
-                return cls.get_lat_lon(file_paths, raster_index, invert_lat)
+                return cls.get_lat_lon(file_paths, raster_index,
+                                       invert_lat=invert_lat)
             try:
                 fdata = handle[(feature, time_slice,)
                                + tuple([raster_index.flatten()])]
