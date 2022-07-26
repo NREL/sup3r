@@ -13,7 +13,6 @@ from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
 from sup3r.utilities.test_utils import make_fake_nc_files
-from sup3r.postprocessing.file_handling import OutputHandlerH5
 
 from rex import ResourceX
 
