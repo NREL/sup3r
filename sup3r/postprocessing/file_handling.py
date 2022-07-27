@@ -200,8 +200,8 @@ class OutputHandler:
         times = pd_date_range(times[0], times[-1], freq=freq)
         return times
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def _write_output(cls, data, features, lat_lon, times, out_file, meta_data,
                       max_workers=None):
         """Write output to file with specified times and lats/lons"""
