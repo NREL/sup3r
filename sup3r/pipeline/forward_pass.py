@@ -798,11 +798,14 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
-        self.hr_data_shape = (
-            self.strategy.s_enhance * self.data_shape[0],
-            self.strategy.s_enhance * self.data_shape[1],
-            self.strategy.t_enhance * self.strategy.time_index[self.ti_slice],
-            len(self.output_features))
+        n_tsteps = len(self.strategy.time_index[self.ti_slice])
+        self.hr_data_shape = (self.strategy.s_enhance * self.data_shape[0],
+                              self.strategy.s_enhance * self.data_shape[1],
+                              self.strategy.t_enhance * n_tsteps,
+                              len(self.output_features))
+        self.data = None
+        if self.out_file is None:
+            self.data = np.zeros(self.hr_data_shape)
 
         fwp_out_mem = 4 * np.product(self.hr_data_shape)
         mem = psutil.virtual_memory()
@@ -947,7 +950,7 @@ class ForwardPass:
                 out_file=chunk_out_file, meta_data=self.meta_data,
                 max_workers=self.output_workers)
         else:
-            return data
+            self.data[hr_slices] = data
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1102,16 +1105,6 @@ class ForwardPass:
             self._run_serial()
         else:
             self._run_parallel(max_workers)
-
         logger.info('All forward passes are complete.')
-        self.data = self.data[:, :, self.ti_hr_crop_slice, :]
-        if self.out_file is not None:
-            logger.info(f'Saving forward pass output to {self.out_file}.')
-            self.output_handler_class.write_output(
-                data=self.data, features=self.data_handler.output_features,
-                low_res_lat_lon=self.data_handler.lat_lon,
-                low_res_times=self.strategy.time_index[self.ti_slice],
-                out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers)
-        else:
+        if self.out_file is None:
             return self.data
