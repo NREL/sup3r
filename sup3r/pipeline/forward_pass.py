@@ -795,6 +795,12 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
+        print('Cropped slices')
+        print('ti_hr_crop_slice')
+        print(self.ti_hr_crop_slice)
+        print('hr_crop_slices')
+        print([s[2] for s in self.hr_crop_slices])
+
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
         fwp_out_mem *= 4 * np.product(fwp_out_shape)
@@ -828,11 +834,13 @@ class ForwardPass:
 
         self.data_handler.load_cached_data()
 
-        self.data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
-                              self.strategy.s_enhance * self.data_shape[1],
-                              self.strategy.t_enhance * self.data_shape[2],
-                              len(self.output_features)),
-                             dtype=np.float32)
+        n_tsteps = len(self.strategy.time_index[self.ti_slice])
+        self.hr_data_shape = (
+            self.strategy.s_enhance * self.data_shape[0],
+            self.strategy.s_enhance * self.data_shape[1],
+            self.strategy.t_enhance * n_tsteps,
+            len(self.output_features))
+        self.data = np.zeros(self.hr_data_shape, dtype=np.float32)
 
     @property
     def pass_workers(self):
@@ -926,7 +934,8 @@ class ForwardPass:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        self.data[hr_slices] = hi_res[0][hr_crop_slices]
+        data = hi_res[0][hr_crop_slices][..., self.ti_hr_crop_slice, :]
+        self.data[hr_slices] = data
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1081,7 +1090,6 @@ class ForwardPass:
             self._run_parallel(max_workers)
 
         logger.info('All forward passes are complete.')
-        self.data = self.data[:, :, self.ti_hr_crop_slice, :]
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
