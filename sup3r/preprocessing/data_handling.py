@@ -790,6 +790,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         lat_lon = cls.lookup('lat_lon', 'compute')(file_paths, raster_index)
         if invert_lat:
             lat_lon = lat_lon[::-1]
+        # keep lons between -180 and 180
+        lat_lon[..., 1] = (lat_lon[..., 1] + 360) % 360 - 180
         return lat_lon
 
     @classmethod
