@@ -53,7 +53,7 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                          'dtype': 'uint16',
                          'chunks': (2000, 500),
                          'min': 0,
-                         'max': 100000},
+                         'max': 101000},
             'bvf_mo': {'scale_factor': 0.1,
                        'units': 'm s-2',
                        'dtype': 'uint16',
@@ -170,7 +170,7 @@ class OutputHandler:
 
     @staticmethod
     def get_times(low_res_times, shape):
-        """Get array of times for high res NETCDF output file
+        """Get array of times for high res output file
 
         Parameters
         ----------
@@ -183,8 +183,7 @@ class OutputHandler:
         Returns
         -------
         ndarray
-            Array of times for high res NETCDF output file. In hours since
-            1800-01-01.
+            Array of times for high res output file.
         """
         logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
@@ -194,24 +193,23 @@ class OutputHandler:
         else:
             offset = np.timedelta64(24, 'h')
 
-        time_index = np.array([low_res_times[0] + i * offset / t_enhance
-                               for i in range(shape)])
-        return time_index
+        times = np.array([low_res_times[0] + i * offset / t_enhance
+                          for i in range(shape)])
+        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
+        freq = pd.tseries.offsets.DateOffset(seconds=freq)
+        times = pd_date_range(times[0], times[-1], freq=freq)
+        return times
 
     @abstractmethod
-    def write_output(self):
-        """Write high res data with new coordinates and meta data to output"""
-
-
-class OutputHandlerNC(OutputHandler):
-    """OutputHandler subclass for NETCDF files"""
-
-    # pylint: disable=W0613
     @classmethod
-    def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, out_file, meta_data=None,
-                     max_workers=None):
-        """Write forward pass output to NETCDF file
+    def _write_output(cls, data, features, lat_lon, times, out_file, meta_data,
+                      max_workers=None):
+        """Write output to file with specified times and lats/lons"""
+
+    @classmethod
+    def write_output(cls, data, features, low_res_lat_lon, low_res_times,
+                     out_file, meta_data=None, max_workers=None):
+        """Write forward pass output to file
 
         Parameters
         ----------
@@ -221,8 +219,7 @@ class OutputHandlerNC(OutputHandler):
         features : list
             List of feature names corresponding to the last dimension of data
         low_res_lat_lon : ndarray
-            Array of lat/lon for input data.
-            (spatial_1, spatial_2, 2)
+            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         low_res_times : pd.Datetimeindex
             List of times for low res source data
@@ -231,11 +228,44 @@ class OutputHandlerNC(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
-            Has no effect. For compliance with H5 output handler
+            Max workers to use for inverse uv transform. If None the
+            max_workers will be estimated based on memory limits.
         """
-
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
+        cls._write_output(data, features, lat_lon, times, out_file,
+                          meta_data, max_workers)
+
+
+class OutputHandlerNC(OutputHandler):
+    """OutputHandler subclass for NETCDF files"""
+
+    # pylint: disable=W0613
+    @classmethod
+    def _write_output(cls, data, features, lat_lon, times, out_file,
+                      meta_data=None, max_workers=None):
+        """Write forward pass output to NETCDF file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        times : pd.Datetimeindex
+            List of times for high res output data
+        out_file : string
+            Output file path
+        meta_data : dict | None
+            Dictionary of meta data from model
+        max_workers : int | None
+            Has no effect. For compliance with H5 output handler
+        """
         coords = {'Times': (['Time'], times),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
                   'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
@@ -379,48 +409,8 @@ class OutputHandlerH5(OutputHandler):
         data[..., v_idx] = wd
 
     @classmethod
-    def _prep_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, max_workers=None):
-        """Prep forward pass output for writing to H5 file
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        low_res_lat_lon : ndarray
-            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
-            Last dimension has ordering (lat, lon)
-        low_res_times : pd.Datetimeindex
-            List of times for low res source data
-        max_workers : int | None
-            Max workers to use for inverse transform. If None the max_workers
-            will be estimated based on memory limits.
-
-        Returns
-        -------
-        data : ndarray
-            Data with u/v inverted
-        lat_lon : ndarray
-            High res lat lon
-        times : pd.Datetimeindex
-            High res times
-        """
-        lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
-        times = cls.get_times(low_res_times, data.shape[-2])
-        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
-        freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd_date_range(times[0], times[-1], freq=freq)
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
-        return data, lat_lon, times
-
-    @classmethod
-    def write_output(cls, data, features, low_res_lat_lon,
-                     low_res_times, out_file,
-                     meta_data=None, max_workers=None):
+    def _write_output(cls, data, features, lat_lon, times, out_file,
+                      meta_data=None, max_workers=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -430,11 +420,12 @@ class OutputHandlerH5(OutputHandler):
             High resolution forward pass output
         features : list
             List of feature names corresponding to the last dimension of data
-        low_res_lat_lon : ndarray
-            Array of lat/lon for input data. (spatial_1, spatial_2, 2)
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        low_res_times : pd.Datetimeindex
-            List of times for low res source data
+        times : pd.Datetimeindex
+            List of times for high res output data
         out_file : string
             Output file path
         meta_data : dict | None
@@ -443,20 +434,18 @@ class OutputHandlerH5(OutputHandler):
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
         """
-        data, lat_lon, times = cls._prep_output(data, features,
-                                                low_res_lat_lon,
-                                                low_res_times, max_workers)
-        renamed_features = cls.get_renamed_features(features)
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        features = cls.get_renamed_features(features)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
-
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh._set_time_index('time_index', times)
 
-            data = cls.enforce_limits(renamed_features, data)
+            data = cls.enforce_limits(features, data)
 
-            for i, f in enumerate(renamed_features):
+            for i, f in enumerate(features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))

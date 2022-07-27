@@ -849,9 +849,9 @@ class ForwardPass:
         """Update pass workers value"""
         self._pass_workers = pass_workers
 
-    def forward_pass_chunk(self, lr_slices, hr_slices, crop_slices, model=None,
-                           model_args=None, model_class=None, s_enhance=None,
-                           t_enhance=None):
+    def forward_pass_chunk(self, lr_slices, hr_slices, hr_crop_slices,
+                           model=None, model_args=None, model_class=None,
+                           s_enhance=None, t_enhance=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
         shape given by self.strategy.fwp_chunk_shape.
 
@@ -863,10 +863,11 @@ class ForwardPass:
         hr_slices : list
             List of high res slices used for placing correct forward pass
             output into final data array.
-        crop_slices : list
+        hr_crop_slices : list
             List of slices for extracting cropped region of interest from
             output. Output can include an extra overlapping boundary to
-            facilitate stitching of chunks
+            reduce chunking error. The cropping cuts off this padded region
+            before stitching chunks.
         model : Sup3rGan
             A loaded Sup3rGan model (any model imported from sup3r.models).
             You need to provide either model or (model_args and model_class)
@@ -925,7 +926,7 @@ class ForwardPass:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        self.data[hr_slices] = hi_res[0][crop_slices]
+        self.data[hr_slices] = hi_res[0][hr_crop_slices]
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -994,7 +995,7 @@ class ForwardPass:
         zip_iter = zip(self.hr_slices, self.lr_pad_slices, self.hr_crop_slices)
         for i, (sh, slp, shc) in enumerate(zip_iter):
             self.forward_pass_chunk(lr_slices=slp, hr_slices=sh,
-                                    crop_slices=shc, model=self.model,
+                                    hr_crop_slices=shc, model=self.model,
                                     model_args=self.model_args,
                                     model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
@@ -1013,7 +1014,7 @@ class ForwardPass:
                             'Memory utilization is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB '
-                            f'total ({100*mem.used/mem.total:.1f}% used)')
+                            f'total ({100*mem.used / mem.total:.1f}% used)')
 
     def _run_parallel(self, max_workers=None):
         """Run forward passes in parallel"""
@@ -1026,7 +1027,7 @@ class ForwardPass:
                     self.hr_slices, self.lr_pad_slices,
                     self.hr_crop_slices)):
                 future = exe.submit(self.forward_pass_chunk, lr_slices=slp,
-                                    hr_slices=sh, crop_slices=shc,
+                                    hr_slices=sh, hr_crop_slices=shc,
                                     model_args=self.model_args,
                                     model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
