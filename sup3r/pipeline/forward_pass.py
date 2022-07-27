@@ -270,13 +270,15 @@ class ForwardPassStrategy(InputMixIn):
             List of file ids for each output file. Will be used to name output
             files of the form filename_{file_id}.ext
         """
-        if self._file_ids is None and self.out_pattern is not None:
+        if self._file_ids is None:
             n_chunks = len(self.time_index)
             n_chunks /= self.fwp_chunk_shape[2]
             n_chunks = np.int(np.ceil(n_chunks))
             self._file_ids = []
             for i in range(n_chunks):
-                if '{times}' in self.out_pattern:
+                check = (self.out_pattern is not None
+                         and '{times}' in self.out_pattern)
+                if check:
                     ti = self.time_index[self.ti_slices[i]]
                     start = ''.join(str(ti[0]).strip('+').split(' '))
                     end = ''.join(str(ti[-1]).strip('+').split(' '))
@@ -511,13 +513,13 @@ class ForwardPassStrategy(InputMixIn):
         list
             List of output file paths
         """
-        if '{times}' in out_files:
-            out_files = out_files.replace('{times}', '{file_id}')
-        if '{file_id}' not in out_files:
-            out_files = out_files.split('.')
-            out_files = out_files[:-1] + '_{file_id}' + out_files[-1]
         out_file_list = []
         if out_files is not None:
+            if '{times}' in out_files:
+                out_files = out_files.replace('{times}', '{file_id}')
+            if '{file_id}' not in out_files:
+                out_files = out_files.split('.')
+                out_files = out_files[:-1] + '_{file_id}' + out_files[-1]
             dirname = os.path.dirname(out_files)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
