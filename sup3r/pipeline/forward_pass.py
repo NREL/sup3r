@@ -522,11 +522,14 @@ class ForwardPassStrategy(InputMixIn):
             if '{file_id}' not in out_files:
                 out_files = out_files.split('.')
                 out_files = out_files[:-1] + '_{file_id}' + out_files[-1]
+            if '{chunk_index}' not in out_files:
+                out_files = out_files.split('.')
+                out_files = out_files[:-1] + '_{chunk_index}' + out_files[-1]
             dirname = os.path.dirname(out_files)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             for file_id in file_ids:
-                out_file = out_files.format(file_id=file_id)
+                out_file = out_files.replace('{file_id}', file_id)
                 out_file_list.append(out_file)
         else:
             out_file_list = [None] * len(file_ids)
@@ -795,11 +798,15 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
-        fwp_out_shape = (*self.data_shape, len(self.output_features))
-        fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
-        fwp_out_mem *= 4 * np.product(fwp_out_shape)
+        self.hr_data_shape = (
+            self.strategy.s_enhance * self.data_shape[0],
+            self.strategy.s_enhance * self.data_shape[1],
+            self.strategy.t_enhance * self.strategy.time_index[self.ti_slice],
+            len(self.output_features))
+
+        fwp_out_mem = 4 * np.product(self.hr_data_shape)
         mem = psutil.virtual_memory()
-        msg = (f'Full size ({fwp_out_shape}) of forward pass output '
+        msg = (f'Full size ({self.hr_data_shape}) of forward pass output '
                f'({fwp_out_mem / 1e9} GB) is too large to hold in memory. '
                'Run with smaller fwp_chunk_shape[2] or spatial extent.')
         if mem.total < fwp_out_mem:
@@ -828,11 +835,10 @@ class ForwardPass:
 
         self.data_handler.load_cached_data()
 
-        self.data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
-                              self.strategy.s_enhance * self.data_shape[1],
-                              self.strategy.t_enhance * self.data_shape[2],
-                              len(self.output_features)),
-                             dtype=np.float32)
+        self.hr_lat_lon = self.output_handler_class.get_lat_lon(
+            self.data_handler.lat_lon, self.hr_data_shape[:2])
+        self.hr_times = self.output_handler_class.get_times(
+            self.strategy.time_index[self.ti_slice], self.hr_data_shape[2])
 
     @property
     def pass_workers(self):
@@ -851,7 +857,7 @@ class ForwardPass:
 
     def forward_pass_chunk(self, lr_slices, hr_slices, hr_crop_slices,
                            model=None, model_args=None, model_class=None,
-                           s_enhance=None, t_enhance=None):
+                           s_enhance=None, t_enhance=None, chunk_index=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
         shape given by self.strategy.fwp_chunk_shape.
 
@@ -885,6 +891,9 @@ class ForwardPass:
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
+        chunk_index : int | None
+            Index of current chunk going through forward pass. Used to name
+            output file.
 
         Returns
         -------
@@ -926,7 +935,19 @@ class ForwardPass:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        self.data[hr_slices] = hi_res[0][hr_crop_slices]
+        data = hi_res[0][hr_crop_slices][..., self.ti_hr_crop_slice, :]
+        if self.out_file is not None:
+            chunk_out_file = self.out_file.replace('{chunk_index}',
+                                                   str(chunk_index).zfill(5))
+            logger.info(f'Saving forward pass output to {chunk_out_file}.')
+            self.output_handler_class._write_output(
+                data=data, features=self.data_handler.output_features,
+                lat_lon=self.hr_lat_lon[hr_slices[:2], :],
+                times=self.hr_times[hr_slices[2]],
+                out_file=chunk_out_file, meta_data=self.meta_data,
+                max_workers=self.output_workers)
+        else:
+            return data
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -999,7 +1020,8 @@ class ForwardPass:
                                     model_args=self.model_args,
                                     model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
-                                    t_enhance=self.strategy.t_enhance)
+                                    t_enhance=self.strategy.t_enhance,
+                                    chunk_index=i)
 
             logger.debug('Coarse data chunks being passed to model '
                          'with shape {} which is slice {} of full shape {}.'
@@ -1031,7 +1053,8 @@ class ForwardPass:
                                     model_args=self.model_args,
                                     model_class=self.model_class,
                                     s_enhance=self.strategy.s_enhance,
-                                    t_enhance=self.strategy.t_enhance)
+                                    t_enhance=self.strategy.t_enhance,
+                                    chunk_index=i)
                 futures[future] = i
 
                 logger.debug('Coarse data chunks being passed to model '
