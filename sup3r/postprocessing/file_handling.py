@@ -165,8 +165,6 @@ class OutputHandler:
                 new_count += 1
         lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
-        # keep lons between -180 and 180
-        lons = (lons + 360) % 360 - 180
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         return lat_lon
 
