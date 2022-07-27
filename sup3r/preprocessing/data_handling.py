@@ -30,10 +30,8 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
-                                       get_source_type,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
-                                       is_time_series,
                                        np_to_pd_times)
 from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -59,30 +57,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-def get_handler_class(file_paths):
-    """Method to get source type specific DataHandler class
-
-    Parameters
-    ----------
-    file_paths : list
-        list of file paths
-
-    Returns
-    -------
-    DataHandler
-        Either DataHandlerNC, DataHandlerH5, DataHandlerH5SolarCC
-    """
-    if get_source_type(file_paths) == 'h5':
-        HandlerClass = DataHandlerH5
-        if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
-            HandlerClass = DataHandlerH5SolarCC
-    elif not is_time_series(file_paths):
-        HandlerClass = DataHandlerNCforCC
-    else:
-        HandlerClass = DataHandlerNC
-    return HandlerClass
 
 
 class InputMixIn:
@@ -643,6 +617,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             step_mem /= len(self.time_index)
             self._time_chunk_size = np.min([np.int(1e9 / step_mem),
                                             self.n_tsteps])
+            logger.info('time_chunk_size arg not specified. Using '
+                        f'{self._time_chunk_size}.')
         return self._time_chunk_size
 
     @property

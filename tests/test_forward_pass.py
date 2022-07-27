@@ -65,7 +65,7 @@ def test_forward_pass_nc_cc():
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True, out_pattern=out_files,
-            max_workers=max_workers)
+            max_workers=max_workers, input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
         assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers

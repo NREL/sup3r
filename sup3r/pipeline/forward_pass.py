@@ -19,13 +19,11 @@ import sup3r.models
 import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerNC,
-                                               DataHandlerNCforCC,
                                                InputMixIn)
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
                                                 OutputHandlerNC)
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
-                                       is_time_series,
                                        estimate_max_workers)
 from sup3r.utilities import ModuleName
 
@@ -55,7 +53,7 @@ class ForwardPassStrategy(InputMixIn):
                  cache_pattern=None,
                  out_pattern=None,
                  overwrite_cache=False,
-                 handler_class=None,
+                 input_handler=None,
                  max_workers=None,
                  pass_workers=None,
                  extract_workers=None,
@@ -148,7 +146,7 @@ class ForwardPassStrategy(InputMixIn):
             Either nc (netcdf) or h5. This selects the extension for output
             files and determines which output handler to use when writing the
             results of the forward passes
-        handler_class : str
+        input_handler : str
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
@@ -199,7 +197,7 @@ class ForwardPassStrategy(InputMixIn):
         self.load_workers = load_workers
         self.output_workers = output_workers
         self._cache_pattern = cache_pattern
-        self._handler_class = handler_class
+        self._input_handler = input_handler
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -245,7 +243,7 @@ class ForwardPassStrategy(InputMixIn):
 
     def get_full_domain(self, file_paths):
         """Get target and grid_shape for largest possible domain"""
-        return self.data_handler_class.get_full_domain(file_paths)
+        return self.input_handler_class.get_full_domain(file_paths)
 
     def get_time_index(self, file_paths):
         """Get time index for source data
@@ -260,7 +258,7 @@ class ForwardPassStrategy(InputMixIn):
         time_index : ndarray
             Array of time indices for source data
         """
-        return self.data_handler_class.get_time_index(file_paths)
+        return self.input_handler_class.get_time_index(file_paths)
 
     @property
     def file_ids(self):
@@ -316,7 +314,7 @@ class ForwardPassStrategy(InputMixIn):
         return get_source_type(self.out_pattern)
 
     @property
-    def data_handler_class(self):
+    def input_handler_class(self):
         """Get data handler class used to handle input
 
         Returns
@@ -324,25 +322,25 @@ class ForwardPassStrategy(InputMixIn):
         _handler_class
             e.g. DataHandlerNC, DataHandlerH5, etc
         """
-        if self._handler_class is None:
-            time_series_files = is_time_series(self.file_paths)
+        if self._input_handler is None:
             if self.input_type == 'nc':
-                self._handler_class = DataHandlerNC
-                if not time_series_files:
-                    self._handler_class = DataHandlerNCforCC
+                self._input_handler = DataHandlerNC
             elif self.input_type == 'h5':
-                self._handler_class = DataHandlerH5
-        elif isinstance(self._handler_class, str):
+                self._input_handler = DataHandlerH5
+            logger.info('handler_class arg was not provided. Using '
+                        f'{self._input_handler.__name__}. If this is '
+                        'incorrect use handler_class="DataHandlerName".')
+        elif isinstance(self._input_handler, str):
             out = getattr(sup3r.preprocessing.data_handling,
-                          self._handler_class, None)
-            self._handler_class = out
+                          self._input_handler, None)
+            self._input_handler = out
             if out is None:
                 msg = ('Could not find requested data handler class '
-                       f'"{self._handler_class}" in '
+                       f'"{self._input_handler}" in '
                        'sup3r.preprocessing.data_handling.')
                 logger.error(msg)
                 raise KeyError(msg)
-        return self._handler_class
+        return self._input_handler
 
     def get_node_kwargs(self, node_index):
         """Get node specific variables given an associated index
@@ -783,14 +781,14 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
-        self.data_handler_class = strategy.data_handler_class
+        self.input_handler_class = strategy.input_handler_class
 
         if strategy.output_type == 'nc':
             self.output_handler_class = OutputHandlerNC
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
-        self.data_handler = self.data_handler_class(
+        self.data_handler = self.input_handler_class(
             self.file_paths, self.features, target=self.strategy.target,
             shape=self.strategy.grid_shape, temporal_slice=self.ti_pad_slice,
             raster_file=self.strategy.raster_file,
