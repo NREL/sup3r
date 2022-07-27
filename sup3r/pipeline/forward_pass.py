@@ -14,6 +14,7 @@ import os
 import warnings
 
 from rex.utilities.fun_utils import get_fun_call_str
+from rex import log_mem
 
 import sup3r.models
 import sup3r.preprocessing.data_handling
@@ -140,8 +141,9 @@ class ForwardPassStrategy(InputMixIn):
             Output file pattern. Must be of form <path>/<name>_{file_id}.<ext>.
             e.g. /tmp/sup3r_job_{file_id}.h5
             Each output file will have a unique file_id filled in and the ext
-            determines the output type. If None then data will be returned in
-            an array and not saved.
+            determines the output type. Pattern can also include {times}. This
+            will be replaced with start_time-end_time. If pattern is None then
+            data will be returned in an array and not saved.
         output_type : str
             Either nc (netcdf) or h5. This selects the extension for output
             files and determines which output handler to use when writing the
@@ -793,15 +795,16 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
-        fwp_out_shape = len(self.output_features)
-        fwp_out_shape *= np.product(self.data_shape)
-        fwp_out_shape *= self.strategy.s_enhance**2 * self.strategy.t_enhance
-        fwp_out_mem = 4 * fwp_out_shape
+        fwp_out_shape = (*self.data_shape, len(self.output_features))
+        fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
+        fwp_out_mem *= 4 * np.product(fwp_out_shape)
         mem = psutil.virtual_memory()
-        msg = (f'Full size of forward pass output ({fwp_out_mem / 1e9} GB) is '
-               'too large to hold in memory. Run with smaller '
-               'fwp_chunk_shape[2] or smaller spatial extent. ')
-        assert (mem.total - mem.used) > fwp_out_mem, msg
+        msg = (f'Full size ({fwp_out_shape}) of forward pass output '
+               f'({fwp_out_mem / 1e9} GB) is too large to hold in memory. '
+               'Run with smaller fwp_chunk_shape[2] or spatial extent.')
+        if mem.total < fwp_out_mem:
+            logger.warning(msg)
+            log_mem(logger)
 
         self.input_handler_class = strategy.input_handler_class
 
@@ -824,6 +827,12 @@ class ForwardPass:
             load_workers=self.load_workers)
 
         self.data_handler.load_cached_data()
+
+        self.data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
+                              self.strategy.s_enhance * self.data_shape[1],
+                              self.strategy.t_enhance * self.data_shape[2],
+                              len(self.output_features)),
+                             dtype=np.float32)
 
     @property
     def pass_workers(self):
@@ -1065,11 +1074,6 @@ class ForwardPass:
                f'{self.strategy.temporal_overlap}.')
         logger.info(msg)
         max_workers = self.pass_workers
-        self.data = np.zeros((self.strategy.s_enhance * self.data_shape[0],
-                              self.strategy.s_enhance * self.data_shape[1],
-                              self.strategy.t_enhance * self.data_shape[2],
-                              len(self.output_features)),
-                             dtype=np.float32)
         if max_workers == 1:
             self._run_serial()
         else:

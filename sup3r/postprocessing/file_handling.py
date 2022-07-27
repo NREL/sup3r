@@ -28,15 +28,20 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                           'units': 'm s-1',
                           'dtype': 'uint16',
                           'chunks': (2000, 500),
-                          'min': 0},
+                          'min': 0,
+                          'max': 120},
             'winddirection': {'scale_factor': 100.0,
                               'units': 'degree',
                               'dtype': 'uint16',
-                              'chunks': (2000, 500)},
+                              'chunks': (2000, 500),
+                              'min': 0,
+                              'max': 360},
             'temperature': {'scale_factor': 100.0,
                             'units': 'C',
                             'dtype': 'int16',
-                            'chunks': (2000, 500)},
+                            'chunks': (2000, 500),
+                            'min': -200,
+                            'max': 100},
             'relativehumidity': {'scale_factor': 100.0,
                                  'units': 'percent',
                                  'dtype': 'uint16',
@@ -46,7 +51,9 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
             'pressure': {'scale_factor': 0.1,
                          'units': 'Pa',
                          'dtype': 'uint16',
-                         'chunks': (2000, 500)},
+                         'chunks': (2000, 500),
+                         'min': 0,
+                         'max': 100000},
             'bvf_mo': {'scale_factor': 0.1,
                        'units': 'm s-2',
                        'dtype': 'uint16',
@@ -108,8 +115,8 @@ class OutputHandler:
             attrs = H5_ATTRS[Feature.get_basename(f)]
             max = attrs.get('max', np.inf)
             min = attrs.get('min', -np.inf)
-            data[data[..., i] < min, i] = min
-            data[data[..., i] > max, i] = max
+            data[..., i] = np.maximum(data[..., i], min)
+            data[..., i] = np.minimum(data[..., i], max)
         return data
 
     @staticmethod
