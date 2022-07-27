@@ -45,10 +45,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonNC,
                                                   LatLonNCforCC,
                                                   TempNC,
-                                                  UWindH5,
-                                                  VWindH5,
-                                                  UWindNsrdb,
-                                                  VWindNsrdb,
+                                                  UWind,
+                                                  VWind,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5,
@@ -1512,8 +1510,8 @@ class DataHandlerNC(DataHandler):
             'BVF2_(.*)m': BVFreqSquaredNC,
             'BVF_MO_(.*)m': BVFreqMon,
             'RMOL': InverseMonNC,
-            'U_(.*)': UWindH5,
-            'V_(.*)': VWindH5,
+            'U_(.*)': UWind,
+            'V_(.*)': VWind,
             'Windspeed_(.*)m': WindspeedNC,
             'Winddirection_(.*)m': WinddirectionNC,
             'lat_lon': LatLonNC,
@@ -1558,6 +1556,8 @@ class DataHandlerNC(DataHandler):
             if feature == 'lat_lon':
                 return cls.get_lat_lon(file_paths, raster_index,
                                        invert_lat=invert_lat)
+            # Sometimes xarray returns fields with (Times, time, lats, lons)
+            # with a single entry in the 'time' dimension
             if feature in handle:
                 if len(handle[feature].dims) == 4:
                     idx = tuple([time_slice] + [0] + raster_index)
@@ -1810,8 +1810,8 @@ class DataHandlerH5(DataHandler):
         registry = {
             'BVF2_(.*)m': BVFreqSquaredH5,
             'BVF_MO_(.*)m': BVFreqMon,
-            'U_(.*)m': UWindH5,
-            'V_(.*)m': VWindH5,
+            'U_(.*)m': UWind,
+            'V_(.*)m': VWind,
             'lat_lon': LatLonH5,
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
@@ -1995,8 +1995,8 @@ class DataHandlerH5WindCC(DataHandlerH5):
         dict
             Method registry
         """
-        registry = {'U_(.*)m': UWindH5,
-                    'V_(.*)m': VWindH5,
+        registry = {'U_(.*)m': UWind,
+                    'V_(.*)m': VWind,
                     'lat_lon': LatLonH5}
         return registry
 
@@ -2114,8 +2114,10 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             Method registry
         """
         registry = {
-            'U': UWindNsrdb,
-            'V': VWindNsrdb,
+            'U': UWind,
+            'V': VWind,
+            'windspeed': 'wind_speed',
+            'winddirection': 'wind_direction',
             'lat_lon': LatLonH5,
             'cloud_mask': CloudMaskH5,
             'clearsky_ratio': ClearSkyRatioH5}
