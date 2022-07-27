@@ -270,11 +270,19 @@ class ForwardPassStrategy(InputMixIn):
             List of file ids for each output file. Will be used to name output
             files of the form filename_{file_id}.ext
         """
-        if self._file_ids is None:
+        if self._file_ids is None and self.out_pattern is not None:
             n_chunks = len(self.time_index)
             n_chunks /= self.fwp_chunk_shape[2]
             n_chunks = np.int(np.ceil(n_chunks))
-            self._file_ids = [str(fid).zfill(5) for fid in range(n_chunks)]
+            self._file_ids = []
+            for i in range(n_chunks):
+                if '{times}' in self.out_pattern:
+                    ti = self.time_index[self.ti_slices[i]]
+                    start = ''.join(str(ti[0]).strip('+').split(' '))
+                    end = ''.join(str(ti[-1]).strip('+').split(' '))
+                    self._file_ids.append(f'{start}-{end}')
+                else:
+                    self._file_ids.append(str(i).zfill(5))
         return self._file_ids
 
     @property
@@ -503,11 +511,13 @@ class ForwardPassStrategy(InputMixIn):
         list
             List of output file paths
         """
+        if '{times}' in out_files:
+            out_files = out_files.replace('{times}', '{file_id}')
+        if '{file_id}' not in out_files:
+            out_files = out_files.split('.')
+            out_files = out_files[:-1] + '_{file_id}' + out_files[-1]
         out_file_list = []
         if out_files is not None:
-            if '{file_id}' not in out_files:
-                tmp = out_files.split('.')
-                out_files = ''.join(tmp[:-1]) + '{file_id}' + tmp[-1]
             dirname = os.path.dirname(out_files)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
@@ -780,6 +790,16 @@ class ForwardPass:
         self.compute_workers = kwargs['compute_workers']
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
+
+        fwp_out_shape = len(self.output_features)
+        fwp_out_shape *= np.product(self.data_shape)
+        fwp_out_shape *= self.strategy.s_enhance**2 * self.strategy.t_enhance
+        fwp_out_mem = 4 * fwp_out_shape
+        mem = psutil.virtual_memory()
+        msg = (f'Full size of forward pass output ({fwp_out_mem / 1e9} GB) is '
+               'too large to hold in memory. Run with smaller '
+               'fwp_chunk_shape[2] or smaller spatial extent. ')
+        assert (mem.total - mem.used) > fwp_out_mem, msg
 
         self.input_handler_class = strategy.input_handler_class
 
