@@ -795,12 +795,6 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
 
-        print('Cropped slices')
-        print('ti_hr_crop_slice')
-        print(self.ti_hr_crop_slice)
-        print('hr_crop_slices')
-        print([s[2] for s in self.hr_crop_slices])
-
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
         fwp_out_mem *= 4 * np.product(fwp_out_shape)
