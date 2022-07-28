@@ -132,66 +132,9 @@ def test_forward_pass_nc():
                 s_enhance * shape[1])
 
 
-def test_forward_pass_h5():
-    """Test forward pass handler output with second pass on output files.
-    Writing to h5"""
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
-    model.meta['training_features'] = ['U_100m', 'V_100m']
-    model.meta['output_features'] = ['U_100m', 'V_100m']
-    with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
-        out_files = os.path.join(td, 'out_{file_id}.h5')
-
-        max_workers = 1
-        handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
-            fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True, out_pattern=out_files,
-            max_workers=max_workers)
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
-
-        with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
-            assert all(f in fh.attrs for f in ('windspeed_100m',
-                                               'winddirection_100m'))
-
-            assert fh.global_attrs['package'] == 'sup3r'
-            assert fh.global_attrs['version'] == __version__
-            assert 'full_version_record' in fh.global_attrs
-            version_record = json.loads(fh.global_attrs['full_version_record'])
-            assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert isinstance(gan_meta, dict)
-            assert gan_meta['training_features'] == ['U_100m', 'V_100m']
-
-
 def test_forward_pass_temporal_slice():
-    """Test forward pass handler output with second pass on output files.
-    Writing to h5"""
+    """Test forward pass handler output to h5 file. Includes temporal
+    slicing."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
