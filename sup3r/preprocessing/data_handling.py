@@ -1685,17 +1685,10 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
             lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
-            mask = ((lat_lon[..., 0] >= self.target[0])
-                    & (lat_lon[..., 1] >= self.target[1]))
-            if mask.sum() != np.product(self.grid_shape):
-                msg = (f'Found {mask.sum()} coordinates but should have found '
-                       f'{self.grid_shape[0]} by {self.grid_shape[1]}')
-                logger.warning(msg)
-                warnings.warn(msg)
-
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
+
         return raster_index
 
 

@@ -1001,15 +1001,13 @@ class ForwardPass:
                          .format(self.data_handler.data[slp].shape, slp,
                                  self.data_handler.data.shape))
 
-            interval = np.int(np.ceil(len(self.hr_slices) / 10))
-            if interval > 0 and i % interval == 0:
-                mem = psutil.virtual_memory()
-                logger.info(f'{i+1} out of {len(self.hr_slices)} '
-                            'forward pass chunks completed. '
-                            'Memory utilization is '
-                            f'{mem.used / 1e9:.3f} GB out of '
-                            f'{mem.total / 1e9:.3f} GB '
-                            f'total ({100*mem.used / mem.total:.1f}% used)')
+            mem = psutil.virtual_memory()
+            logger.info(f'{i+1} out of {len(self.hr_slices)} '
+                        'forward pass chunks completed. '
+                        'Memory utilization is '
+                        f'{mem.used / 1e9:.3f} GB out of '
+                        f'{mem.total / 1e9:.3f} GB '
+                        f'total ({100*mem.used / mem.total:.1f}% used)')
 
     def _run_parallel(self, max_workers=None):
         """Run forward passes in parallel"""
@@ -1039,7 +1037,6 @@ class ForwardPass:
                         f'{len(self.hr_slices)} chunks in '
                         f'{dt.now() - now}.')
 
-            interval = np.int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 try:
                     future.result()
@@ -1048,14 +1045,14 @@ class ForwardPass:
                            f'{futures[future]}.')
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
-                if interval > 0 and i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    logger.info(f'{i+1} out of {len(futures)} '
-                                'forward pass chunks completed. '
-                                'Memory utilization is '
-                                f'{mem.used / 1e9:.3f} GB out of '
-                                f'{mem.total / 1e9:.3f} GB '
-                                f'total ({100*mem.used/mem.total:.1f}% used)')
+
+                mem = psutil.virtual_memory()
+                logger.info(f'{i+1} out of {len(futures)} '
+                            'forward pass chunks completed. '
+                            'Memory utilization is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB '
+                            f'total ({100*mem.used/mem.total:.1f}% used)')
 
     def run(self):
         """ForwardPass is initialized with a file_slice_index. This index
