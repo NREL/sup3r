@@ -30,10 +30,8 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
-                                       get_source_type,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
-                                       is_time_series,
                                        np_to_pd_times)
 from sup3r.utilities import ModuleName
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -45,10 +43,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonNC,
                                                   LatLonNCforCC,
                                                   TempNC,
-                                                  UWindH5,
-                                                  VWindH5,
-                                                  UWindNsrdb,
-                                                  VWindNsrdb,
+                                                  UWind,
+                                                  VWind,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
                                                   CloudMaskH5,
@@ -61,30 +57,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-def get_handler_class(file_paths):
-    """Method to get source type specific DataHandler class
-
-    Parameters
-    ----------
-    file_paths : list
-        list of file paths
-
-    Returns
-    -------
-    DataHandler
-        Either DataHandlerNC, DataHandlerH5, DataHandlerH5SolarCC
-    """
-    if get_source_type(file_paths) == 'h5':
-        HandlerClass = DataHandlerH5
-        if all('nsrdb' in os.path.basename(fp) for fp in file_paths):
-            HandlerClass = DataHandlerH5SolarCC
-    elif not is_time_series(file_paths):
-        HandlerClass = DataHandlerNCforCC
-    else:
-        HandlerClass = DataHandlerNC
-    return HandlerClass
 
 
 class InputMixIn:
@@ -645,6 +617,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             step_mem /= len(self.time_index)
             self._time_chunk_size = np.min([np.int(1e9 / step_mem),
                                             self.n_tsteps])
+            logger.info('time_chunk_size arg not specified. Using '
+                        f'{self._time_chunk_size}.')
         return self._time_chunk_size
 
     @property
@@ -660,7 +634,6 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._lat_lon is None:
             self._lat_lon = self.get_lat_lon(self.file_paths,
                                              self.raster_index,
-                                             self.temporal_slice,
                                              invert_lat=self.invert_lat)
         return self._lat_lon
 
@@ -794,8 +767,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, time_slice=slice(None),
-                    invert_lat=False):
+    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
         """Store lat lon for future output
 
         Parameters
@@ -804,8 +776,6 @@ class DataHandler(FeatureHandler, InputMixIn):
             path to data file
         raster_index : ndarray | list
             Raster index array or list of slices
-        time_slice : slice
-            slice of time to extract
         invert_lat : bool
             Flag to invert data along the latitude axis. Wrf data tends to use
             an increasing ordering for latitude while wtk uses a decreasing
@@ -817,8 +787,12 @@ class DataHandler(FeatureHandler, InputMixIn):
             (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last
             dimension
         """
-        return cls.extract_feature(file_paths, raster_index, 'lat_lon',
-                                   time_slice, invert_lat=invert_lat)
+        lat_lon = cls.lookup('lat_lon', 'compute')(file_paths, raster_index)
+        if invert_lat:
+            lat_lon = lat_lon[::-1]
+        # put angle betwen -180 and 180
+        lat_lon[..., 1] = (lat_lon[..., 1] + 180) % 360 - 180
+        return lat_lon
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1490,11 +1464,13 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        with cls.source_handler(file_paths, data_vars='minimal') as handle:
+        with cls.source_handler(file_paths) as handle:
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
-            elif hasattr(handle, 'time'):
+            elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
                 time_index = handle.indexes['time'].to_datetimeindex()
+            elif hasattr(handle, 'times'):
+                time_index = np_to_pd_times(handle.times.values)
             else:
                 raise ValueError(f'Could not get time_index for {file_paths}')
         return time_index
@@ -1512,6 +1488,8 @@ class DataHandlerNC(DataHandler):
             'BVF2_(.*)m': BVFreqSquaredNC,
             'BVF_MO_(.*)m': BVFreqMon,
             'RMOL': InverseMonNC,
+            'U_(.*)': UWind,
+            'V_(.*)': VWind,
             'Windspeed_(.*)m': WindspeedNC,
             'Winddirection_(.*)m': WinddirectionNC,
             'lat_lon': LatLonNC,
@@ -1547,22 +1525,22 @@ class DataHandlerNC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-
+        logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
             interp_pressure = f_info.pressure
             basename = f_info.basename
-
-            method = cls.lookup(feature, 'compute')
-            if method is not None and basename not in handle:
-                fdata = method(file_paths, raster_index)
-                if invert_lat:
-                    fdata = fdata[::-1]
-                return fdata
-
-            elif feature in handle:
-                idx = tuple([time_slice] + raster_index)
+            if feature == 'lat_lon':
+                return cls.get_lat_lon(file_paths, raster_index,
+                                       invert_lat=invert_lat)
+            # Sometimes xarray returns fields with (Times, time, lats, lons)
+            # with a single entry in the 'time' dimension
+            if feature in handle:
+                if len(handle[feature].dims) == 4:
+                    idx = tuple([time_slice] + [0] + raster_index)
+                else:
+                    idx = tuple([time_slice] + raster_index)
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
             elif basename in handle:
                 if interp_height is not None:
@@ -1810,8 +1788,8 @@ class DataHandlerH5(DataHandler):
         registry = {
             'BVF2_(.*)m': BVFreqSquaredH5,
             'BVF_MO_(.*)m': BVFreqMon,
-            'U_(.*)m': UWindH5,
-            'V_(.*)m': VWindH5,
+            'U_(.*)m': UWind,
+            'V_(.*)m': VWind,
             'lat_lon': LatLonH5,
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
@@ -1842,22 +1820,18 @@ class DataHandlerH5(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-
+        logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
-            method = cls.lookup(feature, 'compute')
-            if method is not None and feature not in handle:
-                fdata = method(file_paths, raster_index)
-                if invert_lat:
-                    fdata = fdata[::-1]
-                return fdata
-            else:
-                try:
-                    fdata = handle[(feature, time_slice,)
-                                   + tuple([raster_index.flatten()])]
-                except ValueError as e:
-                    msg = f'{feature} cannot be extracted from source data'
-                    logger.exception(msg)
-                    raise ValueError(msg) from e
+            if feature == 'lat_lon':
+                return cls.get_lat_lon(file_paths, raster_index,
+                                       invert_lat=invert_lat)
+            try:
+                fdata = handle[(feature, time_slice,)
+                               + tuple([raster_index.flatten()])]
+            except ValueError as e:
+                msg = f'{feature} cannot be extracted from source data'
+                logger.exception(msg)
+                raise ValueError(msg) from e
 
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
@@ -1999,8 +1973,8 @@ class DataHandlerH5WindCC(DataHandlerH5):
         dict
             Method registry
         """
-        registry = {'U_(.*)m': UWindH5,
-                    'V_(.*)m': VWindH5,
+        registry = {'U_(.*)m': UWind,
+                    'V_(.*)m': VWind,
                     'lat_lon': LatLonH5}
         return registry
 
@@ -2118,8 +2092,10 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             Method registry
         """
         registry = {
-            'U': UWindNsrdb,
-            'V': VWindNsrdb,
+            'U': UWind,
+            'V': VWind,
+            'windspeed': 'wind_speed',
+            'winddirection': 'wind_direction',
             'lat_lon': LatLonH5,
             'cloud_mask': CloudMaskH5,
             'clearsky_ratio': ClearSkyRatioH5}

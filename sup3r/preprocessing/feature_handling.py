@@ -618,7 +618,7 @@ class Rews(DerivedFeature):
         return rews
 
 
-class UWindH5(DerivedFeature):
+class UWind(DerivedFeature):
     """U wind component feature class with needed inputs method and compute
     method"""
 
@@ -637,8 +637,7 @@ class UWindH5(DerivedFeature):
             List of required features for computing U
         """
         height = Feature.get_height(feature)
-        features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m',
+        features = [f'windspeed_{height}m', f'winddirection_{height}m',
                     'lat_lon']
         return features
 
@@ -659,14 +658,13 @@ class UWindH5(DerivedFeature):
             Derived feature array
 
         """
-        u, _ = transform_rotate_wind(
-            data[f'windspeed_{height}m'],
-            data[f'winddirection_{height}m'],
-            data['lat_lon'])
+        u, _ = transform_rotate_wind(data[f'windspeed_{height}m'],
+                                     data[f'winddirection_{height}m'],
+                                     data['lat_lon'])
         return u
 
 
-class VWindH5(DerivedFeature):
+class VWind(DerivedFeature):
     """V wind component feature class with needed inputs method and compute
     method"""
 
@@ -685,8 +683,7 @@ class VWindH5(DerivedFeature):
             List of required features for computing V
         """
         height = Feature.get_height(feature)
-        features = [f'windspeed_{height}m',
-                    f'winddirection_{height}m',
+        features = [f'windspeed_{height}m', f'winddirection_{height}m',
                     'lat_lon']
         return features
 
@@ -707,97 +704,8 @@ class VWindH5(DerivedFeature):
             Derived feature array
 
         """
-        _, v = transform_rotate_wind(
-            data[f'windspeed_{height}m'],
-            data[f'winddirection_{height}m'],
-            data['lat_lon'])
-        return v
-
-
-class UWindNsrdb(DerivedFeature):
-    """U wind component feature class with needed inputs method and compute
-    method"""
-
-    @classmethod
-    def inputs(cls, feature):
-        """Required inputs for computing U wind component
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. U
-
-        Returns
-        -------
-        list
-            List of required features for computing U
-        """
-        features = ['wind_speed', 'wind_direction', 'lat_lon']
-        return features
-
-    @classmethod
-    def compute(cls, data, height):
-        """Method to compute U wind component from H5 data
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of raw feature arrays to use for derivation
-        height : str | int
-            Height at which to compute the derived feature
-
-        Returns
-        -------
-        ndarray
-            Derived feature array
-
-        """
-        u, _ = transform_rotate_wind(data['wind_speed'],
-                                     data['wind_direction'],
-                                     data['lat_lon'])
-        return u
-
-
-class VWindNsrdb(DerivedFeature):
-    """V wind component feature class with needed inputs
-    method and compute method"""
-
-    @classmethod
-    def inputs(cls, feature):
-        """Required inputs for computing V wind component
-
-        Parameters
-        ----------
-        feature : str
-            raw feature name. e.g. V_100m
-
-        Returns
-        -------
-        list
-            List of required features for computing V
-        """
-        features = ['wind_speed', 'wind_direction', 'lat_lon']
-        return features
-
-    @classmethod
-    def compute(cls, data, height):
-        """Method to compute V wind component from H5 data
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary of raw feature arrays to use for derivation
-        height : str | int
-            Height at which to compute the derived feature
-
-        Returns
-        -------
-        ndarray
-            Derived feature array
-
-        """
-        _, v = transform_rotate_wind(data['wind_speed'],
-                                     data['wind_direction'],
+        _, v = transform_rotate_wind(data[f'windspeed_{height}m'],
+                                     data[f'winddirection_{height}m'],
                                      data['lat_lon'])
         return v
 
@@ -823,10 +731,20 @@ class LatLonNC:
             (spatial_1, spatial_2, 2)
         """
         with xr.open_dataset(file_paths[0]) as handle:
-            lats = (handle.XLAT.values if 'Time' not
-                    in handle.XLAT.dims else handle.XLAT.values[0])
-            lons = (handle.XLONG.values if 'Time' not
-                    in handle.XLONG.dims else handle.XLONG.values[0])
+            lat_key = 'XLAT'
+            lon_key = 'XLONG'
+            if lat_key not in handle.variables:
+                lat_key = 'latitude'
+            if lon_key not in handle.variables:
+                lon_key = 'longitude'
+            if len(handle.variables[lat_key].dims) == 4:
+                idx = (0, slice(None), slice(None), slice(None))
+            elif len(handle.variables[lat_key].dims) == 3:
+                idx = (0, slice(None), slice(None))
+            else:
+                idx = (slice(None), slice(None))
+            lats = handle.variables[lat_key].values[idx]
+            lons = handle.variables[lon_key].values[idx]
             lat_lon = np.concatenate(
                 [lats[tuple(raster_index)][..., np.newaxis],
                  lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
@@ -1015,7 +933,7 @@ class FeatureHandler:
             return False
 
         return all(Feature.get_basename(f) in handle_features
-                   for f in features)
+                   or f in handle_features for f in features)
 
     @classmethod
     def valid_input_features(cls, features, handle_features):
@@ -1038,6 +956,7 @@ class FeatureHandler:
             return False
 
         if all(Feature.get_basename(f) in handle_features
+               or f in handle_features
                or cls.lookup(f, 'compute') is not None for f in features):
             return True
         return False

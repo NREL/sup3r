@@ -10,14 +10,11 @@ import logging
 from scipy import ndimage as nd
 from fnmatch import fnmatch
 import os
-import xarray as xr
 import re
 from warnings import warn
 import psutil
 import pandas as pd
 from packaging import version
-
-from rex import Resource
 
 np.random.seed(42)
 
@@ -110,58 +107,6 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
         stop += step * chunk_size
         stop = np.min([stop, indices[-1] + 1])
     return slices
-
-
-def get_time_index(file_path):
-    """Get time index for single file
-
-    Parameters
-    ----------
-    file_path : str
-        Single netcdf or h5 file
-
-    Returns
-    -------
-    time_index : ndarray
-        Array of time indices
-    """
-    file_type = get_source_type(file_path)
-
-    if file_type == 'nc':
-        with xr.open_dataset(file_path) as handle:
-            if hasattr(handle, 'Times'):
-                times = handle.Times.values
-            elif hasattr(handle, 'time'):
-                times = handle.time.values
-            else:
-                raise ValueError(f'Could not get time index for {file_path}')
-    elif file_type == 'h5':
-        with Resource(file_path) as handle:
-            times = handle.time_index
-    return times
-
-
-def is_time_series(file_paths):
-    """Check if file list is list of files with different time indices or
-    different datasets
-
-    Parameters
-    ----------
-    file_paths : list
-        List of netcdf or h5 file paths
-
-    Returns
-    -------
-    bool
-        Whether files have different time indices or have the same time indices
-        with different datasets
-    """
-
-    if len(file_paths) > 1:
-        times_0 = get_time_index(file_paths[0])
-        times_1 = get_time_index(file_paths[1])
-        return not all(times_0 == times_1)
-    return True
 
 
 def get_raster_shape(raster_index):
@@ -930,7 +875,8 @@ def interp_var_to_height(data, var, raster_index, heights,
     out_array : ndarray
         Array of interpolated values.
     """
-
+    if len(data[var].dims) == 5:
+        raster_index = [0] + raster_index
     logger.debug(f'Interpolating {var} to heights (m): {heights}')
     return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
                            calc_height(data, raster_index, time_slice),
@@ -962,6 +908,8 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     """
 
     logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
+    if len(data[var].dims) == 5:
+        raster_index = [0] + raster_index
     return interp_to_level(
         unstagger_var(data, var, raster_index, time_slice)[:, ::-1, ...],
         calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
@@ -1320,7 +1268,7 @@ def np_to_pd_times(times):
     times : pd.DatetimeIndex
         DatetimeIndex for time indices
     """
-    tmp = [t.decode('utf-8') for t in times]
+    tmp = [t.decode('utf-8') for t in times.flatten()]
     tmp = [' '.join(t.split('_')) for t in tmp]
     tmp = pd.DatetimeIndex(tmp)
     return tmp
