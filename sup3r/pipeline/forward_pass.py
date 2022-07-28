@@ -902,7 +902,14 @@ class ForwardPass:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
-        hi_res = model.generate(data_chunk)
+
+        try:
+            hi_res = model.generate(data_chunk)
+        except Exception as e:
+            msg = ('Forward pass failed on chunk with low-res slices {} '
+                   'and high-res slices {}.'.format(lr_slices, hr_slices))
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
 
         if (s_enhance is not None
                 and hi_res.shape[1] != s_enhance * data_chunk.shape[i_lr_s]):
