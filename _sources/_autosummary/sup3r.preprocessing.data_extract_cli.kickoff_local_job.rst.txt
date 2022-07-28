@@ -1,0 +1,6 @@
+sup3r.preprocessing.data\_extract\_cli.kickoff\_local\_job
+==========================================================
+
+.. currentmodule:: sup3r.preprocessing.data_extract_cli
+
+.. autofunction:: kickoff_local_job

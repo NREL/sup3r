@@ -1,0 +1,102 @@
+sup3r.preprocessing.data\_handling.DataHandlerH5SolarCC
+=======================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling
+
+.. autoclass:: DataHandlerH5SolarCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerH5SolarCC.cache_data
+      ~DataHandlerH5SolarCC.check_cached_features
+      ~DataHandlerH5SolarCC.clear_data
+      ~DataHandlerH5SolarCC.data_fill
+      ~DataHandlerH5SolarCC.extract_data
+      ~DataHandlerH5SolarCC.extract_feature
+      ~DataHandlerH5SolarCC.feature_registry
+      ~DataHandlerH5SolarCC.get_cache_file_names
+      ~DataHandlerH5SolarCC.get_full_domain
+      ~DataHandlerH5SolarCC.get_input_arrays
+      ~DataHandlerH5SolarCC.get_inputs_recursive
+      ~DataHandlerH5SolarCC.get_lat_lon
+      ~DataHandlerH5SolarCC.get_next
+      ~DataHandlerH5SolarCC.get_node_cmd
+      ~DataHandlerH5SolarCC.get_observation_index
+      ~DataHandlerH5SolarCC.get_raster_index
+      ~DataHandlerH5SolarCC.get_raw_feature_list
+      ~DataHandlerH5SolarCC.get_time_index
+      ~DataHandlerH5SolarCC.load_cached_data
+      ~DataHandlerH5SolarCC.load_single_cached_feature
+      ~DataHandlerH5SolarCC.lookup
+      ~DataHandlerH5SolarCC.normalize
+      ~DataHandlerH5SolarCC.parallel_compute
+      ~DataHandlerH5SolarCC.parallel_data_fill
+      ~DataHandlerH5SolarCC.parallel_extract
+      ~DataHandlerH5SolarCC.parallel_load
+      ~DataHandlerH5SolarCC.parallel_normalization
+      ~DataHandlerH5SolarCC.pop_old_data
+      ~DataHandlerH5SolarCC.preflight
+      ~DataHandlerH5SolarCC.recursive_compute
+      ~DataHandlerH5SolarCC.run_daily_averages
+      ~DataHandlerH5SolarCC.serial_compute
+      ~DataHandlerH5SolarCC.serial_data_fill
+      ~DataHandlerH5SolarCC.serial_extract
+      ~DataHandlerH5SolarCC.source_handler
+      ~DataHandlerH5SolarCC.split_data
+      ~DataHandlerH5SolarCC.unnormalize
+      ~DataHandlerH5SolarCC.valid_handle_features
+      ~DataHandlerH5SolarCC.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerH5SolarCC.TIME_IND_FEATURES
+      ~DataHandlerH5SolarCC.TRAIN_ONLY_FEATURES
+      ~DataHandlerH5SolarCC.attrs
+      ~DataHandlerH5SolarCC.cache_files
+      ~DataHandlerH5SolarCC.cache_pattern
+      ~DataHandlerH5SolarCC.cached_features
+      ~DataHandlerH5SolarCC.compute_workers
+      ~DataHandlerH5SolarCC.derive_features
+      ~DataHandlerH5SolarCC.extract_features
+      ~DataHandlerH5SolarCC.extract_workers
+      ~DataHandlerH5SolarCC.feature_mem
+      ~DataHandlerH5SolarCC.file_paths
+      ~DataHandlerH5SolarCC.full_domain
+      ~DataHandlerH5SolarCC.grid_mem
+      ~DataHandlerH5SolarCC.grid_shape
+      ~DataHandlerH5SolarCC.handle_features
+      ~DataHandlerH5SolarCC.input_file_info
+      ~DataHandlerH5SolarCC.invert_lat
+      ~DataHandlerH5SolarCC.lat_lon
+      ~DataHandlerH5SolarCC.load_workers
+      ~DataHandlerH5SolarCC.n_tsteps
+      ~DataHandlerH5SolarCC.norm_workers
+      ~DataHandlerH5SolarCC.output_features
+      ~DataHandlerH5SolarCC.raster_index
+      ~DataHandlerH5SolarCC.raw_features
+      ~DataHandlerH5SolarCC.raw_time_index
+      ~DataHandlerH5SolarCC.shape
+      ~DataHandlerH5SolarCC.target
+      ~DataHandlerH5SolarCC.temporal_slice
+      ~DataHandlerH5SolarCC.time_chunk_size
+      ~DataHandlerH5SolarCC.time_chunks
+      ~DataHandlerH5SolarCC.time_index
+      ~DataHandlerH5SolarCC.timestamp_0
+      ~DataHandlerH5SolarCC.timestamp_1
+      ~DataHandlerH5SolarCC.train_only_features
+   
+   

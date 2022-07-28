@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.ignore\_case\_path\_fetch
+===================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: ignore_case_path_fetch

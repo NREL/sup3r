@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.postprocessing.file_handling.OutputHandlerH5 &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.postprocessing.file_handling.OutputHandlerNC" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html" />
+    <link rel="prev" title="sup3r.postprocessing.file_handling.OutputHandler" href="sup3r.postprocessing.file_handling.OutputHandler.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.postprocessing.html">sup3r.postprocessing</a> &raquo;</li>
+          <li><a href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a> &raquo;</li>
+      <li>sup3r.postprocessing.file_handling.OutputHandlerH5</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-postprocessing-file-handling-outputhandlerh5">
+<h1>sup3r.postprocessing.file_handling.OutputHandlerH5<a class="headerlink" href="#sup3r-postprocessing-file-handling-outputhandlerh5" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">OutputHandlerH5</span></span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#OutputHandlerH5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler" title="sup3r.postprocessing.file_handling.OutputHandler"><code class="xref py py-class docutils literal notranslate"><span class="pre">OutputHandler</span></code></a></p>
+<p>Class to handle writing output to H5 file</p>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.enforce_limits" title="sup3r.postprocessing.file_handling.OutputHandlerH5.enforce_limits"><code class="xref py py-obj docutils literal notranslate"><span class="pre">enforce_limits</span></code></a>(features, data)</p></td>
+<td><p>Enforce physical limits for feature data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_lat_lon" title="sup3r.postprocessing.file_handling.OutputHandlerH5.get_lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lat_lon</span></code></a>(low_res_lat_lon, shape)</p></td>
+<td><p>Get lat lon arrays for high res output file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_renamed_features" title="sup3r.postprocessing.file_handling.OutputHandlerH5.get_renamed_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_renamed_features</span></code></a>(features)</p></td>
+<td><p>Rename features based on transformation from u/v to windspeed/winddirection</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_times" title="sup3r.postprocessing.file_handling.OutputHandlerH5.get_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_times</span></code></a>(low_res_times, shape)</p></td>
+<td><p>Get array of times for high res output file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_features" title="sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">invert_uv_features</span></code></a>(data, features, lat_lon)</p></td>
+<td><p>Invert U/V to windspeed and winddirection.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_single_pair" title="sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_single_pair"><code class="xref py py-obj docutils literal notranslate"><span class="pre">invert_uv_single_pair</span></code></a>(data, lat_lon, u_idx, ...)</p></td>
+<td><p>Perform inverse transform in place on a single u/v pair.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.write_output" title="sup3r.postprocessing.file_handling.OutputHandlerH5.write_output"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_output</span></code></a>(data, features, ...[, ...])</p></td>
+<td><p>Write forward pass output to file</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.get_renamed_features">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_renamed_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#OutputHandlerH5.get_renamed_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_renamed_features" title="Permalink to this definition"></a></dt>
+<dd><p>Rename features based on transformation from u/v to
+windspeed/winddirection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>list</em>) – List of output features</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of renamed features u/v -&gt; windspeed/winddirection for each
+height</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_features">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">invert_uv_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#OutputHandlerH5.invert_uv_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_features" title="Permalink to this definition"></a></dt>
+<dd><p>Invert U/V to windspeed and winddirection. Performed in place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>ndarray</em>) – High res data from forward pass
+(spatial_1, spatial_2, temporal, features)</p></li>
+<li><p><strong>features</strong> (<em>list</em>) – List of output features. If this doesnt contain any names matching
+U_*m, this method will do nothing.</p></li>
+<li><p><strong>lat_lon</strong> (<em>ndarray</em>) – High res lat/lon array
+(spatial_1, spatial_2, 2)</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max workers to use for inverse transform. If None the max_workers
+will be estimated based on memory limits.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_single_pair">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">invert_uv_single_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#OutputHandlerH5.invert_uv_single_pair"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_single_pair" title="Permalink to this definition"></a></dt>
+<dd><p>Perform inverse transform in place on a single u/v pair.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>ndarray</em>) – High res data from forward pass
+(spatial_1, spatial_2, temporal, features)</p></li>
+<li><p><strong>lat_lon</strong> (<em>ndarray</em>) – High res lat/lon array
+(spatial_1, spatial_2, 2)</p></li>
+<li><p><strong>u_idx</strong> (<em>int</em>) – Index in data for U component to transform</p></li>
+<li><p><strong>v_idx</strong> (<em>int</em>) – Index in data for V component to transform</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.enforce_limits">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">enforce_limits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.enforce_limits" title="Permalink to this definition"></a></dt>
+<dd><p>Enforce physical limits for feature data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>list</em>) – List of features with ordering corresponding to last channel of
+data array.</p></li>
+<li><p><strong>data</strong> (<em>ndarray</em>) – Array of feature data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>data</strong> (<em>ndarray</em>) – Array of feature data with physical limits enforced</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.get_lat_lon">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_lat_lon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_res_lat_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_lat_lon" title="Permalink to this definition"></a></dt>
+<dd><p>Get lat lon arrays for high res output file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_res_lat_lon</strong> (<em>ndarray</em>) – Array of lat/lon for input data.
+(spatial_1, spatial_2, 2)
+Last dimension has ordering (lat, lon)</p></li>
+<li><p><strong>shape</strong> (<em>tuple</em>) – (lons, lats) Shape of high res grid</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>lat_lon</strong> (<em>ndarray</em>) – Array of lat lons for high res output file
+(spatial_1, spatial_2, 2)
+Last dimension has ordering (lat, lon)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.get_times">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_times</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_res_times</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.get_times" title="Permalink to this definition"></a></dt>
+<dd><p>Get array of times for high res output file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_res_times</strong> (<em>pd.Datetimeindex</em>) – List of times for low res input data. If there is only a single low
+res timestep, it is assumed the data is daily.</p></li>
+<li><p><strong>shape</strong> (<em>int</em>) – Number of time steps for high res time array</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>ndarray</em> – Array of times for high res output file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.OutputHandlerH5.write_output">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">write_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_res_lat_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_res_times</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.OutputHandlerH5.write_output" title="Permalink to this definition"></a></dt>
+<dd><p>Write forward pass output to file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>ndarray</em>) – (spatial_1, spatial_2, temporal, features)
+High resolution forward pass output</p></li>
+<li><p><strong>features</strong> (<em>list</em>) – List of feature names corresponding to the last dimension of data</p></li>
+<li><p><strong>low_res_lat_lon</strong> (<em>ndarray</em>) – Array of lat/lon for input data. (spatial_1, spatial_2, 2)
+Last dimension has ordering (lat, lon)</p></li>
+<li><p><strong>low_res_times</strong> (<em>pd.Datetimeindex</em>) – List of times for low res source data</p></li>
+<li><p><strong>out_file</strong> (<em>string</em>) – Output file path</p></li>
+<li><p><strong>meta_data</strong> (<em>dict | None</em>) – Dictionary of meta data from model</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max workers to use for inverse uv transform. If None the
+max_workers will be estimated based on memory limits.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.postprocessing.file_handling.OutputHandler.html" class="btn btn-neutral float-left" title="sup3r.postprocessing.file_handling.OutputHandler" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.postprocessing.file_handling.OutputHandlerNC.html" class="btn btn-neutral float-right" title="sup3r.postprocessing.file_handling.OutputHandlerNC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

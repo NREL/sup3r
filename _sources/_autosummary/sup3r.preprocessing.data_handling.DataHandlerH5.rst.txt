@@ -1,0 +1,101 @@
+sup3r.preprocessing.data\_handling.DataHandlerH5
+================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling
+
+.. autoclass:: DataHandlerH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerH5.cache_data
+      ~DataHandlerH5.check_cached_features
+      ~DataHandlerH5.clear_data
+      ~DataHandlerH5.data_fill
+      ~DataHandlerH5.extract_data
+      ~DataHandlerH5.extract_feature
+      ~DataHandlerH5.feature_registry
+      ~DataHandlerH5.get_cache_file_names
+      ~DataHandlerH5.get_full_domain
+      ~DataHandlerH5.get_input_arrays
+      ~DataHandlerH5.get_inputs_recursive
+      ~DataHandlerH5.get_lat_lon
+      ~DataHandlerH5.get_next
+      ~DataHandlerH5.get_node_cmd
+      ~DataHandlerH5.get_observation_index
+      ~DataHandlerH5.get_raster_index
+      ~DataHandlerH5.get_raw_feature_list
+      ~DataHandlerH5.get_time_index
+      ~DataHandlerH5.load_cached_data
+      ~DataHandlerH5.load_single_cached_feature
+      ~DataHandlerH5.lookup
+      ~DataHandlerH5.normalize
+      ~DataHandlerH5.parallel_compute
+      ~DataHandlerH5.parallel_data_fill
+      ~DataHandlerH5.parallel_extract
+      ~DataHandlerH5.parallel_load
+      ~DataHandlerH5.parallel_normalization
+      ~DataHandlerH5.pop_old_data
+      ~DataHandlerH5.preflight
+      ~DataHandlerH5.recursive_compute
+      ~DataHandlerH5.serial_compute
+      ~DataHandlerH5.serial_data_fill
+      ~DataHandlerH5.serial_extract
+      ~DataHandlerH5.source_handler
+      ~DataHandlerH5.split_data
+      ~DataHandlerH5.unnormalize
+      ~DataHandlerH5.valid_handle_features
+      ~DataHandlerH5.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerH5.TIME_IND_FEATURES
+      ~DataHandlerH5.TRAIN_ONLY_FEATURES
+      ~DataHandlerH5.attrs
+      ~DataHandlerH5.cache_files
+      ~DataHandlerH5.cache_pattern
+      ~DataHandlerH5.cached_features
+      ~DataHandlerH5.compute_workers
+      ~DataHandlerH5.derive_features
+      ~DataHandlerH5.extract_features
+      ~DataHandlerH5.extract_workers
+      ~DataHandlerH5.feature_mem
+      ~DataHandlerH5.file_paths
+      ~DataHandlerH5.full_domain
+      ~DataHandlerH5.grid_mem
+      ~DataHandlerH5.grid_shape
+      ~DataHandlerH5.handle_features
+      ~DataHandlerH5.input_file_info
+      ~DataHandlerH5.invert_lat
+      ~DataHandlerH5.lat_lon
+      ~DataHandlerH5.load_workers
+      ~DataHandlerH5.n_tsteps
+      ~DataHandlerH5.norm_workers
+      ~DataHandlerH5.output_features
+      ~DataHandlerH5.raster_index
+      ~DataHandlerH5.raw_features
+      ~DataHandlerH5.raw_time_index
+      ~DataHandlerH5.shape
+      ~DataHandlerH5.target
+      ~DataHandlerH5.temporal_slice
+      ~DataHandlerH5.time_chunk_size
+      ~DataHandlerH5.time_chunks
+      ~DataHandlerH5.time_index
+      ~DataHandlerH5.timestamp_0
+      ~DataHandlerH5.timestamp_1
+      ~DataHandlerH5.train_only_features
+   
+   

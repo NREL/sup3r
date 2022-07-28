@@ -1,0 +1,33 @@
+sup3r.preprocessing.batch\_handling.Batch
+=========================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: Batch
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Batch.get_coarse_batch
+      ~Batch.reduce_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Batch.high_res
+      ~Batch.low_res
+      ~Batch.shape
+   
+   

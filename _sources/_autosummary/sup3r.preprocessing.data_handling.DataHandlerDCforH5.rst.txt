@@ -1,0 +1,101 @@
+sup3r.preprocessing.data\_handling.DataHandlerDCforH5
+=====================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling
+
+.. autoclass:: DataHandlerDCforH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerDCforH5.cache_data
+      ~DataHandlerDCforH5.check_cached_features
+      ~DataHandlerDCforH5.clear_data
+      ~DataHandlerDCforH5.data_fill
+      ~DataHandlerDCforH5.extract_data
+      ~DataHandlerDCforH5.extract_feature
+      ~DataHandlerDCforH5.feature_registry
+      ~DataHandlerDCforH5.get_cache_file_names
+      ~DataHandlerDCforH5.get_full_domain
+      ~DataHandlerDCforH5.get_input_arrays
+      ~DataHandlerDCforH5.get_inputs_recursive
+      ~DataHandlerDCforH5.get_lat_lon
+      ~DataHandlerDCforH5.get_next
+      ~DataHandlerDCforH5.get_node_cmd
+      ~DataHandlerDCforH5.get_observation_index
+      ~DataHandlerDCforH5.get_raster_index
+      ~DataHandlerDCforH5.get_raw_feature_list
+      ~DataHandlerDCforH5.get_time_index
+      ~DataHandlerDCforH5.load_cached_data
+      ~DataHandlerDCforH5.load_single_cached_feature
+      ~DataHandlerDCforH5.lookup
+      ~DataHandlerDCforH5.normalize
+      ~DataHandlerDCforH5.parallel_compute
+      ~DataHandlerDCforH5.parallel_data_fill
+      ~DataHandlerDCforH5.parallel_extract
+      ~DataHandlerDCforH5.parallel_load
+      ~DataHandlerDCforH5.parallel_normalization
+      ~DataHandlerDCforH5.pop_old_data
+      ~DataHandlerDCforH5.preflight
+      ~DataHandlerDCforH5.recursive_compute
+      ~DataHandlerDCforH5.serial_compute
+      ~DataHandlerDCforH5.serial_data_fill
+      ~DataHandlerDCforH5.serial_extract
+      ~DataHandlerDCforH5.source_handler
+      ~DataHandlerDCforH5.split_data
+      ~DataHandlerDCforH5.unnormalize
+      ~DataHandlerDCforH5.valid_handle_features
+      ~DataHandlerDCforH5.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerDCforH5.TIME_IND_FEATURES
+      ~DataHandlerDCforH5.TRAIN_ONLY_FEATURES
+      ~DataHandlerDCforH5.attrs
+      ~DataHandlerDCforH5.cache_files
+      ~DataHandlerDCforH5.cache_pattern
+      ~DataHandlerDCforH5.cached_features
+      ~DataHandlerDCforH5.compute_workers
+      ~DataHandlerDCforH5.derive_features
+      ~DataHandlerDCforH5.extract_features
+      ~DataHandlerDCforH5.extract_workers
+      ~DataHandlerDCforH5.feature_mem
+      ~DataHandlerDCforH5.file_paths
+      ~DataHandlerDCforH5.full_domain
+      ~DataHandlerDCforH5.grid_mem
+      ~DataHandlerDCforH5.grid_shape
+      ~DataHandlerDCforH5.handle_features
+      ~DataHandlerDCforH5.input_file_info
+      ~DataHandlerDCforH5.invert_lat
+      ~DataHandlerDCforH5.lat_lon
+      ~DataHandlerDCforH5.load_workers
+      ~DataHandlerDCforH5.n_tsteps
+      ~DataHandlerDCforH5.norm_workers
+      ~DataHandlerDCforH5.output_features
+      ~DataHandlerDCforH5.raster_index
+      ~DataHandlerDCforH5.raw_features
+      ~DataHandlerDCforH5.raw_time_index
+      ~DataHandlerDCforH5.shape
+      ~DataHandlerDCforH5.target
+      ~DataHandlerDCforH5.temporal_slice
+      ~DataHandlerDCforH5.time_chunk_size
+      ~DataHandlerDCforH5.time_chunks
+      ~DataHandlerDCforH5.time_index
+      ~DataHandlerDCforH5.timestamp_0
+      ~DataHandlerDCforH5.timestamp_1
+      ~DataHandlerDCforH5.train_only_features
+   
+   

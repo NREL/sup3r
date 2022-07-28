@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.pipeline.forward_pass.ForwardPassStrategy &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.pipeline.forward_pass_cli" href="sup3r.pipeline.forward_pass_cli.html" />
+    <link rel="prev" title="sup3r.pipeline.forward_pass.ForwardPass" href="sup3r.pipeline.forward_pass.ForwardPass.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.pipeline.html">sup3r.pipeline</a> &raquo;</li>
+          <li><a href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a> &raquo;</li>
+      <li>sup3r.pipeline.forward_pass.ForwardPassStrategy</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-pipeline-forward-pass-forwardpassstrategy">
+<h1>sup3r.pipeline.forward_pass.ForwardPassStrategy<a class="headerlink" href="#sup3r-pipeline-forward-pass-forwardpassstrategy" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ForwardPassStrategy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s_enhance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_enhance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwp_chunk_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_overlap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_overlap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_class</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Sup3rGan'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">slice(None,</span> <span class="pre">None,</span> <span class="pre">None)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_handler</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html#sup3r.preprocessing.data_handling.InputMixIn" title="sup3r.preprocessing.data_handling.InputMixIn"><code class="xref py py-class docutils literal notranslate"><span class="pre">InputMixIn</span></code></a></p>
+<p>Class to prepare data for forward passes through generator.</p>
+<p>A full file list of contiguous times is provided.  This file list is split
+up into chunks each of which is passed to a different node. These chunks
+can overlap in time. The file list chunk is further split up into temporal
+and spatial chunks which can also overlap. This handler stores information
+on these chunks, how they overlap, and how to crop generator output to
+stich the chunks back togerther.</p>
+<p>Use these inputs to initialize data handlers on different nodes and
+to define the size of the data chunks that will be passed through the
+generator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>list | str</em>) – A list of files to extract raster data from. Each file must have
+the same number of timesteps. Can also pass a string with a
+unix-style file path which will be passed through glob.glob</p></li>
+<li><p><strong>model_args</strong> (<em>str | list</em>) – Positional arguments to send to <cite>model_class.load(*model_args)</cite> to
+initialize the GAN. Typically this is just the string path to the
+model directory, but can be multiple models or arguments for more
+complex models.</p></li>
+<li><p><strong>s_enhance</strong> (<em>int</em>) – Factor by which the Sup3rGan model will enhance the spatial
+dimensions of low resolution data</p></li>
+<li><p><strong>t_enhance</strong> (<em>int</em>) – Factor by which the Sup3rGan model will enhance temporal dimension
+of low resolution data</p></li>
+<li><p><strong>fwp_chunk_shape</strong> (<em>tuple</em>) – Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
+chunk to use for a forward pass. The number of nodes that the
+ForwardPassStrategy is set to distribute to is calculated by
+dividing up the total time index from all file_paths by the
+temporal part of this chunk shape. Each node will then be
+parallelized accross parallel processes by the spatial chunk shape.
+If temporal_overlap / spatial_overlap are non zero the chunk sent
+to the generator can be bigger than this shape. If running in
+serial set this equal to the shape of the full spatiotemporal data
+volume for best performance.</p></li>
+<li><p><strong>spatial_overlap</strong> (<em>int</em>) – Size of spatial overlap between coarse chunks passed to forward
+passes for subsequent spatial stitching. This overlap will pad both
+sides of the fwp_chunk_shape. Note that the first and last chunks
+in any of the spatial dimension will not be padded.</p></li>
+<li><p><strong>temporal_overlap</strong> (<em>int</em>) – Size of temporal overlap between coarse chunks passed to forward
+passes for subsequent temporal stitching. This overlap will pad
+both sides of the fwp_chunk_shape. Note that the first and last
+chunks in the temporal dimension will not be padded.</p></li>
+<li><p><strong>model_class</strong> (<em>str</em>) – Name of the sup3r model class for the GAN model to load. The
+default is the basic spatial / spatiotemporal Sup3rGan model. This
+will be loaded from sup3r.models</p></li>
+<li><p><strong>target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster. Either need target+shape or
+raster_file.</p></li>
+<li><p><strong>shape</strong> (<em>tuple</em>) – (rows, cols) grid size. Either need target+shape or raster_file.</p></li>
+<li><p><strong>temporal_slice</strong> (<em>slice</em>) – Slice defining size of full temporal domain. e.g. If we have 5
+files each with 5 time steps then temporal_slice = slice(None) will
+select all 25 time steps.</p></li>
+<li><p><strong>raster_file</strong> (<em>str | None</em>) – File for raster_index array for the corresponding target and
+shape. If specified the raster_index will be loaded from the file
+if it exists or written to the file if it does not yet exist.
+If None raster_index will be calculated directly. Either need
+target+shape or raster_file.</p></li>
+<li><p><strong>time_chunk_size</strong> (<em>int</em>) – Size of chunks to split time dimension into for parallel data
+extraction. If running in serial this can be set to the size
+of the full time index for best performance.</p></li>
+<li><p><strong>cache_pattern</strong> (<em>str | None</em>) – Pattern for files for saving feature data. e.g.
+file_path_{feature}.pkl Each feature will be saved to a file with
+the feature name replaced in cache_pattern. If not None
+feature arrays will be saved here and not stored in self.data until
+load_cached_data is called. The cache_pattern can also include
+{shape}, {target}, {times} which will help ensure unique cache
+files for complex problems.</p></li>
+<li><p><strong>overwrite_cache</strong> (<em>bool</em>) – Whether to overwrite cache files storing the computed/extracted
+feature data</p></li>
+<li><p><strong>out_pattern</strong> (<em>str</em>) – Output file pattern. Must be of form &lt;path&gt;/&lt;name&gt;_{file_id}.&lt;ext&gt;.
+e.g. /tmp/sup3r_job_{file_id}.h5
+Each output file will have a unique file_id filled in and the ext
+determines the output type. Pattern can also include {times}. This
+will be replaced with start_time-end_time. If pattern is None then
+data will be returned in an array and not saved.</p></li>
+<li><p><strong>output_type</strong> (<em>str</em>) – Either nc (netcdf) or h5. This selects the extension for output
+files and determines which output handler to use when writing the
+results of the forward passes</p></li>
+<li><p><strong>input_handler</strong> (<em>str</em>) – data handler class to use for input data. Provide a string name to
+match a class in data_handling.py. If None the correct handler will
+be guessed based on file type and time series properties.</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Providing a value for max workers will be used to set the value of
+pass_workers, extract_workers, compute_workers, output_workers, and
+load_workers.  If max_workers == 1 then all processes will be
+serialized. If None extract_workers, compute_workers, load_workers,
+output_workers, and pass_workers will use their own provided
+values.</p></li>
+<li><p><strong>pass_workers</strong> (<em>int | None</em>) – max number of workers to use for forward passes. If max_workers ==
+1 then processes will be serialized. If None max_workers will be
+estimated based on memory limits.</p></li>
+<li><p><strong>extract_workers</strong> (<em>int | None</em>) – max number of workers to use for extracting features from source
+data.</p></li>
+<li><p><strong>compute_workers</strong> (<em>int | None</em>) – max number of workers to use for computing derived features from
+raw features in source data.</p></li>
+<li><p><strong>load_workers</strong> (<em>int | None</em>) – max number of workers to use for loading cached feature data.</p></li>
+<li><p><strong>output_workers</strong> (<em>int | None</em>) – max number of workers to use for writing forward pass output.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_full_domain" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_full_domain</span></code></a>(file_paths)</p></td>
+<td><p>Get target and grid_shape for largest possible domain</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_cropped_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_cropped_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_hr_cropped_slices</span></code></a>(lr_slices, lr_pad_slices)</p></td>
+<td><p>Get cropped spatial and temporal slices for stitching</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_hr_slices</span></code></a>(slices)</p></td>
+<td><p>Get high res slices from low res slices</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_node_kwargs" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_node_kwargs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_node_kwargs</span></code></a>(node_index)</p></td>
+<td><p>Get node specific variables given an associated index</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_output_file_names" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_output_file_names"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_output_file_names</span></code></a>(out_files, file_ids)</p></td>
+<td><p>Get output file names for each file chunk forward pass</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_padded_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_padded_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_padded_slices</span></code></a>(slices, ends)</p></td>
+<td><p>Pad slices for data chunk overlap</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_spatial_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_spatial_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_spatial_slices</span></code></a>([data_shape])</p></td>
+<td><p>Get slices for small data chunks that are passed through generator</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_ti_hr_crop_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_ti_hr_crop_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ti_hr_crop_slices</span></code></a>(ti_slices, ti_pad_slices)</p></td>
+<td><p>Get cropped temporal slices for stitching</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_index" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_time_index</span></code></a>(file_paths)</p></td>
+<td><p>Get time index for source data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_slices" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_time_slices</span></code></a>(fwp_chunk_size, time_overlap)</p></td>
+<td><p>Calculate the number of time chunks across the full time index</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.cache_pattern" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.cache_pattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_pattern</span></code></a></p></td>
+<td><p>Get correct cache file pattern for formatting.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.file_ids" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.file_ids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_ids</span></code></a></p></td>
+<td><p>Get file id for each output file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.file_paths" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.file_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_paths</span></code></a></p></td>
+<td><p>Get file paths for input data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.full_domain" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">full_domain</span></code></a></p></td>
+<td><p>Get target and shape for full domain if not specified and raster file is None or does not exist</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.grid_shape" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.grid_shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grid_shape</span></code></a></p></td>
+<td><p>Get shape of raster</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_file_info" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_file_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_file_info</span></code></a></p></td>
+<td><p>Method to provide info about files in log output.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_handler_class" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_handler_class"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_handler_class</span></code></a></p></td>
+<td><p>Get data handler class used to handle input</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_type" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_type</span></code></a></p></td>
+<td><p>Get input data type</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.nodes" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.nodes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nodes</span></code></a></p></td>
+<td><p>Get the number of nodes that this strategy should distribute work to, calculated as the source time index divided by the temporal part of the fwp_chunk_shape</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.out_files" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.out_files"><code class="xref py py-obj docutils literal notranslate"><span class="pre">out_files</span></code></a></p></td>
+<td><p>Get output file names for forward pass output</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.output_type" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.output_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_type</span></code></a></p></td>
+<td><p>Get output data type</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.raw_time_index" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.raw_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_time_index</span></code></a></p></td>
+<td><p>Time index for input data without time pruning.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.target" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.target"><code class="xref py py-obj docutils literal notranslate"><span class="pre">target</span></code></a></p></td>
+<td><p>Get lower left corner of raster</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.temporal_slice" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.temporal_slice"><code class="xref py py-obj docutils literal notranslate"><span class="pre">temporal_slice</span></code></a></p></td>
+<td><p>Get temporal range to extract from full dataset</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.time_index" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index</span></code></a></p></td>
+<td><p>Time index for input data with time pruning.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_0" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_0"><code class="xref py py-obj docutils literal notranslate"><span class="pre">timestamp_0</span></code></a></p></td>
+<td><p>Get a string timestamp for the first time index value with the format YYYYMMDDHHMMSS</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_1" title="sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">timestamp_1</span></code></a></p></td>
+<td><p>Get a string timestamp for the last time index value with the format YYYYMMDDHHMMSS</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.file_paths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">file_paths</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.file_paths" title="Permalink to this definition"></a></dt>
+<dd><p>Get file paths for input data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.temporal_slice">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_slice</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.temporal_slice" title="Permalink to this definition"></a></dt>
+<dd><p>Get temporal range to extract from full dataset</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.cache_pattern">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_pattern</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.cache_pattern" title="Permalink to this definition"></a></dt>
+<dd><p>Get correct cache file pattern for formatting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_cache_pattern</strong> (<em>str</em>) – The cache file pattern with formatting keys included.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_full_domain">
+<span class="sig-name descname"><span class="pre">get_full_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_full_domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_full_domain" title="Permalink to this definition"></a></dt>
+<dd><p>Get target and grid_shape for largest possible domain</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_index">
+<span class="sig-name descname"><span class="pre">get_time_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_time_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Get time index for source data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file_paths</strong> (<em>list</em>) – List of file paths for source data</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>time_index</strong> (<em>ndarray</em>) – Array of time indices for source data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.file_ids">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">file_ids</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.file_ids" title="Permalink to this definition"></a></dt>
+<dd><p>Get file id for each output file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_file_ids</strong> (<em>list</em>) – List of file ids for each output file. Will be used to name output
+files of the form filename_{file_id}.ext</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.out_files">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">out_files</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.out_files" title="Permalink to this definition"></a></dt>
+<dd><p>Get output file names for forward pass output</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_out_files</strong> (<em>list</em>) – List of output files for forward pass output data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_type</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_type" title="Permalink to this definition"></a></dt>
+<dd><p>Get input data type</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>input_type</em> – e.g. ‘nc’ or ‘h5’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.output_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output_type</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.output_type" title="Permalink to this definition"></a></dt>
+<dd><p>Get output data type</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>output_type</em> – e.g. ‘nc’ or ‘h5’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_handler_class">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_handler_class</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_handler_class" title="Permalink to this definition"></a></dt>
+<dd><p>Get data handler class used to handle input</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>_handler_class</em> – e.g. DataHandlerNC, DataHandlerH5, etc</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_node_kwargs">
+<span class="sig-name descname"><span class="pre">get_node_kwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_index</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_node_kwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_node_kwargs" title="Permalink to this definition"></a></dt>
+<dd><p>Get node specific variables given an associated index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>node_index</strong> (<em>int</em>) – Index to select node specific variables. This index selects the
+corresponding file set, cropped_file_slice, padded_file_slice,
+and sets of padded/overlapping/cropped spatial slices for spatial
+chunks</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>kwargs</strong> (<em>dict</em>) – Dictionary containing the node specific variables</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.nodes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.nodes" title="Permalink to this definition"></a></dt>
+<dd><p>Get the number of nodes that this strategy should distribute work
+to, calculated as the source time index divided by the temporal part of
+the fwp_chunk_shape</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_slices">
+<span class="sig-name descname"><span class="pre">get_time_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fwp_chunk_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_overlap</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_time_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_time_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the number of time chunks across the full time index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fwp_chunk_size</strong> (<em>tuple</em>) – Shape of data chunks passed to generator</p></li>
+<li><p><strong>time_overlap</strong> (<em>int</em>) – Size of temporal overlap between time chunks</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ti_chunks</strong> (<em>list</em>) – List of time index slices</p></li>
+<li><p><strong>ti_pad_chunks</strong> (<em>list</em>) – List of padded time index slices</p></li>
+<li><p><strong>ti_hr_crop_chunks</strong> (<em>list</em>) – List of cropped chunks for stitching high res output</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_output_file_names">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_output_file_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_ids</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_output_file_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_output_file_names" title="Permalink to this definition"></a></dt>
+<dd><p>Get output file names for each file chunk forward pass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>out_files</strong> (<em>str</em>) – Output file pattern. Should be of the form
+/&lt;path&gt;/&lt;name&gt;_{file_id}.&lt;ext&gt;. e.g. /tmp/fp_out_{file_id}.h5.
+Each output file will have a unique file_id filled in and the ext
+determines the output type.</p></li>
+<li><p><strong>file_ids</strong> (<em>list</em>) – List of file ids for each output file. e.g. date range</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of output file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_spatial_slices">
+<span class="sig-name descname"><span class="pre">get_spatial_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_spatial_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_spatial_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Get slices for small data chunks that are passed through generator</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data_shape</strong> (<em>slice</em>) – Size of data volume corresponding to the spatial and temporal
+extent of files in file_paths.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>lr_slices</strong> (<em>list</em>) – List of slices for low res data chunks which have not been padded</p></li>
+<li><p><strong>lr_pad_slices</strong> (<em>list</em>) – List of slices which have been padded so that high res output
+can be stitched together</p></li>
+<li><p><strong>hr_slices</strong> (<em>list</em>) – List of slices for high res data corresponding to the
+lr_slices regions</p></li>
+<li><p><strong>hr_crop_slices</strong> (<em>list</em>) – List of slices used for cropping generator output
+when forward passes are performed on overlapping chunks</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_padded_slices">
+<span class="sig-name descname"><span class="pre">get_padded_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ends</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_padded_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_padded_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Pad slices for data chunk overlap</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slices</strong> (<em>list</em>) – List of unpadded slices for data chunk
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>ends</strong> (<em>list</em>) – List of max indices for spatial and temporal domains
+(spatial_1, spatial_2, temporal)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of padded slices
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_slices">
+<span class="sig-name descname"><span class="pre">get_hr_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slices</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_hr_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Get high res slices from low res slices</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>slices</strong> (<em>list</em>) – List of low res slices</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of high res slices
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_ti_hr_crop_slices">
+<span class="sig-name descname"><span class="pre">get_ti_hr_crop_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ti_slices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ti_pad_slices</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_ti_hr_crop_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_ti_hr_crop_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Get cropped temporal slices for stitching</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ti_slices</strong> (<em>list</em>) – List of unpadded slices for time chunks
+(temporal)</p></li>
+<li><p><strong>ti_pad_slices</strong> (<em>list</em>) – List of padded slices for time chunks
+(temporal)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of cropped slices
+(temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_cropped_slices">
+<span class="sig-name descname"><span class="pre">get_hr_cropped_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lr_slices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr_pad_slices</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/pipeline/forward_pass.html#ForwardPassStrategy.get_hr_cropped_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.get_hr_cropped_slices" title="Permalink to this definition"></a></dt>
+<dd><p>Get cropped spatial and temporal slices for stitching</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lr_slices</strong> (<em>list</em>) – List of unpadded slices for data chunk
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>lr_pad_slices</strong> (<em>list</em>) – List of padded slices for data chunk
+(spatial_1, spatial_2, temporal)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of cropped slices
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.full_domain">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">full_domain</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.full_domain" title="Permalink to this definition"></a></dt>
+<dd><p>Get target and shape for full domain if not specified and raster
+file is None or does not exist</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>_target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster.</p></li>
+<li><p><strong>_grid_shape</strong> (<em>tuple</em>) – (rows, cols) grid size.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.grid_shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">grid_shape</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.grid_shape" title="Permalink to this definition"></a></dt>
+<dd><p>Get shape of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_grid_shape</strong> (<em>tuple</em>) – (rows, cols) grid size.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.input_file_info">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_file_info</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.input_file_info" title="Permalink to this definition"></a></dt>
+<dd><p>Method to provide info about files in log output. Since NETCDF files
+have single time slices printing out all the file paths is just a text
+dump without much info.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>str</em> – message to append to log output that does not include a huge info
+dump of file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.raw_time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_time_index</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.raw_time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Time index for input data without time pruning. This is the base
+time index for the raw input data.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.target">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">target</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.target" title="Permalink to this definition"></a></dt>
+<dd><p>Get lower left corner of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_index</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Time index for input data with time pruning. This is the raw time
+index with a cropped range and time step applied.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_0">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">timestamp_0</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_0" title="Permalink to this definition"></a></dt>
+<dd><p>Get a string timestamp for the first time index value with the
+format YYYYMMDDHHMMSS</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_1">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">timestamp_1</span></span><a class="headerlink" href="#sup3r.pipeline.forward_pass.ForwardPassStrategy.timestamp_1" title="Permalink to this definition"></a></dt>
+<dd><p>Get a string timestamp for the last time index value with the
+format YYYYMMDDHHMMSS</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.pipeline.forward_pass.ForwardPass.html" class="btn btn-neutral float-left" title="sup3r.pipeline.forward_pass.ForwardPass" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.pipeline.forward_pass_cli.html" class="btn btn-neutral float-right" title="sup3r.pipeline.forward_pass_cli" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+sup3r.pipeline.config.Sup3rPipelineConfig
+=========================================
+
+.. currentmodule:: sup3r.pipeline.config
+
+.. autoclass:: Sup3rPipelineConfig
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rPipelineConfig.check_files
+      ~Sup3rPipelineConfig.check_overwrite_keys
+      ~Sup3rPipelineConfig.clear
+      ~Sup3rPipelineConfig.copy
+      ~Sup3rPipelineConfig.fromkeys
+      ~Sup3rPipelineConfig.get
+      ~Sup3rPipelineConfig.get_file
+      ~Sup3rPipelineConfig.items
+      ~Sup3rPipelineConfig.keys
+      ~Sup3rPipelineConfig.pop
+      ~Sup3rPipelineConfig.popitem
+      ~Sup3rPipelineConfig.resolve_path
+      ~Sup3rPipelineConfig.set_self_dict
+      ~Sup3rPipelineConfig.setdefault
+      ~Sup3rPipelineConfig.str_replace_and_resolve
+      ~Sup3rPipelineConfig.update
+      ~Sup3rPipelineConfig.values
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Sup3rPipelineConfig.NAME
+      ~Sup3rPipelineConfig.REQUIREMENTS
+      ~Sup3rPipelineConfig.analysis_years
+      ~Sup3rPipelineConfig.config_dir
+      ~Sup3rPipelineConfig.config_keys
+      ~Sup3rPipelineConfig.execution_control
+      ~Sup3rPipelineConfig.hardware
+      ~Sup3rPipelineConfig.log_directory
+      ~Sup3rPipelineConfig.log_level
+      ~Sup3rPipelineConfig.logging
+      ~Sup3rPipelineConfig.name
+      ~Sup3rPipelineConfig.pipeline
+      ~Sup3rPipelineConfig.status_file
+   
+   

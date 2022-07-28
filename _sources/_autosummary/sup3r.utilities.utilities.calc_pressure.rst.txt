@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.calc\_pressure
+========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: calc_pressure

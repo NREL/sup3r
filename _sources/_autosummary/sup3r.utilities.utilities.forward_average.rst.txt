@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.forward\_average
+==========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: forward_average

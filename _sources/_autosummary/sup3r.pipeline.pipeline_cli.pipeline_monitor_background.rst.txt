@@ -1,0 +1,6 @@
+sup3r.pipeline.pipeline\_cli.pipeline\_monitor\_background
+==========================================================
+
+.. currentmodule:: sup3r.pipeline.pipeline_cli
+
+.. autofunction:: pipeline_monitor_background

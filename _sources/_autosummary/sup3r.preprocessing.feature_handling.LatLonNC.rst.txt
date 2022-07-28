@@ -1,0 +1,24 @@
+sup3r.preprocessing.feature\_handling.LatLonNC
+==============================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: LatLonNC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LatLonNC.compute
+   
+   
+
+   
+   
+   

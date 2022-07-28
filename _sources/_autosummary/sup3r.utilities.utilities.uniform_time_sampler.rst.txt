@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.uniform\_time\_sampler
+================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: uniform_time_sampler

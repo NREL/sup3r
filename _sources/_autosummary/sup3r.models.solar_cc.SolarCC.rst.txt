@@ -1,0 +1,73 @@
+sup3r.models.solar\_cc.SolarCC
+==============================
+
+.. currentmodule:: sup3r.models.solar_cc
+
+.. autoclass:: SolarCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SolarCC.calc_loss
+      ~SolarCC.calc_loss_disc
+      ~SolarCC.calc_loss_gen_advers
+      ~SolarCC.calc_loss_gen_content
+      ~SolarCC.calc_val_loss
+      ~SolarCC.discriminate
+      ~SolarCC.early_stop
+      ~SolarCC.finish_epoch
+      ~SolarCC.generate
+      ~SolarCC.get_loss_fun
+      ~SolarCC.get_optimizer_config
+      ~SolarCC.get_weight_update_fraction
+      ~SolarCC.init_optimizer
+      ~SolarCC.load
+      ~SolarCC.load_network
+      ~SolarCC.load_saved_params
+      ~SolarCC.log_loss_details
+      ~SolarCC.run_gradient_descent
+      ~SolarCC.save
+      ~SolarCC.seed
+      ~SolarCC.set_feature_names
+      ~SolarCC.set_norm_stats
+      ~SolarCC.train
+      ~SolarCC.train_epoch
+      ~SolarCC.un_norm_output
+      ~SolarCC.update_adversarial_weights
+      ~SolarCC.update_loss_details
+      ~SolarCC.update_optimizer
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SolarCC.DAYLIGHT_HOURS
+      ~SolarCC.STARTING_HOUR
+      ~SolarCC.discriminator
+      ~SolarCC.discriminator_weights
+      ~SolarCC.generator
+      ~SolarCC.generator_weights
+      ~SolarCC.history
+      ~SolarCC.means
+      ~SolarCC.meta
+      ~SolarCC.model_params
+      ~SolarCC.optimizer
+      ~SolarCC.optimizer_disc
+      ~SolarCC.output_features
+      ~SolarCC.stdevs
+      ~SolarCC.training_features
+      ~SolarCC.version_record
+      ~SolarCC.weights
+   
+   

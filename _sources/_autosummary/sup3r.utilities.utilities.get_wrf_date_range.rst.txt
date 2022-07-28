@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_wrf\_date\_range
+===============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_wrf_date_range

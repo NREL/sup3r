@@ -1,0 +1,23 @@
+sup3r.version
+=============
+
+.. automodule:: sup3r.version
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

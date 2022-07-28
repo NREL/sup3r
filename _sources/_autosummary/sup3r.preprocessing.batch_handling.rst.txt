@@ -1,0 +1,38 @@
+sup3r.preprocessing.batch\_handling
+===================================
+
+.. automodule:: sup3r.preprocessing.batch_handling
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Batch
+      BatchHandler
+      BatchHandlerCC
+      BatchHandlerDC
+      SpatialBatchHandler
+      SpatialBatchHandlerCC
+      ValidationData
+      ValidationDataDC
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.interp\_var\_to\_height
+=================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: interp_var_to_height

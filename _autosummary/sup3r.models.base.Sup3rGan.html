@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.models.base.Sup3rGan &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.models.data_centric" href="sup3r.models.data_centric.html" />
+    <link rel="prev" title="sup3r.models.base" href="sup3r.models.base.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.models.html">sup3r.models</a> &raquo;</li>
+          <li><a href="sup3r.models.base.html">sup3r.models.base</a> &raquo;</li>
+      <li>sup3r.models.base.Sup3rGan</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.models.base.Sup3rGan.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-models-base-sup3rgan">
+<h1>sup3r.models.base.Sup3rGan<a class="headerlink" href="#sup3r-models-base-sup3rgan" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Sup3rGan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_layers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disc_layers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'MeanSquaredError'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_disc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate_disc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">history</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stdevs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html#sup3r.models.abstract.AbstractSup3rGan" title="sup3r.models.abstract.AbstractSup3rGan"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractSup3rGan</span></code></a></p>
+<p>Basic sup3r GAN model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gen_layers</strong> (<em>list | str</em>) – Hidden layers input argument to phygnn.base.CustomNetwork for the
+generative super resolving model. Can also be a str filepath to a
+.json config file containing the input layers argument or a .pkl
+for a saved pre-trained model.</p></li>
+<li><p><strong>disc_layers</strong> (<em>list | str</em>) – Hidden layers input argument to phygnn.base.CustomNetwork for the
+discriminative model (spatial or spatiotemporal discriminator). Can
+also be a str filepath to a .json config file containing the input
+layers argument or a .pkl for a saved pre-trained model.</p></li>
+<li><p><strong>loss</strong> (<em>str</em>) – Loss function class name from sup3r.utilities.loss_metrics
+(prioritized) or tensorflow.keras.losses. Defaults to
+tf.keras.losses.MeanSquaredError.</p></li>
+<li><p><strong>optimizer</strong> (<em>tf.keras.optimizers.Optimizer | dict | None | str</em>) – Instantiated tf.keras.optimizers object or a dict optimizer config
+from tf.keras.optimizers.get_config(). None defaults to Adam.</p></li>
+<li><p><strong>learning_rate</strong> (<em>float, optional</em>) – Optimizer learning rate. Not used if optimizer input arg is a
+pre-initialized object or if optimizer input arg is a config dict.</p></li>
+<li><p><strong>optimizer_disc</strong> (<em>tf.keras.optimizers.Optimizer | dict | None</em>) – Same as optimizer input, but if specified this makes a different
+optimizer just for the discriminator network (spatial or
+spatiotemporal disc).</p></li>
+<li><p><strong>learning_rate_disc</strong> (<em>float, optional</em>) – Same as learning_rate input, but if specified this makes a
+different learning_rate just for the discriminator network (spatial
+or spatiotemporal disc).</p></li>
+<li><p><strong>history</strong> (<em>pd.DataFrame | str | None</em>) – Model training history with “epoch” index, str pointing to a saved
+history csv file with “epoch” as first column, or None for clean
+history</p></li>
+<li><p><strong>meta</strong> (<em>dict | None</em>) – Model meta data that describes how the model was created.</p></li>
+<li><p><strong>means</strong> (<em>np.ndarray | list | None</em>) – Set of mean values for data normalization with the same length as
+number of features. Can be used to maintain a consistent
+normalization scheme between transfer learning domains.</p></li>
+<li><p><strong>stdevs</strong> (<em>np.ndarray | list | None</em>) – Set of stdev values for data normalization with the same length as
+number of features. Can be used to maintain a consistent
+normalization scheme between transfer learning domains.</p></li>
+<li><p><strong>name</strong> (<em>str | None</em>) – Optional name for the GAN.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.calc_loss" title="sup3r.models.base.Sup3rGan.calc_loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_loss</span></code></a>(hi_res_true, hi_res_gen[, ...])</p></td>
+<td><p>Calculate the GAN loss function using generated and true high resolution data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.calc_loss_disc" title="sup3r.models.base.Sup3rGan.calc_loss_disc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_loss_disc</span></code></a>(disc_out_true, disc_out_gen)</p></td>
+<td><p>Calculate the loss term for the discriminator model (either the spatial or temporal discriminator).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.calc_loss_gen_advers" title="sup3r.models.base.Sup3rGan.calc_loss_gen_advers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_loss_gen_advers</span></code></a>(disc_out_gen)</p></td>
+<td><p>Calculate the adversarial component of the loss term for the generator model.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.calc_loss_gen_content" title="sup3r.models.base.Sup3rGan.calc_loss_gen_content"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_loss_gen_content</span></code></a>(hi_res_true, hi_res_gen)</p></td>
+<td><p>Calculate the content loss term for the generator model.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.calc_val_loss" title="sup3r.models.base.Sup3rGan.calc_val_loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_val_loss</span></code></a>(batch_handler, ...)</p></td>
+<td><p>Calculate the validation loss at the current state of model training</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.discriminate" title="sup3r.models.base.Sup3rGan.discriminate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">discriminate</span></code></a>(hi_res[, norm_in])</p></td>
+<td><p>Run the discriminator model on a hi resolution input field.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.early_stop" title="sup3r.models.base.Sup3rGan.early_stop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">early_stop</span></code></a>(history, column[, threshold, n_epoch])</p></td>
+<td><p>Determine whether to stop training early based on nearly no change to validation loss for a certain number of consecutive epochs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.finish_epoch" title="sup3r.models.base.Sup3rGan.finish_epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">finish_epoch</span></code></a>(epoch, epochs, t0, ...[, extras])</p></td>
+<td><p>Perform finishing checks after an epoch is done training</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.generate" title="sup3r.models.base.Sup3rGan.generate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate</span></code></a>(low_res[, norm_in, un_norm_out])</p></td>
+<td><p>Use the generator model to generate high res data from low res input.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.get_loss_fun" title="sup3r.models.base.Sup3rGan.get_loss_fun"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_loss_fun</span></code></a>(loss)</p></td>
+<td><p>Get the initialized loss function class from the sup3r loss library or the tensorflow losses.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.get_optimizer_config" title="sup3r.models.base.Sup3rGan.get_optimizer_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_optimizer_config</span></code></a>(optimizer)</p></td>
+<td><p>Get a config that defines the current GAN optimizer</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.get_weight_update_fraction" title="sup3r.models.base.Sup3rGan.get_weight_update_fraction"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_weight_update_fraction</span></code></a>(history, ...[, ...])</p></td>
+<td><p>Get the factor by which to multiply previous adversarial loss weight</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.init_optimizer" title="sup3r.models.base.Sup3rGan.init_optimizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">init_optimizer</span></code></a>(optimizer, learning_rate)</p></td>
+<td><p>Initialize keras optimizer object.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.load" title="sup3r.models.base.Sup3rGan.load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code></a>(model_dir[, verbose])</p></td>
+<td><p>Load the GAN with its sub-networks from a previously saved-to output directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.load_network" title="sup3r.models.base.Sup3rGan.load_network"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_network</span></code></a>(model, name)</p></td>
+<td><p>Load a CustomNetwork object from hidden layers config, .json file config, or .pkl file saved pre=trained model.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.load_saved_params" title="sup3r.models.base.Sup3rGan.load_saved_params"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_saved_params</span></code></a>(out_dir[, verbose])</p></td>
+<td><p>Load saved GAN model_params (you need this and the gen+disc models to load a full GAN).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.log_loss_details" title="sup3r.models.base.Sup3rGan.log_loss_details"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log_loss_details</span></code></a>(loss_details[, level])</p></td>
+<td><p>Log the loss details to the module logger.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.run_gradient_descent" title="sup3r.models.base.Sup3rGan.run_gradient_descent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_gradient_descent</span></code></a>(low_res, hi_res_true, ...)</p></td>
+<td><p>Run gradient descent for one mini-batch of (low_res, hi_res_true) and adjust NN weights</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.save" title="sup3r.models.base.Sup3rGan.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a>(out_dir)</p></td>
+<td><p>Save the GAN with its sub-networks to a directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.seed" title="sup3r.models.base.Sup3rGan.seed"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seed</span></code></a>([s])</p></td>
+<td><p>Set the random seed for reproducible results.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.set_feature_names" title="sup3r.models.base.Sup3rGan.set_feature_names"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_feature_names</span></code></a>(training_features, ...)</p></td>
+<td><p>Set the list of feature names input/output to/from the generative model and the discriminator(s)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.set_norm_stats" title="sup3r.models.base.Sup3rGan.set_norm_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_norm_stats</span></code></a>(new_means, new_stdevs)</p></td>
+<td><p>Set the normalization statistics associated with a data batch handler to model attributes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.train" title="sup3r.models.base.Sup3rGan.train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">train</span></code></a>(batch_handler, n_epoch[, ...])</p></td>
+<td><p>Train the GAN model on real low res data and real high res data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.train_epoch" title="sup3r.models.base.Sup3rGan.train_epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">train_epoch</span></code></a>(batch_handler, ...)</p></td>
+<td><p>Train the GAN for one epoch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.un_norm_output" title="sup3r.models.base.Sup3rGan.un_norm_output"><code class="xref py py-obj docutils literal notranslate"><span class="pre">un_norm_output</span></code></a>(hi_res)</p></td>
+<td><p>Un-normalize synthetically generated output data to physical units</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.update_adversarial_weights" title="sup3r.models.base.Sup3rGan.update_adversarial_weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_adversarial_weights</span></code></a>(history, ...)</p></td>
+<td><p>Update spatial / temporal adversarial loss weights based on training fraction history.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.update_loss_details" title="sup3r.models.base.Sup3rGan.update_loss_details"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_loss_details</span></code></a>(loss_details, new_data, ...)</p></td>
+<td><p>Update a dictionary of loss_details with loss information from a new batch.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.update_optimizer" title="sup3r.models.base.Sup3rGan.update_optimizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_optimizer</span></code></a>([option])</p></td>
+<td><p>Update optimizer by changing current configuration</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.discriminator" title="sup3r.models.base.Sup3rGan.discriminator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">discriminator</span></code></a></p></td>
+<td><p>Get the discriminator model.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.discriminator_weights" title="sup3r.models.base.Sup3rGan.discriminator_weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">discriminator_weights</span></code></a></p></td>
+<td><p>Get a list of layer weights and bias terms for the discriminator model.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.generator" title="sup3r.models.base.Sup3rGan.generator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generator</span></code></a></p></td>
+<td><p>Get the generative model.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.generator_weights" title="sup3r.models.base.Sup3rGan.generator_weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generator_weights</span></code></a></p></td>
+<td><p>Get a list of layer weights and bias terms for the generator model.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.history" title="sup3r.models.base.Sup3rGan.history"><code class="xref py py-obj docutils literal notranslate"><span class="pre">history</span></code></a></p></td>
+<td><p>Model training history DataFrame (None if not yet trained)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.means" title="sup3r.models.base.Sup3rGan.means"><code class="xref py py-obj docutils literal notranslate"><span class="pre">means</span></code></a></p></td>
+<td><p>Get the data normalization mean values.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.meta" title="sup3r.models.base.Sup3rGan.meta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">meta</span></code></a></p></td>
+<td><p>Get meta data dictionary that defines how the model was created</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.model_params" title="sup3r.models.base.Sup3rGan.model_params"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model_params</span></code></a></p></td>
+<td><p>Model parameters, used to save model to disc</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.optimizer" title="sup3r.models.base.Sup3rGan.optimizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimizer</span></code></a></p></td>
+<td><p>Get the tensorflow optimizer to perform gradient descent calculations for the generative network.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.optimizer_disc" title="sup3r.models.base.Sup3rGan.optimizer_disc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimizer_disc</span></code></a></p></td>
+<td><p>Get the tensorflow optimizer to perform gradient descent calculations for the discriminator network.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.output_features" title="sup3r.models.base.Sup3rGan.output_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_features</span></code></a></p></td>
+<td><p>Get the list of output feature names that the generative model outputs and that the discriminator predicts on.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.stdevs" title="sup3r.models.base.Sup3rGan.stdevs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stdevs</span></code></a></p></td>
+<td><p>Get the data normalization standard deviation values.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.training_features" title="sup3r.models.base.Sup3rGan.training_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">training_features</span></code></a></p></td>
+<td><p>Get the list of input feature names that the generative model was trained on.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.version_record" title="sup3r.models.base.Sup3rGan.version_record"><code class="xref py py-obj docutils literal notranslate"><span class="pre">version_record</span></code></a></p></td>
+<td><p>A record of important versions that this model was built with.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.models.base.Sup3rGan.weights" title="sup3r.models.base.Sup3rGan.weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">weights</span></code></a></p></td>
+<td><p>Get a list of all the layer weights and bias terms for the generator and discriminator networks</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.init_optimizer">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">init_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.init_optimizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.init_optimizer" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize keras optimizer object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>optimizer</strong> (<em>tf.keras.optimizers.Optimizer | dict | None | str</em>) – Instantiated tf.keras.optimizers object or a dict optimizer config
+from tf.keras.optimizers.get_config(). None defaults to Adam.</p></li>
+<li><p><strong>learning_rate</strong> (<em>float, optional</em>) – Optimizer learning rate. Not used if optimizer input arg is a
+pre-initialized object or if optimizer input arg is a config dict.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>optimizer</strong> (<em>tf.keras.optimizers.Optimizer</em>) – Initialized optimizer object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.load_network">
+<span class="sig-name descname"><span class="pre">load_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.load_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.load_network" title="Permalink to this definition"></a></dt>
+<dd><p>Load a CustomNetwork object from hidden layers config, .json file
+config, or .pkl file saved pre=trained model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>str | dict</em>) – Model hidden layers config, a .json with “hidden_layers” key, or a
+.pkl for a saved pre-trained model.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – Name of the model to be loaded</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>model</strong> (<em>phygnn.CustomNetwork</em>) – CustomNetwork object initialized from the model input.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.save" title="Permalink to this definition"></a></dt>
+<dd><p>Save the GAN with its sub-networks to a directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>out_dir</strong> (<em>str</em>) – Directory to save GAN model files. This directory will be created
+if it does not already exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.load">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.load" title="Permalink to this definition"></a></dt>
+<dd><p>Load the GAN with its sub-networks from a previously saved-to output
+directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_dir</strong> (<em>str</em>) – Directory to load GAN model files from.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Flag to log information about the loaded model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>out</strong> (<em>BaseModel</em>) – Returns a pretrained gan model that was previously saved to out_dir</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.load_saved_params">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_saved_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.load_saved_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.load_saved_params" title="Permalink to this definition"></a></dt>
+<dd><p>Load saved GAN model_params (you need this and the gen+disc models
+to load a full GAN).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>out_dir</strong> (<em>str</em>) – Directory to load GAN model files from.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Flag to log information about the loaded model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>params</strong> (<em>dict</em>) – Model parameters loaded from disk json file. This should be the
+same as self.model_params with and additional ‘history’ entry.
+Should be all the kwargs you need to init a GAN model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.means">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">means</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.means" title="Permalink to this definition"></a></dt>
+<dd><p>Get the data normalization mean values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>np.ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.stdevs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stdevs</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.stdevs" title="Permalink to this definition"></a></dt>
+<dd><p>Get the data normalization standard deviation values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>np.ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.set_norm_stats">
+<span class="sig-name descname"><span class="pre">set_norm_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_means</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_stdevs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.set_norm_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.set_norm_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Set the normalization statistics associated with a data batch
+handler to model attributes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>new_means</strong> (<em>list | tuple | np.ndarray</em>) – 1D iterable of mean values with same length as number of features.</p></li>
+<li><p><strong>new_stdevs</strong> (<em>list | tuple | np.ndarray</em>) – 1D iterable of stdev values with same length as number of features.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.set_feature_names">
+<span class="sig-name descname"><span class="pre">set_feature_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.set_feature_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.set_feature_names" title="Permalink to this definition"></a></dt>
+<dd><p>Set the list of feature names input/output to/from the generative
+model and the discriminator(s)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>training_features</strong> (<em>list</em>) – List of features names on the input side of the GAN</p></li>
+<li><p><strong>output_features</strong> (<em>list</em>) – List of feature names output by the GAN</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.get_loss_fun">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_loss_fun</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.get_loss_fun"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.get_loss_fun" title="Permalink to this definition"></a></dt>
+<dd><p>Get the initialized loss function class from the sup3r loss library
+or the tensorflow losses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>loss</strong> (<em>str</em>) – Loss function class name from sup3r.utilities.loss_metrics
+(prioritized) or tensorflow.keras.losses. Defaults to
+tf.keras.losses.MeanSquaredError.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>out</strong> (<em>tf.keras.losses.Loss</em>) – Initialized loss function class that is callable, e.g. if
+“MeanSquaredError” is requested, this will return
+an instance of tf.keras.losses.MeanSquaredError()</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.generator">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">generator</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.generator" title="Permalink to this definition"></a></dt>
+<dd><p>Get the generative model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>phygnn.base.CustomNetwork</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.generator_weights">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">generator_weights</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.generator_weights" title="Permalink to this definition"></a></dt>
+<dd><p>Get a list of layer weights and bias terms for the generator model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">un_norm_out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.generate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.generate" title="Permalink to this definition"></a></dt>
+<dd><p>Use the generator model to generate high res data from low res
+input. This is the public generate function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_res</strong> (<em>np.ndarray</em>) – Low-resolution input data, usually a 4D or 5D array of shape:
+(n_obs, spatial_1, spatial_2, n_features)
+(n_obs, spatial_1, spatial_2, n_temporal, n_features)</p></li>
+<li><p><strong>norm_in</strong> (<em>bool</em>) – Flag to normalize low_res input data if the self._means,
+self._stdevs attributes are available. The generator should always
+received normalized data with mean=0 stdev=1.</p></li>
+<li><p><strong>un_norm_out</strong> (<em>bool</em>) – Flag to un-normalize synthetically generated output data to physical
+units</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>hi_res</strong> (<em>ndarray</em>) – Synthetically generated high-resolution data, usually a 4D or 5D
+array with shape:
+(n_obs, spatial_1, spatial_2, n_features)
+(n_obs, spatial_1, spatial_2, n_temporal, n_features)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.discriminator">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">discriminator</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.discriminator" title="Permalink to this definition"></a></dt>
+<dd><p>Get the discriminator model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>phygnn.base.CustomNetwork</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.discriminator_weights">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">discriminator_weights</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.discriminator_weights" title="Permalink to this definition"></a></dt>
+<dd><p>Get a list of layer weights and bias terms for the discriminator
+model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.discriminate">
+<span class="sig-name descname"><span class="pre">discriminate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hi_res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.discriminate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.discriminate" title="Permalink to this definition"></a></dt>
+<dd><p>Run the discriminator model on a hi resolution input field.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hi_res</strong> (<em>np.ndarray</em>) – Real or fake high res data in a 4D or 5D tensor:
+(n_obs, spatial_1, spatial_2, n_features)
+(n_obs, spatial_1, spatial_2, n_temporal, n_features)</p></li>
+<li><p><strong>norm_in</strong> (<em>bool</em>) – Flag to normalize low_res input data if the self._means,
+self._stdevs attributes are available. The disc should always
+received normalized data with mean=0 stdev=1.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>out</strong> (<em>np.ndarray</em>) – Discriminator output logits</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.un_norm_output">
+<span class="sig-name descname"><span class="pre">un_norm_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hi_res</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.un_norm_output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.un_norm_output" title="Permalink to this definition"></a></dt>
+<dd><p>Un-normalize synthetically generated output data to physical units</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>hi_res</strong> (<em>tf.Tensor | np.ndarray</em>) – Synthetically generated high-resolution data</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>hi_res</strong> (<em>np.ndarray</em>) – Synthetically generated high-resolution data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.version_record">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">version_record</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.version_record" title="Permalink to this definition"></a></dt>
+<dd><p>A record of important versions that this model was built with.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>dict</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.optimizer">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">optimizer</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.optimizer" title="Permalink to this definition"></a></dt>
+<dd><p>Get the tensorflow optimizer to perform gradient descent
+calculations for the generative network. This is functionally identical
+to optimizer_disc is no special optimizer model or learning rate was
+specified for the disc.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>tf.keras.optimizers.Optimizer</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.optimizer_disc">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">optimizer_disc</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.optimizer_disc" title="Permalink to this definition"></a></dt>
+<dd><p>Get the tensorflow optimizer to perform gradient descent
+calculations for the discriminator network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>tf.keras.optimizers.Optimizer</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.get_optimizer_config">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_optimizer_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.get_optimizer_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.get_optimizer_config" title="Permalink to this definition"></a></dt>
+<dd><p>Get a config that defines the current GAN optimizer</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>optimizer</strong> (<em>tf.keras.optimizers.Optimizer</em>) – TF-Keras optimizer object</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>config</strong> (<em>dict</em>) – Optimizer config</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.update_optimizer">
+<span class="sig-name descname"><span class="pre">update_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">option</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'generator'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.update_optimizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.update_optimizer" title="Permalink to this definition"></a></dt>
+<dd><p>Update optimizer by changing current configuration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>option</strong> (<em>str</em>) – Which optimizer to update. Can be “generator”, “discriminator”, or
+“all”</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – kwargs to use for optimizer configuration update</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.meta">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">meta</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.meta" title="Permalink to this definition"></a></dt>
+<dd><p>Get meta data dictionary that defines how the model was created</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.training_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">training_features</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.training_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get the list of input feature names that the generative model was
+trained on.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.output_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output_features</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.output_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get the list of output feature names that the generative model
+outputs and that the discriminator predicts on.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.model_params">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model_params</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.model_params" title="Permalink to this definition"></a></dt>
+<dd><p>Model parameters, used to save model to disc</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>dict</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.history">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">history</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.history" title="Permalink to this definition"></a></dt>
+<dd><p>Model training history DataFrame (None if not yet trained)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>pandas.DataFrame | None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.weights">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">weights</span></span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.weights" title="Permalink to this definition"></a></dt>
+<dd><p>Get a list of all the layer weights and bias terms for the
+generator and discriminator networks</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.get_weight_update_fraction">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_weight_update_fraction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">history</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comparison_key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.5,</span> <span class="pre">0.95)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_frac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.get_weight_update_fraction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.get_weight_update_fraction" title="Permalink to this definition"></a></dt>
+<dd><p>Get the factor by which to multiply previous adversarial loss
+weight</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>history</strong> (<em>dict</em>) – Dictionary with information on how often discriminators
+were trained during previous epoch.</p></li>
+<li><p><strong>comparison_key</strong> (<em>str</em>) – history key to use for update check</p></li>
+<li><p><strong>update_bounds</strong> (<em>tuple</em>) – Tuple specifying allowed range for history[comparison_key]. If
+history[comparison_key] &lt; update_bounds[0] then the weight will be
+increased by (1 + update_frac). If history[comparison_key] &gt;
+update_bounds[1] then the weight will be decreased by 1 / (1 +
+update_frac).</p></li>
+<li><p><strong>update_frac</strong> (<em>float</em>) – Fraction by which to increase/decrease adversarial loss weight</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>float</em> – Factor by which to multiply old weight to get updated weight</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.update_loss_details">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">update_loss_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_len</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.update_loss_details"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.update_loss_details" title="Permalink to this definition"></a></dt>
+<dd><p>Update a dictionary of loss_details with loss information from a new
+batch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components where each value is a
+running average at the current state in the epoch.</p></li>
+<li><p><strong>new_data</strong> (<em>dict</em>) – Namespace of the breakdown of loss components for a single new
+batch.</p></li>
+<li><p><strong>batch_len</strong> (<em>int</em>) – Length of the incomming batch.</p></li>
+<li><p><strong>prefix</strong> (<em>None | str</em>) – Option to prefix the names of the loss data when saving to the
+loss_details dictionary.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_details</strong> (<em>dict</em>) – Same as input loss_details but with running averages updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.log_loss_details">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_loss_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'INFO'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.log_loss_details"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.log_loss_details" title="Permalink to this definition"></a></dt>
+<dd><p>Log the loss details to the module logger.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components where each value is a
+running average at the current state in the epoch.</p></li>
+<li><p><strong>level</strong> (<em>str</em>) – Log level (e.g. INFO, DEBUG)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.early_stop">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">early_stop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">history</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.early_stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.early_stop" title="Permalink to this definition"></a></dt>
+<dd><p>Determine whether to stop training early based on nearly no change
+to validation loss for a certain number of consecutive epochs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>history</strong> (<em>pd.DataFrame | None</em>) – Model training history</p></li>
+<li><p><strong>column</strong> (<em>str</em>) – Column from the model training history to evaluate for early
+termination.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – The absolute relative fractional difference in validation loss
+between subsequent epochs below which an early termination is
+warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+less than the default thresold of 0.01 and would satisfy the
+condition for early termination.</p></li>
+<li><p><strong>n_epoch</strong> (<em>int</em>) – The number of consecutive epochs that satisfy the threshold that
+warrants an early stop.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>stop</strong> (<em>bool</em>) – Flag to stop training (True) or keep going (False).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.finish_epoch">
+<span class="sig-name descname"><span class="pre">finish_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint_int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_on</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_threshold</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_n_epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extras</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.finish_epoch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.finish_epoch" title="Permalink to this definition"></a></dt>
+<dd><p>Perform finishing checks after an epoch is done training</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>epoch</strong> (<em>int</em>) – Epoch number that is finishing</p></li>
+<li><p><strong>epochs</strong> (<em>list</em>) – List of epochs being iterated through</p></li>
+<li><p><strong>t0</strong> (<em>float</em>) – Starting time of training.</p></li>
+<li><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components</p></li>
+<li><p><strong>checkpoint_int</strong> (<em>int | None</em>) – Epoch interval at which to save checkpoint models.</p></li>
+<li><p><strong>out_dir</strong> (<em>str</em>) – Directory to save checkpoint GAN models. Should have {epoch} in
+the directory name. This directory will be created if it does not
+already exist.</p></li>
+<li><p><strong>early_stop_on</strong> (<em>str | None</em>) – If not None, this should be a column in the training history to
+evaluate for early stopping (e.g. validation_loss_gen,
+validation_loss_disc). If this value in this history decreases by
+an absolute fractional relative difference of less than 0.01 for
+more than 5 epochs in a row, the training will stop early.</p></li>
+<li><p><strong>early_stop_threshold</strong> (<em>float</em>) – The absolute relative fractional difference in validation loss
+between subsequent epochs below which an early termination is
+warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+less than the default thresold of 0.01 and would satisfy the
+condition for early termination.</p></li>
+<li><p><strong>early_stop_n_epoch</strong> (<em>int</em>) – The number of consecutive epochs that satisfy the threshold that
+warrants an early stop.</p></li>
+<li><p><strong>extras</strong> (<em>dict | None</em>) – Extra kwargs/parameters to save in the epoch history.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>stop</strong> (<em>bool</em>) – Flag to early stop training.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.run_gradient_descent">
+<span class="sig-name descname"><span class="pre">run_gradient_descent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hi_res_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training_weights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">calc_loss_kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.run_gradient_descent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.run_gradient_descent" title="Permalink to this definition"></a></dt>
+<dd><p>Run gradient descent for one mini-batch of (low_res, hi_res_true)
+and adjust NN weights</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low_res</strong> (<em>np.ndarray</em>) – Real low-resolution data in a 4D or 5D array:
+(n_observations, spatial_1, spatial_2, features)
+(n_observations, spatial_1, spatial_2, temporal, features)</p></li>
+<li><p><strong>hi_res_true</strong> (<em>np.ndarray</em>) – Real high-resolution data in a 4D or 5D array:
+(n_observations, spatial_1, spatial_2, features)
+(n_observations, spatial_1, spatial_2, temporal, features)</p></li>
+<li><p><strong>training_weights</strong> (<em>list</em>) – A list of layer weights that are to-be-trained based on the
+current loss weight values.</p></li>
+<li><p><strong>optimizer</strong> (<em>tf.keras.optimizers.Optimizer</em>) – Optimizer class to use to update weights. This can be different if
+you’re training just the generator or one of the discriminator
+models. Defaults to the generator optimizer.</p></li>
+<li><p><strong>calc_loss_kwargs</strong> (<em>dict</em>) – Kwargs to pass to the self.calc_loss() method</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.calc_loss_gen_content">
+<span class="sig-name descname"><span class="pre">calc_loss_gen_content</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hi_res_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hi_res_gen</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.calc_loss_gen_content"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.calc_loss_gen_content" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the content loss term for the generator model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hi_res_true</strong> (<em>tf.Tensor</em>) – Ground truth high resolution spatiotemporal data.</p></li>
+<li><p><strong>hi_res_gen</strong> (<em>tf.Tensor</em>) – Superresolved high resolution spatiotemporal data generated by the
+generative model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_gen_s</strong> (<em>tf.Tensor</em>) – 0D tensor generator model loss for the content loss comparing the
+hi res ground truth to the hi res synthetically generated output.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.calc_loss_gen_advers">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calc_loss_gen_advers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">disc_out_gen</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.calc_loss_gen_advers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.calc_loss_gen_advers" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the adversarial component of the loss term for the
+generator model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>disc_out_gen</strong> (<em>tf.Tensor</em>) – Raw discriminator outputs from the discriminator model
+predicting only on hi_res_gen (not on hi_res_true).</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_gen_advers</strong> (<em>tf.Tensor</em>) – 0D tensor generator model loss for the adversarial component of the
+generator loss term.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.calc_loss_disc">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calc_loss_disc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">disc_out_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disc_out_gen</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.calc_loss_disc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.calc_loss_disc" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the loss term for the discriminator model (either the
+spatial or temporal discriminator).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>disc_out_true</strong> (<em>tf.Tensor</em>) – Raw discriminator outputs from the discriminator model predicting
+only on ground truth data hi_res_true (not on hi_res_gen).</p></li>
+<li><p><strong>disc_out_gen</strong> (<em>tf.Tensor</em>) – Raw discriminator outputs from the discriminator model predicting
+only on synthetic data hi_res_gen (not on hi_res_true).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_disc</strong> (<em>tf.Tensor</em>) – 0D tensor discriminator model loss for either the spatial or
+temporal component of the super resolution generated output.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.calc_loss">
+<span class="sig-name descname"><span class="pre">calc_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hi_res_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hi_res_gen</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_gen_advers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_gen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_disc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.calc_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.calc_loss" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the GAN loss function using generated and true high
+resolution data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hi_res_true</strong> (<em>tf.Tensor</em>) – Ground truth high resolution spatiotemporal data.</p></li>
+<li><p><strong>hi_res_gen</strong> (<em>tf.Tensor</em>) – Superresolved high resolution spatiotemporal data generated by the
+generative model.</p></li>
+<li><p><strong>weight_gen_advers</strong> (<em>float</em>) – Weight factor for the adversarial loss component of the generator
+vs. the discriminator.</p></li>
+<li><p><strong>train_gen</strong> (<em>bool</em>) – True if generator is being trained, then loss=loss_gen</p></li>
+<li><p><strong>train_disc</strong> (<em>bool</em>) – True if disc is being trained, then loss=loss_disc</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>loss</strong> (<em>tf.Tensor</em>) – 0D tensor representing the loss value for the network being trained
+(either generator or one of the discriminators)</p></li>
+<li><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.calc_val_loss">
+<span class="sig-name descname"><span class="pre">calc_val_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_handler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_gen_advers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_details</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.calc_val_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.calc_val_loss" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the validation loss at the current state of model training</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_handler</strong> (<em>sup3r.data_handling.preprocessing.BatchHandler</em>) – BatchHandler object to iterate through</p></li>
+<li><p><strong>weight_gen_advers</strong> (<em>float</em>) – Weight factor for the adversarial loss component of the generator
+vs. the discriminator.</p></li>
+<li><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_details</strong> (<em>dict</em>) – Same as input but now includes val_* loss info</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.train_epoch">
+<span class="sig-name descname"><span class="pre">train_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_handler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_gen_advers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_gen</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_disc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disc_loss_bounds</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.train_epoch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.train_epoch" title="Permalink to this definition"></a></dt>
+<dd><p>Train the GAN for one epoch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_handler</strong> (<em>sup3r.data_handling.preprocessing.BatchHandler</em>) – BatchHandler object to iterate through</p></li>
+<li><p><strong>weight_gen_advers</strong> (<em>float</em>) – Weight factor for the adversarial loss component of the generator
+vs. the discriminator.</p></li>
+<li><p><strong>train_gen</strong> (<em>bool</em>) – Flag whether to train the generator for this set of epochs</p></li>
+<li><p><strong>train_disc</strong> (<em>bool</em>) – Flag whether to train the discriminator for this set of epochs</p></li>
+<li><p><strong>disc_loss_bounds</strong> (<em>tuple</em>) – Lower and upper bounds for the discriminator loss outside of which
+the discriminators will not train unless train_disc=True or
+and train_gen=False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>loss_details</strong> (<em>dict</em>) – Namespace of the breakdown of loss components</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.update_adversarial_weights">
+<span class="sig-name descname"><span class="pre">update_adversarial_weights</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">history</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_update_fraction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_update_bounds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_gen_advers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_disc</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.update_adversarial_weights"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.update_adversarial_weights" title="Permalink to this definition"></a></dt>
+<dd><p>Update spatial / temporal adversarial loss weights based on training
+fraction history.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>history</strong> (<em>dict</em>) – Dictionary with information on how often discriminators
+were trained during current and previous epochs.</p></li>
+<li><p><strong>adaptive_update_fraction</strong> (<em>float</em>) – Amount by which to increase or decrease adversarial loss weights
+for adaptive updates</p></li>
+<li><p><strong>adaptive_update_bounds</strong> (<em>tuple</em>) – Tuple specifying allowed range for history[comparison_key]. If
+history[comparison_key] &lt; update_bounds[0] then the weight will be
+increased by (1 + update_frac). If history[comparison_key] &gt;
+update_bounds[1] then the weight will be decreased by 1 / (1 +
+update_frac).</p></li>
+<li><p><strong>weight_gen_advers</strong> (<em>float</em>) – Weight factor for the adversarial loss component of the generator
+vs. the discriminator.</p></li>
+<li><p><strong>train_disc</strong> (<em>bool</em>) – Whether the discriminator was set to be trained during the
+previous epoch</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>weight_gen_advers</strong> (<em>float</em>) – Updated weight factor for the adversarial loss component of the
+generator vs. the discriminator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.seed">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.models.base.Sup3rGan.seed" title="Permalink to this definition"></a></dt>
+<dd><p>Set the random seed for reproducible results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>s</strong> (<em>int</em>) – Random seed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.models.base.Sup3rGan.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_handler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_gen_advers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_gen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_disc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disc_loss_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.45,</span> <span class="pre">0.6)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint_int</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./gan_{epoch}'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop_n_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_update_bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.9,</span> <span class="pre">0.99)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_update_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/models/base.html#Sup3rGan.train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.models.base.Sup3rGan.train" title="Permalink to this definition"></a></dt>
+<dd><p>Train the GAN model on real low res data and real high res data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_handler</strong> (<em>sup3r.data_handling.preprocessing.BatchHandler</em>) – BatchHandler object to iterate through</p></li>
+<li><p><strong>n_epoch</strong> (<em>int</em>) – Number of epochs to train on</p></li>
+<li><p><strong>weight_gen_advers</strong> (<em>float</em>) – Weight factor for the adversarial loss component of the generator
+vs. the discriminator.</p></li>
+<li><p><strong>train_gen</strong> (<em>bool</em>) – Flag whether to train the generator for this set of epochs</p></li>
+<li><p><strong>train_disc</strong> (<em>bool</em>) – Flag whether to train the discriminator for this set of epochs</p></li>
+<li><p><strong>disc_loss_bounds</strong> (<em>tuple</em>) – Lower and upper bounds for the discriminator loss outside of which
+the discriminator will not train unless train_disc=True and
+train_gen=False.</p></li>
+<li><p><strong>checkpoint_int</strong> (<em>int | None</em>) – Epoch interval at which to save checkpoint models.</p></li>
+<li><p><strong>out_dir</strong> (<em>str</em>) – Directory to save checkpoint GAN models. Should have {epoch} in
+the directory name. This directory will be created if it does not
+already exist.</p></li>
+<li><p><strong>early_stop_on</strong> (<em>str | None</em>) – If not None, this should be a column in the training history to
+evaluate for early stopping (e.g. validation_loss_gen,
+validation_loss_disc). If this value in this history decreases by
+an absolute fractional relative difference of less than 0.01 for
+more than 5 epochs in a row, the training will stop early.</p></li>
+<li><p><strong>early_stop_threshold</strong> (<em>float</em>) – The absolute relative fractional difference in validation loss
+between subsequent epochs below which an early termination is
+warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+less than the default thresold of 0.01 and would satisfy the
+condition for early termination.</p></li>
+<li><p><strong>early_stop_n_epoch</strong> (<em>int</em>) – The number of consecutive epochs that satisfy the threshold that
+warrants an early stop.</p></li>
+<li><p><strong>adaptive_update_bounds</strong> (<em>tuple</em>) – Tuple specifying allowed range for loss_details[comparison_key]. If
+history[comparison_key] &lt; threshold_range[0] then the weight will
+be increased by (1 + update_frac). If history[comparison_key] &gt;
+threshold_range[1] then the weight will be decreased by 1 / (1 +
+update_frac).</p></li>
+<li><p><strong>adaptive_update_fraction</strong> (<em>float</em>) – Amount by which to increase or decrease adversarial weights for
+adaptive updates</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.models.base.html" class="btn btn-neutral float-left" title="sup3r.models.base" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.models.data_centric.html" class="btn btn-neutral float-right" title="sup3r.models.data_centric" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+sup3r.postprocessing.collection
+===============================
+
+.. automodule:: sup3r.postprocessing.collection
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_dset_attrs
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Collector
+   
+   
+
+   
+   
+   
+
+
+

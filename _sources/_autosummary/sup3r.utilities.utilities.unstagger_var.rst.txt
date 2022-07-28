@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.unstagger\_var
+========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: unstagger_var

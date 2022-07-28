@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.postprocessing.file_handling &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>sup3r.postprocessing.file_handling</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.postprocessing.file_handling</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Output handling</span>
+
+<span class="sd">author : @bbenton</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">RBFInterpolator</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span> <span class="k">as</span> <span class="n">dt</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.version</span> <span class="kn">import</span> <span class="n">__version__</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities</span> <span class="kn">import</span> <span class="n">VERSION_RECORD</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.utilities</span> <span class="kn">import</span> <span class="p">(</span><span class="n">invert_uv</span><span class="p">,</span> <span class="n">estimate_max_workers</span><span class="p">,</span>
+                                       <span class="n">pd_date_range</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.feature_handling</span> <span class="kn">import</span> <span class="n">Feature</span>
+
+<span class="kn">from</span> <span class="nn">rex.outputs</span> <span class="kn">import</span> <span class="n">Outputs</span> <span class="k">as</span> <span class="n">BaseRexOutputs</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">H5_ATTRS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;windspeed&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>
+                          <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;m s-1&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;uint16&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+                          <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                          <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">120</span><span class="p">},</span>
+            <span class="s1">&#39;winddirection&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>
+                              <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;degree&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;uint16&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+                              <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                              <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">360</span><span class="p">},</span>
+            <span class="s1">&#39;temperature&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>
+                            <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;int16&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+                            <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">200</span><span class="p">,</span>
+                            <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">},</span>
+            <span class="s1">&#39;relativehumidity&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>
+                                 <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;percent&#39;</span><span class="p">,</span>
+                                 <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;uint16&#39;</span><span class="p">,</span>
+                                 <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+                                 <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+                                 <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;pressure&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+                         <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;Pa&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;uint16&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span>
+                         <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                         <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">150000</span><span class="p">},</span>
+            <span class="s1">&#39;bvf_mo&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+                       <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;m s-2&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;uint16&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">)},</span>
+            <span class="s1">&#39;bvf2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+                     <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;s-2&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;int16&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">500</span><span class="p">)},</span>
+            <span class="p">}</span>
+
+
+<div class="viewcode-block" id="RexOutputs"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html#sup3r.postprocessing.file_handling.RexOutputs">[docs]</a><span class="k">class</span> <span class="nc">RexOutputs</span><span class="p">(</span><span class="n">BaseRexOutputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class to handle NREL h5 formatted output data&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">full_version_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get record of versions for dependencies</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary of package versions for dependencies</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">versions</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">full_version_record</span>
+        <span class="n">versions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">VERSION_RECORD</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">versions</span>
+
+<div class="viewcode-block" id="RexOutputs.set_version_attr"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html#sup3r.postprocessing.file_handling.RexOutputs.set_version_attr">[docs]</a>    <span class="k">def</span> <span class="nf">set_version_attr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the version attribute to the h5 file.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">__version__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;full_version_record&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">full_version_record</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;package&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;sup3r&#39;</span></div></div>
+
+
+<div class="viewcode-block" id="OutputHandler"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler">[docs]</a><span class="k">class</span> <span class="nc">OutputHandler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Class to handle forward pass output. This includes transforming features</span>
+<span class="sd">    back to their original form and outputting to the correct file format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="OutputHandler.enforce_limits"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler.enforce_limits">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">enforce_limits</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enforce physical limits for feature data</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of features with ordering corresponding to last channel of</span>
+<span class="sd">            data array.</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            Array of feature data</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            Array of feature data with physical limits enforced</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="n">attrs</span> <span class="o">=</span> <span class="n">H5_ATTRS</span><span class="p">[</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">f</span><span class="p">)]</span>
+            <span class="nb">max</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+            <span class="nb">min</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="nb">min</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="nb">max</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="OutputHandler.get_lat_lon"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler.get_lat_lon">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_lat_lon</span><span class="p">(</span><span class="n">low_res_lat_lon</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get lat lon arrays for high res output file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res_lat_lon : ndarray</span>
+<span class="sd">            Array of lat/lon for input data.</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">            Last dimension has ordering (lat, lon)</span>
+<span class="sd">        shape : tuple</span>
+<span class="sd">            (lons, lats) Shape of high res grid</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lat_lon : ndarray</span>
+<span class="sd">            Array of lat lons for high res output file</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">            Last dimension has ordering (lat, lon)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Getting high resolution lat / lon grid&#39;</span><span class="p">)</span>
+        <span class="n">s_enhance</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="n">low_res_lat_lon</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">old_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">low_res_lat_lon</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="mi">2</span><span class="p">),</span>
+                              <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">new_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">lats</span> <span class="o">=</span> <span class="n">low_res_lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">lons</span> <span class="o">=</span> <span class="n">low_res_lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+        <span class="c1"># This shifts the indices for the old points by the downsampling</span>
+        <span class="c1"># fraction so that we can calculate the centers of the new points with</span>
+        <span class="c1"># origin at zero. Obviously if the shapes are the same then there</span>
+        <span class="c1"># should be no shift</span>
+        <span class="n">lat_shift</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">low_res_lat_lon</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">lon_shift</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">low_res_lat_lon</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">new_count</span> <span class="o">=</span> <span class="n">old_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="n">s_enhance</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">j</span> <span class="o">%</span> <span class="n">s_enhance</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">old_points</span><span class="p">[</span><span class="n">old_count</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="n">lat_shift</span>
+                    <span class="n">old_points</span><span class="p">[</span><span class="n">old_count</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span> <span class="o">+</span> <span class="n">lon_shift</span>
+                    <span class="n">old_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">new_points</span><span class="p">[</span><span class="n">new_count</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">new_points</span><span class="p">[</span><span class="n">new_count</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
+                <span class="n">new_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">lats</span> <span class="o">=</span> <span class="n">RBFInterpolator</span><span class="p">(</span><span class="n">old_points</span><span class="p">,</span> <span class="n">lats</span><span class="p">,</span> <span class="n">neighbors</span><span class="o">=</span><span class="mi">20</span><span class="p">)(</span><span class="n">new_points</span><span class="p">)</span>
+        <span class="n">lons</span> <span class="o">=</span> <span class="n">RBFInterpolator</span><span class="p">(</span><span class="n">old_points</span><span class="p">,</span> <span class="n">lons</span><span class="p">,</span> <span class="n">neighbors</span><span class="o">=</span><span class="mi">20</span><span class="p">)(</span><span class="n">new_points</span><span class="p">)</span>
+        <span class="n">lat_lon</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dstack</span><span class="p">((</span><span class="n">lats</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">lons</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">lat_lon</span></div>
+
+<div class="viewcode-block" id="OutputHandler.get_times"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler.get_times">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_times</span><span class="p">(</span><span class="n">low_res_times</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get array of times for high res output file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res_times : pd.Datetimeindex</span>
+<span class="sd">            List of times for low res input data. If there is only a single low</span>
+<span class="sd">            res timestep, it is assumed the data is daily.</span>
+<span class="sd">        shape : int</span>
+<span class="sd">            Number of time steps for high res time array</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Array of times for high res output file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Getting high resolution time indices&#39;</span><span class="p">)</span>
+        <span class="n">t_enhance</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shape</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">low_res_times</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">low_res_times</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">low_res_times</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">low_res_times</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">timedelta64</span><span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="s1">&#39;h&#39;</span><span class="p">)</span>
+
+        <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">low_res_times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">offset</span> <span class="o">/</span> <span class="n">t_enhance</span>
+                          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">shape</span><span class="p">)])</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">timedelta64</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">)</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">tseries</span><span class="o">.</span><span class="n">offsets</span><span class="o">.</span><span class="n">DateOffset</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">freq</span><span class="p">)</span>
+        <span class="n">times</span> <span class="o">=</span> <span class="n">pd_date_range</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">times</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_write_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span> <span class="n">meta_data</span><span class="p">,</span>
+                      <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write output to file with specified times and lats/lons&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="OutputHandler.write_output"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html#sup3r.postprocessing.file_handling.OutputHandler.write_output">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">write_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">low_res_lat_lon</span><span class="p">,</span> <span class="n">low_res_times</span><span class="p">,</span>
+                     <span class="n">out_file</span><span class="p">,</span> <span class="n">meta_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write forward pass output to file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            High resolution forward pass output</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of feature names corresponding to the last dimension of data</span>
+<span class="sd">        low_res_lat_lon : ndarray</span>
+<span class="sd">            Array of lat/lon for input data. (spatial_1, spatial_2, 2)</span>
+<span class="sd">            Last dimension has ordering (lat, lon)</span>
+<span class="sd">        low_res_times : pd.Datetimeindex</span>
+<span class="sd">            List of times for low res source data</span>
+<span class="sd">        out_file : string</span>
+<span class="sd">            Output file path</span>
+<span class="sd">        meta_data : dict | None</span>
+<span class="sd">            Dictionary of meta data from model</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Max workers to use for inverse uv transform. If None the</span>
+<span class="sd">            max_workers will be estimated based on memory limits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lat_lon</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_lat_lon</span><span class="p">(</span><span class="n">low_res_lat_lon</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">times</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_times</span><span class="p">(</span><span class="n">low_res_times</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_write_output</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span>
+                          <span class="n">meta_data</span><span class="p">,</span> <span class="n">max_workers</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OutputHandlerNC"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html#sup3r.postprocessing.file_handling.OutputHandlerNC">[docs]</a><span class="k">class</span> <span class="nc">OutputHandlerNC</span><span class="p">(</span><span class="n">OutputHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;OutputHandler subclass for NETCDF files&quot;&quot;&quot;</span>
+
+    <span class="c1"># pylint: disable=W0613</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_write_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span>
+                      <span class="n">meta_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write forward pass output to NETCDF file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            High resolution forward pass output</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of feature names corresponding to the last dimension of data</span>
+<span class="sd">        lat_lon : ndarray</span>
+<span class="sd">            Array of high res lat/lon for output data.</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">            Last dimension has ordering (lat, lon)</span>
+<span class="sd">        times : pd.Datetimeindex</span>
+<span class="sd">            List of times for high res output data</span>
+<span class="sd">        out_file : string</span>
+<span class="sd">            Output file path</span>
+<span class="sd">        meta_data : dict | None</span>
+<span class="sd">            Dictionary of meta data from model</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Has no effect. For compliance with H5 output handler</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Times&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;Time&#39;</span><span class="p">],</span> <span class="n">times</span><span class="p">),</span>
+                  <span class="s1">&#39;XLAT&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;south_north&#39;</span><span class="p">,</span> <span class="s1">&#39;east_west&#39;</span><span class="p">],</span> <span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+                  <span class="s1">&#39;XLONG&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;south_north&#39;</span><span class="p">,</span> <span class="s1">&#39;east_west&#39;</span><span class="p">],</span> <span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">])}</span>
+
+        <span class="n">data_vars</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="n">data_vars</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="o">=</span> <span class="p">([</span><span class="s1">&#39;Time&#39;</span><span class="p">,</span> <span class="s1">&#39;south_north&#39;</span><span class="p">,</span> <span class="s1">&#39;east_west&#39;</span><span class="p">],</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;gan_meta&#39;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">meta_data</span><span class="p">)}</span>
+
+        <span class="k">with</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">data_vars</span><span class="o">=</span><span class="n">data_vars</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+                        <span class="n">attrs</span><span class="o">=</span><span class="n">attrs</span><span class="p">)</span> <span class="k">as</span> <span class="n">ncfile</span><span class="p">:</span>
+            <span class="n">ncfile</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved output of size </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1"> to: </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OutputHandlerNC.combine_file"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html#sup3r.postprocessing.file_handling.OutputHandlerNC.combine_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">combine_file</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">outfile</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Combine all chunked output files from ForwardPass into a single file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        files : list</span>
+<span class="sd">            List of chunked output files from ForwardPass runs</span>
+<span class="sd">        outfile : str</span>
+<span class="sd">            Output file name for combined file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_mfdataset</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">combine</span><span class="o">=</span><span class="s1">&#39;nested&#39;</span><span class="p">,</span> <span class="n">concat_dim</span><span class="o">=</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved combined file: </span><span class="si">{</span><span class="n">outfile</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OutputHandlerH5"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html#sup3r.postprocessing.file_handling.OutputHandlerH5">[docs]</a><span class="k">class</span> <span class="nc">OutputHandlerH5</span><span class="p">(</span><span class="n">OutputHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to handle writing output to H5 file&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="OutputHandlerH5.get_renamed_features"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html#sup3r.postprocessing.file_handling.OutputHandlerH5.get_renamed_features">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_renamed_features</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">features</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Rename features based on transformation from u/v to</span>
+<span class="sd">        windspeed/winddirection</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of output features</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">            List of renamed features u/v -&gt; windspeed/winddirection for each</span>
+<span class="sd">            height</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">heights</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">renamed_features</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;U_(.*?)m&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">f</span><span class="o">.</span><span class="n">lower</span><span class="p">()):</span>
+                <span class="n">heights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_height</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">height</span> <span class="ow">in</span> <span class="n">heights</span><span class="p">:</span>
+            <span class="n">u_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;U_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+            <span class="n">v_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;V_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+
+            <span class="n">renamed_features</span><span class="p">[</span><span class="n">u_idx</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;windspeed_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span>
+            <span class="n">renamed_features</span><span class="p">[</span><span class="n">v_idx</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;winddirection_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span>
+
+        <span class="k">return</span> <span class="n">renamed_features</span></div>
+
+<div class="viewcode-block" id="OutputHandlerH5.invert_uv_features"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_features">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">invert_uv_features</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Invert U/V to windspeed and winddirection. Performed in place.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            High res data from forward pass</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of output features. If this doesnt contain any names matching</span>
+<span class="sd">            U_*m, this method will do nothing.</span>
+<span class="sd">        lat_lon : ndarray</span>
+<span class="sd">            High res lat/lon array</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Max workers to use for inverse transform. If None the max_workers</span>
+<span class="sd">            will be estimated based on memory limits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Converting u/v to windspeed/winddirection for h5 output&#39;</span><span class="p">)</span>
+        <span class="n">heights</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;U_(.*?)m&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">f</span><span class="o">.</span><span class="n">lower</span><span class="p">()):</span>
+                <span class="n">heights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_height</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+
+        <span class="n">proc_mem</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">n_procs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">heights</span><span class="p">)</span>
+        <span class="n">max_workers</span> <span class="o">=</span> <span class="n">estimate_max_workers</span><span class="p">(</span><span class="n">max_workers</span><span class="p">,</span> <span class="n">proc_mem</span><span class="p">,</span> <span class="n">n_procs</span><span class="p">)</span>
+
+        <span class="n">futures</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">height</span> <span class="ow">in</span> <span class="n">heights</span><span class="p">:</span>
+                <span class="n">u_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;U_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+                <span class="n">v_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;V_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">invert_uv_single_pair</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">u_idx</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;U/V pair at height </span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m inverted.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">height</span> <span class="ow">in</span> <span class="n">heights</span><span class="p">:</span>
+                    <span class="n">u_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;U_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+                    <span class="n">v_idx</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;V_</span><span class="si">{</span><span class="n">height</span><span class="si">}</span><span class="s1">m&#39;</span><span class="p">)</span>
+                    <span class="n">future</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">invert_uv_single_pair</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span>
+                                        <span class="n">lat_lon</span><span class="p">,</span> <span class="n">u_idx</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">)</span>
+                    <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span> <span class="o">=</span> <span class="n">height</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Started inverse transforms on </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">heights</span><span class="p">)</span><span class="si">}</span><span class="s1"> &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;U/V pairs in </span><span class="si">{</span><span class="n">dt</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">now</span><span class="si">}</span><span class="s1">. &#39;</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">)):</span>
+                    <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">)</span><span class="si">}</span><span class="s1"> inverse &#39;</span>
+                                 <span class="s1">&#39;transforms completed.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OutputHandlerH5.invert_uv_single_pair"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html#sup3r.postprocessing.file_handling.OutputHandlerH5.invert_uv_single_pair">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">invert_uv_single_pair</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">u_idx</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform inverse transform in place on a single u/v pair.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            High res data from forward pass</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        lat_lon : ndarray</span>
+<span class="sd">            High res lat/lon array</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">        u_idx : int</span>
+<span class="sd">            Index in data for U component to transform</span>
+<span class="sd">        v_idx : int</span>
+<span class="sd">            Index in data for V component to transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ws</span><span class="p">,</span> <span class="n">wd</span> <span class="o">=</span> <span class="n">invert_uv</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">u_idx</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">],</span> <span class="n">lat_lon</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">u_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">ws</span>
+        <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">wd</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_write_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span>
+                      <span class="n">meta_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write forward pass output to H5 file</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : ndarray</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            High resolution forward pass output</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of feature names corresponding to the last dimension of data</span>
+<span class="sd">        lat_lon : ndarray</span>
+<span class="sd">            Array of high res lat/lon for output data.</span>
+<span class="sd">            (spatial_1, spatial_2, 2)</span>
+<span class="sd">            Last dimension has ordering (lat, lon)</span>
+<span class="sd">        times : pd.Datetimeindex</span>
+<span class="sd">            List of times for high res output data</span>
+<span class="sd">        out_file : string</span>
+<span class="sd">            Output file path</span>
+<span class="sd">        meta_data : dict | None</span>
+<span class="sd">            Dictionary of meta data from model</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Max workers to use for inverse transform. If None the max_workers</span>
+<span class="sd">            will be estimated based on memory limits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">invert_uv_features</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">lat_lon</span><span class="p">,</span>
+                               <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_renamed_features</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;latitude&#39;</span><span class="p">:</span> <span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span>
+                             <span class="s1">&#39;longitude&#39;</span><span class="p">:</span> <span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()})</span>
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">_set_time_index</span><span class="p">(</span><span class="s1">&#39;time_index&#39;</span><span class="p">,</span> <span class="n">times</span><span class="p">)</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">enforce_limits</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+                <span class="n">attrs</span> <span class="o">=</span> <span class="n">H5_ATTRS</span><span class="p">[</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">f</span><span class="p">)]</span>
+                <span class="n">flat_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">)))</span>
+                <span class="n">flat_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">flat_data</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">flat_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">],</span>
+                               <span class="n">attrs</span><span class="o">=</span><span class="n">attrs</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;chunks&#39;</span><span class="p">])</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Added </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s1"> to output file&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">meta_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">run_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;gan_meta&#39;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">meta_data</span><span class="p">)}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved output of size </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1"> to: </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

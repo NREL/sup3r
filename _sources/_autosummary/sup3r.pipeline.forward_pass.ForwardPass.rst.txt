@@ -1,0 +1,32 @@
+sup3r.pipeline.forward\_pass.ForwardPass
+========================================
+
+.. currentmodule:: sup3r.pipeline.forward_pass
+
+.. autoclass:: ForwardPass
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ForwardPass.forward_pass_chunk
+      ~ForwardPass.get_node_cmd
+      ~ForwardPass.run
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ForwardPass.pass_workers
+   
+   

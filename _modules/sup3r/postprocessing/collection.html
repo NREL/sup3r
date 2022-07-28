@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.postprocessing.collection &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>sup3r.postprocessing.collection</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.postprocessing.collection</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;H5 file collection.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">as_completed</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">psutil</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+
+<span class="kn">from</span> <span class="nn">rex.utilities.execution</span> <span class="kn">import</span> <span class="n">SpawnProcessPool</span>
+<span class="kn">from</span> <span class="nn">rex.utilities.loggers</span> <span class="kn">import</span> <span class="n">init_logger</span>
+<span class="kn">from</span> <span class="nn">rex.utilities.fun_utils</span> <span class="kn">import</span> <span class="n">get_fun_call_str</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.pipeline</span> <span class="kn">import</span> <span class="n">Status</span>
+<span class="kn">from</span> <span class="nn">sup3r.postprocessing.file_handling</span> <span class="kn">import</span> <span class="n">H5_ATTRS</span><span class="p">,</span> <span class="n">RexOutputs</span>
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.feature_handling</span> <span class="kn">import</span> <span class="n">Feature</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities</span> <span class="kn">import</span> <span class="n">ModuleName</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_dset_attrs"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.get_dset_attrs.html#sup3r.postprocessing.collection.get_dset_attrs">[docs]</a><span class="k">def</span> <span class="nf">get_dset_attrs</span><span class="p">(</span><span class="n">feature</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get attrributes for output feature</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    feature : str</span>
+<span class="sd">        Name of feature to write</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    attrs : dict</span>
+<span class="sd">        Dictionary of attributes for requested dset</span>
+<span class="sd">    dtype : str</span>
+<span class="sd">        Data type for requested dset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">attrs</span> <span class="o">=</span> <span class="n">H5_ATTRS</span><span class="p">[</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">feature</span><span class="p">)]</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">dtype</span></div>
+
+
+<div class="viewcode-block" id="Collector"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector">[docs]</a><span class="k">class</span> <span class="nc">Collector</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Sup3r H5 file collection framework&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5. Files</span>
+<span class="sd">            should have non-overlapping time_index dataset and fully</span>
+<span class="sd">            overlapping meta dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flist</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Collector.get_node_cmd"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector.get_node_cmd">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_node_cmd</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a CLI call to collect data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config : dict</span>
+<span class="sd">            sup3r collection config with all necessary args and kwargs to</span>
+<span class="sd">            run data collection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">import_str</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;from sup3r.postprocessing.collection &#39;</span>
+                      <span class="s1">&#39;import Collector;</span><span class="se">\n</span><span class="s1">&#39;</span>
+                      <span class="s1">&#39;from rex import init_logger;</span><span class="se">\n</span><span class="s1">&#39;</span>
+                      <span class="s1">&#39;import time;</span><span class="se">\n</span><span class="s1">&#39;</span>
+                      <span class="s1">&#39;from reV.pipeline.status import Status;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="n">dc_fun_str</span> <span class="o">=</span> <span class="n">get_fun_call_str</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">collect</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+
+        <span class="n">log_file</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_file&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">log_level</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_level&#39;</span><span class="p">,</span> <span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+        <span class="n">log_arg_str</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&quot;sup3r&quot;, log_file=&quot;</span><span class="si">{</span><span class="n">log_file</span><span class="si">}</span><span class="s1">&quot;, &#39;</span>
+                       <span class="sa">f</span><span class="s1">&#39;log_level=&quot;</span><span class="si">{</span><span class="n">log_level</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;python -c </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">import_str</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+               <span class="s2">&quot;t0 = time.time();</span><span class="se">\n</span><span class="s2">&quot;</span>
+               <span class="sa">f</span><span class="s2">&quot;logger = init_logger(</span><span class="si">{</span><span class="n">log_arg_str</span><span class="si">}</span><span class="s2">);</span><span class="se">\n</span><span class="s2">&quot;</span>
+               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dc_fun_str</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+               <span class="s2">&quot;t_elap = time.time() - t0;</span><span class="se">\n</span><span class="s2">&quot;</span>
+               <span class="p">)</span>
+
+        <span class="n">job_name</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;job_name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">status_dir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status_dir&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">status_file_arg_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">status_dir</span><span class="si">}</span><span class="s1">&quot;, &#39;</span>
+            <span class="n">status_file_arg_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;module=&quot;</span><span class="si">{</span><span class="n">ModuleName</span><span class="o">.</span><span class="n">DATA_COLLECT</span><span class="si">}</span><span class="s1">&quot;, &#39;</span>
+            <span class="n">status_file_arg_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;job_name=&quot;</span><span class="si">{</span><span class="n">job_name</span><span class="si">}</span><span class="s1">&quot;, &#39;</span>
+            <span class="n">status_file_arg_str</span> <span class="o">+=</span> <span class="s1">&#39;attrs=job_attrs&#39;</span>
+
+            <span class="n">cmd</span> <span class="o">+=</span> <span class="p">(</span><span class="s1">&#39;job_attrs = </span><span class="si">{}</span><span class="s1">;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                                               <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;null&quot;</span><span class="p">,</span> <span class="s2">&quot;None&quot;</span><span class="p">)</span>
+                                               <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;false&quot;</span><span class="p">,</span> <span class="s2">&quot;False&quot;</span><span class="p">)</span>
+                                               <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;True&quot;</span><span class="p">)))</span>
+            <span class="n">cmd</span> <span class="o">+=</span> <span class="s1">&#39;job_attrs.update({&quot;job_status&quot;: &quot;successful&quot;});</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="n">cmd</span> <span class="o">+=</span> <span class="s1">&#39;job_attrs.update({&quot;time&quot;: t_elap});</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="n">cmd</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Status.make_job_file(</span><span class="si">{</span><span class="n">status_file_arg_str</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="n">cmd</span> <span class="o">+=</span> <span class="p">(</span><span class="s2">&quot;;</span><span class="se">\&#39;\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">cmd</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Collector.get_slices"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector.get_slices">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_slices</span><span class="p">(</span><span class="n">final_time_index</span><span class="p">,</span> <span class="n">final_meta</span><span class="p">,</span> <span class="n">new_time_index</span><span class="p">,</span> <span class="n">new_meta</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get index slices where the new ti/meta belong in the final ti/meta.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        final_time_index : pd.Datetimeindex</span>
+<span class="sd">            Time index of the final file that new_time_index is being written</span>
+<span class="sd">            to.</span>
+<span class="sd">        final_meta : pd.DataFrame</span>
+<span class="sd">            Meta data of the final file that new_meta is being written to.</span>
+<span class="sd">        new_time_index : pd.Datetimeindex</span>
+<span class="sd">            Chunk time index that is a subset of the final_time_index.</span>
+<span class="sd">        new_meta : pd.DataFrame</span>
+<span class="sd">            Chunk meta data that is a subset of the final_meta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        row_slice : slice</span>
+<span class="sd">            final_time_index[row_slice] = new_time_index</span>
+<span class="sd">        col_slice : slice</span>
+<span class="sd">            final_meta[col_slice] = new_meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">final_index</span> <span class="o">=</span> <span class="n">final_meta</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">new_index</span> <span class="o">=</span> <span class="n">new_meta</span><span class="o">.</span><span class="n">index</span>
+
+        <span class="n">row_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">final_time_index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">new_time_index</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">col_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">final_index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">new_index</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">row_loc</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Could not find row locations in file collection. &#39;</span>
+                   <span class="s1">&#39;New time index: </span><span class="si">{}</span><span class="s1"> final time index: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_time_index</span><span class="p">,</span> <span class="n">final_time_index</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">col_loc</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Could not find col locations in file collection. &#39;</span>
+                   <span class="s1">&#39;New index: </span><span class="si">{}</span><span class="s1"> final index: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_index</span><span class="p">,</span> <span class="n">final_index</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">row_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">row_loc</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">row_loc</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">col_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">col_loc</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">col_loc</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span></div>
+
+<div class="viewcode-block" id="Collector.get_data"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector.get_data">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Retreive a data array from a chunked file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_path : str</span>
+<span class="sd">            h5 file to get data from</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            dataset to retrieve data from fpath.</span>
+<span class="sd">        time_index : pd.Datetimeindex</span>
+<span class="sd">            Time index of the final file.</span>
+<span class="sd">        final_meta : pd.DataFrame</span>
+<span class="sd">            Meta data of the final file.</span>
+<span class="sd">        scale_factor : int | float</span>
+<span class="sd">            Final destination scale factor after collection. If the data</span>
+<span class="sd">            retrieval from the files to be collected has a different scale</span>
+<span class="sd">            factor, the collected data will be rescaled and returned as</span>
+<span class="sd">            float32.</span>
+<span class="sd">        dtype : np.dtype</span>
+<span class="sd">            Final dtype to return data as</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        f_data : np.ndarray</span>
+<span class="sd">            Data array from the fpath cast as input dtype.</span>
+<span class="sd">        row_slice : slice</span>
+<span class="sd">            final_time_index[row_slice] = new_time_index</span>
+<span class="sd">        col_slice : slice</span>
+<span class="sd">            final_meta[col_slice] = new_meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">unscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f_ti</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+            <span class="n">f_meta</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">meta</span>
+            <span class="n">source_scale_factor</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">feature</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">feature</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">dsets</span><span class="p">:</span>
+                <span class="n">e</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Trying to collect dataset &quot;</span><span class="si">{}</span><span class="s1">&quot; but cannot find in &#39;</span>
+                     <span class="s1">&#39;available: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">dsets</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="n">f_data</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="n">feature</span><span class="p">][</span><span class="o">...</span><span class="p">]</span>
+
+        <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span> <span class="o">=</span> <span class="n">Collector</span><span class="o">.</span><span class="n">get_slices</span><span class="p">(</span><span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span>
+                                                    <span class="n">f_ti</span><span class="p">,</span> <span class="n">f_meta</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">scale_factor</span> <span class="o">!=</span> <span class="n">source_scale_factor</span><span class="p">:</span>
+            <span class="n">f_data</span> <span class="o">=</span> <span class="n">f_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">f_data</span> <span class="o">*=</span> <span class="p">(</span><span class="n">scale_factor</span> <span class="o">/</span> <span class="n">source_scale_factor</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">):</span>
+            <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">f_data</span><span class="p">)</span>
+
+        <span class="n">f_data</span> <span class="o">=</span> <span class="n">f_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">f_data</span><span class="p">,</span> <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_collection_attrs</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort_key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get important dataset attributes from a file list to be collected.</span>
+
+<span class="sd">        Assumes the file list is chunked in time (row chunked).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5. Files</span>
+<span class="sd">            should have non-overlapping time_index dataset and fully</span>
+<span class="sd">            overlapping meta dataset.</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            Dataset name to collect.</span>
+<span class="sd">        sort : bool</span>
+<span class="sd">            flag to sort flist to determine meta data order.</span>
+<span class="sd">        sort_key : None | fun</span>
+<span class="sd">            Optional sort key to sort flist by (determines how meta is built</span>
+<span class="sd">            if out_file does not exist).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        time_index : pd.datetimeindex</span>
+<span class="sd">            Concatenated full size datetime index from the flist that is</span>
+<span class="sd">            being collected</span>
+<span class="sd">        meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected</span>
+<span class="sd">        shape : tuple</span>
+<span class="sd">            Output (collected) dataset shape</span>
+<span class="sd">        dtype : str</span>
+<span class="sd">            Dataset output (collected on disk) dataset data type.</span>
+<span class="sd">        global_attrs : dict</span>
+<span class="sd">            Global attributes from the first file in file_paths (it&#39;s assumed</span>
+<span class="sd">            that all the files in file_paths have the same global file</span>
+<span class="sd">            attributes).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">sort_key</span><span class="p">)</span>
+
+        <span class="n">time_index</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">meta</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">time_index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">time_index</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">time_index</span> <span class="o">=</span> <span class="n">time_index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">time_index</span><span class="p">)</span>
+
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">time_index</span><span class="o">.</span><span class="n">sort_values</span><span class="p">()</span>
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">time_index</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;latitude&#39;</span> <span class="ow">in</span> <span class="n">meta</span> <span class="ow">and</span> <span class="s1">&#39;longitude&#39;</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+            <span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span> <span class="s1">&#39;longitude&#39;</span><span class="p">])</span>
+
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">time_index</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">file_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">get_dset_properties</span><span class="p">(</span><span class="n">feature</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">global_attrs</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">global_attrs</span>
+
+        <span class="k">return</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">global_attrs</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_init_collected_h5</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">global_attrs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the output h5 file to save collected data to.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            Output file path - must not yet exist.</span>
+<span class="sd">        time_index : pd.datetimeindex</span>
+<span class="sd">            Full datetime index of collected data.</span>
+<span class="sd">        meta : pd.DataFrame</span>
+<span class="sd">            Full meta dataframe collected data.</span>
+<span class="sd">        global_attrs : dict</span>
+<span class="sd">            Namespace of file-global attributes from one of the files being</span>
+<span class="sd">            collected that should be passed through to the final collected</span>
+<span class="sd">            file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w-&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing collection output file: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">out_file</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing collection output file with shape </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                        <span class="s1">&#39;and meta data:</span><span class="se">\n</span><span class="si">{}</span><span class="s1">&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">time_index</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="p">)),</span> <span class="n">meta</span><span class="p">))</span>
+            <span class="n">f</span><span class="p">[</span><span class="s1">&#39;time_index&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time_index</span>
+            <span class="n">f</span><span class="p">[</span><span class="s1">&#39;meta&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">meta</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">run_attrs</span> <span class="o">=</span> <span class="n">global_attrs</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_ensure_dset_in_output</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">dset</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that dset is initialized in out_file and initialize if not.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            Pre-existing H5 file output path</span>
+<span class="sd">        dset : str</span>
+<span class="sd">            Dataset name</span>
+<span class="sd">        data : np.ndarray | None</span>
+<span class="sd">            Optional data to write to dataset if initializing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dset</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">dsets</span><span class="p">:</span>
+                <span class="n">attrs</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">get_dset_attrs</span><span class="p">(</span><span class="n">dset</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing dataset &quot;</span><span class="si">{}</span><span class="s1">&quot; with shape </span><span class="si">{}</span><span class="s1"> and &#39;</span>
+                            <span class="s1">&#39;dtype </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">_create_dset</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span>
+                               <span class="n">attrs</span><span class="o">=</span><span class="n">attrs</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Collector.collect_flist"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector.collect_flist">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">collect_flist</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Collect a dataset from a file list with data pre-init.</span>
+
+<span class="sd">        Collects data that can be chunked in both space and time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5. Files</span>
+<span class="sd">            should have non-overlapping time_index dataset and fully</span>
+<span class="sd">            overlapping meta dataset.</span>
+<span class="sd">        collect_dir : str</span>
+<span class="sd">            Directory of chunked files (flist).</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            File path of final output file.</span>
+<span class="sd">        dset : str</span>
+<span class="sd">            Dataset name to collect.</span>
+<span class="sd">        sort : bool</span>
+<span class="sd">            flag to sort flist to determine meta data order.</span>
+<span class="sd">        sort_key : None | fun</span>
+<span class="sd">            Optional sort key to sort flist by (determines how meta is built</span>
+<span class="sd">            if out_file does not exist).</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None uses all available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> \
+            <span class="n">Collector</span><span class="o">.</span><span class="n">_get_collection_attrs</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span>
+                                            <span class="n">sort_key</span><span class="o">=</span><span class="n">sort_key</span><span class="p">)</span>
+
+        <span class="n">attrs</span><span class="p">,</span> <span class="n">final_dtype</span> <span class="o">=</span> <span class="n">get_dset_attrs</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+        <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Collecting file list of shape </span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">final_dtype</span><span class="p">)</span>
+        <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Initializing output dataset &quot;</span><span class="si">{0}</span><span class="s1">&quot; in-memory with shape &#39;</span>
+                     <span class="s1">&#39;</span><span class="si">{1}</span><span class="s1"> and dtype </span><span class="si">{2}</span><span class="s1">. Current memory usage is &#39;</span>
+                     <span class="s1">&#39;</span><span class="si">{3:.3f}</span><span class="s1"> GB out of </span><span class="si">{4:.3f}</span><span class="s1"> GB total.&#39;</span>
+                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">final_dtype</span><span class="p">,</span>
+                             <span class="n">mem</span><span class="o">.</span><span class="n">used</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">mem</span><span class="o">.</span><span class="n">total</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fname</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">file_paths</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Collecting data from file </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)))</span>
+                <span class="n">f_data</span><span class="p">,</span> <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span> <span class="o">=</span> <span class="n">Collector</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span>
+                                                                  <span class="n">feature</span><span class="p">,</span>
+                                                                  <span class="n">time_index</span><span class="p">,</span>
+                                                                  <span class="n">meta</span><span class="p">,</span>
+                                                                  <span class="n">scale_factor</span><span class="p">,</span>
+                                                                  <span class="n">final_dtype</span><span class="p">)</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span><span class="p">]</span> <span class="o">=</span> <span class="n">f_data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running parallel collection on </span><span class="si">{}</span><span class="s1"> workers.&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">max_workers</span><span class="p">))</span>
+
+            <span class="n">futures</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">completed</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">loggers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sup3r&#39;</span><span class="p">]</span>
+            <span class="k">with</span> <span class="n">SpawnProcessPool</span><span class="p">(</span><span class="n">loggers</span><span class="o">=</span><span class="n">loggers</span><span class="p">,</span>
+                                  <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">:</span>
+                    <span class="n">futures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">Collector</span><span class="o">.</span><span class="n">get_data</span><span class="p">,</span> <span class="n">fname</span><span class="p">,</span>
+                                              <span class="n">feature</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span>
+                                              <span class="n">scale_factor</span><span class="p">,</span> <span class="n">final_dtype</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">future</span> <span class="ow">in</span> <span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">):</span>
+                    <span class="n">completed</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Collection futures completed: &#39;</span>
+                                <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> out of </span><span class="si">{1}</span><span class="s1">. &#39;</span>
+                                <span class="s1">&#39;Current memory usage is &#39;</span>
+                                <span class="s1">&#39;</span><span class="si">{2:.3f}</span><span class="s1"> GB out of </span><span class="si">{3:.3f}</span><span class="s1"> GB total.&#39;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">completed</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">),</span>
+                                        <span class="n">mem</span><span class="o">.</span><span class="n">used</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">mem</span><span class="o">.</span><span class="n">total</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+                    <span class="n">f_data</span><span class="p">,</span> <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span><span class="p">]</span> <span class="o">=</span> <span class="n">f_data</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="n">Collector</span><span class="o">.</span><span class="n">_init_collected_h5</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span>
+            <span class="n">x_write_slice</span><span class="p">,</span> <span class="n">y_write_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">target_meta</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">meta</span>
+                <span class="n">target_ti</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+            <span class="n">y_write_slice</span><span class="p">,</span> <span class="n">x_write_slice</span> <span class="o">=</span> <span class="n">Collector</span><span class="o">.</span><span class="n">get_slices</span><span class="p">(</span><span class="n">target_ti</span><span class="p">,</span>
+                                                                <span class="n">target_meta</span><span class="p">,</span>
+                                                                <span class="n">time_index</span><span class="p">,</span>
+                                                                <span class="n">meta</span><span class="p">)</span>
+        <span class="n">Collector</span><span class="o">.</span><span class="n">_ensure_dset_in_output</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">feature</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="p">[</span><span class="n">feature</span><span class="p">,</span> <span class="n">y_write_slice</span><span class="p">,</span> <span class="n">x_write_slice</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Finished writing &quot;</span><span class="si">{}</span><span class="s1">&quot; for row </span><span class="si">{}</span><span class="s1"> and col </span><span class="si">{}</span><span class="s1"> to: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">y_write_slice</span><span class="p">,</span> <span class="n">x_write_slice</span><span class="p">,</span>
+                             <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">out_file</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="Collector.collect"><a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.Collector.html#sup3r.postprocessing.collection.Collector.collect">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">collect</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">n_writes</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">write_status</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">job_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Collect data files from a dir to one output file.</span>
+
+<span class="sd">        Assumes the file list is chunked in time (row chunked).</span>
+
+<span class="sd">        Filename requirements:</span>
+<span class="sd">         - Should end with &quot;.h5&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5. Files</span>
+<span class="sd">            should have non-overlapping time_index dataset and fully</span>
+<span class="sd">            overlapping meta dataset.</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            File path of final output file.</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of dsets to collect</span>
+<span class="sd">        n_writes : None | int</span>
+<span class="sd">            Number of file list divisions to write per dataset. For example,</span>
+<span class="sd">            if ghi and dni are being collected and n_writes is set to 2,</span>
+<span class="sd">            half of the source ghi files will be collected at once and then</span>
+<span class="sd">            written, then the second half of ghi files, then dni.</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None will use all available workers.</span>
+<span class="sd">        log_level : str | None</span>
+<span class="sd">            Desired log level, None will not initialize logging.</span>
+<span class="sd">        log_file : str | None</span>
+<span class="sd">            Target log file. None logs to stdout.</span>
+<span class="sd">        write_status : bool</span>
+<span class="sd">            Flag to write status file once complete if running from pipeline.</span>
+<span class="sd">        job_name : str</span>
+<span class="sd">            Job name for status file if running from pipeline.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">log_level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">init_logger</span><span class="p">(</span><span class="s1">&#39;sup3r.preprocessing&#39;</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">,</span>
+                        <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Collecting data from </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span>
+                                                           <span class="n">out_file</span><span class="p">))</span>
+
+        <span class="n">collector</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">dset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Collecting dataset &quot;</span><span class="si">{}</span><span class="s1">&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dset</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">n_writes</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">):</span>
+                <span class="n">e</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Cannot split file list of length </span><span class="si">{}</span><span class="s1"> into &#39;</span>
+                     <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> write chunks!&#39;</span>
+                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">),</span> <span class="n">n_writes</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+                <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">global_attrs</span> <span class="o">=</span> \
+                    <span class="n">collector</span><span class="o">.</span><span class="n">_get_collection_attrs</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span> <span class="n">dset</span><span class="p">)</span>
+                <span class="n">collector</span><span class="o">.</span><span class="n">_init_collected_h5</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span>
+                                             <span class="n">global_attrs</span><span class="p">)</span>
+
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_split</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">),</span>
+                                          <span class="n">n_writes</span><span class="p">)</span>
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">fl</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">fl</span> <span class="ow">in</span> <span class="n">flist_chunks</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">flist</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Collecting file list chunk </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">)))</span>
+                <span class="n">collector</span><span class="o">.</span><span class="n">collect_flist</span><span class="p">(</span><span class="n">flist</span><span class="p">,</span> <span class="n">out_file</span><span class="p">,</span> <span class="n">dset</span><span class="p">,</span>
+                                        <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">write_status</span> <span class="ow">and</span> <span class="n">job_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;out_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span>
+                      <span class="s1">&#39;fout&#39;</span><span class="p">:</span> <span class="n">out_file</span><span class="p">,</span>
+                      <span class="s1">&#39;flist&#39;</span><span class="p">:</span> <span class="n">file_paths</span><span class="p">,</span>
+                      <span class="s1">&#39;job_status&#39;</span><span class="p">:</span> <span class="s1">&#39;successful&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;runtime&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">60</span><span class="p">}</span>
+            <span class="n">Status</span><span class="o">.</span><span class="n">make_job_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span> <span class="s1">&#39;collect&#39;</span><span class="p">,</span>
+                                 <span class="n">job_name</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished file collection.&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

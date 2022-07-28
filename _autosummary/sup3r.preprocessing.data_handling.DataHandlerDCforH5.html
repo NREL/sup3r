@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.preprocessing.data_handling.DataHandlerDCforH5 &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.preprocessing.data_handling.DataHandlerDCforNC" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html" />
+    <link rel="prev" title="sup3r.preprocessing.data_handling.DataHandlerDC" href="sup3r.preprocessing.data_handling.DataHandlerDC.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.preprocessing.html">sup3r.preprocessing</a> &raquo;</li>
+          <li><a href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a> &raquo;</li>
+      <li>sup3r.preprocessing.data_handling.DataHandlerDCforH5</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.preprocessing.data_handling.DataHandlerDCforH5.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-preprocessing-data-handling-datahandlerdcforh5">
+<h1>sup3r.preprocessing.data_handling.DataHandlerDCforH5<a class="headerlink" href="#sup3r-preprocessing-data-handling-datahandlerdcforh5" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataHandlerDCforH5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">slice(None,</span> <span class="pre">None,</span> <span class="pre">None)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hr_spatial_coarsen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_roll</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(10,</span> <span class="pre">10,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_cached</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_only_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling.html#DataHandlerDCforH5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.DataHandlerH5" title="sup3r.preprocessing.data_handling.DataHandlerH5"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataHandlerH5</span></code></a>, <a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html#sup3r.preprocessing.data_handling.DataHandlerDC" title="sup3r.preprocessing.data_handling.DataHandlerDC"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataHandlerDC</span></code></a></p>
+<p>Data centric data handler for H5 files</p>
+<p>Data handling and extraction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>str | list</em>) – A single source h5 wind file to extract raster data from or a list
+of netcdf files with identical grid. The string can be a unix-style
+file path which will be passed through glob.glob</p></li>
+<li><p><strong>features</strong> (<em>list</em>) – list of features to extract</p></li>
+<li><p><strong>target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster. Either need target+shape or
+raster_file.</p></li>
+<li><p><strong>shape</strong> (<em>tuple</em>) – (rows, cols) grid size. Either need target+shape or raster_file.</p></li>
+<li><p><strong>max_delta</strong> (<em>int, optional</em>) – Optional maximum limit on the raster shape that is retrieved at
+once. If shape is (20, 20) and max_delta=10, the full raster will
+be retrieved in four chunks of (10, 10). This helps adapt to
+non-regular grids that curve over large distances, by default 20</p></li>
+<li><p><strong>temporal_slice</strong> (<em>slice</em>) – Slice specifying extent and step of temporal extraction. e.g.
+slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+the full time dimension is selected.</p></li>
+<li><p><strong>hr_spatial_coarsen</strong> (<em>int | None</em>) – Optional input to coarsen the high-resolution spatial field. This
+can be used if (for example) you have 2km source data, but you want
+the final high res prediction target to be 4km resolution, then
+hr_spatial_coarsen would be 2 so that the GAN is trained on
+aggregated 4km high-res data.</p></li>
+<li><p><strong>time_roll</strong> (<em>int</em>) – The number of places by which elements are shifted in the time
+axis. Can be used to convert data to different timezones. This is
+passed to np.roll(a, time_roll, axis=2) and happens AFTER the
+temporal_slice operation.</p></li>
+<li><p><strong>val_split</strong> (<em>float32</em>) – Fraction of data to store for validation</p></li>
+<li><p><strong>sample_shape</strong> (<em>tuple</em>) – Size of spatial and temporal domain used in a single high-res
+observation for batching</p></li>
+<li><p><strong>raster_file</strong> (<em>str | None</em>) – File for raster_index array for the corresponding target and shape.
+If specified the raster_index will be loaded from the file if it
+exists or written to the file if it does not yet exist.  If None
+raster_index will be calculated directly. Either need target+shape
+or raster_file.</p></li>
+<li><p><strong>shuffle_time</strong> (<em>bool</em>) – Whether to shuffle time indices before valiidation split</p></li>
+<li><p><strong>time_chunk_size</strong> (<em>int</em>) – Size of chunks to split time dimension into for parallel data
+extraction. If running in serial this can be set to the size of the
+full time index for best performance.</p></li>
+<li><p><strong>cache_pattern</strong> (<em>str | None</em>) – Pattern for files for saving feature data. e.g.
+file_path_{feature}.pkl. Each feature will be saved to a file with
+the feature name replaced in cache_pattern. If not None
+feature arrays will be saved here and not stored in self.data until
+load_cached_data is called. The cache_pattern can also include
+{shape}, {target}, {times} which will help ensure unique cache
+files for complex problems.</p></li>
+<li><p><strong>overwrite_cache</strong> (<em>bool</em>) – Whether to overwrite any previously saved cache files.</p></li>
+<li><p><strong>load_cached</strong> (<em>bool</em>) – Whether to load data from cache files</p></li>
+<li><p><strong>train_only_features</strong> (<em>list | tuple | None</em>) – List of feature names or patt*erns that should only be included in
+the training set and not the output. If None (default), this will
+default to the class TRAIN_ONLY_FEATURES attribute.</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Providing a value for max workers will be used to set the value of
+extract_workers, compute_workers, load_workers, and norm_workers.
+If max_workers == 1 then all processes will be serialized. If None
+extract_workers, compute_workers, load_workers, and norm_workers
+will use their own provided values.</p></li>
+<li><p><strong>extract_workers</strong> (<em>int | None</em>) – max number of workers to use for extracting features from source
+data. If None max workers will be estimated based on memory limits.
+If 1 processes will be serialized.</p></li>
+<li><p><strong>compute_workers</strong> (<em>int | None</em>) – max number of workers to use for computing derived features from
+raw features in source data.</p></li>
+<li><p><strong>load_workers</strong> (<em>int | None</em>) – max number of workers to use for loading cached feature data.</p></li>
+<li><p><strong>norm_workers</strong> (<em>int | None</em>) – max number of workers to use for normalizing feature data.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_data</span></code></a>(cache_file_paths)</p></td>
+<td><p>Cache feature data to file and delete from memory</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.check_cached_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.check_cached_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_cached_features</span></code></a>(features[, ...])</p></td>
+<td><p>Check which features have been cached and check flags to determine whether to load or extract this features again</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.clear_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.clear_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_data</span></code></a>()</p></td>
+<td><p>Free memory used for data arrays</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.data_fill" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.data_fill"><code class="xref py py-obj docutils literal notranslate"><span class="pre">data_fill</span></code></a>(t, t_slice, f_index, f)</p></td>
+<td><p>Place single extracted / computed chunk in final data array</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extract_data</span></code></a>()</p></td>
+<td><p>Building base 4D data array.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_feature" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_feature"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extract_feature</span></code></a>(file_paths, raster_index, ...)</p></td>
+<td><p>Extract single feature from data source</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_registry" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_registry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">feature_registry</span></code></a>()</p></td>
+<td><p>Registry of methods for computing features or extracting renamed features</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_cache_file_names" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_cache_file_names"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_cache_file_names</span></code></a>(cache_pattern)</p></td>
+<td><p>Get names of cache files from cache_pattern and feature names</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_full_domain" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_full_domain</span></code></a>(file_paths)</p></td>
+<td><p>Get target and shape for largest domain possible</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_input_arrays" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_input_arrays"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_input_arrays</span></code></a>(data, chunk_number, f, ...)</p></td>
+<td><p>Get only arrays needed for computations</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_inputs_recursive" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_inputs_recursive"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_inputs_recursive</span></code></a>(feature, handle_features)</p></td>
+<td><p>Lookup inputs needed to compute feature.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_lat_lon" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lat_lon</span></code></a>(file_paths, raster_index[, ...])</p></td>
+<td><p>Store lat lon for future output</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_next" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_next"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_next</span></code></a>(temporal_weights)</p></td>
+<td><p>Gets data for observation using random observation index.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_node_cmd" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_node_cmd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_node_cmd</span></code></a>(config)</p></td>
+<td><p>Get a CLI call to initialize DataHandler and cache data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_observation_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_observation_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_observation_index</span></code></a>(temporal_weights)</p></td>
+<td><p>Randomly gets spatial sample and time sample</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raster_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raster_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_raster_index</span></code></a>()</p></td>
+<td><p>Get raster index for file data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raw_feature_list" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raw_feature_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_raw_feature_list</span></code></a>(features, handle_features)</p></td>
+<td><p>Lookup inputs needed to compute feature</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_time_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_time_index</span></code></a>(file_paths)</p></td>
+<td><p>Get time index from data files</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_cached_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_cached_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_cached_data</span></code></a>()</p></td>
+<td><p>Load data from cache files and split into training and validation</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_single_cached_feature" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_single_cached_feature"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_single_cached_feature</span></code></a>(fp)</p></td>
+<td><p>Load single feature from given file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.lookup" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.lookup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lookup</span></code></a>(feature, attr_name[, handle_features])</p></td>
+<td><p>Lookup feature in feature registry</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.normalize" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.normalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">normalize</span></code></a>(means, stds[, max_workers])</p></td>
+<td><p>Normalize all data features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_compute" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_compute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_compute</span></code></a>(data, raster_index, ...[, ...])</p></td>
+<td><p>Compute features using parallel subprocesses</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_data_fill" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_data_fill"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_data_fill</span></code></a>(shifted_time_chunks[, ...])</p></td>
+<td><p>Fill final data array with extracted / computed chunks</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_extract" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_extract"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_extract</span></code></a>(file_paths, raster_index, ...)</p></td>
+<td><p>Extract features using parallel subprocesses</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_load" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_load</span></code></a>([max_workers])</p></td>
+<td><p>Load feature data in parallel</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_normalization" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_normalization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_normalization</span></code></a>(means, stds)</p></td>
+<td><p>Run normalization of features in parallel</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.pop_old_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.pop_old_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pop_old_data</span></code></a>(data, chunk_number, all_features)</p></td>
+<td><p>Remove input feature data if no longer needed for requested features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.preflight" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.preflight"><code class="xref py py-obj docutils literal notranslate"><span class="pre">preflight</span></code></a>()</p></td>
+<td><p>Run some preflight checks and verify that the inputs are valid</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.recursive_compute" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.recursive_compute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">recursive_compute</span></code></a>(data, feature, handle_features)</p></td>
+<td><p>Compute intermediate features recursively</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_compute" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_compute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serial_compute</span></code></a>(data, time_chunks, ...)</p></td>
+<td><p>Compute features in series</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_data_fill" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_data_fill"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serial_data_fill</span></code></a>(shifted_time_chunks)</p></td>
+<td><p>Fill final data array in serial</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_extract" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_extract"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serial_extract</span></code></a>(file_paths, raster_index, ...)</p></td>
+<td><p>Extract features in series</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.source_handler" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.source_handler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">source_handler</span></code></a>(file_paths)</p></td>
+<td><p>rex data handler</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.split_data" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.split_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">split_data</span></code></a>([data])</p></td>
+<td><p>Splits time dimension into set of training indices and validation indices</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.unnormalize" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.unnormalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unnormalize</span></code></a>(means, stds)</p></td>
+<td><p>Remove normalization from stored means and stds</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_handle_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_handle_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">valid_handle_features</span></code></a>(features, handle_features)</p></td>
+<td><p>Check if features are in handle</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_input_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_input_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">valid_input_features</span></code></a>(features, handle_features)</p></td>
+<td><p>Check if features are in handle or have compute methods</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">TIME_IND_FEATURES</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">TRAIN_ONLY_FEATURES</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.attrs" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attrs</span></code></a></p></td>
+<td><p>Get atttributes of input data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_files" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_files"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_files</span></code></a></p></td>
+<td><p>Cache files for storing extracted data</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_pattern" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_pattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_pattern</span></code></a></p></td>
+<td><p>Get correct cache file pattern for formatting.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cached_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cached_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cached_features</span></code></a></p></td>
+<td><p>List of features which have been requested but have been determined not to need extraction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.compute_workers" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.compute_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_workers</span></code></a></p></td>
+<td><p>Get upper bound for compute workers based on memory limits.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.derive_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.derive_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">derive_features</span></code></a></p></td>
+<td><p>List of features which need to be derived from other features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extract_features</span></code></a></p></td>
+<td><p>Get list of features needing extraction or derivation</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_workers" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extract_workers</span></code></a></p></td>
+<td><p>Get upper bound for extract workers based on memory limits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_mem" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_mem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">feature_mem</span></code></a></p></td>
+<td><p>Number of bytes for a single feature array.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.file_paths" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.file_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_paths</span></code></a></p></td>
+<td><p>Get file paths for input data</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.full_domain" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">full_domain</span></code></a></p></td>
+<td><p>Get target and shape for full domain if not specified and raster file is None or does not exist</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_mem" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_mem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grid_mem</span></code></a></p></td>
+<td><p>Get memory used by a feature at a single time step</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_shape" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grid_shape</span></code></a></p></td>
+<td><p>Get shape of raster</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.handle_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.handle_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">handle_features</span></code></a></p></td>
+<td><p>All features available in raw input</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.input_file_info" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.input_file_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_file_info</span></code></a></p></td>
+<td><p>Method to provide info about files in log output.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.invert_lat" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.invert_lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">invert_lat</span></code></a></p></td>
+<td><p>Whether to invert the latitude axis during data extraction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.lat_lon" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lat_lon</span></code></a></p></td>
+<td><p>lat lon grid for data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_workers" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_workers</span></code></a></p></td>
+<td><p>Get upper bound on load workers based on memory limits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.n_tsteps" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.n_tsteps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">n_tsteps</span></code></a></p></td>
+<td><p>Get number of time steps to extract</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.norm_workers" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.norm_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">norm_workers</span></code></a></p></td>
+<td><p>Get upper bound on workers used for normalization.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.output_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.output_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_features</span></code></a></p></td>
+<td><p>Get a list of features that should be output by the generative model corresponding to the features in the high res batch array.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raster_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raster_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raster_index</span></code></a></p></td>
+<td><p>Raster index property</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_features</span></code></a></p></td>
+<td><p>Get list of features needed for computations</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_time_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_time_index</span></code></a></p></td>
+<td><p>Time index for input data without time pruning.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.shape" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code></a></p></td>
+<td><p>Full data shape</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.target" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.target"><code class="xref py py-obj docutils literal notranslate"><span class="pre">target</span></code></a></p></td>
+<td><p>Get lower left corner of raster</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.temporal_slice" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.temporal_slice"><code class="xref py py-obj docutils literal notranslate"><span class="pre">temporal_slice</span></code></a></p></td>
+<td><p>Get temporal range to extract from full dataset</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunk_size" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunk_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_chunk_size</span></code></a></p></td>
+<td><p>Get upper bound on time chunk size based on memory limits</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunks" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_chunks</span></code></a></p></td>
+<td><p>Get time chunks which will be extracted from source data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_index" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index</span></code></a></p></td>
+<td><p>Time index for input data with time pruning.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_0" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_0"><code class="xref py py-obj docutils literal notranslate"><span class="pre">timestamp_0</span></code></a></p></td>
+<td><p>Get a string timestamp for the first time index value with the format YYYYMMDDHHMMSS</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_1" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">timestamp_1</span></code></a></p></td>
+<td><p>Get a string timestamp for the last time index value with the format YYYYMMDDHHMMSS</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.train_only_features" title="sup3r.preprocessing.data_handling.DataHandlerDCforH5.train_only_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">train_only_features</span></code></a></p></td>
+<td><p>Features to use for training only and not output</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.REX_HANDLER">
+<span class="sig-name descname"><span class="pre">REX_HANDLER</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.REX_HANDLER" title="Permalink to this definition"></a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiFileWindX</span></code></p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.attrs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">attrs</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.attrs" title="Permalink to this definition"></a></dt>
+<dd><p>Get atttributes of input data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>dict</em> – Dictionary of attributes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_data">
+<span class="sig-name descname"><span class="pre">cache_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache_file_paths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_data" title="Permalink to this definition"></a></dt>
+<dd><p>Cache feature data to file and delete from memory</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cache_file_paths</strong> (<em>str | None</em>) – Path to file for saving feature data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_files">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_files</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_files" title="Permalink to this definition"></a></dt>
+<dd><p>Cache files for storing extracted data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_pattern">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_pattern</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cache_pattern" title="Permalink to this definition"></a></dt>
+<dd><p>Get correct cache file pattern for formatting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_cache_pattern</strong> (<em>str</em>) – The cache file pattern with formatting keys included.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.cached_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cached_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.cached_features" title="Permalink to this definition"></a></dt>
+<dd><p>List of features which have been requested but have been determined
+not to need extraction. Thus they have been cached already.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.check_cached_features">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">check_cached_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_cached</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.check_cached_features" title="Permalink to this definition"></a></dt>
+<dd><p>Check which features have been cached and check flags to determine
+whether to load or extract this features again</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>list</em>) – list of features to extract</p></li>
+<li><p><strong>cache_files</strong> (<em>list | None</em>) – Path to files with saved feature data</p></li>
+<li><p><strong>overwrite_cache</strong> (<em>bool</em>) – Whether to overwrite cached files</p></li>
+<li><p><strong>load_cached</strong> (<em>bool</em>) – Whether to load data from cache files</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of features to extract. Might not include features which have
+cache files.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.clear_data">
+<span class="sig-name descname"><span class="pre">clear_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.clear_data" title="Permalink to this definition"></a></dt>
+<dd><p>Free memory used for data arrays</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.compute_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.compute_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get upper bound for compute workers based on memory limits. Used to
+compute derived features from source dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.data_fill">
+<span class="sig-name descname"><span class="pre">data_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.data_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Place single extracted / computed chunk in final data array</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>int</em>) – Index of time slice in extracted / computed raw data dictionary</p></li>
+<li><p><strong>t_slice</strong> (<em>slice</em>) – Time slice corresponding to the location in the final data array</p></li>
+<li><p><strong>f_index</strong> (<em>int</em>) – Index of feature in the final data array</p></li>
+<li><p><strong>f</strong> (<em>str</em>) – Name of corresponding feature in the raw data dictionary</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.derive_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">derive_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.derive_features" title="Permalink to this definition"></a></dt>
+<dd><p>List of features which need to be derived from other features</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_data">
+<span class="sig-name descname"><span class="pre">extract_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_data" title="Permalink to this definition"></a></dt>
+<dd><p>Building base 4D data array. Can handle multiple files but assumes
+each file has the same spatial domain</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>np.ndarray</em>) – 4D array of high res data
+(spatial_1, spatial_2, temporal, features)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_feature">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extract_feature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">slice(None,</span> <span class="pre">None,</span> <span class="pre">None)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_feature" title="Permalink to this definition"></a></dt>
+<dd><p>Extract single feature from data source</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>list</em>) – path to data file</p></li>
+<li><p><strong>raster_index</strong> (<em>ndarray</em>) – Raster index array</p></li>
+<li><p><strong>feature</strong> (<em>str</em>) – Feature to extract from data</p></li>
+<li><p><strong>time_slice</strong> (<em>slice</em>) – slice of time to extract</p></li>
+<li><p><strong>invert_lat</strong> (<em>bool</em>) – Flag to invert latitude axis to enforce descending ordering</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>ndarray</em> – Data array for extracted feature
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extract_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get list of features needing extraction or derivation</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extract_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.extract_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get upper bound for extract workers based on memory limits. Used to
+extract data from source dataset</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_mem">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feature_mem</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_mem" title="Permalink to this definition"></a></dt>
+<dd><p>Number of bytes for a single feature array. Used to estimate
+max_workers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>int</em> – Number of bytes for a single feature array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_registry">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feature_registry</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.feature_registry" title="Permalink to this definition"></a></dt>
+<dd><p>Registry of methods for computing features or extracting renamed
+features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>dict</em> – Method registry</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.file_paths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">file_paths</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.file_paths" title="Permalink to this definition"></a></dt>
+<dd><p>Get file paths for input data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.full_domain">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">full_domain</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.full_domain" title="Permalink to this definition"></a></dt>
+<dd><p>Get target and shape for full domain if not specified and raster
+file is None or does not exist</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>_target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster.</p></li>
+<li><p><strong>_grid_shape</strong> (<em>tuple</em>) – (rows, cols) grid size.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_cache_file_names">
+<span class="sig-name descname"><span class="pre">get_cache_file_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache_pattern</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_cache_file_names" title="Permalink to this definition"></a></dt>
+<dd><p>Get names of cache files from cache_pattern and feature names</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cache_pattern</strong> (<em>str</em>) – Pattern to use for cache file names</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of cache file names</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_full_domain">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_full_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_full_domain" title="Permalink to this definition"></a></dt>
+<dd><p>Get target and shape for largest domain possible</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_input_arrays">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_input_arrays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_input_arrays" title="Permalink to this definition"></a></dt>
+<dd><p>Get only arrays needed for computations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Dictionary of feature arrays</p></li>
+<li><p><strong>chunk_number</strong> – time chunk for which to get input arrays</p></li>
+<li><p><strong>f</strong> (<em>str</em>) – feature to compute using input arrays</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>dict</em> – Dictionary of arrays with only needed features</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_inputs_recursive">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_inputs_recursive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_inputs_recursive" title="Permalink to this definition"></a></dt>
+<dd><p>Lookup inputs needed to compute feature. Walk through inputs methods
+for each required feature to get all raw features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature</strong> (<em>str</em>) – Feature for which to get needed inputs for derivation</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of input features</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_lat_lon">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_lat_lon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_lat_lon" title="Permalink to this definition"></a></dt>
+<dd><p>Store lat lon for future output</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>list</em>) – path to data file</p></li>
+<li><p><strong>raster_index</strong> (<em>ndarray | list</em>) – Raster index array or list of slices</p></li>
+<li><p><strong>invert_lat</strong> (<em>bool</em>) – Flag to invert data along the latitude axis. Wrf data tends to use
+an increasing ordering for latitude while wtk uses a decreasing
+ordering.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>ndarray</em> – (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last
+dimension</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_next">
+<span class="sig-name descname"><span class="pre">get_next</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temporal_weights</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_next" title="Permalink to this definition"></a></dt>
+<dd><p>Gets data for observation using random observation index. Loops
+repeatedly over randomized time index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>observation</strong> (<em>np.ndarray</em>) – 4D array
+(spatial_1, spatial_2, temporal, features)</p></li>
+<li><p><strong>temporal_focus</strong> (<em>slice</em>) – Slice used to select prefered temporal range from full extent</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_node_cmd">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_node_cmd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_node_cmd" title="Permalink to this definition"></a></dt>
+<dd><p>Get a CLI call to initialize DataHandler and cache data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config</strong> (<em>dict</em>) – sup3r data handler config with all necessary args and kwargs to
+initialize DataHandler and run data extraction.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_observation_index">
+<span class="sig-name descname"><span class="pre">get_observation_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temporal_weights</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_observation_index" title="Permalink to this definition"></a></dt>
+<dd><p>Randomly gets spatial sample and time sample</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>observation_index</strong> (<em>tuple</em>) – Tuple of sampled spatial grid, time slice, and features indices.
+Used to get single observation like self.data[observation_index]</p></li>
+<li><p><strong>temporal_focus</strong> (<em>slice</em>) – Slice used to select prefered temporal range from full extent</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raster_index">
+<span class="sig-name descname"><span class="pre">get_raster_index</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raster_index" title="Permalink to this definition"></a></dt>
+<dd><p>Get raster index for file data. Here we assume the list of paths in
+file_paths all have data with the same spatial domain. We use the first
+file in the list to compute the raster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>raster_index</strong> (<em>np.ndarray</em>) – 2D array of grid indices</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raw_feature_list">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_raw_feature_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_raw_feature_list" title="Permalink to this definition"></a></dt>
+<dd><p>Lookup inputs needed to compute feature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>list</em>) – Features for which to get needed inputs for derivation</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>list</em> – List of input features</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_time_index">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_time_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.get_time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Get time index from data files</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file_paths</strong> (<em>list</em>) – path to data file</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>time_index</strong> (<em>pd.DateTimeIndex</em>) – Time index from h5 source file(s)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_mem">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">grid_mem</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_mem" title="Permalink to this definition"></a></dt>
+<dd><p>Get memory used by a feature at a single time step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>int</em> – Number of bytes for a single feature array at a single time step</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">grid_shape</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.grid_shape" title="Permalink to this definition"></a></dt>
+<dd><p>Get shape of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_grid_shape</strong> (<em>tuple</em>) – (rows, cols) grid size.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.handle_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">handle_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.handle_features" title="Permalink to this definition"></a></dt>
+<dd><p>All features available in raw input</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.input_file_info">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_file_info</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.input_file_info" title="Permalink to this definition"></a></dt>
+<dd><p>Method to provide info about files in log output. Since NETCDF files
+have single time slices printing out all the file paths is just a text
+dump without much info.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>str</em> – message to append to log output that does not include a huge info
+dump of file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.invert_lat">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">invert_lat</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.invert_lat" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to invert the latitude axis during data extraction. This is
+to enforce a descending latitude ordering so that the lower left corner
+of the grid is at idx=(-1, 0) instead of idx=(0, 0)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.lat_lon">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lat_lon</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.lat_lon" title="Permalink to this definition"></a></dt>
+<dd><p>lat lon grid for data</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_cached_data">
+<span class="sig-name descname"><span class="pre">load_cached_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_cached_data" title="Permalink to this definition"></a></dt>
+<dd><p>Load data from cache files and split into training and validation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_single_cached_feature">
+<span class="sig-name descname"><span class="pre">load_single_cached_feature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_single_cached_feature" title="Permalink to this definition"></a></dt>
+<dd><p>Load single feature from given file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fp</strong> (<em>string</em>) – File path for feature cache file</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.10)"><strong>RuntimeError</strong></a> – Error raised if shape conflicts with requested shape</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.load_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get upper bound on load workers based on memory limits. Used to load
+cached data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.lookup">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lookup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attr_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.lookup" title="Permalink to this definition"></a></dt>
+<dd><p>Lookup feature in feature registry</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature</strong> (<em>str</em>) – Feature to lookup in registry</p></li>
+<li><p><strong>attr_name</strong> (<em>str</em>) – Type of method to lookup. e.g. inputs or compute</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – List of feature names (datasets) available in the source file. If
+feature is found explicitly in this list, height/pressure suffixes
+will not be appended to the output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>method | None</em> – Feature registry method corresponding to feature</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.n_tsteps">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n_tsteps</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.n_tsteps" title="Permalink to this definition"></a></dt>
+<dd><p>Get number of time steps to extract</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.norm_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">norm_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.norm_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get upper bound on workers used for normalization.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.normalize">
+<span class="sig-name descname"><span class="pre">normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">means</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.normalize" title="Permalink to this definition"></a></dt>
+<dd><p>Normalize all data features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>means</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data features</p></li>
+<li><p><strong>stds</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data features</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.output_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.output_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get a list of features that should be output by the generative model
+corresponding to the features in the high res batch array.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_compute">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parallel_compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">derived_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_compute" title="Permalink to this definition"></a></dt>
+<dd><p>Compute features using parallel subprocesses</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays with integer keys for chunks and str
+keys for features.
+e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>raster_index</strong> (<em>ndarray</em>) – raster index for spatial domain</p></li>
+<li><p><strong>time_chunks</strong> (<em>list</em>) – List of slices to chunk data feature extraction along time
+dimension</p></li>
+<li><p><strong>derived_features</strong> (<em>list</em>) – list of feature strings which need to be derived</p></li>
+<li><p><strong>all_features</strong> (<em>list</em>) – list of all features including those requiring derivation from
+input features</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Number of max workers to use for computation. If equal to 1 then
+method is run in serial</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays, including computed features, with
+integer keys for chunks and str keys for features. Includes e.g.
+data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_data_fill">
+<span class="sig-name descname"><span class="pre">parallel_data_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shifted_time_chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_data_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Fill final data array with extracted / computed chunks</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shifted_time_chunks</strong> (<em>list</em>) – List of time slices corresponding to the appropriate location of
+extracted / computed chunks in the final data array</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for building final data array. If None
+max available workers will be used. If 1 cached data will be loaded
+in serial</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_extract">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parallel_extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_extract" title="Permalink to this definition"></a></dt>
+<dd><p>Extract features using parallel subprocesses</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>list</em>) – list of file paths</p></li>
+<li><p><strong>raster_index</strong> (<em>ndarray | list</em>) – raster index for spatial domain</p></li>
+<li><p><strong>time_chunks</strong> (<em>list</em>) – List of slices to chunk data feature extraction along time
+dimension</p></li>
+<li><p><strong>input_features</strong> (<em>list</em>) – list of input feature strings</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Number of max workers to use for extraction.  If equal to 1 then
+method is run in serial</p></li>
+<li><p><strong>invert_lat</strong> (<em>bool</em>) – Flag to invert data along the latitude axis. Wrf data tends to use
+an increasing ordering for latitude while wtk uses a decreasing
+ordering.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>dict</em> – dictionary of feature arrays with integer keys for chunks and str
+keys for features.  e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_load">
+<span class="sig-name descname"><span class="pre">parallel_load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_load" title="Permalink to this definition"></a></dt>
+<dd><p>Load feature data in parallel</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for parallel data loading. If None
+the max number of available workers will be used.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_normalization">
+<span class="sig-name descname"><span class="pre">parallel_normalization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">means</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.parallel_normalization" title="Permalink to this definition"></a></dt>
+<dd><p>Run normalization of features in parallel</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>means</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data features</p></li>
+<li><p><strong>stds</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data features</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.pop_old_data">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pop_old_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.pop_old_data" title="Permalink to this definition"></a></dt>
+<dd><p>Remove input feature data if no longer needed for requested features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays with integer keys for chunks and str
+keys for features.  e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>chunk_number</strong> (<em>int</em>) – time chunk index to check</p></li>
+<li><p><strong>all_features</strong> (<em>list</em>) – list of all requested features including those requiring derivation
+from input features</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.preflight">
+<span class="sig-name descname"><span class="pre">preflight</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.preflight" title="Permalink to this definition"></a></dt>
+<dd><p>Run some preflight checks and verify that the inputs are valid</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raster_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raster_index</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raster_index" title="Permalink to this definition"></a></dt>
+<dd><p>Raster index property</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get list of features needed for computations</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_time_index</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.raw_time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Time index for input data without time pruning. This is the base
+time index for the raw input data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.recursive_compute">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">recursive_compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.recursive_compute" title="Permalink to this definition"></a></dt>
+<dd><p>Compute intermediate features recursively</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays. e.g. data[feature] = array.
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>feature</strong> (<em>str</em>) – Name of feature to compute</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>ndarray</em> – Array of computed feature data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_compute">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">serial_compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">derived_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_compute" title="Permalink to this definition"></a></dt>
+<dd><p>Compute features in series</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays with integer keys for chunks and str
+keys for features. e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p></li>
+<li><p><strong>time_chunks</strong> (<em>list</em>) – List of slices to chunk data feature extraction along time
+dimension</p></li>
+<li><p><strong>derived_features</strong> (<em>list</em>) – list of feature strings which need to be derived</p></li>
+<li><p><strong>all_features</strong> (<em>list</em>) – list of all features including those requiring derivation from
+input features</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>data</strong> (<em>dict</em>) – dictionary of feature arrays, including computed features, with
+integer keys for chunks and str keys for features.
+e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_data_fill">
+<span class="sig-name descname"><span class="pre">serial_data_fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shifted_time_chunks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_data_fill" title="Permalink to this definition"></a></dt>
+<dd><p>Fill final data array in serial</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>shifted_time_chunks</strong> (<em>list</em>) – List of time slices corresponding to the appropriate location of
+extracted / computed chunks in the final data array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_extract">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">serial_extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.serial_extract" title="Permalink to this definition"></a></dt>
+<dd><p>Extract features in series</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_paths</strong> (<em>list</em>) – list of file paths</p></li>
+<li><p><strong>raster_index</strong> (<em>ndarray</em>) – raster index for spatial domain</p></li>
+<li><p><strong>time_chunks</strong> (<em>list</em>) – List of slices to chunk data feature extraction along time
+dimension</p></li>
+<li><p><strong>input_features</strong> (<em>list</em>) – list of input feature strings</p></li>
+<li><p><strong>invert_lat</strong> (<em>bool</em>) – Flag to invert data along the latitude axis. Wrf data tends to use
+an increasing ordering for latitude while wtk uses a decreasing
+ordering.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>dict</em> – dictionary of feature arrays with integer keys for chunks and str
+keys for features.  e.g. data[chunk_number][feature] = array.
+(spatial_1, spatial_2, temporal)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.shape" title="Permalink to this definition"></a></dt>
+<dd><p>Full data shape</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>shape</strong> (<em>tuple</em>) – Full data shape
+(spatial_1, spatial_2, temporal, features)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.source_handler">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">source_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.source_handler" title="Permalink to this definition"></a></dt>
+<dd><p>rex data handler</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file_paths</strong> (<em>str | list</em>) – paths to data files</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>data</strong> (<em>ResourceX</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.split_data">
+<span class="sig-name descname"><span class="pre">split_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.split_data" title="Permalink to this definition"></a></dt>
+<dd><p>Splits time dimension into set of training indices and validation
+indices</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>np.ndarray</em>) – 4D array of high res data
+(spatial_1, spatial_2, temporal, features)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>data</strong> (<em>np.ndarray</em>) – (spatial_1, spatial_2, temporal, features)
+Training data fraction of initial data array. Initial data array is
+overwritten by this new data array.</p></li>
+<li><p><strong>val_data</strong> (<em>np.ndarray</em>) – (spatial_1, spatial_2, temporal, features)
+Validation data fraction of initial data array.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.target">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">target</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.target" title="Permalink to this definition"></a></dt>
+<dd><p>Get lower left corner of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.temporal_slice">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_slice</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.temporal_slice" title="Permalink to this definition"></a></dt>
+<dd><p>Get temporal range to extract from full dataset</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunk_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_chunk_size</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunk_size" title="Permalink to this definition"></a></dt>
+<dd><p>Get upper bound on time chunk size based on memory limits</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunks">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_chunks</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_chunks" title="Permalink to this definition"></a></dt>
+<dd><p>Get time chunks which will be extracted from source data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>_time_chunks</strong> (<em>list</em>) – List of time chunks used to split up source data time dimension
+so that each chunk can be extracted individually</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_index</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Time index for input data with time pruning. This is the raw time
+index with a cropped range and time step applied.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_0">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">timestamp_0</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_0" title="Permalink to this definition"></a></dt>
+<dd><p>Get a string timestamp for the first time index value with the
+format YYYYMMDDHHMMSS</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_1">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">timestamp_1</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.timestamp_1" title="Permalink to this definition"></a></dt>
+<dd><p>Get a string timestamp for the last time index value with the
+format YYYYMMDDHHMMSS</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.train_only_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">train_only_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.train_only_features" title="Permalink to this definition"></a></dt>
+<dd><p>Features to use for training only and not output</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.unnormalize">
+<span class="sig-name descname"><span class="pre">unnormalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">means</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.unnormalize" title="Permalink to this definition"></a></dt>
+<dd><p>Remove normalization from stored means and stds</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_handle_features">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">valid_handle_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_handle_features" title="Permalink to this definition"></a></dt>
+<dd><p>Check if features are in handle</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>str | list</em>) – Raw feature names e.g. U_100m</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>bool</em> – Whether feature basename is in handle</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_input_features">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">valid_input_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle_features</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.DataHandlerDCforH5.valid_input_features" title="Permalink to this definition"></a></dt>
+<dd><p>Check if features are in handle or have compute methods</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>str | list</em>) – Raw feature names e.g. U_100m</p></li>
+<li><p><strong>handle_features</strong> (<em>list</em>) – Features available in raw data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>bool</em> – Whether feature basename is in handle</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.preprocessing.data_handling.DataHandlerDC.html" class="btn btn-neutral float-left" title="sup3r.preprocessing.data_handling.DataHandlerDC" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html" class="btn btn-neutral float-right" title="sup3r.preprocessing.data_handling.DataHandlerDCforNC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

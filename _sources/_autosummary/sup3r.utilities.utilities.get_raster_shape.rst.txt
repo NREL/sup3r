@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_raster\_shape
+============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_raster_shape

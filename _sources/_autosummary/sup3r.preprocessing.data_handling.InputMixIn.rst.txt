@@ -1,0 +1,41 @@
+sup3r.preprocessing.data\_handling.InputMixIn
+=============================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling
+
+.. autoclass:: InputMixIn
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~InputMixIn.get_full_domain
+      ~InputMixIn.get_time_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~InputMixIn.cache_pattern
+      ~InputMixIn.file_paths
+      ~InputMixIn.full_domain
+      ~InputMixIn.grid_shape
+      ~InputMixIn.input_file_info
+      ~InputMixIn.raw_time_index
+      ~InputMixIn.target
+      ~InputMixIn.temporal_slice
+      ~InputMixIn.time_index
+      ~InputMixIn.timestamp_0
+      ~InputMixIn.timestamp_1
+   
+   

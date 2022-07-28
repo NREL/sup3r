@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.postprocessing.file_handling.RexOutputs &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.preprocessing" href="sup3r.preprocessing.html" />
+    <link rel="prev" title="sup3r.postprocessing.file_handling.OutputHandlerNC" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.postprocessing.html">sup3r.postprocessing</a> &raquo;</li>
+          <li><a href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a> &raquo;</li>
+      <li>sup3r.postprocessing.file_handling.RexOutputs</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.postprocessing.file_handling.RexOutputs.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-postprocessing-file-handling-rexoutputs">
+<h1>sup3r.postprocessing.file_handling.RexOutputs<a class="headerlink" href="#sup3r-postprocessing-file-handling-rexoutputs" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RexOutputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#RexOutputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Outputs</span></code></p>
+<p>Base class to handle NREL h5 formatted output data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – Path to .h5 resource file</p></li>
+<li><p><strong>mode</strong> (<em>str, optional</em>) – Mode to instantiate h5py.File instance, by default ‘r’</p></li>
+<li><p><strong>unscale</strong> (<em>bool, optional</em>) – Boolean flag to automatically unscale variables on extraction,
+by default True</p></li>
+<li><p><strong>str_decode</strong> (<em>bool, optional</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read,
+by default True</p></li>
+<li><p><strong>group</strong> (<em>str, optional</em>) – Group within .h5 resource file to open, by default None</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.add_dataset" title="sup3r.postprocessing.file_handling.RexOutputs.add_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_dataset</span></code></a>(h5_file, dset_name, dset_data, dtype)</p></td>
+<td><p>Add dataset to h5_file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.close" title="sup3r.postprocessing.file_handling.RexOutputs.close"><code class="xref py py-obj docutils literal notranslate"><span class="pre">close</span></code></a>()</p></td>
+<td><p>Close h5 instance</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.df_str_decode" title="sup3r.postprocessing.file_handling.RexOutputs.df_str_decode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">df_str_decode</span></code></a>(df)</p></td>
+<td><p>Decode a dataframe with byte string columns into ordinary str cols.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_SAM_df" title="sup3r.postprocessing.file_handling.RexOutputs.get_SAM_df"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_SAM_df</span></code></a>(site)</p></td>
+<td><p>Placeholder for get_SAM_df method that it resource specific</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_attrs" title="sup3r.postprocessing.file_handling.RexOutputs.get_attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_attrs</span></code></a>([dset])</p></td>
+<td><p>Get h5 attributes either from file or dataset</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_config" title="sup3r.postprocessing.file_handling.RexOutputs.get_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_config</span></code></a>(config_name)</p></td>
+<td><p>Get SAM config</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_dset_properties" title="sup3r.postprocessing.file_handling.RexOutputs.get_dset_properties"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_dset_properties</span></code></a>(dset)</p></td>
+<td><p>Get dataset properties (shape, dtype, chunks)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_meta_arr" title="sup3r.postprocessing.file_handling.RexOutputs.get_meta_arr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_meta_arr</span></code></a>(rec_name[, rows])</p></td>
+<td><p>Get a meta array by name (faster than DataFrame extraction).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_scale_factor" title="sup3r.postprocessing.file_handling.RexOutputs.get_scale_factor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_scale_factor</span></code></a>(dset)</p></td>
+<td><p>Get dataset scale factor</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.get_units" title="sup3r.postprocessing.file_handling.RexOutputs.get_units"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_units</span></code></a>(dset)</p></td>
+<td><p>Get dataset units</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.init_h5" title="sup3r.postprocessing.file_handling.RexOutputs.init_h5"><code class="xref py py-obj docutils literal notranslate"><span class="pre">init_h5</span></code></a>(h5_file, dsets, shapes, attrs, ...)</p></td>
+<td><p>Init a full output file with the final intended shape without data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.open_dataset" title="sup3r.postprocessing.file_handling.RexOutputs.open_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_dataset</span></code></a>(ds_name)</p></td>
+<td><p>Open resource dataset</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.preload_SAM" title="sup3r.postprocessing.file_handling.RexOutputs.preload_SAM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">preload_SAM</span></code></a>(h5_file, sites, tech[, unscale, ...])</p></td>
+<td><p>Pre-load project_points for SAM</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.set_configs" title="sup3r.postprocessing.file_handling.RexOutputs.set_configs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_configs</span></code></a>(SAM_configs)</p></td>
+<td><p>Set SAM configuration JSONs as attributes of 'meta'</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.set_version_attr" title="sup3r.postprocessing.file_handling.RexOutputs.set_version_attr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_version_attr</span></code></a>()</p></td>
+<td><p>Set the version attribute to the h5 file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.update_dset" title="sup3r.postprocessing.file_handling.RexOutputs.update_dset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_dset</span></code></a>(dset, dset_array[, dset_slice])</p></td>
+<td><p>Check to see if dset needs to be updated on disk If so write dset_array to disk</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.write_dataset" title="sup3r.postprocessing.file_handling.RexOutputs.write_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_dataset</span></code></a>(dset_name, data, dtype[, ...])</p></td>
+<td><p>Write dataset to disk.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.write_means" title="sup3r.postprocessing.file_handling.RexOutputs.write_means"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_means</span></code></a>(h5_file, meta, dset_name, means, ...)</p></td>
+<td><p>Write means array to disk</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.write_profiles" title="sup3r.postprocessing.file_handling.RexOutputs.write_profiles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_profiles</span></code></a>(h5_file, meta, time_index, ...)</p></td>
+<td><p>Write profiles to disk</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ADD_ATTR</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.SAM_configs" title="sup3r.postprocessing.file_handling.RexOutputs.SAM_configs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SAM_configs</span></code></a></p></td>
+<td><p>SAM configuration JSONs used to create CF profiles</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SCALE_ATTR</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">UNIT_ATTR</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.attrs" title="sup3r.postprocessing.file_handling.RexOutputs.attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attrs</span></code></a></p></td>
+<td><p>Dictionary of all dataset attributes</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.chunks" title="sup3r.postprocessing.file_handling.RexOutputs.chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chunks</span></code></a></p></td>
+<td><p>Dictionary of all dataset chunk sizes</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.coordinates" title="sup3r.postprocessing.file_handling.RexOutputs.coordinates"><code class="xref py py-obj docutils literal notranslate"><span class="pre">coordinates</span></code></a></p></td>
+<td><p>(lat, lon) pairs</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.data_version" title="sup3r.postprocessing.file_handling.RexOutputs.data_version"><code class="xref py py-obj docutils literal notranslate"><span class="pre">data_version</span></code></a></p></td>
+<td><p>Get the version attribute of the data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.datasets" title="sup3r.postprocessing.file_handling.RexOutputs.datasets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datasets</span></code></a></p></td>
+<td><p>Datasets available</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.dsets" title="sup3r.postprocessing.file_handling.RexOutputs.dsets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dsets</span></code></a></p></td>
+<td><p>Datasets available</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.dtypes" title="sup3r.postprocessing.file_handling.RexOutputs.dtypes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dtypes</span></code></a></p></td>
+<td><p>Dictionary of all dataset dtypes</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.full_version_record" title="sup3r.postprocessing.file_handling.RexOutputs.full_version_record"><code class="xref py py-obj docutils literal notranslate"><span class="pre">full_version_record</span></code></a></p></td>
+<td><p>Get record of versions for dependencies</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.global_attrs" title="sup3r.postprocessing.file_handling.RexOutputs.global_attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_attrs</span></code></a></p></td>
+<td><p>Global (file) attributes</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.groups" title="sup3r.postprocessing.file_handling.RexOutputs.groups"><code class="xref py py-obj docutils literal notranslate"><span class="pre">groups</span></code></a></p></td>
+<td><p>Groups available</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.h5" title="sup3r.postprocessing.file_handling.RexOutputs.h5"><code class="xref py py-obj docutils literal notranslate"><span class="pre">h5</span></code></a></p></td>
+<td><p>Open h5py File instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.lat_lon" title="sup3r.postprocessing.file_handling.RexOutputs.lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lat_lon</span></code></a></p></td>
+<td><p>Extract (latitude, longitude) pairs</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.meta" title="sup3r.postprocessing.file_handling.RexOutputs.meta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">meta</span></code></a></p></td>
+<td><p>Resource meta data DataFrame</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.package" title="sup3r.postprocessing.file_handling.RexOutputs.package"><code class="xref py py-obj docutils literal notranslate"><span class="pre">package</span></code></a></p></td>
+<td><p>Package used to create file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.res_dsets" title="sup3r.postprocessing.file_handling.RexOutputs.res_dsets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">res_dsets</span></code></a></p></td>
+<td><p>Available resource datasets</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.resource_datasets" title="sup3r.postprocessing.file_handling.RexOutputs.resource_datasets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">resource_datasets</span></code></a></p></td>
+<td><p>Available resource datasets</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.run_attrs" title="sup3r.postprocessing.file_handling.RexOutputs.run_attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_attrs</span></code></a></p></td>
+<td><p>Runtime attributes stored at the global (file) level</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.scale_factors" title="sup3r.postprocessing.file_handling.RexOutputs.scale_factors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scale_factors</span></code></a></p></td>
+<td><p>Dictionary of all dataset scale factors</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.shape" title="sup3r.postprocessing.file_handling.RexOutputs.shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code></a></p></td>
+<td><p>Variable array shape from time_index and meta</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.shapes" title="sup3r.postprocessing.file_handling.RexOutputs.shapes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shapes</span></code></a></p></td>
+<td><p>Dictionary of all dataset shapes</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.source" title="sup3r.postprocessing.file_handling.RexOutputs.source"><code class="xref py py-obj docutils literal notranslate"><span class="pre">source</span></code></a></p></td>
+<td><p>Package and version used to create file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.time_index" title="sup3r.postprocessing.file_handling.RexOutputs.time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index</span></code></a></p></td>
+<td><p>Resource DatetimeIndex</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.units" title="sup3r.postprocessing.file_handling.RexOutputs.units"><code class="xref py py-obj docutils literal notranslate"><span class="pre">units</span></code></a></p></td>
+<td><p>Dictionary of all dataset units</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.version" title="sup3r.postprocessing.file_handling.RexOutputs.version"><code class="xref py py-obj docutils literal notranslate"><span class="pre">version</span></code></a></p></td>
+<td><p>Version of package used to create file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.postprocessing.file_handling.RexOutputs.writable" title="sup3r.postprocessing.file_handling.RexOutputs.writable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">writable</span></code></a></p></td>
+<td><p>Check to see if h5py.File instance is writable</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.full_version_record">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">full_version_record</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.full_version_record" title="Permalink to this definition"></a></dt>
+<dd><p>Get record of versions for dependencies</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>dict</em> – Dictionary of package versions for dependencies</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.set_version_attr">
+<span class="sig-name descname"><span class="pre">set_version_attr</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/postprocessing/file_handling.html#RexOutputs.set_version_attr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.set_version_attr" title="Permalink to this definition"></a></dt>
+<dd><p>Set the version attribute to the h5 file.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.SAM_configs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SAM_configs</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.SAM_configs" title="Permalink to this definition"></a></dt>
+<dd><p>SAM configuration JSONs used to create CF profiles</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>configs</strong> (<em>dict</em>) – Dictionary of SAM configuration JSONs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.add_dataset">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'a'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.add_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Add dataset to h5_file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – Path to .h5 resource file</p></li>
+<li><p><strong>dset_name</strong> (<em>str</em>) – Name of dataset to be added to h5 file</p></li>
+<li><p><strong>dset_data</strong> (<em>ndarray</em>) – Data to be added to h5 file</p></li>
+<li><p><strong>dtype</strong> (<em>str</em>) – Intended dataset datatype after scaling.</p></li>
+<li><p><strong>attrs</strong> (<em>dict, optional</em>) – Attributes to be set. May include ‘scale_factor’, by default None</p></li>
+<li><p><strong>unscale</strong> (<em>bool, optional</em>) – Boolean flag to automatically unscale variables on extraction,
+by default True</p></li>
+<li><p><strong>mode</strong> (<em>str, optional</em>) – Mode to instantiate h5py.File instance, by default ‘a’</p></li>
+<li><p><strong>str_decode</strong> (<em>bool, optional</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read,
+by default True</p></li>
+<li><p><strong>group</strong> (<em>str, optional</em>) – Group within .h5 resource file to open, by default None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.attrs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">attrs</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.attrs" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset attributes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>attrs</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.chunks">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chunks</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.chunks" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset chunk sizes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>chunks</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.close" title="Permalink to this definition"></a></dt>
+<dd><p>Close h5 instance</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.coordinates">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">coordinates</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.coordinates" title="Permalink to this definition"></a></dt>
+<dd><p>(lat, lon) pairs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>lat_lon</strong> (<em>ndarray</em>)</p>
+</dd>
+<dt class="field-even">Type</dt>
+<dd class="field-even"><p>Coordinates</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.data_version">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_version</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.data_version" title="Permalink to this definition"></a></dt>
+<dd><p>Get the version attribute of the data. None if not available.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>version</strong> (<em>str | None</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.datasets">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">datasets</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.datasets" title="Permalink to this definition"></a></dt>
+<dd><p>Datasets available</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.df_str_decode">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">df_str_decode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.df_str_decode" title="Permalink to this definition"></a></dt>
+<dd><p>Decode a dataframe with byte string columns into ordinary str cols.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>df</strong> (<em>pd.DataFrame</em>) – Dataframe with some columns being byte strings.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>df</strong> (<em>pd.DataFrame</em>) – DataFrame with str columns instead of byte str columns.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.dsets">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dsets</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.dsets" title="Permalink to this definition"></a></dt>
+<dd><p>Datasets available</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.dtypes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dtypes</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.dtypes" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset dtypes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>dtypes</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_SAM_df">
+<span class="sig-name descname"><span class="pre">get_SAM_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">site</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_SAM_df" title="Permalink to this definition"></a></dt>
+<dd><p>Placeholder for get_SAM_df method that it resource specific</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>site</strong> (<em>int</em>) – Site to extract SAM DataFrame for</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_attrs">
+<span class="sig-name descname"><span class="pre">get_attrs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_attrs" title="Permalink to this definition"></a></dt>
+<dd><p>Get h5 attributes either from file or dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dset</strong> (<em>str</em>) – Dataset to get attributes for, if None get file (global) attributes</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>attrs</strong> (<em>dict</em>) – Dataset or file attributes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_config">
+<span class="sig-name descname"><span class="pre">get_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_config" title="Permalink to this definition"></a></dt>
+<dd><p>Get SAM config</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config_name</strong> (<em>str</em>) – Name of config</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>config</strong> (<em>dict</em>) – SAM config JSON as a dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_dset_properties">
+<span class="sig-name descname"><span class="pre">get_dset_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_dset_properties" title="Permalink to this definition"></a></dt>
+<dd><p>Get dataset properties (shape, dtype, chunks)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dset</strong> (<em>str</em>) – Dataset to get scale factor for</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>shape</strong> (<em>tuple</em>) – Dataset array shape</p></li>
+<li><p><strong>dtype</strong> (<em>str</em>) – Dataset array dtype</p></li>
+<li><p><strong>chunks</strong> (<em>tuple</em>) – Dataset chunk size</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_meta_arr">
+<span class="sig-name descname"><span class="pre">get_meta_arr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rec_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">slice(None,</span> <span class="pre">None,</span> <span class="pre">None)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_meta_arr" title="Permalink to this definition"></a></dt>
+<dd><p>Get a meta array by name (faster than DataFrame extraction).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rec_name</strong> (<em>str</em>) – Named record from the meta data to retrieve.</p></li>
+<li><p><strong>rows</strong> (<em>slice</em>) – Rows of the record to extract.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>meta_arr</strong> (<em>np.ndarray</em>) – Extracted array from the meta data record name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_scale_factor">
+<span class="sig-name descname"><span class="pre">get_scale_factor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_scale_factor" title="Permalink to this definition"></a></dt>
+<dd><p>Get dataset scale factor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dset</strong> (<em>str</em>) – Dataset to get scale factor for</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>float</em> – Dataset scale factor, used to unscale int values to floats</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.get_units">
+<span class="sig-name descname"><span class="pre">get_units</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.get_units" title="Permalink to this definition"></a></dt>
+<dd><p>Get dataset units</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dset</strong> (<em>str</em>) – Dataset to get units for</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>str</em> – Dataset units, None if not defined</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.global_attrs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">global_attrs</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.global_attrs" title="Permalink to this definition"></a></dt>
+<dd><p>Global (file) attributes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>global_attrs</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.groups">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">groups</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.groups" title="Permalink to this definition"></a></dt>
+<dd><p>Groups available</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>groups</strong> (<em>list</em>) – List of groups</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.h5">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">h5</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.h5" title="Permalink to this definition"></a></dt>
+<dd><p>Open h5py File instance. If _group is not None return open Group</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>h5</strong> (<em>h5py.File | h5py.Group</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.init_h5">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">init_h5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dsets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shapes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtypes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'w'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.init_h5" title="Permalink to this definition"></a></dt>
+<dd><p>Init a full output file with the final intended shape without data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – Full h5 output filepath.</p></li>
+<li><p><strong>dsets</strong> (<em>list</em>) – List of strings of dataset names to initialize (does not include
+meta or time_index).</p></li>
+<li><p><strong>shapes</strong> (<em>dict</em>) – Dictionary of dataset shapes (keys correspond to dsets).</p></li>
+<li><p><strong>attrs</strong> (<em>dict</em>) – Dictionary of dataset attributes (keys correspond to dsets).</p></li>
+<li><p><strong>chunks</strong> (<em>dict</em>) – Dictionary of chunk tuples (keys correspond to dsets).</p></li>
+<li><p><strong>dtypes</strong> (<em>dict</em>) – dictionary of numpy datatypes (keys correspond to dsets).</p></li>
+<li><p><strong>meta</strong> (<em>pd.DataFrame</em>) – Full meta data.</p></li>
+<li><p><strong>time_index</strong> (<em>pd.datetimeindex | None</em>) – Full pandas datetime index. None implies that only 1D results
+(no site profiles) are being written.</p></li>
+<li><p><strong>configs</strong> (<em>dict | None</em>) – Optional input configs to set as attr on meta.</p></li>
+<li><p><strong>unscale</strong> (<em>bool</em>) – Boolean flag to automatically unscale variables on extraction</p></li>
+<li><p><strong>mode</strong> (<em>str</em>) – Mode to instantiate h5py.File instance</p></li>
+<li><p><strong>str_decode</strong> (<em>bool</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read.</p></li>
+<li><p><strong>group</strong> (<em>str</em>) – Group within .h5 resource file to open</p></li>
+<li><p><strong>run_attrs</strong> (<em>dict | NoneType</em>) – Runtime attributes (args, kwargs) to add as global (file)
+attributes</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.lat_lon">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lat_lon</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.lat_lon" title="Permalink to this definition"></a></dt>
+<dd><p>Extract (latitude, longitude) pairs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>lat_lon</strong> (<em>ndarray</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.meta">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">meta</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.meta" title="Permalink to this definition"></a></dt>
+<dd><p>Resource meta data DataFrame</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>meta</strong> (<em>pandas.DataFrame</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.open_dataset">
+<span class="sig-name descname"><span class="pre">open_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ds_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.open_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Open resource dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ds_name</strong> (<em>str</em>) – Dataset name to open</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>ds</strong> (<em>ResourceDataset</em>) – Resource for open resource dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.package">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">package</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.package" title="Permalink to this definition"></a></dt>
+<dd><p>Package used to create file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>str</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.preload_SAM">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">preload_SAM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sites</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tech</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hsds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hsds_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_index_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.preload_SAM" title="Permalink to this definition"></a></dt>
+<dd><p>Pre-load project_points for SAM</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – h5_file to extract resource from</p></li>
+<li><p><strong>sites</strong> (<em>list</em>) – List of sites to be provided to SAM</p></li>
+<li><p><strong>tech</strong> (<em>str</em>) – Technology to be run by SAM</p></li>
+<li><p><strong>unscale</strong> (<em>bool</em>) – Boolean flag to automatically unscale variables on extraction</p></li>
+<li><p><strong>str_decode</strong> (<em>bool</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read.</p></li>
+<li><p><strong>group</strong> (<em>str</em>) – Group within .h5 resource file to open</p></li>
+<li><p><strong>hsds</strong> (<em>bool, optional</em>) – Boolean flag to use h5pyd to handle .h5 ‘files’ hosted on AWS
+behind HSDS, by default False</p></li>
+<li><p><strong>hsds_kwargs</strong> (<em>dict, optional</em>) – Dictionary of optional kwargs for h5pyd, e.g., bucket, username,
+password, by default None</p></li>
+<li><p><strong>time_index_step</strong> (<em>int, optional</em>) – Step size for time_index, used to reduce temporal resolution,
+by default None</p></li>
+<li><p><strong>means</strong> (<em>bool, optional</em>) – Boolean flag to compute mean resource when res_array is set,
+by default False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>SAM_res</strong> (<em>SAMResource</em>) – Instance of SAMResource pre-loaded with Solar resource for sites
+in project_points</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.res_dsets">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">res_dsets</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.res_dsets" title="Permalink to this definition"></a></dt>
+<dd><p>Available resource datasets</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.resource_datasets">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">resource_datasets</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.resource_datasets" title="Permalink to this definition"></a></dt>
+<dd><p>Available resource datasets</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>list</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.run_attrs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">run_attrs</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.run_attrs" title="Permalink to this definition"></a></dt>
+<dd><p>Runtime attributes stored at the global (file) level</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>global_attrs</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.scale_factors">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">scale_factors</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.scale_factors" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset scale factors</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>scale_factors</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.set_configs">
+<span class="sig-name descname"><span class="pre">set_configs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">SAM_configs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.set_configs" title="Permalink to this definition"></a></dt>
+<dd><p>Set SAM configuration JSONs as attributes of ‘meta’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>SAM_configs</strong> (<em>dict</em>) – Dictionary of SAM configuration JSONs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.shape" title="Permalink to this definition"></a></dt>
+<dd><p>Variable array shape from time_index and meta</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>tuple</em> – shape of variables arrays == (time, locations)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.shapes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shapes</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.shapes" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset shapes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>shapes</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.source">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">source</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.source" title="Permalink to this definition"></a></dt>
+<dd><p>Package and version used to create file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>str</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_index</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.time_index" title="Permalink to this definition"></a></dt>
+<dd><p>Resource DatetimeIndex</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>time_index</strong> (<em>pandas.DatetimeIndex</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.units">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">units</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.units" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of all dataset units</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>units</strong> (<em>dict</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.update_dset">
+<span class="sig-name descname"><span class="pre">update_dset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.update_dset" title="Permalink to this definition"></a></dt>
+<dd><p>Check to see if dset needs to be updated on disk
+If so write dset_array to disk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dset</strong> (<em>str</em>) – dataset to update</p></li>
+<li><p><strong>dset_array</strong> (<em>ndarray</em>) – dataset array</p></li>
+<li><p><strong>dset_slice</strong> (<em>tuple</em>) – slice of dataset to update, it None update all</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.version">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">version</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.version" title="Permalink to this definition"></a></dt>
+<dd><p>Version of package used to create file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><em>str</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.writable">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">writable</span></span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.writable" title="Permalink to this definition"></a></dt>
+<dd><p>Check to see if h5py.File instance is writable</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>is_writable</strong> (<em>bool</em>) – Flag if mode is writable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.write_dataset">
+<span class="sig-name descname"><span class="pre">write_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.write_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Write dataset to disk. Dataset it created in .h5 file and data is
+scaled if needed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dset_name</strong> (<em>str</em>) – Name of dataset to be added to h5 file.</p></li>
+<li><p><strong>data</strong> (<em>ndarray</em>) – Data to be added to h5 file.</p></li>
+<li><p><strong>dtype</strong> (<em>str</em>) – Intended dataset datatype after scaling.</p></li>
+<li><p><strong>chunks</strong> (<em>tuple</em>) – Chunk size for capacity factor means dataset.</p></li>
+<li><p><strong>attrs</strong> (<em>dict</em>) – Attributes to be set. May include ‘scale_factor’.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.write_means">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">write_means</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">SAM_configs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'w-'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.write_means" title="Permalink to this definition"></a></dt>
+<dd><p>Write means array to disk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – Path to .h5 resource file</p></li>
+<li><p><strong>meta</strong> (<em>pandas.Dataframe</em>) – Locational meta data</p></li>
+<li><p><strong>dset_name</strong> (<em>str</em>) – Name of the target dataset (should identify the means).</p></li>
+<li><p><strong>means</strong> (<em>ndarray</em>) – output means array.</p></li>
+<li><p><strong>dtype</strong> (<em>str</em>) – Intended dataset datatype after scaling.</p></li>
+<li><p><strong>attrs</strong> (<em>dict, optional</em>) – Attributes to be set. May include ‘scale_factor’, by default None</p></li>
+<li><p><strong>SAM_configs</strong> (<em>dict, optional</em>) – Dictionary of SAM configuration JSONs used to compute cf means,
+by default None</p></li>
+<li><p><strong>chunks</strong> (<em>tuple, optional</em>) – Chunk size for capacity factor means dataset, by default None</p></li>
+<li><p><strong>unscale</strong> (<em>bool, optional</em>) – Boolean flag to automatically unscale variables on extraction,
+by default True</p></li>
+<li><p><strong>mode</strong> (<em>str, optional</em>) – Mode to instantiate h5py.File instance, by default ‘w-’</p></li>
+<li><p><strong>str_decode</strong> (<em>bool, optional</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read,
+by default True</p></li>
+<li><p><strong>group</strong> (<em>str, optional</em>) – Group within .h5 resource file to open, by default None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.postprocessing.file_handling.RexOutputs.write_profiles">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">write_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">profiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">SAM_configs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(None,</span> <span class="pre">100)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unscale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'w-'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.postprocessing.file_handling.RexOutputs.write_profiles" title="Permalink to this definition"></a></dt>
+<dd><p>Write profiles to disk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5_file</strong> (<em>str</em>) – Path to .h5 resource file</p></li>
+<li><p><strong>meta</strong> (<em>pandas.Dataframe</em>) – Locational meta data</p></li>
+<li><p><strong>time_index</strong> (<em>pandas.DatetimeIndex</em>) – Temporal timesteps</p></li>
+<li><p><strong>dset_name</strong> (<em>str</em>) – Name of the target dataset (should identify the profiles).</p></li>
+<li><p><strong>profiles</strong> (<em>ndarray</em>) – output result timeseries profiles</p></li>
+<li><p><strong>dtype</strong> (<em>str</em>) – Intended dataset datatype after scaling.</p></li>
+<li><p><strong>attrs</strong> (<em>dict, optional</em>) – Attributes to be set. May include ‘scale_factor’, by default None</p></li>
+<li><p><strong>SAM_configs</strong> (<em>dict, optional</em>) – Dictionary of SAM configuration JSONs used to compute cf means,
+by default None</p></li>
+<li><p><strong>chunks</strong> (<em>tuple, optional</em>) – Chunk size for capacity factor means dataset,
+by default (None, 100)</p></li>
+<li><p><strong>unscale</strong> (<em>bool, optional</em>) – Boolean flag to automatically unscale variables on extraction,
+by default True</p></li>
+<li><p><strong>mode</strong> (<em>str, optional</em>) – Mode to instantiate h5py.File instance, by default ‘w-’</p></li>
+<li><p><strong>str_decode</strong> (<em>bool, optional</em>) – Boolean flag to decode the bytestring meta data into normal
+strings. Setting this to False will speed up the meta data read,
+by default True</p></li>
+<li><p><strong>group</strong> (<em>str, optional</em>) – Group within .h5 resource file to open, by default None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.postprocessing.file_handling.OutputHandlerNC.html" class="btn btn-neutral float-left" title="sup3r.postprocessing.file_handling.OutputHandlerNC" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.preprocessing.html" class="btn btn-neutral float-right" title="sup3r.preprocessing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

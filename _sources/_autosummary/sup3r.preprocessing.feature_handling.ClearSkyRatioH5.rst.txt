@@ -1,0 +1,25 @@
+sup3r.preprocessing.feature\_handling.ClearSkyRatioH5
+=====================================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: ClearSkyRatioH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ClearSkyRatioH5.compute
+      ~ClearSkyRatioH5.inputs
+   
+   
+
+   
+   
+   

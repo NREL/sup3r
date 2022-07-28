@@ -1,0 +1,6 @@
+sup3r.utilities.test\_utils.make\_fake\_h5\_chunks
+==================================================
+
+.. currentmodule:: sup3r.utilities.test_utils
+
+.. autofunction:: make_fake_h5_chunks

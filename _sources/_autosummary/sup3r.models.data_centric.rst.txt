@@ -1,0 +1,31 @@
+sup3r.models.data\_centric
+==========================
+
+.. automodule:: sup3r.models.data_centric
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Sup3rGanDC
+   
+   
+
+   
+   
+   
+
+
+

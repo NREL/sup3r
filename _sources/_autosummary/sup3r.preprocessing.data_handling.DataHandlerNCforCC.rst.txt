@@ -1,0 +1,102 @@
+sup3r.preprocessing.data\_handling.DataHandlerNCforCC
+=====================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling
+
+.. autoclass:: DataHandlerNCforCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerNCforCC.cache_data
+      ~DataHandlerNCforCC.check_cached_features
+      ~DataHandlerNCforCC.clear_data
+      ~DataHandlerNCforCC.data_fill
+      ~DataHandlerNCforCC.extract_data
+      ~DataHandlerNCforCC.extract_feature
+      ~DataHandlerNCforCC.feature_registry
+      ~DataHandlerNCforCC.get_cache_file_names
+      ~DataHandlerNCforCC.get_closest_lat_lon
+      ~DataHandlerNCforCC.get_full_domain
+      ~DataHandlerNCforCC.get_input_arrays
+      ~DataHandlerNCforCC.get_inputs_recursive
+      ~DataHandlerNCforCC.get_lat_lon
+      ~DataHandlerNCforCC.get_next
+      ~DataHandlerNCforCC.get_node_cmd
+      ~DataHandlerNCforCC.get_observation_index
+      ~DataHandlerNCforCC.get_raster_index
+      ~DataHandlerNCforCC.get_raw_feature_list
+      ~DataHandlerNCforCC.get_time_index
+      ~DataHandlerNCforCC.load_cached_data
+      ~DataHandlerNCforCC.load_single_cached_feature
+      ~DataHandlerNCforCC.lookup
+      ~DataHandlerNCforCC.normalize
+      ~DataHandlerNCforCC.parallel_compute
+      ~DataHandlerNCforCC.parallel_data_fill
+      ~DataHandlerNCforCC.parallel_extract
+      ~DataHandlerNCforCC.parallel_load
+      ~DataHandlerNCforCC.parallel_normalization
+      ~DataHandlerNCforCC.pop_old_data
+      ~DataHandlerNCforCC.preflight
+      ~DataHandlerNCforCC.recursive_compute
+      ~DataHandlerNCforCC.serial_compute
+      ~DataHandlerNCforCC.serial_data_fill
+      ~DataHandlerNCforCC.serial_extract
+      ~DataHandlerNCforCC.source_handler
+      ~DataHandlerNCforCC.split_data
+      ~DataHandlerNCforCC.unnormalize
+      ~DataHandlerNCforCC.valid_handle_features
+      ~DataHandlerNCforCC.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerNCforCC.TIME_IND_FEATURES
+      ~DataHandlerNCforCC.TRAIN_ONLY_FEATURES
+      ~DataHandlerNCforCC.attrs
+      ~DataHandlerNCforCC.cache_files
+      ~DataHandlerNCforCC.cache_pattern
+      ~DataHandlerNCforCC.cached_features
+      ~DataHandlerNCforCC.compute_workers
+      ~DataHandlerNCforCC.derive_features
+      ~DataHandlerNCforCC.extract_features
+      ~DataHandlerNCforCC.extract_workers
+      ~DataHandlerNCforCC.feature_mem
+      ~DataHandlerNCforCC.file_paths
+      ~DataHandlerNCforCC.full_domain
+      ~DataHandlerNCforCC.grid_mem
+      ~DataHandlerNCforCC.grid_shape
+      ~DataHandlerNCforCC.handle_features
+      ~DataHandlerNCforCC.input_file_info
+      ~DataHandlerNCforCC.invert_lat
+      ~DataHandlerNCforCC.lat_lon
+      ~DataHandlerNCforCC.load_workers
+      ~DataHandlerNCforCC.n_tsteps
+      ~DataHandlerNCforCC.norm_workers
+      ~DataHandlerNCforCC.output_features
+      ~DataHandlerNCforCC.raster_index
+      ~DataHandlerNCforCC.raw_features
+      ~DataHandlerNCforCC.raw_time_index
+      ~DataHandlerNCforCC.shape
+      ~DataHandlerNCforCC.target
+      ~DataHandlerNCforCC.temporal_slice
+      ~DataHandlerNCforCC.time_chunk_size
+      ~DataHandlerNCforCC.time_chunks
+      ~DataHandlerNCforCC.time_index
+      ~DataHandlerNCforCC.timestamp_0
+      ~DataHandlerNCforCC.timestamp_1
+      ~DataHandlerNCforCC.train_only_features
+   
+   

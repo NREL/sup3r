@@ -1,0 +1,36 @@
+sup3r.models.multi\_step.SpatialThenTemporalGan
+===============================================
+
+.. currentmodule:: sup3r.models.multi_step
+
+.. autoclass:: SpatialThenTemporalGan
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SpatialThenTemporalGan.generate
+      ~SpatialThenTemporalGan.load
+      ~SpatialThenTemporalGan.seed
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SpatialThenTemporalGan.meta
+      ~SpatialThenTemporalGan.output_features
+      ~SpatialThenTemporalGan.spatial_models
+      ~SpatialThenTemporalGan.temporal_models
+      ~SpatialThenTemporalGan.training_features
+   
+   

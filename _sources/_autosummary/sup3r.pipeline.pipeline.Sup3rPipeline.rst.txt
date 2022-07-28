@@ -1,0 +1,35 @@
+sup3r.pipeline.pipeline.Sup3rPipeline
+=====================================
+
+.. currentmodule:: sup3r.pipeline.pipeline
+
+.. autoclass:: Sup3rPipeline
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rPipeline.cancel_all
+      ~Sup3rPipeline.init_pass_collect
+      ~Sup3rPipeline.parse_previous
+      ~Sup3rPipeline.run
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Sup3rPipeline.CMD_BASE
+      ~Sup3rPipeline.COMMANDS
+      ~Sup3rPipeline.RETURN_CODES
+   
+   

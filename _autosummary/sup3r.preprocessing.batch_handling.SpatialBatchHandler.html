@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.preprocessing.batch_handling.SpatialBatchHandler &mdash; sup3r 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html" />
+    <link rel="prev" title="sup3r.preprocessing.batch_handling.BatchHandlerDC" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> sup3r
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-or-conda-recommended-for-analysts">Option 1: Install from PIP or Conda (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html#command-line-tools">Command Line Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSup3rGan.html">sup3r.models.abstract.AbstractSup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SpatialThenTemporalGan.html">sup3r.models.multi_step.SpatialThenTemporalGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.config.html">sup3r.pipeline.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.config.Sup3rPipelineConfig.html">sup3r.pipeline.config.Sup3rPipelineConfig</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline.html">sup3r.pipeline.pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline.Sup3rPipeline.html">sup3r.pipeline.pipeline.Sup3rPipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.pipeline_monitor_background.html">sup3r.pipeline.pipeline_cli.pipeline_monitor_background</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.get_dset_attrs.html">sup3r.postprocessing.collection.get_dset_attrs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.Collector.html">sup3r.postprocessing.collection.Collector</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandler.html">sup3r.preprocessing.data_handling.DataHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDC.html">sup3r.preprocessing.data_handling.DataHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforH5.html">sup3r.preprocessing.data_handling.DataHandlerDCforH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerDCforNC.html">sup3r.preprocessing.data_handling.DataHandlerDCforNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5.html">sup3r.preprocessing.data_handling.DataHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5SolarCC.html">sup3r.preprocessing.data_handling.DataHandlerH5SolarCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerH5WindCC.html">sup3r.preprocessing.data_handling.DataHandlerH5WindCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNC.html">sup3r.preprocessing.data_handling.DataHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.DataHandlerNCforCC.html">sup3r.preprocessing.data_handling.DataHandlerNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.InputMixIn.html">sup3r.preprocessing.data_handling.InputMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNCforCC.html">sup3r.preprocessing.feature_handling.LatLonNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.test_utils.html">sup3r.utilities.test_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_h5_chunks.html">sup3r.utilities.test_utils.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.test_utils.make_fake_nc_files.html">sup3r.utilities.test_utils.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_height.html">sup3r.utilities.utilities.calc_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.calc_pressure.html">sup3r.utilities.utilities.calc_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_to_level.html">sup3r.utilities.utilities.interp_to_level</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_height.html">sup3r.utilities.utilities.interp_var_to_height</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.interp_var_to_pressure.html">sup3r.utilities.utilities.interp_var_to_pressure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.unstagger_var.html">sup3r.utilities.utilities.unstagger_var</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.version.html">sup3r.version</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline-valid-pipeline-keys">valid-pipeline-keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="sup3r.html">sup3r</a> &raquo;</li>
+          <li><a href="sup3r.preprocessing.html">sup3r.preprocessing</a> &raquo;</li>
+          <li><a href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a> &raquo;</li>
+      <li>sup3r.preprocessing.batch_handling.SpatialBatchHandler</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-preprocessing-batch-handling-spatialbatchhandler">
+<h1>sup3r.preprocessing.batch_handling.SpatialBatchHandler<a class="headerlink" href="#sup3r-preprocessing-batch-handling-spatialbatchhandler" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SpatialBatchHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_handlers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s_enhance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_enhance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_batches</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_coarsening_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'subsample'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stdevs_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/batch_handling.html#SpatialBatchHandler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html#sup3r.preprocessing.batch_handling.BatchHandler" title="sup3r.preprocessing.batch_handling.BatchHandler"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchHandler</span></code></a></p>
+<p>Sup3r spatial batch handling class</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_handlers</strong> (<em>list[DataHandler]</em>) – List of DataHandler instances</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – Number of observations in a batch</p></li>
+<li><p><strong>s_enhance</strong> (<em>int</em>) – Factor by which to coarsen spatial dimensions of the high
+resolution data to generate low res data</p></li>
+<li><p><strong>t_enhance</strong> (<em>int</em>) – Factor by which to coarsen temporal dimension of the high
+resolution data to generate low res data</p></li>
+<li><p><strong>means</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data
+features. If not None and norm is True these will be used for
+normalization</p></li>
+<li><p><strong>stds</strong> (<em>np.ndarray</em>) – dimensions (features)
+array of means for all features with same ordering as data
+features.  If not None and norm is True these will be used form
+normalization</p></li>
+<li><p><strong>norm</strong> (<em>bool</em>) – Whether to normalize the data or not</p></li>
+<li><p><strong>n_batches</strong> (<em>int</em>) – Number of batches in an epoch, this sets the iteration limit for
+this object.</p></li>
+<li><p><strong>temporal_coarsening_method</strong> (<em>str</em>) – [subsample, average, total]
+Subsample will take every t_enhance-th time step, average will
+average over t_enhance time steps, total will sum over t_enhance
+time steps</p></li>
+<li><p><strong>stdevs_file</strong> (<em>str | None</em>) – Path to stdevs data or where to save data after calling get_stats</p></li>
+<li><p><strong>means_file</strong> (<em>str | None</em>) – Path to means data or where to save data after calling get_stats</p></li>
+<li><p><strong>overwrite_stats</strong> (<em>bool</em>) – Whether to overwrite stats cache files.</p></li>
+<li><p><strong>smoothing</strong> (<em>float | None</em>) – Standard deviation to use for gaussian filtering of the coarse
+data. This can be tuned by matching the kinetic energy of a low
+resolution simulation with the kinetic energy of a coarsened and
+smoothed high resolution simulation. If None no smoothing is
+performed.</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Providing a value for max workers will be used to set the value of
+norm_workers, stats_workers, and load_workers.
+If max_workers == 1 then all processes will be serialized. If None
+stats_workers, load_workers, and norm_workers will use their own
+provided values.</p></li>
+<li><p><strong>load_workers</strong> (<em>int | None</em>) – max number of workers to use for loading data handlers.</p></li>
+<li><p><strong>norm_workers</strong> (<em>int | None</em>) – max number of workers to use for normalizing data handlers.</p></li>
+<li><p><strong>stats_workers</strong> (<em>int | None</em>) – max number of workers to use for computing stats across data
+handlers.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.cache_stats" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.cache_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_stats</span></code></a>()</p></td>
+<td><p>Saved stdevs and means to cache files if files are not None</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.check_cached_stats" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.check_cached_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_cached_stats</span></code></a>()</p></td>
+<td><p>Get standard deviations and means for all data features from cache files if available.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_mean" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_mean"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_handler_mean</span></code></a>(feature_idx, handler_idx)</p></td>
+<td><p>Get feature mean for a given handler</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_stdev" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_stdev"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_handler_stdev</span></code></a>(feature_idx, handler_idx, mean)</p></td>
+<td><p>Get feature stdev for a given handler</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_means_for_feature" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_means_for_feature"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_means_for_feature</span></code></a>(feature[, max_workers])</p></td>
+<td><p>Get mean for requested feature</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_stats</span></code></a>()</p></td>
+<td><p>Get standard deviations and means for all data features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats_for_feature" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats_for_feature"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_stats_for_feature</span></code></a>(feature)</p></td>
+<td><p>Get standard deviation and mean for requested feature</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stdevs_for_feature" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stdevs_for_feature"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_stdevs_for_feature</span></code></a>(feature[, max_workers])</p></td>
+<td><p>Get stdev for requested feature</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.normalize" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.normalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">normalize</span></code></a>([means, stds])</p></td>
+<td><p>Compute means and stds for each feature across all datasets and normalize each data handler dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_load" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_load</span></code></a>()</p></td>
+<td><p>Load data handler data in parallel</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_normalization" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_normalization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_normalization</span></code></a>()</p></td>
+<td><p>Normalize data in all data handlers in parallel.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_stats" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_stats</span></code></a>()</p></td>
+<td><p>Get standard deviations and means for training features in parallel</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.unnormalize" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.unnormalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unnormalize</span></code></a>()</p></td>
+<td><p>Remove normalization from stored means and stds</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">DATA_HANDLER_CLASS</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.feature_mem" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.feature_mem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">feature_mem</span></code></a></p></td>
+<td><p>Get memory used by each feature in data handlers</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.load_workers" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.load_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_workers</span></code></a></p></td>
+<td><p>Get max workers for loading data handler based on memory usage</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.norm_workers" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.norm_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">norm_workers</span></code></a></p></td>
+<td><p>Get max workers used for calculating and normalization across features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_features</span></code></a></p></td>
+<td><p>Get the ordered list of feature names held in this object's data handlers</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features_ind" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features_ind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_features_ind</span></code></a></p></td>
+<td><p>Get the feature channel indices that should be used for the generated output features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.shape" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code></a></p></td>
+<td><p>Shape of full dataset across all handlers</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.stats_workers" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.stats_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stats_workers</span></code></a></p></td>
+<td><p>Get max workers for calculating stats based on memory usage</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.training_features" title="sup3r.preprocessing.batch_handling.SpatialBatchHandler.training_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">training_features</span></code></a></p></td>
+<td><p>Get the ordered list of feature names held in this object's data handlers</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.BATCH_CLASS">
+<span class="sig-name descname"><span class="pre">BATCH_CLASS</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.BATCH_CLASS" title="Permalink to this definition"></a></dt>
+<dd><p>alias of <a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html#sup3r.preprocessing.batch_handling.Batch" title="sup3r.preprocessing.batch_handling.Batch"><code class="xref py py-class docutils literal notranslate"><span class="pre">Batch</span></code></a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.VAL_CLASS">
+<span class="sig-name descname"><span class="pre">VAL_CLASS</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.VAL_CLASS" title="Permalink to this definition"></a></dt>
+<dd><p>alias of <a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html#sup3r.preprocessing.batch_handling.ValidationData" title="sup3r.preprocessing.batch_handling.ValidationData"><code class="xref py py-class docutils literal notranslate"><span class="pre">ValidationData</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.cache_stats">
+<span class="sig-name descname"><span class="pre">cache_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.cache_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Saved stdevs and means to cache files if files are not None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.check_cached_stats">
+<span class="sig-name descname"><span class="pre">check_cached_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.check_cached_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Get standard deviations and means for all data features from cache
+files if available.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>means</strong> (<em>ndarray</em>) – Array of means for each feature</p></li>
+<li><p><strong>stds</strong> (<em>ndarray</em>) – Array of stdevs for each feature</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.feature_mem">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feature_mem</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.feature_mem" title="Permalink to this definition"></a></dt>
+<dd><p>Get memory used by each feature in data handlers</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_mean">
+<span class="sig-name descname"><span class="pre">get_handler_mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handler_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_mean" title="Permalink to this definition"></a></dt>
+<dd><p>Get feature mean for a given handler</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_idx</strong> (<em>int</em>) – Index of feature to get mean for</p></li>
+<li><p><strong>handler_idx</strong> (<em>int</em>) – Index of data handler to get mean for</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>float</em> – Feature mean</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_stdev">
+<span class="sig-name descname"><span class="pre">get_handler_stdev</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handler_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_handler_stdev" title="Permalink to this definition"></a></dt>
+<dd><p>Get feature stdev for a given handler</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_idx</strong> (<em>int</em>) – Index of feature to get stdev for</p></li>
+<li><p><strong>handler_idx</strong> (<em>int</em>) – Index of data handler to get stdev for</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><em>float</em> – Feature stdev</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_means_for_feature">
+<span class="sig-name descname"><span class="pre">get_means_for_feature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_means_for_feature" title="Permalink to this definition"></a></dt>
+<dd><p>Get mean for requested feature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature</strong> (<em>str</em>) – Feature to get mean for</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for parallel stats calculations. If
+None the max number of available workers will be used.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats">
+<span class="sig-name descname"><span class="pre">get_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Get standard deviations and means for all data features</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats_for_feature">
+<span class="sig-name descname"><span class="pre">get_stats_for_feature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stats_for_feature" title="Permalink to this definition"></a></dt>
+<dd><p>Get standard deviation and mean for requested feature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature</strong> (<em>str</em>) – Feature to get stats for</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for parallel stats calculations. If
+None the max number of available workers will be used.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stdevs_for_feature">
+<span class="sig-name descname"><span class="pre">get_stdevs_for_feature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.get_stdevs_for_feature" title="Permalink to this definition"></a></dt>
+<dd><p>Get stdev for requested feature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature</strong> (<em>str</em>) – Feature to get stdev for</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for parallel stats calculations. If
+None the max number of available workers will be used.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.load_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.load_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get max workers for loading data handler based on memory usage</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.norm_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">norm_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.norm_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get max workers used for calculating and normalization across
+features</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.normalize">
+<span class="sig-name descname"><span class="pre">normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.normalize" title="Permalink to this definition"></a></dt>
+<dd><p>Compute means and stds for each feature across all datasets and
+normalize each data handler dataset.  Checks if input means and stds
+are different from stored means and stds and renormalizes if they are</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>means</strong> (<em>ndarray | None</em>) – Array of means for each feature. If None it will be calculated.</p></li>
+<li><p><strong>stds</strong> (<em>ndarray | None</em>) – Array of stdevs for each feature. If None it will be calculated.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output_features</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get the ordered list of feature names held in this object’s
+data handlers</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features_ind">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output_features_ind</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.output_features_ind" title="Permalink to this definition"></a></dt>
+<dd><p>Get the feature channel indices that should be used for the
+generated output features</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_load">
+<span class="sig-name descname"><span class="pre">parallel_load</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_load" title="Permalink to this definition"></a></dt>
+<dd><p>Load data handler data in parallel</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_normalization">
+<span class="sig-name descname"><span class="pre">parallel_normalization</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_normalization" title="Permalink to this definition"></a></dt>
+<dd><p>Normalize data in all data handlers in parallel.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_stats">
+<span class="sig-name descname"><span class="pre">parallel_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.parallel_stats" title="Permalink to this definition"></a></dt>
+<dd><p>Get standard deviations and means for training features in parallel</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.shape" title="Permalink to this definition"></a></dt>
+<dd><p>Shape of full dataset across all handlers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>shape</strong> (<em>tuple</em>) – (spatial_1, spatial_2, temporal, features)
+With temporal extent equal to the sum across all data handlers time
+dimension</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.stats_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stats_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.stats_workers" title="Permalink to this definition"></a></dt>
+<dd><p>Get max workers for calculating stats based on memory usage</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.training_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">training_features</span></span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.training_features" title="Permalink to this definition"></a></dt>
+<dd><p>Get the ordered list of feature names held in this object’s
+data handlers</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.batch_handling.SpatialBatchHandler.unnormalize">
+<span class="sig-name descname"><span class="pre">unnormalize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.batch_handling.SpatialBatchHandler.unnormalize" title="Permalink to this definition"></a></dt>
+<dd><p>Remove normalization from stored means and stds</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html" class="btn btn-neutral float-left" title="sup3r.preprocessing.batch_handling.BatchHandlerDC" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html" class="btn btn-neutral float-right" title="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

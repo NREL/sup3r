@@ -1,0 +1,6 @@
+sup3r.postprocessing.collection.get\_dset\_attrs
+================================================
+
+.. currentmodule:: sup3r.postprocessing.collection
+
+.. autofunction:: get_dset_attrs

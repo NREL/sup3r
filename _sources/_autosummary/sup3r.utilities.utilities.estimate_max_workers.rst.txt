@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.estimate\_max\_workers
+================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: estimate_max_workers

@@ -1,0 +1,31 @@
+sup3r.pipeline.pipeline
+=======================
+
+.. automodule:: sup3r.pipeline.pipeline
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Sup3rPipeline
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,27 @@
+sup3r.postprocessing.file\_handling.OutputHandler
+=================================================
+
+.. currentmodule:: sup3r.postprocessing.file_handling
+
+.. autoclass:: OutputHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~OutputHandler.enforce_limits
+      ~OutputHandler.get_lat_lon
+      ~OutputHandler.get_times
+      ~OutputHandler.write_output
+   
+   
+
+   
+   
+   

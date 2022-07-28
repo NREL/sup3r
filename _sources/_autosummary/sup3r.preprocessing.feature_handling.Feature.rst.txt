@@ -1,0 +1,26 @@
+sup3r.preprocessing.feature\_handling.Feature
+=============================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Feature
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Feature.get_basename
+      ~Feature.get_height
+      ~Feature.get_pressure
+   
+   
+
+   
+   
+   
