@@ -112,10 +112,11 @@ class ForwardPassStrategy(InputMixIn):
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        temporal_slice : slice
+        temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
-            select all 25 time steps.
+            select all 25 time steps. This can also be a tuple / list with
+            length 3 that will be interpreted as slice(*temporal_slice)
         raster_file : str | None
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
@@ -464,9 +465,9 @@ class ForwardPassStrategy(InputMixIn):
         Returns
         -------
         ti_chunks : list
-            List of time index slices
+            List of low-res non-padded time index slices
         ti_pad_chunks : list
-            List of padded time index slices
+            List of low-res padded time index slices
         ti_hr_crop_chunks : list
             List of cropped chunks for stitching high res output
         """

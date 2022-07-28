@@ -9,6 +9,7 @@ import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
+import pandas as pd
 import numpy as np
 import os
 from datetime import datetime as dt
@@ -152,6 +153,7 @@ class InputMixIn:
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
             self._file_paths = glob.glob(self._file_paths)
+
         self._file_paths = sorted(self._file_paths)
 
     @property
@@ -451,7 +453,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         msg = (f'Initializing DataHandler {self.input_file_info}. '
                f'Getting temporal range {str(self.time_index[0])} to '
-               f'{str(self.time_index[-1])}')
+               f'{str(self.time_index[-1])} (inclusive) '
+               f'based on temporal_slice {self.temporal_slice}')
         logger.info(msg)
 
         self.preflight()
@@ -1471,7 +1474,9 @@ class DataHandlerNC(DataHandler):
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
             elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-                time_index = handle.indexes['time'].to_datetimeindex()
+                time_index = handle.indexes['time']
+                if not isinstance(time_index, pd.DatetimeIndex):
+                    time_index = time_index.to_datetimeindex()
             elif hasattr(handle, 'times'):
                 time_index = np_to_pd_times(handle.times.values)
             else:
