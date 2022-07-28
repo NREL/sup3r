@@ -710,6 +710,44 @@ class VWind(DerivedFeature):
         return v
 
 
+class Tas(DerivedFeature):
+    """Air temperature near surface variable from climate change nc files"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing tas
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. tas
+
+        Returns
+        -------
+        list
+            List of required features for computing tas
+        """
+        return ['tas']
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute tas in Celsius from tas source in Kelvin
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+        return data['tas'] - 273.15
+
+
 class LatLonNC:
     """Lat Lon feature class with compute method"""
 
@@ -776,7 +814,7 @@ class LatLonNCforCC:
                     in handle.lat.dims else handle.lat.values[0])
             lons = (handle.lon.values if 'time' not
                     in handle.lon.dims else handle.lon.values[0])
-            lats, lons = np.meshgrid(lats, lons)
+            lons, lats = np.meshgrid(lons, lats)
             lat_lon = np.concatenate(
                 [lats[tuple(raster_index)][..., np.newaxis],
                  lons[tuple(raster_index)][..., np.newaxis]], axis=-1)

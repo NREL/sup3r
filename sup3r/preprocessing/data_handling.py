@@ -11,6 +11,7 @@ import logging
 import xarray as xr
 import pandas as pd
 import numpy as np
+from scipy.spatial import KDTree
 import os
 from datetime import datetime as dt
 import pickle
@@ -52,7 +53,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   WindspeedNC,
                                                   WinddirectionNC,
                                                   Shear,
-                                                  Rews
+                                                  Rews,
+                                                  Tas,
                                                   )
 
 np.random.seed(42)
@@ -1615,22 +1617,15 @@ class DataHandlerNC(DataHandler):
         col : int
             col index for closest lat/lon to target lat/lon
         """
-        lat_diff = lon_diff = np.inf
-        row = col = -1
-
-        for i in range(lat_lon.shape[0]):
-            for j in range(lat_lon.shape[1]):
-                lat = lat_lon[i, j, 0]
-                lon = lat_lon[i, j, 1]
-                tmp_lat_diff = lat - target[0]
-                tmp_lon_diff = lon - target[1]
-                check = (0 <= tmp_lat_diff < lat_diff
-                         and 0 <= tmp_lon_diff < lon_diff)
-                if check:
-                    lat_diff = np.abs(lat - target[0])
-                    lon_diff = np.abs(lon - target[1])
-                    row = i
-                    col = j
+        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
+        ll2 = np.vstack((lat_lon[..., 0].flatten(),
+                         lat_lon[..., 1].flatten())).T
+        tree = KDTree(ll2)
+        _, i = tree.query(np.array(target))
+        row, col = np.where((lat_lon[..., 0] == ll2[i, 0])
+                            & (lat_lon[..., 1] == ll2[i, 1]))
+        row = row[0]
+        col = col[0]
         return row, col
 
     def get_raster_index(self):
@@ -1673,6 +1668,8 @@ class DataHandlerNC(DataHandler):
             row, col = self.get_closest_lat_lon(lat_lon, self.target)
             raster_index = [slice(row, row + self.grid_shape[0]),
                             slice(col, col + self.grid_shape[1])]
+            logger.debug('Found raster index with row, col slices: {}'
+                         .format(raster_index))
 
             if (raster_index[0].stop > lat_lon.shape[0]
                or raster_index[1].stop > lat_lon.shape[1]):
@@ -1715,7 +1712,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
-            'temperature_2m': 'tas',
+            'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
         return registry
