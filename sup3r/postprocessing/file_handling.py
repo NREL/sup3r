@@ -383,7 +383,13 @@ class OutputHandlerH5(OutputHandler):
                             f'U/V pairs in {dt.now() - now}. ')
 
                 for i, _ in enumerate(as_completed(futures)):
-                    future.result()
+                    try:
+                        future.result()
+                    except Exception as e:
+                        msg = ('Failed to invert the U/V pair for for height '
+                               f'{futures[future]}')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
                     logger.debug(f'{i+1} out of {len(futures)} inverse '
                                  'transforms completed.')
 

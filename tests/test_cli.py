@@ -41,8 +41,7 @@ def test_data_collection_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, slices_lr,
-            slices_hr, low_res_lat_lon, low_res_times) = out
+        (out_files, _, _, _, features, _, _, _, _) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
         config = {'file_paths': out_files,
@@ -119,8 +118,8 @@ def test_fwd_pass_cli(runner):
                   's_enhance': 3,
                   't_enhance': 4,
                   'max_workers': 1,
-                  'spatial_overlap': 5,
-                  'temporal_overlap': 5,
+                  'spatial_pad': 5,
+                  'temporal_pad': 5,
                   'overwrite_cache': False,
                   'execution_control': {
                       "option": "local"}}
