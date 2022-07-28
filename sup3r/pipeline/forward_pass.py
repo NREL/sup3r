@@ -281,7 +281,7 @@ class ForwardPassStrategy(InputMixIn):
                 check = (self.out_pattern is not None
                          and '{times}' in self.out_pattern)
                 if check:
-                    ti = self.time_index[self.ti_slices[i]]
+                    ti = self.raw_time_index[self.ti_slices[i]]
                     start = str(ti[0]).strip('+').strip('-').strip(':')
                     start = ''.join(start.split(' '))
                     end = str(ti[-1]).strip('+').strip('-').strip(':')
@@ -383,7 +383,7 @@ class ForwardPassStrategy(InputMixIn):
         ti_slice = self.ti_slices[node_index]
         ti_hr_crop_slice = self.ti_hr_crop_slices[node_index]
         data_shape = (self.grid_shape[0], self.grid_shape[1],
-                      len(self.time_index[ti_pad_slice]))
+                      len(self.raw_time_index[ti_pad_slice]))
         cache_pattern = (
             None if self.cache_pattern is None
             else self.cache_pattern.replace('{node_index}', str(node_index)))
@@ -746,7 +746,6 @@ class ForwardPass:
             forward passes on a single node.
         """
         logger.info(f'Initializing ForwardPass for node={node_index}')
-        self.data = None
         self.strategy = strategy
         self.model_args = self.strategy.model_args
         self.model_class = self.strategy.model_class
@@ -820,7 +819,7 @@ class ForwardPass:
 
         self.data_handler.load_cached_data()
 
-        n_tsteps = len(self.strategy.time_index[self.ti_slice])
+        n_tsteps = len(self.strategy.raw_time_index[self.ti_slice])
         self.hr_data_shape = (
             self.strategy.s_enhance * self.data_shape[0],
             self.strategy.s_enhance * self.data_shape[1],
@@ -1081,7 +1080,7 @@ class ForwardPass:
             self.output_handler_class.write_output(
                 data=self.data, features=self.data_handler.output_features,
                 low_res_lat_lon=self.data_handler.lat_lon,
-                low_res_times=self.strategy.time_index[self.ti_slice],
+                low_res_times=self.strategy.raw_time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
                 max_workers=self.output_workers)
         else:
