@@ -470,10 +470,10 @@ class ForwardPassStrategy(InputMixIn):
         ti_hr_crop_chunks : list
             List of cropped chunks for stitching high res output
         """
-        n_chunks = len(self.time_index)
-        n_chunks /= fwp_chunk_size[2]
+        n_tsteps = len(self.time_index)
+        n_chunks = n_tsteps / fwp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_chunks = np.arange(n_chunks) + self.temporal_slice.start
+        ti_chunks = np.arange(n_tsteps) + self.temporal_slice.start
         ti_chunks = np.array_split(ti_chunks, n_chunks)
         ti_pad_chunks = []
         for _, chunk in enumerate(ti_chunks):
