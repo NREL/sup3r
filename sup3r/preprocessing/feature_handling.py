@@ -815,9 +815,8 @@ class LatLonNCforCC:
             lons = (handle.lon.values if 'time' not
                     in handle.lon.dims else handle.lon.values[0])
             lons, lats = np.meshgrid(lons, lats)
-            lat_lon = np.concatenate(
-                [lats[tuple(raster_index)][..., np.newaxis],
-                 lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
+            lat_lon = np.dstack((lats[tuple(raster_index)],
+                                 lons[tuple(raster_index)]))
         return lat_lon
 
 

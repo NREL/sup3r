@@ -166,7 +166,7 @@ def test_get_full_domain():
     handler = DataHandler(input_files, features)
     tmp = xr.open_dataset(input_files[0])
     shape = np.array(tmp.XLAT.values).shape[1:]
-    target = (np.min(tmp.XLAT.values), np.min(tmp.XLONG.values))
+    target = (tmp.XLAT.values[0, 0, 0], tmp.XLONG.values[0, 0, 0])
     assert handler.grid_shape == shape
     assert handler.target == target
 

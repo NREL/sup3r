@@ -1592,7 +1592,10 @@ class DataHandlerNC(DataHandler):
         """
         lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)],
                                   slice(None))
-        target = (np.min(lat_lon[..., 0]), np.min(lat_lon[..., 1]))
+        if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
+            target = tuple(lat_lon[0, 0, :])
+        else:
+            target = tuple(lat_lon[-1, 0, :])
         shape = lat_lon.shape[:-1]
         return target, shape
 
