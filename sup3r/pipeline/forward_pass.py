@@ -1080,12 +1080,13 @@ class ForwardPass:
             self._run_parallel(max_workers)
 
         logger.info('All forward passes are complete.')
+
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data=self.data, features=self.data_handler.output_features,
                 low_res_lat_lon=self.data_handler.lat_lon,
-                low_res_times=self.strategy.raw_time_index[self.ti_slice],
+                low_res_times=self.data_handler.raw_time_index[self.ti_slice],
                 out_file=self.out_file, meta_data=self.meta_data,
                 max_workers=self.output_workers)
         else:
