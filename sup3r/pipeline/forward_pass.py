@@ -45,7 +45,7 @@ class ForwardPassStrategy(InputMixIn):
     """
 
     def __init__(self, file_paths, model_args, s_enhance, t_enhance,
-                 fwp_chunk_shape, spatial_overlap, temporal_overlap,
+                 fwp_chunk_shape, spatial_pad, temporal_pad,
                  model_class='Sup3rGan',
                  target=None, shape=None,
                  temporal_slice=slice(None),
@@ -89,16 +89,16 @@ class ForwardPassStrategy(InputMixIn):
             dividing up the total time index from all file_paths by the
             temporal part of this chunk shape. Each node will then be
             parallelized accross parallel processes by the spatial chunk shape.
-            If temporal_overlap / spatial_overlap are non zero the chunk sent
+            If temporal_pad / spatial_pad are non zero the chunk sent
             to the generator can be bigger than this shape. If running in
             serial set this equal to the shape of the full spatiotemporal data
             volume for best performance.
-        spatial_overlap : int
+        spatial_pad : int
             Size of spatial overlap between coarse chunks passed to forward
             passes for subsequent spatial stitching. This overlap will pad both
             sides of the fwp_chunk_shape. Note that the first and last chunks
             in any of the spatial dimension will not be padded.
-        temporal_overlap : int
+        temporal_pad : int
             Size of temporal overlap between coarse chunks passed to forward
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
@@ -184,8 +184,8 @@ class ForwardPassStrategy(InputMixIn):
         self.t_enhance = t_enhance
         self.s_enhance = s_enhance
         self.fwp_chunk_shape = fwp_chunk_shape
-        self.spatial_overlap = spatial_overlap
-        self.temporal_overlap = temporal_overlap
+        self.spatial_pad = spatial_pad
+        self.temporal_pad = temporal_pad
         self.model_class = model_class
         self.out_pattern = out_pattern
         self.raster_file = raster_file
@@ -218,27 +218,27 @@ class ForwardPassStrategy(InputMixIn):
                 self.cache_pattern = self.cache_pattern.replace(
                     '.pkl', '_{node_index}.pkl')
 
-        out = self.get_time_slices(fwp_chunk_shape, temporal_overlap)
+        out = self.get_time_slices(fwp_chunk_shape, temporal_pad)
         self.ti_slices, self.ti_pad_slices, self.ti_hr_crop_slices = out
 
-        msg = (f'Using a larger temporal_overlap {temporal_overlap} than '
+        msg = (f'Using a larger temporal_pad {temporal_pad} than '
                f'temporal_chunk_size {fwp_chunk_shape[2]}.')
-        if temporal_overlap > fwp_chunk_shape[2]:
+        if temporal_pad > fwp_chunk_shape[2]:
             logger.warning(msg)
             warnings.warn(msg)
 
-        msg = (f'Using a larger spatial_overlap {spatial_overlap} than '
+        msg = (f'Using a larger spatial_pad {spatial_pad} than '
                f'spatial_chunk_size {fwp_chunk_shape[:2]}.')
-        if any(spatial_overlap > sc for sc in fwp_chunk_shape[:2]):
+        if any(spatial_pad > sc for sc in fwp_chunk_shape[:2]):
             logger.warning(msg)
             warnings.warn(msg)
 
         msg = ('Using a padded chunk size '
-               f'{fwp_chunk_shape[2] + 2 * temporal_overlap} '
+               f'({fwp_chunk_shape[2] + 2 * temporal_pad}) '
                'larger than the full temporal domain '
-               f'{len(self.raw_time_index)}. Should just run without temporal '
-               'chunking. ')
-        if (fwp_chunk_shape[2] + 2 * temporal_overlap
+               f'({len(self.raw_time_index)}). Should just run without '
+               'temporal chunking. ')
+        if (fwp_chunk_shape[2] + 2 * temporal_pad
                 >= len(self.raw_time_index)):
             logger.warning(msg)
             warnings.warn(msg)
@@ -282,8 +282,10 @@ class ForwardPassStrategy(InputMixIn):
                          and '{times}' in self.out_pattern)
                 if check:
                     ti = self.time_index[self.ti_slices[i]]
-                    start = ''.join(str(ti[0]).strip('+').split(' '))
-                    end = ''.join(str(ti[-1]).strip('+').split(' '))
+                    start = str(ti[0]).strip('+').strip('-').strip(':')
+                    start = ''.join(start.split(' '))
+                    end = str(ti[-1]).strip('+').strip('-').strip(':')
+                    end = ''.join(end.split(' '))
                     self._file_ids.append(f'{start}-{end}')
                 else:
                     self._file_ids.append(str(i).zfill(5))
@@ -471,27 +473,17 @@ class ForwardPassStrategy(InputMixIn):
         n_chunks = len(self.time_index)
         n_chunks /= fwp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_chunks = np.arange(len(self.time_index))
+        ti_chunks = np.arange(n_chunks) + self.temporal_slice.start
         ti_chunks = np.array_split(ti_chunks, n_chunks)
         ti_pad_chunks = []
-        for i, chunk in enumerate(ti_chunks):
-            if len(ti_chunks) > 1:
-                if i == 0:
-                    tmp = np.concatenate([chunk, ti_chunks[1][:time_overlap]])
-                elif i == len(ti_chunks) - 1:
-                    tmp = np.concatenate([ti_chunks[-2][-time_overlap:],
-                                          chunk])
-                else:
-                    tmp = np.concatenate([ti_chunks[i - 1][-time_overlap:],
-                                          chunk,
-                                          ti_chunks[i + 1][:time_overlap]])
-            else:
-                tmp = chunk
-            ti_pad_chunks.append(tmp)
+        for _, chunk in enumerate(ti_chunks):
+            start = np.max([0, chunk[0] - time_overlap])
+            end = np.min([len(self.raw_time_index),
+                          chunk[-1] + time_overlap + 1])
+            ti_pad_chunks.append([start, end])
 
         ti_chunks = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_chunks]
-        ti_pad_chunks = [slice(chunk[0], chunk[-1] + 1)
-                         for chunk in ti_pad_chunks]
+        ti_pad_chunks = [slice(*chunk) for chunk in ti_pad_chunks]
         ti_hr_crop_chunks = self.get_ti_hr_crop_slices(ti_chunks,
                                                        ti_pad_chunks)
         return ti_chunks, ti_pad_chunks, ti_hr_crop_chunks
@@ -611,14 +603,14 @@ class ForwardPassStrategy(InputMixIn):
             stop = s.stop
             if start is not None:
                 if i < 2:
-                    start = max(start - self.spatial_overlap, 0)
+                    start = max(start - self.spatial_pad, 0)
                 else:
-                    start = max(start - self.temporal_overlap, 0)
+                    start = max(start - self.temporal_pad, 0)
             if stop is not None:
                 if i < 2:
-                    stop = min(stop + self.spatial_overlap, ends[i])
+                    stop = min(stop + self.spatial_pad, ends[i])
                 else:
-                    stop = min(stop + self.temporal_overlap, ends[i])
+                    stop = min(stop + self.temporal_pad, ends[i])
             pad_slices.append(slice(start, stop))
         return pad_slices
 
@@ -1073,9 +1065,9 @@ class ForwardPass:
         """
         msg = (f'Starting forward passes on data shape {self.data_shape}. '
                f'Using {len(self.lr_slices)} chunks each with shape of '
-               f'{self.chunk_shape}, spatial_overlap of '
-               f'{self.strategy.spatial_overlap} and temporal_overlap of '
-               f'{self.strategy.temporal_overlap}.')
+               f'{self.chunk_shape}, spatial_pad of '
+               f'{self.strategy.spatial_pad} and temporal_pad of '
+               f'{self.strategy.temporal_pad}.')
         logger.info(msg)
         max_workers = self.pass_workers
         if max_workers == 1:

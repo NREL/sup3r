@@ -92,8 +92,8 @@ def forward_pass(ctx, verbose):
             "s_enhance": 20,
             "t_enhance": 24,
             "fwp_chunk_shape": [5, 5, 3],
-            "spatial_overlap": 1,
-            "temporal_overlap": 1,
+            "spatial_pad": 1,
+            "temporal_pad": 1,
             "max_workers": 1,
             "execution_control": {
                 "option": "local"

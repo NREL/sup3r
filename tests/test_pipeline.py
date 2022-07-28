@@ -72,8 +72,8 @@ def test_fwp_pipeline():
                   'time_chunk_size': 10,
                   's_enhance': 3,
                   't_enhance': 4,
-                  'spatial_overlap': 2,
-                  'temporal_overlap': 2,
+                  'spatial_pad': 2,
+                  'temporal_pad': 2,
                   'overwrite_cache': True,
                   'execution_control': {
                       "nodes": 1,

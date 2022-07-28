@@ -129,6 +129,9 @@ class InputMixIn:
                    'be <= 3')
             assert check, msg
             self._temporal_slice = slice(*temporal_slice)
+        if self._temporal_slice.start is None:
+            self._temporal_slice = slice(0, self._temporal_slice.stop,
+                                         self._temporal_slice.step)
 
     @property
     def file_paths(self):

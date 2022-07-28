@@ -119,8 +119,8 @@ def test_fwd_pass_cli(runner):
                   's_enhance': 3,
                   't_enhance': 4,
                   'max_workers': 1,
-                  'spatial_overlap': 5,
-                  'temporal_overlap': 5,
+                  'spatial_pad': 5,
+                  'temporal_pad': 5,
                   'overwrite_cache': False,
                   'execution_control': {
                       "option": "local"}}
