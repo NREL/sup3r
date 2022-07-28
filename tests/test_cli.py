@@ -41,8 +41,7 @@ def test_data_collection_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, slices_lr,
-            slices_hr, low_res_lat_lon, low_res_times) = out
+        (out_files, _, _, _, features, _, _, _, _) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
         config = {'file_paths': out_files,
