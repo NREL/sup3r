@@ -452,42 +452,57 @@ class ForwardPassStrategy(InputMixIn):
         the fwp_chunk_shape"""
         return len(self.ti_slices)
 
-    def get_time_slices(self, fwp_chunk_size, time_overlap):
+    def get_time_slices(self, fwp_chunk_size, temporal_pad):
         """Calculate the number of time chunks across the full time index
 
         Parameters
         ----------
         fwp_chunk_size : tuple
             Shape of data chunks passed to generator
-        time_overlap : int
-            Size of temporal overlap between time chunks
+        temporal_pad : int
+            Size of temporal padding for time chunks. e.g. If temporal_pad is 5
+            and fwp_chunk_size[2] is 5 then the size of padded time chunks will
+            be 15, with exceptions only at the start and end of the
+            raw_time_index.
 
         Returns
         -------
         ti_chunks : list
-            List of low-res non-padded time index slices
-        ti_pad_chunks : list
-            List of low-res padded time index slices
-        ti_hr_crop_chunks : list
-            List of cropped chunks for stitching high res output
+            List of low-res non-padded time index slices. e.g. If
+            fwp_chunk_size[2] is 5 then the size of these slices will always
+            be 5.
+        ti_pad_slices : list
+            List of low-res padded time index slices. e.g. If fwp_chunk_size[2]
+            is 5 the size of these slices will be 15, with exceptions at the
+            start and end of the raw_time_index.
+        ti_hr_crop_slices : list
+            List of cropped slices for stitching high res output. e.g. If we
+            have a ti_slice with size 5, ti_pad_slice size of 15, and t_enhance
+            of 4 then a padded high res slice will have size 60 and a non
+            padded high res slice will have size 20.  In order to correctly
+            stitch the high res output we have to crop the padded part of these
+            high res slices. Thus if a high res slice is slice(40, 100) the
+            cropped high res slice would be slice(20, -20). It would not be
+            slice(60, 80) because these slices are used to crop chunks of size
+            60, with valid time indices in range(0, 60).
         """
         n_tsteps = len(self.time_index)
         n_chunks = n_tsteps / fwp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_chunks = np.arange(n_tsteps) + self.temporal_slice.start
-        ti_chunks = np.array_split(ti_chunks, n_chunks)
-        ti_pad_chunks = []
-        for _, chunk in enumerate(ti_chunks):
-            start = np.max([0, chunk[0] - time_overlap])
+        ti_slices = np.arange(n_tsteps) + self.temporal_slice.start
+        ti_slices = np.array_split(ti_slices, n_chunks)
+        ti_pad_slices = []
+        for _, chunk in enumerate(ti_slices):
+            start = np.max([0, chunk[0] - temporal_pad])
             end = np.min([len(self.raw_time_index),
-                          chunk[-1] + time_overlap + 1])
-            ti_pad_chunks.append([start, end])
+                          chunk[-1] + temporal_pad + 1])
+            ti_pad_slices.append([start, end])
 
-        ti_chunks = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_chunks]
-        ti_pad_chunks = [slice(*chunk) for chunk in ti_pad_chunks]
-        ti_hr_crop_chunks = self.get_ti_hr_crop_slices(ti_chunks,
-                                                       ti_pad_chunks)
-        return ti_chunks, ti_pad_chunks, ti_hr_crop_chunks
+        ti_slices = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_slices]
+        ti_pad_slices = [slice(*chunk) for chunk in ti_pad_slices]
+        ti_hr_crop_slices = self.get_ti_hr_crop_slices(ti_slices,
+                                                       ti_pad_slices)
+        return ti_slices, ti_pad_slices, ti_hr_crop_slices
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -654,17 +669,26 @@ class ForwardPassStrategy(InputMixIn):
         Parameters
         ----------
         ti_slices : list
-            List of unpadded slices for time chunks
-            (temporal)
+            List of low-res non-padded time index slices. e.g. If
+            fwp_chunk_size[2] is 5 then the size of these slices will always
+            be 5.
         ti_pad_slices : list
-            List of padded slices for time chunks
-            (temporal)
+            List of low-res padded time index slices. e.g. If fwp_chunk_size[2]
+            is 5 the size of these slices will be 15, with exceptions at the
+            start and end of the raw_time_index.
 
         Returns
         -------
-        list
-            List of cropped slices
-            (temporal)
+        cropped_slices : list
+            List of cropped slices for stitching high res output. e.g. If we
+            have a ti_slice with size 5, ti_pad_slice size of 15, and t_enhance
+            of 4 then a padded high res slice will have size 60 and a non
+            padded high res slice will have size 20.  In order to correctly
+            stitch the high res output we have to crop the padded part of these
+            high res slices. Thus if a high res slice is slice(40, 100) the
+            cropped high res slice would be slice(20, -20). It would not be
+            slice(60, 80) because these slices are used to crop chunks of size
+            60, with valid time indices in range(0, 60).
         """
 
         cropped_slices = []
@@ -820,12 +844,11 @@ class ForwardPass:
 
         self.data_handler.load_cached_data()
 
-        n_tsteps = len(self.strategy.raw_time_index[self.ti_slice])
-        self.hr_data_shape = (
-            self.strategy.s_enhance * self.data_shape[0],
-            self.strategy.s_enhance * self.data_shape[1],
-            self.strategy.t_enhance * n_tsteps,
-            len(self.output_features))
+        n_tsteps = len(self.data_handler.raw_time_index[self.ti_slice])
+        self.hr_data_shape = (self.strategy.s_enhance * self.data_shape[0],
+                              self.strategy.s_enhance * self.data_shape[1],
+                              self.strategy.t_enhance * n_tsteps,
+                              len(self.output_features))
         self.data = np.zeros(self.hr_data_shape, dtype=np.float32)
 
     @property
