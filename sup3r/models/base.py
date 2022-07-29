@@ -186,7 +186,7 @@ class Sup3rGan(AbstractSup3rGan):
         """
 
         if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
+            os.makedirs(out_dir, exist_ok=True)
 
         fp_gen = os.path.join(out_dir, 'model_gen.pkl')
         self.generator.save(fp_gen)

@@ -876,7 +876,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         if cache_pattern is not None:
             basedir = os.path.dirname(cache_pattern)
             if not os.path.exists(basedir):
-                os.makedirs(basedir)
+                os.makedirs(basedir, exist_ok=True)
             cache_files = [cache_pattern.replace('{feature}', f.lower())
                            for f in self.features]
 

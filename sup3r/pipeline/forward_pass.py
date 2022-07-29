@@ -533,7 +533,7 @@ class ForwardPassStrategy(InputMixIn):
                 out_files = out_files[:-1] + '_{file_id}' + out_files[-1]
             dirname = os.path.dirname(out_files)
             if not os.path.exists(dirname):
-                os.makedirs(dirname)
+                os.makedirs(dirname, exist_ok=True)
             for file_id in file_ids:
                 out_file = out_files.format(file_id=file_id)
                 out_file_list.append(out_file)
