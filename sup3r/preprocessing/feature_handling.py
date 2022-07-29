@@ -820,6 +820,32 @@ class LatLonNCforCC:
         return lat_lon
 
 
+class TopoH5:
+    """Topography feature class with compute method"""
+
+    @classmethod
+    def compute(cls, file_paths, raster_index):
+        """Get topography corresponding to raster
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : ndarray
+            Raster index array
+
+        Returns
+        -------
+        ndarray
+            topo array
+            (spatial_1, spatial_2)
+        """
+        with Resource(file_paths[0], hsds=False) as handle:
+            topo = handle.meta['elevation'][tuple([raster_index.flatten()])]
+            topo = topo.reshape((raster_index.shape[0], raster_index.shape[1]))
+        return topo
+
+
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
@@ -947,7 +973,7 @@ class FeatureHandler:
     """Feature Handler with cache for previously loaded features used in other
     calculations """
 
-    TIME_IND_FEATURES = ('lat_lon',)
+    TIME_IND_FEATURES = ('lat_lon', 'topography')
 
     @classmethod
     def valid_handle_features(cls, features, handle_features):

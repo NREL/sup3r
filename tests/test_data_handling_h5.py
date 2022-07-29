@@ -672,6 +672,7 @@ def test_smoothing():
     for batch in batch_handler:
         high_res = batch.high_res
         low_res = utilities.spatial_coarsening(high_res, s_enhance)
-        low_res = utilities.temporal_coarsening(low_res, t_enhance)
-        low_res = gaussian_filter(low_res, 0.6, mode='constant')
+        low_res_no_smooth = utilities.temporal_coarsening(low_res, t_enhance)
+        low_res = gaussian_filter(low_res_no_smooth, 0.6, mode='constant')
         assert np.array_equal(batch.low_res, low_res)
+        assert not np.array_equal(low_res, low_res_no_smooth)

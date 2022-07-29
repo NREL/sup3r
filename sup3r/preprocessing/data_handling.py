@@ -55,6 +55,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Shear,
                                                   Rews,
                                                   Tas,
+                                                  TopoH5,
                                                   )
 
 np.random.seed(42)
@@ -1301,7 +1302,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         logger.info(f'Finished extracting {self.raw_features} for '
                     f'{self.input_file_info}')
         if self.derive_features:
-            logger.info(f'Starting compution of {self.derive_features}')
+            logger.info(f'Starting computation of {self.derive_features}')
             self._raw_data = self.parallel_compute(self._raw_data,
                                                    self.raster_index,
                                                    time_chunks,
@@ -1516,7 +1517,8 @@ class DataHandlerNC(DataHandler):
             'Shear_(.*)m': Shear,
             'REWS_(.*)m': Rews,
             'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': 'P_(.*)m'}
+            'Pressure_(.*)m': 'P_(.*)m',
+            'topography': 'HGT'}
         return registry
 
     @classmethod
@@ -1718,6 +1720,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
+            'topography': 'zg_0m',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
@@ -1814,7 +1817,8 @@ class DataHandlerH5(DataHandler):
             'lat_lon': LatLonH5,
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
-            'P_(.*)m': 'pressure_(.*)m'}
+            'P_(.*)m': 'pressure_(.*)m',
+            'topography': TopoH5}
         return registry
 
     @classmethod

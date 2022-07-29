@@ -713,7 +713,7 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
 
 
 def calc_height(data, raster_index, time_slice=slice(None)):
-    """Calculate height from the ground Parameters
+    """Calculate height from the ground
 
     Parameters
     ----------
