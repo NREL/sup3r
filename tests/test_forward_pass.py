@@ -60,7 +60,7 @@ def test_forward_pass_nc_cc():
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -108,7 +108,7 @@ def test_forward_pass_nc():
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -132,9 +132,9 @@ def test_forward_pass_nc():
                 s_enhance * shape[1])
 
 
-def test_forward_pass_h5():
-    """Test forward pass handler output with second pass on output files.
-    Writing to h5"""
+def test_forward_pass_temporal_slice():
+    """Test forward pass handler output to h5 file. Includes temporal
+    slicing."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -145,7 +145,7 @@ def test_forward_pass_h5():
     model.meta['training_features'] = ['U_100m', 'V_100m']
     model.meta['output_features'] = ['U_100m', 'V_100m']
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -153,11 +153,14 @@ def test_forward_pass_h5():
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
         max_workers = 1
+        temporal_slice = slice(5, 17, 3)
+        raw_time_index = np.arange(20)
+        n_tsteps = len(raw_time_index[temporal_slice])
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -173,7 +176,7 @@ def test_forward_pass_h5():
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
+            assert fh.shape == (t_enhance * n_tsteps,
                                 s_enhance**2 * shape[0] * shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
@@ -228,7 +231,7 @@ def test_fwd_pass_handler():
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -286,7 +289,7 @@ def test_fwd_pass_chunking():
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -344,7 +347,7 @@ def test_fwd_pass_nochunking():
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
-            spatial_overlap=1, temporal_overlap=1,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -404,7 +407,7 @@ def test_fwp_multi_step_model():
             model_class='SpatialThenTemporalGan',
             s_enhance=s_enhance, t_enhance=t_enhance,
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_overlap=0, temporal_overlap=0,
+            spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             out_pattern=out_files,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """H5 file collection."""
-from concurrent.futures import as_completed
+from concurrent.futures import as_completed, ThreadPoolExecutor
 import json
 import logging
 import numpy as np
@@ -10,7 +10,6 @@ import psutil
 import time
 import glob
 
-from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -58,6 +57,7 @@ class Collector:
         if not isinstance(file_paths, list):
             file_paths = glob.glob(file_paths)
         self.flist = sorted(file_paths)
+        self.data = None
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -159,8 +159,8 @@ class Collector:
 
         return row_slice, col_slice
 
-    @staticmethod
-    def get_data(file_path, feature, time_index, meta, scale_factor, dtype):
+    def get_data(self, file_path, feature, time_index, meta, scale_factor,
+                 dtype):
         """Retreive a data array from a chunked file.
 
         Parameters
@@ -215,8 +215,7 @@ class Collector:
             f_data = np.round(f_data)
 
         f_data = f_data.astype(dtype)
-
-        return f_data, row_slice, col_slice
+        self.data[row_slice, col_slice] = f_data
 
     @staticmethod
     def _get_collection_attrs(file_paths, feature, sort=True, sort_key=None):
@@ -335,9 +334,8 @@ class Collector:
                 f._create_dset(dset, f.shape, dtype,
                                attrs=attrs, data=data)
 
-    @staticmethod
-    def collect_flist(file_paths, out_file, feature, sort=False, sort_key=None,
-                      max_workers=None):
+    def collect_flist(self, file_paths, out_file, feature, sort=False,
+                      sort_key=None, max_workers=None):
         """Collect a dataset from a file list with data pre-init.
 
         Collects data that can be chunked in both space and time.
@@ -375,7 +373,7 @@ class Collector:
         logger.debug('Collecting file list of shape {}: {}'
                      .format(shape, file_paths))
 
-        data = np.zeros(shape, dtype=final_dtype)
+        self.data = np.zeros(shape, dtype=final_dtype)
         mem = psutil.virtual_memory()
         logger.debug('Initializing output dataset "{0}" in-memory with shape '
                      '{1} and dtype {2}. Current memory usage is '
@@ -387,26 +385,20 @@ class Collector:
             for i, fname in enumerate(file_paths):
                 logger.debug('Collecting data from file {} out of {}.'
                              .format(i + 1, len(file_paths)))
-                f_data, row_slice, col_slice = Collector.get_data(fname,
-                                                                  feature,
-                                                                  time_index,
-                                                                  meta,
-                                                                  scale_factor,
-                                                                  final_dtype)
-                data[row_slice, col_slice] = f_data
+                self.get_data(fname, feature, time_index, meta, scale_factor,
+                              final_dtype)
         else:
             logger.info('Running parallel collection on {} workers.'
                         .format(max_workers))
 
-            futures = []
+            futures = {}
             completed = 0
-            loggers = ['sup3r']
-            with SpawnProcessPool(loggers=loggers,
-                                  max_workers=max_workers) as exe:
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for fname in file_paths:
-                    futures.append(exe.submit(Collector.get_data, fname,
-                                              feature, time_index, meta,
-                                              scale_factor, final_dtype))
+                    future = exe.submit(self.get_data, fname, feature,
+                                        time_index, meta, scale_factor,
+                                        final_dtype)
+                    futures[future] = fname
                 for future in as_completed(futures):
                     completed += 1
                     mem = psutil.virtual_memory()
@@ -416,8 +408,12 @@ class Collector:
                                 '{2:.3f} GB out of {3:.3f} GB total.'
                                 .format(completed, len(futures),
                                         mem.used / 1e9, mem.total / 1e9))
-                    f_data, row_slice, col_slice = future.result()
-                    data[row_slice, col_slice] = f_data
+                    try:
+                        future.result()
+                    except Exception as e:
+                        msg = f'Falied to collect data from {futures[future]}'
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
 
         if not os.path.exists(out_file):
             Collector._init_collected_h5(out_file, time_index, meta)
@@ -432,7 +428,7 @@ class Collector:
                                                                 meta)
         Collector._ensure_dset_in_output(out_file, feature)
         with RexOutputs(out_file, mode='a') as f:
-            f[feature, y_write_slice, x_write_slice] = data
+            f[feature, y_write_slice, x_write_slice] = self.data
 
         logger.debug('Finished writing "{}" for row {} and col {} to: {}'
                      .format(feature, y_write_slice, x_write_slice,

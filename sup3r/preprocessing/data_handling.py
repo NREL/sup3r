@@ -9,7 +9,9 @@ import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
+import pandas as pd
 import numpy as np
+from scipy.spatial import KDTree
 import os
 from datetime import datetime as dt
 import pickle
@@ -51,7 +53,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   WindspeedNC,
                                                   WinddirectionNC,
                                                   Shear,
-                                                  Rews
+                                                  Rews,
+                                                  Tas,
                                                   )
 
 np.random.seed(42)
@@ -129,6 +132,9 @@ class InputMixIn:
                    'be <= 3')
             assert check, msg
             self._temporal_slice = slice(*temporal_slice)
+        if self._temporal_slice.start is None:
+            self._temporal_slice = slice(0, self._temporal_slice.stop,
+                                         self._temporal_slice.step)
 
     @property
     def file_paths(self):
@@ -149,6 +155,7 @@ class InputMixIn:
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
             self._file_paths = glob.glob(self._file_paths)
+
         self._file_paths = sorted(self._file_paths)
 
     @property
@@ -448,7 +455,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         msg = (f'Initializing DataHandler {self.input_file_info}. '
                f'Getting temporal range {str(self.time_index[0])} to '
-               f'{str(self.time_index[-1])}')
+               f'{str(self.time_index[-1])} (inclusive) '
+               f'based on temporal_slice {self.temporal_slice}')
         logger.info(msg)
 
         self.preflight()
@@ -1468,7 +1476,9 @@ class DataHandlerNC(DataHandler):
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
             elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-                time_index = handle.indexes['time'].to_datetimeindex()
+                time_index = handle.indexes['time']
+                if not isinstance(time_index, pd.DatetimeIndex):
+                    time_index = time_index.to_datetimeindex()
             elif hasattr(handle, 'times'):
                 time_index = np_to_pd_times(handle.times.values)
             else:
@@ -1582,7 +1592,10 @@ class DataHandlerNC(DataHandler):
         """
         lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)],
                                   slice(None))
-        target = (np.min(lat_lon[..., 0]), np.min(lat_lon[..., 1]))
+        if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
+            target = tuple(lat_lon[0, 0, :])
+        else:
+            target = tuple(lat_lon[-1, 0, :])
         shape = lat_lon.shape[:-1]
         return target, shape
 
@@ -1607,22 +1620,15 @@ class DataHandlerNC(DataHandler):
         col : int
             col index for closest lat/lon to target lat/lon
         """
-        lat_diff = lon_diff = np.inf
-        row = col = -1
-
-        for i in range(lat_lon.shape[0]):
-            for j in range(lat_lon.shape[1]):
-                lat = lat_lon[i, j, 0]
-                lon = lat_lon[i, j, 1]
-                tmp_lat_diff = lat - target[0]
-                tmp_lon_diff = lon - target[1]
-                check = (0 <= tmp_lat_diff < lat_diff
-                         and 0 <= tmp_lon_diff < lon_diff)
-                if check:
-                    lat_diff = np.abs(lat - target[0])
-                    lon_diff = np.abs(lon - target[1])
-                    row = i
-                    col = j
+        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
+        ll2 = np.vstack((lat_lon[..., 0].flatten(),
+                         lat_lon[..., 1].flatten())).T
+        tree = KDTree(ll2)
+        _, i = tree.query(np.array(target))
+        row, col = np.where((lat_lon[..., 0] == ll2[i, 0])
+                            & (lat_lon[..., 1] == ll2[i, 1]))
+        row = row[0]
+        col = col[0]
         return row, col
 
     def get_raster_index(self):
@@ -1665,6 +1671,8 @@ class DataHandlerNC(DataHandler):
             row, col = self.get_closest_lat_lon(lat_lon, self.target)
             raster_index = [slice(row, row + self.grid_shape[0]),
                             slice(col, col + self.grid_shape[1])]
+            logger.debug('Found raster index with row, col slices: {}'
+                         .format(raster_index))
 
             if (raster_index[0].stop > lat_lon.shape[0]
                or raster_index[1].stop > lat_lon.shape[1]):
@@ -1677,17 +1685,10 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
             lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
-            mask = ((lat_lon[..., 0] >= self.target[0])
-                    & (lat_lon[..., 1] >= self.target[1]))
-            if mask.sum() != np.product(self.grid_shape):
-                msg = (f'Found {mask.sum()} coordinates but should have found '
-                       f'{self.grid_shape[0]} by {self.grid_shape[1]}')
-                logger.warning(msg)
-                warnings.warn(msg)
-
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
+
         return raster_index
 
 
@@ -1707,7 +1708,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
-            'temperature_2m': 'tas',
+            'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
         return registry
@@ -1726,6 +1727,16 @@ class DataHandlerNCforCC(DataHandlerNC):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, **kwargs)
+
+    @property
+    def raw_time_index(self):
+        """Time index for input data without time pruning. This is the base
+        time index for the raw input data."""
+        if self._raw_time_index is None:
+            self._raw_time_index = self.get_time_index(self.file_paths)
+            if (self._raw_time_index.hour == 12).all():
+                self._raw_time_index -= pd.Timedelta(12, 'h')
+        return self._raw_time_index
 
 
 class DataHandlerH5(DataHandler):

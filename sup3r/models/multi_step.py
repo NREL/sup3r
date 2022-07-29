@@ -257,7 +257,7 @@ class MultiStepGan(AbstractSup3rGan):
                 msg = ('Could not run model #{} of {} "{}" '
                        'on tensor of shape {}'
                        .format(i + 1, len(self.models), model, hi_res.shape))
-                logger.error(msg)
+                logger.exception(msg)
                 raise RuntimeError(msg) from e
 
         if un_norm_out:
@@ -413,7 +413,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         except Exception as e:
             msg = ('Could not run the 1st step spatial-only GAN on input '
                    'shape {}'.format(low_res.shape))
-            logger.error(msg)
+            logger.exception(msg)
             raise RuntimeError(msg) from e
 
         logger.debug('Data output from the 1st step spatial-only '
@@ -429,7 +429,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
-            logger.error(msg)
+            logger.exception(msg)
             raise RuntimeError(msg) from e
 
         logger.debug('Final multistep GAN output has shape: {}'

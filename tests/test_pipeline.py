@@ -6,6 +6,8 @@ import shutil
 import numpy as np
 import glob
 
+from rex import ResourceX
+
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.test_utils import make_fake_nc_files
@@ -51,16 +53,19 @@ def test_fwp_pipeline():
     model.meta['output_features'] = FEATURES[:2]
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
         fp_chunk_shape = (4, 4, 3)
         shape = (8, 8)
         target = (19.3, -123.5)
+        n_tsteps = 10
+        t_slice = slice(5, 5 + n_tsteps)
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
+        t_enhance = 4
         config = {'file_paths': input_files,
                   'target': target,
                   'model_args': out_dir,
@@ -70,10 +75,11 @@ def test_fwp_pipeline():
                   'shape': shape,
                   'fwp_chunk_shape': fp_chunk_shape,
                   'time_chunk_size': 10,
+                  'temporal_slice': [t_slice.start, t_slice.stop],
                   's_enhance': 3,
-                  't_enhance': 4,
-                  'spatial_overlap': 2,
-                  'temporal_overlap': 2,
+                  't_enhance': t_enhance,
+                  'spatial_pad': 2,
+                  'temporal_pad': 2,
                   'overwrite_cache': True,
                   'execution_control': {
                       "nodes": 1,
@@ -105,6 +111,8 @@ def test_fwp_pipeline():
         Pipeline.run(tmp_fpipeline, monitor=True)
 
         assert os.path.exists(fp_out)
+        with ResourceX(fp_out) as f:
+            assert len(f.time_index) == t_enhance * n_tsteps
 
         status_file = glob.glob(os.path.join(td, '*_status.json'))[0]
         with open(status_file, 'r') as fh:
