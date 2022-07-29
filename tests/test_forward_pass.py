@@ -153,8 +153,9 @@ def test_forward_pass_temporal_slice():
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
         max_workers = 1
-        n_tsteps = 10
-        temporal_slice = slice(5, 5 + n_tsteps)
+        temporal_slice = slice(5, 17, 3)
+        raw_time_index = np.arange(20)
+        n_tsteps = len(raw_time_index[temporal_slice])
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
             s_enhance=3, t_enhance=4,

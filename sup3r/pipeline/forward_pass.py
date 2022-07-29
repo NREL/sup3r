@@ -489,17 +489,18 @@ class ForwardPassStrategy(InputMixIn):
         n_tsteps = len(self.time_index)
         n_chunks = n_tsteps / fwp_chunk_size[2]
         n_chunks = np.int(np.ceil(n_chunks))
-        ti_slices = np.arange(n_tsteps) + self.temporal_slice.start
+        ti_slices = np.arange(len(self.raw_time_index))[self.temporal_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
+        ti_slices = [slice(c[0], c[-1] + 1, self.temporal_slice.step)
+                     for c in ti_slices]
+        t_step = self.temporal_slice.step or 1
+        t_pad = t_step * temporal_pad
         ti_pad_slices = []
-        for _, chunk in enumerate(ti_slices):
-            start = np.max([0, chunk[0] - temporal_pad])
-            end = np.min([len(self.raw_time_index),
-                          chunk[-1] + temporal_pad + 1])
-            ti_pad_slices.append([start, end])
+        for _, s in enumerate(ti_slices):
+            start = np.max([0, s.start - t_pad])
+            end = np.min([len(self.raw_time_index), s.stop + t_pad])
+            ti_pad_slices.append(slice(start, end, self.temporal_slice.step))
 
-        ti_slices = [slice(chunk[0], chunk[-1] + 1) for chunk in ti_slices]
-        ti_pad_slices = [slice(*chunk) for chunk in ti_pad_slices]
         ti_hr_crop_slices = self.get_ti_hr_crop_slices(ti_slices,
                                                        ti_pad_slices)
         return ti_slices, ti_pad_slices, ti_hr_crop_slices
@@ -695,10 +696,11 @@ class ForwardPassStrategy(InputMixIn):
         for _, (ps, s) in enumerate(zip(ti_pad_slices, ti_slices)):
             start = s.start
             stop = s.stop
+            step = s.step or 1
             if start is not None:
-                start = self.t_enhance * (s.start - ps.start)
+                start = self.t_enhance * (s.start - ps.start) // step
             if stop is not None:
-                stop = self.t_enhance * (s.stop - ps.stop)
+                stop = self.t_enhance * (s.stop - ps.stop) // step
 
             if start is not None and start <= 0:
                 start = None
