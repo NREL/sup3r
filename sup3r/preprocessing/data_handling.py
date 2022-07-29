@@ -491,7 +491,8 @@ class DataHandler(FeatureHandler, InputMixIn):
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            self.data = self.extract_data()
+            if any(self.raw_features):
+                self.data = self.extract_data()
 
             if cache_pattern is not None:
                 self.cache_data(self.cache_files)
@@ -623,8 +624,11 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._time_chunk_size is None:
             step_mem = self.feature_mem * len(self.raw_features)
             step_mem /= len(self.time_index)
-            self._time_chunk_size = np.min([np.int(1e9 / step_mem),
-                                            self.n_tsteps])
+            if step_mem == 0:
+                self._time_chunk_size = int(1e9)
+            else:
+                self._time_chunk_size = np.min([np.int(1e9 / step_mem),
+                                                self.n_tsteps])
             logger.info('time_chunk_size arg not specified. Using '
                         f'{self._time_chunk_size}.')
         return self._time_chunk_size
@@ -638,7 +642,13 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     @property
     def lat_lon(self):
-        """lat lon grid for data"""
+        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension
+
+        Returns
+        -------
+        ndarray
+        """
         if self._lat_lon is None:
             self._lat_lon = self.get_lat_lon(self.file_paths,
                                              self.raster_index,
