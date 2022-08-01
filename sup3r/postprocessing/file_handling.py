@@ -131,6 +131,7 @@ class OutputHandler:
             Last dimension has ordering (lat, lon)
         shape : tuple
             (lons, lats) Shape of high res grid
+
         Returns
         -------
         lat_lon : ndarray
