@@ -2,6 +2,7 @@
 """pytests for data handling"""
 import os
 import tempfile
+import pandas as pd
 import numpy as np
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
@@ -67,8 +68,15 @@ def test_qa_nc():
             data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
 
+            assert isinstance(qa.meta, pd.DataFrame)
+            assert isinstance(qa.time_index, pd.DatetimeIndex)
             for i in range(3):
                 assert data.shape[i] == qa.source_handler.data.shape[i]
+
+            qa_fp = os.path.join(td, 'qa.h5')
+            qa.run(qa_fp, save_sources=True)
+
+            assert os.path.exists(qa_fp)
 
 
 if __name__ == '__main__':

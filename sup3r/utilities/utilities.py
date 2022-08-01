@@ -17,8 +17,6 @@ import psutil
 import pandas as pd
 from packaging import version
 
-import sup3r.preprocessing.data_handling
-
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
@@ -1300,6 +1298,7 @@ def get_input_handler_class(file_paths, input_handler_name):
                     'input_handler="DataHandlerName".')
 
     if isinstance(input_handler_name, str):
+        import sup3r.preprocessing.data_handling
         HandlerClass = getattr(sup3r.preprocessing.data_handling,
                                input_handler_name, None)
 

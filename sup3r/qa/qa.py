@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """sup3r QA module."""
+import os
+import pandas as pd
 import numpy as np
 import xarray as xr
 import logging
 from rex import Resource
+from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
+from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        spatial_coarsening,
@@ -150,6 +154,29 @@ class Sup3rQa:
         self.output_handler.close()
 
     @property
+    def meta(self):
+        """Get the meta data corresponding to the flattened source low-res data
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        lat_lon = self.source_handler.lat_lon
+        meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
+                             'longitude': lat_lon[..., 1].flatten()})
+        return meta
+
+    @property
+    def time_index(self):
+        """Get the time index associated with the source low-res data
+
+        Returns
+        -------
+        pd.DatetimeIndex
+        """
+        return self.source_handler.time_index
+
+    @property
     def features(self):
         """Get a list of feature names from the output file, excluding meta and
         time index datasets
@@ -220,11 +247,13 @@ class Sup3rQa:
         data = self.output_handler[name]
         if self.output_type == 'nc':
             data = data.values
+            # nc files need to be converted from (t, s1, s2) -> (s1, s2, t)
             data = np.transpose(data, axes=(1, 2, 0))
 
         data = spatial_coarsening(data, s_enhance=self.s_enhance,
                                   obs_axis=False)
 
+        # t_coarse needs shape to be 5D: (obs, s1, s2, t, f)
         data = np.expand_dims(data, axis=0)
         data = np.expand_dims(data, axis=4)
         data = temporal_coarsening(data, t_enhance=self.t_enhance,
@@ -233,3 +262,79 @@ class Sup3rQa:
         data = data[..., 0]
 
         return data
+
+    def export(self, qa_fp, errors, dset_name, dset_suffix=''):
+        """Export error dictionary to h5 file.
+
+        Parameters
+        ----------
+        qa_fp : str | None
+            Optional filepath to output QA file (only .h5 is supported)
+        errors : np.ndarray
+            An array with shape (space1, space2, time) that represents the
+            re-coarsened synthetic data minus the source true low-res data
+        dset_name : str
+            Base dataset name to save errors to
+        dset_suffix : str
+            Optional suffix to append to dset_name with an underscore before
+            saving.
+        """
+
+        if not os.path.exists(qa_fp):
+            with RexOutputs(qa_fp, mode='w') as f:
+                f.meta = self.meta
+                f.time_index = self.time_index
+
+        shape = (len(self.time_index), len(self.meta))
+        attrs = H5_ATTRS.get(Feature.get_basename(dset_name), {})
+
+        if dset_suffix:
+            dset_name = dset_name + '_' + dset_suffix
+
+        RexOutputs.add_dataset(qa_fp, dset_name, errors.reshape(shape),
+                               dtype=attrs.get('dtype', 'float32'),
+                               chunks=attrs.get('chunks', None),
+                               attrs=attrs)
+
+    def run(self, qa_fp=None, save_sources=True):
+        """Go through all datasets and get the error for the re-coarsened
+        synthetic minus the true low-res source data.
+
+        Parameters
+        ----------
+        qa_fp : str | None
+            Optional filepath to output QA file (only .h5 is supported)
+        save_sources : bool
+            Flag to save re-coarsened synthetic data and true low-res data to
+            qa_fp in addition to the error dataset
+
+        Returns
+        -------
+        errors : dict
+            Dictionary of errors, where keys are the feature names, and each
+            value is an array with shape (space1, space2, time) that represents
+            the re-coarsened synthetic data minus the source true low-res data
+        """
+
+        errors = {}
+        for idf, feature in enumerate(self.features):
+            data_syn = self.get_dset_out(feature)
+            data_true = self.source_handler.data[..., idf]
+            if data_syn.shape != data_true.shape:
+                msg = ('Sup3rQa failed while trying to inspect the "{}" '
+                       'feature. The source low-res data had shape {} '
+                       'while the re-coarsened synthetic data had shape {}.'
+                       .format(feature, data_true.shape, data_syn.shape))
+                logger.error(msg)
+                raise RuntimeError(msg)
+
+            feature_diff = data_syn - data_true
+            errors[feature] = feature_diff
+
+            if qa_fp is not None:
+                self.export(qa_fp, feature_diff, feature, 'error')
+                if save_sources:
+                    self.export(qa_fp, data_syn, feature, 'synthetic')
+                    self.export(qa_fp, data_true, feature, 'true')
+
+        return errors
