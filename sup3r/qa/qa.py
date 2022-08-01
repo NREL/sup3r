@@ -228,27 +228,51 @@ class Sup3rQa:
             return Resource
 
     def get_dset_out(self, name):
-        """Get an output dataset re-coarsened to the original low-res source
-        data resolution for comparison + qa purposes.
+        """Get an output dataset from the forward pass output file.
 
         Parameters
         ----------
         name : str
             Name of the output dataset to retrieve. Must be found in the
-            features property and the output file.
+            features property and the forward pass output file.
 
         Returns
         -------
         out : np.ndarray
-            A coarsened copy of the high-resolution output data as a numpy
+            A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
         """
 
         data = self.output_handler[name]
         if self.output_type == 'nc':
             data = data.values
-            # nc files need to be converted from (t, s1, s2) -> (s1, s2, t)
-            data = np.transpose(data, axes=(1, 2, 0))
+        elif self.output_type == 'h5':
+            assert len(self.meta)**0.5 % 1 == 0
+            shape = (len(self.time_index) * self.t_enhance,
+                     int(len(self.meta)**0.5 * self.s_enhance),
+                     int(len(self.meta)**0.5 * self.s_enhance))
+            data = data.reshape(shape)
+
+        # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
+        data = np.transpose(data, axes=(1, 2, 0))
+
+        return data
+
+    def coarsen_data(self, data):
+        """Re-coarsen a high-resolution synthetic output dataset
+
+        Parameters
+        ----------
+        data : np.ndarray
+            A copy of the high-resolution output data as a numpy
+            array of shape (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        data : np.ndarray
+            A spatiotemporally coarsened copy of the input dataset, still with
+            shape (spatial_1, spatial_2, temporal)
+        """
 
         data = spatial_coarsening(data, s_enhance=self.s_enhance,
                                   obs_axis=False)
@@ -319,7 +343,9 @@ class Sup3rQa:
         errors = {}
         for idf, feature in enumerate(self.features):
             data_syn = self.get_dset_out(feature)
+            data_syn = self.coarsen_data(data_syn)
             data_true = self.source_handler.data[..., idf]
+
             if data_syn.shape != data_true.shape:
                 msg = ('Sup3rQa failed while trying to inspect the "{}" '
                        'feature. The source low-res data had shape {} '
