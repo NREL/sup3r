@@ -1916,7 +1916,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = tuple()
+    TRAIN_ONLY_FEATURES = ('topography',)
 
     def __init__(self, *args, **kwargs):
         """
@@ -2009,7 +2009,8 @@ class DataHandlerH5WindCC(DataHandlerH5):
         """
         registry = {'U_(.*)m': UWind,
                     'V_(.*)m': VWind,
-                    'lat_lon': LatLonH5}
+                    'lat_lon': LatLonH5,
+                    'topography': TopoH5}
         return registry
 
     def get_observation_index(self):
@@ -2114,7 +2115,7 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+    TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
 
     @classmethod
     def feature_registry(cls):
@@ -2132,7 +2133,8 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             'winddirection': 'wind_direction',
             'lat_lon': LatLonH5,
             'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+            'clearsky_ratio': ClearSkyRatioH5,
+            'topography': TopoH5}
         return registry
 
 
