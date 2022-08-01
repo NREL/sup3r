@@ -15,16 +15,9 @@ from sup3r.preprocessing.batch_handling import (BatchHandler,
 from sup3r.utilities import utilities
 
 input_file = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-input_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00'),
-    os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_01_00_00')]
-input_files = sorted(input_files)
+input_files = 4 * [input_file]
+input_files += 4 * [os.path.join(TEST_DATA_DIR,
+                                 'test_wrf_2014-10-01_01_00_00')]
 target = (19.3, -123.5)
 targets = target
 shape = (8, 8)
@@ -39,6 +32,37 @@ temporal_slice = slice(None, None, 1)
 n_batches = 20
 t_enhance = 2
 list_chunk_size = 10
+
+
+def test_topography():
+    """Test that topography is batched and extracted correctly"""
+
+    features = ['U_100m', 'V_100m', 'BVF2_200m', 'topography']
+    sample_shape = (8, 8, 8)
+
+    data_handler = DataHandler(input_files, features, target,
+                               shape=shape, max_delta=max_delta,
+                               val_split=0.0,
+                               sample_shape=sample_shape,
+                               temporal_slice=temporal_slice)
+    ri = data_handler.raster_index
+    with xr.open_mfdataset(input_files, concat_dim='Time',
+                           combine='nested') as res:
+        topo = np.array(res['HGT'][tuple([slice(None)] + ri)])
+    topo = np.transpose(topo, (1, 2, 0))[::-1]
+    topo_idx = data_handler.features.index('topography')
+    print(data_handler.data.shape)
+    assert np.allclose(topo, data_handler.data[..., :, topo_idx])
+    st_batch_handler = BatchHandler([data_handler], batch_size=batch_size,
+                                    n_batches=n_batches,
+                                    s_enhance=s_enhance,
+                                    t_enhance=t_enhance)
+    assert data_handler.output_features == features[:2]
+    assert data_handler.data.shape[-1] == len(features)
+
+    for batch in st_batch_handler:
+        assert batch.high_res.shape[-1] == 2
+        assert batch.low_res.shape[-1] == len(features)
 
 
 def test_height_interpolation():

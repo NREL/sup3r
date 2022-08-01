@@ -841,7 +841,8 @@ class TopoH5:
             (spatial_1, spatial_2)
         """
         with Resource(file_paths[0], hsds=False) as handle:
-            topo = handle.meta['elevation'][tuple([raster_index.flatten()])]
+            idx = tuple([raster_index.flatten()])
+            topo = handle.get_meta_arr('elevation')[idx]
             topo = topo.reshape((raster_index.shape[0], raster_index.shape[1]))
         return topo
 

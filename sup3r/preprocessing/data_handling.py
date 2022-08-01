@@ -306,7 +306,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL',
+                           'topography')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=20,
@@ -1366,7 +1367,10 @@ class DataHandler(FeatureHandler, InputMixIn):
         f : str
             Name of corresponding feature in the raw data dictionary
         """
-        self.data[..., t_slice, f_index] = self._raw_data[t][f]
+        tmp = self._raw_data[t][f]
+        if len(tmp.shape) == 2:
+            tmp = tmp[..., np.newaxis]
+        self.data[..., t_slice, f_index] = tmp
 
     def serial_data_fill(self, shifted_time_chunks):
         """Fill final data array in serial
@@ -1380,7 +1384,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         for t, ts in enumerate(shifted_time_chunks):
             for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
-                self.data[..., ts, f_index] = self._raw_data[t][f]
+                self.data_fill(t, ts, f_index, f)
             interval = np.int(np.ceil(len(shifted_time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
