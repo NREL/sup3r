@@ -493,7 +493,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            if any(self.extract_features):
+            if any(self.features):
                 self.data = self.extract_data()
 
             if cache_pattern is not None:
@@ -570,7 +570,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Get upper bound for compute workers based on memory limits. Used to
         compute derived features from source dataset."""
         proc_mem = np.int(np.ceil(len(self.extract_features)
-                                  / len(self.derive_features)))
+                                  / np.maximum(len(self.derive_features), 1)))
         proc_mem *= 4 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.derive_features)
@@ -627,7 +627,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             step_mem = self.feature_mem * len(self.extract_features)
             step_mem /= len(self.time_index)
             if step_mem == 0:
-                self._time_chunk_size = int(1e9)
+                self._time_chunk_size = self.n_tsteps
             else:
                 self._time_chunk_size = np.min([np.int(1e9 / step_mem),
                                                 self.n_tsteps])
@@ -697,15 +697,15 @@ class DataHandler(FeatureHandler, InputMixIn):
     def extract_features(self):
         """Features to extract directly from the source handler"""
         return [f for f in self.raw_features
-                if self.lookup(f, 'compute') is None]
+                if self.lookup(f, 'compute') is None
+                or Feature.get_basename(f) in self.handle_features]
 
     @property
     def derive_features(self):
         """List of features which need to be derived from other features"""
-        derive_features = [f for f in self.noncached_features
+        derive_features = [f for f in set(self.noncached_features
+                                          + self.extract_features)
                            if f not in self.extract_features]
-        derive_features += [f for f in self.raw_features
-                            if f not in self.extract_features]
         return derive_features
 
     @property
@@ -1378,7 +1378,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             extracted / computed chunks in the final data array
         """
         for t, ts in enumerate(shifted_time_chunks):
-            for _, f in enumerate(self.extract_features):
+            for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
                 self.data[..., ts, f_index] = self._raw_data[t][f]
             interval = np.int(np.ceil(len(shifted_time_chunks) / 10))

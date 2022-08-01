@@ -49,7 +49,8 @@ def test_height_interpolation():
     features = [f'U_{height}m']
     handler = DataHandler(input_files, features, target=target,
                           sample_shape=sample_shape,
-                          shape=shape, max_delta=20, val_split=0.0)
+                          shape=shape, max_delta=20, val_split=0.0,
+                          max_workers=1)
     raster_index = handler.raster_index
 
     data = handler.data

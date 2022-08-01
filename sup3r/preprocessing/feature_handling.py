@@ -1220,7 +1220,7 @@ class FeatureHandler:
                                                         file_paths,
                                                         raster_index)
                     data[feature] = method(data, height)
-            else:
+            elif method is not None:
                 data[feature] = method(file_paths, raster_index)
 
         return data[feature]
@@ -1321,7 +1321,8 @@ class FeatureHandler:
         futures = {}
         now = dt.now()
         if max_workers == 1:
-            return cls.serial_compute(data, time_chunks, derived_features,
+            return cls.serial_compute(data, file_paths, raster_index,
+                                      time_chunks, derived_features,
                                       all_features, handle_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
