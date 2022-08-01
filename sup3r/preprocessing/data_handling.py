@@ -154,7 +154,7 @@ class InputMixIn:
             unix-style file path which will be passed through glob.glob
         """
         self._file_paths = file_paths
-        if isinstance(self._file_paths, str):
+        if isinstance(self._file_paths, str) and '*' in self._file_paths:
             self._file_paths = glob.glob(self._file_paths)
 
         self._file_paths = sorted(self._file_paths)
@@ -300,7 +300,12 @@ class InputMixIn:
 
 
 class DataHandler(FeatureHandler, InputMixIn):
-    """Sup3r data handling and extraction"""
+    """Sup3r data handling and extraction for low-res source data or for
+    artificially coarsened high-res source data for training.
+
+    The sup3r data handler class is based on a 4D numpy array of shape:
+    (spatial_1, spatial_2, temporal, features)
+    """
 
     # list of features / feature name patterns that are input to the generative
     # model but are not part of the synthetic output and are not sent to the
@@ -328,8 +333,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  norm_workers=None):
-        """Data handling and extraction
-
+        """
         Parameters
         ----------
         file_paths : str | list

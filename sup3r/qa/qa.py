@@ -1,0 +1,235 @@
+# -*- coding: utf-8 -*-
+"""sup3r QA module."""
+import numpy as np
+import xarray as xr
+import logging
+from rex import Resource
+from sup3r.utilities.utilities import (get_input_handler_class,
+                                       get_source_type,
+                                       spatial_coarsening,
+                                       temporal_coarsening,
+                                       )
+
+
+logger = logging.getLogger(__name__)
+
+
+class Sup3rQa:
+    """Class for doing QA on sup3r forward pass outputs."""
+
+    def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
+                 temporal_coarsening_method,
+                 temporal_slice=slice(None),
+                 target=None,
+                 shape=None,
+                 raster_file=None,
+                 time_chunk_size=None,
+                 cache_pattern=None,
+                 overwrite_cache=False,
+                 input_handler=None,
+                 max_workers=None,
+                 extract_workers=None,
+                 compute_workers=None,
+                 load_workers=None):
+        """
+        Parameters
+        ----------
+        source_file_paths : list | str
+            A list of low-resolution source files to extract raster data from.
+            Each file must have the same number of timesteps. Can also pass a
+            string with a unix-style file path which will be passed through
+            glob.glob
+        out_file_path : str
+            A single sup3r-resolved output file (either .nc or .h5) with
+            high-resolution data corresponding to the
+            source_file_paths * s_enhance * t_enhance
+        s_enhance : int
+            Factor by which the Sup3rGan model will enhance the spatial
+            dimensions of low resolution data
+        t_enhance : int
+            Factor by which the Sup3rGan model will enhance temporal dimension
+            of low resolution data
+        temporal_coarsening_method : str
+            [subsample, average, total]
+            Subsample will take every t_enhance-th time step, average will
+            average over t_enhance time steps, total will sum over t_enhance
+            time steps
+        temporal_slice : slice | tuple | list
+            Slice defining size of full temporal domain. e.g. If we have 5
+            files each with 5 time steps then temporal_slice = slice(None) will
+            select all 25 time steps. This can also be a tuple / list with
+            length 3 that will be interpreted as slice(*temporal_slice)
+        target : tuple
+            (lat, lon) lower left corner of raster. You should provide
+            target+shape or raster_file, or if all three are None the full
+            source domain will be used.
+        shape : tuple
+            (rows, cols) grid size. You should provide target+shape or
+            raster_file, or if all three are None the full source domain will
+            be used.
+        raster_file : str | None
+            File for raster_index array for the corresponding target and
+            shape. If specified the raster_index will be loaded from the file
+            if it exists or written to the file if it does not yet exist.
+            If None raster_index will be calculated directly. You should
+            provide target+shape or raster_file, or if all three are None the
+            full source domain will be used.
+        time_chunk_size : int
+            Size of chunks to split time dimension into for parallel data
+            extraction. If running in serial this can be set to the size
+            of the full time index for best performance.
+        cache_pattern : str | None
+            Pattern for files for saving feature data. e.g.
+            file_path_{feature}.pkl Each feature will be saved to a file with
+            the feature name replaced in cache_pattern. If not None
+            feature arrays will be saved here and not stored in self.data until
+            load_cached_data is called. The cache_pattern can also include
+            {shape}, {target}, {times} which will help ensure unique cache
+            files for complex problems.
+        overwrite_cache : bool
+            Whether to overwrite cache files storing the computed/extracted
+            feature data
+        input_handler : str | None
+            data handler class to use for input data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        max_workers : int | None
+            Providing a value for max workers will be used to set the value of
+            pass_workers, extract_workers, compute_workers, output_workers, and
+            load_workers.  If max_workers == 1 then all processes will be
+            serialized. If None extract_workers, compute_workers, load_workers,
+            output_workers, and pass_workers will use their own provided
+            values.
+        extract_workers : int | None
+            max number of workers to use for extracting features from source
+            data.
+        compute_workers : int | None
+            max number of workers to use for computing derived features from
+            raw features in source data.
+        load_workers : int | None
+            max number of workers to use for loading cached feature data.
+        """
+
+        if max_workers is not None:
+            extract_workers = compute_workers = load_workers = max_workers
+
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
+        self._t_meth = temporal_coarsening_method
+        self._out_fp = out_file_path
+        self.output_handler = self.output_handler_class(self._out_fp)
+
+        HandlerClass = get_input_handler_class(source_file_paths,
+                                               input_handler)
+        self.source_handler = HandlerClass(source_file_paths,
+                                           self.features,
+                                           target=target,
+                                           shape=shape,
+                                           temporal_slice=temporal_slice,
+                                           raster_file=raster_file,
+                                           cache_pattern=cache_pattern,
+                                           time_chunk_size=time_chunk_size,
+                                           overwrite_cache=overwrite_cache,
+                                           val_split=0.0,
+                                           max_workers=max_workers,
+                                           extract_workers=extract_workers,
+                                           compute_workers=compute_workers,
+                                           load_workers=load_workers)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+        if type is not None:
+            raise
+
+    def close(self):
+        """Close any open file handlers"""
+        self.output_handler.close()
+
+    @property
+    def features(self):
+        """Get a list of feature names from the output file, excluding meta and
+        time index datasets
+
+        Returns
+        -------
+        list
+        """
+
+        # all lower case
+        ignore = ('meta', 'time_index', 'times', 'xlat', 'xlong')
+
+        if self.output_type == 'nc':
+            features = list(self.output_handler.variables.keys())
+        elif self.output_type == 'h5':
+            features = self.output_handler.dsets
+
+        features = [f for f in features if f.lower() not in ignore]
+
+        return features
+
+    @property
+    def output_type(self):
+        """Get output data type
+
+        Returns
+        -------
+        output_type
+            e.g. 'nc' or 'h5'
+        """
+        ftype = get_source_type(self._out_fp)
+        if ftype not in ('nc', 'h5'):
+            msg = 'Did not recognize output file type: {}'.format(self._out_fp)
+            logger.error(msg)
+            raise TypeError(msg)
+        return ftype
+
+    @property
+    def output_handler_class(self):
+        """Get the output handler class.
+
+        Returns
+        -------
+        HandlerClass : rex.Resource | xr.open_dataset
+        """
+        if self.output_type == 'nc':
+            return xr.open_dataset
+        elif self.output_type == 'h5':
+            return Resource
+
+    def get_dset_out(self, name):
+        """Get an output dataset re-coarsened to the original low-res source
+        data resolution for comparison + qa purposes.
+
+        Parameters
+        ----------
+        name : str
+            Name of the output dataset to retrieve. Must be found in the
+            features property and the output file.
+
+        Returns
+        -------
+        out : np.ndarray
+            A coarsened copy of the high-resolution output data as a numpy
+            array of shape (spatial_1, spatial_2, temporal)
+        """
+
+        data = self.output_handler[name]
+        if self.output_type == 'nc':
+            data = data.values
+            data = np.transpose(data, axes=(1, 2, 0))
+
+        data = spatial_coarsening(data, s_enhance=self.s_enhance,
+                                  obs_axis=False)
+
+        data = np.expand_dims(data, axis=0)
+        data = np.expand_dims(data, axis=4)
+        data = temporal_coarsening(data, t_enhance=self.t_enhance,
+                                   method=self._t_meth)
+        data = data[0]
+        data = data[..., 0]
+
+        return data
