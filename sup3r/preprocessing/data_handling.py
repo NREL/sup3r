@@ -703,8 +703,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def derive_features(self):
         """List of features which need to be derived from other features"""
-        derive_features = [f for f in set(self.noncached_features
-                                          + self.extract_features)
+        derive_features = [f for f in set(list(self.noncached_features)
+                                          + list(self.extract_features))
                            if f not in self.extract_features]
         return derive_features
 
