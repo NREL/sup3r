@@ -1048,7 +1048,7 @@ class FeatureHandler:
 
     @classmethod
     def serial_extract(cls, file_paths, raster_index, time_chunks,
-                       input_features, invert_lat=False):
+                       input_features):
         """Extract features in series
 
         Parameters
@@ -1062,10 +1062,6 @@ class FeatureHandler:
             dimension
         input_features : list
             list of input feature strings
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
 
         Returns
         -------
@@ -1084,22 +1080,20 @@ class FeatureHandler:
 
         for t, t_slice in enumerate(time_chunks):
             for f in time_dep_features:
-                data[t][f] = cls.extract_feature(
-                    file_paths, raster_index, f, t_slice,
-                    invert_lat=invert_lat)
+                data[t][f] = cls.extract_feature(file_paths, raster_index, f,
+                                                 t_slice)
             interval = np.int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
                              'chunks extracted.')
         for f in time_ind_features:
-            data[-1][f] = cls.extract_feature(file_paths, raster_index, f,
-                                              invert_lat=invert_lat)
+            data[-1][f] = cls.extract_feature(file_paths, raster_index, f)
 
         return data
 
     @classmethod
     def parallel_extract(cls, file_paths, raster_index, time_chunks,
-                         input_features, max_workers=None, invert_lat=False):
+                         input_features, max_workers=None):
         """Extract features using parallel subprocesses
 
         Parameters
@@ -1116,10 +1110,6 @@ class FeatureHandler:
         max_workers : int | None
             Number of max workers to use for extraction.  If equal to 1 then
             method is run in serial
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
 
         Returns
         -------
@@ -1140,7 +1130,7 @@ class FeatureHandler:
 
         if max_workers == 1:
             return cls.serial_extract(file_paths, raster_index, time_chunks,
-                                      input_features, invert_lat=invert_lat)
+                                      input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
@@ -1149,8 +1139,7 @@ class FeatureHandler:
                                             file_paths=file_paths,
                                             raster_index=raster_index,
                                             feature=f,
-                                            time_slice=t_slice,
-                                            invert_lat=invert_lat)
+                                            time_slice=t_slice)
                         meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
@@ -1158,7 +1147,7 @@ class FeatureHandler:
                     future = exe.submit(cls.extract_feature,
                                         file_paths=file_paths,
                                         raster_index=raster_index,
-                                        feature=f, invert_lat=invert_lat)
+                                        feature=f)
                     meta = {'feature': f,
                             'chunk': -1}
                     futures[future] = meta
@@ -1189,7 +1178,8 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def recursive_compute(cls, data, feature, handle_features):
+    def recursive_compute(cls, data, feature, handle_features, file_paths,
+                          raster_index):
         """Compute intermediate features recursively
 
         Parameters
@@ -1201,6 +1191,12 @@ class FeatureHandler:
             Name of feature to compute
         handle_features : list
             Features available in raw data
+        file_paths : list
+            Paths to data files. Used if compute method operates directly on
+            source handler instead of input arrays. This is done with features
+            without inputs methods like lat_lon and topography.
+        raster_index : ndarray
+            raster index for spatial domain
 
         Returns
         -------
@@ -1220,14 +1216,18 @@ class FeatureHandler:
                 else:
                     for r in inputs(feature):
                         data[r] = cls.recursive_compute(data, r,
-                                                        handle_features)
+                                                        handle_features,
+                                                        file_paths,
+                                                        raster_index)
                     data[feature] = method(data, height)
+            else:
+                data[feature] = method(file_paths, raster_index)
 
         return data[feature]
 
     @classmethod
-    def serial_compute(cls, data, time_chunks, derived_features, all_features,
-                       handle_features):
+    def serial_compute(cls, data, file_paths, raster_index, time_chunks,
+                       derived_features, all_features, handle_features):
         """Compute features in series
 
         Parameters
@@ -1236,6 +1236,12 @@ class FeatureHandler:
             dictionary of feature arrays with integer keys for chunks and str
             keys for features. e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
+        file_paths : list
+            Paths to data files. Used if compute method operates directly on
+            source handler instead of input arrays. This is done with features
+            without inputs methods like lat_lon and topography.
+        raster_index : ndarray
+            raster index for spatial domain
         time_chunks : list
             List of slices to chunk data feature extraction along time
             dimension
@@ -1259,7 +1265,8 @@ class FeatureHandler:
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(
-                    data=tmp, feature=f, handle_features=handle_features)
+                    data=tmp, feature=f, handle_features=handle_features,
+                    file_paths=file_paths, raster_index=raster_index)
             cls.pop_old_data(data, t, all_features)
             interval = np.int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
@@ -1268,7 +1275,7 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_compute(cls, data, raster_index, time_chunks,
+    def parallel_compute(cls, data, file_paths, raster_index, time_chunks,
                          derived_features, all_features, handle_features,
                          max_workers=None):
         """Compute features using parallel subprocesses
@@ -1280,6 +1287,10 @@ class FeatureHandler:
             keys for features.
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
+        file_paths : list
+            Paths to data files. Used if compute method operates directly on
+            source handler instead of input arrays. This is done with features
+            without inputs methods like lat_lon and topography.
         raster_index : ndarray
             raster index for spatial domain
         time_chunks : list
@@ -1319,7 +1330,9 @@ class FeatureHandler:
                         tmp = cls.get_input_arrays(data, t, f, handle_features)
                         future = exe.submit(cls.recursive_compute, data=tmp,
                                             feature=f,
-                                            handle_features=handle_features)
+                                            handle_features=handle_features,
+                                            file_paths=file_paths,
+                                            raster_index=raster_index)
                         meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
 
@@ -1369,7 +1382,7 @@ class FeatureHandler:
         for r in inputs:
             if r in data[chunk_number]:
                 tmp[r] = data[chunk_number][r]
-            else:
+            elif r in data[-1]:
                 tmp[r] = data[-1][r]
         return tmp
 
@@ -1509,7 +1522,7 @@ class FeatureHandler:
     @classmethod
     @abstractmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None), invert_lat=False):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters
@@ -1522,10 +1535,6 @@ class FeatureHandler:
             slice of time to extract
         feature : str
             Feature to extract from data
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
 
         Returns
         -------
