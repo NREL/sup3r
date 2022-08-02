@@ -216,7 +216,12 @@ class InputMixIn:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            self._target = tuple(self.lat_lon[-1, 0, :])
+            check = (self.raster_file is not None
+                     and os.path.exists(self.raster_file))
+            if check:
+                self._target = tuple(self.lat_lon[-1, 0, :])
+            else:
+                self._target, self._grid_shape = self.full_domain
         return self._target
 
     @target.setter
