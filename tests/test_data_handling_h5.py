@@ -7,6 +7,7 @@ import pytest
 import matplotlib.pyplot as plt
 import tempfile
 import pickle
+from rex import Resource
 from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
@@ -73,6 +74,34 @@ def test_spatiotemporal_batch_caching(sample_shape):
                                       handler.data[spatial_1_slice,
                                                    spatial_2_slice,
                                                    t_slice, :-1])
+
+
+def test_topography():
+    """Test that topography is batched and extracted correctly"""
+
+    features = ['U_100m', 'V_100m', 'BVF2_200m', 'topography']
+    sample_shape = (10, 10, 10)
+    data_handler = DataHandler(input_file, features, target,
+                               shape=shape, max_delta=max_delta,
+                               val_split=val_split,
+                               sample_shape=sample_shape,
+                               temporal_slice=temporal_slice)
+    ri = data_handler.raster_index
+    with Resource(input_file) as res:
+        topo = res.get_meta_arr('elevation')[tuple([ri.flatten()])]
+        topo = topo.reshape((ri.shape[0], ri.shape[1]))
+    topo_idx = data_handler.features.index('topography')
+    assert np.allclose(topo, data_handler.data[..., 0, topo_idx])
+    st_batch_handler = BatchHandler([data_handler], batch_size=batch_size,
+                                    n_batches=n_batches,
+                                    s_enhance=s_enhance,
+                                    t_enhance=t_enhance)
+    assert data_handler.output_features == features[:2]
+    assert data_handler.data.shape[-1] == len(features)
+
+    for batch in st_batch_handler:
+        assert batch.high_res.shape[-1] == 2
+        assert batch.low_res.shape[-1] == len(features)
 
 
 def test_data_caching():
@@ -672,6 +701,7 @@ def test_smoothing():
     for batch in batch_handler:
         high_res = batch.high_res
         low_res = utilities.spatial_coarsening(high_res, s_enhance)
-        low_res = utilities.temporal_coarsening(low_res, t_enhance)
-        low_res = gaussian_filter(low_res, 0.6, mode='constant')
+        low_res_no_smooth = utilities.temporal_coarsening(low_res, t_enhance)
+        low_res = gaussian_filter(low_res_no_smooth, 0.6, mode='constant')
         assert np.array_equal(batch.low_res, low_res)
+        assert not np.array_equal(low_res, low_res_no_smooth)

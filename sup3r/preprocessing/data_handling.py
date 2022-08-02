@@ -55,6 +55,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Shear,
                                                   Rews,
                                                   Tas,
+                                                  TopoH5,
                                                   )
 
 np.random.seed(42)
@@ -305,7 +306,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL')
+    TRAIN_ONLY_FEATURES = ('BVF*', 'inversemoninobukhovlength_*', 'RMOL',
+                           'topography')
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=20,
@@ -449,6 +451,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._raster_index = None
         self._handle_features = None
         self._extract_features = None
+        self._noncached_features = None
         self._raw_features = None
         self._raw_data = None
         self._time_chunks = None
@@ -491,7 +494,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            if any(self.raw_features):
+            if any(self.features):
                 self.data = self.extract_data()
 
             if cache_pattern is not None:
@@ -557,7 +560,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         extract data from source dataset"""
         proc_mem = 4 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.raw_features)
+        n_procs = len(self.time_chunks) * len(self.extract_features)
         n_procs = int(np.ceil(n_procs))
         extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
                                                n_procs)
@@ -567,8 +570,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     def compute_workers(self):
         """Get upper bound for compute workers based on memory limits. Used to
         compute derived features from source dataset."""
-        proc_mem = np.int(np.ceil(len(self.raw_features)
-                                  / len(self.extract_features)))
+        proc_mem = np.int(np.ceil(len(self.extract_features)
+                                  / np.maximum(len(self.derive_features), 1)))
         proc_mem *= 4 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.derive_features)
@@ -622,10 +625,10 @@ class DataHandler(FeatureHandler, InputMixIn):
     def time_chunk_size(self):
         """Get upper bound on time chunk size based on memory limits"""
         if self._time_chunk_size is None:
-            step_mem = self.feature_mem * len(self.raw_features)
+            step_mem = self.feature_mem * len(self.extract_features)
             step_mem /= len(self.time_index)
             if step_mem == 0:
-                self._time_chunk_size = int(1e9)
+                self._time_chunk_size = self.n_tsteps
             else:
                 self._time_chunk_size = np.min([np.int(1e9 / step_mem),
                                                 self.n_tsteps])
@@ -682,32 +685,42 @@ class DataHandler(FeatureHandler, InputMixIn):
         return self._handle_features
 
     @property
-    def extract_features(self):
+    def noncached_features(self):
         """Get list of features needing extraction or derivation"""
-        if self._extract_features is None:
-            self._extract_features = self.check_cached_features(
+        if self._noncached_features is None:
+            self._noncached_features = self.check_cached_features(
                 self.features, cache_files=self.cache_files,
                 overwrite_cache=self.overwrite_cache,
                 load_cached=self.load_cached)
-        return self._extract_features
+        return self._noncached_features
+
+    @property
+    def extract_features(self):
+        """Features to extract directly from the source handler"""
+        return [f for f in self.raw_features
+                if self.lookup(f, 'compute') is None
+                or Feature.get_basename(f) in self.handle_features]
 
     @property
     def derive_features(self):
         """List of features which need to be derived from other features"""
-        return [f for f in self.extract_features if f not in self.raw_features]
+        derive_features = [f for f in set(list(self.noncached_features)
+                                          + list(self.extract_features))
+                           if f not in self.extract_features]
+        return derive_features
 
     @property
     def cached_features(self):
         """List of features which have been requested but have been determined
         not to need extraction. Thus they have been cached already."""
-        return [f for f in self.features if f not in self.extract_features]
+        return [f for f in self.features if f not in self.noncached_features]
 
     @property
     def raw_features(self):
         """Get list of features needed for computations"""
         if self._raw_features is None:
             self._raw_features = self.get_raw_feature_list(
-                self.extract_features, self.handle_features)
+                self.noncached_features, self.handle_features)
         return self._raw_features
 
     @property
@@ -1290,23 +1303,24 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        logger.info(f'Starting extraction of {self.raw_features} using '
+        logger.info(f'Starting extraction of {self.extract_features} using '
                     f'{len(time_chunks)} time_chunks. ')
         self._raw_data = self.parallel_extract(self.file_paths,
                                                self.raster_index,
-                                               time_chunks, self.raw_features,
-                                               self.extract_workers,
-                                               invert_lat=self.invert_lat)
+                                               time_chunks,
+                                               self.extract_features,
+                                               self.extract_workers)
 
-        logger.info(f'Finished extracting {self.raw_features} for '
+        logger.info(f'Finished extracting {self.extract_features} for '
                     f'{self.input_file_info}')
         if self.derive_features:
-            logger.info(f'Starting compution of {self.derive_features}')
+            logger.info(f'Starting computation of {self.derive_features}')
             self._raw_data = self.parallel_compute(self._raw_data,
+                                                   self.file_paths,
                                                    self.raster_index,
                                                    time_chunks,
                                                    self.derive_features,
-                                                   self.extract_features,
+                                                   self.noncached_features,
                                                    self.handle_features,
                                                    self.compute_workers)
             logger.info(f'Finished computing {self.derive_features} for '
@@ -1314,6 +1328,9 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         logger.info('Building final data array')
         self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
+
+        if self.invert_lat:
+            self.data = self.data[::-1]
 
         if self.time_roll != 0:
             logger.debug('Applying time roll to data array')
@@ -1350,7 +1367,10 @@ class DataHandler(FeatureHandler, InputMixIn):
         f : str
             Name of corresponding feature in the raw data dictionary
         """
-        self.data[..., t_slice, f_index] = self._raw_data[t][f]
+        tmp = self._raw_data[t][f]
+        if len(tmp.shape) == 2:
+            tmp = tmp[..., np.newaxis]
+        self.data[..., t_slice, f_index] = tmp
 
     def serial_data_fill(self, shifted_time_chunks):
         """Fill final data array in serial
@@ -1362,9 +1382,9 @@ class DataHandler(FeatureHandler, InputMixIn):
             extracted / computed chunks in the final data array
         """
         for t, ts in enumerate(shifted_time_chunks):
-            for _, f in enumerate(self.extract_features):
+            for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
-                self.data[..., ts, f_index] = self._raw_data[t][f]
+                self.data_fill(t, ts, f_index, f)
             interval = np.int(np.ceil(len(shifted_time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
@@ -1396,7 +1416,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 futures = {}
                 now = dt.now()
                 for t, ts in enumerate(shifted_time_chunks):
-                    for _, f in enumerate(self.extract_features):
+                    for _, f in enumerate(self.noncached_features):
                         f_index = self.features.index(f)
                         future = exe.submit(self.data_fill, t, ts, f_index, f)
                         futures[future] = {'t': t, 'fidx': f_index}
@@ -1444,7 +1464,7 @@ class DataHandlerNC(DataHandler):
         # multiple arrays with up to 60 vertical levels
         proc_mem = 6 * 64 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.raw_features)
+        n_procs = len(self.time_chunks) * len(self.extract_features)
         n_procs = int(np.ceil(n_procs))
         extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
                                                n_procs)
@@ -1516,12 +1536,13 @@ class DataHandlerNC(DataHandler):
             'Shear_(.*)m': Shear,
             'REWS_(.*)m': Rews,
             'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': 'P_(.*)m'}
+            'Pressure_(.*)m': 'P_(.*)m',
+            'topography': 'HGT'}
         return registry
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None), invert_lat=True):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters
@@ -1551,9 +1572,6 @@ class DataHandlerNC(DataHandler):
             interp_height = f_info.height
             interp_pressure = f_info.pressure
             basename = f_info.basename
-            if feature == 'lat_lon':
-                return cls.get_lat_lon(file_paths, raster_index,
-                                       invert_lat=invert_lat)
             # Sometimes xarray returns fields with (Times, time, lats, lons)
             # with a single entry in the 'time' dimension
             if feature in handle:
@@ -1579,8 +1597,6 @@ class DataHandlerNC(DataHandler):
                 raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
-        if invert_lat:
-            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     @classmethod
@@ -1718,6 +1734,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
+            'topography': 'zg_0m',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
@@ -1814,12 +1831,13 @@ class DataHandlerH5(DataHandler):
             'lat_lon': LatLonH5,
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
-            'P_(.*)m': 'pressure_(.*)m'}
+            'P_(.*)m': 'pressure_(.*)m',
+            'topography': TopoH5}
         return registry
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None), invert_lat=False):
+                        time_slice=slice(None)):
         """Extract single feature from data source
 
         Parameters
@@ -1843,9 +1861,6 @@ class DataHandlerH5(DataHandler):
         """
         logger.info(f'Extracting {feature}')
         with cls.source_handler(file_paths) as handle:
-            if feature == 'lat_lon':
-                return cls.get_lat_lon(file_paths, raster_index,
-                                       invert_lat=invert_lat)
             try:
                 fdata = handle[(feature, time_slice,)
                                + tuple([raster_index.flatten()])]
@@ -1857,8 +1872,6 @@ class DataHandlerH5(DataHandler):
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
-        if invert_lat:
-            fdata = fdata[::-1]
         return fdata.astype(np.float32)
 
     def get_raster_index(self):
@@ -1903,7 +1916,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = tuple()
+    TRAIN_ONLY_FEATURES = ('topography',)
 
     def __init__(self, *args, **kwargs):
         """
@@ -1996,7 +2009,8 @@ class DataHandlerH5WindCC(DataHandlerH5):
         """
         registry = {'U_(.*)m': UWind,
                     'V_(.*)m': VWind,
-                    'lat_lon': LatLonH5}
+                    'lat_lon': LatLonH5,
+                    'topography': TopoH5}
         return registry
 
     def get_observation_index(self):
@@ -2101,7 +2115,7 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U', 'V', 'air_temperature')
+    TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
 
     @classmethod
     def feature_registry(cls):
@@ -2119,7 +2133,8 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             'winddirection': 'wind_direction',
             'lat_lon': LatLonH5,
             'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5}
+            'clearsky_ratio': ClearSkyRatioH5,
+            'topography': TopoH5}
         return registry
 
 

@@ -17,15 +17,18 @@ WTK_FEAT = ['windspeed_100m', 'winddirection_100m',
             'pressure_100m', 'pressure_200m',
             'inversemoninobukhovlength_2m']
 
-WRF_FEAT = ['U', 'V', 'T', 'UST', 'HFX']
+WRF_FEAT = ['U', 'V', 'T', 'UST', 'HFX', 'HGT']
 
 NSRDB_FEAT = ['ghi', 'clearsky_ghi', 'wind_speed', 'wind_direction']
 
-CC_FEAT = ['ua', 'uv', 'tas', 'hurs']
+CC_FEAT = ['ua', 'uv', 'tas', 'hurs', 'zg']
 
 
 def test_feature_inputs_h5():
     """Test basic H5 feature name / inputs parsing"""
+    out = DataHandlerH5.get_inputs_recursive('topography', WTK_FEAT)
+    assert out == ['topography']
+
     out = DataHandlerH5.get_inputs_recursive('U_100m', WTK_FEAT)
     assert out == ['windspeed_100m', 'winddirection_100m', 'lat_lon']
 
@@ -49,6 +52,9 @@ def test_feature_inputs_nc():
     out = DataHandlerNC.get_inputs_recursive('U_100m', WRF_FEAT)
     assert out == ['U_100m']
 
+    out = DataHandlerNC.get_inputs_recursive('topography', WRF_FEAT)
+    assert out == ['HGT']
+
     out = DataHandlerNC.get_inputs_recursive('BVF_MO_200m', WRF_FEAT)
     assert out == ['T_200m', 'T_100m', 'UST', 'HFX']
 
@@ -60,6 +66,9 @@ def test_feature_inputs_cc():
     """Test basic CC feature name / inputs parsing"""
     out = DataHandlerNCforCC.get_inputs_recursive('U_100m', CC_FEAT)
     assert out == ['ua_100m']
+
+    out = DataHandlerNCforCC.get_inputs_recursive('topography', CC_FEAT)
+    assert out == ['zg_0m']
 
     out = DataHandlerNCforCC.get_inputs_recursive('temperature_2m', CC_FEAT)
     assert out == ['tas']
