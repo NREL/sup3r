@@ -974,7 +974,7 @@ class FeatureHandler:
     """Feature Handler with cache for previously loaded features used in other
     calculations """
 
-    TIME_IND_FEATURES = ('lat_lon', 'topography')
+    TIME_IND_FEATURES = ('lat_lon')
 
     @classmethod
     def valid_handle_features(cls, features, handle_features):
