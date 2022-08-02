@@ -29,7 +29,7 @@
     {"class": "SkipConnection", "name": "a"},
 
     {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
-    {"class": "Conv3D", "filters": 72, "kernel_size": 3, "strides": 1},
+    {"class": "Conv3D", "filters": 192, "kernel_size": 3, "strides": 1},
     {"class": "Cropping3D", "cropping": 2},
     {"class": "SpatioTemporalExpansion", "spatial_mult": 3},
     {"alpha": 0.2, "class": "LeakyReLU"},
