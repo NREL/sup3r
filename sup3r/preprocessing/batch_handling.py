@@ -998,9 +998,6 @@ class SpatialBatchHandlerCC(BatchHandler):
                 _, obs_daily_avg = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
-                obs_daily_avg = self.BATCH_CLASS.reduce_features(
-                    obs_daily_avg, self.output_features_ind)
-
                 if high_res is None:
                     hr_shape = (self.batch_size,) + obs_daily_avg.shape
                     high_res = np.zeros(hr_shape, dtype=np.float32)
@@ -1015,6 +1012,9 @@ class SpatialBatchHandlerCC(BatchHandler):
             low_res = spatial_coarsening(high_res, self.s_enhance)
             low_res = low_res[:, :, :, 0, :]
             high_res = high_res[:, :, :, 0, :]
+
+            high_res = self.BATCH_CLASS.reduce_features(
+                high_res, self.output_features_ind)
 
             if (self.output_features is not None
                     and 'clearsky_ratio' in self.output_features):
