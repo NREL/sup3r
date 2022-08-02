@@ -9,6 +9,7 @@ import pandas as pd
 import psutil
 import time
 import glob
+from warnings import warn
 
 from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
@@ -34,10 +35,21 @@ def get_dset_attrs(feature):
     attrs : dict
         Dictionary of attributes for requested dset
     dtype : str
-        Data type for requested dset
+        Data type for requested dset. Defaults to float32
     """
-    attrs = H5_ATTRS[Feature.get_basename(feature)]
-    dtype = attrs['dtype']
+    feat_base_name = Feature.get_basename(feature)
+    if feat_base_name in H5_ATTRS:
+        attrs = H5_ATTRS[feat_base_name]
+        dtype = attrs.get('dtype', 'float32')
+    else:
+        attrs = {}
+        dtype = 'float32'
+        msg = ('Could not find feature "{}" with base name "{}" in H5_ATTRS '
+               'global variable. Writing with float32 and no chunking.'
+               .format(feature, feat_base_name))
+        logger.warning(msg)
+        warn(msg)
+
     return attrs, dtype
 
 
@@ -332,7 +344,8 @@ class Collector:
                 logger.info('Initializing dataset "{}" with shape {} and '
                             'dtype {}'.format(dset, f.shape, dtype))
                 f._create_dset(dset, f.shape, dtype,
-                               attrs=attrs, data=data)
+                               attrs=attrs, data=data,
+                               chunks=attrs.get('chunks', None))
 
     def collect_flist(self, file_paths, out_file, feature, sort=False,
                       sort_key=None, max_workers=None):
