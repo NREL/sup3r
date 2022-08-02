@@ -53,6 +53,7 @@ class ForwardPassStrategy(InputMixIn):
                  out_pattern=None,
                  overwrite_cache=False,
                  input_handler=None,
+                 spatial_coarsen=None,
                  max_workers=None,
                  pass_workers=None,
                  extract_workers=None,
@@ -152,6 +153,11 @@ class ForwardPassStrategy(InputMixIn):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        spatial_coarsen : int | None
+            Optional input to coarsen the low-resolution spatial field from the
+            file_paths input. This can be used if (for example) you have 2km
+            validation data, you can coarsen it with the same factor as
+            s_enhance to do a validation study.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             pass_workers, extract_workers, compute_workers, output_workers, and
@@ -200,6 +206,7 @@ class ForwardPassStrategy(InputMixIn):
         self.output_workers = output_workers
         self._cache_pattern = cache_pattern
         self._input_handler_name = input_handler
+        self._spatial_coarsen = spatial_coarsen
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -755,6 +762,7 @@ class ForwardPass:
             Index used to select subset of full file list on which to run
             forward passes on a single node.
         """
+
         logger.info(f'Initializing ForwardPass for node={node_index}')
         self.strategy = strategy
         self.model_args = self.strategy.model_args
@@ -822,6 +830,7 @@ class ForwardPass:
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
             val_split=0.0,
+            hr_spatial_coarsen=self.strategy._spatial_coarsen,
             max_workers=self.max_workers,
             extract_workers=self.extract_workers,
             compute_workers=self.compute_workers,
