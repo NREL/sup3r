@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """sup3r QA module."""
 import os
+import json
 import pandas as pd
 import numpy as np
 import xarray as xr
 import logging
 from rex import Resource
+from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 from sup3r.preprocessing.feature_handling import Feature
+from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        spatial_coarsening,
@@ -27,6 +30,8 @@ class Sup3rQa:
                  target=None,
                  shape=None,
                  raster_file=None,
+                 qa_fp=None,
+                 save_sources=True,
                  time_chunk_size=None,
                  cache_pattern=None,
                  overwrite_cache=False,
@@ -78,6 +83,12 @@ class Sup3rQa:
             If None raster_index will be calculated directly. You should
             provide target+shape or raster_file, or if all three are None the
             full source domain will be used.
+        qa_fp : str | None
+            Optional filepath to output QA file when you call Sup3rQa.run()
+            (only .h5 is supported)
+        save_sources : bool
+            Flag to save re-coarsened synthetic data and true low-res data to
+            qa_fp in addition to the error dataset
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -121,6 +132,8 @@ class Sup3rQa:
         self.t_enhance = t_enhance
         self._t_meth = temporal_coarsening_method
         self._out_fp = out_file_path
+        self.qa_fp = qa_fp
+        self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
 
         HandlerClass = get_input_handler_class(source_file_paths,
@@ -287,6 +300,57 @@ class Sup3rQa:
 
         return data
 
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize Sup3rQa and execute the Sup3rQa.run()
+        method based on an input config
+
+        Parameters
+        ----------
+        config : dict
+            sup3r QA config with all necessary args and kwargs to
+            initialize Sup3rQa and execute Sup3rQa.run()
+        """
+        import_str = 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += 'from sup3r.qa.qa import Sup3rQa;\n'
+
+        qa_init_str = get_fun_call_str(cls, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+
+        log_arg_str = (f'"sup3r", log_file="{log_file}", '
+                       f'log_level="{log_level}"')
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"qa = {qa_init_str};\n"
+               "qa.run();\n"
+               "t_elap = time.time() - t0;\n")
+
+        job_name = config.get('job_name', None)
+        if job_name is not None:
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.QA}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
+
     def export(self, qa_fp, errors, dset_name, dset_suffix=''):
         """Export error dictionary to h5 file.
 
@@ -320,17 +384,9 @@ class Sup3rQa:
                                chunks=attrs.get('chunks', None),
                                attrs=attrs)
 
-    def run(self, qa_fp=None, save_sources=True):
+    def run(self):
         """Go through all datasets and get the error for the re-coarsened
         synthetic minus the true low-res source data.
-
-        Parameters
-        ----------
-        qa_fp : str | None
-            Optional filepath to output QA file (only .h5 is supported)
-        save_sources : bool
-            Flag to save re-coarsened synthetic data and true low-res data to
-            qa_fp in addition to the error dataset
 
         Returns
         -------
@@ -357,10 +413,10 @@ class Sup3rQa:
             feature_diff = data_syn - data_true
             errors[feature] = feature_diff
 
-            if qa_fp is not None:
-                self.export(qa_fp, feature_diff, feature, 'error')
-                if save_sources:
-                    self.export(qa_fp, data_syn, feature, 'synthetic')
-                    self.export(qa_fp, data_true, feature, 'true')
+            if self.qa_fp is not None:
+                self.export(self.qa_fp, feature_diff, feature, 'error')
+                if self.save_sources:
+                    self.export(self.qa_fp, data_syn, feature, 'synthetic')
+                    self.export(self.qa_fp, data_true, feature, 'true')
 
         return errors
