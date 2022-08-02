@@ -964,12 +964,14 @@ class ForwardPass:
         fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         node_index = config['node_index']
-        log_file = config.get('log_file', None)
-        log_level = config.get('log_level', 'INFO')
 
         fwp_arg_str = f'strategy, node_index={node_index}'
-        log_arg_str = (f'"sup3r", log_file="{log_file}", '
-                       f'log_level="{log_level}"')
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
 
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"

@@ -55,7 +55,8 @@ def valid_config_keys():
 @click.pass_context
 def from_config(ctx, config_file, cancel, monitor, background, verbose):
     """Run sup3r pipeline from a config file."""
-    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.ensure_object(dict)
+    verbose = any([verbose, ctx.obj.get('VERBOSE', False)])
 
     if cancel:
         Pipeline.cancel_all(config_file)

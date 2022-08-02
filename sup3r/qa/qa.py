@@ -321,8 +321,9 @@ class Sup3rQa:
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
 
-        log_arg_str = (f'"sup3r", log_file="{log_file}", '
-                       f'log_level="{log_level}"')
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
 
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"

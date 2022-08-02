@@ -157,8 +157,8 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         msg = ('Job "{}" was found with status "{}", not resubmitting'
                .format(name, status))
     else:
-        logger.info(
-            'Running sup3r QA on SLURM with node name "{}".'.format(name))
+        logger.info('Running sup3r QA on SLURM with node name "{}".'
+                    .format(name))
 
         out = slurm_manager.sbatch(cmd,
                                    alloc=alloc,
