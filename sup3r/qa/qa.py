@@ -125,6 +125,8 @@ class Sup3rQa:
             max number of workers to use for loading cached feature data.
         """
 
+        logger.info('Initializing Sup3rQa and retrieving source data...')
+
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
 
@@ -178,6 +180,12 @@ class Sup3rQa:
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
         return meta
+
+    @property
+    def lr_shape(self):
+        """Get the shape of the source low-res data raster
+        (rows, cols, time, features)"""
+        return self.source_handler.shape
 
     @property
     def time_index(self):
@@ -256,14 +264,14 @@ class Sup3rQa:
             array of shape (spatial_1, spatial_2, temporal)
         """
 
+        logger.debug('Getting sup3r output dataset "{}"'.format(name))
         data = self.output_handler[name]
         if self.output_type == 'nc':
             data = data.values
         elif self.output_type == 'h5':
-            assert len(self.meta)**0.5 % 1 == 0
             shape = (len(self.time_index) * self.t_enhance,
-                     int(len(self.meta)**0.5 * self.s_enhance),
-                     int(len(self.meta)**0.5 * self.s_enhance))
+                     int(self.lr_shape[0] * self.s_enhance),
+                     int(self.lr_shape[1] * self.s_enhance))
             data = data.reshape(shape)
 
         # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
@@ -370,6 +378,7 @@ class Sup3rQa:
         """
 
         if not os.path.exists(qa_fp):
+            logger.info('Initializing qa output file: "{}"'.format(qa_fp))
             with RexOutputs(qa_fp, mode='w') as f:
                 f.meta = self.meta
                 f.time_index = self.time_index
@@ -379,6 +388,8 @@ class Sup3rQa:
 
         if dset_suffix:
             dset_name = dset_name + '_' + dset_suffix
+
+        logger.info('Adding dataset "{}" to output file.'.format(dset_name))
 
         RexOutputs.add_dataset(qa_fp, dset_name, errors.reshape(shape),
                                dtype=attrs.get('dtype', 'float32'),
@@ -399,6 +410,8 @@ class Sup3rQa:
 
         errors = {}
         for idf, feature in enumerate(self.features):
+            logger.info('Running QA on dataset {} of {}: "{}"'
+                        .format(idf + 1, len(self.features), feature))
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(data_syn)
             data_true = self.source_handler.data[..., idf]
@@ -419,5 +432,7 @@ class Sup3rQa:
                 if self.save_sources:
                     self.export(self.qa_fp, data_syn, feature, 'synthetic')
                     self.export(self.qa_fp, data_true, feature, 'true')
+
+        logger.info('Finished Sup3rQa run method.')
 
         return errors
