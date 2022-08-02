@@ -871,8 +871,7 @@ class LatLonH5:
         with Resource(file_paths[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
             lat_lon = lat_lon.reshape((raster_index.shape[0],
-                                       raster_index.shape[1],
-                                       2))
+                                       raster_index.shape[1], 2))
         return lat_lon
 
 
@@ -974,8 +973,6 @@ class FeatureHandler:
     """Feature Handler with cache for previously loaded features used in other
     calculations """
 
-    TIME_IND_FEATURES = ('lat_lon')
-
     @classmethod
     def valid_handle_features(cls, features, handle_features):
         """Check if features are in handle
@@ -1072,24 +1069,15 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
 
-        time_dep_features = [f for f in input_features
-                             if f not in cls.TIME_IND_FEATURES]
-        time_ind_features = [f for f in input_features
-                             if f in cls.TIME_IND_FEATURES]
-
         data = defaultdict(dict)
-
         for t, t_slice in enumerate(time_chunks):
-            for f in time_dep_features:
+            for f in input_features:
                 data[t][f] = cls.extract_feature(file_paths, raster_index, f,
                                                  t_slice)
             interval = np.int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
                              'chunks extracted.')
-        for f in time_ind_features:
-            data[-1][f] = cls.extract_feature(file_paths, raster_index, f)
-
         return data
 
     @classmethod
@@ -1121,21 +1109,14 @@ class FeatureHandler:
         """
         futures = {}
         now = dt.now()
-
-        time_dep_features = [f for f in input_features
-                             if f not in cls.TIME_IND_FEATURES]
-        time_ind_features = [f for f in input_features
-                             if f in cls.TIME_IND_FEATURES]
-
         data = defaultdict(dict)
-
         if max_workers == 1:
             return cls.serial_extract(file_paths, raster_index, time_chunks,
                                       input_features)
         else:
             with SpawnProcessPool(max_workers=max_workers) as exe:
                 for t, t_slice in enumerate(time_chunks):
-                    for f in time_dep_features:
+                    for f in input_features:
                         future = exe.submit(cls.extract_feature,
                                             file_paths=file_paths,
                                             raster_index=raster_index,
@@ -1143,15 +1124,6 @@ class FeatureHandler:
                                             time_slice=t_slice)
                         meta = {'feature': f, 'chunk': t}
                         futures[future] = meta
-
-                for f in time_ind_features:
-                    future = exe.submit(cls.extract_feature,
-                                        file_paths=file_paths,
-                                        raster_index=raster_index,
-                                        feature=f)
-                    meta = {'feature': f,
-                            'chunk': -1}
-                    futures[future] = meta
 
                 shape = get_raster_shape(raster_index)
                 time_shape = time_chunks[0].stop - time_chunks[0].start
@@ -1384,8 +1356,6 @@ class FeatureHandler:
         for r in inputs:
             if r in data[chunk_number]:
                 tmp[r] = data[chunk_number][r]
-            elif r in data[-1]:
-                tmp[r] = data[-1][r]
         return tmp
 
     @classmethod
