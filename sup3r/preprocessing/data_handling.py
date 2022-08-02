@@ -154,8 +154,11 @@ class InputMixIn:
             unix-style file path which will be passed through glob.glob
         """
         self._file_paths = file_paths
-        if isinstance(self._file_paths, str) and '*' in self._file_paths:
-            self._file_paths = glob.glob(self._file_paths)
+        if isinstance(self._file_paths, str):
+            if '*' in self._file_paths:
+                self._file_paths = glob.glob(self._file_paths)
+            else:
+                self._file_paths = [self._file_paths]
 
         self._file_paths = sorted(self._file_paths)
 
