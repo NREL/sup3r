@@ -360,18 +360,19 @@ class Sup3rQa:
 
         return cmd.replace('\\', '/')
 
-    def export(self, qa_fp, errors, dset_name, dset_suffix=''):
+    def export(self, qa_fp, data, dset_name, dset_suffix=''):
         """Export error dictionary to h5 file.
 
         Parameters
         ----------
         qa_fp : str | None
             Optional filepath to output QA file (only .h5 is supported)
-        errors : np.ndarray
+        data : np.ndarray
             An array with shape (space1, space2, time) that represents the
-            re-coarsened synthetic data minus the source true low-res data
+            re-coarsened synthetic data minus the source true low-res data, or
+            another dataset of the same shape to be written to disk
         dset_name : str
-            Base dataset name to save errors to
+            Base dataset name to save data to
         dset_suffix : str
             Optional suffix to append to dset_name with an underscore before
             saving.
@@ -386,13 +387,20 @@ class Sup3rQa:
         shape = (len(self.time_index), len(self.meta))
         attrs = H5_ATTRS.get(Feature.get_basename(dset_name), {})
 
+        # dont scale the re-coarsened data or diffs
+        attrs['scale_factor'] = 1
+        attrs['dtype'] = 'float32'
+
         if dset_suffix:
             dset_name = dset_name + '_' + dset_suffix
 
         logger.info('Adding dataset "{}" to output file.'.format(dset_name))
 
-        RexOutputs.add_dataset(qa_fp, dset_name, errors.reshape(shape),
-                               dtype=attrs.get('dtype', 'float32'),
+        # transpose and flatten to typical h5 (time, space) dimensions
+        data = np.transpose(data, axes=(2, 0, 1)).reshape(shape)
+
+        RexOutputs.add_dataset(qa_fp, dset_name, data,
+                               dtype=attrs['dtype'],
                                chunks=attrs.get('chunks', None),
                                attrs=attrs)
 
