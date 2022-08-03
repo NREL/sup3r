@@ -108,13 +108,11 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         Command to be submitted in SLURM shell script. Example:
             'python -m sup3r.cli forward_pass -c <config_file>'
     alloc : str
-        HPC project (allocation) handle. Example: 'sup3r'. Default is not to
-        state an allocation (does not work on Eagle slurm).
+        HPC project (allocation) handle. Example: 'sup3r'.
     memory : int
         Node memory request in GB.
     walltime : float
-        Node walltime request in hours. Default is not to state a walltime
-        (does not work on Eagle slurm).
+        Node walltime request in hours.
     feature : str
         Additional flags for SLURM job. Format is "--qos=high"
         or "--depend=[state:job_id]". Default is None.

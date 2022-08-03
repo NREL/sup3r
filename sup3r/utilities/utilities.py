@@ -7,6 +7,7 @@ training data
 
 import numpy as np
 import logging
+import glob
 from scipy import ndimage as nd
 from fnmatch import fnmatch
 import os
@@ -550,11 +551,11 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
     Parameters
     ----------
     data : np.ndarray
-        3D | 4D | 5D array with dimensions:
+        5D | 4D | 3D array with dimensions:
         (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
         (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
         (spatial_1, spatial_2, temporal, features) (obs_axis=False)
-        (spatial_1, spatial_2, features) (obs_axis=False)
+        (spatial_1, spatial_2, temporal_or_features) (obs_axis=False)
     s_enhance : int
         factor by which to coarsen spatial dimensions
     obs_axis : bool
@@ -1234,25 +1235,80 @@ def get_source_type(file_paths):
 
     Parameters
     ----------
-    file_paths : list
-        path to data file
+    file_paths : list | str
+        One or more paths to data files, can include a unix-style pat*tern
 
     Returns
     -------
     source_type : str
-        Either h5 or nc
+        Either "h5" or "nc"
     """
     if file_paths is None:
         return None
+
+    if isinstance(file_paths, str) and '*' in file_paths:
+        temp = glob.glob(file_paths)
+        if any(temp):
+            file_paths = temp
 
     if not isinstance(file_paths, list):
         file_paths = [file_paths]
 
     _, source_type = os.path.splitext(file_paths[0])
+
     if source_type == '.h5':
         return 'h5'
     else:
         return 'nc'
+
+
+def get_input_handler_class(file_paths, input_handler_name):
+    """Get the DataHandler class.
+
+    Parameters
+    ----------
+    file_paths : list | str
+        A list of files to extract raster data from. Each file must have
+        the same number of timesteps. Can also pass a string with a
+        unix-style file path which will be passed through glob.glob
+    input_handler : str
+        data handler class to use for input data. Provide a string name to
+        match a class in data_handling.py. If None the correct handler will
+        be guessed based on file type and time series properties.
+
+    Returns
+    -------
+    HandlerClass : DataHandlerH5 | DataHandlerNC
+        DataHandler subclass from sup3r.preprocessing.data_handling.
+    """
+
+    HandlerClass = None
+
+    input_type = get_source_type(file_paths)
+
+    if input_handler_name is None:
+        if input_type == 'nc':
+            input_handler_name = 'DataHandlerNC'
+        elif input_type == 'h5':
+            input_handler_name = 'DataHandlerH5'
+
+        logger.info('"input_handler" arg was not provided. Using '
+                    f'"{input_handler_name}". If this is '
+                    'incorrect, please provide '
+                    'input_handler="DataHandlerName".')
+
+    if isinstance(input_handler_name, str):
+        import sup3r.preprocessing.data_handling
+        HandlerClass = getattr(sup3r.preprocessing.data_handling,
+                               input_handler_name, None)
+
+    if HandlerClass is None:
+        msg = ('Could not find requested data handler class '
+               f'"{input_handler_name}" in sup3r.preprocessing.data_handling.')
+        logger.error(msg)
+        raise KeyError(msg)
+
+    return HandlerClass
 
 
 def np_to_pd_times(times):

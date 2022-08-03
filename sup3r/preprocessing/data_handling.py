@@ -155,7 +155,10 @@ class InputMixIn:
         """
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
-            self._file_paths = glob.glob(self._file_paths)
+            if '*' in self._file_paths:
+                self._file_paths = glob.glob(self._file_paths)
+            else:
+                self._file_paths = [self._file_paths]
 
         self._file_paths = sorted(self._file_paths)
 
@@ -300,7 +303,12 @@ class InputMixIn:
 
 
 class DataHandler(FeatureHandler, InputMixIn):
-    """Sup3r data handling and extraction"""
+    """Sup3r data handling and extraction for low-res source data or for
+    artificially coarsened high-res source data for training.
+
+    The sup3r data handler class is based on a 4D numpy array of shape:
+    (spatial_1, spatial_2, temporal, features)
+    """
 
     # list of features / feature name patterns that are input to the generative
     # model but are not part of the synthetic output and are not sent to the
@@ -328,8 +336,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  norm_workers=None):
-        """Data handling and extraction
-
+        """
         Parameters
         ----------
         file_paths : str | list
@@ -846,9 +853,9 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = '\"sup3r\", '
-        log_arg_str += f'log_file=\"{log_file}\", '
-        log_arg_str += f'log_level=\"{log_level}\"'
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
 
         cache_check = config.get('cache_pattern', False)
 

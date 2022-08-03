@@ -17,14 +17,12 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex import log_mem
 
 import sup3r.models
-import sup3r.preprocessing.data_handling
-from sup3r.preprocessing.data_handling import (DataHandlerH5,
-                                               DataHandlerNC,
-                                               InputMixIn)
+from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
                                                 OutputHandlerNC)
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
+                                       get_input_handler_class,
                                        estimate_max_workers)
 from sup3r.utilities import ModuleName
 
@@ -46,15 +44,16 @@ class ForwardPassStrategy(InputMixIn):
 
     def __init__(self, file_paths, model_args, s_enhance, t_enhance,
                  fwp_chunk_shape, spatial_pad, temporal_pad,
+                 temporal_slice=slice(None),
                  model_class='Sup3rGan',
                  target=None, shape=None,
-                 temporal_slice=slice(None),
                  raster_file=None,
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
                  overwrite_cache=False,
                  input_handler=None,
+                 spatial_coarsen=None,
                  max_workers=None,
                  pass_workers=None,
                  extract_workers=None,
@@ -68,9 +67,10 @@ class ForwardPassStrategy(InputMixIn):
         Parameters
         ----------
         file_paths : list | str
-            A list of files to extract raster data from. Each file must have
-            the same number of timesteps. Can also pass a string with a
-            unix-style file path which will be passed through glob.glob
+            A list of low-resolution source files to extract raster data from.
+            Each file must have the same number of timesteps. Can also pass a
+            string with a unix-style file path which will be passed through
+            glob.glob
         model_args : str | list
             Positional arguments to send to `model_class.load(*model_args)` to
             initialize the GAN. Typically this is just the string path to the
@@ -103,26 +103,30 @@ class ForwardPassStrategy(InputMixIn):
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
             chunks in the temporal dimension will not be padded.
-        model_class : str
-            Name of the sup3r model class for the GAN model to load. The
-            default is the basic spatial / spatiotemporal Sup3rGan model. This
-            will be loaded from sup3r.models
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
             select all 25 time steps. This can also be a tuple / list with
             length 3 that will be interpreted as slice(*temporal_slice)
+        model_class : str
+            Name of the sup3r model class for the GAN model to load. The
+            default is the basic spatial / spatiotemporal Sup3rGan model. This
+            will be loaded from sup3r.models
+        target : tuple
+            (lat, lon) lower left corner of raster. You should provide
+            target+shape or raster_file, or if all three are None the full
+            source domain will be used.
+        shape : tuple
+            (rows, cols) grid size. You should provide target+shape or
+            raster_file, or if all three are None the full source domain will
+            be used.
         raster_file : str | None
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
             if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. Either need
-            target+shape or raster_file.
+            If None raster_index will be calculated directly. You should
+            provide target+shape or raster_file, or if all three are None the
+            full source domain will be used.
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -145,14 +149,15 @@ class ForwardPassStrategy(InputMixIn):
             determines the output type. Pattern can also include {times}. This
             will be replaced with start_time-end_time. If pattern is None then
             data will be returned in an array and not saved.
-        output_type : str
-            Either nc (netcdf) or h5. This selects the extension for output
-            files and determines which output handler to use when writing the
-            results of the forward passes
-        input_handler : str
+        input_handler : str | None
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        spatial_coarsen : int | None
+            Optional input to coarsen the low-resolution spatial field from the
+            file_paths input. This can be used if (for example) you have 2km
+            validation data, you can coarsen it with the same factor as
+            s_enhance to do a validation study.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             pass_workers, extract_workers, compute_workers, output_workers, and
@@ -200,7 +205,8 @@ class ForwardPassStrategy(InputMixIn):
         self.load_workers = load_workers
         self.output_workers = output_workers
         self._cache_pattern = cache_pattern
-        self._input_handler = input_handler
+        self._input_handler_name = input_handler
+        self._spatial_coarsen = spatial_coarsen
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -337,25 +343,9 @@ class ForwardPassStrategy(InputMixIn):
         _handler_class
             e.g. DataHandlerNC, DataHandlerH5, etc
         """
-        if self._input_handler is None:
-            if self.input_type == 'nc':
-                self._input_handler = DataHandlerNC
-            elif self.input_type == 'h5':
-                self._input_handler = DataHandlerH5
-            logger.info('handler_class arg was not provided. Using '
-                        f'{self._input_handler.__name__}. If this is '
-                        'incorrect use handler_class="DataHandlerName".')
-        elif isinstance(self._input_handler, str):
-            out = getattr(sup3r.preprocessing.data_handling,
-                          self._input_handler, None)
-            self._input_handler = out
-            if out is None:
-                msg = ('Could not find requested data handler class '
-                       f'"{self._input_handler}" in '
-                       'sup3r.preprocessing.data_handling.')
-                logger.error(msg)
-                raise KeyError(msg)
-        return self._input_handler
+        hclass = get_input_handler_class(self.file_paths,
+                                         self._input_handler_name)
+        return hclass
 
     def get_node_kwargs(self, node_index):
         """Get node specific variables given an associated index
@@ -772,6 +762,7 @@ class ForwardPass:
             Index used to select subset of full file list on which to run
             forward passes on a single node.
         """
+
         logger.info(f'Initializing ForwardPass for node={node_index}')
         self.strategy = strategy
         self.model_args = self.strategy.model_args
@@ -839,6 +830,7 @@ class ForwardPass:
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
             val_split=0.0,
+            hr_spatial_coarsen=self.strategy._spatial_coarsen,
             max_workers=self.max_workers,
             extract_workers=self.extract_workers,
             compute_workers=self.compute_workers,
@@ -981,12 +973,14 @@ class ForwardPass:
         fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         node_index = config['node_index']
-        log_file = config.get('log_file', None)
-        log_level = config.get('log_level', 'INFO')
 
         fwp_arg_str = f'strategy, node_index={node_index}'
-        log_arg_str = (f'"sup3r", log_file="{log_file}", '
-                       f'log_level="{log_level}"')
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
 
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"

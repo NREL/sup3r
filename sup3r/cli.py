@@ -11,6 +11,7 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
+from sup3r.qa.qa_cli import from_config as qa_cli
 
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ def forward_pass(ctx, verbose):
             "out_pattern": "./output/sup3r_out_{file_id}.h5",
             "log_pattern": "./logs/log_{node_index}.log",
             "log_level": "DEBUG",
-            "s_enhance": 20,
+            "s_enhance": 25,
             "t_enhance": 24,
             "fwp_chunk_shape": [5, 5, 3],
             "spatial_pad": 1,
@@ -190,6 +191,47 @@ def data_collect(ctx, verbose):
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(dc_cli, config_file=config_file, verbose=verbose)
+
+
+@main.command()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def qa(ctx, verbose):
+    """Sup3r QA module following forward pass and collection.
+
+    The sup3r QA module can be used to verify how well the high-resolution
+    sup3r resolved outputs adhere to the low-resolution source data. You can
+    call the QA module via the sup3r-pipeline CLI, or call it
+    directly with either of these equivelant commands::
+
+        $ sup3r -c config_qa.json qa
+
+        $ sup3r-qa from-config -c config_qa.json
+
+    A sup3r QA config.json file can contain any arguments or keyword
+    arguments required to initialize the :class:`sup3r.qa.qa.Sup3rQa` class.
+    The config also has several optional arguments: ``log_file``,
+    ``log_level``, and ``execution_control``. Here's a small example
+    QA config::
+
+        {
+            "source_file_paths": "./source_files*.nc",
+            "out_file_path": "./outputs/collected_output_file.h5",
+            "s_enhance": 25,
+            "t_enhance": 24,
+            "temporal_coarsening_method": "average",
+            "log_file": "./logs/qa.log",
+            "execution_control": {"option": "local"},
+            "log_level": "DEBUG"
+        }
+
+    Note that the ``execution_control`` has the same options as forward-pass
+    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    """
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(qa_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)

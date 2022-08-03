@@ -448,7 +448,7 @@ class OutputHandlerH5(OutputHandler):
                              'longitude': lat_lon[..., 1].flatten()})
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
-            fh._set_time_index('time_index', times)
+            fh.time_index = times
 
             data = cls.enforce_limits(features, data)
 

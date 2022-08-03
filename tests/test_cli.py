@@ -10,6 +10,7 @@ import numpy as np
 
 from click.testing import CliRunner
 
+from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
@@ -170,3 +171,96 @@ def test_data_extract_cli(runner):
 
         assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
         assert len(glob.glob(f'{log_file}')) == 1
+
+
+def test_pipeline_fwp_qa(runner):
+    """Test the sup3r pipeline with Forward Pass and QA modules
+    via pipeline cli"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:2]
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        fwp_config = {'file_paths': input_files,
+                      'target': (19.3, -123.5),
+                      'model_args': out_dir,
+                      'out_pattern': os.path.join(td, 'out_{file_id}.h5'),
+                      'log_pattern': os.path.join(td, 'fwp_log.log'),
+                      'log_level': 'DEBUG',
+                      'shape': (8, 8),
+                      'fwp_chunk_shape': (100, 100, 100),
+                      'time_chunk_size': 10,
+                      's_enhance': 3,
+                      't_enhance': 4,
+                      'max_workers': 1,
+                      'spatial_pad': 5,
+                      'temporal_pad': 5,
+                      'overwrite_cache': False,
+                      'execution_control': {
+                          "option": "local"}}
+
+        qa_config = {'source_file_paths': input_files,
+                     'out_file_path': os.path.join(td, 'out_00000.h5'),
+                     'qa_fp': os.path.join(td, 'qa.h5'),
+                     's_enhance': 3,
+                     't_enhance': 4,
+                     'temporal_coarsening_method': 'subsample',
+                     'target': (19.3, -123.5),
+                     'shape': (8, 8),
+                     'max_workers': 1,
+                     'execution_control': {
+                         "option": "local"}}
+
+        fwp_config_path = os.path.join(td, 'config_fwp.json')
+        qa_config_path = os.path.join(td, 'config_qa.json')
+        pipe_config_path = os.path.join(td, 'config_pipe.json')
+
+        pipe_flog = os.path.join(td, 'pipeline.log')
+        pipe_config = {"logging": {"log_level": "DEBUG",
+                                   "log_file": pipe_flog},
+                       "pipeline": [{"forward-pass": fwp_config_path},
+                                    {"qa": qa_config_path}]}
+
+        with open(fwp_config_path, 'w') as fh:
+            json.dump(fwp_config, fh)
+        with open(qa_config_path, 'w') as fh:
+            json.dump(qa_config, fh)
+        with open(pipe_config_path, 'w') as fh:
+            json.dump(pipe_config, fh)
+
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
+                                           '-v', '--monitor'])
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
+
+        assert len(glob.glob(f'{td}/fwp_log*.log')) == 1
+        assert len(glob.glob(f'{td}/out*.h5')) == 1
+        assert len(glob.glob(f'{td}/qa.h5')) == 1
+        assert len(glob.glob(f'{td}/*_status.json')) == 1
+
+        status_fp = glob.glob(f'{td}/*_status.json')[0]
+        with open(status_fp, 'r') as f:
+            status = json.load(f)
+
+        assert len(status) == 2
+        assert len(status['forward-pass']) == 2
+        fwp_status = status['forward-pass']['sup3r_fwp_00000']
+        assert fwp_status['job_status'] == 'successful'
+        assert fwp_status['time'] > 0
+
+        assert len(status['qa']) == 2
+        assert status['qa']['sup3r_qa']['job_status'] == 'successful'
+        assert status['qa']['sup3r_qa']['time'] > 0

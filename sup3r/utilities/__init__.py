@@ -42,6 +42,7 @@ class ModuleName(str, Enum):
     FORWARD_PASS = 'forward-pass'
     DATA_EXTRACT = 'data-extract'
     DATA_COLLECT = 'data-collect'
+    QA = 'qa'
 
     @classmethod
     def all_names(cls):
