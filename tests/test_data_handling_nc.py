@@ -196,6 +196,15 @@ def test_get_full_domain():
     assert handler.target == target
 
 
+def test_get_target():
+    """Test data handling without target or raster_file input"""
+    handler = DataHandler(input_files, features, shape=(4, 4))
+    tmp = xr.open_dataset(input_files[0])
+    target = (tmp.XLAT.values[0, 0, 0], tmp.XLONG.values[0, 0, 0])
+    assert handler.grid_shape == (4, 4)
+    assert handler.target == target
+
+
 def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
