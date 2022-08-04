@@ -26,6 +26,10 @@ class MultiStepGan(AbstractSup3rGan):
         self._models = tuple(models)
         self._all_same_norm_stats = self._norm_stats_same()
 
+    def __len__(self):
+        """Get number of model steps"""
+        return len(self._models)
+
     def _norm_stats_same(self):
         """Determine whether or not the normalization stats for the models are
         the same or not.
@@ -207,7 +211,8 @@ class MultiStepGan(AbstractSup3rGan):
 
         return hi_res
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True):
+    def generate(self, low_res, norm_in=True, un_norm_out=True,
+                 ancillary_features=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -224,6 +229,16 @@ class MultiStepGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
+        ancillary_features : list
+            List of arrays of ancillary_features with length equal to the
+            number of model steps. e.g. If we want to include topography as
+            an ancillary feature in a spatial + temporal multistep model then
+            we need to provide a list of length=2 with topography at the low
+            spatial resolution and at the high resolution. If we include more
+            than one ancillary feature the ordering must be consistent.
+            Each array in the list has 3D or 4D shape:
+            (spatial_1, spatial_2, n_features)
+            (spatial_1, spatial_2, n_temporal, n_features)
 
         Returns
         -------
@@ -239,6 +254,9 @@ class MultiStepGan(AbstractSup3rGan):
 
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
+            if ancillary_features is not None:
+                hi_res = np.concatenate((hi_res, ancillary_features[i]),
+                                        axis=-1)
 
             i_norm_in = False
             if not self._all_same_norm_stats and model != self.models[0]:
@@ -380,7 +398,8 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         generative model in this SpatialThenTemporalGan outputs."""
         return self.temporal_models.output_features
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True):
+    def generate(self, low_res, norm_in=True, un_norm_out=True,
+                 ancillary_features=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -396,6 +415,16 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
+        ancillary_features : list
+            List of arrays of ancillary_features with length equal to the
+            number of model steps. e.g. If we want to include topography as
+            an ancillary feature in a spatial + temporal multistep model then
+            we need to provide a list of length=2 with topography at the low
+            spatial resolution and at the high resolution. If we include more
+            than one ancillary feature the ordering must be consistent.
+            Each array in the list has 3D or 4D shape:
+            (spatial_1, spatial_2, n_features)
+            (spatial_1, spatial_2, n_temporal, n_features)
 
         Returns
         -------
@@ -408,8 +437,13 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
         try:
-            hi_res = self.spatial_models.generate(low_res, norm_in=norm_in,
-                                                  un_norm_out=True)
+            if ancillary_features is not None:
+                s_ancillary = ancillary_features[:len(self.spatial_models)]
+            else:
+                s_ancillary = None
+            hi_res = self.spatial_models.generate(
+                low_res, norm_in=norm_in, un_norm_out=True,
+                ancillary_features=s_ancillary)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-only GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -424,8 +458,13 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
                      'been reshaped to {}'.format(hi_res.shape))
 
         try:
-            hi_res = self.temporal_models.generate(hi_res, norm_in=True,
-                                                   un_norm_out=un_norm_out)
+            if ancillary_features is not None:
+                t_ancillary = ancillary_features[len(self.spatial_models):]
+            else:
+                t_ancillary = None
+            hi_res = self.temporal_models.generate(
+                hi_res, norm_in=True, un_norm_out=un_norm_out,
+                ancillary_features=t_ancillary)
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
