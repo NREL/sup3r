@@ -31,13 +31,13 @@ class ExogenousDataHandler:
             data from which will be mapped to the enhanced grid of
             the file_paths input
         s_enhancements : list
-            List of factor by which the Sup3rGan model will enhance the spatial
-            dimensions of low resolution data from file_paths input. For
-            example, if file_paths has 100km data and s_enhance is 4, this
-            class will output a feature raster corresponding to the
-            file_paths grid enhanced 4x to ~25km
+            List of factors by which the Sup3rGan model will enhance the
+            spatial dimensions of low resolution data from file_paths input.
+            For example, if file_paths has 100km data and s_enhance is 4, this
+            class will output a feature raster corresponding to the file_paths
+            grid enhanced 4x to ~25km
         agg_factor : list
-            List of factos by which to aggregate the topo_source_h5 elevation
+            List of factors by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
             s_enhance. For example, if file_paths has 100km data and s_enhance
             is 4 resulting in a desired resolution of ~25km and topo_source_h5
@@ -61,13 +61,15 @@ class ExogenousDataHandler:
         """
 
         self.features = features
-        self.s_enhancements = s_enhancements
-        self.agg_factors = agg_factors
+        self.s_enhancements = [1] + s_enhancements
+        self.agg_factors = [1] + agg_factors
         self.data = []
-        for s_enhance, agg_factor in zip(s_enhancements, agg_factors):
+        for i, (_, _) in enumerate(zip(s_enhancements, agg_factors)):
             for f in features:
+                s_enhance = np.product(s_enhancements[:i + 1])
+                agg_factor = agg_factors[i]
                 fdata = []
-                if f == 'elevation':
+                if f == 'topography':
                     data = TopoExtract(file_paths, source_h5, s_enhance,
                                        agg_factor, target=target, shape=shape,
                                        raster_file=raster_file,

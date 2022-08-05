@@ -411,8 +411,9 @@ class Sup3rGan(AbstractSup3rGan):
         """
         return self.generator.weights
 
+    # pylint: disable=W0613
     def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_features=None):
+                 exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -429,7 +430,7 @@ class Sup3rGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_features : None
+        exogenous_data : None
            Placeholder to match multistep model generate function signature
 
         Returns

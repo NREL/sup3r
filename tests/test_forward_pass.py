@@ -370,6 +370,87 @@ def test_fwd_pass_nochunking():
         assert np.array_equal(data_chunked, data_nochunk)
 
 
+def test_fwp_multi_step_model_topo():
+    """Test the forward pass with a multi step model class"""
+    Sup3rGan.seed()
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s_model.meta['output_features'] = ['U_100m', 'V_100m']
+    _ = s_model.generate(np.ones((4, 10, 10, 3)))
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        s_out_dir = os.path.join(td, 's_gan')
+        st_model.save(st_out_dir)
+        s_model.save(s_out_dir)
+
+        max_workers = 1
+        fwp_chunk_shape = (4, 4, 8)
+        s_enhance = 6
+        t_enhance = 4
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_h5': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [2, 3],
+                      'agg_factors': [1, 6]
+                      }
+
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        handler = ForwardPassStrategy(
+            input_files, model_args=[s_out_dir, st_out_dir],
+            model_class='SpatialThenTemporalGan',
+            s_enhance=s_enhance, t_enhance=t_enhance,
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=0, temporal_pad=0,
+            target=target, shape=shape,
+            out_pattern=out_files,
+            temporal_slice=temporal_slice,
+            max_workers=max_workers,
+            exo_kwargs=exo_kwargs)
+
+        forward_pass = ForwardPass(handler)
+
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
+
+        forward_pass.run()
+
+        with ResourceX(handler.out_files[0]) as fh:
+            assert fh.shape == (t_enhance * len(input_files),
+                                s_enhance**2 * shape[0] * shape[1])
+            assert all(f in fh.attrs for f in ('windspeed_100m',
+                                               'winddirection_100m'))
+
+            assert fh.global_attrs['package'] == 'sup3r'
+            assert fh.global_attrs['version'] == __version__
+            assert 'full_version_record' in fh.global_attrs
+            version_record = json.loads(fh.global_attrs['full_version_record'])
+            assert version_record['tensorflow'] == tf.__version__
+            assert 'gan_meta' in fh.global_attrs
+            gan_meta = json.loads(fh.global_attrs['gan_meta'])
+            assert len(gan_meta) == 2  # two step model
+            assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m',
+                                                        'topography']
+
+
 def test_fwp_multi_step_model():
     """Test the forward pass with a multi step model class"""
     Sup3rGan.seed()

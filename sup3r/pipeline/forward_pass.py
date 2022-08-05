@@ -75,79 +75,47 @@ class ForwardPassSlicer:
             chunks in the temporal dimension will not be padded.
         """
         self.grid_shape = coarse_shape
-        self.s_enhancements = [1] + s_enhancements
-        self.t_enhancements = [1] + t_enhancements
+        self.s_enhancements = s_enhancements
+        self.t_enhancements = t_enhancements
+        self.s_enhance = np.product(self.s_enhancements)
+        self.t_enhance = np.product(self.t_enhancements)
         self.raw_time_index = time_index
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape
 
-        self.s1_slices = []
-        self.s2_slices = []
-        self.t_slices = []
-        self.s1_pad_slices = []
-        self.s2_pad_slices = []
-        self.t_pad_slices = []
-        self.s1_crop_slices = []
-        self.s2_crop_slices = []
-        self.t_crop_slices = []
-
-        self.get_temporal_slices()
-        self.get_spatial_slices()
-
-    def get_temporal_slices(self):
-        """Get temporal slices for each model step"""
-        for i, _ in enumerate(self.t_enhancements):
-            enhancement = np.product(self.t_enhancements[:i + 1])
-            t_slices = self.get_hr_slices(self.t_lr_slices, enhancement,
-                                          self.temporal_slice.step)
-            t_pad_slices = self.get_padded_slices(self.t_lr_slices,
-                                                  len(self.raw_time_index),
-                                                  enhancement,
-                                                  self.temporal_pad,
-                                                  self.temporal_slice.step)
-            t_crop_slices = self.get_cropped_slices(self.t_lr_slices,
-                                                    self.t_lr_pad_slices,
-                                                    enhancement)
-            self.t_slices.append(t_slices)
-            self.t_pad_slices.append(t_pad_slices)
-            self.t_crop_slices.append(t_crop_slices)
+        self._s_lr_slices = None
+        self._s_lr_pad_slices = None
+        self._t_lr_pad_slices = None
+        self._s_hr_slices = None
+        self._s_hr_crop_slices = None
+        self._t_hr_crop_slices = None
+        self._s_exo_slices = None
 
     def get_spatial_slices(self):
-        """Get spatial slices for each model step"""
-        for i, _ in enumerate(self.s_enhancements):
-            enhancement = np.product(self.s_enhancements[:i + 1])
-            s1_slices = self.get_hr_slices(self.s1_lr_slices, enhancement)
-            s2_slices = self.get_hr_slices(self.s2_lr_slices, enhancement)
-            s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
-                                                   self.grid_shape[0],
-                                                   enhancement,
-                                                   self.spatial_pad)
-            s2_pad_slices = self.get_padded_slices(self.s2_lr_slices,
-                                                   self.grid_shape[1],
-                                                   enhancement,
-                                                   self.spatial_pad)
-            s1_crop_slices = self.get_cropped_slices(self.s1_lr_slices,
-                                                     self.s1_lr_pad_slices,
-                                                     enhancement)
-            s2_crop_slices = self.get_cropped_slices(self.s2_lr_slices,
-                                                     self.s2_lr_pad_slices,
-                                                     enhancement)
-            self.s1_slices.append(s1_slices)
-            self.s2_slices.append(s2_slices)
-            self.s1_pad_slices.append(s1_pad_slices)
-            self.s2_pad_slices.append(s2_pad_slices)
-            self.s1_crop_slices.append(s1_crop_slices)
-            self.s2_crop_slices.append(s2_crop_slices)
+        """Get spatial slices for small data chunks that are passed through
+        generator
 
-    def get_temporal_slices_for_model_step(self, model_step):
+        Returns
+        -------
+        lr_slices: list
+            List of slices for low res data chunks which have not been padded
+        padded_slices : list
+            List of slices which have been padded so that high res output
+            can be stitched together
+        hr_slices : list
+            List of slices for high res data corresponding to the
+            lr_slices regions
+        cropped_slices : list
+            List of slices used for cropping generator output
+            when forward passes are performed on overlapping chunks
+        """
+        return (self.s_lr_slices, self.s_lr_pad_slices, self.s_hr_slices,
+                self.s_hr_crop_slices)
+
+    def get_temporal_slices(self):
         """Calculate the number of time chunks across the full time index
-
-        Parameters
-        ----------
-        model_step : int
-            Model step index to get slices for
 
         Returns
         -------
@@ -170,65 +138,167 @@ class ForwardPassSlicer:
             slice(60, 80) because these slices are used to crop chunks of size
             60, with valid time indices in range(0, 60).
         """
-        t_slices = self.t_slices[model_step]
-        t_pad_slices = self.t_pad_slices[model_step]
-        t_crop_slices = self.t_crop_slices[model_step + 1]
-        return t_slices, t_pad_slices, t_crop_slices
+        return self.t_lr_slices, self.t_lr_pad_slices, self.t_hr_crop_slices
 
-    def get_spatial_slices_for_model_step(self, model_step):
-        """Get slices for small data chunks that are passed through generator
-
-        Parameters
-        ----------
-        model_step : int
-            Model step index to get slices for
+    @property
+    def s_lr_slices(self):
+        """Get low res spatial slices for small data chunks that are passed
+        through generator
 
         Returns
         -------
-        lr_slices: list
-            List of slices for low res data chunks which have not been padded
-        padded_slices : list
+        _s_lr_slices : list
+            List of spatial slices corresponding to the unpadded spatial region
+            going through the generator
+        """
+        if self._s_lr_slices is None:
+            self._s_lr_slices = []
+            for _, s1 in enumerate(self.s1_lr_slices):
+                for _, s2 in enumerate(self.s2_lr_slices):
+                    s_slice = (s1, s2, slice(None), slice(None))
+                    self._s_lr_slices.append(s_slice)
+        return self._s_lr_slices
+
+    @property
+    def s_lr_pad_slices(self):
+        """Get low res padded slices for small data chunks that are passed
+        through generator
+
+        Returns
+        -------
+        _s_lr_pad_slices : list
             List of slices which have been padded so that high res output
             can be stitched together
-        hr_slices : list
-            List of slices for high res data corresponding to the
-            lr_slices regions
-        cropped_slices : list
-            List of slices used for cropping generator output
-            when forward passes are performed on overlapping chunks
         """
-        lr_slices = []
-        cropped_slices = []
-        padded_slices = []
-        hr_slices = []
+        if self._s_lr_pad_slices is None:
+            self._s_lr_pad_slices = []
+            s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
+                                                   self.grid_shape[0],
+                                                   1, self.spatial_pad)
+            s2_pad_slices = self.get_padded_slices(self.s2_lr_slices,
+                                                   self.grid_shape[1],
+                                                   1, self.spatial_pad)
+            for i, _ in enumerate(self.s1_lr_slices):
+                for j, _ in enumerate(self.s2_lr_slices):
+                    pad_slice = (s1_pad_slices[i], s2_pad_slices[j],
+                                 slice(None), slice(None))
+                    self._s_lr_pad_slices.append(pad_slice)
+        return self._s_lr_pad_slices
 
-        for i, _ in enumerate(self.s1_lr_slices):
-            for j, _ in enumerate(self.s2_lr_slices):
-                lr_slice = (self.s1_slices[model_step][i],
-                            self.s2_slices[model_step][j],
-                            slice(None), slice(None))
-                pad_slice = (self.s1_pad_slices[model_step][i],
-                             self.s2_pad_slices[model_step][j],
-                             slice(None), slice(None))
-                crop_slice = (self.s1_crop_slices[model_step + 1][i],
-                              self.s2_crop_slices[model_step + 1][j],
-                              slice(None), slice(None))
-                hr_slice = (self.s1_slices[model_step + 1][i],
-                            self.s2_slices[model_step + 1][j],
-                            slice(None), slice(None))
-                lr_slices.append(lr_slice)
-                cropped_slices.append(crop_slice)
-                padded_slices.append(pad_slice)
-                hr_slices.append(hr_slice)
-        return lr_slices, padded_slices, hr_slices, cropped_slices
+    @property
+    def s_exo_slices(self):
+        """Get padded slices for each spatial enhancement step to use for
+        indexing exogenous data
+
+        Returns
+        -------
+        _s_exo_slices : list
+            List of lists of slices which have been padded for indexing
+            exogenous data for the appropriate spatial enhancement step.  e.g.
+            If there are two spatial enhancement steps this will be a list of
+            length=3. _s_exo_slices[0] will be a list of padded slices for the
+            model input resolution, _s_exo_slices[1] will be a list of slices
+            for the resolution after the first spatial enhancement step, and
+            _s_exo_slices[2] will be a list of slices for the second spatial
+            enhancement step.
+        """
+        if self._s_exo_slices is None:
+            self._s_exo_slices = [self.s_lr_pad_slices]
+            for s, _ in enumerate(self.s_enhancements):
+                s_enhance = np.product(self.s_enhancements[:s + 1])
+                exo_slices = []
+                s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
+                                                       self.grid_shape[0],
+                                                       s_enhance,
+                                                       self.spatial_pad)
+                s2_pad_slices = self.get_padded_slices(self.s2_lr_slices,
+                                                       self.grid_shape[1],
+                                                       s_enhance,
+                                                       self.spatial_pad)
+                for i, _ in enumerate(self.s1_lr_slices):
+                    for j, _ in enumerate(self.s2_lr_slices):
+                        pad_slice = (s1_pad_slices[i], s2_pad_slices[j],
+                                     slice(None), slice(None))
+                        exo_slices.append(pad_slice)
+                self._s_exo_slices.append(exo_slices)
+        return np.array(self._s_exo_slices)
 
     @property
     def t_lr_pad_slices(self):
-        """Low resolution temporal slices with padding"""
-        return self.get_padded_slices(self.t_lr_slices,
-                                      shape=len(self.raw_time_index),
-                                      enhancement=1, padding=self.temporal_pad,
-                                      step=self.temporal_slice.step)
+        """Get low res temporal padded slices for distributing time chunks
+        across nodes
+
+        Returns
+        -------
+        _t_lr_pad_slices : list
+            List of low res temporal slices which have been padded so that high
+            res output can be stitched together
+        """
+        if self._t_lr_pad_slices is None:
+            self._t_lr_pad_slices = self.get_padded_slices(
+                self.t_lr_slices, len(self.raw_time_index), 1,
+                self.temporal_pad, self.temporal_slice.step)
+        return self._t_lr_pad_slices
+
+    @property
+    def t_hr_crop_slices(self):
+        """Get high res temporal cropped slices for cropping forward pass
+        output before stitching together
+
+        Returns
+        -------
+        _t_hr_crop_slices : list
+            List of high res temporal slices for cropping padded generator
+            output
+        """
+        if self._t_hr_crop_slices is None:
+            self._t_hr_crop_slices = self.get_cropped_slices(
+                self.t_lr_slices, self.t_lr_pad_slices, self.t_enhance)
+        return self._t_hr_crop_slices
+
+    @property
+    def s_hr_slices(self):
+        """Get high res slices for indexing full generator output array
+
+        Returns
+        -------
+        _s_hr_slices : list
+            List of high res slices
+        """
+        if self._s_hr_slices is None:
+            self._s_hr_slices = []
+            s1_slices = self.get_hr_slices(self.s1_lr_slices, self.s_enhance)
+            s2_slices = self.get_hr_slices(self.s2_lr_slices, self.s_enhance)
+            for i, _ in enumerate(self.s1_lr_slices):
+                for j, _ in enumerate(self.s2_lr_slices):
+                    hr_slice = (s1_slices[i], s2_slices[j],
+                                slice(None), slice(None))
+                    self._s_hr_slices.append(hr_slice)
+        return self._s_hr_slices
+
+    @property
+    def s_hr_crop_slices(self):
+        """Get high res cropped slices for cropping generator output
+
+        Returns
+        -------
+        _s_hr_crop_slices : list
+            List of high res cropped slices
+        """
+        if self._s_hr_crop_slices is None:
+            self._s_hr_crop_slices = []
+            s1_crop_slices = self.get_cropped_slices(self.s1_lr_slices,
+                                                     self.s1_lr_pad_slices,
+                                                     self.s_enhance)
+            s2_crop_slices = self.get_cropped_slices(self.s2_lr_slices,
+                                                     self.s2_lr_pad_slices,
+                                                     self.s_enhance)
+            for i, _ in enumerate(self.s1_lr_slices):
+                for j, _ in enumerate(self.s2_lr_slices):
+                    hr_crop_slice = (s1_crop_slices[i], s2_crop_slices[j],
+                                     slice(None), slice(None))
+                    self._s_hr_crop_slices.append(hr_crop_slice)
+        return self._s_hr_crop_slices
 
     @property
     def s1_lr_pad_slices(self):
@@ -303,7 +373,7 @@ class ForwardPassSlicer:
         Parameters
         ----------
         slices : list
-            List of unpadded slice
+            List of low res unpadded slice
         shape : int
             max possible index of a padded slice. e.g. if the slices are
             indexing a dimension with size 10 then a padded slice cannot have
@@ -329,8 +399,8 @@ class ForwardPassSlicer:
         pad = step * padding * enhancement
         pad_slices = []
         for _, s in enumerate(slices):
-            start = np.max([0, s.start - pad])
-            end = np.min([enhancement * shape, s.stop + pad])
+            start = np.max([0, s.start * enhancement - pad])
+            end = np.min([enhancement * shape, s.stop * enhancement + pad])
             pad_slices.append(slice(start, end, step))
         return pad_slices
 
@@ -529,8 +599,10 @@ class ForwardPassStrategy(InputMixIn):
 
         self.exo_kwargs = exo_kwargs
         if self.exo_kwargs is not None:
-            self.s_enhancements = self.exo_kwargs.get('s_enhancements')
-            self.t_enhancements = self.exo_kwargs.get('t_enhancements')
+            self.s_enhancements = self.exo_kwargs.get('s_enhancements',
+                                                      [s_enhance])
+            self.t_enhancements = self.exo_kwargs.get('t_enhancements',
+                                                      [t_enhance])
         else:
             self.s_enhancements = [s_enhance]
             self.t_enhancements = [t_enhance]
@@ -585,7 +657,7 @@ class ForwardPassStrategy(InputMixIn):
                 self.cache_pattern = self.cache_pattern.replace(
                     '.pkl', '_{node_index}.pkl')
 
-        out = self.fwp_slicer.get_temporal_slices_for_model_step(0)
+        out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices, self.ti_hr_crop_slices = out
 
         msg = (f'Using a larger temporal_pad {temporal_pad} than '
@@ -739,7 +811,7 @@ class ForwardPassStrategy(InputMixIn):
             None if self.cache_pattern is None
             else self.cache_pattern.replace('{node_index}', str(node_index)))
 
-        out = self.fwp_slicer.get_spatial_slices_for_model_step(0)
+        out = self.fwp_slicer.get_spatial_slices()
         lr_slices, lr_pad_slices = out[:2]
         hr_slices, hr_crop_slices = out[2:]
 
@@ -767,7 +839,7 @@ class ForwardPassStrategy(InputMixIn):
                       load_workers=self.load_workers,
                       output_workers=self.output_workers,
                       exo_kwargs=self.exo_kwargs,
-                      fwp_slicer=self.fwp_slicer)
+                      exo_slices=self.fwp_slicer.s_exo_slices)
 
         return kwargs
 
@@ -875,7 +947,6 @@ class ForwardPass:
             raise KeyError(msg)
 
         self.model = model_class.load(*self.model_args, verbose=True)
-
         self.features = self.model.training_features
         self.output_features = self.model.output_features
         self.meta_data = self.model.meta
@@ -902,7 +973,11 @@ class ForwardPass:
         self.load_workers = kwargs['load_workers']
         self.output_workers = kwargs['output_workers']
         self.exo_kwargs = kwargs['exo_kwargs']
-        self.fwp_slicer = kwargs['fwp_slicer']
+        self.exo_slices = kwargs['exo_slices']
+
+        self.exo_features = self.exo_kwargs.get('features', [])
+        self.features = [f for f in self.features
+                         if f not in self.exo_features]
 
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
@@ -947,9 +1022,9 @@ class ForwardPass:
 
         if self.exo_kwargs is not None:
             self.exo_handler = ExogenousDataHandler(**self.exo_kwargs)
-            self.exogenous_features = self.exo_handler.data
+            self.exogenous_data = self.exo_handler.data
         else:
-            self.exogenous_features = None
+            self.exogenous_data = None
 
     @property
     def pass_workers(self):
@@ -965,6 +1040,46 @@ class ForwardPass:
     def pass_workers(self, pass_workers):
         """Update pass workers value"""
         self._pass_workers = pass_workers
+
+    def _prep_exogenous_input(self, chunk_shape, exogenous_slices, model):
+        """Shape exogenous data according to model type and model steps
+
+        Parameters
+        ----------
+        chunk_shape : tuple
+            Shape of data chunk going through forward pass
+        exogenous_slices : list
+            List of padded slices to index exogenous data for each model step.
+            If there are two spatial enhancement steps this is a list of length
+            3 with padded slices for each intermediate spatial resolution.
+        model : MultiStepGan
+            Model instance used to determine number of spatial enhancement
+            steps
+
+        Returns
+        -------
+        exo_data : list
+            List of arrays of exogenous data. If there are 2 spatial
+            enhancement steps this is a list of 3 arrays each with the
+            appropriate shape based on the enhancement factor
+        """
+        if self.exogenous_data is not None:
+            exo_shape = (*self.exogenous_data[0].shape[:2],
+                         chunk_shape[2],
+                         self.exogenous_data[0].shape[-1])
+            exo_data = [np.resize(arr, exo_shape)[tuple(s)] for arr, s
+                        in zip(self.exogenous_data, exogenous_slices)]
+        else:
+            exo_data = []
+        if isinstance(model, sup3r.models.SpatialThenTemporalGan):
+            for i, arr in enumerate(exo_data):
+                if i < len(model.spatial_models):
+                    exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
+                else:
+                    exo_data[i] = np.expand_dims(arr, axis=0)
+        else:
+            exo_data = [np.expand_dims(arr, axis=0) for arr in exo_data]
+        return exo_data
 
     def forward_pass_chunk(self, lr_slices, hr_slices, hr_crop_slices,
                            model=None, model_args=None, model_class=None,
@@ -1003,6 +1118,10 @@ class ForwardPass:
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
+        exogenous_slices : list
+            List of padded slices to index exogenous data for each model step.
+            If there are two spatial enhancement steps this is a list of length
+            3 with padded slices for each intermediate spatial resolution.
 
         Returns
         -------
@@ -1018,6 +1137,8 @@ class ForwardPass:
             model = model_class.load(*model_args, verbose=False)
 
         data_chunk = self.data_handler.data[lr_slices]
+        exo_data = self._prep_exogenous_input(data_chunk.shape,
+                                              exogenous_slices, model)
         if isinstance(model, sup3r.models.SpatialThenTemporalGan):
             i_lr_t = 0
             i_lr_s = 1
@@ -1026,14 +1147,8 @@ class ForwardPass:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
-
-        if self.exogenous_features is not None:
-            f_exogenous = [arr[s] for arr, s in zip(self.exogenous_features,
-                                                    exogenous_slices)]
-        else:
-            f_exogenous = None
         try:
-            hi_res = model.generate(data_chunk, exogenous_features=f_exogenous)
+            hi_res = model.generate(data_chunk, exogenous_data=exo_data)
         except Exception as e:
             msg = ('Forward pass failed on chunk with low-res slices {} '
                    'and high-res slices {}.'.format(lr_slices, hr_slices))
@@ -1127,12 +1242,13 @@ class ForwardPass:
         logger.info('Starting serial iteration through forward pass chunks.')
         zip_iter = zip(self.hr_slices, self.lr_pad_slices, self.hr_crop_slices)
         for i, (sh, slp, shc) in enumerate(zip_iter):
-            self.forward_pass_chunk(lr_slices=slp, hr_slices=sh,
-                                    hr_crop_slices=shc, model=self.model,
-                                    model_args=self.model_args,
-                                    model_class=self.model_class,
-                                    s_enhance=self.strategy.s_enhance,
-                                    t_enhance=self.strategy.t_enhance)
+            self.forward_pass_chunk(
+                lr_slices=slp, hr_slices=sh, hr_crop_slices=shc,
+                model=self.model, model_args=self.model_args,
+                model_class=self.model_class,
+                s_enhance=self.strategy.s_enhance,
+                t_enhance=self.strategy.t_enhance,
+                exogenous_slices=self.exo_slices[:, i])
 
             logger.debug('Coarse data chunks being passed to model '
                          'with shape {} which is slice {} of full shape {}.'
@@ -1157,12 +1273,13 @@ class ForwardPass:
             for i, (sh, slp, shc) in enumerate(zip(
                     self.hr_slices, self.lr_pad_slices,
                     self.hr_crop_slices)):
-                future = exe.submit(self.forward_pass_chunk, lr_slices=slp,
-                                    hr_slices=sh, hr_crop_slices=shc,
-                                    model_args=self.model_args,
-                                    model_class=self.model_class,
-                                    s_enhance=self.strategy.s_enhance,
-                                    t_enhance=self.strategy.t_enhance)
+                future = exe.submit(
+                    self.forward_pass_chunk, lr_slices=slp, hr_slices=sh,
+                    hr_crop_slices=shc, model_args=self.model_args,
+                    model_class=self.model_class,
+                    s_enhance=self.strategy.s_enhance,
+                    t_enhance=self.strategy.t_enhance,
+                    exogenous_slices=self.exo_slices[:, i])
                 futures[future] = i
 
                 logger.debug('Coarse data chunks being passed to model '

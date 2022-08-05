@@ -212,7 +212,7 @@ class MultiStepGan(AbstractSup3rGan):
         return hi_res
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_features=None):
+                 exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -229,8 +229,8 @@ class MultiStepGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_features : list
-            List of arrays of exogenous_features with length equal to the
+        exogenous_data : list
+            List of arrays of exogenous_data with length equal to the
             number of model steps. e.g. If we want to include topography as
             an exogenous feature in a spatial + temporal multistep model then
             we need to provide a list of length=2 with topography at the low
@@ -253,8 +253,8 @@ class MultiStepGan(AbstractSup3rGan):
             low_res = self._normalize_input(low_res)
 
         hi_res = low_res.copy()
-        exo_features = ([None] * len(self.models) if exogenous_features is None
-                        else exogenous_features)
+        exo_features = ([None] * len(self.models) if exogenous_data is None
+                        else exogenous_data)
         for i, model in enumerate(self.models):
             if exo_features[i] is not None:
                 hi_res = np.concatenate((hi_res, exo_features[i]), axis=-1)
@@ -400,7 +400,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         return self.temporal_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_features=None):
+                 exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -416,8 +416,8 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_features : list
-            List of arrays of exogenous_features with length equal to the
+        exogenous_data : list
+            List of arrays of exogenous_data with length equal to the
             number of model steps. e.g. If we want to include topography as
             an exogenous feature in a spatial + temporal multistep model then
             we need to provide a list of length=2 with topography at the low
@@ -434,17 +434,16 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
             step (spatio)temporal GAN with a 5D array shape:
             (1, spatial_1, spatial_2, n_temporal, n_features)
         """
-
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
-        if exogenous_features is not None:
-            s_exogenous = exogenous_features[:len(self.spatial_models)]
+        if exogenous_data is not None:
+            s_exogenous = exogenous_data[:len(self.spatial_models)]
         else:
             s_exogenous = None
         try:
             hi_res = self.spatial_models.generate(
                 low_res, norm_in=norm_in, un_norm_out=True,
-                exogenous_features=s_exogenous)
+                exogenous_data=s_exogenous)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-only GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -458,14 +457,14 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         logger.debug('Data from the 1st step spatial-only enhancement has '
                      'been reshaped to {}'.format(hi_res.shape))
 
-        if exogenous_features is not None:
-            t_exogenous = exogenous_features[len(self.spatial_models):]
+        if exogenous_data is not None:
+            t_exogenous = exogenous_data[len(self.spatial_models):]
         else:
             t_exogenous = None
         try:
             hi_res = self.temporal_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_features=t_exogenous)
+                exogenous_data=t_exogenous)
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
