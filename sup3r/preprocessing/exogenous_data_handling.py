@@ -21,9 +21,11 @@ class ExogenousDataHandler:
         Parameters
         ----------
         file_paths : str | list
-            A single source h5 wind file to extract raster data from or a list
+            A single source h5 file to extract raster data from or a list
             of netcdf files with identical grid. The string can be a unix-style
-            file path which will be passed through glob.glob
+            file path which will be passed through glob.glob. This is
+            typically low-res WRF output or GCM netcdf data files that is
+            source low-resolution data intended to be sup3r resolved.
         features : list
             List of exogenous features to extract from source_h5
         source_h5 : str
@@ -35,14 +37,22 @@ class ExogenousDataHandler:
             spatial dimensions of low resolution data from file_paths input.
             For example, if file_paths has 100km data and s_enhance is 4, this
             class will output a feature raster corresponding to the file_paths
-            grid enhanced 4x to ~25km
-        agg_factor : list
+            grid enhanced 4x to ~25km. The length of this list should be equal
+            to the number of model steps. e.g. if using a model with 2 spatial
+            enhancement steps and a single temporal enhancement step
+            s_enhancements should have integer values for the first two entries
+            and None for the third.
+        agg_factors : list
             List of factors by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
             s_enhance. For example, if file_paths has 100km data and s_enhance
             is 4 resulting in a desired resolution of ~25km and topo_source_h5
-            has a resolution of 4km, the agg_factor should be 6 so that 6x 4km
-            cells are averaged to the ~25km enhanced grid.
+            has a resolution of 4km, the agg_factor should be 6 so that 6x6 4km
+            cells are averaged to the ~25km enhanced grid. The length of this
+            list should be equal to the number of model steps. e.g. if using a
+            model with 2 spatial enhancement steps and a single temporal
+            enhancement step agg_factors should have integer values for the
+            first two entries and None for the third.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -64,20 +74,27 @@ class ExogenousDataHandler:
         self.s_enhancements = [1] + s_enhancements
         self.agg_factors = [1] + agg_factors
         self.data = []
-        for i, (_, _) in enumerate(zip(s_enhancements, agg_factors)):
-            for f in features:
-                s_enhance = np.product(s_enhancements[:i + 1])
-                agg_factor = agg_factors[i]
-                fdata = []
-                if f == 'topography':
-                    data = TopoExtract(file_paths, source_h5, s_enhance,
-                                       agg_factor, target=target, shape=shape,
-                                       raster_file=raster_file,
-                                       max_delta=max_delta,
-                                       input_handler=input_handler)
-                    data = data.hr_elev
-                    fdata.append(data)
-                else:
-                    msg = (f"Can only extract topography. Recived {f}.")
-                    raise NotImplementedError(msg)
-            self.data.append(np.stack(fdata, axis=-1))
+        msg = ('Need to provide the same number of enhancement factors and '
+               f'agg factors. Received s_enhancements={s_enhancements} and '
+               f'agg_factors={agg_factors}.')
+        assert len(s_enhancements) == len(agg_factors), msg
+        for i in range(len(s_enhancements)):
+            s_enhance = np.product([s for s in s_enhancements[:i + 1]
+                                    if s is not None])
+            agg_factor = agg_factors[i]
+            fdata = []
+            if agg_factor is not None:
+                for f in features:
+                    if f == 'topography':
+                        data = TopoExtract(file_paths, source_h5, s_enhance,
+                                           agg_factor, target=target,
+                                           shape=shape,
+                                           raster_file=raster_file,
+                                           max_delta=max_delta,
+                                           input_handler=input_handler)
+                        data = data.hr_elev
+                        fdata.append(data)
+                    else:
+                        msg = (f"Can only extract topography. Recived {f}.")
+                        raise NotImplementedError(msg)
+                self.data.append(np.stack(fdata, axis=-1))

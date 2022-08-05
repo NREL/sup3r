@@ -411,7 +411,6 @@ class Sup3rGan(AbstractSup3rGan):
         """
         return self.generator.weights
 
-    # pylint: disable=W0613
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -430,8 +429,10 @@ class Sup3rGan(AbstractSup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : None
-           Placeholder to match multistep model generate function signature
+        exogenous_data : ndarray | None
+            Exogenous data array, usually a 4D or 5D array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
 
         Returns
         -------
@@ -441,6 +442,8 @@ class Sup3rGan(AbstractSup3rGan):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
+        low_res = (low_res if exogenous_data is None
+                   else np.concatenate((low_res, exogenous_data), axis=-1))
 
         if norm_in and self._means is not None:
             low_res = low_res.copy()

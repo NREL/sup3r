@@ -1001,11 +1001,9 @@ class ForwardPass:
         self.exo_slices = kwargs['exo_slices']
 
         if self.exo_kwargs is not None:
-            self.exo_features = self.exo_kwargs.get('features', [])
-            self.features = [f for f in self.features
-                             if f not in self.exo_features]
-            self.exo_handler = ExogenousDataHandler(**self.exo_kwargs)
-            self.exogenous_data = self.exo_handler.data
+            exo_features = self.exo_kwargs.get('features', [])
+            self.features = [f for f in self.features if f not in exo_features]
+            self.exogenous_data = ExogenousDataHandler(**self.exo_kwargs).data
         else:
             self.exogenous_data = None
 

@@ -249,15 +249,18 @@ class MultiStepGan(AbstractSup3rGan):
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
 
+        exo_data = ([None] * len(self.models) if not exogenous_data
+                    else exogenous_data)
+        if exo_data[0] is not None:
+            low_res = np.concatenate((low_res, exo_data[0]), axis=-1)
+
         if norm_in:
             low_res = self._normalize_input(low_res)
 
         hi_res = low_res.copy()
-        exo_features = ([None] * len(self.models) if not exogenous_data
-                        else exogenous_data)
         for i, model in enumerate(self.models):
-            if exo_features[i] is not None:
-                hi_res = np.concatenate((hi_res, exo_features[i]), axis=-1)
+            if i > 0 and exo_data[i] is not None:
+                hi_res = np.concatenate((hi_res, exo_data[i]), axis=-1)
 
             i_norm_in = False
             if not self._all_same_norm_stats and model != self.models[0]:
