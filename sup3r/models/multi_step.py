@@ -271,6 +271,8 @@ class MultiStepGan(AbstractSup3rGan):
                 i_un_norm_out = True
 
             try:
+                logger.debug('Data input to model #{} of {} has shape {}'
+                             .format(i + 1, len(self.models), hi_res.shape))
                 hi_res = model.generate(hi_res, norm_in=i_norm_in,
                                         un_norm_out=i_un_norm_out)
                 logger.debug('Data output from model #{} of {} has shape {}'
@@ -441,6 +443,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
                      'enhancement has shape {}'.format(low_res.shape))
         s_exogenous = None
         t_exogenous = None
+
         if exogenous_data is not None:
             s_exogenous = exogenous_data[:len(self.spatial_models)]
             t_exogenous = exogenous_data[len(self.spatial_models):]
