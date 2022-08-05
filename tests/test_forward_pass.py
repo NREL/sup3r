@@ -371,7 +371,8 @@ def test_fwd_pass_nochunking():
 
 
 def test_fwp_multi_step_model_topo_exoskip():
-    """Test the forward pass with a multi step model class"""
+    """Test the forward pass with a multi step model class using exogenous data
+    for the first two steps and not the last"""
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -461,7 +462,8 @@ def test_fwp_multi_step_model_topo_exoskip():
 
 
 def test_fwp_multi_step_model_topo():
-    """Test the forward pass with a multi step model class"""
+    """Test the forward pass with a multi step model class using exogenous data
+    for all model steps"""
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
