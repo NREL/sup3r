@@ -975,9 +975,14 @@ class ForwardPass:
         self.exo_kwargs = kwargs['exo_kwargs']
         self.exo_slices = kwargs['exo_slices']
 
-        self.exo_features = self.exo_kwargs.get('features', [])
-        self.features = [f for f in self.features
-                         if f not in self.exo_features]
+        if self.exo_kwargs is not None:
+            self.exo_features = self.exo_kwargs.get('features', [])
+            self.features = [f for f in self.features
+                             if f not in self.exo_features]
+            self.exo_handler = ExogenousDataHandler(**self.exo_kwargs)
+            self.exogenous_data = self.exo_handler.data
+        else:
+            self.exogenous_data = None
 
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
@@ -1020,12 +1025,6 @@ class ForwardPass:
                               len(self.output_features))
         self.data = np.zeros(self.hr_data_shape, dtype=np.float32)
 
-        if self.exo_kwargs is not None:
-            self.exo_handler = ExogenousDataHandler(**self.exo_kwargs)
-            self.exogenous_data = self.exo_handler.data
-        else:
-            self.exogenous_data = None
-
     @property
     def pass_workers(self):
         """Get estimate for max pass workers based on memory usage"""
@@ -1064,11 +1063,10 @@ class ForwardPass:
             appropriate shape based on the enhancement factor
         """
         if self.exogenous_data is not None:
-            exo_shape = (*self.exogenous_data[0].shape[:2],
-                         chunk_shape[2],
-                         self.exogenous_data[0].shape[-1])
-            exo_data = [np.resize(arr, exo_shape)[tuple(s)] for arr, s
-                        in zip(self.exogenous_data, exogenous_slices)]
+            shapes = [(*arr.shape[:2], chunk_shape[2], arr.shape[-1])
+                      for arr in self.exogenous_data]
+            exo_data = [np.resize(arr, shape)[tuple(s)] for arr, shape, s
+                        in zip(self.exogenous_data, shapes, exogenous_slices)]
         else:
             exo_data = []
         if isinstance(model, sup3r.models.SpatialThenTemporalGan):

@@ -375,10 +375,15 @@ def test_fwp_multi_step_model_topo():
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
-    s_model.meta['output_features'] = ['U_100m', 'V_100m']
-    _ = s_model.generate(np.ones((4, 10, 10, 3)))
+    s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    _ = s1_model.generate(np.ones((4, 10, 10, 3)))
+
+    s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    _ = s2_model.generate(np.ones((4, 10, 10, 3)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -391,13 +396,16 @@ def test_fwp_multi_step_model_topo():
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
 
         st_out_dir = os.path.join(td, 'st_gan')
-        s_out_dir = os.path.join(td, 's_gan')
+        s1_out_dir = os.path.join(td, 's1_gan')
+        s2_out_dir = os.path.join(td, 's2_gan')
         st_model.save(st_out_dir)
-        s_model.save(s_out_dir)
+        s1_model.save(s1_out_dir)
+        s2_model.save(s2_out_dir)
 
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
-        s_enhance = 6
+        s_enhancements = [2, 2, 3]
+        s_enhance = np.product(s_enhancements)
         t_enhance = 4
 
         exo_kwargs = {'file_paths': input_files,
@@ -405,13 +413,13 @@ def test_fwp_multi_step_model_topo():
                       'source_h5': FP_WTK,
                       'target': target,
                       'shape': shape,
-                      's_enhancements': [2, 3],
-                      'agg_factors': [1, 6]
+                      's_enhancements': s_enhancements,
+                      'agg_factors': [2, 4, 12]
                       }
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
         handler = ForwardPassStrategy(
-            input_files, model_args=[s_out_dir, st_out_dir],
+            input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
             model_class='SpatialThenTemporalGan',
             s_enhance=s_enhance, t_enhance=t_enhance,
             fwp_chunk_shape=fwp_chunk_shape,
@@ -446,7 +454,7 @@ def test_fwp_multi_step_model_topo():
             assert version_record['tensorflow'] == tf.__version__
             assert 'gan_meta' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 2  # two step model
+            assert len(gan_meta) == 3  # three step model
             assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m',
                                                         'topography']
 

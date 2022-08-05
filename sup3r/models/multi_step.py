@@ -253,7 +253,7 @@ class MultiStepGan(AbstractSup3rGan):
             low_res = self._normalize_input(low_res)
 
         hi_res = low_res.copy()
-        exo_features = ([None] * len(self.models) if exogenous_data is None
+        exo_features = ([None] * len(self.models) if not exogenous_data
                         else exogenous_data)
         for i, model in enumerate(self.models):
             if exo_features[i] is not None:
