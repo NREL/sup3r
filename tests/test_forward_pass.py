@@ -405,7 +405,7 @@ def test_fwp_multi_step_model_topo():
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhancements = [2, 2, 3]
-        s_enhance = np.product(s_enhancements)
+        s_enhance = np.product([s for s in s_enhancements if s is not None])
         t_enhance = 4
 
         exo_kwargs = {'file_paths': input_files,

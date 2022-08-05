@@ -77,8 +77,10 @@ class ForwardPassSlicer:
         self.grid_shape = coarse_shape
         self.s_enhancements = s_enhancements
         self.t_enhancements = t_enhancements
-        self.s_enhance = np.product(self.s_enhancements)
-        self.t_enhance = np.product(self.t_enhancements)
+        self.s_enhance = np.product([s for s in self.s_enhancements
+                                     if s is not None])
+        self.t_enhance = np.product([t for t in self.t_enhancements
+                                     if t is not None])
         self.raw_time_index = time_index
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
@@ -201,7 +203,8 @@ class ForwardPassSlicer:
         if self._s_exo_slices is None:
             self._s_exo_slices = [self.s_lr_pad_slices]
             for s, _ in enumerate(self.s_enhancements):
-                s_enhance = np.product(self.s_enhancements[:s + 1])
+                s_enhance = np.product([s for s in self.s_enhancements[:s + 1]
+                                        if s is not None])
                 exo_slices = []
                 s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
                                                        self.grid_shape[0],
@@ -635,8 +638,10 @@ class ForwardPassStrategy(InputMixIn):
             self.s_enhancements = [s_enhance]
             self.t_enhancements = [t_enhance]
 
-        self.s_enhance = np.product(self.s_enhancements)
-        self.t_enhance = np.product(self.t_enhancements)
+        self.s_enhance = np.product([s for s in self.s_enhancements
+                                     if s is not None])
+        self.t_enhance = np.product([t for t in self.t_enhancements
+                                     if t is not None])
         self._i = 0
         self.file_paths = file_paths
         self.model_args = model_args

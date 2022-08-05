@@ -47,12 +47,12 @@ class ExogenousDataHandler:
             data to the resolution of the file_paths input enhanced by
             s_enhance. For example, if file_paths has 100km data and s_enhance
             is 4 resulting in a desired resolution of ~25km and topo_source_h5
-            has a resolution of 4km, the agg_factor should be 6 so that 6x6 4km
-            cells are averaged to the ~25km enhanced grid. The length of this
-            list should be equal to the number of model steps. e.g. if using a
-            model with 2 spatial enhancement steps and a single temporal
-            enhancement step agg_factors should have integer values for the
-            first two entries and None for the third.
+            has a resolution of 4km, the agg_factor should be 36 so that 6x6
+            4km cells are averaged to the ~25km enhanced grid. The length of
+            this list should be equal to the number of model steps. e.g. if
+            using a model with 2 spatial enhancement steps and a single
+            temporal enhancement step agg_factors should have integer values
+            for the first two entries and None for the third.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -98,3 +98,5 @@ class ExogenousDataHandler:
                         msg = (f"Can only extract topography. Recived {f}.")
                         raise NotImplementedError(msg)
                 self.data.append(np.stack(fdata, axis=-1))
+            else:
+                self.data.append(None)
