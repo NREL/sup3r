@@ -439,10 +439,12 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         """
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
+        s_exogenous = None
+        t_exogenous = None
         if exogenous_data is not None:
             s_exogenous = exogenous_data[:len(self.spatial_models)]
-        else:
-            s_exogenous = None
+            t_exogenous = exogenous_data[len(self.spatial_models):]
+
         try:
             hi_res = self.spatial_models.generate(
                 low_res, norm_in=norm_in, un_norm_out=True,
@@ -460,10 +462,6 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         logger.debug('Data from the 1st step spatial-only enhancement has '
                      'been reshaped to {}'.format(hi_res.shape))
 
-        if exogenous_data is not None:
-            t_exogenous = exogenous_data[len(self.spatial_models):]
-        else:
-            t_exogenous = None
         try:
             hi_res = self.temporal_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,

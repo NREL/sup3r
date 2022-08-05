@@ -38,10 +38,9 @@ class ExogenousDataHandler:
             For example, if file_paths has 100km data and s_enhance is 4, this
             class will output a feature raster corresponding to the file_paths
             grid enhanced 4x to ~25km. The length of this list should be equal
-            to the number of model steps. e.g. if using a model with 2 spatial
-            enhancement steps and a single temporal enhancement step
-            s_enhancements should have integer values for the first two entries
-            and None for the third.
+            to the number of model steps. e.g. if using a model with 2 5x
+            spatial enhancement steps and a single temporal enhancement step
+            s_enhancements should be [5, 5, 1]
         agg_factors : list
             List of factors by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
@@ -50,9 +49,10 @@ class ExogenousDataHandler:
             has a resolution of 4km, the agg_factor should be 36 so that 6x6
             4km cells are averaged to the ~25km enhanced grid. The length of
             this list should be equal to the number of model steps. e.g. if
-            using a model with 2 spatial enhancement steps and a single
-            temporal enhancement step agg_factors should have integer values
-            for the first two entries and None for the third.
+            using a model with 2 spatial enhancement steps which require
+            exogenous data and and a single temporal enhancement which does not
+            require exogenous data then step agg_factors should have integer
+            values for the first two entries and None for the third.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -78,9 +78,11 @@ class ExogenousDataHandler:
                f'agg factors. Received s_enhancements={s_enhancements} and '
                f'agg_factors={agg_factors}.')
         assert len(s_enhancements) == len(agg_factors), msg
+        msg = ('Need to provide an integer enhancement factor for each model'
+               'step. If the step is temporal enhancement then s_enhance=1')
+        assert not any(s is None for s in s_enhancements), msg
         for i in range(len(s_enhancements)):
-            s_enhance = np.product([s for s in s_enhancements[:i + 1]
-                                    if s is not None])
+            s_enhance = np.product(s_enhancements[:i + 1])
             agg_factor = agg_factors[i]
             fdata = []
             if agg_factor is not None:

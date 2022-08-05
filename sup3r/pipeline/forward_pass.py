@@ -77,10 +77,8 @@ class ForwardPassSlicer:
         self.grid_shape = coarse_shape
         self.s_enhancements = s_enhancements
         self.t_enhancements = t_enhancements
-        self.s_enhance = np.product([s for s in self.s_enhancements
-                                     if s is not None])
-        self.t_enhance = np.product([t for t in self.t_enhancements
-                                     if t is not None])
+        self.s_enhance = np.product(self.s_enhancements)
+        self.t_enhance = np.product(self.t_enhancements)
         self.raw_time_index = time_index
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
@@ -638,10 +636,8 @@ class ForwardPassStrategy(InputMixIn):
             self.s_enhancements = [s_enhance]
             self.t_enhancements = [t_enhance]
 
-        self.s_enhance = np.product([s for s in self.s_enhancements
-                                     if s is not None])
-        self.t_enhance = np.product([t for t in self.t_enhancements
-                                     if t is not None])
+        self.s_enhance = np.product(self.s_enhancements)
+        self.t_enhance = np.product(self.t_enhancements)
         self._i = 0
         self.file_paths = file_paths
         self.model_args = model_args
@@ -1090,21 +1086,24 @@ class ForwardPass:
             enhancement steps this is a list of 3 arrays each with the
             appropriate shape based on the enhancement factor
         """
+        exo_data = []
         if self.exogenous_data is not None:
-            shapes = [(*arr.shape[:2], chunk_shape[2], arr.shape[-1])
-                      for arr in self.exogenous_data]
-            exo_data = [np.resize(arr, shape)[tuple(s)] for arr, shape, s
-                        in zip(self.exogenous_data, shapes, exogenous_slices)]
-        else:
-            exo_data = []
-        if isinstance(model, sup3r.models.SpatialThenTemporalGan):
-            for i, arr in enumerate(exo_data):
-                if i < len(model.spatial_models):
+            for arr, exo_slice in zip(self.exogenous_data, exogenous_slices):
+                if arr is not None:
+                    shape = (*arr.shape[:2], chunk_shape[2], arr.shape[-1])
+                    exo_data.append(np.resize(arr, shape)[tuple(exo_slice)])
+                else:
+                    exo_data.append(None)
+
+        for i, arr in enumerate(exo_data):
+            if arr is not None:
+                check = i < len(model.spatial_models)
+                check = check and isinstance(
+                    model, sup3r.models.SpatialThenTemporalGan)
+                if check:
                     exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                 else:
                     exo_data[i] = np.expand_dims(arr, axis=0)
-        else:
-            exo_data = [np.expand_dims(arr, axis=0) for arr in exo_data]
         return exo_data
 
     def forward_pass_chunk(self, lr_slices, hr_slices, hr_crop_slices,
