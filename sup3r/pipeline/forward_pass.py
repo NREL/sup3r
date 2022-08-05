@@ -92,6 +92,7 @@ class ForwardPassSlicer:
         self._s_hr_crop_slices = None
         self._t_hr_crop_slices = None
         self._s_exo_slices = None
+        self._hr_crop_slices = None
 
     def get_spatial_slices(self):
         """Get spatial slices for small data chunks that are passed through
@@ -99,46 +100,36 @@ class ForwardPassSlicer:
 
         Returns
         -------
-        lr_slices: list
-            List of slices for low res data chunks which have not been padded
-        padded_slices : list
+        s_lr_slices: list
+            List of slices for low res data chunks which have not been padded.
+            data_handler.data[s_lr_slice] corresponds to an unpadded low res
+            input to the model.
+        s_lr_pad_slices : list
             List of slices which have been padded so that high res output
-            can be stitched together
-        hr_slices : list
+            can be stitched together. data_handler.data[s_lr_pad_slice]
+            corresponds to a padded low res input to the model.
+        s_hr_slices : list
             List of slices for high res data corresponding to the
-            lr_slices regions
-        cropped_slices : list
-            List of slices used for cropping generator output
-            when forward passes are performed on overlapping chunks
+            lr_slices regions. output_array[s_hr_slice] corresponds to the
+            cropped generator output.
         """
-        return (self.s_lr_slices, self.s_lr_pad_slices, self.s_hr_slices,
-                self.s_hr_crop_slices)
+        return (self.s_lr_slices, self.s_lr_pad_slices, self.s_hr_slices)
 
     def get_temporal_slices(self):
         """Calculate the number of time chunks across the full time index
 
         Returns
         -------
-        t_slices : list
+        t_lr_slices : list
             List of low-res non-padded time index slices. e.g. If
             fwp_chunk_size[2] is 5 then the size of these slices will always
             be 5.
-        t_pad_slices : list
+        t_lr_pad_slices : list
             List of low-res padded time index slices. e.g. If fwp_chunk_size[2]
             is 5 the size of these slices will be 15, with exceptions at the
             start and end of the raw_time_index.
-        t_crop_slices : list
-            List of cropped slices for stitching high res output. e.g. If we
-            have a ti_slice with size 5, ti_pad_slice size of 15, and t_enhance
-            of 4 then a padded high res slice will have size 60 and a non
-            padded high res slice will have size 20.  In order to correctly
-            stitch the high res output we have to crop the padded part of these
-            high res slices. Thus if a high res slice is slice(40, 100) the
-            cropped high res slice would be slice(20, -20). It would not be
-            slice(60, 80) because these slices are used to crop chunks of size
-            60, with valid time indices in range(0, 60).
         """
-        return self.t_lr_slices, self.t_lr_pad_slices, self.t_hr_crop_slices
+        return self.t_lr_slices, self.t_lr_pad_slices
 
     @property
     def s_lr_slices(self):
@@ -168,7 +159,12 @@ class ForwardPassSlicer:
         -------
         _s_lr_pad_slices : list
             List of slices which have been padded so that high res output
-            can be stitched together
+            can be stitched together. Each entry in this list has a slice for
+            each spatial dimension and then slice(None) for temporal and
+            feature dimension. This is because the temporal dimension is only
+            chunked across nodes and not within a single node.
+            data_handler.data[s_lr_pad_slice] gives the padded data volume
+            passed through the generator
         """
         if self._s_lr_pad_slices is None:
             self._s_lr_pad_slices = []
@@ -194,13 +190,13 @@ class ForwardPassSlicer:
         -------
         _s_exo_slices : list
             List of lists of slices which have been padded for indexing
-            exogenous data for the appropriate spatial enhancement step.  e.g.
+            exogenous data for the appropriate spatial enhancement step. e.g.
             If there are two spatial enhancement steps this will be a list of
             length=3. _s_exo_slices[0] will be a list of padded slices for the
             model input resolution, _s_exo_slices[1] will be a list of slices
             for the resolution after the first spatial enhancement step, and
-            _s_exo_slices[2] will be a list of slices for the second spatial
-            enhancement step.
+            _s_exo_slices[2] will be a list of slices for the resolution after
+            the second spatial enhancement step.
         """
         if self._s_exo_slices is None:
             self._s_exo_slices = [self.s_lr_pad_slices]
@@ -226,7 +222,8 @@ class ForwardPassSlicer:
     @property
     def t_lr_pad_slices(self):
         """Get low res temporal padded slices for distributing time chunks
-        across nodes
+        across nodes. These slices correspond to the time chunks sent to each
+        node and are padded according to temporal_pad.
 
         Returns
         -------
@@ -263,7 +260,12 @@ class ForwardPassSlicer:
         Returns
         -------
         _s_hr_slices : list
-            List of high res slices
+            List of high res slices. Each entry in this list has a slice for
+            each spatial dimension and then slice(None) for temporal and
+            feature dimension. This is because the temporal dimension is only
+            chunked across nodes and not within a single node. output[hr_slice]
+            gives the superresolved domain corresponding to
+            data_handler.data[lr_slice]
         """
         if self._s_hr_slices is None:
             self._s_hr_slices = []
@@ -283,7 +285,10 @@ class ForwardPassSlicer:
         Returns
         -------
         _s_hr_crop_slices : list
-            List of high res cropped slices
+            List of high res cropped slices. Each entry in this list has a
+            slice for each spatial dimension and then slice(None) for temporal
+            and feature dimension. This is because the temporal dimension is
+            only chunked across nodes and not within a single node.
         """
         if self._s_hr_crop_slices is None:
             self._s_hr_crop_slices = []
@@ -299,6 +304,29 @@ class ForwardPassSlicer:
                                      slice(None), slice(None))
                     self._s_hr_crop_slices.append(hr_crop_slice)
         return self._s_hr_crop_slices
+
+    @property
+    def hr_crop_slices(self):
+        """Get high res spatiotemporal cropped slices for cropping generator
+        output
+
+        Returns
+        -------
+        _hr_crop_slices : list
+            List of high res spatiotemporal cropped slices. Each entry in this
+            list has a crop slice for each spatial dimension and temporal
+            dimension and then slice(None) for the feature dimension.
+            model.generate()[hr_crop_slice] gives the cropped generator output
+            corresponding to output_array[hr_slice]
+        """
+        if self._hr_crop_slices is None:
+            self._hr_crop_slices = []
+            for t in self.t_hr_crop_slices:
+                node_slices = []
+                for s in self.s_hr_crop_slices:
+                    node_slices.append((s[0], s[1], t, slice(None)))
+                self._hr_crop_slices.append(node_slices)
+        return self._hr_crop_slices
 
     @property
     def s1_lr_pad_slices(self):
@@ -658,7 +686,7 @@ class ForwardPassStrategy(InputMixIn):
                     '.pkl', '_{node_index}.pkl')
 
         out = self.fwp_slicer.get_temporal_slices()
-        self.ti_slices, self.ti_pad_slices, self.ti_hr_crop_slices = out
+        self.ti_slices, self.ti_pad_slices = out
 
         msg = (f'Using a larger temporal_pad {temporal_pad} than '
                f'temporal_chunk_size {fwp_chunk_shape[2]}.')
@@ -804,7 +832,7 @@ class ForwardPassStrategy(InputMixIn):
         out_file = self.out_files[node_index]
         ti_pad_slice = self.ti_pad_slices[node_index]
         ti_slice = self.ti_slices[node_index]
-        ti_hr_crop_slice = self.ti_hr_crop_slices[node_index]
+        hr_crop_slices = self.fwp_slicer.hr_crop_slices[node_index]
         data_shape = (self.grid_shape[0], self.grid_shape[1],
                       len(self.raw_time_index[ti_pad_slice]))
         cache_pattern = (
@@ -812,8 +840,7 @@ class ForwardPassStrategy(InputMixIn):
             else self.cache_pattern.replace('{node_index}', str(node_index)))
 
         out = self.fwp_slicer.get_spatial_slices()
-        lr_slices, lr_pad_slices = out[:2]
-        hr_slices, hr_crop_slices = out[2:]
+        lr_slices, lr_pad_slices, hr_slices = out
 
         chunk_shape = (lr_pad_slices[0][0].stop - lr_pad_slices[0][0].start,
                        lr_pad_slices[0][1].stop - lr_pad_slices[0][1].start,
@@ -823,7 +850,6 @@ class ForwardPassStrategy(InputMixIn):
                       out_file=out_file,
                       ti_pad_slice=ti_pad_slice,
                       ti_slice=ti_slice,
-                      ti_hr_crop_slice=ti_hr_crop_slice,
                       lr_slices=lr_slices,
                       lr_pad_slices=lr_pad_slices,
                       hr_slices=hr_slices,
@@ -958,7 +984,6 @@ class ForwardPass:
         self.out_file = kwargs['out_file']
         self.ti_slice = kwargs['ti_slice']
         self.ti_pad_slice = kwargs['ti_pad_slice']
-        self.ti_hr_crop_slice = kwargs['ti_hr_crop_slice']
         self.lr_slices = kwargs['lr_slices']
         self.lr_pad_slices = kwargs['lr_pad_slices']
         self.hr_slices = kwargs['hr_slices']
@@ -1169,8 +1194,7 @@ class ForwardPass:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        data = hi_res[0][hr_crop_slices][..., self.ti_hr_crop_slice, :]
-        self.data[hr_slices] = data
+        self.data[hr_slices] = hi_res[0][hr_crop_slices]
 
     @classmethod
     def get_node_cmd(cls, config):
