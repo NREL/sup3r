@@ -414,7 +414,8 @@ def test_fwp_multi_step_model_topo_exoskip():
                       'target': target,
                       'shape': shape,
                       's_enhancements': s_enhancements,
-                      'agg_factors': [2, 4, None]
+                      'agg_factors': [2, 4, 16],
+                      'exo_steps': [0, 1]
                       }
 
         out_files = os.path.join(td, 'out_{file_id}.h5')

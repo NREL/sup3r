@@ -16,7 +16,7 @@ class ExogenousDataHandler:
 
     def __init__(self, file_paths, features, source_h5, s_enhancements,
                  agg_factors, target=None, shape=None, raster_file=None,
-                 max_delta=20, input_handler=None):
+                 max_delta=20, input_handler=None, exo_steps=None):
         """
         Parameters
         ----------
@@ -68,12 +68,17 @@ class ExogenousDataHandler:
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        exo_steps : list
+            List of model step indices for which exogenous data is required.
+            e.g. If we have two model steps which take exo data and one which
+            does not exo_steps = [0, 1].
         """
 
         self.features = features
         self.s_enhancements = [1] + s_enhancements
         self.agg_factors = [1] + agg_factors
         self.data = []
+        exo_steps = exo_steps or np.arange(len(self.s_enhancements))
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={s_enhancements} and '
                f'agg_factors={agg_factors}.')
@@ -85,7 +90,7 @@ class ExogenousDataHandler:
             s_enhance = np.product(s_enhancements[:i + 1])
             agg_factor = agg_factors[i]
             fdata = []
-            if agg_factor is not None:
+            if i in exo_steps:
                 for f in features:
                     if f == 'topography':
                         data = TopoExtract(file_paths, source_h5, s_enhance,
