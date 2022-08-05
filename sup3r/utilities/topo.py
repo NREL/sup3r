@@ -67,6 +67,8 @@ class TopoExtract:
             be guessed based on file type and time series properties.
         """
 
+        logger.info('Initializing TopoExtract utility.')
+
         self._topo_source_h5 = topo_source_h5
         self._s_enhance = s_enhance
         self._agg_factor = agg_factor
@@ -241,4 +243,7 @@ class TopoExtract:
         te = cls(file_paths, topo_source_h5, s_enhance, agg_factor,
                  target=target, shape=shape, raster_file=raster_file,
                  max_delta=max_delta, input_handler=input_handler)
+        logger.info('Finished mapping topo raster from {}'
+                    .format(topo_source_h5))
+
         return te.hr_elev

@@ -1104,6 +1104,7 @@ class ForwardPass:
                     exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                 else:
                     exo_data[i] = np.expand_dims(arr, axis=0)
+
         return exo_data
 
     def forward_pass_chunk(self, lr_slices, hr_slices, hr_crop_slices,
