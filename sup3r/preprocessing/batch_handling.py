@@ -158,7 +158,7 @@ class Batch:
                 for j in feat_iter:
                     low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
                                                          smoothing,
-                                                         mode='constant')
+                                                         mode='nearest')
 
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
@@ -964,7 +964,7 @@ class BatchHandlerCC(BatchHandler):
                 for j in feat_iter:
                     low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
                                                          self.smoothing,
-                                                         mode='constant')
+                                                         mode='nearest')
 
         batch = self.BATCH_CLASS(low_res, high_res)
 
@@ -1073,7 +1073,7 @@ class SpatialBatchHandlerCC(BatchHandler):
                 for j in feat_iter:
                     low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
                                                          self.smoothing,
-                                                         mode='constant')
+                                                         mode='nearest')
 
         batch = self.BATCH_CLASS(low_res, high_res)
 
