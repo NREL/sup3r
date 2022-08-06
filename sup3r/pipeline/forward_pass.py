@@ -1097,9 +1097,8 @@ class ForwardPass:
 
         for i, arr in enumerate(exo_data):
             if arr is not None:
-                check = i < len(model.spatial_models)
-                check = check and isinstance(
-                    model, sup3r.models.SpatialThenTemporalGan)
+                check = isinstance(model, sup3r.models.SpatialThenTemporalGan)
+                check = check and (i < len(model.spatial_models))
                 if check:
                     exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                 else:

@@ -430,7 +430,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
             than one exogenous feature the ordering must be consistent.
             Each array in the list has 3D or 4D shape:
             (spatial_1, spatial_2, n_features)
-            (spatial_1, spatial_2, n_temporal, n_features)
+            (temporal, spatial_1, spatial_2, n_features)
 
         Returns
         -------
@@ -443,7 +443,6 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
                      'enhancement has shape {}'.format(low_res.shape))
         s_exogenous = None
         t_exogenous = None
-
         if exogenous_data is not None:
             s_exogenous = exogenous_data[:len(self.spatial_models)]
             t_exogenous = exogenous_data[len(self.spatial_models):]
