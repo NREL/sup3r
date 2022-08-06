@@ -28,9 +28,11 @@ class TopoExtract:
         Parameters
         ----------
         file_paths : str | list
-            A single source h5 wind file to extract raster data from or a list
+            A single source h5 file to extract raster data from or a list
             of netcdf files with identical grid. The string can be a unix-style
-            file path which will be passed through glob.glob
+            file path which will be passed through glob.glob. This is
+            typically low-res WRF output or GCM netcdf data files that is
+            source low-resolution data intended to be sup3r resolved.
         topo_source_h5 : str
             Filepath to source wtk or nsrdb file to get hi-res (2km or 4km)
             elevation data from which will be mapped to the enhanced grid of
@@ -42,12 +44,12 @@ class TopoExtract:
             class will output a topography raster corresponding to the
             file_paths grid enhanced 4x to ~25km
         agg_factor : int
-            Factor by which to aggregate the topo_source_h5 elevation data to
-            the resolution of the file_paths input enhanced by s_enhance. For
-            example, if file_paths has 100km data and s_enhance is 4 resulting
-            in a desired resolution of ~25km and topo_source_h5 has a
-            resolution of 4km, the agg_factor should be 6 so that 6x 4km cells
-            are averaged to the ~25km enhanced grid.
+            List of factors by which to aggregate the topo_source_h5 elevation
+            data to the resolution of the file_paths input enhanced by
+            s_enhance. For example, if file_paths has 100km data and s_enhance
+            is 4 resulting in a desired resolution of ~25km and topo_source_h5
+            has a resolution of 4km, the agg_factor should be 36 so that 6x6
+            4km cells are averaged to the ~25km enhanced grid.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -64,6 +66,8 @@ class TopoExtract:
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
         """
+
+        logger.info('Initializing TopoExtract utility.')
 
         self._topo_source_h5 = topo_source_h5
         self._s_enhance = s_enhance
@@ -239,4 +243,7 @@ class TopoExtract:
         te = cls(file_paths, topo_source_h5, s_enhance, agg_factor,
                  target=target, shape=shape, raster_file=raster_file,
                  max_delta=max_delta, input_handler=input_handler)
+        logger.info('Finished mapping topo raster from {}'
+                    .format(topo_source_h5))
+
         return te.hr_elev

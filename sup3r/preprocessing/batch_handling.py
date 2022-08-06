@@ -137,7 +137,11 @@ class Batch:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
         if smoothing is not None:
-            low_res = gaussian_filter(low_res, smoothing, mode='constant')
+            for i in range(low_res.shape[0]):
+                for j in range(low_res.shape[-1]):
+                    low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
+                                                         smoothing,
+                                                         mode='constant')
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
 
