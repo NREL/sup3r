@@ -101,3 +101,60 @@ def make_fake_h5_chunks(td):
            low_res_lat_lon, low_res_times)
 
     return out
+
+
+def tke_spectrum(u, v):
+    """Longitudinal Turbulent Kinetic Energy Spectrum. Gives the portion of
+    kinetic energy associated with each longitudinal wavenumber.
+
+    Parameters
+    ----------
+    u: ndarray
+        (lat, lon)
+        U component of wind
+    v : ndarray
+        (lat, lon)
+        V component of wind
+
+    Returns
+    -------
+    ndarray
+        1D array of amplitudes corresponding to the portion of total energy
+        with a given longitudinal wavenumber
+    """
+    v_k = np.fft.fftn(v)
+    u_k = np.fft.fftn(u)
+    E_k = np.abs(v_k)**2 + np.abs(u_k)**2
+    E_k = np.mean(E_k, axis=0)
+    E_k *= np.arange(E_k.shape[0])**2
+    n_steps = E_k.shape[0] // 2
+    E_k_a = E_k[:n_steps]
+    E_k_b = E_k[-n_steps:][::-1]
+    E_k = E_k_a + E_k_b
+    E_k /= E_k[1]
+    return E_k
+
+
+def velocity_gradient_dist(u):
+    """Returns the longitudinal velocity gradient distribution.
+
+    Parameters
+    ----------
+    u: ndarray
+        Longitudinal velocity component
+        (lat, lon, temporal)
+
+    Returns
+    -------
+    ndarray
+        delta_x values
+    ndarray
+        Normalized delta_u / delta_x value counts
+    """
+    diffs = np.diff(u, axis=1).flatten()
+    diffs = diffs[(np.abs(diffs) < 7)]
+    diffs = diffs / np.sqrt(np.mean(diffs**2))
+    counts, edges = np.histogram(diffs, bins=50)
+    centers = edges[:-1] + (np.diff(edges) / 2)
+    counts = counts.astype(float) / counts.max()
+    return centers, counts
