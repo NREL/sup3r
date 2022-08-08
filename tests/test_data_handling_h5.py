@@ -706,6 +706,6 @@ def test_smoothing():
         for i in range(low_res_no_smooth.shape[0]):
             for j in range(low_res_no_smooth.shape[-1]):
                 low_res[i, ..., j] = gaussian_filter(
-                    low_res_no_smooth[i, ..., j], 0.6, mode='constant')
+                    low_res_no_smooth[i, ..., j], 0.6, mode='nearest')
         assert np.array_equal(batch.low_res, low_res)
         assert not np.array_equal(low_res, low_res_no_smooth)

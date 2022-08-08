@@ -95,7 +95,9 @@ class Batch:
                          temporal_coarsening_method='subsample',
                          output_features_ind=None,
                          output_features=None,
-                         smoothing=None):
+                         training_features=None,
+                         smoothing=None,
+                         smoothing_ignore=None):
         """Coarsen high res data and return Batch with high res and
         low res data
 
@@ -119,29 +121,45 @@ class Batch:
             output, without any feature indices used only for training.
         output_features : list
             List of Generative model output feature names
+        training_features : list | None
+            Ordered list of training features input to the generative model
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
             resolution simulation with the kinetic energy of a coarsened and
             smoothed high resolution simulation. If None no smoothing is
             performed.
+        smoothing_ignore : list | None
+            List of features to ignore for the smoothing filter. None will
+            smooth all features if smoothing kwarg is not None
 
         Returns
         -------
         Batch
             Batch instance with low and high res data
         """
+
         low_res = spatial_coarsening(high_res, s_enhance)
+
+        if training_features is None:
+            training_features = [None] * low_res.shape[-1]
+
+        if smoothing_ignore is None:
+            smoothing_ignore = []
 
         if t_enhance != 1:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
+
         if smoothing is not None:
+            feat_iter = [j for j in range(low_res.shape[-1])
+                         if training_features[j] not in smoothing_ignore]
             for i in range(low_res.shape[0]):
-                for j in range(low_res.shape[-1]):
+                for j in feat_iter:
                     low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
                                                          smoothing,
-                                                         mode='constant')
+                                                         mode='nearest')
+
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
 
@@ -316,7 +334,8 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, overwrite_stats=False, smoothing=None,
+                 means_file=None, overwrite_stats=False,
+                 smoothing=None, smoothing_ignore=None,
                  stats_workers=None, norm_workers=None, load_workers=None,
                  max_workers=None):
         """
@@ -364,6 +383,9 @@ class BatchHandler:
             resolution simulation with the kinetic energy of a coarsened and
             smoothed high resolution simulation. If None no smoothing is
             performed.
+        smoothing_ignore : list | None
+            List of features to ignore for the smoothing filter. None will
+            smooth all features if smoothing kwarg is not None
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             norm_workers, stats_workers, and load_workers.
@@ -405,6 +427,7 @@ class BatchHandler:
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
+        self.smoothing_ignore = smoothing_ignore or []
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
@@ -851,7 +874,10 @@ class BatchHandler:
                 high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
-                output_features=self.output_features, smoothing=self.smoothing)
+                output_features=self.output_features,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
             return batch
@@ -894,45 +920,56 @@ class BatchHandlerCC(BatchHandler):
             with the appropriate coarsening.
         """
         self.current_batch_indices = []
-        if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
 
-            low_res = None
-            high_res = None
-
-            for i in range(self.batch_size):
-                obs_hourly, obs_daily_avg = handler.get_next()
-                self.current_batch_indices.append(handler.current_obs_index)
-
-                obs_hourly = self.BATCH_CLASS.reduce_features(
-                    obs_hourly, self.output_features_ind)
-
-                if low_res is None:
-                    lr_shape = (self.batch_size,) + obs_daily_avg.shape
-                    hr_shape = (self.batch_size,) + obs_hourly.shape
-                    low_res = np.zeros(lr_shape, dtype=np.float32)
-                    high_res = np.zeros(hr_shape, dtype=np.float32)
-
-                low_res[i] = obs_daily_avg
-                high_res[i] = obs_hourly
-
-            high_res = self.reduce_high_res_sub_daily(high_res)
-            low_res = spatial_coarsening(low_res, self.s_enhance)
-
-            if (self.output_features is not None
-                    and 'clearsky_ratio' in self.output_features):
-                i_cs = self.output_features.index('clearsky_ratio')
-                if np.isnan(high_res[..., i_cs]).any():
-                    high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
-
-            batch = self.BATCH_CLASS(low_res, high_res)
-
-            self._i += 1
-            return batch
-        else:
+        if self._i >= self.n_batches:
             raise StopIteration
+
+        handler_index = np.random.randint(0, len(self.data_handlers))
+        self.current_handler_index = handler_index
+        handler = self.data_handlers[handler_index]
+
+        low_res = None
+        high_res = None
+
+        for i in range(self.batch_size):
+            obs_hourly, obs_daily_avg = handler.get_next()
+            self.current_batch_indices.append(handler.current_obs_index)
+
+            obs_hourly = self.BATCH_CLASS.reduce_features(
+                obs_hourly, self.output_features_ind)
+
+            if low_res is None:
+                lr_shape = (self.batch_size,) + obs_daily_avg.shape
+                hr_shape = (self.batch_size,) + obs_hourly.shape
+                low_res = np.zeros(lr_shape, dtype=np.float32)
+                high_res = np.zeros(hr_shape, dtype=np.float32)
+
+            low_res[i] = obs_daily_avg
+            high_res[i] = obs_hourly
+
+        high_res = self.reduce_high_res_sub_daily(high_res)
+        low_res = spatial_coarsening(low_res, self.s_enhance)
+
+        if (self.output_features is not None
+                and 'clearsky_ratio' in self.output_features):
+            i_cs = self.output_features.index('clearsky_ratio')
+            if np.isnan(high_res[..., i_cs]).any():
+                high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+        if self.smoothing is not None:
+            feat_iter = [j for j in range(low_res.shape[-1])
+                         if self.training_features[j]
+                         not in self.smoothing_ignore]
+            for i in range(low_res.shape[0]):
+                for j in feat_iter:
+                    low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
+                                                         self.smoothing,
+                                                         mode='nearest')
+
+        batch = self.BATCH_CLASS(low_res, high_res)
+
+        self._i += 1
+        return batch
 
     def reduce_high_res_sub_daily(self, high_res):
         """Take an hourly high-res observation and reduce the temporal axis
@@ -991,47 +1028,57 @@ class SpatialBatchHandlerCC(BatchHandler):
         """
 
         self.current_batch_indices = []
-        if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
-
-            high_res = None
-
-            for i in range(self.batch_size):
-                _, obs_daily_avg = handler.get_next()
-                self.current_batch_indices.append(handler.current_obs_index)
-
-                if high_res is None:
-                    hr_shape = (self.batch_size,) + obs_daily_avg.shape
-                    high_res = np.zeros(hr_shape, dtype=np.float32)
-
-                    msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
-                           'but received HR shape {} with n_temporal={}.'
-                           .format(hr_shape, hr_shape[3]))
-                    assert hr_shape[3] == 1, msg
-
-                high_res[i] = obs_daily_avg
-
-            low_res = spatial_coarsening(high_res, self.s_enhance)
-            low_res = low_res[:, :, :, 0, :]
-            high_res = high_res[:, :, :, 0, :]
-
-            high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind)
-
-            if (self.output_features is not None
-                    and 'clearsky_ratio' in self.output_features):
-                i_cs = self.output_features.index('clearsky_ratio')
-                if np.isnan(high_res[..., i_cs]).any():
-                    high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
-
-            batch = self.BATCH_CLASS(low_res, high_res)
-
-            self._i += 1
-            return batch
-        else:
+        if self._i >= self.n_batches:
             raise StopIteration
+
+        handler_index = np.random.randint(0, len(self.data_handlers))
+        self.current_handler_index = handler_index
+        handler = self.data_handlers[handler_index]
+
+        high_res = None
+
+        for i in range(self.batch_size):
+            _, obs_daily_avg = handler.get_next()
+            self.current_batch_indices.append(handler.current_obs_index)
+
+            if high_res is None:
+                hr_shape = (self.batch_size,) + obs_daily_avg.shape
+                high_res = np.zeros(hr_shape, dtype=np.float32)
+
+                msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
+                       'but received HR shape {} with n_temporal={}.'
+                       .format(hr_shape, hr_shape[3]))
+                assert hr_shape[3] == 1, msg
+
+            high_res[i] = obs_daily_avg
+
+        low_res = spatial_coarsening(high_res, self.s_enhance)
+        low_res = low_res[:, :, :, 0, :]
+        high_res = high_res[:, :, :, 0, :]
+
+        high_res = self.BATCH_CLASS.reduce_features(
+            high_res, self.output_features_ind)
+
+        if (self.output_features is not None
+                and 'clearsky_ratio' in self.output_features):
+            i_cs = self.output_features.index('clearsky_ratio')
+            if np.isnan(high_res[..., i_cs]).any():
+                high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+        if self.smoothing is not None:
+            feat_iter = [j for j in range(low_res.shape[-1])
+                         if self.training_features[j]
+                         not in self.smoothing_ignore]
+            for i in range(low_res.shape[0]):
+                for j in feat_iter:
+                    low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
+                                                         self.smoothing,
+                                                         mode='nearest')
+
+        batch = self.BATCH_CLASS(low_res, high_res)
+
+        self._i += 1
+        return batch
 
 
 class SpatialBatchHandler(BatchHandler):
@@ -1050,7 +1097,10 @@ class SpatialBatchHandler(BatchHandler):
 
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res, self.s_enhance,
-                output_features_ind=self.output_features_ind)
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
             return batch
@@ -1179,7 +1229,10 @@ class BatchHandlerDC(BatchHandler):
                 high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
-                output_features=self.output_features)
+                output_features=self.output_features,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
             return batch
