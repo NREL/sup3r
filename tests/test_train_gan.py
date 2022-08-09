@@ -13,12 +13,13 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
-from sup3r.models.data_centric import Sup3rGanDC
+from sup3r.models.data_centric import Sup3rGanDC, Sup3rGanSpatialDC
 from sup3r.preprocessing.data_handling import (DataHandlerH5,
                                                DataHandlerDCforH5)
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 BatchHandlerDC,
-                                                SpatialBatchHandler)
+                                                SpatialBatchHandler,
+                                                BatchHandlerSpatialDC)
 from sup3r.utilities.loss_metrics import MmdMseLoss
 
 
@@ -147,6 +148,54 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                 assert weight_new < weight_old
 
 
+def test_train_spatial_dc(n_epoch=2, log=False):
+    """Test data-centric spatial model training. Check that the spatial
+    weights give the correct number of observations from each spatial bin"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGanSpatialDC(fp_gen, fp_disc, learning_rate=1e-4,
+                              learning_rate_disc=3e-4, loss='MmdMseLoss')
+
+    handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                                 shape=(20, 20),
+                                 sample_shape=(18, 18),
+                                 temporal_slice=slice(None, None, 1),
+                                 val_split=0.005,
+                                 max_workers=1)
+    batch_size = 4
+    n_batches = 20
+    total_count = batch_size * n_batches
+    deviation = np.sqrt(1 / (total_count - 1))
+    batch_handler = BatchHandlerSpatialDC([handler], batch_size=batch_size,
+                                          s_enhance=2, n_batches=n_batches)
+
+    with tempfile.TemporaryDirectory() as td:
+        # test that the normalized number of samples from each bin is close
+        # to the weight for that bin
+        model.train(batch_handler, n_epoch=n_epoch,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+        assert np.allclose(batch_handler.old_spatial_weights,
+                           batch_handler.norm_spatial_record,
+                           atol=deviation)
+
+        out_dir = os.path.join(td, 'dc_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        assert isinstance(model.loss_fun, MmdMseLoss)
+        assert isinstance(loaded.loss_fun, MmdMseLoss)
+        assert model.meta['class'] == 'Sup3rGanSpatialDC'
+        assert loaded.meta['class'] == 'Sup3rGanSpatialDC'
+
+
 def test_train_st_dc(n_epoch=2, log=False):
     """Test data-centric spatiotemporal model training. Check that the temporal
     weights give the correct number of observations from each temporal bin"""
@@ -183,7 +232,7 @@ def test_train_st_dc(n_epoch=2, log=False):
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
         assert np.allclose(batch_handler.old_temporal_weights,
-                           batch_handler.normalized_sample_record,
+                           batch_handler.norm_temporal_record,
                            atol=deviation)
 
         out_dir = os.path.join(td, 'dc_gan')
