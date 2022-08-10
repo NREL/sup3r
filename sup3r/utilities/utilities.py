@@ -792,13 +792,17 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         hgt = gp / 9.81 - hgt
         del gp
 
-    elif 'zg' in data:
-        hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
-        hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
-        hgt = np.array(hgt.values, dtype=np.float32)
+    elif all(field in data for field in ('zg', 'orog')):
+        gp = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
+        hgt = data['orog'][tuple(raster_index)]
+        if gp.shape != hgt.shape:
+            hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1)
+        if gp.shape != hgt.shape:
+            hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[-4], axis=0)
+        hgt = gp - hgt
 
     else:
-        msg = ('Need either PHB/PH/HGT or zg in data to perform height '
+        msg = ('Need either PHB/PH/HGT or zg/orog in data to perform height '
                'interpolation')
         raise ValueError(msg)
     return hgt

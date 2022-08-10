@@ -56,7 +56,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Shear,
                                                   Rews,
                                                   Tas,
-                                                  TopoH5,
+                                                  TopoH5
                                                   )
 
 np.random.seed(42)
@@ -1590,9 +1590,13 @@ class DataHandlerNC(DataHandler):
             if feature in handle:
                 if len(handle[feature].dims) == 4:
                     idx = tuple([time_slice] + [0] + raster_index)
-                else:
+                elif len(handle[feature].dims) == 3:
                     idx = tuple([time_slice] + raster_index)
+                else:
+                    idx = tuple(raster_index)
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
+                if len(fdata.shape) == 2:
+                    fdata = np.expand_dims(fdata, axis=0)
             elif basename in handle:
                 if interp_height is not None:
                     fdata = interp_var_to_height(handle, basename,
@@ -1747,7 +1751,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
-            'topography': 'zg_0m',
+            'topography': 'orog',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
