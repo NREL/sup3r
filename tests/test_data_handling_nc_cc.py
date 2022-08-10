@@ -25,7 +25,7 @@ def test_data_handling_nc_cc():
 
     handler = DataHandlerNCforCC(input_files, features=['U_100m', 'V_100m'],
                                  target=target, shape=(20, 20),
-                                 val_split=0.0)
+                                 val_split=0.0, max_workers=1)
 
     assert handler.data.shape == (20, 20, 20, 2)
 

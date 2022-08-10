@@ -786,7 +786,6 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         gp += unstagger_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
-
         if gp.shape != hgt.shape:
             hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1)
         hgt = gp / 9.81 - hgt
@@ -795,17 +794,16 @@ def calc_height(data, raster_index, time_slice=slice(None)):
     elif all(field in data for field in ('zg', 'orog')):
         gp = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
         hgt = data['orog'][tuple(raster_index)]
-        if gp.shape != hgt.shape:
-            hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1)
-        if gp.shape != hgt.shape:
-            hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[-4], axis=0)
+        hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[1], axis=0)
+        hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[0], axis=0)
         hgt = gp - hgt
+        del gp
 
     else:
         msg = ('Need either PHB/PH/HGT or zg/orog in data to perform height '
                'interpolation')
         raise ValueError(msg)
-    return hgt
+    return np.array(hgt)
 
 
 def calc_pressure(data, var, raster_index, time_slice=slice(None)):
