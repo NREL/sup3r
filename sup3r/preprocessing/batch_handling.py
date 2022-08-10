@@ -1373,7 +1373,6 @@ class BatchHandlerSpatialDC(BatchHandler):
 
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next(
-                    temporal_weights=None,
                     spatial_weights=self.spatial_weights)[..., 0, :]
                 self.current_batch_indices.append(handler.current_obs_index)
 

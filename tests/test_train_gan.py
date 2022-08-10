@@ -148,7 +148,8 @@ def test_train_st_weight_update(n_epoch=5, log=False):
                 assert weight_new < weight_old
 
 
-def test_train_spatial_dc(n_epoch=2, log=False):
+def test_train_spatial_dc(log=False, full_shape=(20, 20),
+                          sample_shape=(10, 10, 1), n_epoch=6):
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
     if log:
@@ -162,8 +163,8 @@ def test_train_spatial_dc(n_epoch=2, log=False):
                               learning_rate_disc=3e-4, loss='MmdMseLoss')
 
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                                 shape=(20, 20),
-                                 sample_shape=(18, 18),
+                                 shape=full_shape,
+                                 sample_shape=sample_shape,
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  max_workers=1)
@@ -171,8 +172,9 @@ def test_train_spatial_dc(n_epoch=2, log=False):
     n_batches = 20
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))
-    batch_handler = BatchHandlerSpatialDC([handler], batch_size=batch_size,
-                                          s_enhance=2, n_batches=n_batches)
+
+    batch_handler = BatchHandlerSpatialDC([handler], batch_size=8, s_enhance=2,
+                                          n_batches=10)
 
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
