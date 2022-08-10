@@ -12,6 +12,7 @@ def test_data_handling_nc_cc():
 
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
     with xr.open_mfdataset(input_files) as fh:
