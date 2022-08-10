@@ -1305,8 +1305,8 @@ class BatchHandlerDC(BatchHandler):
             return batch
         else:
             total_count = self.n_batches * self.batch_size
-            self.norm_temporal_record = self.temporal_sample_record.copy()
-            self.norm_temporal_record /= total_count
+            self.norm_temporal_record = [c / total_count for c
+                                         in self.temporal_sample_record.copy()]
             self.old_temporal_weights = self.temporal_weights.copy()
             raise StopIteration
 

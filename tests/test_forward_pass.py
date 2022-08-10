@@ -42,6 +42,7 @@ def test_forward_pass_nc_cc():
 
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
