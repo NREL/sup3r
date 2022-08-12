@@ -768,15 +768,15 @@ class Sup3rGan(AbstractSup3rGan):
                    .format(self.s_enhance, s_enhance))
             logger.error(msg)
             raise KeyError(msg)
-        if self.s_enhance is None:
-            self.meta['s_enhance'] = s_enhance
+        if self.t_enhance is None:
+            self.meta['t_enhance'] = t_enhance
         elif self.t_enhance != t_enhance:
             msg = ('GAN was previously trained on with t_enhance={} but '
                    'received new t_enhance={}'
                    .format(self.t_enhance, t_enhance))
             logger.error(msg)
             raise KeyError(msg)
-        if self.s_enhance is None:
+        if self.smoothing is None:
             self.meta['smoothing'] = smoothing
         elif self.smoothing != smoothing:
             msg = ('GAN was previously trained on with smoothing={} but '

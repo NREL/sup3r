@@ -480,8 +480,8 @@ class ForwardPassStrategy(InputMixIn):
     stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths, model_args, s_enhance, t_enhance,
-                 fwp_chunk_shape, spatial_pad, temporal_pad,
+    def __init__(self, file_paths, model_args, fwp_chunk_shape,
+                 spatial_pad, temporal_pad,
                  temporal_slice=slice(None),
                  model_class='Sup3rGan',
                  target=None, shape=None,
@@ -627,18 +627,6 @@ class ForwardPassStrategy(InputMixIn):
             extract_workers = compute_workers = max_workers
             load_workers = pass_workers = output_workers = max_workers
 
-        self.exo_kwargs = exo_kwargs
-        if self.exo_kwargs is not None:
-            self.s_enhancements = self.exo_kwargs.get('s_enhancements',
-                                                      [s_enhance])
-            self.t_enhancements = self.exo_kwargs.get('t_enhancements',
-                                                      [t_enhance])
-        else:
-            self.s_enhancements = [s_enhance]
-            self.t_enhancements = [t_enhance]
-
-        self.s_enhance = np.product(self.s_enhancements)
-        self.t_enhance = np.product(self.t_enhancements)
         self._i = 0
         self.file_paths = file_paths
         self.model_args = model_args
@@ -657,6 +645,7 @@ class ForwardPassStrategy(InputMixIn):
         self.compute_workers = compute_workers
         self.load_workers = load_workers
         self.output_workers = output_workers
+        self.exo_kwargs = exo_kwargs
         self._cache_pattern = cache_pattern
         self._input_handler_name = input_handler
         self._spatial_coarsen = spatial_coarsen
@@ -667,6 +656,30 @@ class ForwardPassStrategy(InputMixIn):
         self._out_files = None
         self._file_ids = None
 
+        model_class = getattr(sup3r.models, self.model_class, None)
+        if isinstance(self.model_args, str):
+            self.model_args = [self.model_args]
+
+        if model_class is None:
+            msg = ('Could not load requested model class "{}" from '
+                   'sup3r.models, Make sure you typed in the model class '
+                   'name correctly.'.format(self.model_class))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        self.model = model_class.load(*self.model_args, verbose=False)
+        if hasattr(self.model, 'models'):
+            self.s_enhancements = [model.s_enhance for model
+                                   in self.model.models]
+            self.t_enhancements = [model.t_enhance for model
+                                   in self.model.models]
+        else:
+            self.s_enhancements = [self.model.s_enhance]
+            self.t_enhancements = [self.model.t_enhance]
+
+        self.s_enhance = np.product(self.s_enhancements)
+        self.t_enhance = np.product(self.t_enhancements)
+
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
                                             self.raw_time_index,
                                             self.temporal_slice,
@@ -675,9 +688,6 @@ class ForwardPassStrategy(InputMixIn):
                                             self.t_enhancements,
                                             self.spatial_pad,
                                             self.temporal_pad)
-
-        if isinstance(self.model_args, str):
-            self.model_args = [self.model_args]
 
         logger.info('Initializing ForwardPassStrategy for '
                     f'{self.input_file_info}')
