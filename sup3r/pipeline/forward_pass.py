@@ -668,15 +668,9 @@ class ForwardPassStrategy(InputMixIn):
             raise KeyError(msg)
 
         self.model = model_class.load(*self.model_args, verbose=False)
-        if hasattr(self.model, 'models'):
-            self.s_enhancements = [model.s_enhance for model
-                                   in self.model.models]
-            self.t_enhancements = [model.t_enhance for model
-                                   in self.model.models]
-        else:
-            self.s_enhancements = [self.model.s_enhance]
-            self.t_enhancements = [self.model.t_enhance]
-
+        models = getattr(self.model, 'models', [self.model])
+        self.s_enhancements = [model.s_enhance for model in models]
+        self.t_enhancements = [model.t_enhance for model in models]
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
 
