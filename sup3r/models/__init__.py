@@ -3,5 +3,6 @@
 from .base import Sup3rGan
 from .solar_cc import SolarCC
 from .data_centric import Sup3rGanDC
-from .multi_step import MultiStepGan, SpatialThenTemporalGan
+from .multi_step import (MultiStepGan, SpatialThenTemporalGan,
+                         MultiStepSurfaceMetGan)
 from .surface import SurfaceSpatialMetModel

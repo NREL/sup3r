@@ -2,9 +2,12 @@
 """
 Special models for surface meteorological data.
 """
+import logging
 import numpy as np
 from PIL import Image
 from sup3r.models.abstract import AbstractSup3rGan
+
+logger = logging.getLogger(__name__)
 
 
 class SurfaceSpatialMetModel(AbstractSup3rGan):
@@ -12,39 +15,65 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     humidity
     """
 
-    # Temperature lapse rate: change in degrees C/K per meter
     TEMP_LAPSE = 6.5 / 1000
+    """Temperature lapse rate: change in degrees C/K per meter"""
 
-    # Weights for the relative humidity linear regression model.
     W_DELTA_TEMP = -3.99242830
+    """Weight for the delta-temperature feature for the relative humidity
+    linear regression model."""
+
     W_DELTA_TOPO = -0.01736911
+    """Weight for the delta-topography feature for the relative humidity linear
+    regression model."""
+
+    def __init__(self, temp_lapse=None, w_delta_temp=None, w_delta_topo=None):
+        """
+        Parameters
+        ----------
+        temp_lapse : None | float
+            Temperature lapse rate: change in degrees C/K per meter. Defaults
+            to the cls.TEMP_LAPSE attribute.
+        w_delta_temp : None | float
+            Weight for the delta-temperature feature for the relative humidity
+            linear regression model. Defaults to the cls.W_DELTA_TEMP
+            attribute.
+        w_delta_topo : None | float
+            Weight for the delta-topography feature for the relative humidity
+            linear regression model. Defaults to the cls.W_DELTA_TOPO
+            attribute.
+        """
+        self._temp_lapse = temp_lapse or self.TEMP_LAPSE
+        self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
+        self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
 
     @classmethod
-    def load(cls, model_dir=None, verbose=False):
+    def load(cls, model_kwargs=None, verbose=False):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
         Parameters
         ----------
-        model_dir
-            Directory to load GAN model files from.
+        model_kwargs : None | dict
+            Optional kwargs to initialize SurfaceSpatialMetModel
         verbose : bool
             Flag to log information about the loaded model.
 
         Returns
         -------
         out : SurfaceSpatialMetModel
-            Returns a pretrained gan model that was previously saved to
-            model_dir
+            Returns an initialized SurfaceSpatialMetModel
         """
+
+        model_kwargs = model_kwargs or {}
+        model = cls(**model_kwargs)
 
         if verbose:
             logger.info('Loading SurfaceSpatialMetModel with temp lapse {}, '
-                        'w_delta_temp {}, and w_delta_topo'
-                        .format(cls.TEMP_LAPSE, cls.W_DELTA_TEMP,
-                                cls.W_DELTA_TOPO))
+                        'w_delta_temp {}, and w_delta_topo {}'
+                        .format(model._temp_lapse, model._w_delta_temp,
+                                model._w_delta_topo))
 
-        return cls()
+        return model
 
     @staticmethod
     def get_s_enhance(topo_lr, topo_hr):
@@ -99,8 +128,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         out = np.array(im)
         return out
 
-    @classmethod
-    def downscale_temp(cls, single_lr_temp, topo_lr, topo_hr, s_enhance):
+    def downscale_temp(self, single_lr_temp, topo_lr, topo_hr, s_enhance):
         """Downscale temperature raster data at a single observation.
 
         This model uses a simple lapse rate that adjusts temperature as a
@@ -131,14 +159,13 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        lower_data = single_lr_temp + topo_lr * cls.TEMP_LAPSE
-        hi_res_temp = cls.downscale_arr(lower_data, s_enhance)
-        hi_res_temp -= topo_hr * cls.TEMP_LAPSE
+        lower_data = single_lr_temp + topo_lr * self._temp_lapse
+        hi_res_temp = self.downscale_arr(lower_data, s_enhance)
+        hi_res_temp -= topo_hr * self._temp_lapse
 
         return hi_res_temp
 
-    @classmethod
-    def downscale_rh(cls, single_lr_rh, single_lr_temp, single_hr_temp,
+    def downscale_rh(self, single_lr_rh, single_lr_temp, single_hr_temp,
                      topo_lr, topo_hr, s_enhance):
         """Downscale relative humidity raster data at a single observation.
 
@@ -187,19 +214,20 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        interp_rh = cls.downscale_arr(single_lr_rh, s_enhance)
-        interp_temp = cls.downscale_arr(single_lr_temp, s_enhance)
-        interp_topo = cls.downscale_arr(topo_lr, s_enhance)
+        interp_rh = self.downscale_arr(single_lr_rh, s_enhance)
+        interp_temp = self.downscale_arr(single_lr_temp, s_enhance)
+        interp_topo = self.downscale_arr(topo_lr, s_enhance)
 
         delta_temp = single_hr_temp - interp_temp
         delta_topo = topo_hr - interp_topo
 
         hi_res_rh = (interp_rh
-                     + cls.W_DELTA_TEMP * delta_temp
-                     + cls.W_DELTA_TOPO * delta_topo)
+                     + self._w_delta_temp * delta_temp
+                     + self._w_delta_topo * delta_topo)
 
         return hi_res_rh
 
+    # pylint: disable=unused-argument
     def generate(self, low_res, norm_in=False, un_norm_out=False,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -231,6 +259,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             (n_obs, spatial_1, spatial_2, 2), Where the feature channel is:
             [temperature_2m, relativehumidity_2m]
         """
+
         assert isinstance(exogenous_data, (list, tuple))
         assert len(exogenous_data) == 2
         topo_lr = exogenous_data[0]
@@ -265,9 +294,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
-        return {'temp_lapse_rate': self.TEMP_LAPSE,
-                'weight_for_delta_temp': self.W_DELTA_TEMP,
-                'weight_for_delta_topo': self.W_DELTA_TOPO,
+        return {'temp_lapse_rate': self._temp_lapse,
+                'weight_for_delta_temp': self._w_delta_temp,
+                'weight_for_delta_topo': self._w_delta_topo,
                 'training_features': self.training_features,
                 'output_features': self.output_features,
                 'class': self.__class__.__name__,

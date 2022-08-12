@@ -3,6 +3,7 @@ NREL-rex>=0.2.71
 NREL-phygnn>=0.0.20
 NREL-rev
 pytest>=5.2
+pillow
 tensorflow>2.4
 xarray
 netcdf4>=1.5.8
