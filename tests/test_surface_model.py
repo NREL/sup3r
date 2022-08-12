@@ -32,6 +32,11 @@ def get_inputs(s_enhance):
     rh = np.expand_dims(rh.reshape(shape), -1)
 
     true_hi_res = np.concatenate((temp, rh), axis=3)
+    true_hi_res = [true_hi_res[slice(i * 24, 24 + i * 24)]
+                   for i in range(int(len(ti) // 24))]
+    true_hi_res = [np.expand_dims(np.mean(thr, axis=0), 0)
+                   for thr in true_hi_res]
+    true_hi_res = np.concatenate(true_hi_res, 0)
     low_res = spatial_coarsening(true_hi_res, s_enhance, obs_axis=True)
     topo_hr = meta['elevation'].values.reshape(100, 100)
     topo_lr = spatial_coarsening(np.expand_dims(topo_hr, -1), s_enhance,
@@ -53,11 +58,11 @@ def test_surface_model(s_enhance=5):
 
     # high res temperature should have very low bias and MAE < 1C
     assert np.abs(diff[..., 0].mean()) < 1e-6
-    assert np.abs(diff[..., 0]).mean() < 1
+    assert np.abs(diff[..., 0]).mean() < 5
 
     # high res relative humidity should have very low bias and MAE < 3%
     assert np.abs(diff[..., 1].mean()) < 1e-6
-    assert np.abs(diff[..., 1]).mean() < 3
+    assert np.abs(diff[..., 1]).mean() < 2
 
 
 def test_multi_step_surface():
@@ -83,10 +88,10 @@ def test_multi_step_surface():
         low_res, _, topo_lr, topo_hr = get_inputs(2)
 
         # reduce data because too big for tests
-        low_res = low_res[:12, :4, :4]
+        low_res = low_res[:, :4, :4]
         topo_lr = topo_lr[:4, :4]
         topo_hr = topo_hr[:8, :8]
 
         hi_res = ms_model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
 
-        assert hi_res.shape == (1, 24, 24, 48, 2)
+        assert hi_res.shape == (1, 24, 24, 28, 2)
