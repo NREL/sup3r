@@ -442,6 +442,8 @@ class BatchHandler:
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
+        self.smoothed_features = [f for f in self.training_features
+                                  if f not in self.smoothing_ignore]
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
@@ -736,8 +738,7 @@ class BatchHandler:
             Feature stdev
         """
         istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
-        istd = istd**2
-        return np.nanmean(istd)
+        return np.nanmean(istd**2)
 
     def get_stats_for_feature(self, feature):
         """Get standard deviation and mean for requested feature

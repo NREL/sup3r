@@ -1039,10 +1039,11 @@ class FeatureHandler:
             from input features
 
         """
-        old_keys = [f for f in data[chunk_number]
-                    if f not in all_features]
-        for k in old_keys:
-            data[chunk_number].pop(k)
+        if data:
+            old_keys = [f for f in data[chunk_number]
+                        if f not in all_features]
+            for k in old_keys:
+                data[chunk_number].pop(k)
 
     @classmethod
     def serial_extract(cls, file_paths, raster_index, time_chunks,
@@ -1324,7 +1325,9 @@ class FeatureHandler:
                 interval = np.int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     v = futures[future]
-                    data[v['chunk']][v['feature']] = future.result()
+                    chunk_idx = v['chunk']
+                    data[chunk_idx] = data.get(chunk_idx, {})
+                    data[chunk_idx][v['feature']] = future.result()
                     if interval > 0 and i % interval == 0:
                         logger.debug(f'{i+1} out of {len(futures)} feature '
                                      'chunks computed')
@@ -1351,11 +1354,12 @@ class FeatureHandler:
         dict
             Dictionary of arrays with only needed features
         """
-        inputs = cls.get_inputs_recursive(f, handle_features)
         tmp = {}
-        for r in inputs:
-            if r in data[chunk_number]:
-                tmp[r] = data[chunk_number][r]
+        if data:
+            inputs = cls.get_inputs_recursive(f, handle_features)
+            for r in inputs:
+                if r in data[chunk_number]:
+                    tmp[r] = data[chunk_number][r]
         return tmp
 
     @classmethod

@@ -328,7 +328,8 @@ class Sup3rGan(AbstractSup3rGan):
         logger.info('Set data normalization stdev values: {}'
                     .format(self._stdevs))
 
-    def set_feature_names(self, training_features, output_features):
+    def set_feature_names(self, training_features, output_features,
+                          smoothed_features):
         """Set the list of feature names input/output to/from the generative
         model and the discriminator(s)
 
@@ -338,6 +339,8 @@ class Sup3rGan(AbstractSup3rGan):
             List of features names on the input side of the GAN
         output_features : list
             List of feature names output by the GAN
+        smoothed_features : list
+            List of smoothed feature names on the input side of the GAN
         """
 
         if self.training_features is None:
@@ -355,6 +358,15 @@ class Sup3rGan(AbstractSup3rGan):
             msg = ('GAN was previously trained to output features {} but '
                    'received data to output new features {}'
                    .format(self.output_features, output_features))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        if self.smoothed_features is None:
+            self.meta['smoothed_features'] = smoothed_features
+        elif self.smoothed_features != smoothed_features:
+            msg = ('GAN was previously trained on smoothed features {} but '
+                   'received new features {}'
+                   .format(self.smoothed_features, smoothed_features))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -718,10 +730,72 @@ class Sup3rGan(AbstractSup3rGan):
         return self._meta
 
     @property
+    def s_enhance(self):
+        """Factor by which model will enhance spatial resolution. Used in
+        model training during high res coarsening"""
+        return self.meta.get('s_enhance', None)
+
+    @property
+    def t_enhance(self):
+        """Factor by which model will enhance temporal resolution. Used in
+        model training during high res coarsening"""
+        return self.meta.get('t_enhance', None)
+
+    @property
+    def smoothing(self):
+        """Value of smoothing parameter used in gaussian filtering of coarsened
+        high res data."""
+        return self.meta.get('smoothing', None)
+
+    def set_training_data_params(self, s_enhance, t_enhance, smoothing):
+        """Set parameters used for training data, such as s_enhance, t_enhance,
+        smoothing
+
+        Parameters
+        ----------
+        s_enhance : int
+            Spatial enhancement factor
+        t_enhance : int
+            Temporal enhancement factor
+        smoothing : float
+            Smoothing parameter used in gaussian filtering of coarsened data
+        """
+        if self.s_enhance is None:
+            self.meta['s_enhance'] = s_enhance
+        elif self.s_enhance != s_enhance:
+            msg = ('GAN was previously trained on with s_enhance={} but '
+                   'received new s_enhance={}'
+                   .format(self.s_enhance, s_enhance))
+            logger.error(msg)
+            raise KeyError(msg)
+        if self.s_enhance is None:
+            self.meta['s_enhance'] = s_enhance
+        elif self.t_enhance != t_enhance:
+            msg = ('GAN was previously trained on with t_enhance={} but '
+                   'received new t_enhance={}'
+                   .format(self.t_enhance, t_enhance))
+            logger.error(msg)
+            raise KeyError(msg)
+        if self.s_enhance is None:
+            self.meta['smoothing'] = smoothing
+        elif self.smoothing != smoothing:
+            msg = ('GAN was previously trained on with smoothing={} but '
+                   'received new smoothing={}'
+                   .format(self.smoothing, smoothing))
+            logger.error(msg)
+            raise KeyError(msg)
+
+    @property
     def training_features(self):
         """Get the list of input feature names that the generative model was
         trained on."""
         return self.meta.get('training_features', None)
+
+    @property
+    def smoothed_features(self):
+        """Get the list of smoothed input feature names that the generative
+        model was trained on."""
+        return self.meta.get('smoothed_features', None)
 
     @property
     def output_features(self):
@@ -1428,7 +1502,11 @@ class Sup3rGan(AbstractSup3rGan):
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_feature_names(batch_handler.training_features,
-                               batch_handler.output_features)
+                               batch_handler.output_features,
+                               batch_handler.smoothed_features)
+        self.set_training_data_params(batch_handler.s_enhance,
+                                      batch_handler.t_enhance,
+                                      batch_handler.smoothing)
 
         epochs = list(range(n_epoch))
 

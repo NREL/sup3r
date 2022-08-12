@@ -242,13 +242,12 @@ class InputMixIn:
         _grid_shape: tuple
             (rows, cols) grid size.
         """
-        if self._grid_shape is None:
-            check = (self.raster_file is not None
-                     and os.path.exists(self.raster_file))
-            if check:
-                self._grid_shape = get_raster_shape(self.raster_index)
-            else:
-                self._target, self._grid_shape = self.full_domain
+        check = (self.raster_file is not None
+                 and os.path.exists(self.raster_file))
+        if check:
+            self._grid_shape = get_raster_shape(self.raster_index)
+        elif self._grid_shape is None:
+            self._target, self._grid_shape = self.full_domain
         return self._grid_shape
 
     @grid_shape.setter
@@ -1316,16 +1315,18 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        logger.info(f'Starting extraction of {self.extract_features} using '
-                    f'{len(time_chunks)} time_chunks. ')
-        self._raw_data = self.parallel_extract(self.file_paths,
-                                               self.raster_index,
-                                               time_chunks,
-                                               self.extract_features,
-                                               self.extract_workers)
+        self._raw_data = {}
+        if self.extract_features:
+            logger.info(f'Starting extraction of {self.extract_features} using'
+                        f' {len(time_chunks)} time_chunks. ')
+            self._raw_data = self.parallel_extract(self.file_paths,
+                                                   self.raster_index,
+                                                   time_chunks,
+                                                   self.extract_features,
+                                                   self.extract_workers)
 
-        logger.info(f'Finished extracting {self.extract_features} for '
-                    f'{self.input_file_info}')
+            logger.info(f'Finished extracting {self.extract_features} for '
+                        f'{self.input_file_info}')
         if self.derive_features:
             logger.info(f'Starting computation of {self.derive_features}')
             self._raw_data = self.parallel_compute(self._raw_data,
