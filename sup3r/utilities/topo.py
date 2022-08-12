@@ -183,6 +183,8 @@ class TopoExtract:
             elev = elev.reshape(self.hr_shape)
             hr_elev.append(elev)
         hr_elev = np.dstack(hr_elev).mean(axis=-1)
+        logger.info('Finished mapping topo raster from {}'
+                    .format(self._topo_source_h5))
         return hr_elev
 
     @classmethod
@@ -243,7 +245,5 @@ class TopoExtract:
         te = cls(file_paths, topo_source_h5, s_enhance, agg_factor,
                  target=target, shape=shape, raster_file=raster_file,
                  max_delta=max_delta, input_handler=input_handler)
-        logger.info('Finished mapping topo raster from {}'
-                    .format(topo_source_h5))
 
         return te.hr_elev

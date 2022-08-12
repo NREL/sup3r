@@ -46,6 +46,10 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
 
+    def __len__(self):
+        """Get number of model steps (mimic MultiStepGan)"""
+        return 1
+
     @classmethod
     def load(cls, model_kwargs=None, verbose=False):
         """Load the GAN with its sub-networks from a previously saved-to output
@@ -262,8 +266,13 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
 
         assert isinstance(exogenous_data, (list, tuple))
         assert len(exogenous_data) == 2
+
         topo_lr = exogenous_data[0]
         topo_hr = exogenous_data[1]
+        logger.debug('SurfaceSpatialMetModel received low/high res topo '
+                     'shapes of {} and {}'
+                     .format(topo_lr.shape, topo_hr.shape))
+
         assert isinstance(topo_lr, np.ndarray)
         assert isinstance(topo_hr, np.ndarray)
         assert len(topo_lr.shape) == 2
@@ -276,6 +285,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                     int(low_res.shape[1] * s_enhance),
                     int(low_res.shape[2] * s_enhance),
                     2)
+        logger.debug('SurfaceSpatialMetModel calculated s_enhance of {} '
+                     'downscaling low-res shape {} to high-res shape {}'
+                     .format(s_enhance, low_res.shape, hr_shape))
 
         hi_res = np.zeros(hr_shape, dtype=np.float32)
         for iobs in range(len(low_res)):

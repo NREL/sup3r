@@ -545,6 +545,16 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
 
     SPATIAL_MODEL = SurfaceSpatialMetModel
 
+    @property
+    def meta(self):
+        """Get a tuple of meta data dictionaries for all models
+
+        Returns
+        -------
+        tuple
+        """
+        return (self.spatial_models.meta,) + self.temporal_models.meta
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -586,6 +596,15 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         assert exogenous_data is not None, msg
         assert isinstance(exogenous_data, (list, tuple)), msg
         assert len(exogenous_data) == 2, msg
+
+        # SurfaceSpatialMetModel needs a 2D array for exo topography input
+        for i, i_exo in enumerate(exogenous_data):
+            if len(i_exo.shape) == 3:
+                exogenous_data[i] = i_exo[:, :, 0]
+            elif len(i_exo.shape) == 4:
+                exogenous_data[i] = i_exo[0, :, :, 0]
+            elif len(i_exo.shape) == 5:
+                exogenous_data[i] = i_exo[0, :, :, 0, 0]
 
         try:
             hi_res = self.spatial_models.generate(

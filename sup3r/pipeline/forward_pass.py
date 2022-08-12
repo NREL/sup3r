@@ -1151,14 +1151,14 @@ class ForwardPass:
 
         for i, arr in enumerate(exo_data):
             if arr is not None:
-                check = isinstance(model, sup3r.models.SpatialThenTemporalGan)
+                check = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
                 check = check and (i < len(model.spatial_models))
                 if check:
                     exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                 else:
                     exo_data[i] = np.expand_dims(arr, axis=0)
 
-        if isinstance(model, sup3r.models.SpatialThenTemporalGan):
+        if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
             i_lr_t = 0
             i_lr_s = 1
             data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
@@ -1287,7 +1287,7 @@ class ForwardPass:
         """Run forward passes in parallel"""
         futures = {}
         now = dt.now()
-        logger.info('Starting thread pool with {} workers'
+        logger.info('Starting spawn process pool with {} workers'
                     .format(max_workers))
         with SpawnProcessPool(max_workers=max_workers) as exe:
             for i, (sh, slp, shc) in enumerate(zip(
