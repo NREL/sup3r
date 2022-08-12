@@ -39,6 +39,8 @@ def test_qa_nc():
     _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
     model.meta['training_features'] = TRAIN_FEATURES
     model.meta['output_features'] = MODEL_OUT_FEATURES
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
@@ -47,7 +49,6 @@ def test_qa_nc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
         strategy = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
             target=TARGET, shape=SHAPE,
@@ -119,6 +120,8 @@ def test_qa_h5():
     _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
     model.meta['training_features'] = TRAIN_FEATURES
     model.meta['output_features'] = MODEL_OUT_FEATURES
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
@@ -127,7 +130,6 @@ def test_qa_h5():
         out_files = os.path.join(td, 'out_{file_id}.h5')
         strategy = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
             target=TARGET, shape=SHAPE,

@@ -63,9 +63,9 @@ def test_multi_step_norm(norm_option):
         model2.set_norm_stats([0.1, 0.8], [0.04, 0.02])
         model3.set_norm_stats([0.1, 0.8], [0.04, 0.02])
 
-    model1.set_feature_names(FEATURES, FEATURES)
-    model2.set_feature_names(FEATURES, FEATURES)
-    model3.set_feature_names(FEATURES, FEATURES)
+    model1.set_feature_names(FEATURES, FEATURES, [])
+    model2.set_feature_names(FEATURES, FEATURES, [])
+    model3.set_feature_names(FEATURES, FEATURES, [])
 
     _ = model1.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     _ = model2.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
@@ -107,8 +107,8 @@ def test_spatial_then_temporal_gan():
 
     model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
     model2.set_norm_stats([0.3, 0.9], [0.02, 0.07])
-    model1.set_feature_names(FEATURES, FEATURES)
-    model2.set_feature_names(FEATURES, FEATURES)
+    model1.set_feature_names(FEATURES, FEATURES, [])
+    model2.set_feature_names(FEATURES, FEATURES, [])
 
     with tempfile.TemporaryDirectory() as td:
         fp1 = os.path.join(td, 'model1')
