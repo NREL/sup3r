@@ -595,6 +595,7 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
                'entries for low and high res topography inputs.')
         assert exogenous_data is not None, msg
         assert isinstance(exogenous_data, (list, tuple)), msg
+        exogenous_data = [d for d in exogenous_data if d is not None]
         assert len(exogenous_data) == 2, msg
 
         # SurfaceSpatialMetModel needs a 2D array for exo topography input

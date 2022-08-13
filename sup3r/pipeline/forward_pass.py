@@ -1006,12 +1006,17 @@ class ForwardPass:
         self.exo_kwargs = kwargs['exo_kwargs']
         self.exo_slices = kwargs['exo_slices']
 
+        self.exogenous_handler = None
+        self.exogenous_data = None
         if self.exo_kwargs is not None:
             exo_features = self.exo_kwargs.get('features', [])
             self.features = [f for f in self.features if f not in exo_features]
-            self.exogenous_data = ExogenousDataHandler(**self.exo_kwargs).data
-        else:
-            self.exogenous_data = None
+            self.exogenous_handler = ExogenousDataHandler(**self.exo_kwargs)
+            self.exogenous_data = self.exogenous_handler.data
+            shapes = [None if d is None else d.shape
+                      for d in self.exogenous_data]
+            logger.info('Got exogenous_data of length {} with shapes: {}'
+                        .format(len(self.exogenous_data), shapes))
 
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
@@ -1092,10 +1097,21 @@ class ForwardPass:
         if self.exogenous_data is not None:
             for arr, exo_slice in zip(self.exogenous_data, exogenous_slices):
                 if arr is not None:
-                    shape = (*arr.shape[:2], chunk_shape[2], arr.shape[-1])
-                    exo_data.append(np.resize(arr, shape)[tuple(exo_slice)])
-                else:
-                    exo_data.append(None)
+                    og_shape = arr.shape
+                    arr = np.expand_dims(arr, axis=2)
+                    arr = np.repeat(arr, chunk_shape[2], axis=2)
+                    arr = arr[tuple(exo_slice)]
+
+                    target_shape = (arr.shape[0], arr.shape[1], chunk_shape[2],
+                                    arr.shape[-1])
+                    msg = ('Target shape for exogenous data in forward pass '
+                           'chunk was {}, but something went wrong and i '
+                           'resized original data shape from {} to {}'
+                           .format(target_shape, og_shape, arr.shape))
+                    assert arr.shape == target_shape, msg
+
+                exo_data.append(arr)
+
         return exo_data
 
     @classmethod

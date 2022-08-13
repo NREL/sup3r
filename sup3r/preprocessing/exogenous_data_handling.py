@@ -82,13 +82,13 @@ class ExogenousDataHandler:
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={s_enhancements} and '
                f'agg_factors={agg_factors}.')
-        assert len(s_enhancements) == len(agg_factors), msg
+        assert len(self.s_enhancements) == len(self.agg_factors), msg
         msg = ('Need to provide an integer enhancement factor for each model'
                'step. If the step is temporal enhancement then s_enhance=1')
-        assert not any(s is None for s in s_enhancements), msg
-        for i in range(len(s_enhancements)):
-            s_enhance = np.product(s_enhancements[:i + 1])
-            agg_factor = agg_factors[i]
+        assert not any(s is None for s in self.s_enhancements), msg
+        for i in range(len(self.s_enhancements)):
+            s_enhance = np.product(self.s_enhancements[:i + 1])
+            agg_factor = self.agg_factors[i]
             fdata = []
             if i in exo_steps:
                 for f in features:
