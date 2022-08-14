@@ -200,7 +200,7 @@ class ForwardPassSlicer:
             the second spatial enhancement step.
         """
         if self._s_exo_slices is None:
-            self._s_exo_slices = [self.s_lr_pad_slices]
+            self._s_exo_slices = []
             for s, _ in enumerate(self.s_enhancements):
                 s_enhance = np.product([s for s in self.s_enhancements[:s + 1]
                                         if s is not None])
@@ -218,7 +218,9 @@ class ForwardPassSlicer:
                         pad_slice = (s1_pad_slices[i], s2_pad_slices[j],
                                      slice(None), slice(None))
                         exo_slices.append(pad_slice)
+
                 self._s_exo_slices.append(exo_slices)
+
         return np.array(self._s_exo_slices)
 
     @property
