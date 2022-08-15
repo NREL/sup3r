@@ -3,6 +3,7 @@
 Special models for surface meteorological data.
 """
 import logging
+from fnmatch import fnmatch
 import numpy as np
 from PIL import Image
 from warnings import warn
@@ -12,8 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class SurfaceSpatialMetModel(AbstractSup3rGan):
-    """Model to spatially downscale daily-average near-surface temperature and
-    humidity
+    """Model to spatially downscale daily-average near-surface temperature,
+    relative humidity, and pressure
+
+    Note that this model can also operate on temperature_*m,
+    relativehumidity_*m, and pressure_*m datasets that are not
+    strictly at the surface but could be near hub height.
     """
 
     TEMP_LAPSE = 6.5 / 1000
@@ -35,11 +40,19 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, s_enhance, temp_lapse=None, w_delta_temp=None,
+    def __init__(self, features, s_enhance, temp_lapse=None, w_delta_temp=None,
                  w_delta_topo=None, pres_div=None, pres_exp=None):
         """
         Parameters
         ----------
+        features : list
+            List of feature names that this model will operate on for both
+            input and output. This must match the feature axis ordering in the
+            array input to generate(). Typically this is a list containing:
+            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
+            contain multiple instances of each variable at different heights.
+            relativehumidity_*m entries must have corresponding temperature_*m
+            entires at the same hub height.
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
         temp_lapse : None | float
@@ -61,6 +74,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             to the cls.PRES_EXP attribute.
         """
 
+        self._features = features
         self._s_enhance = s_enhance
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
@@ -69,16 +83,24 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         self._pres_exp = pres_div or self.PRES_EXP
 
     def __len__(self):
-        """Get number of model steps (mimic MultiStepGan)"""
+        """Get number of model steps (match interface of MultiStepGan)"""
         return 1
 
     @classmethod
-    def load(cls, s_enhance, verbose=False, **kwargs):
+    def load(cls, features, s_enhance, verbose=False, **kwargs):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
         Parameters
         ----------
+        features : list
+            List of feature names that this model will operate on for both
+            input and output. This must match the feature axis ordering in the
+            array input to generate(). Typically this is a list containing:
+            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
+            contain multiple instances of each variable at different heights.
+            relativehumidity_*m entries must have corresponding temperature_*m
+            entires at the same hub height.
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
         verbose : bool
@@ -92,7 +114,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             Returns an initialized SurfaceSpatialMetModel
         """
 
-        model = cls(s_enhance, **kwargs)
+        model = cls(features, s_enhance, **kwargs)
 
         if verbose:
             logger.info('Loading SurfaceSpatialMetModel with meta data: {}'
@@ -130,6 +152,58 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert se0 == se1, 'Calculated s_enhance does not match along axis'
 
         return int(se0)
+
+    @property
+    def feature_inds_temp(self):
+        """Get the feature index values for the temperature features."""
+        inds = [i for i, name in enumerate(self._features)
+                if fnmatch(name, 'temperature_*')]
+        return inds
+
+    @property
+    def feature_inds_pres(self):
+        """Get the feature index values for the pressure features."""
+        inds = [i for i, name in enumerate(self._features)
+                if fnmatch(name, 'pressure_*')]
+        return inds
+
+    @property
+    def feature_inds_rh(self):
+        """Get the feature index values for the relative humidity features."""
+        inds = [i for i, name in enumerate(self._features)
+                if fnmatch(name, 'relativehumidity_*')]
+        return inds
+
+    def _get_temp_ind(self, idf_rh):
+        """Get the feature index value for the temperature feature
+        corresponding to a relative humidity feature at the same hub height.
+
+        Parameters
+        ----------
+        idf_rh : int
+            Index in the feature list for a relativehumidity_*m feature
+
+        Returns
+        -------
+        idf_temp : int
+            Index in the feature list for a temperature_*m feature with the
+            same hub height as the idf_rh input.
+        """
+        name_rh = self._features[idf_rh]
+        suffix = name_rh.split('_')[-1]
+        idf_temp = None
+        for i in self.feature_inds_temp:
+            if self._features[i].endswith(suffix):
+                idf_temp = i
+                break
+
+        if idf_temp is None:
+            msg = ('Could not find temperature feature corresponding to '
+                   '"{}" in feature list: {}'.format(name_rh, self._features))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        return idf_temp
 
     @staticmethod
     def downscale_arr(arr, s_enhance, method=Image.Resampling.BILINEAR):
@@ -381,13 +455,23 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
 
         hi_res = np.zeros(hr_shape, dtype=np.float32)
         for iobs in range(len(low_res)):
-            hi_res[iobs, :, :, 0] = self.downscale_temp(low_res[iobs, :, :, 0],
-                                                        topo_lr, topo_hr)
+            for idf_temp in self.feature_inds_temp:
+                _tmp = self.downscale_temp(low_res[iobs, :, :, idf_temp],
+                                           topo_lr, topo_hr)
+                hi_res[iobs, :, :, idf_temp] = _tmp
 
-            hi_res[iobs, :, :, 1] = self.downscale_rh(low_res[iobs, :, :, 1],
-                                                      low_res[iobs, :, :, 0],
-                                                      hi_res[iobs, :, :, 0],
-                                                      topo_lr, topo_hr)
+            for idf_pres in self.feature_inds_pres:
+                _tmp = self.downscale_pres(low_res[iobs, :, :, idf_pres],
+                                           topo_lr, topo_hr)
+                hi_res[iobs, :, :, idf_pres] = _tmp
+
+            for idf_rh in self.feature_inds_rh:
+                idf_temp = self._get_temp_ind(idf_rh)
+                _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
+                                         low_res[iobs, :, :, idf_temp],
+                                         hi_res[iobs, :, :, idf_temp],
+                                         topo_lr, topo_hr)
+                hi_res[iobs, :, :, idf_rh] = _tmp
 
         return hi_res
 
@@ -414,10 +498,10 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         Note that topography needs to be passed into generate() as an exogenous
         data input.
         """
-        return ['temperature_2m', 'relativehumidity_2m', 'topography']
+        return self._features
 
     @property
     def output_features(self):
         """Get the list of output feature names that the generative model
         outputs"""
-        return ['temperature_2m', 'relativehumidity_2m']
+        return self._features
