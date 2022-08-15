@@ -14,8 +14,8 @@ from sup3r.models.surface import SurfaceSpatialMetModel
 from sup3r.models.multi_step import MultiStepSurfaceMetGan
 from sup3r.utilities.utilities import spatial_coarsening
 
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_temp_rh.h5')
-FEATURES_W = ['temperature_2m', 'relativehumidity_2m']
+INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
+FEATURES = ['temperature_2m', 'relativehumidity_2m', 'pressure_0m']
 
 
 def get_inputs(s_enhance):
@@ -24,14 +24,16 @@ def get_inputs(s_enhance):
     with Resource(INPUT_FILE_W) as res:
         ti = res.time_index
         meta = res.meta
-        temp = res[FEATURES_W[0]]
-        rh = res[FEATURES_W[1]]
+        temp = res[FEATURES[0]]
+        rh = res[FEATURES[1]]
+        pres = res[FEATURES[2]]
 
     shape = (len(ti), 100, 100)
     temp = np.expand_dims(temp.reshape(shape), -1)
     rh = np.expand_dims(rh.reshape(shape), -1)
+    pres = np.expand_dims(pres.reshape(shape), -1)
 
-    true_hi_res = np.concatenate((temp, rh), axis=3)
+    true_hi_res = np.concatenate((temp, rh, pres), axis=3)
     true_hi_res = [true_hi_res[slice(i * 24, 24 + i * 24)]
                    for i in range(int(len(ti) // 24))]
     true_hi_res = [np.expand_dims(np.mean(thr, axis=0), 0)
@@ -51,7 +53,7 @@ def test_surface_model(s_enhance=5):
 
     low_res, true_hi_res, topo_lr, topo_hr = get_inputs(s_enhance)
 
-    model = SurfaceSpatialMetModel.load(s_enhance=s_enhance)
+    model = SurfaceSpatialMetModel.load(features=FEATURES, s_enhance=s_enhance)
     hi_res = model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
 
     diff = true_hi_res - hi_res
@@ -64,24 +66,43 @@ def test_surface_model(s_enhance=5):
     assert np.abs(diff[..., 1].mean()) < 1e-6
     assert np.abs(diff[..., 1]).mean() < 2
 
+    # high res pressure should have very low bias and MAE < 200 Pa
+    assert np.abs(diff[..., 2].mean()) < 5
+    assert np.abs(diff[..., 2]).mean() < 200
 
-def test_multi_step_surface(s_enhance=2):
+
+def test_multi_step_surface(s_enhance=2, t_enhance=2):
     """Test the multi step surface met model."""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-    model = Sup3rGan(fp_gen, fp_disc)
-    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES_W))))
 
-    model.set_norm_stats([0.3, 0.9], [0.02, 0.07])
-    model.set_feature_names(FEATURES_W, FEATURES_W)
+    config_gen = [
+        {"class": "FlexiblePadding",
+         "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+         "mode": "REFLECT"},
+        {"class": "Conv3D", "filters": 64, "kernel_size": 3, "strides": 1},
+        {"class": "Cropping3D", "cropping": 2},
+        {"alpha": 0.2, "class": "LeakyReLU"},
+        {"class": "SpatioTemporalExpansion", "temporal_mult": t_enhance,
+         "temporal_method": "nearest"},
+        {"class": "FlexiblePadding",
+         "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+         "mode": "REFLECT"},
+        {"class": "Conv3D", "filters": 3, "kernel_size": 3, "strides": 1},
+        {"class": "Cropping3D", "cropping": 2}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model = Sup3rGan(config_gen, fp_disc)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
+
+    model.set_norm_stats([0.3, 0.9, 0.1], [0.02, 0.07, 0.03])
+    model.set_feature_names(FEATURES, FEATURES)
 
     with tempfile.TemporaryDirectory() as td:
         fp = os.path.join(td, 'model')
         model.save(fp)
 
-        ms_model = MultiStepSurfaceMetGan.load(s_enhance, fp)
+        ms_model = MultiStepSurfaceMetGan.load(FEATURES, s_enhance, fp)
 
-        x = np.ones((2, 10, 10, len(FEATURES_W)))
+        x = np.ones((2, 10, 10, len(FEATURES)))
         with pytest.raises(AssertionError):
             ms_model.generate(x)
 
@@ -94,4 +115,9 @@ def test_multi_step_surface(s_enhance=2):
 
         hi_res = ms_model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
 
-        assert hi_res.shape == (1, 24, 24, 28, 2)
+        target_shape = (1,
+                        low_res.shape[1] * s_enhance,
+                        low_res.shape[2] * s_enhance,
+                        low_res.shape[0] * t_enhance,
+                        len(FEATURES))
+        assert hi_res.shape == target_shape

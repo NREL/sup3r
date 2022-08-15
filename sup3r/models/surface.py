@@ -80,7 +80,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
         self._pres_div = pres_div or self.PRES_DIV
-        self._pres_exp = pres_div or self.PRES_EXP
+        self._pres_exp = pres_exp or self.PRES_EXP
 
     def __len__(self):
         """Get number of model steps (match interface of MultiStepGan)"""
@@ -448,7 +448,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         hr_shape = (len(low_res),
                     int(low_res.shape[1] * self._s_enhance),
                     int(low_res.shape[2] * self._s_enhance),
-                    2)
+                    len(self.output_features))
         logger.debug('SurfaceSpatialMetModel with s_enhance of {} '
                      'downscaling low-res shape {} to high-res shape {}'
                      .format(self._s_enhance, low_res.shape, hr_shape))
