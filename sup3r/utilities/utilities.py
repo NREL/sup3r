@@ -841,11 +841,18 @@ def interp_to_level(var_array, lev_array, levels):
     Parameters
     ----------
     var_array : ndarray
-        Array of variable values
+        Array of variable data, for example u-wind in a 4D array of shape
+        (time, vertical, lat, lon)
     lev_array : ndarray
         Array of height or pressure values corresponding to the wrf source data
+        in the same shape as var_array. If this is height and the requested
+        levels are input is a hub height above surface, lev_array should be the
+        geopotential height corresponding to every var_array index relative to
+        the surface elevation (subtract the elevation at the surface from the
+        geopotential height)
     levels : float | list
-        level or levels to interpolate to (e.g. final desired hub heights)
+        level or levels to interpolate to (e.g. final desired hub heights above
+        surface elevation)
 
     Returns
     -------

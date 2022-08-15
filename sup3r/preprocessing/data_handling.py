@@ -465,7 +465,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._extract_features = None
         self._noncached_features = None
         self._raw_features = None
-        self._raw_data = None
+        self._raw_data = {}
         self._time_chunks = None
 
         msg = (f'Initializing DataHandler {self.input_file_info}. '
@@ -507,7 +507,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 warnings.warn(msg)
 
             if any(self.features):
-                self.data = self.extract_data()
+                self.data = self.run_all_data_init()
 
             if cache_pattern is not None:
                 self.cache_data(self.cache_files)
@@ -1294,7 +1294,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         return extract_features
 
-    def extract_data(self):
+    def run_all_data_init(self):
         """Building base 4D data array. Can handle multiple files but assumes
         each file has the same spatial domain
 
@@ -1313,32 +1313,10 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         # split time dimension into smaller slices which can be
         # extracted in parallel
-        time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        self._raw_data = {}
-        if self.extract_features:
-            logger.info(f'Starting extraction of {self.extract_features} using'
-                        f' {len(time_chunks)} time_chunks. ')
-            self._raw_data = self.parallel_extract(self.file_paths,
-                                                   self.raster_index,
-                                                   time_chunks,
-                                                   self.extract_features,
-                                                   self.extract_workers)
 
-            logger.info(f'Finished extracting {self.extract_features} for '
-                        f'{self.input_file_info}')
-        if self.derive_features:
-            logger.info(f'Starting computation of {self.derive_features}')
-            self._raw_data = self.parallel_compute(self._raw_data,
-                                                   self.file_paths,
-                                                   self.raster_index,
-                                                   time_chunks,
-                                                   self.derive_features,
-                                                   self.noncached_features,
-                                                   self.handle_features,
-                                                   self.compute_workers)
-            logger.info(f'Finished computing {self.derive_features} for '
-                        f'{self.input_file_info}')
+        self.run_data_extraction()
+        self.run_data_compute()
 
         logger.info('Building final data array')
         self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
@@ -1366,6 +1344,57 @@ class DataHandler(FeatureHandler, InputMixIn):
                     f'{self.input_file_info} in '
                     f'{dt.now() - now}')
         return self.data
+
+    def run_data_extraction(self):
+        """Run the raw dataset extraction process from disk to raw
+        un-manipulated datasets.
+        """
+        logger.info(f'Starting extraction of {self.extract_features} using '
+                    f'{len(self.time_chunks)} time_chunks. ')
+        if self.extract_workers == 1:
+            self._raw_data = self.serial_extract(self.file_paths,
+                                                 self.raster_index,
+                                                 self.time_chunks,
+                                                 self.extract_features)
+
+        else:
+            self._raw_data = self.parallel_extract(self.file_paths,
+                                                   self.raster_index,
+                                                   self.time_chunks,
+                                                   self.extract_features,
+                                                   self.extract_workers)
+
+        logger.info(f'Finished extracting {self.extract_features} for '
+                    f'{self.input_file_info}')
+
+    def run_data_compute(self):
+        """Run the data computation / derivation from raw features to desired
+        features.
+        """
+        if self.derive_features:
+            logger.info(f'Starting computation of {self.derive_features}')
+
+            if self.compute_workers == 1:
+                self._raw_data = self.serial_compute(self._raw_data,
+                                                     self.file_paths,
+                                                     self.raster_index,
+                                                     self.time_chunks,
+                                                     self.derive_features,
+                                                     self.noncached_features,
+                                                     self.handle_features)
+
+            elif self.compute_workers != 1:
+                self._raw_data = self.parallel_compute(self._raw_data,
+                                                       self.file_paths,
+                                                       self.raster_index,
+                                                       self.time_chunks,
+                                                       self.derive_features,
+                                                       self.noncached_features,
+                                                       self.handle_features,
+                                                       self.compute_workers)
+
+            logger.info(f'Finished computing {self.derive_features} for '
+                        f'{self.input_file_info}')
 
     def data_fill(self, t, t_slice, f_index, f):
         """Place single extracted / computed chunk in final data array
