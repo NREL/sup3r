@@ -5,6 +5,7 @@ Special models for surface meteorological data.
 import logging
 import numpy as np
 from PIL import Image
+from warnings import warn
 from sup3r.models.abstract import AbstractSup3rGan
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,14 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     TEMP_LAPSE = 6.5 / 1000
     """Temperature lapse rate: change in degrees C/K per meter"""
 
+    PRES_DIV = 44307.69231
+    """Air pressure scaling equation divisor variable:
+    101325 * (1 - (1 - topo / PRES_DIV)**PRES_EXP)"""
+
+    PRES_EXP = 5.25328
+    """Air pressure scaling equation exponent variable:
+    101325 * (1 - (1 - topo / PRES_DIV)**PRES_EXP)"""
+
     W_DELTA_TEMP = -3.99242830
     """Weight for the delta-temperature feature for the relative humidity
     linear regression model."""
@@ -27,7 +36,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     regression model."""
 
     def __init__(self, s_enhance, temp_lapse=None, w_delta_temp=None,
-                 w_delta_topo=None):
+                 w_delta_topo=None, pres_div=None, pres_exp=None):
         """
         Parameters
         ----------
@@ -44,11 +53,20 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             Weight for the delta-topography feature for the relative humidity
             linear regression model. Defaults to the cls.W_DELTA_TOPO
             attribute.
+        pres_div : None | float
+            Divisor factor in the pressure scale height equation. Defaults to
+            the cls.PRES_DIV attribute.
+        pres_div : None | float
+            Exponential factor in the pressure scale height equation. Defaults
+            to the cls.PRES_EXP attribute.
         """
+
         self._s_enhance = s_enhance
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
+        self._pres_div = pres_div or self.PRES_DIV
+        self._pres_exp = pres_div or self.PRES_EXP
 
     def __len__(self):
         """Get number of model steps (mimic MultiStepGan)"""
@@ -77,11 +95,8 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         model = cls(s_enhance, **kwargs)
 
         if verbose:
-            logger.info('Loading SurfaceSpatialMetModel with '
-                        'spatial enhancement of {}, temp lapse {}, '
-                        'w_delta_temp {}, and w_delta_topo {}'
-                        .format(model._s_enhance, model._temp_lapse,
-                                model._w_delta_temp, model._w_delta_topo))
+            logger.info('Loading SurfaceSpatialMetModel with meta data: {}'
+                        .format(model.meta))
 
         return model
 
@@ -142,7 +157,12 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         """Downscale temperature raster data at a single observation.
 
         This model uses a simple lapse rate that adjusts temperature as a
-        function of elevation.
+        function of elevation. The process is as follows:
+            - add a scale factor to the low-res temperature field:
+              topo_lr * TEMP_LAPSE
+            - perform bilinear interpolation of the scaled temperature field.
+            - subtract the scale factor from the high-res temperature field:
+              topo_hr * TEMP_LAPSE
 
         Parameters
         ----------
@@ -177,18 +197,18 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                      topo_lr, topo_hr):
         """Downscale relative humidity raster data at a single observation.
 
-        This model is based on the following process:
+        Here's a description of the humidity scaling model:
             - Take low-resolution and high-resolution daily average
               temperature, relative humidity, and topography data.
             - Downscale all low-resolution variables using a bilinear image
               enhancement
-            - Calculate the difference from the interpolated low-res relative
-              humidity to the high-res as a linear function of the difference
-              at the same location for temperature and topography.
+            - The target model output is the difference between the
+              interpolated low-res relative humidity and the true high-res
+              relative humidity. Calculate this difference as a linear function
+              of the same difference in the temperature and topography fields.
             - Use this linear regression model to calculate high-res relative
-              humidity fields when provided low-res/high-res pairs of
-              temperature and topography and a low-res input of relative
-              humidity.
+              humidity fields when provided low-res input of relative humidity
+              along with low-res/high-res pairs of temperature and topography.
 
         Parameters
         ----------
@@ -232,6 +252,70 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                      + self._w_delta_topo * delta_topo)
 
         return hi_res_rh
+
+    def downscale_pres(self, single_lr_pres, topo_lr, topo_hr):
+        """Downscale pressure raster data at a single observation.
+
+        This model uses a simple exponential scale height that adjusts
+        temperature as a function of elevation. The process is as follows:
+            - add a scale factor to the low-res pressure field:
+              101325 * (1 - (1 - topo_lr / PRES_DIV)**PRES_EXP)
+            - perform bilinear interpolation of the scaled pressure field.
+            - subtract the scale factor from the high-res pressure field:
+              101325 * (1 - (1 - topo_hr / PRES_DIV)**PRES_EXP)
+
+        Parameters
+        ----------
+        single_lr_pres : np.ndarray
+            Single timestep pressure (Pa) raster data with shape
+            (lat, lon) matching the low-resolution input data.
+        topo_lr : np.ndarray
+            low-resolution surface elevation data in meters with shape
+            (lat, lon)
+        topo_hr : np.ndarray
+            High-resolution surface elevation data in meters with shape
+            (lat, lon)
+
+        Returns
+        -------
+        hi_res_pres : np.ndarray
+            Single timestep pressure (Pa) raster data with shape
+            (lat, lon) matching the high-resolution output data.
+        """
+
+        if np.max(single_lr_pres) < 10000:
+            msg = ('Pressure data appears to not be in Pa with min/mean/max: '
+                   '{:.1f}/{:.1f}/{:.1f}'
+                   .format(single_lr_pres.min(), single_lr_pres.mean(),
+                           single_lr_pres.max()))
+            logger.warning(msg)
+            warn(msg)
+
+        const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
+        single_lr_pres += const
+
+        if np.min(single_lr_pres) < 0.0:
+            msg = ('Spatial interpolation of surface pressure '
+                   'resulted in negative values. Incorrectly '
+                   'scaled/unscaled values or incorrect units are '
+                   'the most likely causes.')
+            logger.error(msg)
+            raise ValueError(msg)
+
+        hi_res_pres = self.downscale_arr(single_lr_pres, self._s_enhance)
+
+        const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
+        hi_res_pres -= const
+
+        if np.min(hi_res_pres) < 0.0:
+            msg = ('Spatial interpolation of surface pressure '
+                   'resulted in negative values. Incorrectly '
+                   'scaled/unscaled values or incorrect units are '
+                   'the most likely causes.')
+            logger.error(msg)
+            raise ValueError(msg)
+
+        return hi_res_pres
 
     # pylint: disable=unused-argument
     def generate(self, low_res, norm_in=False, un_norm_out=False,
@@ -315,6 +399,8 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                 't_enhance': 1,
                 'weight_for_delta_temp': self._w_delta_temp,
                 'weight_for_delta_topo': self._w_delta_topo,
+                'pressure_divisor': self._pres_div,
+                'pressure_exponent': self._pres_exp,
                 'training_features': self.training_features,
                 'output_features': self.output_features,
                 'class': self.__class__.__name__,
