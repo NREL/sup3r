@@ -27,6 +27,8 @@ def test_config_gen():
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
     model.meta['training_features'] = ['U_100m', 'V_100m']
     model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
@@ -51,6 +53,8 @@ def test_fwp_pipeline():
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 20)
@@ -76,8 +80,6 @@ def test_fwp_pipeline():
                   'fwp_chunk_shape': fp_chunk_shape,
                   'time_chunk_size': 10,
                   'temporal_slice': [t_slice.start, t_slice.stop],
-                  's_enhance': 3,
-                  't_enhance': t_enhance,
                   'spatial_pad': 2,
                   'temporal_pad': 2,
                   'overwrite_cache': True,

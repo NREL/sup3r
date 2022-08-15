@@ -30,6 +30,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
+                                       weighted_box_sampler,
                                        get_raster_shape,
                                        ignore_case_path_fetch,
                                        daily_temporal_coarsening,
@@ -55,7 +56,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Shear,
                                                   Rews,
                                                   Tas,
-                                                  TopoH5,
+                                                  TopoH5
                                                   )
 
 np.random.seed(42)
@@ -241,13 +242,12 @@ class InputMixIn:
         _grid_shape: tuple
             (rows, cols) grid size.
         """
-        if self._grid_shape is None:
-            check = (self.raster_file is not None
-                     and os.path.exists(self.raster_file))
-            if check:
-                self._grid_shape = get_raster_shape(self.raster_index)
-            else:
-                self._target, self._grid_shape = self.full_domain
+        check = (self.raster_file is not None
+                 and os.path.exists(self.raster_file))
+        if check:
+            self._grid_shape = get_raster_shape(self.raster_index)
+        elif self._grid_shape is None:
+            self._target, self._grid_shape = self.full_domain
         return self._grid_shape
 
     @grid_shape.setter
@@ -1315,16 +1315,18 @@ class DataHandler(FeatureHandler, InputMixIn):
         # extracted in parallel
         time_chunks = self.time_chunks
         shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
-        logger.info(f'Starting extraction of {self.extract_features} using '
-                    f'{len(time_chunks)} time_chunks. ')
-        self._raw_data = self.parallel_extract(self.file_paths,
-                                               self.raster_index,
-                                               time_chunks,
-                                               self.extract_features,
-                                               self.extract_workers)
+        self._raw_data = {}
+        if self.extract_features:
+            logger.info(f'Starting extraction of {self.extract_features} using'
+                        f' {len(time_chunks)} time_chunks. ')
+            self._raw_data = self.parallel_extract(self.file_paths,
+                                                   self.raster_index,
+                                                   time_chunks,
+                                                   self.extract_features,
+                                                   self.extract_workers)
 
-        logger.info(f'Finished extracting {self.extract_features} for '
-                    f'{self.input_file_info}')
+            logger.info(f'Finished extracting {self.extract_features} for '
+                        f'{self.input_file_info}')
         if self.derive_features:
             logger.info(f'Starting computation of {self.derive_features}')
             self._raw_data = self.parallel_compute(self._raw_data,
@@ -1589,9 +1591,13 @@ class DataHandlerNC(DataHandler):
             if feature in handle:
                 if len(handle[feature].dims) == 4:
                     idx = tuple([time_slice] + [0] + raster_index)
-                else:
+                elif len(handle[feature].dims) == 3:
                     idx = tuple([time_slice] + raster_index)
+                else:
+                    idx = tuple(raster_index)
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
+                if len(fdata.shape) == 2:
+                    fdata = np.expand_dims(fdata, axis=0)
             elif basename in handle:
                 if interp_height is not None:
                     fdata = interp_var_to_height(handle, basename,
@@ -1746,7 +1752,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
-            'topography': 'zg_0m',
+            'topography': 'orog',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'lat_lon': LatLonNCforCC}
@@ -2154,36 +2160,64 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
-    def get_observation_index(self, temporal_weights):
-        """Randomly gets spatial sample and time sample
+    def get_observation_index(self, temporal_weights=None,
+                              spatial_weights=None):
+        """Randomly gets weighted spatial sample and time sample
+
+        Parameters
+        ----------
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
 
         Returns
         -------
         observation_index : tuple
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
-        temporal_focus : slice
-            Slice used to select prefered temporal range from full extent
         """
-        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
-        temporal_slice = weighted_time_sampler(self.data, self.sample_shape[2],
-                                               weights=temporal_weights)
+        if spatial_weights is not None:
+            spatial_slice = weighted_box_sampler(self.data,
+                                                 self.sample_shape[:2],
+                                                 weights=spatial_weights)
+        else:
+            spatial_slice = uniform_box_sampler(self.data,
+                                                self.sample_shape[:2])
+        if temporal_weights is not None:
+            temporal_slice = weighted_time_sampler(self.data,
+                                                   self.sample_shape[2],
+                                                   weights=temporal_weights)
+        else:
+            temporal_slice = uniform_time_sampler(self.data,
+                                                  self.sample_shape[2])
+
         return tuple(
             spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
 
-    def get_next(self, temporal_weights):
-        """Gets data for observation using random observation index. Loops
-        repeatedly over randomized time index
+    def get_next(self, temporal_weights=None, spatial_weights=None):
+        """Gets data for observation using weighted random observation index.
+        Loops repeatedly over randomized time index.
+
+        Parameters
+        ----------
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
 
         Returns
         -------
         observation : np.ndarray
             4D array
             (spatial_1, spatial_2, temporal, features)
-        temporal_focus : slice
-            Slice used to select prefered temporal range from full extent
         """
-        self.current_obs_index = self.get_observation_index(temporal_weights)
+        self.current_obs_index = self.get_observation_index(
+            temporal_weights=temporal_weights, spatial_weights=spatial_weights)
         observation = self.data[self.current_obs_index]
         return observation
 

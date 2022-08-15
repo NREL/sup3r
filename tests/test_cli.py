@@ -96,6 +96,8 @@ def test_fwd_pass_cli(runner):
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -116,8 +118,6 @@ def test_fwd_pass_cli(runner):
                   'shape': (8, 8),
                   'fwp_chunk_shape': fwp_chunk_shape,
                   'time_chunk_size': 10,
-                  's_enhance': 3,
-                  't_enhance': 4,
                   'max_workers': 1,
                   'spatial_pad': 5,
                   'temporal_pad': 5,
@@ -185,6 +185,8 @@ def test_pipeline_fwp_qa(runner):
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -200,8 +202,6 @@ def test_pipeline_fwp_qa(runner):
                       'shape': (8, 8),
                       'fwp_chunk_shape': (100, 100, 100),
                       'time_chunk_size': 10,
-                      's_enhance': 3,
-                      't_enhance': 4,
                       'max_workers': 1,
                       'spatial_pad': 5,
                       'temporal_pad': 5,

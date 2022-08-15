@@ -42,12 +42,15 @@ def test_forward_pass_nc_cc():
 
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
     model.meta['training_features'] = features
     model.meta['output_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
@@ -58,7 +61,6 @@ def test_forward_pass_nc_cc():
         max_workers = 1
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -95,6 +97,8 @@ def test_forward_pass_nc():
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
@@ -106,7 +110,6 @@ def test_forward_pass_nc():
         max_workers = 1
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -144,6 +147,8 @@ def test_forward_pass_temporal_slice():
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
     model.meta['training_features'] = ['U_100m', 'V_100m']
     model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
@@ -158,7 +163,6 @@ def test_forward_pass_temporal_slice():
         n_tsteps = len(raw_time_index[temporal_slice])
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -229,7 +233,6 @@ def test_fwd_pass_handler():
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -287,7 +290,6 @@ def test_fwd_pass_chunking():
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -345,7 +347,6 @@ def test_fwd_pass_nochunking():
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
-            s_enhance=3, t_enhance=4,
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -379,11 +380,15 @@ def test_fwp_multi_step_model_topo_exoskip():
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['s_enhance'] = 2
+    s1_model.meta['t_enhance'] = 1
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['s_enhance'] = 2
+    s2_model.meta['t_enhance'] = 1
     _ = s2_model.generate(np.ones((4, 10, 10, 3)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -391,6 +396,8 @@ def test_fwp_multi_step_model_topo_exoskip():
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
@@ -423,7 +430,6 @@ def test_fwp_multi_step_model_topo_exoskip():
         handler = ForwardPassStrategy(
             input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
             model_class='SpatialThenTemporalGan',
-            s_enhance=s_enhance, t_enhance=t_enhance,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
@@ -470,11 +476,15 @@ def test_fwp_multi_step_model_topo():
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['s_enhance'] = 2
+    s1_model.meta['t_enhance'] = 1
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['s_enhance'] = 2
+    s2_model.meta['t_enhance'] = 1
     _ = s2_model.generate(np.ones((4, 10, 10, 3)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -482,6 +492,8 @@ def test_fwp_multi_step_model_topo():
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
 
     with tempfile.TemporaryDirectory() as td:
@@ -513,7 +525,6 @@ def test_fwp_multi_step_model_topo():
         handler = ForwardPassStrategy(
             input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
             model_class='SpatialThenTemporalGan',
-            s_enhance=s_enhance, t_enhance=t_enhance,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
@@ -559,6 +570,8 @@ def test_fwp_multi_step_model():
     s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s_model.meta['training_features'] = ['U_100m', 'V_100m']
     s_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s_model.meta['s_enhance'] = 2
+    s_model.meta['t_enhance'] = 1
     _ = s_model.generate(np.ones((4, 10, 10, 2)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -566,6 +579,8 @@ def test_fwp_multi_step_model():
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     st_model.meta['training_features'] = ['U_100m', 'V_100m']
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
@@ -586,7 +601,6 @@ def test_fwp_multi_step_model():
         handler = ForwardPassStrategy(
             input_files, model_args=[s_out_dir, st_out_dir],
             model_class='SpatialThenTemporalGan',
-            s_enhance=s_enhance, t_enhance=t_enhance,
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,

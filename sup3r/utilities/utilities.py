@@ -181,6 +181,55 @@ def uniform_box_sampler(data, shape):
     return [slice(start_row, stop_row), slice(start_col, stop_col)]
 
 
+def weighted_box_sampler(data, shape, weights):
+    """Extracts a temporal slice from data with selection weighted based on
+    provided weights
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data array with dimensions
+        (spatial_1, spatial_2, temporal, features)
+    shape : tuple
+        (spatial_1, spatial_2) Size of box to sample from data
+    weights : ndarray
+        Array of weights used to specify selection strategy. e.g. If weights is
+        [0.2, 0.4, 0.1, 0.3] then the upper left quadrant of the spatial
+        domain will be sampled 20 percent of the time, the upper right quadrant
+        will be sampled 40 percent of the time, etc.
+
+    Returns
+    -------
+    slices : list
+        List of spatial slices [spatial_1, spatial_2]
+    """
+    max_cols = (data.shape[1] if data.shape[1] < shape[1]
+                else shape[1])
+    max_rows = (data.shape[0] if data.shape[0] < shape[0]
+                else shape[0])
+    max_cols = data.shape[1] - max_cols + 1
+    max_rows = data.shape[0] - max_rows + 1
+    indices = np.arange(0, max_rows * max_cols)
+    chunks = np.array_split(indices, len(weights))
+    weight_list = []
+    for i, w in enumerate(weights):
+        weight_list += [w] * len(chunks[i])
+    weight_list /= np.sum(weight_list)
+    msg = ('Must have a sample_shape with a number of elements greater than '
+           'or equal to the number of spatial weights.')
+    assert len(indices) >= len(weight_list), msg
+    start = np.random.choice(indices, p=weight_list)
+    row = start // max_cols
+    col = start % max_cols
+    stop_1 = row + np.min([shape[0], data.shape[0]])
+    stop_2 = col + np.min([shape[1], data.shape[1]])
+
+    slice_1 = slice(row, stop_1)
+    slice_2 = slice(col, stop_2)
+
+    return [slice_1, slice_2]
+
+
 def weighted_time_sampler(data, shape, weights):
     """Extracts a temporal slice from data with selection weighted based on
     provided weights
@@ -191,8 +240,7 @@ def weighted_time_sampler(data, shape, weights):
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
     shape : tuple
-        (time_steps) Size of time slice to sample
-        from data
+        (time_steps) Size of time slice to sample from data
     weights : list
         List of weights used to specify selection strategy. e.g. If weights
         is [0.2, 0.8] then the start of the temporal slice will be selected
@@ -738,22 +786,24 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         gp += unstagger_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
-
         if gp.shape != hgt.shape:
             hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1)
         hgt = gp / 9.81 - hgt
         del gp
 
-    elif 'zg' in data:
-        hgt = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
-        hgt -= data['zg'][(time_slice, 0,) + tuple(raster_index)]
-        hgt = np.array(hgt.values, dtype=np.float32)
+    elif all(field in data for field in ('zg', 'orog')):
+        gp = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
+        hgt = data['orog'][tuple(raster_index)]
+        hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[1], axis=0)
+        hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[0], axis=0)
+        hgt = gp - hgt
+        del gp
 
     else:
-        msg = ('Need either PHB/PH/HGT or zg in data to perform height '
+        msg = ('Need either PHB/PH/HGT or zg/orog in data to perform height '
                'interpolation')
         raise ValueError(msg)
-    return hgt
+    return np.array(hgt)
 
 
 def calc_pressure(data, var, raster_index, time_slice=slice(None)):

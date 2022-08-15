@@ -16,6 +16,7 @@ from rex.utilities import log_mem
 
 from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
+                                       weighted_box_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        nsrdb_reduce_daily_data,
@@ -138,7 +139,6 @@ class Batch:
         Batch
             Batch instance with low and high res data
         """
-
         low_res = spatial_coarsening(high_res, s_enhance)
 
         if training_features is None:
@@ -156,9 +156,14 @@ class Batch:
                          if training_features[j] not in smoothing_ignore]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
-                    low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
-                                                         smoothing,
-                                                         mode='nearest')
+                    if len(low_res.shape) == 5:
+                        for t in range(low_res.shape[-2]):
+                            low_res[i, ..., t, j] = gaussian_filter(
+                                low_res[i, ..., t, j], smoothing,
+                                mode='nearest')
+                    else:
+                        low_res[i, ..., j] = gaussian_filter(
+                            low_res[i, ..., j], smoothing, mode='nearest')
 
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
@@ -175,7 +180,8 @@ class ValidationData:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  temporal_coarsening_method='subsample',
                  output_features_ind=None,
-                 output_features=None):
+                 output_features=None,
+                 smoothing=None, smoothing_ignore=None):
         """
         Parameters
         ----------
@@ -199,6 +205,15 @@ class ValidationData:
             output, without any feature indices used only for training.
         output_features : list
             List of Generative model output feature names
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. This can be tuned by matching the kinetic energy of a low
+            resolution simulation with the kinetic energy of a coarsened and
+            smoothed high resolution simulation. If None no smoothing is
+            performed.
+        smoothing_ignore : list | None
+            List of features to ignore for the smoothing filter. None will
+            smooth all features if smoothing kwarg is not None
         """
 
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -217,6 +232,8 @@ class ValidationData:
         self._i = 0
         self.output_features_ind = output_features_ind
         self.output_features = output_features
+        self.smoothing = smoothing
+        self.smoothing_ignore = smoothing_ignore
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -316,6 +333,8 @@ class ValidationData:
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features)
             self._i += 1
             return batch
@@ -428,6 +447,8 @@ class BatchHandler:
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
+        self.smoothed_features = [f for f in self.training_features
+                                  if f not in self.smoothing_ignore]
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
@@ -452,7 +473,9 @@ class BatchHandler:
             s_enhance=s_enhance, t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
             output_features_ind=self.output_features_ind,
-            output_features=self.output_features)
+            output_features=self.output_features,
+            smoothing=self.smoothing,
+            smoothing_ignore=self.smoothing_ignore)
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
@@ -720,8 +743,7 @@ class BatchHandler:
             Feature stdev
         """
         istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
-        istd = istd**2
-        return np.nanmean(istd)
+        return np.nanmean(istd**2)
 
     def get_stats_for_feature(self, feature):
         """Get standard deviation and mean for requested feature
@@ -1112,6 +1134,7 @@ class ValidationDataDC(ValidationData):
     """Iterator for data-centric validation data"""
 
     N_TIME_BINS = 12
+    N_SPACE_BINS = 4
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -1140,6 +1163,21 @@ class ValidationDataDC(ValidationData):
                                     + [np.arange(h.data.shape[-1])])
                 val_indices[t].append({'handler_index': h_idx,
                                        'tuple_index': tuple_index})
+        for s in range(self.N_SPACE_BINS):
+            val_indices[s + self.N_TIME_BINS] = []
+            h_idx = np.random.choice(np.arange(len(self.handlers)))
+            h = self.handlers[h_idx]
+            for _ in range(self.batch_size):
+                weights = np.zeros(self.N_SPACE_BINS)
+                weights[s] = 1
+                spatial_slice = weighted_box_sampler(
+                    h.data, self.sample_shape[:2], weights)
+                temporal_slice = uniform_time_sampler(
+                    h.data, self.sample_shape[2])
+                tuple_index = tuple(spatial_slice + [temporal_slice]
+                                    + [np.arange(h.data.shape[-1])])
+                val_indices[s + self.N_TIME_BINS].append(
+                    {'handler_index': h_idx, 'tuple_index': tuple_index})
         return val_indices
 
     def __next__(self):
@@ -1158,6 +1196,40 @@ class ValidationDataDC(ValidationData):
                 high_res, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
+                output_features=self.output_features)
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class ValidationDataTemporalDC(ValidationDataDC):
+    """Iterator for data-centric temporal validation data"""
+    N_SPACE_BINS = 0
+
+
+class ValidationDataSpatialDC(ValidationDataDC):
+    """Iterator for data-centric spatial validation data"""
+    N_TIME_BINS = 0
+
+    def __next__(self):
+        if self._i < len(self.val_indices.keys()):
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1],
+                                 self.handlers[0].shape[-1]),
+                                dtype=np.float32)
+            val_indices = self.val_indices[self._i]
+            for i, idx in enumerate(val_indices):
+                high_res[i, ...] = self.handlers[
+                    idx['handler_index']].data[idx['tuple_index']][..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features)
             self._i += 1
             return batch
@@ -1168,7 +1240,7 @@ class ValidationDataDC(ValidationData):
 class BatchHandlerDC(BatchHandler):
     """Data-centric batch handler"""
 
-    VAL_CLASS = ValidationDataDC
+    VAL_CLASS = ValidationDataTemporalDC
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = DataHandlerDCforH5
 
@@ -1185,8 +1257,6 @@ class BatchHandlerDC(BatchHandler):
 
         self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
         self.temporal_weights /= np.sum(self.temporal_weights)
-        self.training_sample_record = [0] * self.val_data.N_TIME_BINS
-        self.normalized_sample_record = [0] * self.val_data.N_TIME_BINS
         self.old_temporal_weights = [0] * self.val_data.N_TIME_BINS
         bin_range = self.data_handlers[0].data.shape[2]
         bin_range -= (self.sample_shape[2] - 1)
@@ -1196,17 +1266,19 @@ class BatchHandlerDC(BatchHandler):
 
         logger.info('Using temporal weights: '
                     f'{[round(w, 3) for w in self.temporal_weights]}')
+        self.temporal_sample_record = [0] * self.val_data.N_TIME_BINS
+        self.norm_temporal_record = [0] * self.val_data.N_TIME_BINS
 
     def update_training_sample_record(self):
         """Keep track of number of observations from each temporal bin"""
         handler = self.data_handlers[self.current_handler_index]
         t_start = handler.current_obs_index[2].start
-        bin_number = np.digitize(t_start, self.temporal_bins)
-        self.training_sample_record[bin_number - 1] += 1
+        t_bin_number = np.digitize(t_start, self.temporal_bins)
+        self.temporal_sample_record[t_bin_number - 1] += 1
 
     def __iter__(self):
         self._i = 0
-        self.training_sample_record = [0] * self.val_data.N_TIME_BINS
+        self.temporal_sample_record = [0] * self.val_data.N_TIME_BINS
         return self
 
     def __next__(self):
@@ -1220,7 +1292,8 @@ class BatchHandlerDC(BatchHandler):
                                  self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next(self.temporal_weights)
+                high_res[i, ...] = handler.get_next(
+                    temporal_weights=self.temporal_weights)
                 self.current_batch_indices.append(handler.current_obs_index)
 
                 self.update_training_sample_record()
@@ -1238,7 +1311,91 @@ class BatchHandlerDC(BatchHandler):
             return batch
         else:
             total_count = self.n_batches * self.batch_size
-            self.normalized_sample_record = [c / total_count for c
-                                             in self.training_sample_record]
+            self.norm_temporal_record = [c / total_count for c
+                                         in self.temporal_sample_record.copy()]
             self.old_temporal_weights = self.temporal_weights.copy()
+            raise StopIteration
+
+
+class BatchHandlerSpatialDC(BatchHandler):
+    """Data-centric batch handler"""
+
+    VAL_CLASS = ValidationDataSpatialDC
+    BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = DataHandlerDCforH5
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as BatchHandler
+        **kwargs : dict
+            Same keyword args as BatchHandler
+        """
+        super().__init__(*args, **kwargs)
+
+        self.spatial_weights = np.ones(self.val_data.N_SPACE_BINS)
+        self.spatial_weights /= np.sum(self.spatial_weights)
+        self.old_spatial_weights = [0] * self.val_data.N_SPACE_BINS
+        self.max_rows = self.data_handlers[0].data.shape[0] + 1
+        self.max_rows -= self.sample_shape[0]
+        self.max_cols = self.data_handlers[0].data.shape[1] + 1
+        self.max_cols -= self.sample_shape[1]
+        bin_range = self.max_rows * self.max_cols
+        self.spatial_bins = np.array_split(np.arange(0, bin_range),
+                                           self.val_data.N_SPACE_BINS)
+        self.spatial_bins = [b[0] for b in self.spatial_bins]
+
+        logger.info('Using spatial weights: '
+                    f'{[round(w, 3) for w in self.spatial_weights]}')
+
+        self.spatial_sample_record = [0] * self.val_data.N_SPACE_BINS
+        self.norm_spatial_record = [0] * self.val_data.N_SPACE_BINS
+
+    def update_training_sample_record(self):
+        """Keep track of number of observations from each temporal bin"""
+        handler = self.data_handlers[self.current_handler_index]
+        row = handler.current_obs_index[0].start
+        col = handler.current_obs_index[1].start
+        s_start = self.max_rows * row + col
+        s_bin_number = np.digitize(s_start, self.spatial_bins)
+        self.spatial_sample_record[s_bin_number - 1] += 1
+
+    def __iter__(self):
+        self._i = 0
+        self.spatial_sample_record = [0] * self.val_data.N_SPACE_BINS
+        return self
+
+    def __next__(self):
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(0, len(self.data_handlers))
+            self.current_handler_index = handler_index
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next(
+                    spatial_weights=self.spatial_weights)[..., 0, :]
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                self.update_training_sample_record()
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            self._i += 1
+            return batch
+        else:
+            total_count = self.n_batches * self.batch_size
+            self.norm_spatial_record = [c / total_count
+                                        for c in self.spatial_sample_record]
+            self.old_spatial_weights = self.spatial_weights.copy()
             raise StopIteration

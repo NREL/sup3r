@@ -361,6 +361,14 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
 
         self._spatial_models = spatial_models
         self._temporal_models = temporal_models
+        self._models = (*spatial_models.models, *temporal_models.models)
+
+    @property
+    def models(self):
+        """Get an ordered tuple of the Sup3rGan models that are part of this
+        MultiStepGan
+        """
+        return self._models
 
     @property
     def spatial_models(self):
