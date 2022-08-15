@@ -51,7 +51,7 @@ def test_surface_model(s_enhance=5):
 
     low_res, true_hi_res, topo_lr, topo_hr = get_inputs(s_enhance)
 
-    model = SurfaceSpatialMetModel.load()
+    model = SurfaceSpatialMetModel.load(s_enhance=s_enhance)
     hi_res = model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
 
     diff = true_hi_res - hi_res
@@ -65,7 +65,7 @@ def test_surface_model(s_enhance=5):
     assert np.abs(diff[..., 1]).mean() < 2
 
 
-def test_multi_step_surface():
+def test_multi_step_surface(s_enhance=2):
     """Test the multi step surface met model."""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -79,13 +79,13 @@ def test_multi_step_surface():
         fp = os.path.join(td, 'model')
         model.save(fp)
 
-        ms_model = MultiStepSurfaceMetGan.load(fp)
+        ms_model = MultiStepSurfaceMetGan.load(s_enhance, fp)
 
         x = np.ones((2, 10, 10, len(FEATURES_W)))
         with pytest.raises(AssertionError):
             ms_model.generate(x)
 
-        low_res, _, topo_lr, topo_hr = get_inputs(2)
+        low_res, _, topo_lr, topo_hr = get_inputs(s_enhance)
 
         # reduce data because too big for tests
         low_res = low_res[:, :4, :4]

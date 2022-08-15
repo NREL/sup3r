@@ -638,20 +638,22 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         return hi_res
 
     @classmethod
-    def load(cls, temporal_model_dirs, surface_model_kwargs=None,
+    def load(cls, s_enhance, temporal_model_dirs, surface_model_kwargs=None,
              verbose=True):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
         Parameters
         ----------
+        s_enhance : int
+            Integer factor by which the spatial axes are to be enhanced.
         temporal_model_dirs : str | list | tuple
             An ordered list/tuple of one or more directories containing trained
             + saved Sup3rGan models created using the Sup3rGan.save() method.
             This must contain only (spatio)temporal models that input/output 5D
             tensors.
         surface_model_kwargs : None | dict
-            Optional kwargs to initialize SurfaceSpatialMetModel
+            Optional additional kwargs to initialize SurfaceSpatialMetModel
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -661,11 +663,15 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
             Returns a pretrained gan model that was previously saved to
             model_dirs
         """
+
         if isinstance(temporal_model_dirs, str):
             temporal_model_dirs = [temporal_model_dirs]
 
-        s_models = cls.SPATIAL_MODEL.load(surface_model_kwargs,
-                                          verbose=verbose)
+        if surface_model_kwargs is None:
+            surface_model_kwargs = {}
+
+        s_models = cls.SPATIAL_MODEL.load(s_enhance, verbose=verbose,
+                                          **surface_model_kwargs)
         t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
 
         return cls(s_models, t_models)

@@ -26,10 +26,13 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, temp_lapse=None, w_delta_temp=None, w_delta_topo=None):
+    def __init__(self, s_enhance, temp_lapse=None, w_delta_temp=None,
+                 w_delta_topo=None):
         """
         Parameters
         ----------
+        s_enhance : int
+            Integer factor by which the spatial axes are to be enhanced.
         temp_lapse : None | float
             Temperature lapse rate: change in degrees C/K per meter. Defaults
             to the cls.TEMP_LAPSE attribute.
@@ -42,6 +45,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             linear regression model. Defaults to the cls.W_DELTA_TOPO
             attribute.
         """
+        self._s_enhance = s_enhance
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
@@ -51,16 +55,18 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         return 1
 
     @classmethod
-    def load(cls, model_kwargs=None, verbose=False):
+    def load(cls, s_enhance, verbose=False, **kwargs):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
         Parameters
         ----------
-        model_kwargs : None | dict
-            Optional kwargs to initialize SurfaceSpatialMetModel
+        s_enhance : int
+            Integer factor by which the spatial axes are to be enhanced.
         verbose : bool
             Flag to log information about the loaded model.
+        kwargs : None | dict
+            Optional kwargs to initialize SurfaceSpatialMetModel
 
         Returns
         -------
@@ -68,19 +74,19 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             Returns an initialized SurfaceSpatialMetModel
         """
 
-        model_kwargs = model_kwargs or {}
-        model = cls(**model_kwargs)
+        model = cls(s_enhance, **kwargs)
 
         if verbose:
-            logger.info('Loading SurfaceSpatialMetModel with temp lapse {}, '
+            logger.info('Loading SurfaceSpatialMetModel with '
+                        'spatial enhancement of {}, temp lapse {}, '
                         'w_delta_temp {}, and w_delta_topo {}'
-                        .format(model._temp_lapse, model._w_delta_temp,
-                                model._w_delta_topo))
+                        .format(model._s_enhance, model._temp_lapse,
+                                model._w_delta_temp, model._w_delta_topo))
 
         return model
 
     @staticmethod
-    def get_s_enhance(topo_lr, topo_hr):
+    def _get_s_enhance(topo_lr, topo_hr):
         """Get the spatial enhancement factor given low-res and high-res
         spatial rasters.
 
@@ -132,7 +138,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         out = np.array(im)
         return out
 
-    def downscale_temp(self, single_lr_temp, topo_lr, topo_hr, s_enhance):
+    def downscale_temp(self, single_lr_temp, topo_lr, topo_hr):
         """Downscale temperature raster data at a single observation.
 
         This model uses a simple lapse rate that adjusts temperature as a
@@ -149,8 +155,6 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         topo_hr : np.ndarray
             High-resolution surface elevation data in meters with shape
             (lat, lon)
-        s_enhance : int
-            Integer factor by which the spatial axes are to be enhanced.
 
         Returns
         -------
@@ -164,13 +168,13 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
         lower_data = single_lr_temp + topo_lr * self._temp_lapse
-        hi_res_temp = self.downscale_arr(lower_data, s_enhance)
+        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
         hi_res_temp -= topo_hr * self._temp_lapse
 
         return hi_res_temp
 
     def downscale_rh(self, single_lr_rh, single_lr_temp, single_hr_temp,
-                     topo_lr, topo_hr, s_enhance):
+                     topo_lr, topo_hr):
         """Downscale relative humidity raster data at a single observation.
 
         This model is based on the following process:
@@ -203,8 +207,6 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         topo_hr : np.ndarray
             High-resolution surface elevation data in meters with shape
             (lat, lon)
-        s_enhance : int
-            Integer factor by which the spatial axes are to be enhanced.
 
         Returns
         -------
@@ -218,9 +220,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        interp_rh = self.downscale_arr(single_lr_rh, s_enhance)
-        interp_temp = self.downscale_arr(single_lr_temp, s_enhance)
-        interp_topo = self.downscale_arr(topo_lr, s_enhance)
+        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance)
+        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance)
+        interp_topo = self.downscale_arr(topo_lr, self._s_enhance)
 
         delta_temp = single_hr_temp - interp_temp
         delta_topo = topo_hr - interp_topo
@@ -279,27 +281,29 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_hr.shape) == 2
         assert topo_lr.shape[0] == low_res.shape[1]
         assert topo_lr.shape[1] == low_res.shape[2]
+        s_enhance = self._get_s_enhance(topo_lr, topo_hr)
+        msg = ('Topo shapes of {} and {} did not match desired spatial '
+               'enhancement of {}'
+               .format(topo_lr.shape, topo_hr.shape, self._s_enhance))
+        assert self._s_enhance == s_enhance, msg
 
-        s_enhance = self.get_s_enhance(topo_lr, topo_hr)
         hr_shape = (len(low_res),
-                    int(low_res.shape[1] * s_enhance),
-                    int(low_res.shape[2] * s_enhance),
+                    int(low_res.shape[1] * self._s_enhance),
+                    int(low_res.shape[2] * self._s_enhance),
                     2)
-        logger.debug('SurfaceSpatialMetModel calculated s_enhance of {} '
+        logger.debug('SurfaceSpatialMetModel with s_enhance of {} '
                      'downscaling low-res shape {} to high-res shape {}'
-                     .format(s_enhance, low_res.shape, hr_shape))
+                     .format(self._s_enhance, low_res.shape, hr_shape))
 
         hi_res = np.zeros(hr_shape, dtype=np.float32)
         for iobs in range(len(low_res)):
             hi_res[iobs, :, :, 0] = self.downscale_temp(low_res[iobs, :, :, 0],
-                                                        topo_lr, topo_hr,
-                                                        s_enhance)
+                                                        topo_lr, topo_hr)
 
             hi_res[iobs, :, :, 1] = self.downscale_rh(low_res[iobs, :, :, 1],
                                                       low_res[iobs, :, :, 0],
                                                       hi_res[iobs, :, :, 0],
-                                                      topo_lr, topo_hr,
-                                                      s_enhance)
+                                                      topo_lr, topo_hr)
 
         return hi_res
 
@@ -307,6 +311,8 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     def meta(self):
         """Get meta data dictionary that defines the model params"""
         return {'temp_lapse_rate': self._temp_lapse,
+                's_enhance': self._s_enhance,
+                't_enhance': 1,
                 'weight_for_delta_temp': self._w_delta_temp,
                 'weight_for_delta_topo': self._w_delta_topo,
                 'training_features': self.training_features,
