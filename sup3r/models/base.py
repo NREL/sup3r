@@ -764,8 +764,8 @@ class Sup3rGan(AbstractSup3rGan):
                 msg = ('GAN was previously trained on with {var}={} but '
                        'received new {var}={}'
                        .format(val, kwargs[var], var=var))
-            logger.error(msg)
-            raise KeyError(msg)
+                logger.error(msg)
+                raise KeyError(msg)
 
     @property
     def training_features(self):
