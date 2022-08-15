@@ -493,6 +493,9 @@ class Collector:
             init_logger('sup3r.preprocessing', log_file=log_file,
                         log_level=log_level)
 
+        if not os.path.exists(os.path.dirname(out_file)):
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
         logger.info('Collecting data from {} to {}'.format(file_paths,
                                                            out_file))
 
