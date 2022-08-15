@@ -156,9 +156,14 @@ class Batch:
                          if training_features[j] not in smoothing_ignore]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
-                    low_res[i, ..., j] = gaussian_filter(low_res[i, ..., j],
-                                                         smoothing,
-                                                         mode='nearest')
+                    if len(low_res.shape) == 5:
+                        for t in range(low_res.shape[-2]):
+                            low_res[i, ..., t, j] = gaussian_filter(
+                                low_res[i, ..., t, j], smoothing,
+                                mode='nearest')
+                    else:
+                        low_res[i, ..., j] = gaussian_filter(
+                            low_res[i, ..., j], smoothing, mode='nearest')
 
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
