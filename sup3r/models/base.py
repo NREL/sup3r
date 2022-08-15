@@ -747,41 +747,23 @@ class Sup3rGan(AbstractSup3rGan):
         high res data."""
         return self.meta.get('smoothing', None)
 
-    def set_training_data_params(self, s_enhance, t_enhance, smoothing):
+    def set_training_data_params(self, **kwargs):
         """Set parameters used for training data, such as s_enhance, t_enhance,
         smoothing
 
         Parameters
         ----------
-        s_enhance : int
-            Spatial enhancement factor
-        t_enhance : int
-            Temporal enhancement factor
-        smoothing : float
-            Smoothing parameter used in gaussian filtering of coarsened data
+        kwargs : dict
+            Keyword arguments including s_enhance, t_enhance, and smoothing
         """
-        if self.s_enhance is None:
-            self.meta['s_enhance'] = s_enhance
-        elif self.s_enhance != s_enhance:
-            msg = ('GAN was previously trained on with s_enhance={} but '
-                   'received new s_enhance={}'
-                   .format(self.s_enhance, s_enhance))
-            logger.error(msg)
-            raise KeyError(msg)
-        if self.t_enhance is None:
-            self.meta['t_enhance'] = t_enhance
-        elif self.t_enhance != t_enhance:
-            msg = ('GAN was previously trained on with t_enhance={} but '
-                   'received new t_enhance={}'
-                   .format(self.t_enhance, t_enhance))
-            logger.error(msg)
-            raise KeyError(msg)
-        if self.smoothing is None:
-            self.meta['smoothing'] = smoothing
-        elif self.smoothing != smoothing:
-            msg = ('GAN was previously trained on with smoothing={} but '
-                   'received new smoothing={}'
-                   .format(self.smoothing, smoothing))
+        for var in ('s_enhance', 't_enhance', 'smoothing'):
+            val = getattr(self, var, None)
+            if val is None:
+                self.meta[var] = kwargs[var]
+            elif val != kwargs[var]:
+                msg = ('GAN was previously trained on with {var}={} but '
+                       'received new {var}={}'
+                       .format(val, kwargs[var], var=var))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -1504,9 +1486,9 @@ class Sup3rGan(AbstractSup3rGan):
         self.set_feature_names(batch_handler.training_features,
                                batch_handler.output_features,
                                batch_handler.smoothed_features)
-        self.set_training_data_params(batch_handler.s_enhance,
-                                      batch_handler.t_enhance,
-                                      batch_handler.smoothing)
+        self.set_training_data_params(s_enhance=batch_handler.s_enhance,
+                                      t_enhance=batch_handler.t_enhance,
+                                      smoothing=batch_handler.smoothing)
 
         epochs = list(range(n_epoch))
 
