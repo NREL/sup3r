@@ -362,14 +362,13 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
 
         self._spatial_models = spatial_models
         self._temporal_models = temporal_models
-        self._models = (*spatial_models.models, *temporal_models.models)
 
     @property
     def models(self):
         """Get an ordered tuple of the Sup3rGan models that are part of this
         MultiStepGan
         """
-        return self._models
+        return (*self.spatial_models.models, *self.temporal_models.models)
 
     @property
     def spatial_models(self):
@@ -544,6 +543,13 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
     """
 
     SPATIAL_MODEL = SurfaceSpatialMetModel
+
+    @property
+    def models(self):
+        """Get an ordered tuple of the Sup3rGan models that are part of this
+        MultiStepGan
+        """
+        return (self.spatial_models, *self.temporal_models.models)
 
     @property
     def meta(self):

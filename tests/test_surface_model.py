@@ -94,13 +94,22 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
 
     model.set_norm_stats([0.3, 0.9, 0.1], [0.02, 0.07, 0.03])
-    model.set_feature_names(FEATURES, FEATURES)
+    model.set_model_params(training_features=FEATURES,
+                           output_features=FEATURES,
+                           s_enhance=1,
+                           t_enhance=t_enhance)
 
     with tempfile.TemporaryDirectory() as td:
         fp = os.path.join(td, 'model')
         model.save(fp)
 
         ms_model = MultiStepSurfaceMetGan.load(FEATURES, s_enhance, fp)
+
+        for model in ms_model.models:
+            print(model)
+            print(model.s_enhance, model.t_enhance)
+            assert isinstance(model.s_enhance, int)
+            assert isinstance(model.t_enhance, int)
 
         x = np.ones((2, 10, 10, len(FEATURES)))
         with pytest.raises(AssertionError):

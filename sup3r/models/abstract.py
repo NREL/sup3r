@@ -70,6 +70,18 @@ class AbstractSup3rGan(ABC):
         """
 
     @property
+    def s_enhance(self):
+        """Factor by which model will enhance spatial resolution. Used in
+        model training during high res coarsening"""
+        return self.meta.get('s_enhance', None)
+
+    @property
+    def t_enhance(self):
+        """Factor by which model will enhance temporal resolution. Used in
+        model training during high res coarsening"""
+        return self.meta.get('t_enhance', None)
+
+    @property
     @abstractmethod
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
