@@ -153,7 +153,7 @@ def test_feature_handler():
     handler = DataHandler(input_file, features, target=target, shape=shape,
                           max_delta=max_delta, raster_file=raster_file,
                           temporal_slice=temporal_slice)
-    tmp = handler.extract_data()
+    tmp = handler.run_all_data_init()
     assert tmp.dtype == np.dtype(np.float32)
 
     vars = {}
@@ -653,7 +653,7 @@ def test_val_data_storage():
                               max_delta, raster_file=raster_file,
                               val_split=val_split,
                               temporal_slice=temporal_slice)
-        data = handler.extract_data()
+        data = handler.run_all_data_init()
         n_observations += data.shape[2]
     assert val_observations == int(val_split * n_observations)
 

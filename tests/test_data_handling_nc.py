@@ -600,7 +600,7 @@ def test_val_data_storage():
                               max_delta=max_delta, raster_file=raster_file,
                               val_split=val_split,
                               temporal_slice=temporal_slice)
-        data = handler.extract_data()
+        data = handler.run_all_data_init()
         n_observations += data.shape[2]
 
     assert val_observations == int(val_split * n_observations)

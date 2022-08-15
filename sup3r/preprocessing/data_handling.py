@@ -1349,23 +1349,24 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Run the raw dataset extraction process from disk to raw
         un-manipulated datasets.
         """
-        logger.info(f'Starting extraction of {self.extract_features} using '
-                    f'{len(self.time_chunks)} time_chunks. ')
-        if self.extract_workers == 1:
-            self._raw_data = self.serial_extract(self.file_paths,
-                                                 self.raster_index,
-                                                 self.time_chunks,
-                                                 self.extract_features)
+        if self.extract_features:
+            logger.info(f'Starting extraction of {self.extract_features} '
+                        f'using {len(self.time_chunks)} time_chunks.')
+            if self.extract_workers == 1:
+                self._raw_data = self.serial_extract(self.file_paths,
+                                                     self.raster_index,
+                                                     self.time_chunks,
+                                                     self.extract_features)
 
-        else:
-            self._raw_data = self.parallel_extract(self.file_paths,
-                                                   self.raster_index,
-                                                   self.time_chunks,
-                                                   self.extract_features,
-                                                   self.extract_workers)
+            else:
+                self._raw_data = self.parallel_extract(self.file_paths,
+                                                       self.raster_index,
+                                                       self.time_chunks,
+                                                       self.extract_features,
+                                                       self.extract_workers)
 
-        logger.info(f'Finished extracting {self.extract_features} for '
-                    f'{self.input_file_info}')
+            logger.info(f'Finished extracting {self.extract_features} for '
+                        f'{self.input_file_info}')
 
     def run_data_compute(self):
         """Run the data computation / derivation from raw features to desired
