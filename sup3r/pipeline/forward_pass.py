@@ -1018,7 +1018,7 @@ class ForwardPass:
 
         self.exogenous_handler = None
         self.exogenous_data = None
-        if self.exo_kwargs is not None:
+        if self.exo_kwargs:
             exo_features = self.exo_kwargs.get('features', [])
             self.features = [f for f in self.features if f not in exo_features]
             self.exogenous_handler = ExogenousDataHandler(**self.exo_kwargs)
