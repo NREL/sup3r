@@ -40,8 +40,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, features, s_enhance, temp_lapse=None, w_delta_temp=None,
-                 w_delta_topo=None, pres_div=None, pres_exp=None):
+    def __init__(self, features, s_enhance, noise_stdev=None,
+                 temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
+                 pres_div=None, pres_exp=None):
         """
         Parameters
         ----------
@@ -55,6 +56,13 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             entires at the same hub height.
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
+        noise_stdev : float | None
+            Option to add gaussian noise to spatial model output. Noise will be
+            normally distributed with mean of 1 and standard deviation =
+            noise_stdev. None is no noise. The addition of noise has been shown
+            to help downsream temporal-only models produce diurnal cycles in
+            regions where there is minimal change in topography. A noise_stdev
+            around 0.002 has been shown to be effective.
         temp_lapse : None | float
             Temperature lapse rate: change in degrees C/K per meter. Defaults
             to the cls.TEMP_LAPSE attribute.
@@ -76,6 +84,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
 
         self._features = features
         self._s_enhance = s_enhance
+        self._noise_stdev = noise_stdev
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
@@ -424,8 +433,12 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             [temperature_2m, relativehumidity_2m]
         """
 
-        assert isinstance(exogenous_data, (list, tuple))
-        assert len(exogenous_data) == 2
+        msg = ('exogenous_data is of a bad type {}!'
+               .format(type(exogenous_data)))
+        assert isinstance(exogenous_data, (list, tuple)), msg
+        msg = ('exogenous_data is of a bad length {}!'
+               .format(len(exogenous_data)))
+        assert len(exogenous_data) == 2, msg
 
         topo_lr = exogenous_data[0]
         topo_hr = exogenous_data[1]
@@ -433,12 +446,14 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                      'shapes of {} and {}'
                      .format(topo_lr.shape, topo_hr.shape))
 
-        assert isinstance(topo_lr, np.ndarray)
-        assert isinstance(topo_hr, np.ndarray)
-        assert len(topo_lr.shape) == 2
-        assert len(topo_hr.shape) == 2
-        assert topo_lr.shape[0] == low_res.shape[1]
-        assert topo_lr.shape[1] == low_res.shape[2]
+        msg = ('topo_lr has a bad shape {} that doesnt match the low res '
+               'data shape {}'.format(topo_lr.shape, topo_hr.shape))
+        assert isinstance(topo_lr, np.ndarray), msg
+        assert isinstance(topo_hr, np.ndarray), msg
+        assert len(topo_lr.shape) == 2, msg
+        assert len(topo_hr.shape) == 2, msg
+        assert topo_lr.shape[0] == low_res.shape[1], msg
+        assert topo_lr.shape[1] == low_res.shape[2], msg
         s_enhance = self._get_s_enhance(topo_lr, topo_hr)
         msg = ('Topo shapes of {} and {} did not match desired spatial '
                'enhancement of {}'
@@ -473,6 +488,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                                          topo_lr, topo_hr)
                 hi_res[iobs, :, :, idf_rh] = _tmp
 
+        if self._noise_stdev is not None:
+            hi_res *= np.random.normal(1, self._noise_stdev, hi_res.shape)
+
         return hi_res
 
     @property
@@ -481,6 +499,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         return {'temp_lapse_rate': self._temp_lapse,
                 's_enhance': self._s_enhance,
                 't_enhance': 1,
+                'noise_stdev': self._noise_stdev,
                 'weight_for_delta_temp': self._w_delta_temp,
                 'weight_for_delta_topo': self._w_delta_topo,
                 'pressure_divisor': self._pres_div,
