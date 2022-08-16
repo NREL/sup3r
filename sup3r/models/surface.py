@@ -40,7 +40,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, features, s_enhance, noise_stdev=None,
+    def __init__(self, features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
                  pres_div=None, pres_exp=None):
         """
@@ -56,13 +56,15 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             entires at the same hub height.
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
-        noise_stdev : float | None
+        noise_adders : float | list | None
             Option to add gaussian noise to spatial model output. Noise will be
-            normally distributed with mean of 1 and standard deviation =
-            noise_stdev. None is no noise. The addition of noise has been shown
-            to help downsream temporal-only models produce diurnal cycles in
-            regions where there is minimal change in topography. A noise_stdev
-            around 0.002 has been shown to be effective.
+            normally distributed with mean of 0 and standard deviation =
+            noise_adders. noise_adders can be a single value or a list
+            corresponding to the features list. None is no noise. The addition
+            of noise has been shown to help downsream temporal-only models
+            produce diurnal cycles in regions where there is minimal change in
+            topography. A noise_adders around 0.07C (temperature) and 0.1%
+            (relative humidity) have been shown to be effective.
         temp_lapse : None | float
             Temperature lapse rate: change in degrees C/K per meter. Defaults
             to the cls.TEMP_LAPSE attribute.
@@ -84,12 +86,15 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
 
         self._features = features
         self._s_enhance = s_enhance
-        self._noise_stdev = noise_stdev
+        self._noise_adders = noise_adders
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
         self._w_delta_temp = w_delta_temp or self.W_DELTA_TEMP
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
+
+        if isinstance(self._noise_adders, (int, float)):
+            self._noise_adders = [self._noise_adders] * len(self._features)
 
     def __len__(self):
         """Get number of model steps (match interface of MultiStepGan)"""
@@ -488,8 +493,11 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                                          topo_lr, topo_hr)
                 hi_res[iobs, :, :, idf_rh] = _tmp
 
-        if self._noise_stdev is not None:
-            hi_res *= np.random.normal(1, self._noise_stdev, hi_res.shape)
+        if self._noise_adders is not None:
+            for idf, stdev in enumerate(self._noise_adders):
+                if stdev is not None:
+                    noise = np.random.normal(0, stdev, hi_res.shape[:-1])
+                    hi_res[..., idf] += noise
 
         return hi_res
 
@@ -499,7 +507,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         return {'temp_lapse_rate': self._temp_lapse,
                 's_enhance': self._s_enhance,
                 't_enhance': 1,
-                'noise_stdev': self._noise_stdev,
+                'noise_adders': self._noise_adders,
                 'weight_for_delta_temp': self._w_delta_temp,
                 'weight_for_delta_topo': self._w_delta_topo,
                 'pressure_divisor': self._pres_div,
