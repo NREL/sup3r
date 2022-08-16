@@ -11,7 +11,6 @@ from concurrent.futures import as_completed
 import logging
 import numpy as np
 import re
-from datetime import datetime as dt
 import xarray as xr
 
 from rex import Resource
@@ -1109,45 +1108,40 @@ class FeatureHandler:
             (spatial_1, spatial_2, temporal)
         """
         futures = {}
-        now = dt.now()
         data = defaultdict(dict)
-        if max_workers == 1:
-            return cls.serial_extract(file_paths, raster_index, time_chunks,
-                                      input_features)
-        else:
-            with SpawnProcessPool(max_workers=max_workers) as exe:
-                for t, t_slice in enumerate(time_chunks):
-                    for f in input_features:
-                        future = exe.submit(cls.extract_feature,
-                                            file_paths=file_paths,
-                                            raster_index=raster_index,
-                                            feature=f,
-                                            time_slice=t_slice)
-                        meta = {'feature': f, 'chunk': t}
-                        futures[future] = meta
 
-                shape = get_raster_shape(raster_index)
-                time_shape = time_chunks[0].stop - time_chunks[0].start
-                time_shape //= time_chunks[0].step
-                logger.info(
-                    f'Started extracting {input_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_shape}) for {len(input_features)} features')
+        with SpawnProcessPool(max_workers=max_workers) as exe:
+            for t, t_slice in enumerate(time_chunks):
+                for f in input_features:
+                    future = exe.submit(cls.extract_feature,
+                                        file_paths=file_paths,
+                                        raster_index=raster_index,
+                                        feature=f,
+                                        time_slice=t_slice)
+                    meta = {'feature': f, 'chunk': t}
+                    futures[future] = meta
 
-                interval = np.int(np.ceil(len(futures) / 10))
-                for i, future in enumerate(as_completed(futures)):
-                    v = futures[future]
-                    try:
-                        data[v['chunk']][v['feature']] = future.result()
-                    except Exception as e:
-                        msg = (f'Error extracting chunk {v["chunk"]} for'
-                               f' {v["feature"]}')
-                        logger.error(msg)
-                        raise RuntimeError(msg) from e
-                    if interval > 0 and i % interval == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} feature '
-                                     'chunks extracted.')
+            shape = get_raster_shape(raster_index)
+            time_shape = time_chunks[0].stop - time_chunks[0].start
+            time_shape //= time_chunks[0].step
+            logger.info(f'Started extracting {input_features}'
+                        f' using {len(time_chunks)}'
+                        f' time chunks of shape ({shape[0]}, {shape[1]}, '
+                        f'{time_shape}) for {len(input_features)} features')
+
+            interval = np.int(np.ceil(len(futures) / 10))
+            for i, future in enumerate(as_completed(futures)):
+                v = futures[future]
+                try:
+                    data[v['chunk']][v['feature']] = future.result()
+                except Exception as e:
+                    msg = (f'Error extracting chunk {v["chunk"]} for'
+                           f' {v["feature"]}')
+                    logger.error(msg)
+                    raise RuntimeError(msg) from e
+                if interval > 0 and i % interval == 0:
+                    logger.debug(f'{i+1} out of {len(futures)} feature '
+                                 'chunks extracted.')
 
         return data
 
@@ -1235,6 +1229,10 @@ class FeatureHandler:
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
+
+        if len(derived_features) == 0:
+            return data
+
         for t, _ in enumerate(time_chunks):
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
@@ -1246,6 +1244,7 @@ class FeatureHandler:
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
                              'chunks computed.')
+
         return data
 
     @classmethod
@@ -1293,44 +1292,37 @@ class FeatureHandler:
             return data
 
         futures = {}
-        now = dt.now()
-        if max_workers == 1:
-            return cls.serial_compute(data, file_paths, raster_index,
-                                      time_chunks, derived_features,
-                                      all_features, handle_features)
-        else:
-            with SpawnProcessPool(max_workers=max_workers) as exe:
-                for t, _ in enumerate(time_chunks):
-                    for f in derived_features:
-                        tmp = cls.get_input_arrays(data, t, f, handle_features)
-                        future = exe.submit(cls.recursive_compute, data=tmp,
-                                            feature=f,
-                                            handle_features=handle_features,
-                                            file_paths=file_paths,
-                                            raster_index=raster_index)
-                        meta = {'feature': f, 'chunk': t}
-                        futures[future] = meta
+        with SpawnProcessPool(max_workers=max_workers) as exe:
+            for t, _ in enumerate(time_chunks):
+                for f in derived_features:
+                    tmp = cls.get_input_arrays(data, t, f, handle_features)
+                    future = exe.submit(cls.recursive_compute, data=tmp,
+                                        feature=f,
+                                        handle_features=handle_features,
+                                        file_paths=file_paths,
+                                        raster_index=raster_index)
+                    meta = {'feature': f, 'chunk': t}
+                    futures[future] = meta
 
-                    cls.pop_old_data(data, t, all_features)
+                cls.pop_old_data(data, t, all_features)
 
-                shape = get_raster_shape(raster_index)
-                time_shape = time_chunks[0].stop - time_chunks[0].start
-                time_shape //= time_chunks[0].step
-                logger.info(
-                    f'Started computing {derived_features}'
-                    f' in {dt.now() - now}. Using {len(time_chunks)}'
-                    f' time chunks of shape ({shape[0]}, {shape[1]}, '
-                    f'{time_shape}) for {len(derived_features)} features')
+            shape = get_raster_shape(raster_index)
+            time_shape = time_chunks[0].stop - time_chunks[0].start
+            time_shape //= time_chunks[0].step
+            logger.info(f'Started computing {derived_features}'
+                        f' using {len(time_chunks)}'
+                        f' time chunks of shape ({shape[0]}, {shape[1]}, '
+                        f'{time_shape}) for {len(derived_features)} features')
 
-                interval = np.int(np.ceil(len(futures) / 10))
-                for i, future in enumerate(as_completed(futures)):
-                    v = futures[future]
-                    chunk_idx = v['chunk']
-                    data[chunk_idx] = data.get(chunk_idx, {})
-                    data[chunk_idx][v['feature']] = future.result()
-                    if interval > 0 and i % interval == 0:
-                        logger.debug(f'{i+1} out of {len(futures)} feature '
-                                     'chunks computed')
+            interval = np.int(np.ceil(len(futures) / 10))
+            for i, future in enumerate(as_completed(futures)):
+                v = futures[future]
+                chunk_idx = v['chunk']
+                data[chunk_idx] = data.get(chunk_idx, {})
+                data[chunk_idx][v['feature']] = future.result()
+                if interval > 0 and i % interval == 0:
+                    logger.debug(f'{i+1} out of {len(futures)} feature '
+                                 'chunks computed')
 
         return data
 
