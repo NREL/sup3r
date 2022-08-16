@@ -6,8 +6,11 @@ import logging
 from fnmatch import fnmatch
 import numpy as np
 from PIL import Image
+from sklearn import linear_model
 from warnings import warn
+
 from sup3r.models.abstract import AbstractSup3rGan
+from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             normally distributed with mean of 0 and standard deviation =
             noise_adders. noise_adders can be a single value or a list
             corresponding to the features list. None is no noise. The addition
-            of noise has been shown to help downsream temporal-only models
+            of noise has been shown to help downstream temporal-only models
             produce diurnal cycles in regions where there is minimal change in
             topography. A noise_adders around 0.07C (temperature) and 0.1%
             (relative humidity) have been shown to be effective.
@@ -532,3 +535,77 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         """Get the list of output feature names that the generative model
         outputs"""
         return self._features
+
+    def train(self, true_hr_temp, true_hr_rh, true_hr_topo):
+        """This method trains the relative humidity linear model. The
+        temperature and surface lapse rate models are parameterizations taken
+        from the NSRDB and are not trained.
+
+        Parameters
+        ----------
+        true_hr_temp : np.ndarray
+            True high-resolution daily average temperature data in a 3D array
+            of shape (lat, lon, n_days)
+        true_hr_rh : np.ndarray
+            True high-resolution daily average relative humidity data in a 3D
+            array of shape (lat, lon, n_days)
+        true_hr_topo : np.ndarray
+            High-resolution surface elevation data in meters with shape
+            (lat, lon)
+
+        Returns
+        -------
+        w_delta_temp : float
+            Weight for the delta-temperature feature for the relative humidity
+            linear regression model.
+        w_delta_topo : float
+            Weight for the delta-topography feature for the relative humidity
+            linear regression model.
+        """
+
+        assert len(true_hr_temp.shape) == 3, 'Bad true_hr_temp shape'
+        assert len(true_hr_rh.shape) == 3, 'Bad true_hr_rh shape'
+        assert len(true_hr_topo.shape) == 2, 'Bad true_hr_topo shape'
+
+        true_hr_topo = np.expand_dims(true_hr_topo, axis=-1)
+        true_hr_topo = np.repeat(true_hr_topo, true_hr_temp.shape[-1], axis=-1)
+
+        true_lr_temp = spatial_coarsening(true_hr_temp,
+                                          s_enhance=self._s_enhance,
+                                          obs_axis=False)
+        true_lr_rh = spatial_coarsening(true_hr_rh,
+                                        s_enhance=self._s_enhance,
+                                        obs_axis=False)
+        true_lr_topo = spatial_coarsening(true_hr_topo,
+                                          s_enhance=self._s_enhance,
+                                          obs_axis=False)
+
+        interp_hr_temp = np.full(true_hr_temp.shape, np.nan, dtype=np.float32)
+        interp_hr_rh = np.full(true_hr_rh.shape, np.nan, dtype=np.float32)
+        interp_hr_topo = np.full(true_hr_topo.shape, np.nan, dtype=np.float32)
+
+        for i in range(interp_hr_temp.shape[-1]):
+            interp_hr_temp[..., i] = self.downscale_arr(true_lr_temp[..., i],
+                                                        self._s_enhance)
+            interp_hr_rh[..., i] = self.downscale_arr(true_lr_rh[..., i],
+                                                      self._s_enhance)
+            interp_hr_topo[..., i] = self.downscale_arr(true_lr_topo[..., i],
+                                                        self._s_enhance)
+
+        x1 = true_hr_temp - interp_hr_temp
+        x2 = true_hr_topo - interp_hr_topo
+        x = np.vstack((x1.flatten(), x2.flatten())).T
+        y = (true_hr_rh - interp_hr_rh).flatten()
+
+        regr = linear_model.LinearRegression()
+        regr.fit(x, y)
+        if np.abs(regr.intercept_) > 1e-6:
+            msg = ('Relative humidity linear model should have an intercept '
+                   'of zero but the model fit an intercept of {}'
+                   .format(regr.intercept_))
+            logger.warning(msg)
+            warn(msg)
+
+        w_delta_temp, w_delta_topo = regr.coef_[0], regr.coef_[1]
+
+        return w_delta_temp, w_delta_topo

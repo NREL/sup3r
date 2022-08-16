@@ -71,6 +71,22 @@ def test_surface_model(s_enhance=5):
     assert np.abs(diff[..., 2]).mean() < 200
 
 
+def test_train_rh_model(s_enhance=10):
+    """Test the train method of the RH linear regression model."""
+    _, true_hi_res, _, topo_hr = get_inputs(s_enhance)
+    true_hr_temp = np.transpose(true_hi_res[..., 0], axes=(1, 2, 0))
+    true_hr_rh = np.transpose(true_hi_res[..., 1], axes=(1, 2, 0))
+
+    model = SurfaceSpatialMetModel(FEATURES, s_enhance=s_enhance)
+    w_delta_temp, w_delta_topo = model.train(true_hr_temp, true_hr_rh, topo_hr)
+
+    # pretty generous tolerances because the training dataset is so small
+    assert np.allclose(w_delta_temp, SurfaceSpatialMetModel.W_DELTA_TEMP,
+                       atol=0.6)
+    assert np.allclose(w_delta_topo, SurfaceSpatialMetModel.W_DELTA_TOPO,
+                       atol=0.01)
+
+
 def test_multi_step_surface(s_enhance=2, t_enhance=2):
     """Test the multi step surface met model."""
 

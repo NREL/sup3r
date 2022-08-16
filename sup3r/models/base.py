@@ -347,7 +347,7 @@ class Sup3rGan(AbstractSup3rGan):
             if val is None:
                 self.meta[var] = kwargs[var]
             elif val != kwargs[var]:
-                msg = ('GAN was previously trained on with {var}={} but '
+                msg = ('GAN was previously trained with {var}={} but '
                        'received new {var}={}'
                        .format(val, kwargs[var], var=var))
                 logger.error(msg)
