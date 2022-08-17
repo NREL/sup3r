@@ -2,6 +2,7 @@
 
 import logging
 import numpy as np
+from warnings import warn
 
 from sup3r.utilities.topo import TopoExtract
 
@@ -35,24 +36,20 @@ class ExogenousDataHandler:
         s_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
             spatial dimensions of low resolution data from file_paths input.
-            For example, if file_paths has 100km data and s_enhance is 4, this
-            class will output a feature raster corresponding to the file_paths
-            grid enhanced 4x to ~25km. The length of this list should be equal
-            to the number of model steps. e.g. if using a model with 2 5x
-            spatial enhancement steps and a single temporal enhancement step
-            s_enhancements should be [5, 5, 1]
+            For example, if file_paths has 100km data and there are 2 spatial
+            enhancement steps of 4x and 5x to a nominal resolution of 5km,
+            s_enhancements should be [1, 4] and exo_steps should be [0, 1] so
+            that the input to the 4x model gets exogenous data at 100km
+            (s_enhance=1, exo_step=0) and the input to the 5x model gets
+            exogenous data at 25km (s_enhance=4, exo_step=1). With this
+            example, any models after the 5x spatial enhancement will not
+            receive exogenous inputs. The length of this list should be equal
+            to the number of agg_factors and the number of exo_steps
         agg_factors : list
             List of factors by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
-            s_enhance. For example, if file_paths has 100km data and s_enhance
-            is 4 resulting in a desired resolution of ~25km and topo_source_h5
-            has a resolution of 4km, the agg_factor should be 36 so that 6x6
-            4km cells are averaged to the ~25km enhanced grid. The length of
-            this list should be equal to the number of model steps. e.g. if
-            using a model with 2 spatial enhancement steps which require
-            exogenous data and and a single temporal enhancement which does not
-            require exogenous data then step agg_factors should have integer
-            values for the first two entries and None for the third.
+            s_enhance. The length of this list should be equal to the number of
+            s_enhancements and the number of exo_steps
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -71,24 +68,36 @@ class ExogenousDataHandler:
         exo_steps : list
             List of model step indices for which exogenous data is required.
             e.g. If we have two model steps which take exo data and one which
-            does not exo_steps = [0, 1].
+            does not exo_steps = [0, 1]. The length of this list should be
+            equal to the number of s_enhancements and the number of agg_factors
         """
 
         self.features = features
-        self.s_enhancements = [1] + s_enhancements
-        self.agg_factors = [1] + agg_factors
+        self.s_enhancements = s_enhancements
+        self.agg_factors = agg_factors
         self.data = []
         exo_steps = exo_steps or np.arange(len(self.s_enhancements))
+
+        if self.s_enhancements[0] != 1:
+            msg = ('s_enhancements typically starts with 1 so the first '
+                   'exogenous data input matches the spatial resolution of '
+                   'the source low-res input data, but received '
+                   's_enhancements: {}'.format(self.s_enhancements))
+            logger.warning(msg)
+            warn(msg)
+
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={s_enhancements} and '
                f'agg_factors={agg_factors}.')
-        assert len(s_enhancements) == len(agg_factors), msg
+        assert len(self.s_enhancements) == len(self.agg_factors), msg
+
         msg = ('Need to provide an integer enhancement factor for each model'
                'step. If the step is temporal enhancement then s_enhance=1')
-        assert not any(s is None for s in s_enhancements), msg
-        for i in range(len(s_enhancements)):
-            s_enhance = np.product(s_enhancements[:i + 1])
-            agg_factor = agg_factors[i]
+        assert not any(s is None for s in self.s_enhancements), msg
+
+        for i in range(len(self.s_enhancements)):
+            s_enhance = np.product(self.s_enhancements[:i + 1])
+            agg_factor = self.agg_factors[i]
             fdata = []
             if i in exo_steps:
                 for f in features:

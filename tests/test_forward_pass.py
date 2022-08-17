@@ -412,7 +412,6 @@ def test_fwp_multi_step_model_topo_exoskip():
 
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
-        s_enhancements = [2, 2, 3]
         s_enhance = 12
         t_enhance = 4
 
@@ -421,7 +420,7 @@ def test_fwp_multi_step_model_topo_exoskip():
                       'source_h5': FP_WTK,
                       'target': target,
                       'shape': shape,
-                      's_enhancements': s_enhancements,
+                      's_enhancements': [1, 2, 2],
                       'agg_factors': [2, 4, 16],
                       'exo_steps': [0, 1]
                       }
@@ -517,7 +516,7 @@ def test_fwp_multi_step_model_topo():
                       'source_h5': FP_WTK,
                       'target': target,
                       'shape': shape,
-                      's_enhancements': s_enhancements,
+                      's_enhancements': [1, 2, 2],
                       'agg_factors': [2, 4, 12]
                       }
 

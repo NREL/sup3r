@@ -6,6 +6,7 @@ from warnings import warn
 
 from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.models.base import Sup3rGan
+from sup3r.models.surface import SurfaceSpatialMetModel
 
 
 logger = logging.getLogger(__name__)
@@ -361,14 +362,13 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
 
         self._spatial_models = spatial_models
         self._temporal_models = temporal_models
-        self._models = (*spatial_models.models, *temporal_models.models)
 
     @property
     def models(self):
         """Get an ordered tuple of the Sup3rGan models that are part of this
         MultiStepGan
         """
-        return self._models
+        return (*self.spatial_models.models, *self.temporal_models.models)
 
     @property
     def spatial_models(self):
@@ -519,6 +519,173 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
             temporal_model_dirs = [temporal_model_dirs]
 
         s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
+        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
+
+        return cls(s_models, t_models)
+
+
+class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
+    """A two-step GAN where the first step is a spatial-only enhancement on a
+    4D tensor of near-surface temperature and relative humidity data, and the
+    second step is a (spatio)temporal enhancement on a 5D tensor.
+
+    NOTE: no inputs are needed for the first spatial-only surface meteorology
+    model. The spatial enhancement is determined by the low and high res
+    topography inputs in the exogenous_data kwargs in the
+    MultiStepSurfaceMetGan.generate() method.
+
+    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
+    the shape (temporal, spatial_1, spatial_2, features) where temporal
+    (usually the observation index) is a series of sequential timesteps that
+    will be transposed to a 5D tensor of shape
+    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
+    2nd-step (spatio)temporal GAN.
+    """
+
+    SPATIAL_MODEL = SurfaceSpatialMetModel
+
+    @property
+    def models(self):
+        """Get an ordered tuple of the Sup3rGan models that are part of this
+        MultiStepGan
+        """
+        return (self.spatial_models, *self.temporal_models.models)
+
+    @property
+    def meta(self):
+        """Get a tuple of meta data dictionaries for all models
+
+        Returns
+        -------
+        tuple
+        """
+        return (self.spatial_models.meta,) + self.temporal_models.meta
+
+    def generate(self, low_res, norm_in=True, un_norm_out=True,
+                 exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution spatial input data, a 4D array of shape:
+            (n_obs, spatial_1, spatial_2, 2), Where the feature channel is:
+            [temperature_2m, relativehumidity_2m]
+        norm_in : bool
+            Flag to normalize low_res input data if the self.means,
+            self.stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+        exogenous_data : list
+            For the MultiStepSurfaceMetGan model, this must be a 2-entry list
+            where the first entry is a 2D (lat, lon) array of low-resolution
+            surface elevation data in meters (must match spatial_1, spatial_2
+            from low_res), and the second entry is a 2D (lat, lon) array of
+            high-resolution surface elevation data in meters.
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the 2nd
+            step (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features), Where the
+            feature channel is: [temperature_2m, relativehumidity_2m]
+        """
+        logger.debug('Data input to the 1st step spatial-only '
+                     'enhancement has shape {}'.format(low_res.shape))
+
+        msg = ('MultiStepSurfaceMetGan needs exogenous_data  with two '
+               'entries for low and high res topography inputs.')
+        assert exogenous_data is not None, msg
+        assert isinstance(exogenous_data, (list, tuple)), msg
+        exogenous_data = [d for d in exogenous_data if d is not None]
+        assert len(exogenous_data) == 2, msg
+
+        # SurfaceSpatialMetModel needs a 2D array for exo topography input
+        for i, i_exo in enumerate(exogenous_data):
+            if len(i_exo.shape) == 3:
+                exogenous_data[i] = i_exo[:, :, 0]
+            elif len(i_exo.shape) == 4:
+                exogenous_data[i] = i_exo[0, :, :, 0]
+            elif len(i_exo.shape) == 5:
+                exogenous_data[i] = i_exo[0, :, :, 0, 0]
+
+        try:
+            hi_res = self.spatial_models.generate(
+                low_res, exogenous_data=exogenous_data)
+        except Exception as e:
+            msg = ('Could not run the 1st step spatial-only GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
+
+        logger.debug('Data output from the 1st step spatial-only '
+                     'enhancement has shape {}'.format(hi_res.shape))
+        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
+        hi_res = np.expand_dims(hi_res, axis=0)
+        logger.debug('Data from the 1st step spatial-only enhancement has '
+                     'been reshaped to {}'.format(hi_res.shape))
+
+        try:
+            hi_res = self.temporal_models.generate(
+                hi_res, norm_in=True, un_norm_out=un_norm_out)
+        except Exception as e:
+            msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
+
+        logger.debug('Final multistep GAN output has shape: {}'
+                     .format(hi_res.shape))
+
+        return hi_res
+
+    @classmethod
+    def load(cls, features, s_enhance, temporal_model_dirs,
+             surface_model_kwargs=None, verbose=True):
+        """Load the GANs with its sub-networks from a previously saved-to
+        output directory.
+
+        Parameters
+        ----------
+        features : list
+            List of feature names that this model will operate on for both
+            input and output. This must match the feature axis ordering in the
+            array input to generate(). Typically this is a list containing:
+            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
+            contain multiple instances of each variable at different heights.
+            relativehumidity_*m entries must have corresponding temperature_*m
+            entires at the same hub height.
+        s_enhance : int
+            Integer factor by which the spatial axes are to be enhanced.
+        temporal_model_dirs : str | list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+            This must contain only (spatio)temporal models that input/output 5D
+            tensors.
+        surface_model_kwargs : None | dict
+            Optional additional kwargs to initialize SurfaceSpatialMetModel
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        out : MultiStepGan
+            Returns a pretrained gan model that was previously saved to
+            model_dirs
+        """
+
+        if isinstance(temporal_model_dirs, str):
+            temporal_model_dirs = [temporal_model_dirs]
+
+        if surface_model_kwargs is None:
+            surface_model_kwargs = {}
+
+        s_models = cls.SPATIAL_MODEL.load(features, s_enhance, verbose=verbose,
+                                          **surface_model_kwargs)
         t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
 
         return cls(s_models, t_models)

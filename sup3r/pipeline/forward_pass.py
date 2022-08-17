@@ -37,7 +37,8 @@ class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
     def __init__(self, coarse_shape, time_index, temporal_slice, chunk_shape,
-                 s_enhancements, t_enhancements, spatial_pad, temporal_pad):
+                 s_enhancements, t_enhancements, spatial_pad, temporal_pad,
+                 exo_s_enhancements=None):
         """
         Parameters
         ----------
@@ -74,6 +75,12 @@ class ForwardPassSlicer:
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
             chunks in the temporal dimension will not be padded.
+        exo_s_enhancements : list
+            List of spatial enhancement steps specific to the exogenous_data
+            inputs. This differs from s_enhancements in that s_enhancements[0]
+            will be the spatial enhancement of the first model, but
+            exo_s_enhancements[0] may be 1 to signify exo data is required for
+            the first non-enhanced spatial input resolution.
         """
         self.grid_shape = coarse_shape
         self.s_enhancements = s_enhancements
@@ -85,6 +92,7 @@ class ForwardPassSlicer:
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape
+        self.exo_s_enhancements = exo_s_enhancements
 
         self._s_lr_slices = None
         self._s_lr_pad_slices = None
@@ -189,8 +197,8 @@ class ForwardPassSlicer:
 
         Returns
         -------
-        _s_exo_slices : list
-            List of lists of slices which have been padded for indexing
+        _s_exo_slices : np.ndarray
+            Array of lists of slices which have been padded for indexing
             exogenous data for the appropriate spatial enhancement step. e.g.
             If there are two spatial enhancement steps this will be a list of
             length=3. _s_exo_slices[0] will be a list of padded slices for the
@@ -199,11 +207,12 @@ class ForwardPassSlicer:
             _s_exo_slices[2] will be a list of slices for the resolution after
             the second spatial enhancement step.
         """
-        if self._s_exo_slices is None:
-            self._s_exo_slices = [self.s_lr_pad_slices]
-            for s, _ in enumerate(self.s_enhancements):
-                s_enhance = np.product([s for s in self.s_enhancements[:s + 1]
-                                        if s is not None])
+        if self._s_exo_slices is None and self.exo_s_enhancements is not None:
+            self._s_exo_slices = []
+            for s, _ in enumerate(self.exo_s_enhancements):
+                enhancements = [s for s in self.exo_s_enhancements[:s + 1]
+                                if s is not None]
+                s_enhance = np.product(enhancements)
                 exo_slices = []
                 s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
                                                        self.grid_shape[0],
@@ -213,13 +222,18 @@ class ForwardPassSlicer:
                                                        self.grid_shape[1],
                                                        s_enhance,
                                                        self.spatial_pad)
+
                 for i, _ in enumerate(self.s1_lr_slices):
                     for j, _ in enumerate(self.s2_lr_slices):
                         pad_slice = (s1_pad_slices[i], s2_pad_slices[j],
                                      slice(None), slice(None))
                         exo_slices.append(pad_slice)
+
                 self._s_exo_slices.append(exo_slices)
-        return np.array(self._s_exo_slices)
+
+            self._s_exo_slices = np.array(self.s_exo_slices)
+
+        return self._s_exo_slices
 
     @property
     def t_lr_pad_slices(self):
@@ -515,12 +529,6 @@ class ForwardPassStrategy(InputMixIn):
             initialize the GAN. Typically this is just the string path to the
             model directory, but can be multiple models or arguments for more
             complex models.
-        s_enhance : int
-            Factor by which the Sup3rGan model will enhance the spatial
-            dimensions of low resolution data
-        t_enhance : int
-            Factor by which the Sup3rGan model will enhance temporal dimension
-            of low resolution data
         fwp_chunk_shape : tuple
             Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
             chunk to use for a forward pass. The number of nodes that the
@@ -645,7 +653,7 @@ class ForwardPassStrategy(InputMixIn):
         self.compute_workers = compute_workers
         self.load_workers = load_workers
         self.output_workers = output_workers
-        self.exo_kwargs = exo_kwargs
+        self.exo_kwargs = exo_kwargs or {}
         self._cache_pattern = cache_pattern
         self._input_handler_name = input_handler
         self._spatial_coarsen = spatial_coarsen
@@ -674,6 +682,7 @@ class ForwardPassStrategy(InputMixIn):
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
 
+        exo_s_en = self.exo_kwargs.get('s_enhancements', None)
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
                                             self.raw_time_index,
                                             self.temporal_slice,
@@ -681,7 +690,8 @@ class ForwardPassStrategy(InputMixIn):
                                             self.s_enhancements,
                                             self.t_enhancements,
                                             self.spatial_pad,
-                                            self.temporal_pad)
+                                            self.temporal_pad,
+                                            exo_s_enhancements=exo_s_en)
 
         logger.info('Initializing ForwardPassStrategy for '
                     f'{self.input_file_info}')
@@ -1006,12 +1016,17 @@ class ForwardPass:
         self.exo_kwargs = kwargs['exo_kwargs']
         self.exo_slices = kwargs['exo_slices']
 
-        if self.exo_kwargs is not None:
+        self.exogenous_handler = None
+        self.exogenous_data = None
+        if self.exo_kwargs:
             exo_features = self.exo_kwargs.get('features', [])
             self.features = [f for f in self.features if f not in exo_features]
-            self.exogenous_data = ExogenousDataHandler(**self.exo_kwargs).data
-        else:
-            self.exogenous_data = None
+            self.exogenous_handler = ExogenousDataHandler(**self.exo_kwargs)
+            self.exogenous_data = self.exogenous_handler.data
+            shapes = [None if d is None else d.shape
+                      for d in self.exogenous_data]
+            logger.info('Got exogenous_data of length {} with shapes: {}'
+                        .format(len(self.exogenous_data), shapes))
 
         fwp_out_shape = (*self.data_shape, len(self.output_features))
         fwp_out_mem = self.strategy.s_enhance**2 * self.strategy.t_enhance
@@ -1092,10 +1107,21 @@ class ForwardPass:
         if self.exogenous_data is not None:
             for arr, exo_slice in zip(self.exogenous_data, exogenous_slices):
                 if arr is not None:
-                    shape = (*arr.shape[:2], chunk_shape[2], arr.shape[-1])
-                    exo_data.append(np.resize(arr, shape)[tuple(exo_slice)])
-                else:
-                    exo_data.append(None)
+                    og_shape = arr.shape
+                    arr = np.expand_dims(arr, axis=2)
+                    arr = np.repeat(arr, chunk_shape[2], axis=2)
+                    arr = arr[tuple(exo_slice)]
+
+                    target_shape = (arr.shape[0], arr.shape[1], chunk_shape[2],
+                                    arr.shape[-1])
+                    msg = ('Target shape for exogenous data in forward pass '
+                           'chunk was {}, but something went wrong and i '
+                           'resized original data shape from {} to {}'
+                           .format(target_shape, og_shape, arr.shape))
+                    assert arr.shape == target_shape, msg
+
+                exo_data.append(arr)
+
         return exo_data
 
     @classmethod
@@ -1151,14 +1177,14 @@ class ForwardPass:
 
         for i, arr in enumerate(exo_data):
             if arr is not None:
-                check = isinstance(model, sup3r.models.SpatialThenTemporalGan)
+                check = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
                 check = check and (i < len(model.spatial_models))
                 if check:
                     exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                 else:
                     exo_data[i] = np.expand_dims(arr, axis=0)
 
-        if isinstance(model, sup3r.models.SpatialThenTemporalGan):
+        if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
             i_lr_t = 0
             i_lr_s = 1
             data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
@@ -1166,6 +1192,7 @@ class ForwardPass:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
+
         try:
             hi_res = model.generate(data_chunk, exogenous_data=exo_data)
         except Exception as e:
@@ -1261,8 +1288,12 @@ class ForwardPass:
         zip_iter = zip(self.hr_slices, self.lr_pad_slices, self.hr_crop_slices)
         for i, (sh, slp, shc) in enumerate(zip_iter):
             data_chunk = self.data_handler.data[slp]
-            exo_data = self._prep_exogenous_input(data_chunk.shape,
-                                                  self.exo_slices[:, i])
+
+            exo_data = []
+            if self.exogenous_data is not None:
+                exo_data = self._prep_exogenous_input(data_chunk.shape,
+                                                      self.exo_slices[:, i])
+
             self.data[sh] = self.forward_pass_chunk(
                 data_chunk, hr_crop_slices=shc, model=self.model,
                 model_args=self.model_args, model_class=self.model_class,
@@ -1287,7 +1318,7 @@ class ForwardPass:
         """Run forward passes in parallel"""
         futures = {}
         now = dt.now()
-        logger.info('Starting thread pool with {} workers'
+        logger.info('Starting spawn process pool with {} workers'
                     .format(max_workers))
         with SpawnProcessPool(max_workers=max_workers) as exe:
             for i, (sh, slp, shc) in enumerate(zip(
@@ -1295,8 +1326,12 @@ class ForwardPass:
                     self.hr_crop_slices)):
 
                 data_chunk = self.data_handler.data[slp]
-                exo_data = self._prep_exogenous_input(data_chunk.shape,
-                                                      self.exo_slices[:, i])
+
+                exo_data = []
+                if self.exogenous_data is not None:
+                    exo_data = self._prep_exogenous_input(
+                        data_chunk.shape, self.exo_slices[:, i])
+
                 future = exe.submit(
                     self.forward_pass_chunk, data_chunk, hr_crop_slices=shc,
                     model_args=self.model_args, model_class=self.model_class,
