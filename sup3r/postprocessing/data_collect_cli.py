@@ -58,7 +58,7 @@ def from_config(ctx, config_file, verbose):
     hardware_option = exec_kwargs.pop('option', 'local')
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
-    name = 'sup3r_data_collect'
+    name = 'sup3r_collect_{}'.format(os.path.basename(status_dir))
     ctx.obj['NAME'] = name
     config['job_name'] = name
     config['status_dir'] = status_dir
