@@ -71,7 +71,7 @@ def from_config(ctx, config_file, verbose):
 
     HANDLER_CLASS = getattr(sup3r.preprocessing.data_handling, config_handler)
 
-    name = 'sup3r_data_extract'
+    name = 'sup3r_extract_{}'.format(os.path.basename(status_dir))
     ctx.obj['NAME'] = name
     config['job_name'] = name
     config['status_dir'] = status_dir

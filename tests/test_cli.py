@@ -257,10 +257,15 @@ def test_pipeline_fwp_qa(runner):
 
         assert len(status) == 2
         assert len(status['forward-pass']) == 2
-        fwp_status = status['forward-pass']['sup3r_fwp_00000']
+        fwp_status = status['forward-pass']
+        del fwp_status['pipeline_index']
+        fwp_status = list(fwp_status.values())[0]
         assert fwp_status['job_status'] == 'successful'
         assert fwp_status['time'] > 0
 
         assert len(status['qa']) == 2
-        assert status['qa']['sup3r_qa']['job_status'] == 'successful'
-        assert status['qa']['sup3r_qa']['time'] > 0
+        qa_status = status['qa']
+        del qa_status['pipeline_index']
+        qa_status = list(qa_status.values())[0]
+        assert qa_status['job_status'] == 'successful'
+        assert qa_status['time'] > 0

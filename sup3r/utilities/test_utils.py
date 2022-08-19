@@ -135,7 +135,7 @@ def tke_spectrum(u, v):
     return E_k
 
 
-def velocity_gradient_dist(u):
+def velocity_gradient_dist(u, bins=50, range=None):
     """Returns the longitudinal velocity gradient distribution.
 
     Parameters
@@ -143,6 +143,10 @@ def velocity_gradient_dist(u):
     u: ndarray
         Longitudinal velocity component
         (lat, lon, temporal)
+    bins : int
+        Number of bins for the velocity gradient pdf.
+    range : tuple | None
+        Optional min/max range for the velocity gradient pdf.
 
     Returns
     -------
@@ -154,7 +158,7 @@ def velocity_gradient_dist(u):
     diffs = np.diff(u, axis=1).flatten()
     diffs = diffs[(np.abs(diffs) < 7)]
     diffs = diffs / np.sqrt(np.mean(diffs**2))
-    counts, edges = np.histogram(diffs, bins=50)
+    counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.max()
     return centers, counts
