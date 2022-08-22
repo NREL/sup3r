@@ -1782,6 +1782,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         registry = {
             'U_(.*)': 'ua_(.*)',
             'V_(.*)': 'va_(.*)',
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
             'topography': 'orog',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
