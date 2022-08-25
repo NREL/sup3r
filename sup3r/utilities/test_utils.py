@@ -131,7 +131,6 @@ def tke_spectrum(u, v):
     E_k_a = E_k[:n_steps]
     E_k_b = E_k[-n_steps:][::-1]
     E_k = E_k_a + E_k_b
-    E_k /= E_k[1]
     return E_k
 
 
@@ -151,12 +150,78 @@ def velocity_gradient_dist(u, bins=50, range=None):
     Returns
     -------
     ndarray
-        delta_x values
+        du/dx at bin centers
     ndarray
         Normalized delta_u / delta_x value counts
     """
     diffs = np.diff(u, axis=1).flatten()
     diffs = diffs[(np.abs(diffs) < 7)]
+    diffs = diffs / np.sqrt(np.mean(diffs**2))
+    counts, edges = np.histogram(diffs, bins=bins, range=range)
+    centers = edges[:-1] + (np.diff(edges) / 2)
+    counts = counts.astype(float) / counts.max()
+    return centers, counts
+
+
+def vorticity_dist(u, v, bins=50, range=None):
+    """Returns the vorticity distribution.
+
+    Parameters
+    ----------
+    u: ndarray
+        Longitudinal velocity component
+        (lat, lon, temporal)
+    v : ndarray
+        Latitudinal velocity component
+        (lat, lon, temporal)
+    bins : int
+        Number of bins for the vorticity pdf.
+    range : tuple | None
+        Optional min/max range for the vorticity pdf.
+
+    Returns
+    -------
+    ndarray
+        vorticity values at bin centers
+    ndarray
+        Normalized vorticity value counts
+    """
+    dudy = np.diff(u, axis=0).flatten()
+    dvdx = np.diff(v, axis=1).flatten()
+    diffs = dudy - dvdx
+    diffs = diffs[(np.abs(diffs) < 14)]
+    diffs = diffs / np.sqrt(np.mean(diffs**2))
+    counts, edges = np.histogram(diffs, bins=bins, range=range)
+    centers = edges[:-1] + (np.diff(edges) / 2)
+    counts = counts.astype(float) / counts.max()
+    return centers, counts
+
+
+def ramp_rate_dist(u, v, bins=50, range=None):
+    """Returns the ramp rate distribution.
+
+    Parameters
+    ----------
+    u: ndarray
+        Longitudinal velocity component
+        (lat, lon, temporal)
+    v : ndarray
+        Latitudinal velocity component
+        (lat, lon, temporal)
+    bins : int
+        Number of bins for the ramp rate pdf.
+    range : tuple | None
+        Optional min/max range for the ramp rate pdf.
+
+    Returns
+    -------
+    ndarray
+        dws/dt values at bin centers
+    ndarray
+        Normalized delta_ws / delta_t value counts
+    """
+    diffs = np.diff(np.sqrt(u**2 + v**2), axis=-1).flatten()
+    diffs = diffs[(np.abs(diffs) < 10)]
     diffs = diffs / np.sqrt(np.mean(diffs**2))
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
