@@ -417,7 +417,7 @@ def test_fwp_multi_step_model_topo_exoskip():
 
         exo_kwargs = {'file_paths': input_files,
                       'features': ['topography'],
-                      'source_h5': FP_WTK,
+                      'source_file': FP_WTK,
                       'target': target,
                       'shape': shape,
                       's_enhancements': [1, 2, 2],
@@ -513,7 +513,7 @@ def test_fwp_multi_step_model_topo():
 
         exo_kwargs = {'file_paths': input_files,
                       'features': ['topography'],
-                      'source_h5': FP_WTK,
+                      'source_file': FP_WTK,
                       'target': target,
                       'shape': shape,
                       's_enhancements': [1, 2, 2],
