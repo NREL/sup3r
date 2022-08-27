@@ -186,8 +186,8 @@ def vorticity_dist(u, v, bins=50, range=None):
     ndarray
         Normalized vorticity value counts
     """
-    dudy = np.diff(u, axis=0).flatten()
-    dvdx = np.diff(v, axis=1).flatten()
+    dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
+    dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
     diffs = diffs[(np.abs(diffs) < 14)]
     diffs = diffs / np.sqrt(np.mean(diffs**2))
