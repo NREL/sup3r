@@ -1308,8 +1308,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         logger.debug(f'Loading data for raster of shape {self.grid_shape}')
 
         # get the file-native time index without pruning
-        time_index = self.raw_time_index
-        n_steps = len(time_index[self.temporal_slice])
+        n_steps = len(self.raw_time_index[self.temporal_slice])
 
         # split time dimension into smaller slices which can be
         # extracted in parallel

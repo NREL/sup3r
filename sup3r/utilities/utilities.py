@@ -44,9 +44,11 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
     cpu_count = os.cpu_count()
     if max_workers is not None:
         max_workers = np.min([max_workers, n_processes])
-    else:
+    elif process_mem > 0:
         max_workers = avail_mem / process_mem
         max_workers = np.min([max_workers, n_processes, cpu_count])
+    else:
+        max_workers = 1
     max_workers = int(np.max([max_workers, 1]))
     logger.info(f'Available memory: {avail_mem / 1e9:.3f} GB. '
                 f'Available cores: {cpu_count}. '

@@ -4,6 +4,7 @@ import numpy as np
 import logging
 from scipy.spatial import KDTree
 from rex import Resource
+from abc import ABC, abstractmethod
 
 import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerH5
@@ -14,14 +15,14 @@ from sup3r.utilities.utilities import get_source_type
 logger = logging.getLogger(__name__)
 
 
-class TopoExtract:
+class TopoExtract(ABC):
     """Class to extract high-res (4km+) topography rasters for new
     spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
     using nearest neighbor mapping and aggregation from NREL datasets
     (e.g. WTK or NSRDB)
     """
 
-    def __init__(self, file_paths, topo_source_h5, s_enhance, agg_factor,
+    def __init__(self, file_paths, topo_source, s_enhance, agg_factor,
                  target=None, shape=None, raster_file=None, max_delta=20,
                  input_handler=None):
         """
@@ -33,7 +34,7 @@ class TopoExtract:
             file path which will be passed through glob.glob. This is
             typically low-res WRF output or GCM netcdf data files that is
             source low-resolution data intended to be sup3r resolved.
-        topo_source_h5 : str
+        topo_source : str
             Filepath to source wtk or nsrdb file to get hi-res (2km or 4km)
             elevation data from which will be mapped to the enhanced grid of
             the file_paths input
@@ -44,7 +45,7 @@ class TopoExtract:
             class will output a topography raster corresponding to the
             file_paths grid enhanced 4x to ~25km
         agg_factor : int
-            List of factors by which to aggregate the topo_source_h5 elevation
+            Factor by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
             s_enhance. For example, if file_paths has 100km data and s_enhance
             is 4 resulting in a desired resolution of ~25km and topo_source_h5
@@ -69,7 +70,7 @@ class TopoExtract:
 
         logger.info('Initializing TopoExtract utility.')
 
-        self._topo_source_h5 = topo_source_h5
+        self._topo_source = topo_source
         self._s_enhance = s_enhance
         self._agg_factor = agg_factor
         self._tree = None
@@ -102,18 +103,14 @@ class TopoExtract:
                                            max_delta=max_delta)
 
     @property
+    @abstractmethod
     def source_elevation(self):
         """Get the 1D array of elevation data from the topo_source_h5"""
-        with Resource(self._topo_source_h5) as res:
-            elev = res.get_meta_arr('elevation')
-        return elev
 
     @property
+    @abstractmethod
     def source_lat_lon(self):
         """Get the 2D array (n, 2) of lat, lon data from the topo_source_h5"""
-        with Resource(self._topo_source_h5) as res:
-            source_lat_lon = res.lat_lon
-        return source_lat_lon
 
     @property
     def lr_shape(self):
@@ -184,11 +181,11 @@ class TopoExtract:
             hr_elev.append(elev)
         hr_elev = np.dstack(hr_elev).mean(axis=-1)
         logger.info('Finished mapping topo raster from {}'
-                    .format(self._topo_source_h5))
+                    .format(self._topo_source))
         return hr_elev
 
     @classmethod
-    def get_topo_raster(cls, file_paths, topo_source_h5, s_enhance,
+    def get_topo_raster(cls, file_paths, topo_source, s_enhance,
                         agg_factor, target=None, shape=None, raster_file=None,
                         max_delta=20, input_handler=None):
         """Get the topography raster corresponding to the spatially enhanced
@@ -200,10 +197,10 @@ class TopoExtract:
             A single source h5 wind file to extract raster data from or a list
             of netcdf files with identical grid. The string can be a unix-style
             file path which will be passed through glob.glob
-        topo_source_h5 : str
-            Filepath to source wtk or nsrdb file to get hi-res (2km or 4km)
-            elevation data from which will be mapped to the enhanced grid of
-            the file_paths input
+        topo_source : str
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
+            4km) data from which will be mapped to the enhanced grid of the
+            file_paths input
         s_enhance : int
             Factor by which the Sup3rGan model will enhance the spatial
             dimensions of low resolution data from file_paths input. For
@@ -242,8 +239,56 @@ class TopoExtract:
             topo_source_h5, usually meters.
         """
 
-        te = cls(file_paths, topo_source_h5, s_enhance, agg_factor,
+        te = cls(file_paths, topo_source, s_enhance, agg_factor,
                  target=target, shape=shape, raster_file=raster_file,
                  max_delta=max_delta, input_handler=input_handler)
 
         return te.hr_elev
+
+
+class TopoExtractH5(TopoExtract):
+    """TopoExtract for H5 files"""
+
+    @property
+    def source_elevation(self):
+        """Get the 1D array of elevation data from the topo_source_h5"""
+        with Resource(self._topo_source) as res:
+            elev = res.get_meta_arr('elevation')
+        return elev
+
+    @property
+    def source_lat_lon(self):
+        """Get the 2D array (n, 2) of lat, lon data from the topo_source_h5"""
+        with Resource(self._topo_source) as res:
+            source_lat_lon = res.lat_lon
+        return source_lat_lon
+
+
+class TopoExtractNC(TopoExtract):
+    """TopoExtract for netCDF files"""
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        args : list
+            Same positional arguments as TopoExtract
+        kwargs : dict
+            Same keyword arguments as TopoExtract
+        """
+
+        super().__init__(*args, **kwargs)
+        self.source_handler = DataHandlerNC(self._topo_source,
+                                            features=['topography'])
+
+    @property
+    def source_elevation(self):
+        """Get the 1D array of elevation data from the topo_source_h5"""
+        elev = self.source_handler.data.reshape((-1))
+        return elev
+
+    @property
+    def source_lat_lon(self):
+        """Get the 2D array (n, 2) of lat, lon data from the topo_source_h5"""
+        source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
+        return source_lat_lon

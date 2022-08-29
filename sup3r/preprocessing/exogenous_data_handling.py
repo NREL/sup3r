@@ -4,8 +4,10 @@ import logging
 import numpy as np
 from warnings import warn
 
-from sup3r.utilities.topo import TopoExtract
-
+from sup3r.utilities.topo import TopoExtractH5, TopoExtractNC
+import sup3r.preprocessing.data_handling
+import sup3r.utilities.topo
+from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +17,10 @@ class ExogenousDataHandler:
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps."""
 
-    def __init__(self, file_paths, features, source_h5, s_enhancements,
+    def __init__(self, file_paths, features, source_file, s_enhancements,
                  agg_factors, target=None, shape=None, raster_file=None,
-                 max_delta=20, input_handler=None, exo_steps=None):
+                 max_delta=20, input_handler=None, topo_handler=None,
+                 exo_steps=None):
         """
         Parameters
         ----------
@@ -29,10 +32,10 @@ class ExogenousDataHandler:
             source low-resolution data intended to be sup3r resolved.
         features : list
             List of exogenous features to extract from source_h5
-        source_h5 : str
-            Filepath to source wtk or nsrdb file to get hi-res (2km or 4km)
-            data from which will be mapped to the enhanced grid of
-            the file_paths input
+        source_file : str
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
+            4km) data from which will be mapped to the enhanced grid of the
+            file_paths input
         s_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
             spatial dimensions of low resolution data from file_paths input.
@@ -64,6 +67,10 @@ class ExogenousDataHandler:
         input_handler : str
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        topo_handler : str
+            topo extract class to use for source data. Provide a string name to
+            match a class in topo.py. If None the correct handler will
             be guessed based on file type and time series properties.
         exo_steps : list
             List of model step indices for which exogenous data is required.
@@ -102,12 +109,14 @@ class ExogenousDataHandler:
             if i in exo_steps:
                 for f in features:
                     if f == 'topography':
-                        data = TopoExtract(file_paths, source_h5, s_enhance,
-                                           agg_factor, target=target,
-                                           shape=shape,
-                                           raster_file=raster_file,
-                                           max_delta=max_delta,
-                                           input_handler=input_handler)
+                        topo_handler = self.get_topo_handler(source_file,
+                                                             topo_handler)
+                        data = topo_handler(file_paths, source_file, s_enhance,
+                                            agg_factor, target=target,
+                                            shape=shape,
+                                            raster_file=raster_file,
+                                            max_delta=max_delta,
+                                            input_handler=input_handler)
                         data = data.hr_elev
                         fdata.append(data)
                     else:
@@ -116,3 +125,45 @@ class ExogenousDataHandler:
                 self.data.append(np.stack(fdata, axis=-1))
             else:
                 self.data.append(None)
+
+    @staticmethod
+    def get_topo_handler(source_file, topo_handler):
+        """Get topo extraction class for source file
+
+        Parameters
+        ----------
+        source_file : str
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
+            4km) data from which will be mapped to the enhanced grid of the
+            file_paths input
+        topo_handler : str
+            topo extract class to use for source data. Provide a string name to
+            match a class in topo.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+
+        Returns
+        -------
+        topo_handler : str
+            topo extract class to use for source data.
+        """
+        if topo_handler is None:
+            in_type = get_source_type(source_file)
+            if in_type == 'nc':
+                topo_handler = TopoExtractNC
+            elif in_type == 'h5':
+                topo_handler = TopoExtractH5
+            else:
+                msg = ('Did not recognize input type "{}" for file paths: {}'
+                       .format(in_type, source_file))
+                logger.error(msg)
+                raise RuntimeError(msg)
+        elif isinstance(topo_handler, str):
+            topo_handler = getattr(sup3r.utilities.topo, topo_handler, None)
+            if topo_handler is None:
+                msg = ('Could not find requested topo handler class '
+                       f'"{topo_handler}" in '
+                       'sup3r.utilities.topo.')
+                logger.error(msg)
+                raise KeyError(msg)
+
+        return topo_handler
