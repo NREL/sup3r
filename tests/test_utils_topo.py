@@ -7,7 +7,7 @@ from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 
 from sup3r import TEST_DATA_DIR
-from sup3r.utilities.topo import TopoExtract, TopoExtractNC
+from sup3r.utilities.topo import TopoExtractNC, TopoExtractH5
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -19,11 +19,11 @@ WRF_SHAPE = (8, 8)
 
 
 @pytest.mark.parametrize('agg_factor', [1, 4, 8])
-def test_topo_extraction(agg_factor, plot=False):
+def test_topo_extraction_h5(agg_factor, plot=False):
     """Test the spatial enhancement of a test grid and then the lookup of the
     elevation data to a reference WTK file (also the same file for the test)"""
-    te = TopoExtract(FP_WTK, FP_WTK, s_enhance=2, agg_factor=agg_factor,
-                     target=TARGET, shape=SHAPE)
+    te = TopoExtractH5(FP_WTK, FP_WTK, s_enhance=2, agg_factor=agg_factor,
+                       target=TARGET, shape=SHAPE)
     hr_elev = te.hr_elev
 
     tree = KDTree(te.source_lat_lon)

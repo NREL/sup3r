@@ -4,7 +4,7 @@ import logging
 import numpy as np
 from warnings import warn
 
-from sup3r.utilities.topo import TopoExtract, TopoExtractNC
+from sup3r.utilities.topo import TopoExtractH5, TopoExtractNC
 import sup3r.preprocessing.data_handling
 import sup3r.utilities.topo
 from sup3r.utilities.utilities import get_source_type
@@ -109,7 +109,6 @@ class ExogenousDataHandler:
             if i in exo_steps:
                 for f in features:
                     if f == 'topography':
-                        print(source_file, topo_handler)
                         topo_handler = self.get_topo_handler(source_file,
                                                              topo_handler)
                         data = topo_handler(file_paths, source_file, s_enhance,
@@ -152,7 +151,7 @@ class ExogenousDataHandler:
             if in_type == 'nc':
                 topo_handler = TopoExtractNC
             elif in_type == 'h5':
-                topo_handler = TopoExtract
+                topo_handler = TopoExtractH5
             else:
                 msg = ('Did not recognize input type "{}" for file paths: {}'
                        .format(in_type, source_file))
