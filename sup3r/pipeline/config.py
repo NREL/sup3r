@@ -6,9 +6,25 @@ Created on January 25 2022
 
 @author: bnb32
 """
+from reV.config.base_config import BaseConfig as RevBaseConfig
 from reV.config.base_analysis_config import AnalysisConfig
 from reV.config.pipeline import PipelineConfig
 from reV.utilities.exceptions import ConfigError
+
+from sup3r import SUP3R_DIR, TEST_DATA_DIR, CONFIG_DIR
+
+
+class BaseConfig(RevBaseConfig):
+    """Base class for configuration frameworks."""
+
+    REQUIREMENTS = ()
+    """Required keys for config"""
+
+    STR_REP = {'SUP3R_DIR': SUP3R_DIR,
+               'CONFIG_DIR': CONFIG_DIR,
+               'TEST_DATA_DIR': TEST_DATA_DIR}
+    """Mapping of config inputs (keys) to desired replacements (values) in
+    addition to relative file paths as demarcated by ./ and ../"""
 
 
 class Sup3rPipelineConfig(PipelineConfig):
