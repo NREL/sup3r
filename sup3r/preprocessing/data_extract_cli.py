@@ -65,8 +65,9 @@ def from_config(ctx, config_file, verbose):
               verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
     hardware_option = exec_kwargs.pop('option', 'local')
+    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     HANDLER_CLASS = getattr(sup3r.preprocessing.data_handling, config_handler)
