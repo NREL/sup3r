@@ -525,7 +525,7 @@ def test_fwp_multi_step_model_topo():
             input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=0, temporal_pad=0,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             out_pattern=out_files,
             temporal_slice=temporal_slice,

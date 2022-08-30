@@ -217,12 +217,14 @@ class ForwardPassSlicer:
                                 if s is not None]
                 s_enhance = np.product(enhancements)
                 exo_slices = []
+                pad_shape_0 = self.grid_shape[0] + 2 * self.spatial_pad
+                pad_shape_1 = self.grid_shape[1] + 2 * self.spatial_pad
                 s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
-                                                       self.grid_shape[0],
+                                                       pad_shape_0,
                                                        s_enhance,
                                                        self.spatial_pad)
                 s2_pad_slices = self.get_padded_slices(self.s2_lr_slices,
-                                                       self.grid_shape[1],
+                                                       pad_shape_1,
                                                        s_enhance,
                                                        self.spatial_pad)
 
@@ -1114,7 +1116,9 @@ class ForwardPass:
                                                self.strategy.spatial_pad,
                                                self.strategy.temporal_pad,
                                                self.pad_t_start,
-                                               self.pad_t_end)
+                                               self.pad_t_end,
+                                               self.exogenous_data,
+                                               self.exogenous_handler.s_enhancements)
 
     @property
     def pass_workers(self):
@@ -1133,7 +1137,8 @@ class ForwardPass:
 
     @staticmethod
     def pad_source_data(input_data, spatial_pad, temporal_pad, pad_t_start,
-                        pad_t_end, mode='reflect'):
+                        pad_t_end, exogenous_data, exo_s_enhancements,
+                        mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
         Parameters
@@ -1166,6 +1171,19 @@ class ForwardPass:
         pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
                      temporal_pad, (0, 0))
         out = np.pad(input_data, pad_width, mode=mode)
+        logger.info('Padded input data shape from {} to {} using mode "{}"'
+                    .format(input_data.shape, out.shape, mode))
+
+        for i, exo_data in enumerate(exogenous_data):
+            if exo_data is not None:
+                total_s_enhance = exo_s_enhancements[:i+1]
+                total_s_enhance = [s for s in total_s_enhance if s is not None]
+                total_s_enhance = np.product(total_s_enhance)
+                s_pad_width = spatial_pad * total_s_enhance
+                pad_width = ((s_pad_width, s_pad_width),
+                             (s_pad_width, s_pad_width), (0, 0))
+                exogenous_data[i] = np.pad(exo_data, pad_width, mode=mode)
+
         return out
 
     def _prep_exogenous_input(self, chunk_shape, exogenous_slices):
