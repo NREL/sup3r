@@ -7,11 +7,12 @@ import logging
 
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass_cli import from_config as fp_cli
-from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
-from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
 from sup3r.qa.qa_cli import from_config as qa_cli
+from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
+from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
+from sup3r.batch.batch_cli import from_config as batch_cli
 
 
 logger = logging.getLogger(__name__)
@@ -287,6 +288,58 @@ def pipeline(ctx, cancel, monitor, background, verbose):
 def valid_pipeline_keys(ctx):
     """Print the valid pipeline config keys"""
     ctx.invoke(pipeline_keys)
+
+
+@main.group(invoke_without_command=True)
+@click.option('--dry-run', is_flag=True,
+              help='Flag to do a dry run (make batch dirs without running).')
+@click.option('--cancel', is_flag=True,
+              help='Flag to cancel all jobs associated with a given batch.')
+@click.option('--delete', is_flag=True,
+              help='Flag to delete all batch job sub directories associated '
+              'with the batch_jobs.csv in the current batch config directory.')
+@click.option('--monitor-background', is_flag=True,
+              help='Flag to monitor all batch pipelines continuously '
+              'in the background using the nohup command. Note that the '
+              'stdout/stderr will not be captured, but you can set a '
+              'pipeline "log_file" to capture logs.')
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
+    """Create and run multiple sup3r project directories based on batch
+    permutation logic.
+
+    The sup3r batch module (built on the reV batch functionality) is a way to
+    create and run many sup3r pipeline projects based on permutations of
+    key-value pairs in the run config files. A user configures the batch file
+    by creating one or more "sets" that contain one or more arguments (keys
+    found in config files) that are to be parameterized. For example, in the
+    config below, four sup3r pipelines will be created where arg1 and arg2 are
+    set to [0, "a"], [0, "b"], [1, "a"], [1, "b"] in config_fwp.json::
+
+    {
+        "pipeline_config": "./config_pipeline.json",
+        "sets": [
+          {
+            "args": {
+              "arg1": [0, 1],
+              "arg2": ["a", "b"],
+            },
+            "files": ["./config_fwp.json"],
+            "set_tag": "set1"
+          }
+    }
+
+    Note that you can use multiple "sets" to isolate parameter permutations.
+    """
+    if ctx.invoked_subcommand is None:
+        config_file = ctx.obj['CONFIG_FILE']
+        verbose = any([verbose, ctx.obj['VERBOSE']])
+        ctx.invoke(batch_cli, config_file=config_file,
+                   dry_run=dry_run, cancel=cancel, delete=delete,
+                   monitor_background=monitor_background,
+                   verbose=verbose)
 
 
 if __name__ == '__main__':

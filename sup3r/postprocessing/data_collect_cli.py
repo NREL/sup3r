@@ -11,8 +11,8 @@ from reV.pipeline.status import Status
 from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
-from rex.utilities.utilities import safe_json_load
 
+from sup3r.pipeline.config import BaseConfig
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.postprocessing.collection import Collector
@@ -45,7 +45,7 @@ def from_config(ctx, config_file, verbose):
     ctx.obj['VERBOSE'] = verbose
     status_dir = os.path.dirname(os.path.abspath(config_file))
     ctx.obj['OUT_DIR'] = status_dir
-    config = safe_json_load(config_file)
+    config = BaseConfig(config_file)
     config_verbose = config.get('log_level', 'INFO')
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
