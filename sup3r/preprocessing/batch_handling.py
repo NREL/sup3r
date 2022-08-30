@@ -350,7 +350,7 @@ class BatchHandler:
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = None
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=4,
+    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, overwrite_stats=False,
