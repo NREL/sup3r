@@ -348,7 +348,7 @@ def test_fwd_pass_nochunking():
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
-            spatial_pad=1, temporal_pad=1,
+            spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -637,3 +637,52 @@ def test_fwp_multi_step_model():
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
             assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m']
+
+
+
+if __name__ == '__main__':
+    from rex import init_logger
+    init_logger('sup3r', log_level='DEBUG', log_file=None)
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+    features = ['U_100m', 'V_100m']
+    target = (13.67, 125.0)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['training_features'] = features
+    model.meta['output_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        cache_pattern = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+        # 1st forward pass
+        max_workers = 1
+        handler = ForwardPassStrategy(
+            input_files, model_args=out_dir,
+            fwp_chunk_shape=[4, 4, 1],
+            spatial_pad=2, temporal_pad=2,
+            target=target, shape=(12, 12),
+            temporal_slice=slice(0, 4, None),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True, out_pattern=out_files,
+            max_workers=max_workers, input_handler='DataHandlerNCforCC')
+        forward_pass = ForwardPass(handler)
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
+        forward_pass.run()
+
