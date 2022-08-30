@@ -53,8 +53,8 @@ def from_config(ctx, config_file, verbose):
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_fwp', './logs/', modules=[__name__, 'sup3r'],
-              verbose=verbose)
+    init_mult('sup3r_fwp', os.path.join(status_dir, 'logs/'),
+              modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
     log_pattern = config.get('log_pattern', None)

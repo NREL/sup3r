@@ -61,8 +61,8 @@ def from_config(ctx, config_file, verbose):
     config_handler = config.get('handler_class', 'DataHandler')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_data_extract', './logs/', modules=[__name__, 'sup3r'],
-              verbose=verbose)
+    init_mult('sup3r_data_extract', os.path.join(status_dir, 'logs/'),
+              modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
     exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')

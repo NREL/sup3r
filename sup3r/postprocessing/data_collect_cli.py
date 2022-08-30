@@ -50,8 +50,8 @@ def from_config(ctx, config_file, verbose):
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_data_collect', './logs/', modules=[__name__, 'sup3r'],
-              verbose=verbose)
+    init_mult('sup3r_data_collect', os.path.join(status_dir, 'logs/'),
+              modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
     exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
