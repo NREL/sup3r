@@ -885,10 +885,12 @@ class ForwardPassStrategy(InputMixIn):
         cache_pattern = (
             None if self.cache_pattern is None
             else self.cache_pattern.replace('{node_index}', str(node_index)))
-        pad_t_start = (node_index == 0) & (ti_slice.start == 0)
-        pad_t_end = ((node_index == len(self) - 1)
-                     & ((ti_slice.stop is None)
-                        | (ti_slice.stop == len(self.raw_time_index))))
+
+        ti_start = ti_slice.start or 0
+        ti_stop = ti_slice.stop or len(self.raw_time_index)
+        pad_t_start = int(np.maximum(0, self.temporal_pad - ti_start))
+        pad_t_end = int(np.maximum(0, (self.temporal_pad + ti_stop
+                                       - len(self.raw_time_index))))
 
         out = self.fwp_slicer.get_spatial_slices()
         lr_slices, lr_pad_slices, hr_slices = out
@@ -1112,13 +1114,14 @@ class ForwardPass:
                               self.strategy.t_enhance * n_tsteps,
                               len(self.output_features))
         self.data = np.zeros(self.hr_data_shape, dtype=np.float32)
-        self.input_data = self.pad_source_data(self.data_handler.data,
-                                               self.strategy.spatial_pad,
-                                               self.strategy.temporal_pad,
-                                               self.pad_t_start,
-                                               self.pad_t_end,
-                                               self.exogenous_data,
-                                               self.exogenous_handler.s_enhancements)
+
+        self.input_data = self.pad_source_data(
+            self.data_handler.data,
+            self.strategy.spatial_pad,
+            self.pad_t_start,
+            self.pad_t_end,
+            self.exogenous_data,
+            self.exogenous_handler.s_enhancements)
 
     @property
     def pass_workers(self):
@@ -1136,8 +1139,8 @@ class ForwardPass:
         self._pass_workers = pass_workers
 
     @staticmethod
-    def pad_source_data(input_data, spatial_pad, temporal_pad, pad_t_start,
-                        pad_t_end, exogenous_data, exo_s_enhancements,
+    def pad_source_data(input_data, spatial_pad, pad_t_start, pad_t_end,
+                        exo_data, exo_s_enhancements,
                         mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
@@ -1151,38 +1154,39 @@ class ForwardPass:
             passes for subsequent spatial stitching. This overlap will pad both
             sides of the fwp_chunk_shape. Note that the first and last chunks
             in any of the spatial dimension will not be padded.
-        temporal_pad : int
-            Size of temporal overlap between coarse chunks passed to forward
-            passes for subsequent temporal stitching. This overlap will pad
-            both sides of the fwp_chunk_shape. Note that the first and last
-            chunks in the temporal dimension will not be padded.
-        pad_t_start : bool
-            Flag that this includes the first timestep of the source data and
-            should be padded at the beginning of axis=1
+        pad_t_start : int
+            How much padding to add to the beginning of the temporal axis.
         pad_t_end : bool
-            Flag that this includes the last timestep of the source data and
-            should be padded at the end of axis=2
+            How much padding to add to the end of the temporal axis.
+        exo_data : list
+            List of exogenous data arrays for each step of the sup3r resolution
+            model. List entries can be None if not exo data is requested for a
+            given model step.
+        exo_s_enhancements : list
+            List of spatial enhancement factors for each step of the sup3r
+            resolution model corresponding to the exo_data order.
         mode : str
             Padding mode for np.pad(). Reflect is a good default for the
             convolutional sup3r work.
         """
-        temporal_pad = (temporal_pad if pad_t_start else 0,
-                        temporal_pad if pad_t_end else 0)
-        pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
-                     temporal_pad, (0, 0))
-        out = np.pad(input_data, pad_width, mode=mode)
-        logger.info('Padded input data shape from {} to {} using mode "{}"'
-                    .format(input_data.shape, out.shape, mode))
 
-        for i, exo_data in enumerate(exogenous_data):
-            if exo_data is not None:
-                total_s_enhance = exo_s_enhancements[:i+1]
+        pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
+                     (pad_t_start, pad_t_end), (0, 0))
+        out = np.pad(input_data, pad_width, mode=mode)
+
+        logger.info('Padded input data shape from {} to {} using mode "{}" '
+                    'with padding argument: {}'
+                    .format(input_data.shape, out.shape, mode, pad_width))
+
+        for i, i_exo_data in enumerate(exo_data):
+            if i_exo_data is not None:
+                total_s_enhance = exo_s_enhancements[:i + 1]
                 total_s_enhance = [s for s in total_s_enhance if s is not None]
                 total_s_enhance = np.product(total_s_enhance)
                 s_pad_width = spatial_pad * total_s_enhance
                 pad_width = ((s_pad_width, s_pad_width),
                              (s_pad_width, s_pad_width), (0, 0))
-                exogenous_data[i] = np.pad(exo_data, pad_width, mode=mode)
+                exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
 
         return out
 
