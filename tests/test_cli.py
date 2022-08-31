@@ -138,7 +138,7 @@ def test_fwd_pass_cli(runner):
             raise RuntimeError(msg)
 
         assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
-        assert len(glob.glob(f'{td}/log*')) == n_nodes
+        assert len(glob.glob(f'{td}/*.log')) == n_nodes
         assert len(glob.glob(f'{td}/out*')) == n_nodes
 
 
