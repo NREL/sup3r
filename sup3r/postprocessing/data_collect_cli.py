@@ -50,12 +50,13 @@ def from_config(ctx, config_file, verbose):
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_data_collect', './logs/', modules=[__name__, 'sup3r'],
-              verbose=verbose)
+    init_mult('sup3r_data_collect', os.path.join(status_dir, 'logs/'),
+              modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
     hardware_option = exec_kwargs.pop('option', 'local')
+    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     name = 'sup3r_collect_{}'.format(os.path.basename(status_dir))

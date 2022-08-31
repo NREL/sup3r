@@ -348,7 +348,7 @@ def test_fwd_pass_nochunking():
         handler = ForwardPassStrategy(
             input_files, model_args=out_dir,
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
-            spatial_pad=1, temporal_pad=1,
+            spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -525,7 +525,7 @@ def test_fwp_multi_step_model_topo():
             input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=0, temporal_pad=0,
+            spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
             out_pattern=out_files,
             temporal_slice=temporal_slice,

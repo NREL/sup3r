@@ -61,12 +61,13 @@ def from_config(ctx, config_file, verbose):
     config_handler = config.get('handler_class', 'DataHandler')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_data_extract', './logs/', modules=[__name__, 'sup3r'],
-              verbose=verbose)
+    init_mult('sup3r_data_extract', os.path.join(status_dir, 'logs/'),
+              modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
+    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
     hardware_option = exec_kwargs.pop('option', 'local')
+    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     HANDLER_CLASS = getattr(sup3r.preprocessing.data_handling, config_handler)
