@@ -1,4 +1,6 @@
 """Utilities for stitching south east asia domains"""
+# -*- coding: utf-8 -*-
+# pylint: disable=all
 import xarray as xr
 import numpy as np
 import logging
@@ -20,6 +22,26 @@ class Regridder:
 
     def __init__(self, lats, lons, min_lat, max_lat, min_lon, max_lon,
                  n_lats, n_lons):
+        """
+        Parameters
+        ----------
+        lats : ndarray
+            Array of latitudes for input grid
+        lons : ndarray
+            Array of longitudes for input grid
+        min_lat : float
+            Minimum lat for output grid
+        max_lat : float
+            Maximum lat for output grid
+        min_lon : float
+            Minimum lon for output grid
+        max_lon : float
+            Maximum lon for output grid
+        n_lats : int
+            Number of lats for output grid
+        n_lons : int
+            Number of lons for output grid
+        """
         self._regridder = None
         self.grid_in = {'lat': lats, 'lon': lons}
         lons, lats = np.meshgrid(np.linspace(min_lon, max_lon, n_lons),
@@ -38,7 +60,18 @@ class Regridder:
         return self._regridder
 
     def regrid_data(self, data_in):
-        """Regrid data to output grid"""
+        """Regrid data to output grid
+
+        Parameters
+        ----------
+        data_in : xarray.Dataset
+            input data handle
+
+        Returns
+        -------
+        data_out : xarray.Dataset
+            output data handle
+        """
         times = data_in.Times.values
         data_out = self.regridder(data_in)
         data_out = data_out.rename({'lat': 'XLAT', 'lon': 'XLONG'})
@@ -58,7 +91,20 @@ class Regridder:
 def get_files(year, month, input_pattern=IN_FILENAME,
               output_pattern=OUT_FILENAME):
     """Get input files for all domains to stitch together, and output file
-    name"""
+    name
+
+    Parameters
+    ----------
+    year : int
+        Year for input files
+    month : int
+        Month for input files
+    input_pattern : str
+        Pattern for input files. Assumes pattern contains {month}, {year}, and
+        {domain}
+    output_pattern : str
+        Pattern for output files
+    """
     in_pattern = [input_pattern.format(year=year, month=str(month).zfill(2),
                                        domain=i) for i in range(1, 5)]
     input_files = {i + 1: sorted(glob.glob(in_pattern[i])) for i in range(4)}
@@ -71,7 +117,19 @@ def get_files(year, month, input_pattern=IN_FILENAME,
 
 
 def get_handles(input_files):
-    """Get handles for all domains. Keep needed fields"""
+    """Get handles for all domains. Keep needed fields
+
+    Parameters
+    ----------
+    input_files : list
+        List of input files for each domain. First file needs to be the file
+        for the largest domain.
+
+    Returns
+    -------
+    handles : list
+        List of xarray.Dataset objects for each domain
+    """
     handles = []
     for f in input_files:
         handle = xr.open_dataset(f)
@@ -81,7 +139,19 @@ def get_handles(input_files):
 
 
 def unstagger_vars(handle):
-    """Unstagger wind components"""
+    """Unstagger wind components
+
+    Parameters
+    ----------
+    handle : xarray.Dataset
+        Handle for a given domain
+
+    Returns
+    -------
+    handle : xarray.Dataset
+        Handle for a given domain, with unstaggered fields
+    """
+
     handle['U'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
                    np.apply_along_axis(forward_avg, 3, handle['U']))
     handle['V'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
@@ -94,13 +164,36 @@ def unstagger_vars(handle):
 
 
 def prune_levels(handle):
-    """Prune pressure levels to reduce memory footprint"""
+    """Prune pressure levels to reduce memory footprint
+
+    Parameters
+    ----------
+    handle : xarray.Dataset
+        Handle for a given domain
+
+    Returns
+    -------
+    handle : xarray.Dataset
+        Handle for a given domain, with reduced number of pressure levels
+    """
     handle = handle.loc[dict(bottom_top=slice(0, 10))]
     return handle
 
 
 def regrid_domain1(handles):
-    """Regrid largest domain"""
+    """Regrid largest domain
+
+    Parameters
+    ----------
+    handles : list
+        List of xarray.Dataset objects for each domain
+
+    Returns
+    -------
+    handles : list
+        List of xarray.Dataset objects for each domain, with unstaggered
+        variables and pruned pressure levels.
+    """
     min_lat = np.min(handles[0].XLAT)
     min_lon = np.min(handles[0].XLONG)
     max_lat = np.max(handles[0].XLAT)
@@ -123,7 +216,20 @@ def forward_avg(array_in):
 
 
 def blend_domains(arr1, arr2, overlap=15):
-    """Blend smaller domain edges"""
+    """Blend smaller domain edges
+
+    Parameters
+    ----------
+    arr1 : ndarray
+        Data array for largest domain
+    arr2 : ndarray
+        Data array for nested domain to stitch into larger domain
+
+    Returns
+    -------
+    out : ndarray
+        Data array with smaller domain blended into larger domain
+    """
     out = arr2.copy()
     for i in range(overlap):
         alpha = i / overlap
@@ -137,7 +243,34 @@ def blend_domains(arr1, arr2, overlap=15):
 
 
 def get_domain_region(handles, domain_num):
-    """Get range for smaller domain"""
+    """Get range for smaller domain
+
+    Parameters
+    ----------
+    handles : list
+        List of xarray.Dataset objects for each domain
+    domain_num : int
+        Domain number to get grid range for
+
+    Returns
+    -------
+    lat_range : slice
+        Slice corresponding to lat range of smaller domain within larger domain
+    lon_range : slice
+        Slice corresponding to lon range of smaller domain within larger domain
+    min_lat : float
+        Minimum lat for smaller domain
+    max_lat : float
+        Maximum lat for smaller domain
+    min_lon : float
+        Minimum lon for smaller domain
+    max_lon : float
+        Maximum lon for smaller domain
+    n_lats : int
+        Number of lats for smaller domain
+    n_lons : int
+        Number of lons for smaller domain
+    """
     lats = handles[0].XLAT[0, :, 0]
     lons = handles[0].XLONG[0, 0, :]
     min_lat = np.min(handles[domain_num - 1].XLAT.values)
@@ -157,7 +290,20 @@ def get_domain_region(handles, domain_num):
 
 
 def impute_domain(handles, domain_num):
-    """Impute smaller domain in largest domain"""
+    """Impute smaller domain in largest domain
+
+    Parameters
+    ----------
+    handles : list
+        List of xarray.Dataset objects for each domain
+    domain_num : int
+        Domain number to stitch into largest domain
+
+    Returns
+    -------
+    handles : list
+        List of xarray.Dataset objects for each domain
+    """
     out = get_domain_region(handles, domain_num)
     (lat_range, lon_range, min_lat, max_lat, min_lon,
      max_lon, n_lats, n_lons) = out
@@ -178,12 +324,24 @@ def impute_domain(handles, domain_num):
 
 def stitch_and_save(year, month, input_pattern=IN_FILENAME,
                     output_pattern=OUT_FILENAME):
-    """Stitch domains and save output"""
+    """Stitch all smaller domains into largest domain and save output
+
+    Parameters
+    ----------
+    year : int
+        Year for input files
+    month : int
+        Month for input files
+    input_pattern : str
+        Pattern for input files. Assumes pattern contains {month}, {year}, and
+        {domain}
+    output_pattern : str
+        Pattern for output files
+    """
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
                                        output_pattern)
-    for i, _ in enumerate(out_files):
-        out_file = out_files[i]
+    for i, out_file in enumerate(out_files):
         if not os.path.exists(out_file):
             logger.info(f'Getting domain files for year={year}, month={month},'
                         f' timestep={i}.')
