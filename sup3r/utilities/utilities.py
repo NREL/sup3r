@@ -869,18 +869,30 @@ def interp_to_level(var_array, lev_array, levels):
 
     levels = ([levels] if isinstance(levels, (int, float, np.float32))
               else levels)
-    h_min = np.nanmin(lev_array)
-    h_max = np.nanmax(lev_array)
-    height_check = (h_min <= min(levels) and max(levels) <= h_max)
 
-    if np.isnan(h_min):
+    if np.isnan(lev_array).all():
         msg = 'All pressure level height data is NaN!'
         logger.error(msg)
         raise RuntimeError(msg)
 
-    if not height_check:
-        msg = (f'Levels {levels} exceed the bounds of the pressure levels: '
-               f'({h_min}, {h_max})')
+    bad_min = min(levels) < lev_array[:, 0, :, :]
+    bad_max = max(levels) > lev_array[:, -1, :, :]
+
+    if bad_min.any():
+        msg = ('Approximately {:.2f}% of the lowest vertical levels '
+               '(maximum value of {:.3f}) '
+               'were greater than the minimum requested level: {}'
+               .format(100 * bad_min.sum() / bad_min.size,
+                       lev_array[:, 0, :, :].max(), min(levels)))
+        logger.warning(msg)
+        warn(msg)
+
+    if bad_max.any():
+        msg = ('Approximately {:.2f}% of the highest vertical levels '
+               '(minimum value of {:.3f}) '
+               'were lower than the maximum requested level: {}'
+               .format(100 * bad_max.sum() / bad_max.size,
+                       lev_array[:, -1, :, :].min(), max(levels)))
         logger.warning(msg)
         warn(msg)
 
