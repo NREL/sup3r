@@ -269,17 +269,17 @@ class ForwardPassSlicer:
             List of high res temporal slices for cropping padded generator
             output
         """
-        hr_pad_start = None
-        hr_pad_stop = None
+        hr_crop_start = None
+        hr_crop_stop = None
         if self.temporal_pad > 0:
-            hr_pad_start = self.t_enhance * self.temporal_pad
-            hr_pad_stop = -hr_pad_start
+            hr_crop_start = self.t_enhance * self.temporal_pad
+            hr_crop_stop = -hr_crop_start
 
         if self._t_hr_crop_slices is None:
             # don't use self.get_cropped_slices() here because temporal padding
             # gets weird at beginning and end of timeseries and the temporal
             # axis should always be evenly chunked.
-            self._t_hr_crop_slices = [slice(hr_pad_start, hr_pad_stop)
+            self._t_hr_crop_slices = [slice(hr_crop_start, hr_crop_stop)
                                       for _ in range(len(self.t_lr_slices))]
 
         return self._t_hr_crop_slices
@@ -1115,13 +1115,13 @@ class ForwardPass:
                               len(self.output_features))
         self.data = np.zeros(self.hr_data_shape, dtype=np.float32)
 
-        self.input_data = self.pad_source_data(
-            self.data_handler.data,
-            self.strategy.spatial_pad,
-            self.pad_t_start,
-            self.pad_t_end,
-            self.exogenous_data,
-            self.exogenous_handler.s_enhancements)
+        out = self.pad_source_data(self.data_handler.data,
+                                   self.strategy.spatial_pad,
+                                   self.pad_t_start,
+                                   self.pad_t_end,
+                                   self.exogenous_data,
+                                   self.strategy.s_enhancements)
+        self.input_data, self.exogenous_data = out
 
     @property
     def pass_workers(self):
@@ -1158,7 +1158,7 @@ class ForwardPass:
             How much padding to add to the beginning of the temporal axis.
         pad_t_end : bool
             How much padding to add to the end of the temporal axis.
-        exo_data : list
+        exo_data : None | list
             List of exogenous data arrays for each step of the sup3r resolution
             model. List entries can be None if not exo data is requested for a
             given model step.
@@ -1168,6 +1168,14 @@ class ForwardPass:
         mode : str
             Padding mode for np.pad(). Reflect is a good default for the
             convolutional sup3r work.
+
+        Returns
+        -------
+        out : np.ndarray
+            Padded copy of source input data from data handler class, shape is:
+            (spatial_1, spatial_2, temporal, features)
+        exo_data : list | None
+            Padded copy of exo_data input.
         """
 
         pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
@@ -1178,17 +1186,19 @@ class ForwardPass:
                     'with padding argument: {}'
                     .format(input_data.shape, out.shape, mode, pad_width))
 
-        for i, i_exo_data in enumerate(exo_data):
-            if i_exo_data is not None:
-                total_s_enhance = exo_s_enhancements[:i + 1]
-                total_s_enhance = [s for s in total_s_enhance if s is not None]
-                total_s_enhance = np.product(total_s_enhance)
-                s_pad_width = spatial_pad * total_s_enhance
-                pad_width = ((s_pad_width, s_pad_width),
-                             (s_pad_width, s_pad_width), (0, 0))
-                exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
+        if exo_data is not None:
+            for i, i_exo_data in enumerate(exo_data):
+                if i_exo_data is not None:
+                    total_s_enhance = exo_s_enhancements[:i + 1]
+                    total_s_enhance = [s for s in total_s_enhance
+                                       if s is not None]
+                    total_s_enhance = np.product(total_s_enhance)
+                    s_pad_width = spatial_pad * total_s_enhance
+                    pad_width = ((s_pad_width, s_pad_width),
+                                 (s_pad_width, s_pad_width), (0, 0))
+                    exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
 
-        return out
+        return out, exo_data
 
     def _prep_exogenous_input(self, chunk_shape, exogenous_slices):
         """Shape exogenous data according to model type and model steps
