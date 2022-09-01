@@ -89,7 +89,7 @@ class Regridder:
 
 
 def get_files(year, month, input_pattern=IN_FILENAME,
-              output_pattern=OUT_FILENAME):
+              output_pattern=OUT_FILENAME, n_domains=4):
     """Get input files for all domains to stitch together, and output file
     name
 
@@ -104,15 +104,26 @@ def get_files(year, month, input_pattern=IN_FILENAME,
         {domain}
     output_pattern : str
         Pattern for output files
+    n_domains : int
+        Number of domains to stitch together
+
+    Returns
+    -------
+    input_files : dict
+        Dictionary of input files with keys corresponding to domain number
+    out_files : list
+        List of output file names for final stitched output
     """
     in_pattern = [input_pattern.format(year=year, month=str(month).zfill(2),
-                                       domain=i) for i in range(1, 5)]
-    input_files = {i + 1: sorted(glob.glob(in_pattern[i])) for i in range(4)}
+                                       domain=i)
+                  for i in range(1, n_domains + 1)]
+    input_files = {i: sorted(glob.glob(in_pattern[i]))
+                   for i in range(n_domains)}
     out_pattern = output_pattern.format(year=year, month=str(month).zfill(2))
     out_files = [os.path.join(out_pattern,
-                              os.path.basename(input_files[1][i]).replace(
+                              os.path.basename(input_files[0][i]).replace(
                                   'custom_wrfout_d01', 'stitched_wrfout'))
-                 for i in range(len(input_files[1]))]
+                 for i in range(len(input_files[0]))]
     return input_files, out_files
 
 
@@ -138,49 +149,55 @@ def get_handles(input_files):
     return handles
 
 
-def unstagger_vars(handle):
-    """Unstagger wind components
+def unstagger_vars(handles):
+    """Unstagger variables for all handles
 
     Parameters
     ----------
-    handle : xarray.Dataset
-        Handle for a given domain
+    handles : list
+        List of xarray.Dataset objects for each domain
 
     Returns
     -------
-    handle : xarray.Dataset
-        Handle for a given domain, with unstaggered fields
+    handles : list
+        List of xarray.Dataset objects for each domain, with unstaggered
+        variables.
     """
+    dims = ('Time', 'bottom_top', 'south_north', 'west_east')
+    for i, handle in enumerate(handles):
+        handles[i]['U'] = (dims, np.apply_along_axis(forward_avg, 3,
+                                                     handle['U']))
+        handles[i]['V'] = (dims, np.apply_along_axis(forward_avg, 2,
+                                                     handle['V']))
+        handles[i]['PHB'] = (dims, np.apply_along_axis(forward_avg, 1,
+                                                       handle['PHB']))
+        handles[i]['PH'] = (dims, np.apply_along_axis(forward_avg, 1,
+                                                      handle['PH']))
+    return handles
 
-    handle['U'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
-                   np.apply_along_axis(forward_avg, 3, handle['U']))
-    handle['V'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
-                   np.apply_along_axis(forward_avg, 2, handle['V']))
-    handle['PHB'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
-                     np.apply_along_axis(forward_avg, 1, handle['PHB']))
-    handle['PH'] = (('Time', 'bottom_top', 'south_north', 'west_east'),
-                    np.apply_along_axis(forward_avg, 1, handle['PH']))
-    return handle
 
-
-def prune_levels(handle):
+def prune_levels(handles, max_level=10):
     """Prune pressure levels to reduce memory footprint
 
     Parameters
     ----------
-    handle : xarray.Dataset
-        Handle for a given domain
+    handles : list
+        List of xarray.Dataset objects for each domain
+    max_level : int
+        Max pressure level index
 
     Returns
     -------
-    handle : xarray.Dataset
-        Handle for a given domain, with reduced number of pressure levels
+    handles : list
+        List of xarray.Dataset objects for each domain, with pruned pressure
+        levels.
     """
-    handle = handle.loc[dict(bottom_top=slice(0, 10))]
-    return handle
+    for i, handle in enumerate(handles):
+        handles[i] = handle.loc[dict(bottom_top=slice(0, max_level))]
+    return handles
 
 
-def regrid_domain1(handles):
+def regrid_main_domain(handles):
     """Regrid largest domain
 
     Parameters
@@ -200,13 +217,10 @@ def regrid_domain1(handles):
     max_lon = np.max(handles[0].XLONG)
     n_lons = handles[0].XLAT.shape[-1]
     n_lats = handles[0].XLAT.shape[1]
-    d01_regridder = Regridder(handles[0].XLAT[0], handles[0].XLONG[0],
-                              min_lat, max_lat, min_lon, max_lon,
-                              3 * n_lats, 3 * n_lons)
-    for i, _ in enumerate(handles):
-        handles[i] = unstagger_vars(handles[i])
-        handles[i] = prune_levels(handles[i])
-    handles[0] = d01_regridder.regrid_data(handles[0])
+    main_regridder = Regridder(handles[0].XLAT[0], handles[0].XLONG[0],
+                               min_lat, max_lat, min_lon, max_lon,
+                               3 * n_lats, 3 * n_lons)
+    handles[0] = main_regridder.regrid_data(handles[0])
     return handles
 
 
@@ -224,6 +238,8 @@ def blend_domains(arr1, arr2, overlap=15):
         Data array for largest domain
     arr2 : ndarray
         Data array for nested domain to stitch into larger domain
+    overlap : int
+        Number of grid points to use for blending edges
 
     Returns
     -------
@@ -273,10 +289,10 @@ def get_domain_region(handles, domain_num):
     """
     lats = handles[0].XLAT[0, :, 0]
     lons = handles[0].XLONG[0, 0, :]
-    min_lat = np.min(handles[domain_num - 1].XLAT.values)
-    min_lon = np.min(handles[domain_num - 1].XLONG.values)
-    max_lat = np.max(handles[domain_num - 1].XLAT.values)
-    max_lon = np.max(handles[domain_num - 1].XLONG.values)
+    min_lat = np.min(handles[domain_num].XLAT.values)
+    min_lon = np.min(handles[domain_num].XLONG.values)
+    max_lat = np.max(handles[domain_num].XLAT.values)
+    max_lon = np.max(handles[domain_num].XLONG.values)
     lat_mask = (min_lat <= lats) & (lats <= max_lat)
     lon_mask = (min_lon <= lons) & (lons <= max_lon)
     lat_idx = np.arange(len(lats))
@@ -289,7 +305,7 @@ def get_domain_region(handles, domain_num):
             n_lats, n_lons)
 
 
-def impute_domain(handles, domain_num):
+def impute_domain(handles, domain_num, overlap=15):
     """Impute smaller domain in largest domain
 
     Parameters
@@ -298,6 +314,8 @@ def impute_domain(handles, domain_num):
         List of xarray.Dataset objects for each domain
     domain_num : int
         Domain number to stitch into largest domain
+    overlap : int
+        Number of grid points to use for blending edges
 
     Returns
     -------
@@ -307,23 +325,71 @@ def impute_domain(handles, domain_num):
     out = get_domain_region(handles, domain_num)
     (lat_range, lon_range, min_lat, max_lat, min_lon,
      max_lon, n_lats, n_lons) = out
-    regridder = Regridder(handles[domain_num - 1].XLAT[0],
-                          handles[domain_num - 1].XLONG[0],
+    regridder = Regridder(handles[domain_num].XLAT[0],
+                          handles[domain_num].XLONG[0],
                           min_lat, max_lat, min_lon, max_lon, n_lats, n_lons)
-    handles[domain_num - 1] = regridder.regrid_data(handles[domain_num - 1])
+    handles[domain_num] = regridder.regrid_data(handles[domain_num])
     for field in handles[0]:
         if field not in ['Times']:
             arr1 = handles[0][field].loc[dict(south_north=lat_range,
                                               west_east=lon_range)]
-            arr2 = handles[domain_num - 1][field]
-            out = blend_domains(arr1, arr2)
+            arr2 = handles[domain_num][field]
+            out = blend_domains(arr1, arr2, overlap=overlap)
             handles[0][field].loc[dict(south_north=lat_range,
                                        west_east=lon_range)] = out
     return handles
 
 
-def stitch_and_save(year, month, input_pattern=IN_FILENAME,
-                    output_pattern=OUT_FILENAME):
+def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
+                   max_level=10):
+    """Stitch all smaller domains into largest domain
+
+    Parameters
+    ----------
+    year : int
+        Year for input files
+    month : int
+        Month for input files
+    day : int
+        Day for input files. If None then stitch and save will be done for full
+        month.
+    input_files : dict
+        Dictionary of input files with keys corresponding to domain number
+    overlap : int
+        Number of grid points to use for blending edges
+    n_domains : int
+        Number of domains to stitch together
+    max_level : int
+        Max pressure level index
+
+    Returns
+    -------
+    handles : list
+        List of xarray.Dataset objects with smaller domains stitched into
+        handles[0]
+    """
+    logger.info(f'Getting domain files for year={year}, month={month},'
+                f' timestep={day}.')
+    step_files = [input_files[d][day] for d in range(n_domains)]
+    logger.info(f'Getting data handles for files: {step_files}')
+    handles = get_handles(step_files)
+    logger.info('Unstaggering variables for all handles')
+    handles = unstagger_vars(handles)
+    logger.info(f'Pruning pressure levels to level={max_level}')
+    handles = prune_levels(handles, max_level=max_level)
+    logger.info(f'Regridding main domain for year={year}, month={month}, '
+                f'timestep={day}')
+    handles = regrid_main_domain(handles)
+    for j in range(1, n_domains):
+        logger.info(f'Imputing domain {j + 1} for year={year}, '
+                    f'month={month}, timestep={day}')
+        handles = impute_domain(handles, j, overlap=overlap)
+    return handles
+
+
+def stitch_and_save(year, month, day=None, input_pattern=IN_FILENAME,
+                    output_pattern=OUT_FILENAME, overlap=15, n_domains=4,
+                    max_level=10):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
@@ -332,29 +398,30 @@ def stitch_and_save(year, month, input_pattern=IN_FILENAME,
         Year for input files
     month : int
         Month for input files
+    day : int
+        Day for input files. If None then stitch and save will be done for full
+        month.
     input_pattern : str
         Pattern for input files. Assumes pattern contains {month}, {year}, and
         {domain}
     output_pattern : str
         Pattern for output files
+    overlap : int
+        Number of grid points to use for blending edges
+    n_domains : int
+        Number of domains to stitch together
+    max_level : int
+        Max pressure level index
     """
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
-                                       output_pattern)
+                                       output_pattern, n_domains=n_domains)
+    out_files = out_files if day is None else out_files[day - 1: day]
     for i, out_file in enumerate(out_files):
         if not os.path.exists(out_file):
-            logger.info(f'Getting domain files for year={year}, month={month},'
-                        f' timestep={i}.')
-            step_files = [input_files[d][i] for d in range(1, 5)]
-            logger.info(f'Getting data handles for files: {step_files}')
-            handles = get_handles(step_files)
-            logger.info(f'Regridding domain 1 for year={year}, month={month}, '
-                        f'timestep={i}')
-            handles = regrid_domain1(handles)
-            for j in range(2, 5):
-                logger.info(f'Imputing domain {j} for year={year}, '
-                            f'month={month}, timestep={i}')
-                handles = impute_domain(handles, j)
+            handles = stitch_domains(year, month, i, input_files,
+                                     overlap=overlap, n_domains=n_domains,
+                                     max_level=max_level)
             basedir = os.path.dirname(out_file)
             os.makedirs(basedir, exist_ok=True)
             handles[0].to_netcdf(out_file)
