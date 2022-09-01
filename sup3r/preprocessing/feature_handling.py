@@ -98,6 +98,55 @@ class ClearSkyRatioH5(DerivedFeature):
         return cs_ratio
 
 
+class ClearSkyRatioCC(DerivedFeature):
+    """Clear Sky Ratio feature class for computing from climate change netcdf
+    data"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Get list of raw features used in calculation of the clearsky ratio
+
+        Parameters
+        ----------
+        feature : str
+            Clearsky ratio feature name, needs to be "clearsky_ratio"
+
+        Returns
+        -------
+        list
+            List of required features for clearsky_ratio: clearsky_ghi, rsds
+            (rsds==ghi for cc datasets)
+        """
+        assert feature == 'clearsky_ratio'
+        return ['clearsky_ghi', 'rsds']
+
+    @classmethod
+    def compute(cls, data, height=None):
+        """Compute the daily average climate change clearsky ratio
+
+        Parameters
+        ----------
+        data : dict
+            dictionary of feature arrays used for this compuation, must include
+            clearsky_ghi and rsds (rsds==ghi for cc datasets)
+        height : str | int
+            Placeholder to match interface with other compute methods
+
+        Returns
+        -------
+        cs_ratio : ndarray
+            Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. This is
+            assumed to be daily average data for climate change source data.
+        """
+
+        cs_ratio = data['rsds'] / data['clearsky_ghi']
+        if cs_ratio.max() > 1:
+            cs_ratio /= cs_ratio.max()
+        cs_ratio = np.maximum(cs_ratio, 0)
+
+        return cs_ratio
+
+
 class CloudMaskH5(DerivedFeature):
     """Cloud Mask feature class for computing from H5 data"""
 

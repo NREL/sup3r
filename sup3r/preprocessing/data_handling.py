@@ -17,9 +17,10 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
+from scipy.stats import mode
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
-from rex import MultiFileWindX, MultiFileNSRDBX
+from rex import MultiFileWindX, MultiFileNSRDBX, Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -50,13 +51,14 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   VWind,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
+                                                  ClearSkyRatioCC,
                                                   CloudMaskH5,
                                                   WindspeedNC,
                                                   WinddirectionNC,
                                                   Shear,
                                                   Rews,
                                                   Tas,
-                                                  TopoH5
+                                                  TopoH5,
                                                   )
 
 np.random.seed(42)
@@ -275,6 +277,14 @@ class InputMixIn:
     def time_index(self, time_index):
         """Update time index"""
         self._time_index = time_index
+
+    @property
+    def time_freq_hours(self):
+        """Get the time frequency in hours as a float"""
+        ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
+        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode[0])
+        return time_freq
 
     @property
     def timestamp_0(self):
@@ -1627,6 +1637,7 @@ class DataHandlerNC(DataHandler):
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
                 if len(fdata.shape) == 2:
                     fdata = np.expand_dims(fdata, axis=0)
+
             elif basename in handle:
                 if interp_height is not None:
                     fdata = interp_var_to_height(handle, basename,
@@ -1638,6 +1649,7 @@ class DataHandlerNC(DataHandler):
                                                    raster_index,
                                                    np.float32(interp_pressure),
                                                    time_slice)
+
             else:
                 msg = f'{feature} cannot be extracted from source data.'
                 logger.exception(msg)
@@ -1768,6 +1780,22 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
+    def __init__(self, *args, nsrdb_source_fp=None, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same ordered required arguments as DataHandler parent class.
+        nsrdb_source_fp : str | None
+            Optional NSRDB source h5 file to retrieve clearsky_ghi from to
+            calculate CC clearsky_ratio along with rsds (ghi) from the CC
+            netcdf file.
+        **kwargs : list
+            Same optional keyword arguments as DataHandler parent class.
+        """
+        self._nsrdb_source_fp = nsrdb_source_fp
+        super().__init__(*args, **kwargs)
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features or extracting renamed
@@ -1786,7 +1814,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             'topography': 'orog',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
-            'lat_lon': LatLonNCforCC}
+            'clearsky_ratio': ClearSkyRatioCC,
+            'lat_lon': LatLonNCforCC,
+            }
         return registry
 
     @classmethod
@@ -1813,6 +1843,98 @@ class DataHandlerNCforCC(DataHandlerNC):
             if (self._raw_time_index.hour == 12).all():
                 self._raw_time_index -= pd.Timedelta(12, 'h')
         return self._raw_time_index
+
+    def run_data_extraction(self):
+        """Run the raw dataset extraction process from disk to raw
+        un-manipulated datasets.
+
+        Includes a special method to extract clearsky_ghi from a exogenous
+        NSRDB source h5 file (required to compute clearsky_ratio).
+        """
+        get_clearsky = False
+        if 'clearsky_ghi' in self.raw_features:
+            get_clearsky = True
+            self._raw_features.remove('clearsky_ghi')
+
+        super().run_data_extraction()
+
+        if get_clearsky:
+            cs_ghi = self.get_clearsky_ghi()
+            for it, tslice in enumerate(self.time_chunks):
+                self._raw_data[it]['clearsky_ghi'] = cs_ghi[..., tslice]
+            self._raw_features.append('clearsky_ghi')
+
+    def get_clearsky_ghi(self):
+        """Get clearsky ghi from an exogenous NSRDB source h5 file at the
+        target CC meta data and time index.
+
+        Returns
+        -------
+        cs_ghi : np.ndarray
+            Clearsky ghi (W/m2) from the nsrdb_source_fp h5 source file. Data
+            shape is (lat, lon, time) where time is daily average values.
+        """
+
+        msg = ('Need nsrdb_source_fp input arg as a valid filepath to '
+               'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
+               'received: {}'.format(self._nsrdb_source_fp))
+        assert self._nsrdb_source_fp is not None, msg
+        assert os.path.exists(self._nsrdb_source_fp), msg
+
+        msg = ('Can only handle source CC data in hourly frequency but '
+               'received daily frequency of {}hrs (should be 24) '
+               'with raw time index: {}'
+               .format(self.time_freq_hours, self.raw_time_index))
+        assert self.time_freq_hours == 24.0, msg
+
+        msg = ('Can only handle source CC data with temporal_slice.step == 1 '
+               'but received: {}'.format(self.temporal_slice.step))
+        assert ((self.temporal_slice.step is None)
+                | (self.temporal_slice.step == 1)), msg
+
+        with Resource(self._nsrdb_source_fp) as res:
+            ti_nsrdb = res.time_index
+            meta_nsrdb = res.meta
+
+        ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
+        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode[0])
+        t_start = self.temporal_slice.start or 0
+        t_end = self.temporal_slice.stop or len(self.raw_time_index)
+        t_slice = slice(t_start * 24, int(t_end * 24 * (1 / time_freq)),
+                        int(1 / time_freq))
+
+        lat = self.lat_lon[:, :, 0].flatten()
+        lon = self.lat_lon[:, :, 1].flatten()
+        cc_meta = np.vstack((lat, lon)).T
+
+        tree = KDTree(meta_nsrdb[['latitude', 'longitude']])
+        _, i = tree.query(cc_meta)
+
+        logger.info('Extracting clearsky_ghi data from "{}" with time slice '
+                    '{} and {} locations.'
+                    .format(os.path.basename(self._nsrdb_source_fp),
+                            t_slice, len(i)))
+
+        with Resource(self._nsrdb_source_fp) as res:
+            cs_ghi = res['clearsky_ghi', t_slice, i]
+
+        windows = np.array_split(np.arange(len(cs_ghi)), len(cs_ghi) // 24)
+        cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
+        cs_ghi = np.vstack(cs_ghi)
+        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + self.grid_shape)
+        cs_ghi = np.transpose(cs_ghi, axes=(1, 2, 0))
+
+        if self.invert_lat:
+            cs_ghi = cs_ghi[::-1]
+
+        logger.info('Reshaped clearsky_ghi data to final shape {} to '
+                    'correspond with CC daily average data over source '
+                    'temporal_slice {} with (lat, lon) grid shape of {}'
+                    .format(cs_ghi.shape, self.temporal_slice,
+                            self.grid_shape))
+
+        return cs_ghi
 
 
 class DataHandlerH5(DataHandler):
@@ -1899,8 +2021,6 @@ class DataHandlerH5(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
-        invert_lat : bool
-            Flag to invert latitude axis to enforce descending ordering
 
         Returns
         -------
