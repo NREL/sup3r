@@ -79,14 +79,15 @@ def test_solar_cc():
     assert (ghi < cs_ghi).all()
     assert np.allclose(cs_ratio, cs_ratio_truth)
 
+    with Resource(nsrdb_source_fp) as res:
+        meta = res.meta
+        tree = KDTree(meta[['latitude', 'longitude']])
+        cs_ghi_true = res['clearsky_ghi']
+
     # check a few sites against NSRDB source file
     for i in range(4):
         for j in range(4):
             test_coord = handler.lat_lon[i, j]
-            with Resource(nsrdb_source_fp) as res:
-                meta = res.meta
-                tree = KDTree(meta[['latitude', 'longitude']])
-                _, inn = tree.query(test_coord)
-                cs_ghi_true = res['clearsky_ghi', :, inn]
+            _, inn = tree.query(test_coord)
 
-            assert np.allclose(cs_ghi_true[0:48:2].mean(), cs_ghi[i, j])
+            assert np.allclose(cs_ghi_true[0:48, inn].mean(), cs_ghi[i, j])

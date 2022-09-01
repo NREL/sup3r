@@ -1815,8 +1815,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'clearsky_ratio': ClearSkyRatioCC,
-            'lat_lon': LatLonNCforCC,
-            }
+            'lat_lon': LatLonNCforCC}
         return registry
 
     @classmethod
@@ -1901,9 +1900,9 @@ class DataHandlerNCforCC(DataHandlerNC):
         time_freq = float(mode(ti_deltas_hours).mode[0])
         t_start = self.temporal_slice.start or 0
         t_end = self.temporal_slice.stop or len(self.raw_time_index)
-        t_slice = slice(t_start * 24, int(t_end * 24 * (1 / time_freq)),
-                        int(1 / time_freq))
+        t_slice = slice(t_start * 24, int(t_end * 24 * (1 / time_freq)))
 
+        # pylint: disable=E1136
         lat = self.lat_lon[:, :, 0].flatten()
         lon = self.lat_lon[:, :, 1].flatten()
         cc_meta = np.vstack((lat, lon)).T
@@ -1919,7 +1918,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         with Resource(self._nsrdb_source_fp) as res:
             cs_ghi = res['clearsky_ghi', t_slice, i]
 
-        windows = np.array_split(np.arange(len(cs_ghi)), len(cs_ghi) // 24)
+        windows = np.array_split(np.arange(len(cs_ghi)),
+                                 len(cs_ghi) // (24 // time_freq))
         cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
         cs_ghi = np.vstack(cs_ghi)
         cs_ghi = cs_ghi.reshape((len(cs_ghi),) + self.grid_shape)
