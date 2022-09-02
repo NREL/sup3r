@@ -122,7 +122,6 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
         ms_model = MultiStepSurfaceMetGan.load(FEATURES, s_enhance, fp)
 
         for model in ms_model.models:
-            print(model)
             print(model.s_enhance, model.t_enhance)
             assert isinstance(model.s_enhance, int)
             assert isinstance(model.t_enhance, int)

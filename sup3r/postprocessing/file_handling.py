@@ -441,12 +441,15 @@ class OutputHandlerH5(OutputHandler):
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
+        chunk_index : int
+            Index of chunk to write
         """
         cls.invert_uv_features(data, features, lat_lon,
                                max_workers=max_workers)
         features = cls.get_renamed_features(features)
         meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
+
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = times
