@@ -79,11 +79,13 @@ def test_forward_pass_nc_cc():
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
 
 
 def test_forward_pass_nc():
@@ -128,11 +130,13 @@ def test_forward_pass_nc():
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
 
 
 def test_forward_pass_temporal_slice():
@@ -180,8 +184,9 @@ def test_forward_pass_temporal_slice():
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * n_tsteps,
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * n_tsteps,
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -248,8 +253,8 @@ def test_fwd_pass_handler():
         assert forward_pass.data_handler.extract_workers == max_workers
         data = forward_pass.run()
 
-        assert data.shape == (s_enhance * shape[0],
-                              s_enhance * shape[1],
+        assert data.shape == (s_enhance * fwp_chunk_shape[0],
+                              s_enhance * fwp_chunk_shape[1],
                               t_enhance * len(input_files), 2)
 
 
@@ -296,14 +301,22 @@ def test_fwd_pass_chunking():
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True)
-        forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run()
+
+        data = []
+        for i in range(handler.nodes):
+            forward_pass = ForwardPass(handler, node_index=i)
+            data_chunked = forward_pass.run()
+            data.append(data_chunked)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
                                   val_split=0.0, shape=shape)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
+
+        data_chunked = np.zeros(data_nochunk.shape)
+        data_chunked[:12, :12, :, :] = data[0]
+        data_chunked[12:, 12:, :, :] = data[1]
 
         assert np.mean(
             (np.abs(data_chunked - data_nochunk)
@@ -449,8 +462,9 @@ def test_fwp_multi_step_model_topo_exoskip():
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -544,8 +558,9 @@ def test_fwp_multi_step_model_topo():
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -623,8 +638,9 @@ def test_fwp_multi_step_model():
         forward_pass.run()
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 

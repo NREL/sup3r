@@ -15,8 +15,7 @@ import json
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import (invert_uv, estimate_max_workers,
-                                       pd_date_range)
+from sup3r.utilities.utilities import (invert_uv, estimate_max_workers)
 from sup3r.preprocessing.feature_handling import Feature
 
 from rex.outputs import Outputs as BaseRexOutputs

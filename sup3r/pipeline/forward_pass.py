@@ -909,9 +909,7 @@ class ForwardPassStrategy(InputMixIn):
         lr_pad_slice = lr_pad_slices[spatial_chunk_index]
         hr_slice = hr_slices[spatial_chunk_index]
 
-        n_lats = len(np.arange(self.grid_shape[0])[lr_slice[0]])
-        n_lons = len(np.arange(self.grid_shape[1])[lr_slice[1]])
-        data_shape = (n_lats, n_lons, len(self.raw_time_index[ti_pad_slice]))
+        data_shape = (*self.grid_shape, len(self.raw_time_index[ti_pad_slice]))
 
         chunk_shape = (lr_pad_slice[0].stop - lr_pad_slice[0].start,
                        lr_pad_slice[1].stop - lr_pad_slice[1].start,
@@ -979,7 +977,7 @@ class ForwardPassStrategy(InputMixIn):
     def nodes(self):
         """Get the number of nodes that this strategy should distribute work
         to, calculated as the source time index divided by the temporal part of
-        the fwp_chunk_shape"""
+        the fwp_chunk_shape times the number of spatial chunks"""
         nodes = self.fwp_slicer.n_spatial_chunks
         nodes *= self.fwp_slicer.n_temporal_chunks
         return nodes
@@ -1152,7 +1150,7 @@ class ForwardPass:
         self.hr_lat_lon = OutputHandler.get_lat_lon(
             self.data_handler.lat_lon, self.hr_data_shape[:2])
         self.hr_times = OutputHandler.get_times(
-            self.strategy.time_index[self.ti_slice], self.hr_data_shape[2])
+            self.strategy.raw_time_index[self.ti_slice], self.hr_data_shape[2])
 
     @property
     def pass_workers(self):

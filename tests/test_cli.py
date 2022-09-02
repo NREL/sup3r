@@ -106,6 +106,8 @@ def test_fwd_pass_cli(runner):
 
         fwp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
+        n_nodes *= shape[0] // fwp_chunk_shape[0]
+        n_nodes *= shape[1] // fwp_chunk_shape[1]
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
@@ -115,7 +117,7 @@ def test_fwd_pass_cli(runner):
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
-                  'shape': (8, 8),
+                  'shape': shape,
                   'fwp_chunk_shape': fwp_chunk_shape,
                   'time_chunk_size': 10,
                   'max_workers': 1,
@@ -210,7 +212,7 @@ def test_pipeline_fwp_qa(runner):
                           "option": "local"}}
 
         qa_config = {'source_file_paths': input_files,
-                     'out_file_path': os.path.join(td, 'out_00000.h5'),
+                     'out_file_path': os.path.join(td, 'out_00000_000000.h5'),
                      'qa_fp': os.path.join(td, 'qa.h5'),
                      's_enhance': 3,
                      't_enhance': 4,
