@@ -150,7 +150,7 @@ class Collector:
         final_index = final_meta.index
         new_index = new_meta.index
 
-        row_loc = np.where(final_time_index.isin(new_time_index))[0]
+        row_loc = np.where(new_time_index.isin(final_time_index))[0]
         col_loc = np.where(new_index.isin(final_index))[0]
 
         if not any(row_loc):
@@ -322,8 +322,8 @@ class Collector:
             logger.info('Initializing collection output file with shape {} '
                         'and meta data:\n{}'
                         .format((len(time_index), len(meta)), meta))
-            f['time_index'] = time_index
-            f['meta'] = meta
+            f.time_index = time_index
+            f.meta = meta
             f.run_attrs = global_attrs
 
     @staticmethod

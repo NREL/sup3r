@@ -15,7 +15,8 @@ import json
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import (invert_uv, estimate_max_workers)
+from sup3r.utilities.utilities import (invert_uv, estimate_max_workers,
+                                       pd_date_range)
 from sup3r.preprocessing.feature_handling import Feature
 
 from rex.outputs import Outputs as BaseRexOutputs
@@ -188,7 +189,8 @@ class OutputHandler:
         logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
-            offset = (low_res_times[1] - low_res_times[0])
+            offset = (low_res_times[-1] - low_res_times[0])
+            offset /= len(low_res_times)
         else:
             offset = np.timedelta64(24, 'h')
 
