@@ -82,8 +82,8 @@ def make_fake_h5_chunks(td):
     lon, lat = np.meshgrid(lon, lat)
     low_res_lat_lon = np.dstack((lat, lon))
 
-    low_res_times = pd_date_range('20220101', '20220103', freq='1h',
-                                  inclusive='left').values
+    low_res_times = pd_date_range('20220101', '20220103', freq='3600s',
+                                  inclusive='left')
 
     slices_lr = [slice(0, 24), slice(24, None)]
     slices_hr = [slice(0, 48), slice(48, None)]

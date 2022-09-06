@@ -816,7 +816,7 @@ class ForwardPassStrategy(InputMixIn):
                         file_id = f'{start}-{end}_{str(j).zfill(6)}'
                         self._file_ids.append(file_id)
                     else:
-                        file_id = f'{str(i).zfill(5)}_{str(j).zfill(6)}'
+                        file_id = f'{str(i).zfill(6)}_{str(j).zfill(6)}'
                         self._file_ids.append(file_id)
         return self._file_ids
 

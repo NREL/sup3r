@@ -51,7 +51,6 @@ def test_topography():
         topo = np.array(res['HGT'][tuple([slice(None)] + ri)])
     topo = np.transpose(topo, (1, 2, 0))[::-1]
     topo_idx = data_handler.features.index('topography')
-    print(data_handler.data.shape)
     assert np.allclose(topo, data_handler.data[..., :, topo_idx])
     st_batch_handler = BatchHandler([data_handler], batch_size=batch_size,
                                     n_batches=n_batches,

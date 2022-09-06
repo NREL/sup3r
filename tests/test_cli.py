@@ -212,7 +212,7 @@ def test_pipeline_fwp_qa(runner):
                           "option": "local"}}
 
         qa_config = {'source_file_paths': input_files,
-                     'out_file_path': os.path.join(td, 'out_00000_000000.h5'),
+                     'out_file_path': os.path.join(td, 'out_000000_000000.h5'),
                      'qa_fp': os.path.join(td, 'qa.h5'),
                      's_enhance': 3,
                      't_enhance': 4,

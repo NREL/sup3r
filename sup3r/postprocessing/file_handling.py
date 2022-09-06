@@ -198,7 +198,7 @@ class OutputHandler:
         times = [low_res_times[0] + i * np.timedelta64(freq, 's')
                  for i in range(shape)]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd_date_range(start_time, end_time, freq=freq)
+        times = pd_date_range(times[0], times[-1], freq=freq)
         return times
 
     @classmethod
@@ -454,8 +454,8 @@ class OutputHandlerH5(OutputHandler):
                                max_workers=max_workers)
         features = cls.get_renamed_features(features)
         gids = (gids if gids is not None
-                else np.arange(np.product(lat_lon.shape[:-2])))
-        meta = pd.DataFrame({'gid': gids.flatten(),
+                else np.arange(np.product(lat_lon.shape[:-1])))
+        meta = pd.DataFrame({'gid': gids,
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
