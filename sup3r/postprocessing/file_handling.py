@@ -198,7 +198,7 @@ class OutputHandler:
         times = [low_res_times[0] + i * np.timedelta64(freq, 's')
                  for i in range(shape)]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
-        times = pd_date_range(times[0], times[-1], freq=freq)
+        times = pd_date_range(start_time, end_time, freq=freq)
         return times
 
     @classmethod
@@ -231,6 +231,9 @@ class OutputHandler:
         max_workers : int | None
             Max workers to use for inverse uv transform. If None the
             max_workers will be estimated based on memory limits.
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
@@ -266,6 +269,9 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         max_workers : int | None
             Has no effect. For compliance with H5 output handler
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         coords = {'Times': (['Time'], times),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
@@ -440,14 +446,15 @@ class OutputHandlerH5(OutputHandler):
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
-        chunk_index : int
-            Index of chunk to write
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         cls.invert_uv_features(data, features, lat_lon,
                                max_workers=max_workers)
         features = cls.get_renamed_features(features)
         gids = (gids if gids is not None
-                else np.arange(np.product(lat_lon[:-2])))
+                else np.arange(np.product(lat_lon.shape[:-2])))
         meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})

@@ -110,10 +110,10 @@ class Sup3rQa:
             be guessed based on file type and time series properties.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            pass_workers, extract_workers, compute_workers, output_workers, and
+            extract_workers, compute_workers, output_workers, and
             load_workers.  If max_workers == 1 then all processes will be
             serialized. If None extract_workers, compute_workers, load_workers,
-            output_workers, and pass_workers will use their own provided
+            output_workers will use their own provided
             values.
         extract_workers : int | None
             max number of workers to use for extracting features from source

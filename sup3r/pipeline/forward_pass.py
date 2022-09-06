@@ -557,7 +557,6 @@ class ForwardPassStrategy(InputMixIn):
                  input_handler=None,
                  spatial_coarsen=None,
                  max_workers=None,
-                 pass_workers=None,
                  extract_workers=None,
                  compute_workers=None,
                  load_workers=None,
@@ -657,15 +656,10 @@ class ForwardPassStrategy(InputMixIn):
             s_enhance to do a validation study.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            pass_workers, extract_workers, compute_workers, output_workers, and
-            load_workers.  If max_workers == 1 then all processes will be
-            serialized. If None extract_workers, compute_workers, load_workers,
-            output_workers, and pass_workers will use their own provided
-            values.
-        pass_workers : int | None
-            max number of workers to use for forward passes. If max_workers ==
-            1 then processes will be serialized. If None max_workers will be
-            estimated based on memory limits.
+            extract_workers, compute_workers, output_workers, and load_workers.
+            If max_workers == 1 then all processes will be serialized. If None
+            extract_workers, compute_workers, load_workers, output_workers will
+            use their own provided values.
         extract_workers : int | None
             max number of workers to use for extracting features from source
             data.
@@ -683,7 +677,7 @@ class ForwardPassStrategy(InputMixIn):
         """
         if max_workers is not None:
             extract_workers = compute_workers = max_workers
-            load_workers = pass_workers = output_workers = max_workers
+            load_workers = output_workers = max_workers
 
         self._i = 0
         self.file_paths = file_paths
@@ -697,7 +691,6 @@ class ForwardPassStrategy(InputMixIn):
         self.temporal_slice = temporal_slice
         self.time_chunk_size = time_chunk_size
         self.overwrite_cache = overwrite_cache
-        self.pass_workers = pass_workers
         self.max_workers = max_workers
         self.extract_workers = extract_workers
         self.compute_workers = compute_workers
@@ -942,7 +935,6 @@ class ForwardPassStrategy(InputMixIn):
                       cache_pattern=cache_pattern,
                       node_index=node_index,
                       max_workers=self.max_workers,
-                      pass_workers=self.pass_workers,
                       extract_workers=self.extract_workers,
                       compute_workers=self.compute_workers,
                       load_workers=self.load_workers,
@@ -1089,7 +1081,6 @@ class ForwardPass:
         self.chunk_shape = kwargs['chunk_shape']
         self.cache_pattern = kwargs['cache_pattern']
         self.max_workers = kwargs['max_workers']
-        self.pass_workers = kwargs['pass_workers']
         self.extract_workers = kwargs['extract_workers']
         self.compute_workers = kwargs['compute_workers']
         self.load_workers = kwargs['load_workers']
@@ -1165,8 +1156,6 @@ class ForwardPass:
 
         self.hr_lat_lon = OutputHandler.get_lat_lon(
             self.data_handler.lat_lon, self.hr_data_shape[:2])
-        self.hr_times = OutputHandler.get_times(
-            self.strategy.raw_time_index[self.ti_slice], self.hr_data_shape[2])
 
     @staticmethod
     def pad_source_data(input_data, spatial_pad, pad_t_start, pad_t_end,
@@ -1477,8 +1466,8 @@ class ForwardPass:
             self.output_handler_class._write_output(
                 data=out_data, features=self.data_handler.output_features,
                 lat_lon=self.hr_lat_lon[self.hr_slice[0], self.hr_slice[1], :],
-                times=hr_times,
-                out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers, gids=self.gids)
+                times=hr_times, out_file=self.out_file,
+                meta_data=self.meta_data, max_workers=self.output_workers,
+                gids=self.gids)
         else:
             return out_data

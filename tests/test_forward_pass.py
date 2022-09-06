@@ -69,7 +69,6 @@ def test_forward_pass_nc_cc():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers, input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -120,7 +119,6 @@ def test_forward_pass_nc():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -175,7 +173,6 @@ def test_forward_pass_temporal_slice():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -246,7 +243,6 @@ def test_fwd_pass_handler():
             overwrite_cache=True,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
@@ -452,7 +448,6 @@ def test_fwp_multi_step_model_topo_exoskip():
 
         forward_pass = ForwardPass(handler)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -548,7 +543,6 @@ def test_fwp_multi_step_model_topo():
 
         forward_pass = ForwardPass(handler)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -628,7 +622,6 @@ def test_fwp_multi_step_model():
         out = forward_pass.model.generate(ones)
         assert out.shape == (1, 24, 24, 32, 2)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
