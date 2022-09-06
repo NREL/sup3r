@@ -21,8 +21,7 @@ from sup3r.postprocessing.file_handling import (OutputHandler, OutputHandlerH5,
                                                 OutputHandlerNC)
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
-                                       get_input_handler_class,
-                                       estimate_max_workers)
+                                       get_input_handler_class)
 from sup3r.utilities import ModuleName
 
 np.random.seed(42)
@@ -99,6 +98,7 @@ class ForwardPassSlicer:
         self._t_hr_crop_slices = None
         self._s_exo_slices = None
         self._hr_crop_slices = None
+        self._gids = None
 
     def get_spatial_slices(self):
         """Get spatial slices for small data chunks that are passed through
@@ -307,6 +307,18 @@ class ForwardPassSlicer:
                                 slice(None), slice(None))
                     self._s_hr_slices.append(hr_slice)
         return self._s_hr_slices
+
+    @property
+    def gids(self):
+        """Get gids for spatial coordinates. Used in final data collection."""
+        if self._gids is None:
+            self._gids = {}
+            for i, hr_slice in enumerate(self.s_hr_slices):
+                gid_start = 0 if i == 0 else self._gids[i - 1][-1] + 1
+                gid_len = (hr_slice[0].stop - hr_slice[0].start)
+                gid_len *= (hr_slice[1].stop - hr_slice[1].start)
+                self._gids[i] = np.arange(gid_start, gid_start + gid_len)
+        return self._gids
 
     @property
     def s_hr_crop_slices(self):
@@ -886,8 +898,9 @@ class ForwardPassStrategy(InputMixIn):
                    f'file chunks and the index requested was {node_index}.')
             raise ValueError(msg)
 
+        spatial_chunk_index = node_index % self.fwp_slicer.n_spatial_chunks
         temporal_chunk_index = node_index // self.fwp_slicer.n_spatial_chunks
-        spatial_chunk_index = node_index // self.fwp_slicer.n_temporal_chunks
+
         out_file = self.out_files[node_index]
         ti_pad_slice = self.ti_pad_slices[temporal_chunk_index]
         ti_slice = self.ti_slices[temporal_chunk_index]
@@ -908,6 +921,7 @@ class ForwardPassStrategy(InputMixIn):
         lr_slice = lr_slices[spatial_chunk_index]
         lr_pad_slice = lr_pad_slices[spatial_chunk_index]
         hr_slice = hr_slices[spatial_chunk_index]
+        gids = self.fwp_slicer.gids[spatial_chunk_index]
 
         data_shape = (*self.grid_shape, len(self.raw_time_index[ti_pad_slice]))
 
@@ -939,6 +953,7 @@ class ForwardPassStrategy(InputMixIn):
                       pad_t_end=pad_t_end,
                       temporal_chunk_index=temporal_chunk_index,
                       spatial_chunk_index=spatial_chunk_index,
+                      gids=gids
                       )
 
         return kwargs
@@ -1085,6 +1100,7 @@ class ForwardPass:
         self.pad_t_end = kwargs['pad_t_end']
         self.spatial_chunk_index = kwargs['spatial_chunk_index']
         self.temporal_chunk_index = kwargs['temporal_chunk_index']
+        self.gids = kwargs['gids']
 
         self.exogenous_handler = None
         self.exogenous_data = None
@@ -1151,21 +1167,6 @@ class ForwardPass:
             self.data_handler.lat_lon, self.hr_data_shape[:2])
         self.hr_times = OutputHandler.get_times(
             self.strategy.raw_time_index[self.ti_slice], self.hr_data_shape[2])
-
-    @property
-    def pass_workers(self):
-        """Get estimate for max pass workers based on memory usage"""
-        proc_mem = 8 * np.product(self.strategy.fwp_chunk_shape)
-        proc_mem *= self.strategy.s_enhance**2 * self.strategy.t_enhance
-        n_procs = len(self.hr_slice)
-        max_workers = estimate_max_workers(self._pass_workers,
-                                           proc_mem, n_procs)
-        return max_workers
-
-    @pass_workers.setter
-    def pass_workers(self, pass_workers):
-        """Update pass workers value"""
-        self._pass_workers = pass_workers
 
     @staticmethod
     def pad_source_data(input_data, spatial_pad, pad_t_start, pad_t_end,
@@ -1470,12 +1471,14 @@ class ForwardPass:
         out_data = self._run_single_fwd_pass(self.spatial_chunk_index)
 
         if self.out_file is not None:
+            lr_times = self.data_handler.raw_time_index[self.ti_slice]
+            hr_times = OutputHandler.get_times(lr_times, out_data.shape[-2])
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class._write_output(
                 data=out_data, features=self.data_handler.output_features,
                 lat_lon=self.hr_lat_lon[self.hr_slice[0], self.hr_slice[1], :],
-                times=self.hr_times[self.hr_slice[2]],
+                times=hr_times,
                 out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers)
+                max_workers=self.output_workers, gids=self.gids)
         else:
             return out_data

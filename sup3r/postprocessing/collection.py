@@ -150,15 +150,7 @@ class Collector:
         final_index = final_meta.index
         new_index = new_meta.index
         row_loc = np.where(final_time_index.isin(new_time_index))[0]
-        final_lats = np.array(final_meta[['latitude']])
-        final_lons = np.array(final_meta[['longitude']])
-        new_coords = np.array(new_meta[['latitude', 'longitude']])
-
-        col_loc = []
-        for _, nc in enumerate(new_coords):
-            dist = (nc[0] - final_lats)**2 + (nc[1] - final_lons)**2
-            idx = np.argmin(dist)
-            col_loc.append(idx)
+        col_loc = np.where(final_meta['gid'].isin(new_meta['gid']))[0]
 
         if not any(row_loc):
             msg = ('Could not find row locations in file collection. '

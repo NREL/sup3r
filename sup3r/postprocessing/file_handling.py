@@ -189,8 +189,7 @@ class OutputHandler:
         logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
-            offset = (low_res_times[-1] - low_res_times[0])
-            offset /= len(low_res_times)
+            offset = (low_res_times[1] - low_res_times[0])
         else:
             offset = np.timedelta64(24, 'h')
 
@@ -205,12 +204,12 @@ class OutputHandler:
     @classmethod
     @abstractmethod
     def _write_output(cls, data, features, lat_lon, times, out_file, meta_data,
-                      max_workers=None):
+                      max_workers=None, gids=None):
         """Write output to file with specified times and lats/lons"""
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon, low_res_times,
-                     out_file, meta_data=None, max_workers=None):
+                     out_file, meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to file
 
         Parameters
@@ -236,7 +235,7 @@ class OutputHandler:
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         cls._write_output(data, features, lat_lon, times, out_file,
-                          meta_data, max_workers)
+                          meta_data, max_workers, gids)
 
 
 class OutputHandlerNC(OutputHandler):
@@ -245,7 +244,7 @@ class OutputHandlerNC(OutputHandler):
     # pylint: disable=W0613
     @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None):
+                      meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -418,7 +417,7 @@ class OutputHandlerH5(OutputHandler):
 
     @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None):
+                      meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -447,7 +446,10 @@ class OutputHandlerH5(OutputHandler):
         cls.invert_uv_features(data, features, lat_lon,
                                max_workers=max_workers)
         features = cls.get_renamed_features(features)
-        meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
+        gids = (gids if gids is not None
+                else np.arange(np.product(lat_lon[:-2])))
+        meta = pd.DataFrame({'gid': gids.flatten(),
+                             'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
         with RexOutputs(out_file, 'w') as fh:
