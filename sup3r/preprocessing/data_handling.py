@@ -5,6 +5,7 @@ Sup3r preprocessing module.
 """
 
 from abc import abstractmethod
+import copy
 import json
 from fnmatch import fnmatch
 import logging
@@ -2296,6 +2297,7 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             Same keyword args as DataHandlerH5
         """
 
+        args = copy.deepcopy(args)  # safe copy for manipulation
         required = ['ghi', 'clearsky_ghi', 'clearsky_ratio']
         missing = [dset for dset in required if dset not in args[1]]
         if any(missing):
