@@ -11,12 +11,6 @@ import os
 logger = logging.getLogger(__name__)
 
 
-IN_FILENAME = '/projects/seasiawind/modeling/seasia/production/wrfouts'
-IN_FILENAME += '/{year}/{month}/custom_wrfout_d0{domain}_{year}-{month}-*'
-OUT_FILENAME = '/scratch/bbenton/seasiawind/stitched/'
-OUT_FILENAME += '{year}/{month}/'
-
-
 class Regridder:
     """Regridder class for stitching domains"""
 
@@ -88,8 +82,7 @@ class Regridder:
         return data_out
 
 
-def get_files(year, month, input_pattern=IN_FILENAME,
-              output_pattern=OUT_FILENAME, n_domains=4):
+def get_files(year, month, input_pattern, output_pattern, n_domains=4):
     """Get input files for all domains to stitch together, and output file
     name
 
@@ -387,9 +380,8 @@ def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
     return handles
 
 
-def stitch_and_save(year, month, day=None, input_pattern=IN_FILENAME,
-                    output_pattern=OUT_FILENAME, overlap=15, n_domains=4,
-                    max_level=10):
+def stitch_and_save(year, month, input_pattern, output_pattern,
+                    day=None, overlap=15, n_domains=4, max_level=10):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
