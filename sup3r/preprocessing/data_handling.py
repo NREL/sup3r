@@ -19,6 +19,7 @@ import pickle
 import warnings
 import glob
 from scipy.stats import mode
+from scipy.ndimage.filters import gaussian_filter
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 from rex import MultiFileWindX, MultiFileNSRDBX, Resource
@@ -1781,7 +1782,8 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
-    def __init__(self, *args, nsrdb_source_fp=None, **kwargs):
+    def __init__(self, *args, nsrdb_source_fp=None, nsrdb_agg=1,
+                 nsrdb_smoothing=0, **kwargs):
         """
         Parameters
         ----------
@@ -1791,10 +1793,22 @@ class DataHandlerNCforCC(DataHandlerNC):
             Optional NSRDB source h5 file to retrieve clearsky_ghi from to
             calculate CC clearsky_ratio along with rsds (ghi) from the CC
             netcdf file.
+        nsrdb_agg : int
+            Optional number of NSRDB source pixels to aggregate clearsky_ghi
+            from to a single climate change netcdf pixel. This can be used if
+            the CC.nc data is at a much coarser resolution than the source
+            nsrdb data.
+        nsrdb_smoothing : float
+            Optional gaussian filter smoothing factor to smooth out
+            clearsky_ghi from high-resolution nsrdb source data. This is
+            typically done because spatially aggregated nsrdb data is still
+            usually rougher than CC irradiance data.
         **kwargs : list
             Same optional keyword arguments as DataHandler parent class.
         """
         self._nsrdb_source_fp = nsrdb_source_fp
+        self._nsrdb_agg = nsrdb_agg
+        self._nsrdb_smoothing = nsrdb_smoothing
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -1909,15 +1923,21 @@ class DataHandlerNCforCC(DataHandlerNC):
         cc_meta = np.vstack((lat, lon)).T
 
         tree = KDTree(meta_nsrdb[['latitude', 'longitude']])
-        _, i = tree.query(cc_meta)
+        _, i = tree.query(cc_meta, k=self._nsrdb_agg)
+        if len(i.shape) == 1:
+            i = np.expand_dims(i, axis=1)
 
         logger.info('Extracting clearsky_ghi data from "{}" with time slice '
-                    '{} and {} locations.'
+                    '{} and {} locations with agg factor {}.'
                     .format(os.path.basename(self._nsrdb_source_fp),
-                            t_slice, len(i)))
+                            t_slice, i.shape[0], i.shape[1]))
 
+        cs_shape = i.shape
         with Resource(self._nsrdb_source_fp) as res:
-            cs_ghi = res['clearsky_ghi', t_slice, i]
+            cs_ghi = res['clearsky_ghi', t_slice, i.flatten()]
+
+        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + cs_shape)
+        cs_ghi = cs_ghi.mean(axis=-1)
 
         windows = np.array_split(np.arange(len(cs_ghi)),
                                  len(cs_ghi) // (24 // time_freq))
@@ -1928,6 +1948,13 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         if self.invert_lat:
             cs_ghi = cs_ghi[::-1]
+
+        logger.info('Smoothing nsrdb clearsky ghi with a factor of {}'
+                    .format(self._nsrdb_smoothing))
+        for iday in range(cs_ghi.shape[-1]):
+            cs_ghi[..., iday] = gaussian_filter(cs_ghi[..., iday],
+                                                self._nsrdb_smoothing,
+                                                mode='nearest')
 
         logger.info('Reshaped clearsky_ghi data to final shape {} to '
                     'correspond with CC daily average data over source '
