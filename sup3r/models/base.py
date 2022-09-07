@@ -350,8 +350,8 @@ class Sup3rGan(AbstractSup3rGan):
                 msg = ('GAN was previously trained with {var}={} but '
                        'received new {var}={}'
                        .format(val, kwargs[var], var=var))
-                logger.error(msg)
-                raise KeyError(msg)
+                logger.warning(msg)
+                warn(msg)
 
     @staticmethod
     def get_loss_fun(loss):
