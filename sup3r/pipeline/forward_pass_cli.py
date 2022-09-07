@@ -84,7 +84,7 @@ def from_config(ctx, config_file, verbose):
             log_pattern if log_pattern is None
             else os.path.normpath(log_pattern.format(node_index=i)))
         name = ('sup3r_fwp_{}_{}'.format(os.path.basename(status_dir),
-                                         str(i).zfill(5)))
+                                         str(i).zfill(6)))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
         cmd = ForwardPass.get_node_cmd(node_config)

@@ -553,7 +553,7 @@ class ForwardPassStrategy(InputMixIn):
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
-                 overwrite_cache=False,
+                 overwrite_cache=True,
                  input_handler=None,
                  spatial_coarsen=None,
                  max_workers=None,
