@@ -99,7 +99,6 @@ def test_fwp_collection(runner):
                   'execution_control': {
                       "option": "local"}}
 
-        os.remove(os.path.join(td, 'rev_status.json'))
         config_path = os.path.join(td, 'config_dc.json')
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
@@ -204,8 +203,8 @@ def test_fwd_pass_cli(runner):
         model.save(out_dir)
 
         fwp_chunk_shape = (4, 4, 6)
-        n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
-        n_nodes *= shape[0] // fwp_chunk_shape[0]
+        t_chunks = len(input_files) // fwp_chunk_shape[2] + 1
+        n_nodes = t_chunks * shape[0] // fwp_chunk_shape[0]
         n_nodes *= shape[1] // fwp_chunk_shape[1]
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
@@ -238,7 +237,7 @@ def test_fwd_pass_cli(runner):
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
 
-        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
+        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * t_chunks)
         assert len(glob.glob(f'{td}/*.log')) == n_nodes
         assert len(glob.glob(f'{td}/out*')) == n_nodes
 

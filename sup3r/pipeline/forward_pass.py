@@ -737,7 +737,12 @@ class ForwardPassStrategy(InputMixIn):
                                             exo_s_enhancements=exo_s_en)
 
         logger.info('Initializing ForwardPassStrategy for '
-                    f'{self.input_file_info}')
+                    f'{self.input_file_info}. Using n_chunks={self.nodes}')
+
+        if self.cache_pattern is not None:
+            if '{temporal_chunk_index}' not in self.cache_pattern:
+                self.cache_pattern = self.cache_pattern.replace(
+                    '.pkl', '_{temporal_chunk_index}.pkl')
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
@@ -896,7 +901,8 @@ class ForwardPassStrategy(InputMixIn):
         hr_crop_slice = hr_crop_slices[spatial_chunk_index]
         cache_pattern = (
             None if self.cache_pattern is None
-            else self.cache_pattern.replace('{node_index}', str(node_index)))
+            else self.cache_pattern.replace('{temporal_chunk_index}',
+                                            str(temporal_chunk_index)))
 
         ti_start = ti_slice.start or 0
         ti_stop = ti_slice.stop or len(self.raw_time_index)
