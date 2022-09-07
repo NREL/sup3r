@@ -553,7 +553,7 @@ class ForwardPassStrategy(InputMixIn):
                  time_chunk_size=None,
                  cache_pattern=None,
                  out_pattern=None,
-                 overwrite_cache=True,
+                 overwrite_cache=False,
                  input_handler=None,
                  spatial_coarsen=None,
                  max_workers=None,
@@ -738,11 +738,6 @@ class ForwardPassStrategy(InputMixIn):
 
         logger.info('Initializing ForwardPassStrategy for '
                     f'{self.input_file_info}')
-
-        if self.cache_pattern is not None:
-            if '{node_index}' not in self.cache_pattern:
-                self.cache_pattern = self.cache_pattern.replace(
-                    '.pkl', '_{node_index}.pkl')
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
@@ -1388,6 +1383,7 @@ class ForwardPass:
         log_arg_str = (f'"sup3r", log_level="{log_level}"')
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
