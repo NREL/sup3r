@@ -36,8 +36,8 @@ def runner():
     return CliRunner()
 
 
-def test_fwp_collection(runner):
-    """Test cli call to forward pass and data collection"""
+def test_pipeline_fwp_collect(runner):
+    """Test pipeline with forward pass and data collection"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -62,49 +62,50 @@ def test_fwp_collection(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log.log')
-        config = {'file_paths': input_files,
-                  'target': (19.3, -123.5),
-                  'model_args': out_dir,
-                  'out_pattern': out_files,
-                  'cache_pattern': cache_pattern,
-                  'log_pattern': log_prefix,
-                  'shape': shape,
-                  'fwp_chunk_shape': fwp_chunk_shape,
-                  'time_chunk_size': 10,
-                  'max_workers': 1,
-                  'spatial_pad': 5,
-                  'temporal_pad': 5,
-                  'overwrite_cache': True,
-                  'execution_control': {
-                      "option": "local"}}
-
-        config_path = os.path.join(td, 'config_fwp.json')
-        with open(config_path, 'w') as fh:
-            json.dump(config, fh)
-
-        result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
-
-        if result.exit_code != 0:
-            import traceback
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
-            raise RuntimeError(msg)
+        fwp_config = {'file_paths': input_files,
+                      'target': (19.3, -123.5),
+                      'model_args': out_dir,
+                      'out_pattern': out_files,
+                      'cache_pattern': cache_pattern,
+                      'log_pattern': log_prefix,
+                      'shape': shape,
+                      'fwp_chunk_shape': fwp_chunk_shape,
+                      'time_chunk_size': 10,
+                      'max_workers': 1,
+                      'spatial_pad': 5,
+                      'temporal_pad': 5,
+                      'overwrite_cache': True,
+                      'execution_control': {
+                          "option": "local"}}
 
         features = ['windspeed_100m', 'winddirection_100m']
-        out_files = glob.glob(os.path.join(td, 'out_*.h5'))
-        config = {'file_paths': out_files,
-                  'out_file': fp_out,
-                  'features': features,
-                  'log_file': os.path.join(td, 'log.log'),
-                  'execution_control': {
-                      "option": "local"}}
+        out_files = os.path.join(td, 'out_*.h5')
+        dc_config = {'file_paths': out_files,
+                     'out_file': fp_out,
+                     'features': features,
+                     'log_file': os.path.join(td, 'log.log'),
+                     'execution_control': {
+                         "option": "local"}}
 
-        config_path = os.path.join(td, 'config_dc.json')
-        with open(config_path, 'w') as fh:
-            json.dump(config, fh)
+        fwp_config_path = os.path.join(td, 'config_fwp.json')
+        dc_config_path = os.path.join(td, 'config_dc.json')
+        pipe_config_path = os.path.join(td, 'config_pipe.json')
+        pipe_flog = os.path.join(td, 'pipeline.log')
 
-        result = runner.invoke(dc_main, ['-c', config_path, '-v'])
+        pipe_config = {"logging": {"log_level": "DEBUG",
+                                   "log_file": pipe_flog},
+                       "pipeline": [{"forward-pass": fwp_config_path},
+                                    {"data-collect": dc_config_path}]}
 
+        with open(fwp_config_path, 'w') as fh:
+            json.dump(fwp_config, fh)
+        with open(dc_config_path, 'w') as fh:
+            json.dump(dc_config, fh)
+        with open(pipe_config_path, 'w') as fh:
+            json.dump(pipe_config, fh)
+
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
+                                           '-v', '--monitor'])
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
@@ -117,7 +118,7 @@ def test_fwp_collection(runner):
             full_ti = fh.time_index
             full_gids = fh.meta['gid']
             combined_ti = []
-            for _, f in enumerate(out_files):
+            for _, f in enumerate(glob.glob(out_files)):
                 with ResourceX(f) as fh_i:
                     fi_ti = fh_i.time_index
                     fi_gids = fh_i.meta['gid']

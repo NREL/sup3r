@@ -495,10 +495,9 @@ class Collector:
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
 
-        logger.info('Collecting data from {} to {}'.format(file_paths,
-                                                           out_file))
-
         collector = cls(file_paths)
+        logger.info('Collecting data from {} to {}'.format(collector.flist,
+                                                           out_file))
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if n_writes > len(collector.flist):
@@ -526,7 +525,7 @@ class Collector:
         if write_status and job_name is not None:
             status = {'out_dir': os.path.dirname(out_file),
                       'fout': out_file,
-                      'flist': file_paths,
+                      'flist': collector.flist,
                       'job_status': 'successful',
                       'runtime': (time.time() - t0) / 60}
             Status.make_job_file(os.path.dirname(out_file), 'collect',
