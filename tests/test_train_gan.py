@@ -256,8 +256,8 @@ def test_train_st(n_epoch=4, log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=5e-5,
-                     learning_rate_disc=2e-5)
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-5,
+                     learning_rate_disc=1e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
@@ -300,9 +300,9 @@ def test_train_st(n_epoch=4, log=False):
         with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
             model_params = json.load(f)
 
-        assert np.allclose(model_params['optimizer']['learning_rate'], 5e-5)
+        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-5)
         assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           2e-5)
+                           1e-5)
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
 
@@ -311,8 +311,8 @@ def test_train_st(n_epoch=4, log=False):
         assert model.meta['class'] == 'Sup3rGan'
 
         # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=5e-5,
-                         learning_rate_disc=2e-5)
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-5,
+                         learning_rate_disc=1e-5)
 
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
