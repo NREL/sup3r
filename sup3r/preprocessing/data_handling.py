@@ -2398,8 +2398,9 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
             # note that this ratio of daily irradiance sums is not the same as
             # the average of hourly ratios.
-            avg_cs_ratio = (self.data[:, :, t_slice, i_ghi].sum(axis=2)
-                            / self.data[:, :, t_slice, i_cs].sum(axis=2))
+            total_ghi = np.nansum(self.data[:, :, t_slice, i_ghi], axis=2)
+            total_cs_ghi = np.nansum(self.data[:, :, t_slice, i_cs], axis=2)
+            avg_cs_ratio = total_ghi / total_cs_ghi
             self.daily_data[:, :, d, i_ratio] = avg_cs_ratio
 
         # remove ghi and clearsky ghi from feature set. These shouldn't be used
