@@ -59,6 +59,7 @@ def from_config(ctx, config_file, verbose):
     exec_kwargs = config.get('execution_control', {})
     log_pattern = config.get('log_pattern', None)
     if log_pattern is not None:
+        os.makedirs(os.path.dirname(log_pattern), exist_ok=True)
         if '.log' not in log_pattern:
             log_pattern += '.log'
         if '{node_index}' not in log_pattern:
