@@ -13,7 +13,6 @@ Example Use:
     output_pattern.
 """
 # -*- coding: utf-8 -*-
-# pylint: disable=all
 import xarray as xr
 import numpy as np
 import logging
