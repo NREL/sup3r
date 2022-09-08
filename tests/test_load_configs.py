@@ -53,6 +53,11 @@ def test_load_all_spatial_generators():
         assert len(enhancements) == 1
         s_enhance = int(enhancements[0].strip('x'))
 
+        n_features = [s for s in fn.replace('.json', '').split('_')
+                      if s.endswith('f')]
+        assert len(n_features) == 1
+        n_features = int(n_features[0].strip('f'))
+
         fp_gen = os.path.join(st_config_dir, fn)
         model = Sup3rGan(fp_gen, fp_disc)
 
@@ -66,7 +71,7 @@ def test_load_all_spatial_generators():
         assert x.shape[0] == coarse_shape[0]
         assert x.shape[1] == s_enhance * coarse_shape[1]
         assert x.shape[2] == s_enhance * coarse_shape[2]
-        assert x.shape[3] == coarse_shape[3]
+        assert x.shape[3] == n_features
 
 
 def test_load_spatiotemporal():
