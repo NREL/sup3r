@@ -154,18 +154,18 @@ class OutputHandler:
         lat_shift = 1 - low_res_lat_lon.shape[0] / shape[0]
         lon_shift = 1 - low_res_lat_lon.shape[1] / shape[1]
 
-        new_count = old_count = 0
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                if i % s_enhance == 0 and j % s_enhance == 0:
-                    old_points[old_count, 0] = i + lat_shift
-                    old_points[old_count, 1] = j + lon_shift
-                    old_count += 1
-                new_points[new_count, 0] = i
-                new_points[new_count, 1] = j
-                new_count += 1
-        lats = RBFInterpolator(old_points, lats, neighbors=20)(new_points)
-        lons = RBFInterpolator(old_points, lons, neighbors=20)(new_points)
+        new_points[:, 0] = np.arange(new_points.shape[0]) // shape[1]
+        new_points[:, 1] = np.arange(new_points.shape[0]) % shape[1]
+        old_points[:, 0] = np.arange(old_points.shape[0])
+        old_points[:, 0] //= low_res_lat_lon.shape[1]
+        old_points[:, 0] *= s_enhance
+        old_points[:, 0] += lat_shift
+        old_points[:, 1] = np.arange(old_points.shape[0])
+        old_points[:, 1] %= low_res_lat_lon.shape[1]
+        old_points[:, 1] *= s_enhance
+        old_points[:, 1] += lon_shift
+        lats = RBFInterpolator(old_points, lats, neighbors=10)(new_points)
+        lons = RBFInterpolator(old_points, lons, neighbors=10)(new_points)
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         return lat_lon
 
@@ -188,15 +188,15 @@ class OutputHandler:
         """
         logger.debug('Getting high resolution time indices')
         t_enhance = int(shape / len(low_res_times))
-
         if len(low_res_times) > 1:
             offset = (low_res_times[1] - low_res_times[0])
         else:
             offset = np.timedelta64(24, 'h')
 
-        times = np.array([low_res_times[0] + i * offset / t_enhance
-                          for i in range(shape)])
-        freq = (times[1] - times[0]) / np.timedelta64(1, 's')
+        freq = offset / np.timedelta64(1, 's')
+        freq = int(60 * np.round(freq / 60) / t_enhance)
+        times = [low_res_times[0] + i * np.timedelta64(freq, 's')
+                 for i in range(shape)]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
         times = pd_date_range(times[0], times[-1], freq=freq)
         return times

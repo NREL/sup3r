@@ -1,10 +1,23 @@
-"""Utilities for stitching south east asia domains"""
+"""Utilities for stitching south east asia domains
+
+Example Use:
+
+    stitch_and_save(year=2017, month=1,
+                    input_pattern="wrfout_d0{domain}_{year}-{month}*",
+                    output_pattern="{year}/{month}/", overlap=15, n_domains=4,
+                    max_levels=10)
+
+    This will combine 4 domains, for Jan 2017, using an overlap of 15 grid
+    points the blend the domain edges, and save only the first 10 pressure
+    levels. The stitched files will be saved in the directory specified with
+    output_pattern.
+"""
 # -*- coding: utf-8 -*-
 # pylint: disable=all
 import xarray as xr
 import numpy as np
 import logging
-import xesmf as xe
+from importlib import import_module
 import glob
 import os
 
@@ -13,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 class Regridder:
     """Regridder class for stitching domains"""
+
+    DEPENDENCIES = ['xesmf']
 
     def __init__(self, lats, lons, min_lat, max_lat, min_lon, max_lon,
                  n_lats, n_lons):
@@ -36,6 +51,9 @@ class Regridder:
         n_lons : int
             Number of lons for output grid
         """
+        self.check_dependencies()
+        import xesmf as xe
+        self.regridder_module = xe.Regridder
         self._regridder = None
         self.grid_in = {'lat': lats, 'lon': lons}
         lons, lats = np.meshgrid(np.linspace(min_lon, max_lon, n_lons),
@@ -45,12 +63,30 @@ class Regridder:
         self.new_lat_lon[..., 0] = lats
         self.new_lat_lon[..., 1] = lons
 
+    @classmethod
+    def check_dependencies(cls):
+        """Check special dependencies for stitching module"""
+
+        missing = []
+        for name in cls.DEPENDENCIES:
+            try:
+                import_module(name)
+            except ModuleNotFoundError:
+                missing.append(name)
+
+        if any(missing):
+            msg = ('The sup3r stitching module depends on the following '
+                   'special dependencies that were not found in the active '
+                   'environment: {}'.format(missing))
+            logger.error(msg)
+            raise ModuleNotFoundError(msg)
+
     @property
     def regridder(self):
         """Get regridder for grid_in to grid_out"""
         if self._regridder is None:
-            self._regridder = xe.Regridder(self.grid_in, self.grid_out,
-                                           "bilinear")
+            self._regridder = self.regridder_module(self.grid_in,
+                                                    self.grid_out, "bilinear")
         return self._regridder
 
     def regrid_data(self, data_in):
@@ -96,7 +132,7 @@ def get_files(year, month, input_pattern, output_pattern, n_domains=4):
         Pattern for input files. Assumes pattern contains {month}, {year}, and
         {domain}
     output_pattern : str
-        Pattern for output files
+        Pattern for output files. Assumes pattern contains {month} and {year}
     n_domains : int
         Number of domains to stitch together
 
