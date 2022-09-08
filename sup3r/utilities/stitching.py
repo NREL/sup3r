@@ -52,8 +52,6 @@ class Regridder:
         """
         self.check_dependencies()
         import xesmf as xe
-        self.regridder_module = xe.Regridder
-        self._regridder = None
         self.grid_in = {'lat': lats, 'lon': lons}
         lons, lats = np.meshgrid(np.linspace(min_lon, max_lon, n_lons),
                                  np.linspace(min_lat, max_lat, n_lats))
@@ -61,6 +59,8 @@ class Regridder:
         self.new_lat_lon = np.zeros((*lats.shape, 2))
         self.new_lat_lon[..., 0] = lats
         self.new_lat_lon[..., 1] = lons
+        self.regridder = xe.Regridder(self.grid_in, self.grid_out,
+                                      method='bilinear')
 
     @classmethod
     def check_dependencies(cls):
@@ -79,14 +79,6 @@ class Regridder:
                    'environment: {}'.format(missing))
             logger.error(msg)
             raise ModuleNotFoundError(msg)
-
-    @property
-    def regridder(self):
-        """Get regridder for grid_in to grid_out"""
-        if self._regridder is None:
-            self._regridder = self.regridder_module(self.grid_in,
-                                                    self.grid_out, "bilinear")
-        return self._regridder
 
     def regrid_data(self, data_in):
         """Regrid data to output grid
