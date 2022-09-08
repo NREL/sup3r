@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """pytests for data handling with NSRDB files"""
-
+import pytest
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,6 +28,11 @@ TARGET_W = (39.01, -105.15)
 def test_solar_handler(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime."""
+
+    with pytest.raises(KeyError):
+        handler = DataHandlerH5SolarCC(INPUT_FILE_S, ['clearsky_ratio'],
+                                       target=TARGET_S, shape=SHAPE)
+
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
                                    temporal_slice=slice(None, None, 2),
@@ -53,60 +58,32 @@ def test_solar_handler(plot=False):
         assert obs_daily.shape[2] == 1
 
         cs_ratio_profile = obs_hourly[0, 0, :, 0]
-        cs_ghi_profile = obs_hourly[0, 0, :, 2]
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
-        assert np.isnan(cs_ghi_profile[0]) & np.isnan(cs_ghi_profile[-1])
 
         nan_mask = np.isnan(cs_ratio_profile)
         assert all((cs_ratio_profile <= 1)[~nan_mask])
         assert all((cs_ratio_profile >= 0)[~nan_mask])
-
-        nan_mask = np.isnan(cs_ghi_profile)
-        assert all((cs_ghi_profile <= 1200)[~nan_mask])
-        assert all((cs_ghi_profile >= 0)[~nan_mask])
 
         # new feature engineering so that whenever sunset starts, all
         # clearsky_ratio data is NaN
         for i in range(obs_hourly.shape[2]):
             if np.isnan(obs_hourly[:, :, i, 0]).any():
                 assert np.isnan(obs_hourly[:, :, i, 0]).all()
-            if (obs_hourly[:, :, i, -1] <= 1).any():
-                assert np.isnan(obs_hourly[:, :, i, 0]).all()
 
     if plot:
         for p in range(2):
             obs_hourly, obs_daily = handler.get_next()
             for i in range(obs_hourly.shape[2]):
-                _, axes = plt.subplots(2, 3, figsize=(15, 8))
+                _, axes = plt.subplots(1, 2, figsize=(15, 8))
 
-                a = axes[0, 0].imshow(obs_hourly[:, :, i, 0], vmin=0, vmax=1)
-                plt.colorbar(a, ax=axes[0, 0])
-                axes[0, 0].set_title('Clearsky Ratio')
-
-                a = axes[0, 1].imshow(obs_hourly[:, :, i, 1],
-                                      vmin=0, vmax=1100)
-                plt.colorbar(a, ax=axes[0, 1])
-                axes[0, 1].set_title('GHI')
-
-                a = axes[0, 2].imshow(obs_hourly[:, :, i, 2],
-                                      vmin=0, vmax=1100)
-                plt.colorbar(a, ax=axes[0, 2])
-                axes[0, 2].set_title('Clearsky GHI')
+                a = axes[0].imshow(obs_hourly[:, :, i, 0], vmin=0, vmax=1)
+                plt.colorbar(a, ax=axes[0])
+                axes[0].set_title('Clearsky Ratio')
 
                 tmp = obs_daily[:, :, 0, 0]
-                a = axes[1, 0].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
-                plt.colorbar(a, ax=axes[1, 0])
-                axes[1, 0].set_title('Daily Average Clearsky Ratio')
-
-                tmp = obs_daily[:, :, 0, 1]
-                a = axes[1, 1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
-                plt.colorbar(a, ax=axes[1, 1])
-                axes[1, 1].set_title('Daily Average GHI')
-
-                tmp = obs_daily[:, :, 0, 2]
-                a = axes[1, 2].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
-                plt.colorbar(a, ax=axes[1, 2])
-                axes[1, 2].set_title('Daily Average Clearsky GHI')
+                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
+                plt.colorbar(a, ax=axes[1])
+                axes[1].set_title('Daily Average Clearsky Ratio')
 
                 plt.title(i)
                 plt.savefig('./test_nsrdb_handler_{}_{}.png'.format(p, i),
@@ -207,8 +184,8 @@ def test_solar_batching_spatial(plot=False):
                                     s_enhance=2)
 
     for batch in batcher:
-        assert batch.high_res.shape == (8, 20, 20, 3)
-        assert batch.low_res.shape == (8, 10, 10, 3)
+        assert batch.high_res.shape == (8, 20, 20, 1)
+        assert batch.low_res.shape == (8, 10, 10, 1)
 
     if plot:
         for p, batch in enumerate(batcher):
@@ -246,10 +223,8 @@ def test_solar_batch_nan_stats():
                                    sample_shape=(20, 20, 24),
                                    max_workers=1)
 
-    true_means = [np.nanmean(handler.data[..., i])
-                  for i in range(len(FEATURES_S))]
-    true_stdevs = [np.nanstd(handler.data[..., i])
-                   for i in range(len(FEATURES_S))]
+    true_means = [np.nanmean(handler.data[..., 0])]
+    true_stdevs = [np.nanstd(handler.data[..., 0])]
 
     orig_daily_means = []
     orig_daily_stdevs = []
@@ -315,7 +290,8 @@ def test_solar_val_data():
 def test_solar_ancillary_vars():
     """Test the handling of the "final" feature set from the NSRDB including
     windspeed components and air temperature near the surface."""
-    features = ['clearsky_ratio', 'U', 'V', 'air_temperature']
+    features = ['clearsky_ratio', 'U', 'V', 'air_temperature', 'ghi',
+                'clearsky_ghi']
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features,
                                    target=TARGET_S, shape=SHAPE,
                                    temporal_slice=slice(None, None, 2),
@@ -396,15 +372,15 @@ def test_solar_multi_day_coarse_data():
                              s_enhance=4, sub_daily_shape=9)
 
     for batch in batcher:
-        assert batch.low_res.shape == (4, 5, 5, 3, 3)
-        assert batch.high_res.shape == (4, 20, 20, 9, 3)
+        assert batch.low_res.shape == (4, 5, 5, 3, 1)
+        assert batch.high_res.shape == (4, 20, 20, 9, 1)
 
     for batch in batcher.val_data:
-        assert batch.low_res.shape == (4, 5, 5, 3, 3)
-        assert batch.high_res.shape == (4, 20, 20, 9, 3)
+        assert batch.low_res.shape == (4, 5, 5, 3, 1)
+        assert batch.high_res.shape == (4, 20, 20, 9, 1)
 
     # run another test with u/v on low res side but not high res
-    features = ['clearsky_ratio', 'u', 'v']
+    features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features,
                                    target=TARGET_S, shape=SHAPE,
                                    temporal_slice=slice(None, None, 2),

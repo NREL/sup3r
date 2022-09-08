@@ -20,7 +20,7 @@ from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
 SHAPE = (20, 20)
 
 INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
-FEATURES_S = ['clearsky_ratio']
+FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
 
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -88,7 +88,7 @@ def test_solar_cc_model_spatial(log=False):
     enhancement only.
     """
 
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, ('clearsky_ratio', 'ghi'),
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
@@ -102,7 +102,7 @@ def test_solar_cc_model_spatial(log=False):
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
@@ -116,10 +116,10 @@ def test_solar_cc_model_spatial(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['clearsky_ratio', 'ghi']
+        assert model.meta['output_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
-    x = np.random.uniform(0, 1, (4, 30, 30, 2))
+    x = np.random.uniform(0, 1, (4, 30, 30, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
