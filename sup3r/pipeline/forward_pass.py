@@ -17,7 +17,7 @@ from rex import log_mem
 import sup3r.models
 from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
-from sup3r.postprocessing.file_handling import (OutputHandlerH5,
+from sup3r.postprocessing.file_handling import (OutputHandler, OutputHandlerH5,
                                                 OutputHandlerNC)
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
@@ -1196,6 +1196,11 @@ class ForwardPass:
                                    self.strategy.s_enhancements)
         self.input_data, self.exogenous_data = out
 
+
+        lr_lat_lon = self.data_handler.lat_lon
+        self.hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
+                                                    self.hr_data_shape[:2])
+
     @staticmethod
     def pad_source_data(input_data, spatial_pad, pad_t_start, pad_t_end,
                         exo_data, exo_s_enhancements,
@@ -1501,12 +1506,12 @@ class ForwardPass:
 
         if self.out_file is not None:
             lr_times = self.data_handler.raw_time_index[self.ti_slice]
-            lr_lat_lon = self.data_handler.lat_lon[self.s_lr_slice[0],
-                                                   self.s_lr_slice[1]]
+            hr_times = OutputHandler.get_times(lr_times, out_data.shape[-2])
             logger.info(f'Saving forward pass output to {self.out_file}.')
-            self.output_handler_class.write_output(
+            self.output_handler_class._write_output(
                 data=out_data, features=self.data_handler.output_features,
-                low_res_lat_lon=lr_lat_lon, low_res_times=lr_times,
+                lat_lon=self.hr_lat_lon[self.hr_slice[0], self.hr_slice[1]],
+                times=hr_times,
                 out_file=self.out_file, meta_data=self.meta_data,
                 max_workers=self.output_workers,
                 gids=self.gids)
