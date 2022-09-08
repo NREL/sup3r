@@ -2404,6 +2404,9 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
         # remove ghi and clearsky ghi from feature set. These shouldn't be used
         # downstream for solar cc and keeping them confuses the batch handler
+        logger.info('Finished calculating daily average clearsky_ratio, '
+                    'removing ghi and clearsky_ghi from the '
+                    'DataHandlerH5SolarCC feature list.')
         ifeats = np.array([i for i in range(len(self.features))
                            if i not in (i_ghi, i_cs)])
         self.data = self.data[..., ifeats]
