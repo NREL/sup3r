@@ -422,6 +422,32 @@ class OutputHandlerH5(OutputHandler):
         data[..., v_idx] = wd
 
     @classmethod
+    def _transform_output(cls, data, features, lat_lon, max_workers=None):
+        """Transform output data before writing to H5 file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
+        """
+
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        features = cls.get_renamed_features(features)
+        data = cls.enforce_limits(features, data)
+        return data, features
+
+    @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
                       meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to H5 file
@@ -450,20 +476,17 @@ class OutputHandlerH5(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
-        features = cls.get_renamed_features(features)
+        data, features = cls._transform_output(data, features, lat_lon,
+                                               max_workers)
         gids = (gids if gids is not None
                 else np.arange(np.product(lat_lon.shape[:-1])))
-        meta = pd.DataFrame({'gid': gids,
+        meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
 
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = times
-
-            data = cls.enforce_limits(features, data)
 
             for i, f in enumerate(features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]

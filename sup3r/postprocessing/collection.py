@@ -167,9 +167,8 @@ class Collector:
             raise RuntimeError(msg)
 
         row_slice = slice(np.min(row_loc), np.max(row_loc) + 1)
-        col_slice = slice(np.min(col_loc), np.max(col_loc) + 1)
 
-        return row_slice, col_slice
+        return row_slice, col_loc
 
     def get_data(self, file_path, feature, time_index, meta, scale_factor,
                  dtype):
@@ -289,6 +288,7 @@ class Collector:
         if 'latitude' in meta and 'longitude' in meta:
             meta = meta.drop_duplicates(subset=['latitude', 'longitude'])
 
+        meta = meta.sort_values('gid')
         shape = (len(time_index), len(meta))
 
         with RexOutputs(file_paths[0], mode='r') as fin:

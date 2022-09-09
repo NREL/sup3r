@@ -74,7 +74,7 @@ def test_forward_pass_nc_cc():
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
@@ -124,7 +124,7 @@ def test_forward_pass_nc():
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
@@ -178,7 +178,7 @@ def test_forward_pass_temporal_slice():
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -247,7 +247,7 @@ def test_fwd_pass_handler():
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        data = forward_pass.run()
+        data = forward_pass.run_chunk()
 
         assert data.shape == (s_enhance * fwp_chunk_shape[0],
                               s_enhance * fwp_chunk_shape[1],
@@ -299,9 +299,9 @@ def test_fwd_pass_chunking():
             overwrite_cache=True)
 
         data = []
-        for i in range(handler.nodes):
-            forward_pass = ForwardPass(handler, node_index=i)
-            data_chunked = forward_pass.run()
+        for i in range(handler.chunks):
+            forward_pass = ForwardPass(handler, chunk_index=i)
+            data_chunked = forward_pass.run_chunk()
             data.append(data_chunked)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
@@ -363,7 +363,7 @@ def test_fwd_pass_nochunking():
             cache_pattern=cache_pattern,
             overwrite_cache=True)
         forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run()
+        data_chunked = forward_pass.run_chunk()
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
@@ -444,7 +444,8 @@ def test_fwp_multi_step_model_topo_exoskip():
             out_pattern=out_files,
             temporal_slice=temporal_slice,
             max_workers=max_workers,
-            exo_kwargs=exo_kwargs)
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 
@@ -454,7 +455,7 @@ def test_fwp_multi_step_model_topo_exoskip():
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -539,7 +540,8 @@ def test_fwp_multi_step_model_topo():
             out_pattern=out_files,
             temporal_slice=temporal_slice,
             max_workers=max_workers,
-            exo_kwargs=exo_kwargs)
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 
@@ -549,7 +551,7 @@ def test_fwp_multi_step_model_topo():
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -614,7 +616,8 @@ def test_fwp_multi_step_model():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             out_pattern=out_files,
-            max_workers=max_workers)
+            max_workers=max_workers,
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
         ones = np.ones((fwp_chunk_shape[2], fwp_chunk_shape[0],
@@ -628,7 +631,7 @@ def test_fwp_multi_step_model():
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (

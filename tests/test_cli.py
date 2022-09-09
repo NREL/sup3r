@@ -124,7 +124,6 @@ def test_pipeline_fwp_collect(runner):
                     fi_gids = fh_i.meta['gid']
                     assert all(gid in full_gids for gid in fi_gids)
                     s_indices = np.where(full_gids.isin(fi_gids))[0]
-                    s_indices = slice(s_indices[0], s_indices[-1] + 1)
                     t_indices = np.where(full_ti.isin(fi_ti))[0]
                     t_indices = slice(t_indices[0], t_indices[-1] + 1)
                     chunk = fh['windspeed_100m'][t_indices, s_indices]
