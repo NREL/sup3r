@@ -1949,8 +1949,15 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         if get_clearsky:
             cs_ghi = self.get_clearsky_ghi()
-            for it, tslice in enumerate(self.time_chunks):
+
+            # clearsky ghi is extracted at the proper starting time index so
+            # the time chunks should start at 0
+            tc0 = self.time_chunks[0].start
+            cs_ghi_time_chunks = [slice(tc.start - tc0, tc.stop - tc0, tc.step)
+                                  for tc in self.time_chunks]
+            for it, tslice in enumerate(cs_ghi_time_chunks):
                 self._raw_data[it]['clearsky_ghi'] = cs_ghi[..., tslice]
+
             self._raw_features.append('clearsky_ghi')
 
     def get_clearsky_ghi(self):
@@ -1990,7 +1997,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         time_freq = float(mode(ti_deltas_hours).mode[0])
         t_start = self.temporal_slice.start or 0
         t_end = self.temporal_slice.stop or len(self.raw_time_index)
-        t_slice = slice(t_start * 24, int(t_end * 24 * (1 / time_freq)))
+        t_slice = slice(int(t_start * 24 * (1 / time_freq)),
+                        int(t_end * 24 * (1 / time_freq)))
 
         # pylint: disable=E1136
         lat = self.lat_lon[:, :, 0].flatten()
