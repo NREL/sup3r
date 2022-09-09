@@ -773,6 +773,18 @@ class SolarMultiStepGan(AbstractSup3rGan):
                 *self.temporal_solar_models.models)
 
     @property
+    def spatial_models(self):
+        """Alias for spatial_solar_models to preserve SpatialThenTemporalGan
+        interface."""
+        return self.spatial_solar_models
+
+    @property
+    def temporal_models(self):
+        """Alias for temporal_solar_models to preserve SpatialThenTemporalGan
+        interface."""
+        return self.temporal_solar_models
+
+    @property
     def spatial_solar_models(self):
         """Get the MultiStepGan object for the spatial-only solar model(s)
 
@@ -897,8 +909,9 @@ class SolarMultiStepGan(AbstractSup3rGan):
             (1, spatial_1, spatial_2, n_temporal, n_features)
         """
 
-        logger.debug('Data input to the 1st step spatial-only '
-                     'enhancement has shape {}'.format(low_res.shape))
+        logger.debug('Data input to the SolarMultiStepGan has shape {} which '
+                     'will be split up for solar- and wind-only features.'
+                     .format(low_res.shape))
         s_exogenous = None
         t_exogenous = None
         if exogenous_data is not None:

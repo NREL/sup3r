@@ -1003,7 +1003,6 @@ def potential_temperature(T, P):
 
 
 def invert_pot_temp(PT, P):
-
     """Potential temperature of fluid at pressure P and temperature T
 
     Parameters

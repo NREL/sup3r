@@ -36,6 +36,12 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                               'chunks': (2000, 500),
                               'min': 0,
                               'max': 360},
+            'clearsky_ratio': {'scale_factor': 10000.0,
+                               'units': 'ratio',
+                               'dtype': 'uint16',
+                               'chunks': (2000, 500),
+                               'min': 0,
+                               'max': 1},
             'temperature': {'scale_factor': 100.0,
                             'units': 'C',
                             'dtype': 'int16',
@@ -367,6 +373,8 @@ class OutputHandlerH5(OutputHandler):
             if re.match('U_(.*?)m'.lower(), f.lower()):
                 heights.append(Feature.get_height(f))
 
+        logger.debug('Found heights {} for output features {}'
+                     .format(heights, features))
         proc_mem = 4 * np.product(data.shape[:-1])
         n_procs = len(heights)
         max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)

@@ -1521,7 +1521,7 @@ class ForwardPass:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data=out_data,
-                features=self.data_handler.output_features,
+                features=self.model.output_features,
                 low_res_lat_lon=lr_lat_lon,
                 low_res_times=lr_times,
                 out_file=self.out_file, meta_data=self.meta_data,
