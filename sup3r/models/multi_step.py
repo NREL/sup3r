@@ -731,8 +731,8 @@ class SolarMultiStepGan(AbstractSup3rGan):
         """Run some preflight checks to make sure the loaded models can work
         together."""
 
-        s_enh = [model.s_enhance for model in self.spatial_solar_models]
-        w_enh = [model.s_enhance for model in self.spatial_wind_models]
+        s_enh = [model.s_enhance for model in self.spatial_solar_models.models]
+        w_enh = [model.s_enhance for model in self.spatial_wind_models.models]
         msg = ('Solar and wind spatial enhancements must be equivelant but '
                'received models that do spatial enhancements of '
                '{} (solar) and {} (wind)'.format(s_enh, w_enh))
@@ -744,8 +744,8 @@ class SolarMultiStepGan(AbstractSup3rGan):
                '"clearsky_ratio" as the only input and output feature but '
                'received models that need {} and output {}'
                .format(s_t_feat, s_o_feat))
-        assert s_t_feat == ['clearsky_ratio']
-        assert s_o_feat == ['clearsky_ratio']
+        assert s_t_feat == ['clearsky_ratio'], msg
+        assert s_o_feat == ['clearsky_ratio'], msg
 
         temp_solar_feats = self.temporal_solar_models.training_features
         msg = ('Input feature 0 for the temporal_solar_models should be '
@@ -753,11 +753,13 @@ class SolarMultiStepGan(AbstractSup3rGan):
                .format(temp_solar_feats))
         assert temp_solar_feats[0] == 'clearsky_ratio', msg
 
+        spatial_out_features = (self.spatial_wind_models.output_features
+                                + self.spatial_solar_models.output_features)
         missing = [fn for fn in temp_solar_feats if fn not in
-                   self.spatial_wind_models.output_features]
-        msg = ('Solar temporal model needs wind features {} that were not '
-               'found in the wind model output feature list {}'
-               .format(missing, self.spatial_wind_models.output_features))
+                   spatial_out_features]
+        msg = ('Solar temporal model needs features {} that were not '
+               'found in the solar + wind model output feature list {}'
+               .format(missing, spatial_out_features))
         assert not any(missing), msg
 
     @property

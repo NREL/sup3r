@@ -6,7 +6,8 @@ import pytest
 import tempfile
 
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan, MultiStepGan, SpatialThenTemporalGan
+from sup3r.models import (Sup3rGan, MultiStepGan, SpatialThenTemporalGan,
+                          SolarMultiStepGan)
 
 FEATURES = ['U_100m', 'V_100m']
 
@@ -126,3 +127,53 @@ def test_spatial_then_temporal_gan():
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)
         assert out.shape == (1, 60, 60, 16, 2)
+
+
+def test_solar_multistep():
+    """Test the special solar multistep model that uses parallel solar+wind
+    spatial enhancement models that join to a single solar spatiotemporal
+    model."""
+    features1 = ['clearsky_ratio']
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_1f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model1 = Sup3rGan(fp_gen, fp_disc)
+    _ = model1.generate(np.ones((4, 10, 10, len(features1))))
+    model1.set_norm_stats([0.7], [0.04])
+    model1.set_model_params(training_features=features1,
+                            output_features=features1)
+
+    features2 = ['U_200m', 'V_200m']
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model2 = Sup3rGan(fp_gen, fp_disc)
+    _ = model2.generate(np.ones((4, 10, 10, len(features2))))
+    model2.set_norm_stats([4.2, 5.6], [1.1, 1.3])
+    model2.set_model_params(training_features=features2,
+                            output_features=features2)
+
+    features_in_3 = ['clearsky_ratio', 'U_200m', 'V_200m']
+    features_out_3 = ['clearsky_ratio']
+    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_8x_1f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model3 = Sup3rGan(fp_gen, fp_disc)
+    _ = model3.generate(np.ones((4, 10, 10, 3, len(features_in_3))))
+    model3.set_norm_stats([0.7, 4.2, 5.6], [0.04, 1.1, 1.3])
+    model3.set_model_params(training_features=features_in_3,
+                            output_features=features_out_3)
+
+    with tempfile.TemporaryDirectory() as td:
+        fp1 = os.path.join(td, 'model1')
+        fp2 = os.path.join(td, 'model2')
+        fp3 = os.path.join(td, 'model3')
+        model1.save(fp1)
+        model2.save(fp2)
+        model3.save(fp3)
+
+        with pytest.raises(AssertionError):
+            SolarMultiStepGan.load(fp2, fp1, fp3)
+
+        ms_model = SolarMultiStepGan.load(fp1, fp2, fp3)
+
+        x = np.ones((3, 10, 10, len(features1 + features2)))
+        out = ms_model.generate(x)
+        assert out.shape == (1, 20, 20, 24, 1)
