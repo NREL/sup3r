@@ -50,12 +50,6 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
     else:
         max_workers = 1
     max_workers = int(np.max([max_workers, 1]))
-    logger.info(f'Available memory: {avail_mem / 1e9:.3f} GB. '
-                f'Available cores: {cpu_count}. '
-                f'Number of processes: {n_processes}. '
-                f'Max workers: {max_workers}. '
-                f'Memory per process: {process_mem / 1e9:.3f} GB.')
-
     return max_workers
 
 
