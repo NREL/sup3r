@@ -584,7 +584,7 @@ class ForwardPassStrategy(InputMixIn):
                  out_pattern=None,
                  overwrite_cache=False,
                  input_handler=None,
-                 spatial_coarsen=None,
+                 input_handler_kwargs=None,
                  max_workers=None,
                  extract_workers=None,
                  compute_workers=None,
@@ -684,11 +684,10 @@ class ForwardPassStrategy(InputMixIn):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        spatial_coarsen : int | None
-            Optional input to coarsen the low-resolution spatial field from the
-            file_paths input. This can be used if (for example) you have 2km
-            validation data, you can coarsen it with the same factor as
-            s_enhance to do a validation study.
+        input_handler_kwargs : dict | None
+            Optional kwargs for initializing the input_handler class. For
+            example, this could be {'hr_spatial_coarsen': 2} if you wanted to
+            artificially coarsen the input data for testing.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             extract_workers, compute_workers, output_workers, and load_workers.
@@ -746,8 +745,8 @@ class ForwardPassStrategy(InputMixIn):
         self._cache_pattern = cache_pattern
         self._input_handler_class = None
         self._input_handler_name = input_handler
-        self._spatial_coarsen = spatial_coarsen
         self._max_nodes = max_nodes
+        self._input_handler_kwargs = input_handler_kwargs or {}
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -1095,19 +1094,23 @@ class ForwardPass:
             file_paths = self.file_paths
             ti_pad_slice = self.ti_pad_slice
 
-        self.data_handler = self.input_handler_class(
-            file_paths, self.features, target=self.strategy.target,
-            shape=self.strategy.grid_shape, temporal_slice=ti_pad_slice,
+        input_handler_kwargs = dict(
+            file_paths=file_paths,
+            features=self.features,
+            target=self.strategy.target,
+            shape=self.strategy.grid_shape,
+            temporal_slice=ti_pad_slice,
             raster_file=self.strategy.raster_file,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
-            hr_spatial_coarsen=self.strategy._spatial_coarsen,
+            val_split=0.0,
             max_workers=self.max_workers,
             extract_workers=self.extract_workers,
             compute_workers=self.compute_workers,
-            load_workers=self.load_workers, val_split=0.0)
-
+            load_workers=self.load_workers)
+        input_handler_kwargs.update(self.strategy._input_handler_kwargs)
+        self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
 
         out = self.pad_source_data(self.data_handler.data,
