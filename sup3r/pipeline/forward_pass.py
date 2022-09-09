@@ -773,7 +773,8 @@ class ForwardPassStrategy(InputMixIn):
                                             exo_s_enhancements=exo_s_en)
 
         logger.info('Initializing ForwardPassStrategy for '
-                    f'{self.input_file_info}. Using n_nodes={self.nodes}')
+                    f'{self.input_file_info}. Using n_nodes={self.nodes} '
+                    f'with n_chunks={self.chunks}.')
 
         if self.cache_pattern is not None:
             if '{temporal_chunk_index}' not in self.cache_pattern:
