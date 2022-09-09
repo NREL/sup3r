@@ -715,7 +715,6 @@ class ForwardPassStrategy(InputMixIn):
             load_workers = output_workers = max_workers
 
         self._i = 0
-        self.max_nodes = max_nodes
         self.file_paths = file_paths
         self.model_args = model_args
         self.fwp_chunk_shape = fwp_chunk_shape
@@ -736,6 +735,7 @@ class ForwardPassStrategy(InputMixIn):
         self._cache_pattern = cache_pattern
         self._input_handler_name = input_handler
         self._spatial_coarsen = spatial_coarsen
+        self._max_nodes = max_nodes
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -916,13 +916,20 @@ class ForwardPassStrategy(InputMixIn):
         return self.fwp_slicer.n_chunks
 
     @property
+    def max_nodes(self):
+        """Get the maximum number of nodes that this strategy should distribute
+        work to, equal to either the specified max number of nodes or total
+        number of spatiotemporal chunks"""
+        nodes = (self._max_nodes if self._max_nodes is not None
+                 and not self._max_nodes > self.chunks else self.chunks)
+        return nodes
+
+    @property
     def nodes(self):
         """Get the number of nodes that this strategy should distribute work
         to, equal to either the specified max number of nodes or total number
         of spatiotemporal chunks"""
-        nodes = (self.max_nodes if self.max_nodes is not None else
-                 self.chunks)
-        return nodes
+        return len(self.node_chunks)
 
     @property
     def chunks(self):
@@ -939,8 +946,8 @@ class ForwardPassStrategy(InputMixIn):
         nodes this will return [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]. So the first
         node will be used to run forward passes on the first 5 spatiotemporal
         chunks and the second node will be used for the last 5"""
-        n_chunks = np.min((self.nodes, self.fwp_slicer.n_chunks))
-        return np.array_split(np.arange(self.fwp_slicer.n_chunks), n_chunks)
+        n_chunks = np.min((self.max_nodes, self.chunks))
+        return np.array_split(np.arange(self.chunks), n_chunks)
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):

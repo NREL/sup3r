@@ -54,10 +54,11 @@ def test_qa_nc():
             target=TARGET, shape=SHAPE,
             temporal_slice=TEMPORAL_SLICE,
             out_pattern=out_files,
-            max_workers=1)
+            max_workers=1,
+            max_nodes=1)
 
         forward_pass = ForwardPass(strategy)
-        forward_pass.run()
+        forward_pass.run(strategy, node_index=0)
 
         assert len(strategy.out_files) == 1
 
@@ -135,10 +136,11 @@ def test_qa_h5():
             target=TARGET, shape=SHAPE,
             temporal_slice=TEMPORAL_SLICE,
             out_pattern=out_files,
-            max_workers=1)
+            max_workers=1,
+            max_nodes=1)
 
         forward_pass = ForwardPass(strategy)
-        forward_pass.run()
+        forward_pass.run(strategy, node_index=0)
 
         assert len(strategy.out_files) == 1
 
