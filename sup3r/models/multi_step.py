@@ -725,6 +725,41 @@ class SolarMultiStepGan(AbstractSup3rGan):
         self._spatial_wind_models = spatial_wind_models
         self._temporal_solar_models = temporal_solar_models
 
+        self.preflight()
+
+    def preflight(self):
+        """Run some preflight checks to make sure the loaded models can work
+        together."""
+
+        s_enh = [model.s_enhance for model in self.spatial_solar_models]
+        w_enh = [model.s_enhance for model in self.spatial_wind_models]
+        msg = ('Solar and wind spatial enhancements must be equivelant but '
+               'received models that do spatial enhancements of '
+               '{} (solar) and {} (wind)'.format(s_enh, w_enh))
+        assert np.product(s_enh) == np.product(w_enh), msg
+
+        s_t_feat = self.spatial_solar_models.training_features
+        s_o_feat = self.spatial_solar_models.output_features
+        msg = ('Solar spatial enhancement models need to take '
+               '"clearsky_ratio" as the only input and output feature but '
+               'received models that need {} and output {}'
+               .format(s_t_feat, s_o_feat))
+        assert s_t_feat == ['clearsky_ratio']
+        assert s_o_feat == ['clearsky_ratio']
+
+        temp_solar_feats = self.temporal_solar_models.training_features
+        msg = ('Input feature 0 for the temporal_solar_models should be '
+               '"clearsky_ratio" but received: {}'
+               .format(temp_solar_feats))
+        assert temp_solar_feats[0] == 'clearsky_ratio', msg
+
+        missing = [fn for fn in temp_solar_feats if fn not in
+                   self.spatial_wind_models.output_features]
+        msg = ('Solar temporal model needs wind features {} that were not '
+               'found in the wind model output feature list {}'
+               .format(missing, self.spatial_wind_models.output_features))
+        assert not any(missing), msg
+
     @property
     def models(self):
         """Get an ordered tuple of the Sup3rGan models that are part of this
@@ -774,7 +809,7 @@ class SolarMultiStepGan(AbstractSup3rGan):
         tuple
         """
         return (self.spatial_solar_models.meta + self.spatial_wind_models.meta
-                + self.temporal_models.meta)
+                + self.temporal_solar_models.meta)
 
     @property
     def training_features(self):
@@ -806,10 +841,6 @@ class SolarMultiStepGan(AbstractSup3rGan):
         indices of U_200m + V_200m from the output features of
         spatial_wind_models"""
         temporal_solar_features = self.temporal_solar_models.training_features
-        msg = ('Input feature 0 for the temporal_solar_models should be '
-               '"clearsky_ratio" but received: {}'
-               .format(temporal_solar_features))
-        assert temporal_solar_features[0] == 'clearsky_ratio', msg
         return np.array([self.spatial_wind_models.output_features.index(fn)
                          for fn in temporal_solar_features[1:]])
 
