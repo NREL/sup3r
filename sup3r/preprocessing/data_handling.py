@@ -5,6 +5,7 @@ Sup3r preprocessing module.
 """
 
 from abc import abstractmethod
+import copy
 import json
 from fnmatch import fnmatch
 import logging
@@ -17,9 +18,11 @@ from datetime import datetime as dt
 import pickle
 import warnings
 import glob
+from scipy.stats import mode
+from scipy.ndimage.filters import gaussian_filter
 from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
-from rex import MultiFileWindX, MultiFileNSRDBX
+from rex import MultiFileWindX, MultiFileNSRDBX, Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -50,13 +53,14 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   VWind,
                                                   LatLonH5,
                                                   ClearSkyRatioH5,
+                                                  ClearSkyRatioCC,
                                                   CloudMaskH5,
                                                   WindspeedNC,
                                                   WinddirectionNC,
                                                   Shear,
                                                   Rews,
                                                   Tas,
-                                                  TopoH5
+                                                  TopoH5,
                                                   )
 
 np.random.seed(42)
@@ -275,6 +279,14 @@ class InputMixIn:
     def time_index(self, time_index):
         """Update time index"""
         self._time_index = time_index
+
+    @property
+    def time_freq_hours(self):
+        """Get the time frequency in hours as a float"""
+        ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
+        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode[0])
+        return time_freq
 
     @property
     def timestamp_0(self):
@@ -1627,6 +1639,7 @@ class DataHandlerNC(DataHandler):
                 fdata = np.array(handle[feature][idx], dtype=np.float32)
                 if len(fdata.shape) == 2:
                     fdata = np.expand_dims(fdata, axis=0)
+
             elif basename in handle:
                 if interp_height is not None:
                     fdata = interp_var_to_height(handle, basename,
@@ -1638,6 +1651,7 @@ class DataHandlerNC(DataHandler):
                                                    raster_index,
                                                    np.float32(interp_pressure),
                                                    time_slice)
+
             else:
                 msg = f'{feature} cannot be extracted from source data.'
                 logger.exception(msg)
@@ -1768,6 +1782,35 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
+    def __init__(self, *args, nsrdb_source_fp=None, nsrdb_agg=1,
+                 nsrdb_smoothing=0, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same ordered required arguments as DataHandler parent class.
+        nsrdb_source_fp : str | None
+            Optional NSRDB source h5 file to retrieve clearsky_ghi from to
+            calculate CC clearsky_ratio along with rsds (ghi) from the CC
+            netcdf file.
+        nsrdb_agg : int
+            Optional number of NSRDB source pixels to aggregate clearsky_ghi
+            from to a single climate change netcdf pixel. This can be used if
+            the CC.nc data is at a much coarser resolution than the source
+            nsrdb data.
+        nsrdb_smoothing : float
+            Optional gaussian filter smoothing factor to smooth out
+            clearsky_ghi from high-resolution nsrdb source data. This is
+            typically done because spatially aggregated nsrdb data is still
+            usually rougher than CC irradiance data.
+        **kwargs : list
+            Same optional keyword arguments as DataHandler parent class.
+        """
+        self._nsrdb_source_fp = nsrdb_source_fp
+        self._nsrdb_agg = nsrdb_agg
+        self._nsrdb_smoothing = nsrdb_smoothing
+        super().__init__(*args, **kwargs)
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features or extracting renamed
@@ -1786,6 +1829,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             'topography': 'orog',
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
+            'clearsky_ratio': ClearSkyRatioCC,
             'lat_lon': LatLonNCforCC}
         return registry
 
@@ -1813,6 +1857,112 @@ class DataHandlerNCforCC(DataHandlerNC):
             if (self._raw_time_index.hour == 12).all():
                 self._raw_time_index -= pd.Timedelta(12, 'h')
         return self._raw_time_index
+
+    def run_data_extraction(self):
+        """Run the raw dataset extraction process from disk to raw
+        un-manipulated datasets.
+
+        Includes a special method to extract clearsky_ghi from a exogenous
+        NSRDB source h5 file (required to compute clearsky_ratio).
+        """
+        get_clearsky = False
+        if 'clearsky_ghi' in self.raw_features:
+            get_clearsky = True
+            self._raw_features.remove('clearsky_ghi')
+
+        super().run_data_extraction()
+
+        if get_clearsky:
+            cs_ghi = self.get_clearsky_ghi()
+            for it, tslice in enumerate(self.time_chunks):
+                self._raw_data[it]['clearsky_ghi'] = cs_ghi[..., tslice]
+            self._raw_features.append('clearsky_ghi')
+
+    def get_clearsky_ghi(self):
+        """Get clearsky ghi from an exogenous NSRDB source h5 file at the
+        target CC meta data and time index.
+
+        Returns
+        -------
+        cs_ghi : np.ndarray
+            Clearsky ghi (W/m2) from the nsrdb_source_fp h5 source file. Data
+            shape is (lat, lon, time) where time is daily average values.
+        """
+
+        msg = ('Need nsrdb_source_fp input arg as a valid filepath to '
+               'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
+               'received: {}'.format(self._nsrdb_source_fp))
+        assert self._nsrdb_source_fp is not None, msg
+        assert os.path.exists(self._nsrdb_source_fp), msg
+
+        msg = ('Can only handle source CC data in hourly frequency but '
+               'received daily frequency of {}hrs (should be 24) '
+               'with raw time index: {}'
+               .format(self.time_freq_hours, self.raw_time_index))
+        assert self.time_freq_hours == 24.0, msg
+
+        msg = ('Can only handle source CC data with temporal_slice.step == 1 '
+               'but received: {}'.format(self.temporal_slice.step))
+        assert ((self.temporal_slice.step is None)
+                | (self.temporal_slice.step == 1)), msg
+
+        with Resource(self._nsrdb_source_fp) as res:
+            ti_nsrdb = res.time_index
+            meta_nsrdb = res.meta
+
+        ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
+        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode[0])
+        t_start = self.temporal_slice.start or 0
+        t_end = self.temporal_slice.stop or len(self.raw_time_index)
+        t_slice = slice(t_start * 24, int(t_end * 24 * (1 / time_freq)))
+
+        # pylint: disable=E1136
+        lat = self.lat_lon[:, :, 0].flatten()
+        lon = self.lat_lon[:, :, 1].flatten()
+        cc_meta = np.vstack((lat, lon)).T
+
+        tree = KDTree(meta_nsrdb[['latitude', 'longitude']])
+        _, i = tree.query(cc_meta, k=self._nsrdb_agg)
+        if len(i.shape) == 1:
+            i = np.expand_dims(i, axis=1)
+
+        logger.info('Extracting clearsky_ghi data from "{}" with time slice '
+                    '{} and {} locations with agg factor {}.'
+                    .format(os.path.basename(self._nsrdb_source_fp),
+                            t_slice, i.shape[0], i.shape[1]))
+
+        cs_shape = i.shape
+        with Resource(self._nsrdb_source_fp) as res:
+            cs_ghi = res['clearsky_ghi', t_slice, i.flatten()]
+
+        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + cs_shape)
+        cs_ghi = cs_ghi.mean(axis=-1)
+
+        windows = np.array_split(np.arange(len(cs_ghi)),
+                                 len(cs_ghi) // (24 // time_freq))
+        cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
+        cs_ghi = np.vstack(cs_ghi)
+        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + tuple(self.grid_shape))
+        cs_ghi = np.transpose(cs_ghi, axes=(1, 2, 0))
+
+        if self.invert_lat:
+            cs_ghi = cs_ghi[::-1]
+
+        logger.info('Smoothing nsrdb clearsky ghi with a factor of {}'
+                    .format(self._nsrdb_smoothing))
+        for iday in range(cs_ghi.shape[-1]):
+            cs_ghi[..., iday] = gaussian_filter(cs_ghi[..., iday],
+                                                self._nsrdb_smoothing,
+                                                mode='nearest')
+
+        logger.info('Reshaped clearsky_ghi data to final shape {} to '
+                    'correspond with CC daily average data over source '
+                    'temporal_slice {} with (lat, lon) grid shape of {}'
+                    .format(cs_ghi.shape, self.temporal_slice,
+                            self.grid_shape))
+
+        return cs_ghi
 
 
 class DataHandlerH5(DataHandler):
@@ -1899,8 +2049,6 @@ class DataHandlerH5(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
-        invert_lat : bool
-            Flag to invert latitude axis to enforce descending ordering
 
         Returns
         -------
@@ -2166,6 +2314,30 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     # wildcard format.
     TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
 
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataHandlerH5
+        **kwargs : dict
+            Same keyword args as DataHandlerH5
+        """
+
+        args = copy.deepcopy(args)  # safe copy for manipulation
+        required = ['ghi', 'clearsky_ghi', 'clearsky_ratio']
+        missing = [dset for dset in required if dset not in args[1]]
+        if any(missing):
+            msg = ('Cannot initialize DataHandlerH5SolarCC without required '
+                   'features {}. All three are necessary to get the daily '
+                   'average clearsky ratio (ghi sum / clearsky ghi sum), even '
+                   'though only the clearsky ratio will be passed to the GAN.'
+                   .format(required))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        super().__init__(*args, **kwargs)
+
     @classmethod
     def feature_registry(cls):
         """Registry of methods for computing features
@@ -2185,6 +2357,66 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             'clearsky_ratio': ClearSkyRatioH5,
             'topography': TopoH5}
         return registry
+
+    def run_daily_averages(self):
+        """Calculate daily average data and store as attribute.
+
+        Note that the H5 clearsky ratio feature requires special logic to match
+        the climate change dataset of daily average GHI / daily average CS_GHI.
+        This target climate change dataset is not equivelant to the average of
+        instantaneous hourly clearsky ratios
+        """
+
+        msg = ('Data needs to be hourly with at least 24 hours, but data '
+               'shape is {}.'.format(self.data.shape))
+        assert self.data.shape[2] % 24 == 0, msg
+        assert self.data.shape[2] > 24, msg
+
+        n_data_days = int(self.data.shape[2] / 24)
+        daily_data_shape = (self.data.shape[0:2] + (n_data_days,)
+                            + (self.data.shape[3],))
+
+        logger.info('Calculating daily average datasets for {} training '
+                    'data days.'.format(n_data_days))
+
+        self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
+
+        self.daily_data_slices = np.array_split(np.arange(self.data.shape[2]),
+                                                n_data_days)
+        self.daily_data_slices = [slice(x[0], x[-1] + 1)
+                                  for x in self.daily_data_slices]
+
+        i_ghi = self.features.index('ghi')
+        i_cs = self.features.index('clearsky_ghi')
+        i_ratio = self.features.index('clearsky_ratio')
+
+        for d, t_slice in enumerate(self.daily_data_slices):
+            self.daily_data[:, :, d, i_ghi] = daily_temporal_coarsening(
+                self.data[:, :, t_slice, i_ghi], temporal_axis=2)[:, :, 0]
+            self.daily_data[:, :, d, i_cs] = daily_temporal_coarsening(
+                self.data[:, :, t_slice, i_cs], temporal_axis=2)[:, :, 0]
+
+            # note that this ratio of daily irradiance sums is not the same as
+            # the average of hourly ratios.
+            total_ghi = np.nansum(self.data[:, :, t_slice, i_ghi], axis=2)
+            total_cs_ghi = np.nansum(self.data[:, :, t_slice, i_cs], axis=2)
+            avg_cs_ratio = total_ghi / total_cs_ghi
+            self.daily_data[:, :, d, i_ratio] = avg_cs_ratio
+
+        # remove ghi and clearsky ghi from feature set. These shouldn't be used
+        # downstream for solar cc and keeping them confuses the batch handler
+        logger.info('Finished calculating daily average clearsky_ratio, '
+                    'removing ghi and clearsky_ghi from the '
+                    'DataHandlerH5SolarCC feature list.')
+        ifeats = np.array([i for i in range(len(self.features))
+                           if i not in (i_ghi, i_cs)])
+        self.data = self.data[..., ifeats]
+        self.daily_data = self.daily_data[..., ifeats]
+        self.features.remove('ghi')
+        self.features.remove('clearsky_ghi')
+
+        logger.info('Finished calculating daily average datasets for {} '
+                    'training data days.'.format(n_data_days))
 
 
 # pylint: disable=W0223

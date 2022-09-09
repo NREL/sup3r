@@ -2,6 +2,9 @@
 import os
 import numpy as np
 import xarray as xr
+import pytest
+from scipy.spatial import KDTree
+from rex import Resource
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNCforCC
@@ -39,3 +42,52 @@ def test_data_handling_nc_cc():
     assert handler.data.shape == (20, 20, 20, 2)
     assert np.allclose(ua, handler.data[..., 0])
     assert np.allclose(va, handler.data[..., 1])
+
+
+def test_solar_cc():
+    """Test solar data handling from CC data file with clearsky ratio
+    calculated using clearsky ratio from NSRDB h5 file."""
+
+    features = ['clearsky_ratio', 'rsds', 'clearsky_ghi']
+    input_files = [os.path.join(TEST_DATA_DIR, 'rsds_test.nc')]
+    nsrdb_source_fp = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
+
+    with xr.open_mfdataset(input_files) as fh:
+        min_lat = np.min(fh.lat.values)
+        min_lon = np.min(fh.lon.values) - 360
+        target = (min_lat, min_lon)
+        shape = (len(fh.lat.values), len(fh.lon.values))
+
+    with pytest.raises(AssertionError):
+        handler = DataHandlerNCforCC(input_files, features=features,
+                                     target=target, shape=shape,
+                                     val_split=0.0, max_workers=1)
+
+    handler = DataHandlerNCforCC(input_files, features=features,
+                                 nsrdb_source_fp=nsrdb_source_fp,
+                                 target=target, shape=shape,
+                                 temporal_slice=slice(0, 1),
+                                 val_split=0.0, max_workers=1)
+
+    cs_ratio = handler.data[..., 0]
+    ghi = handler.data[..., 1]
+    cs_ghi = handler.data[..., 2]
+    cs_ratio_truth = ghi / cs_ghi
+
+    assert cs_ratio.max() < 1
+    assert cs_ratio.min() > 0
+    assert (ghi < cs_ghi).all()
+    assert np.allclose(cs_ratio, cs_ratio_truth)
+
+    with Resource(nsrdb_source_fp) as res:
+        meta = res.meta
+        tree = KDTree(meta[['latitude', 'longitude']])
+        cs_ghi_true = res['clearsky_ghi']
+
+    # check a few sites against NSRDB source file
+    for i in range(4):
+        for j in range(4):
+            test_coord = handler.lat_lon[i, j]
+            _, inn = tree.query(test_coord)
+
+            assert np.allclose(cs_ghi_true[0:48, inn].mean(), cs_ghi[i, j])
