@@ -743,6 +743,7 @@ class ForwardPassStrategy(InputMixIn):
         self._raw_time_index = None
         self._out_files = None
         self._file_ids = None
+        self._time_index_file = None
 
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_args, str):

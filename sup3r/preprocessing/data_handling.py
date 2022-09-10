@@ -268,6 +268,8 @@ class InputMixIn:
             basedir = os.path.dirname(self.cache_pattern)
             start_time = self.get_time_index(self.file_paths[0:1])[0]
             end_time = self.get_time_index(self.file_paths[-1:])[0]
+            start_time = str(start_time).replace(' ', '_').replace(':', '_')
+            end_time = str(end_time).replace(' ', '_').replace(':', '_')
             self._time_index_file = os.path.join(
                 basedir, f'time_index_{start_time}-{end_time}.npy')
         return self._time_index_file
@@ -277,6 +279,7 @@ class InputMixIn:
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
         if self._raw_time_index is None:
+            now = dt.now()
             logger.debug(f'Getting time index for {len(self.file_paths)} input'
                          ' files.')
             check = (self.time_index_file is not None
@@ -294,6 +297,7 @@ class InputMixIn:
                 logger.debug(f'Saved raw_time_index to {self.time_index_file}')
                 np.save(self.time_index_file, self._raw_time_index,
                         allow_pickle=True)
+            logger.debug(f'Built full time index in {dt.now() - now} seconds.')
         return self._raw_time_index
 
     @property
@@ -1587,7 +1591,6 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        now = dt.now()
         with cls.source_handler(file_paths) as handle:
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
@@ -1600,7 +1603,6 @@ class DataHandlerNC(DataHandler):
             else:
                 msg = (f'Could not get time_index for {file_paths}')
                 raise ValueError(msg)
-        logger.debug(f'Built full time index in {dt.now() - now} seconds.')
         return time_index
 
     @classmethod
