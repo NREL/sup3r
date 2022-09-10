@@ -279,9 +279,6 @@ class InputMixIn:
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
         if self._raw_time_index is None:
-            now = dt.now()
-            logger.debug(f'Getting time index for {len(self.file_paths)} input'
-                         ' files.')
             check = (self.time_index_file is not None
                      and os.path.exists(self.time_index_file)
                      and not self.overwrite_cache)
@@ -291,13 +288,18 @@ class InputMixIn:
                 self._raw_time_index = np.load(self.time_index_file,
                                                allow_pickle=True)
             else:
+                now = dt.now()
+                logger.debug(f'Getting time index for {len(self.file_paths)} '
+                             'input files.')
                 self._raw_time_index = self.get_time_index(self.file_paths)
 
-            if self.time_index_file is not None:
-                logger.debug(f'Saved raw_time_index to {self.time_index_file}')
-                np.save(self.time_index_file, self._raw_time_index,
-                        allow_pickle=True)
-            logger.debug(f'Built full time index in {dt.now() - now} seconds.')
+                if self.time_index_file is not None:
+                    logger.debug('Saved raw_time_index to '
+                                 f'{self.time_index_file}')
+                    np.save(self.time_index_file, self._raw_time_index,
+                            allow_pickle=True)
+                logger.debug(f'Built full time index in {dt.now() - now} '
+                             'seconds.')
         return self._raw_time_index
 
     @property
