@@ -78,6 +78,7 @@ class InputMixIn:
         self.lat_lon = None
         self._raw_time_index = None
         self._time_index = None
+        self._time_index_file = None
         self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
@@ -263,13 +264,13 @@ class InputMixIn:
     @property
     def time_index_file(self):
         """Get time index file path"""
-        if self.cache_pattern is not None:
+        if self.cache_pattern is not None and self._time_index_file is None:
             basedir = os.path.dirname(self.cache_pattern)
-            ti_file = os.path.join(basedir,
-                                   f'time_index_{len(self.file_paths)}.npy')
-            return ti_file
-        else:
-            return None
+            start_time = self.get_time_index(self.file_paths[0:1])[0]
+            end_time = self.get_time_index(self.file_paths[-1:])[0]
+            self._time_index_file = os.path.join(
+                basedir, f'time_index_{start_time}-{end_time}.npy')
+        return self._time_index_file
 
     @property
     def raw_time_index(self):
@@ -499,6 +500,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._cache_files = None
         self._raw_time_index = None
         self._time_index = None
+        self._time_index_file = None
         self._lat_lon = None
         self._raster_index = None
         self._handle_features = None
