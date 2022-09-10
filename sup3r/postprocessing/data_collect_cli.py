@@ -5,6 +5,7 @@ sup3r data collection CLI entry points.
 import click
 import logging
 import os
+import copy
 
 from reV.pipeline.status import Status
 
@@ -40,7 +41,8 @@ def main(ctx, verbose):
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
 def from_config(ctx, config_file, verbose):
-    """Run sup3r data collection from a config file."""
+    """Run sup3r data collection from a config file. If dset_split is True this
+    each feature will be collected into a separate file."""
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
     status_dir = os.path.dirname(os.path.abspath(config_file))
@@ -60,19 +62,38 @@ def from_config(ctx, config_file, verbose):
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     name = 'sup3r_collect_{}'.format(os.path.basename(status_dir))
-    ctx.obj['NAME'] = name
     config['job_name'] = name
     config['status_dir'] = status_dir
+    dset_split = config.get('dset_split', False)
 
-    cmd = Collector.get_node_cmd(config)
+    configs = [config]
+    if dset_split:
+        configs = []
+        for feature in config['features']:
+            f_config = copy.deepcopy(config)
+            f_out_file = config['out_file'].replace('.h5', f'_{feature}.h5')
+            f_job_name = config['job_name'] + f'_{feature}'
+            f_log_file = config.get('log_file', None)
+            if f_log_file is not None:
+                f_log_file = f_log_file.replace('.log', f'_{feature}.log')
+            f_config.update({'features': [feature],
+                             'out_file': f_out_file,
+                             'job_name': f_job_name,
+                             'log_file': f_log_file})
 
-    cmd_log = '\n\t'.join(cmd.split('\n'))
-    logger.debug(f'Running command:\n\t{cmd_log}')
+            configs.append(f_config)
 
-    if hardware_option.lower() in ('eagle', 'slurm'):
-        kickoff_slurm_job(ctx, cmd, **exec_kwargs)
-    else:
-        kickoff_local_job(ctx, cmd)
+    for config in configs:
+        ctx.obj['NAME'] = config['job_name']
+        cmd = Collector.get_node_cmd(config)
+
+        cmd_log = '\n\t'.join(cmd.split('\n'))
+        logger.debug(f'Running command:\n\t{cmd_log}')
+
+        if hardware_option.lower() in ('eagle', 'slurm'):
+            kickoff_slurm_job(ctx, cmd, **exec_kwargs)
+        else:
+            kickoff_local_job(ctx, cmd)
 
 
 def kickoff_local_job(ctx, cmd):

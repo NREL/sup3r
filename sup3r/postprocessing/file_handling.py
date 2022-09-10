@@ -146,6 +146,7 @@ class OutputHandler:
         new_points = np.zeros((np.product(shape), 2), dtype=np.float32)
         lats = low_res_lat_lon[..., 0].flatten()
         lons = low_res_lat_lon[..., 1].flatten()
+        lons = (lons + 360) % 360
 
         # This shifts the indices for the old points by the downsampling
         # fraction so that we can calculate the centers of the new points with
@@ -166,6 +167,7 @@ class OutputHandler:
         old_points[:, 1] += lon_shift
         lats = RBFInterpolator(old_points, lats, neighbors=10)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=10)(new_points)
+        lons = (lons + 180) % 360 - 180
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         return lat_lon
 
