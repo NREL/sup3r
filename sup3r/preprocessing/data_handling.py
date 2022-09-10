@@ -1586,23 +1586,20 @@ class DataHandlerNC(DataHandler):
             List of times as a Datetimeindex
         """
         now = dt.now()
-        times = []
-        for _, f in enumerate(file_paths):
-            with cls.source_handler([f]) as handle:
-                if hasattr(handle, 'Times'):
-                    time_index = np_to_pd_times(handle.Times.values)
-                elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-                    time_index = handle.indexes['time']
-                    if not isinstance(time_index, pd.DatetimeIndex):
-                        time_index = time_index.to_datetimeindex()
-                elif hasattr(handle, 'times'):
-                    time_index = np_to_pd_times(handle.times.values)
-                else:
-                    msg = (f'Could not get time_index for {file_paths}')
-                    raise ValueError(msg)
-            times += time_index
+        with cls.source_handler(file_paths) as handle:
+            if hasattr(handle, 'Times'):
+                time_index = np_to_pd_times(handle.Times.values)
+            elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
+                time_index = handle.indexes['time']
+                if not isinstance(time_index, pd.DatetimeIndex):
+                    time_index = time_index.to_datetimeindex()
+            elif hasattr(handle, 'times'):
+                time_index = np_to_pd_times(handle.times.values)
+            else:
+                msg = (f'Could not get time_index for {file_paths}')
+                raise ValueError(msg)
         logger.debug(f'Built full time index in {dt.now() - now} seconds.')
-        return sorted(times)
+        return time_index
 
     @classmethod
     def feature_registry(cls):
