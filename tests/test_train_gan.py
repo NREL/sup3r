@@ -61,7 +61,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
         assert (np.diff(vlossg) < 0).all()
-        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 1.5)
+        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 2)
         assert 'test_0' in os.listdir(td)
         assert 'test_2' in os.listdir(td)
         assert 'test_5' in os.listdir(td)

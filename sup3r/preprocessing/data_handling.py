@@ -74,6 +74,7 @@ class InputMixIn:
     def __init__(self):
         self.raster_file = None
         self.raster_index = None
+        self.overwrite_cache = False
         self.lat_lon = None
         self._raw_time_index = None
         self._time_index = None
@@ -206,7 +207,7 @@ class InputMixIn:
                  or not os.path.exists(self.raster_file))
         check = check and (self._target is None or self._grid_shape is None)
         if check:
-            new_target, new_shape = self.get_full_domain(self.file_paths)
+            new_target, new_shape = self.get_full_domain(self.file_paths[0:1])
             self._target = self._target or new_target
             self._grid_shape = self._grid_shape or new_shape
             logger.info('Target + shape not specified. Getting full domain '
@@ -260,11 +261,38 @@ class InputMixIn:
         self._grid_shape = grid_shape
 
     @property
+    def time_index_file(self):
+        """Get time index file path"""
+        if self.cache_pattern is not None:
+            basedir = os.path.dirname(self.cache_pattern)
+            ti_file = os.path.join(basedir,
+                                   f'time_index_{len(self.file_paths)}.npy')
+            return ti_file
+        else:
+            return None
+
+    @property
     def raw_time_index(self):
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
         if self._raw_time_index is None:
-            self._raw_time_index = self.get_time_index(self.file_paths)
+            logger.debug(f'Getting time index for {len(self.file_paths)} input'
+                         ' files.')
+            check = (self.time_index_file is not None
+                     and os.path.exists(self.time_index_file)
+                     and not self.overwrite_cache)
+            if check:
+                logger.debug('Loading raw_time_index from '
+                             f'{self.time_index_file}')
+                self._raw_time_index = np.load(self.time_index_file,
+                                               allow_pickle=True)
+            else:
+                self._raw_time_index = self.get_time_index(self.file_paths)
+
+            if self.time_index_file is not None:
+                logger.debug(f'Saved raw_time_index to {self.time_index_file}')
+                np.save(self.time_index_file, self._raw_time_index,
+                        allow_pickle=True)
         return self._raw_time_index
 
     @property
@@ -1557,18 +1585,24 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        with cls.source_handler(file_paths) as handle:
-            if hasattr(handle, 'Times'):
-                time_index = np_to_pd_times(handle.Times.values)
-            elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-                time_index = handle.indexes['time']
-                if not isinstance(time_index, pd.DatetimeIndex):
-                    time_index = time_index.to_datetimeindex()
-            elif hasattr(handle, 'times'):
-                time_index = np_to_pd_times(handle.times.values)
-            else:
-                raise ValueError(f'Could not get time_index for {file_paths}')
-        return time_index
+        now = dt.now()
+        times = []
+        for _, f in enumerate(file_paths):
+            with cls.source_handler([f]) as handle:
+                if hasattr(handle, 'Times'):
+                    time_index = np_to_pd_times(handle.Times.values)
+                elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
+                    time_index = handle.indexes['time']
+                    if not isinstance(time_index, pd.DatetimeIndex):
+                        time_index = time_index.to_datetimeindex()
+                elif hasattr(handle, 'times'):
+                    time_index = np_to_pd_times(handle.times.values)
+                else:
+                    msg = (f'Could not get time_index for {file_paths}')
+                    raise ValueError(msg)
+            times += time_index
+        logger.debug(f'Built full time index in {dt.now() - now} seconds.')
+        return sorted(times)
 
     @classmethod
     def feature_registry(cls):

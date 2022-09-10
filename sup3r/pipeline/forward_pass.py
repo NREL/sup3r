@@ -733,6 +733,7 @@ class ForwardPassStrategy(InputMixIn):
         self.output_workers = output_workers
         self.exo_kwargs = exo_kwargs or {}
         self._cache_pattern = cache_pattern
+        self._input_handler_class = None
         self._input_handler_name = input_handler
         self._spatial_coarsen = spatial_coarsen
         self._max_nodes = max_nodes
@@ -907,9 +908,10 @@ class ForwardPassStrategy(InputMixIn):
         _handler_class
             e.g. DataHandlerNC, DataHandlerH5, etc
         """
-        hclass = get_input_handler_class(self.file_paths,
-                                         self._input_handler_name)
-        return hclass
+        if self._input_handler_class is None:
+            self._input_handler_class = get_input_handler_class(
+                self.file_paths, self._input_handler_name)
+        return self._input_handler_class
 
     def __len__(self):
         """Get the number of nodes that this strategy is distributing to"""
