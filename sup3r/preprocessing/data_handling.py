@@ -268,8 +268,8 @@ class InputMixIn:
         """Get time index file path"""
         if self.cache_pattern is not None and self._time_index_file is None:
             basename = self.cache_pattern.replace('{times}', '')
-            basename = basename.replace('{shape}', '')
-            basename = basename.replace('{target}', '')
+            basename = basename.replace('_{shape}', '')
+            basename = basename.replace('_{target}', '')
             basename = basename.replace('{feature}', 'time_index')
             basename = basename.replace('_.pkl', '.pkl')
             self._time_index_file = basename
@@ -392,7 +392,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  norm_workers=None,
-                 ti_workers=20):
+                 ti_workers=1):
         """
         Parameters
         ----------

@@ -590,7 +590,7 @@ class ForwardPassStrategy(InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  output_workers=None,
-                 ti_workers=20,
+                 ti_workers=1,
                  exo_kwargs=None,
                  max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
@@ -1017,7 +1017,6 @@ class ForwardPass:
             forward pass.
         """
 
-        logger.info(f'Initializing ForwardPass for chunk={chunk_index}')
         self.strategy = strategy
         self.model_args = self.strategy.model_args
         self.model_class = self.strategy.model_class
@@ -1037,6 +1036,9 @@ class ForwardPass:
         self.chunk_index = chunk_index
 
         self.get_chunk_kwargs(strategy, chunk_index)
+        logger.info(f'Initializing ForwardPass for chunk={chunk_index}, '
+                    f'temporal_chunk={self.temporal_chunk_index}, '
+                    f'spatial_chunk={self.spatial_chunk_index}')
 
         self.exogenous_handler = None
         self.exogenous_data = None
@@ -1475,7 +1477,7 @@ class ForwardPass:
 
         out_data = self._run_single_fwd_pass(self.spatial_chunk_index)
 
-        lr_times = self.data_handler.raw_time_index[self.ti_slice]
+        lr_times = self.strategy.raw_time_index[self.ti_slice]
         gids = self.strategy.gids[self.hr_slice[0], self.hr_slice[1]]
         lr_lat_lon = self.data_handler.lat_lon[self.s_lr_slice[:2]]
 

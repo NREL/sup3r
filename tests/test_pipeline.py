@@ -70,7 +70,8 @@ def test_fwp_pipeline():
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         t_enhance = 4
-        config = {'file_paths': input_files,
+        config = {'ti_workers': 1,
+                  'file_paths': input_files,
                   'target': target,
                   'model_args': out_dir,
                   'out_pattern': out_files,
@@ -85,7 +86,8 @@ def test_fwp_pipeline():
                   'overwrite_cache': True,
                   'execution_control': {
                       "nodes": 1,
-                      "option": "local"}}
+                      "option": "local"},
+                  'max_nodes': 1}
 
         fp_config_path = os.path.join(td, 'fp_config.json')
         with open(fp_config_path, 'w') as fh:
