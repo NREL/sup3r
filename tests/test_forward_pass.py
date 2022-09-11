@@ -296,7 +296,8 @@ def test_fwd_pass_space_chunking():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            overwrite_cache=True)
+            overwrite_cache=True,
+            ti_workers=1)
 
         data = []
         for i in range(handler.chunks):
@@ -305,7 +306,7 @@ def test_fwd_pass_space_chunking():
             data.append(data_chunked)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape)
+                                  val_split=0.0, shape=shape, ti_workers=1)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -362,7 +363,8 @@ def test_fwd_pass_time_chunking():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            overwrite_cache=True)
+            overwrite_cache=True,
+            ti_workers=1)
 
         data = []
         for i in range(handler.chunks):
@@ -371,7 +373,7 @@ def test_fwd_pass_time_chunking():
             data.append(data_chunked)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape)
+                                  val_split=0.0, shape=shape, ti_workers=1)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -427,7 +429,8 @@ def test_fwd_pass_nochunking():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            overwrite_cache=True)
+            overwrite_cache=True,
+            ti_workers=1)
         forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run_chunk()
 
@@ -438,7 +441,8 @@ def test_fwd_pass_nochunking():
                                   cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
-                                  val_split=0.0)
+                                  val_split=0.0,
+                                  ti_workers=1)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -511,7 +515,8 @@ def test_fwp_multi_step_model_topo_exoskip():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1)
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
 
@@ -607,7 +612,8 @@ def test_fwp_multi_step_model_topo():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1)
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
 
@@ -683,7 +689,8 @@ def test_fwp_multi_step_model():
             temporal_slice=temporal_slice,
             out_pattern=out_files,
             max_workers=max_workers,
-            max_nodes=1)
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
         ones = np.ones((fwp_chunk_shape[2], fwp_chunk_shape[0],

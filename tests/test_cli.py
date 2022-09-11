@@ -62,7 +62,8 @@ def test_pipeline_fwp_collect(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log.log')
-        fwp_config = {'file_paths': input_files,
+        fwp_config = {'ti_workers': 1,
+                      'file_paths': input_files,
                       'target': (19.3, -123.5),
                       'model_args': out_dir,
                       'out_pattern': out_files,
@@ -143,7 +144,8 @@ def test_data_collection_cli(runner):
         (out_files, _, _, _, features, _, _, _, _) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
-        config = {'file_paths': out_files,
+        config = {'ti_workers': 1,
+                  'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
                   'log_file': os.path.join(td, 'log.log'),
@@ -209,7 +211,8 @@ def test_fwd_pass_cli(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
-        config = {'file_paths': input_files,
+        config = {'ti_workers': 1,
+                  'file_paths': input_files,
                   'target': (19.3, -123.5),
                   'model_args': out_dir,
                   'out_pattern': out_files,

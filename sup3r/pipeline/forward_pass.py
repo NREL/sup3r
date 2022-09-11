@@ -590,7 +590,7 @@ class ForwardPassStrategy(InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  output_workers=None,
-                 ti_workers=1,
+                 ti_workers=None,
                  exo_kwargs=None,
                  max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
@@ -781,7 +781,8 @@ class ForwardPassStrategy(InputMixIn):
                     f'{self.input_file_info}. Using n_nodes={self.nodes} with '
                     f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
-                    f'and n_total_chunks={self.chunks}.')
+                    f'and n_total_chunks={self.chunks}. '
+                    f'{self.chunks / self.nodes} chunks per node on average.')
 
         if self.cache_pattern is not None:
             if '{temporal_chunk_index}' not in self.cache_pattern:
@@ -1018,6 +1019,12 @@ class ForwardPass:
         """
 
         self.strategy = strategy
+        self.chunk_index = chunk_index
+
+        logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
+                    f'(temporal_chunk={self.temporal_chunk_index}, '
+                    f'spatial_chunk={self.spatial_chunk_index})')
+
         self.model_args = self.strategy.model_args
         self.model_class = self.strategy.model_class
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -1033,12 +1040,8 @@ class ForwardPass:
         self.features = self.model.training_features
         self.output_features = self.model.output_features
         self.meta_data = self.model.meta
-        self.chunk_index = chunk_index
 
         self.get_chunk_kwargs(strategy, chunk_index)
-        logger.info(f'Initializing ForwardPass for chunk={chunk_index}, '
-                    f'temporal_chunk={self.temporal_chunk_index}, '
-                    f'spatial_chunk={self.spatial_chunk_index}')
 
         self.exogenous_handler = None
         self.exogenous_data = None
@@ -1098,6 +1101,16 @@ class ForwardPass:
                                    self.strategy.s_enhancements)
         self.input_data, self.exogenous_data = out
 
+    @property
+    def spatial_chunk_index(self):
+        """Spatial index for the current chunk going through forward pass"""
+        return self.chunk_index % self.strategy.fwp_slicer.n_spatial_chunks
+
+    @property
+    def temporal_chunk_index(self):
+        """Temporal index for the current chunk going through forward pass"""
+        return self.chunk_index // self.strategy.fwp_slicer.n_spatial_chunks
+
     def get_chunk_kwargs(self, strategy, chunk_index):
         """Get node specific variables given an associated index
 
@@ -1119,10 +1132,8 @@ class ForwardPass:
                    f'requested was {chunk_index}.')
             raise ValueError(msg)
 
-        s_chunk_index = chunk_index % strategy.fwp_slicer.n_spatial_chunks
-        t_chunk_index = chunk_index // strategy.fwp_slicer.n_spatial_chunks
-        self.spatial_chunk_index = s_chunk_index
-        self.temporal_chunk_index = t_chunk_index
+        s_chunk_index = self.spatial_chunk_index
+        t_chunk_index = self.temporal_chunk_index
 
         self.out_file = strategy.out_files[chunk_index]
         self.ti_pad_slice = strategy.ti_pad_slices[t_chunk_index]

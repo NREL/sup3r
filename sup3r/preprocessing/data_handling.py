@@ -374,25 +374,14 @@ class DataHandler(FeatureHandler, InputMixIn):
                            'topography')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=20,
-                 temporal_slice=slice(None),
-                 hr_spatial_coarsen=None,
-                 time_roll=0,
-                 val_split=0.05,
-                 sample_shape=(10, 10, 1),
-                 raster_file=None,
-                 shuffle_time=False,
-                 time_chunk_size=None,
-                 cache_pattern=None,
-                 overwrite_cache=False,
-                 load_cached=False,
-                 train_only_features=None,
-                 max_workers=None,
-                 extract_workers=None,
-                 compute_workers=None,
-                 load_workers=None,
-                 norm_workers=None,
-                 ti_workers=1):
+                 max_delta=20, temporal_slice=slice(None),
+                 hr_spatial_coarsen=None, time_roll=0, val_split=0.05,
+                 sample_shape=(10, 10, 1), raster_file=None,
+                 shuffle_time=False, time_chunk_size=None, cache_pattern=None,
+                 overwrite_cache=False, load_cached=False,
+                 train_only_features=None, max_workers=None,
+                 extract_workers=None, compute_workers=None, load_workers=None,
+                 norm_workers=None, ti_workers=None):
         """
         Parameters
         ----------
