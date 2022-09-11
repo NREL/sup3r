@@ -265,13 +265,8 @@ class InputMixIn:
     def time_index_file(self):
         """Get time index file path"""
         if self.cache_pattern is not None and self._time_index_file is None:
-            basedir = os.path.dirname(self.cache_pattern)
-            start_time = self.get_time_index(self.file_paths[0:1])[0]
-            end_time = self.get_time_index(self.file_paths[-1:])[0]
-            start_time = str(start_time).replace(' ', '_').replace(':', '_')
-            end_time = str(end_time).replace(' ', '_').replace(':', '_')
-            self._time_index_file = os.path.join(
-                basedir, f'time_index_{start_time}-{end_time}.npy')
+            basename = self.cache_pattern.split('{')[0]
+            self._time_index_file = f'{basename}_time_index.npy'
         return self._time_index_file
 
     @property
@@ -1603,8 +1598,7 @@ class DataHandlerNC(DataHandler):
             elif hasattr(handle, 'times'):
                 time_index = np_to_pd_times(handle.times.values)
             else:
-                msg = (f'Could not get time_index for {file_paths}')
-                raise ValueError(msg)
+                raise ValueError(f'Could not get time_index for {file_paths}')
         return time_index
 
     @classmethod

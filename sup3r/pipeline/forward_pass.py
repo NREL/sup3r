@@ -5,14 +5,12 @@ Sup3r forward pass handling module.
 @author: bbenton
 """
 import json
-import psutil
 import numpy as np
 import logging
 import os
 import warnings
 
 from rex.utilities.fun_utils import get_fun_call_str
-from rex import log_mem
 
 import sup3r.models
 from sup3r.preprocessing.data_handling import InputMixIn
@@ -1052,15 +1050,6 @@ class ForwardPass:
         self.data = None
         if self.out_file is None:
             self.data = np.zeros(self.hr_data_shape)
-
-        fwp_out_mem = 4 * np.product(self.hr_data_shape)
-        mem = psutil.virtual_memory()
-        msg = (f'Full size ({self.hr_data_shape}) of forward pass output '
-               f'({fwp_out_mem / 1e9} GB) is too large to hold in memory. '
-               'Run with smaller fwp_chunk_shape[2] or spatial extent.')
-        if mem.total < fwp_out_mem:
-            logger.warning(msg)
-            log_mem(logger)
 
         self.input_handler_class = strategy.input_handler_class
 
