@@ -238,7 +238,8 @@ def test_fwd_pass_cli(runner):
             raise RuntimeError(msg)
 
         # include time index cache file
-        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * t_chunks) + 1
+        n_cache_files = 1 + ((len(FEATURES) + 1) * t_chunks)
+        assert len(glob.glob(f'{td}/cache*')) == n_cache_files
         assert len(glob.glob(f'{td}/*.log')) == n_nodes
         assert len(glob.glob(f'{td}/out*')) == n_nodes
 
