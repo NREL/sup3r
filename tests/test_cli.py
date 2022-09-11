@@ -237,7 +237,7 @@ def test_fwd_pass_cli(runner):
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
 
-        #include time index cache file
+        # include time index cache file
         assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * t_chunks) + 1
         assert len(glob.glob(f'{td}/*.log')) == n_nodes
         assert len(glob.glob(f'{td}/out*')) == n_nodes
