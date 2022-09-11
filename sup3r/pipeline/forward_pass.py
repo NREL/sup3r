@@ -590,6 +590,7 @@ class ForwardPassStrategy(InputMixIn):
                  compute_workers=None,
                  load_workers=None,
                  output_workers=None,
+                 ti_workers=20,
                  exo_kwargs=None,
                  max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
@@ -700,6 +701,9 @@ class ForwardPassStrategy(InputMixIn):
             max number of workers to use for loading cached feature data.
         output_workers : int | None
             max number of workers to use for writing forward pass output.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            input files each have only a single time step.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -710,7 +714,7 @@ class ForwardPassStrategy(InputMixIn):
         """
         if max_workers is not None:
             extract_workers = compute_workers = max_workers
-            load_workers = output_workers = max_workers
+            load_workers = output_workers = ti_workers = max_workers
 
         self._i = 0
         self.file_paths = file_paths
@@ -729,6 +733,7 @@ class ForwardPassStrategy(InputMixIn):
         self.compute_workers = compute_workers
         self.load_workers = load_workers
         self.output_workers = output_workers
+        self.ti_workers = ti_workers
         self.exo_kwargs = exo_kwargs or {}
         self._cache_pattern = cache_pattern
         self._input_handler_class = None
@@ -820,7 +825,7 @@ class ForwardPassStrategy(InputMixIn):
         """Get target and grid_shape for largest possible domain"""
         return self.input_handler_class.get_full_domain(file_paths)
 
-    def get_time_index(self, file_paths):
+    def get_time_index(self, file_paths, max_workers=None):
         """Get time index for source data
 
         Parameters
@@ -833,7 +838,8 @@ class ForwardPassStrategy(InputMixIn):
         time_index : ndarray
             Array of time indices for source data
         """
-        return self.input_handler_class.get_time_index(file_paths)
+        return self.input_handler_class.get_time_index(file_paths,
+                                                       max_workers=max_workers)
 
     @property
     def file_ids(self):
@@ -1060,19 +1066,25 @@ class ForwardPass:
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
+        if self.single_time_step_files:
+            file_paths = self.file_paths[self.ti_pad_slice]
+            ti_pad_slice = slice(None)
+        else:
+            file_paths = self.file_paths
+            ti_pad_slice = self.ti_pad_slice
+
         self.data_handler = self.input_handler_class(
-            self.file_paths, self.features, target=self.strategy.target,
-            shape=self.strategy.grid_shape, temporal_slice=self.ti_pad_slice,
+            file_paths, self.features, target=self.strategy.target,
+            shape=self.strategy.grid_shape, temporal_slice=ti_pad_slice,
             raster_file=self.strategy.raster_file,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
-            val_split=0.0,
             hr_spatial_coarsen=self.strategy._spatial_coarsen,
             max_workers=self.max_workers,
             extract_workers=self.extract_workers,
             compute_workers=self.compute_workers,
-            load_workers=self.load_workers)
+            load_workers=self.load_workers, val_split=0.0)
 
         self.data_handler.load_cached_data()
 
@@ -1149,6 +1161,17 @@ class ForwardPass:
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
         self.exo_slices = strategy.fwp_slicer.s_exo_slices
+
+    @property
+    def single_time_step_files(self):
+        """Check if there is a file for each time step, in which case we can
+        send a subset of files to the data handler according to ti_pad_slice"""
+
+        t_steps = self.input_handler_class.get_time_index(self.file_paths[:1],
+                                                          max_workers=1)
+        check = (len(self.file_paths) == len(self.strategy.raw_time_index)
+                 and t_steps is not None and len(t_steps) == 1)
+        return check
 
     @staticmethod
     def pad_source_data(input_data, spatial_pad, pad_t_start, pad_t_end,
