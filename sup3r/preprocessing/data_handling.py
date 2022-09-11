@@ -268,9 +268,10 @@ class InputMixIn:
         """Get time index file path"""
         if self.cache_pattern is not None and self._time_index_file is None:
             basename = self.cache_pattern.replace('{times}', '')
-            basename = self.cache_pattern.replace('{shape}', '')
-            basename = self.cache_pattern.replace('{target}', '')
+            basename = basename.replace('{shape}', '')
+            basename = basename.replace('{target}', '')
             basename = basename.replace('{feature}', 'time_index')
+            basename = basename.replace('_.pkl', '.pkl')
             self._time_index_file = basename
         return self._time_index_file
 
@@ -285,9 +286,12 @@ class InputMixIn:
             if check:
                 logger.debug('Loading raw_time_index from '
                              f'{self.time_index_file}')
-                self._raw_time_index = pickle.load(self.time_index_file)
+                with open(self.time_index_file, 'rb') as f:
+                    self._raw_time_index = pickle.load(f)
             else:
                 now = dt.now()
+                logger.debug('Did not find time index file: '
+                             f'{self.time_index_file}')
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
                              'input files.')
                 self._raw_time_index = self.get_time_index(self.file_paths,

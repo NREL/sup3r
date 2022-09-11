@@ -1126,6 +1126,7 @@ class ForwardPass:
         self.ti_pad_slice = strategy.ti_pad_slices[t_chunk_index]
         self.ti_slice = strategy.ti_slices[t_chunk_index]
         hr_crop_slices = strategy.fwp_slicer.hr_crop_slices[t_chunk_index]
+
         self.cache_pattern = (
             None if strategy.cache_pattern is None
             else strategy.cache_pattern.replace('{temporal_chunk_index}',
