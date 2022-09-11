@@ -265,7 +265,7 @@ class InputMixIn:
     def time_index_file(self):
         """Get time index file path"""
         if self.cache_pattern is not None and self._time_index_file is None:
-            basename = self.cache_pattern.split('{')[0]
+            basename = self.cache_pattern.split('_{')[0]
             self._time_index_file = f'{basename}_time_index.npy'
         return self._time_index_file
 
