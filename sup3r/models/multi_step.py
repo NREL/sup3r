@@ -701,7 +701,7 @@ class SolarMultiStepGan(AbstractSup3rGan):
     """
 
     def __init__(self, spatial_solar_models, spatial_wind_models,
-                 temporal_solar_models):
+                 temporal_solar_models, t_enhance=None, temporal_pad=0):
         """
         Parameters
         ----------
@@ -719,13 +719,29 @@ class SolarMultiStepGan(AbstractSup3rGan):
             (spatio)temporal super resolution steps in this composite
             SolarMultiStepGan model. This is the final step in the custom solar
             downscaling methodology.
+        t_enhance : int | None
+            Optional argument to fix or update the temporal enhancement of the
+            model. This can be used with temporal_pad to manipulate the output
+            shape to match whatever padded shape the sup3r forward pass module
+            expects.
+        temporal_pad : int
+            Optional reflected padding of the generated output array.
         """
 
         self._spatial_solar_models = spatial_solar_models
         self._spatial_wind_models = spatial_wind_models
         self._temporal_solar_models = temporal_solar_models
+        self._t_enhance = t_enhance
+        self._temporal_pad = temporal_pad
 
         self.preflight()
+
+        if self._t_enhance is not None:
+            msg = ('Can only update t_enhance for a '
+                   'single temporal solar model.')
+            assert len(self.temporal_solar_models) == 1, msg
+            model = self.temporal_solar_models.models[0]
+            model.meta['t_enhance'] = self._t_enhance
 
     def preflight(self):
         """Run some preflight checks to make sure the loaded models can work
@@ -965,14 +981,45 @@ class SolarMultiStepGan(AbstractSup3rGan):
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
+        hi_res = self.temporal_pad(hi_res)
+
         logger.debug('Final SolarMultiStepGan output has shape: {}'
                      .format(hi_res.shape))
 
         return hi_res
 
+    def temporal_pad(self, hi_res, mode='reflect'):
+        """Optionally add temporal padding to the 5D generated output array
+
+        Parameters
+        ----------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the 2nd
+            step (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+        mode : str
+            Padding mode for np.pad()
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the 2nd
+            step (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+            With the temporal axis padded with self._temporal_pad on either
+            side.
+        """
+        if self._temporal_pad > 0:
+            pad_width = ((0, 0), (0, 0), (0, 0),
+                         (self._temporal_pad, self._temporal_pad),
+                         (0, 0))
+            hi_res = np.pad(hi_res, pad_width, mode=mode)
+        return hi_res
+
     @classmethod
     def load(cls, spatial_solar_model_dirs, spatial_wind_model_dirs,
-             temporal_solar_model_dirs, verbose=True):
+             temporal_solar_model_dirs, t_enhance=None, temporal_pad=0,
+             verbose=True):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
@@ -994,6 +1041,13 @@ class SolarMultiStepGan(AbstractSup3rGan):
             This must contain only (spatio)temporal solar models that
             input/output 5D tensors that are the concatenated output of the
             spatial_solar_models and the spatial_wind_models.
+        t_enhance : int | None
+            Optional argument to fix or update the temporal enhancement of the
+            model. This can be used with temporal_pad to manipulate the output
+            shape to match whatever padded shape the sup3r forward pass module
+            expects.
+        temporal_pad : int
+            Optional reflected padding of the generated output array.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -1014,4 +1068,5 @@ class SolarMultiStepGan(AbstractSup3rGan):
         swm = MultiStepGan.load(spatial_wind_model_dirs, verbose=verbose)
         tsm = MultiStepGan.load(temporal_solar_model_dirs, verbose=verbose)
 
-        return cls(ssm, swm, tsm)
+        return cls(ssm, swm, tsm, t_enhance=t_enhance,
+                   temporal_pad=temporal_pad)
