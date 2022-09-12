@@ -48,7 +48,7 @@ def test_qa_nc():
 
         out_files = os.path.join(td, 'out_{file_id}.nc')
         strategy = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
             target=TARGET, shape=SHAPE,
@@ -130,7 +130,7 @@ def test_qa_h5():
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
         strategy = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
             target=TARGET, shape=SHAPE,

@@ -573,7 +573,7 @@ class ForwardPassStrategy(InputMixIn):
     stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths, model_args, fwp_chunk_shape,
+    def __init__(self, file_paths, model_kwargs, fwp_chunk_shape,
                  spatial_pad, temporal_pad,
                  temporal_slice=slice(None),
                  model_class='Sup3rGan',
@@ -604,8 +604,8 @@ class ForwardPassStrategy(InputMixIn):
             Each file must have the same number of timesteps. Can also pass a
             string with a unix-style file path which will be passed through
             glob.glob
-        model_args : str | list
-            Positional arguments to send to `model_class.load(*model_args)` to
+        model_kwargs : str | list
+            Keyword arguments to send to `model_class.load(**model_kwargs)` to
             initialize the GAN. Typically this is just the string path to the
             model directory, but can be multiple models or arguments for more
             complex models.
@@ -725,7 +725,7 @@ class ForwardPassStrategy(InputMixIn):
 
         self._i = 0
         self.file_paths = file_paths
-        self.model_args = model_args
+        self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
         self.spatial_pad = spatial_pad
         self.temporal_pad = temporal_pad
@@ -757,8 +757,8 @@ class ForwardPassStrategy(InputMixIn):
         self._node_chunks = None
 
         model_class = getattr(sup3r.models, self.model_class, None)
-        if isinstance(self.model_args, str):
-            self.model_args = [self.model_args]
+        if isinstance(self.model_kwargs, str):
+            self.model_kwargs = {'model_dir': self.model_kwargs}
 
         if model_class is None:
             msg = ('Could not load requested model class "{}" from '
@@ -767,7 +767,7 @@ class ForwardPassStrategy(InputMixIn):
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args, verbose=False)
+        self.model = model_class.load(**self.model_kwargs, verbose=False)
         models = getattr(self.model, 'models', [self.model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
@@ -1041,7 +1041,7 @@ class ForwardPass:
                     f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
                     f' Total number of chunks for the current node.')
 
-        self.model_args = self.strategy.model_args
+        self.model_kwargs = self.strategy.model_kwargs
         self.model_class = self.strategy.model_class
         model_class = getattr(sup3r.models, self.model_class, None)
 
@@ -1052,7 +1052,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args, verbose=True)
+        self.model = model_class.load(**self.model_kwargs, verbose=True)
         self.features = self.model.training_features
         self.output_features = self.model.output_features
         self.meta_data = self.model.meta
@@ -1316,7 +1316,7 @@ class ForwardPass:
 
     @classmethod
     def forward_pass_chunk(cls, data_chunk, hr_crop_slices,
-                           model=None, model_args=None, model_class=None,
+                           model=None, model_kwargs=None, model_class=None,
                            s_enhance=None, t_enhance=None,
                            exo_data=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
@@ -1333,18 +1333,18 @@ class ForwardPass:
             before stitching chunks.
         model : Sup3rGan
             A loaded Sup3rGan model (any model imported from sup3r.models).
-            You need to provide either model or (model_args and model_class)
-        model_args : str | list
-            Positional arguments to send to `model_class.load(*model_args)` to
+            You need to provide either model or (model_kwargs and model_class)
+        model_kwargs : str | list
+            Keyword arguments to send to `model_class.load(**model_kwargs)` to
             initialize the GAN. Typically this is just the string path to the
             model directory, but can be multiple models or arguments for more
             complex models.
-            You need to provide either model or (model_args and model_class)
+            You need to provide either model or (model_kwargs and model_class)
         model_class : str
             Name of the sup3r model class for the GAN model to load. The
             default is the basic spatial / spatiotemporal Sup3rGan model. This
             will be loaded from sup3r.models
-            You need to provide either model or (model_args and model_class)
+            You need to provide either model or (model_kwargs and model_class)
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
@@ -1359,11 +1359,11 @@ class ForwardPass:
             High resolution data generated by GAN
         """
         if model is None:
-            msg = 'If model not provided, model_args and model_class must be'
-            assert model_args is not None, msg
+            msg = 'If model not provided, model_kwargs and model_class must be'
+            assert model_kwargs is not None, msg
             assert model_class is not None, msg
             model_class = getattr(sup3r.models, model_class)
-            model = model_class.load(*model_args, verbose=False)
+            model = model_class.load(**model_kwargs, verbose=False)
 
         for i, arr in enumerate(exo_data):
             if arr is not None:
@@ -1489,7 +1489,7 @@ class ForwardPass:
 
         out_data = self.forward_pass_chunk(
             data_chunk, hr_crop_slices=self.hr_crop_slice, model=self.model,
-            model_args=self.model_args, model_class=self.model_class,
+            model_kwargs=self.model_kwargs, model_class=self.model_class,
             s_enhance=self.strategy.s_enhance,
             t_enhance=self.strategy.t_enhance,
             exo_data=exo_data)
