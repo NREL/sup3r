@@ -206,6 +206,8 @@ def test_fwd_pass_cli(runner):
 
         fwp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
+        n_chunks = n_nodes * shape[0] // fwp_chunk_shape[0]
+        n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
@@ -242,7 +244,7 @@ def test_fwd_pass_cli(runner):
         n_cache_files = 1 + ((len(FEATURES) + 1) * n_nodes)
         assert len(glob.glob(f'{td}/cache*')) == n_cache_files
         assert len(glob.glob(f'{td}/*.log')) == n_nodes
-        assert len(glob.glob(f'{td}/out*')) == n_nodes
+        assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
 def test_data_extract_cli(runner):
