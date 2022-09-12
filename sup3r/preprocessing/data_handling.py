@@ -468,7 +468,11 @@ class DataHandler(FeatureHandler, InputMixIn):
             max number of workers to use for normalizing feature data.
         ti_workers : int | None
             max number of workers to use to get full time index. Useful when
-            input files each have only a single time step.
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
         """
         if max_workers is not None:
             extract_workers = compute_workers = max_workers

@@ -703,7 +703,11 @@ class ForwardPassStrategy(InputMixIn):
             max number of workers to use for writing forward pass output.
         ti_workers : int | None
             max number of workers to use to get full time index. Useful when
-            input files each have only a single time step.
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -1495,7 +1499,7 @@ class ForwardPass:
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
-                data=out_data.copy(),
+                data=out_data,
                 features=self.data_handler.output_features,
                 low_res_lat_lon=lr_lat_lon,
                 low_res_times=lr_times,

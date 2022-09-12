@@ -478,7 +478,7 @@ class OutputHandlerH5(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        data, features = cls._transform_output(data, features, lat_lon,
+        data, features = cls._transform_output(data.copy(), features, lat_lon,
                                                max_workers)
         gids = (gids if gids is not None
                 else np.arange(np.product(lat_lon.shape[:-1])))
