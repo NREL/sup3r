@@ -23,9 +23,15 @@ class SolarCC(Sup3rGan):
 
     # starting hour is the hour that daylight starts at, daylight hours is the
     # number of daylight hours to sample, so for example if 8 and 8, the
-    # daylight slice will be slice(8, 16)
+    # daylight slice will be slice(8, 16). The stride length is the step size
+    # for sampling the temporal axis of the generated data to send to the
+    # discriminator for the adverserial loss component of the generator. For
+    # example, if the generator produces 24 timesteps and stride is 4 and the
+    # daylight hours is 8, slices of (0, 8) (4, 12), (8, 16), (12, 20), and
+    # (16, 24) will be sent to the disc.
     STARTING_HOUR = 8
     DAYLIGHT_HOURS = 8
+    STRIDE_LEN = 4
 
     @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
@@ -82,6 +88,7 @@ class SolarCC(Sup3rGan):
                             self.STARTING_HOUR + x + self.DAYLIGHT_HOURS)
                       for x in range(0, 24 * n_days, 24)]
 
+        # sample only daylight hours for disc training and gen content loss
         disc_out_true = []
         disc_out_gen = []
         loss_gen_content = 0.0
@@ -92,12 +99,12 @@ class SolarCC(Sup3rGan):
             disc_out_true.append(disc_t)
             loss_gen_content += gen_c
 
-        logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS)]
-        time_samples = tf.random.categorical(logits, len(day_slices))
-        for i in range(len(day_slices)):
-            t0 = time_samples[0, i]
-            t1 = t0 + self.DAYLIGHT_HOURS
-            disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
+        # strided sampling of all hours for gen adverserial loss
+        time_samples = range(0, t_len - self.STRIDE_LEN, self.STRIDE_LEN)
+        time_samples = [slice(i0, i0 + self.DAYLIGHT_HOURS)
+                        for i0 in time_samples]
+        for t_slice in time_samples:
+            disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t_slice, :])
             disc_out_gen.append(disc_g)
 
         disc_out_true = tf.concat([disc_out_true], axis=0)
