@@ -268,7 +268,7 @@ class InputMixIn:
         """Get time index file path"""
         if self.cache_pattern is not None and self._time_index_file is None:
             basename = self.cache_pattern.replace('{times}', '')
-            basename = basename.replace('_{shape}', '')
+            basename = basename.replace('{shape}', str(len(self.file_paths)))
             basename = basename.replace('_{target}', '')
             basename = basename.replace('{feature}', 'time_index')
             basename = basename.replace('_.pkl', '.pkl')
@@ -960,6 +960,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             for i, f in enumerate(cache_files):
                 if '{shape}' in f:
                     shape = f'{self.grid_shape[0]}x{self.grid_shape[1]}'
+                    shape += f'x{len(self.time_index)}'
                     f = f.replace('{shape}', shape)
                 if '{target}' in f:
                     target = f'{self.target[0]:.2f}_{self.target[1]:.2f}'
@@ -1235,9 +1236,9 @@ class DataHandler(FeatureHandler, InputMixIn):
                 msg = ('Data loaded from from cache file "{}" '
                        'could not be written to feature channel {} '
                        'of full data array of shape {}. '
-                       'Make sure the cached data has the '
-                       'appropriate shape.'
-                       .format(fp, idx, self.data.shape))
+                       'The cached data has the wrong shape {}.'
+                       .format(fp, idx, self.data.shape,
+                               pickle.load(fh).shape))
                 raise RuntimeError(msg) from e
 
     def load_cached_data(self):

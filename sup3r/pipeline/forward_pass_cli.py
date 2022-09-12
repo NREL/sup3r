@@ -76,7 +76,11 @@ def from_config(ctx, config_file, verbose):
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
     node_index = config.get('node_index', None)
-    nodes = [node_index] if node_index is not None else range(strategy.nodes)
+    if node_index is not None:
+        if not isinstance(node_index, list):
+            nodes = [node_index]
+    else:
+        nodes = range(strategy.nodes)
     for i in nodes:
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
