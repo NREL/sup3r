@@ -718,7 +718,7 @@ class ForwardPassStrategy(InputMixIn):
             pass
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
-            If None then a node will be used for each spatiotemporal chunk.
+            If None then a node will be used for each temporal chunk.
         """
         if max_workers is not None:
             extract_workers = compute_workers = max_workers
