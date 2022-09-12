@@ -666,6 +666,10 @@ class ForwardPassStrategy(InputMixIn):
             load_cached_data is called. The cache_pattern can also include
             {shape}, {target}, {times} which will help ensure unique cache
             files for complex problems.
+
+            NOTE: For best performance, with large spatial domains,
+            cache_pattern should be provided so that data does not have to be
+            extracted for every forward_pass call.
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data
@@ -751,6 +755,7 @@ class ForwardPassStrategy(InputMixIn):
         self._out_files = None
         self._file_ids = None
         self._time_index_file = None
+        self._node_chunks = None
 
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_args, str):
@@ -935,7 +940,8 @@ class ForwardPassStrategy(InputMixIn):
         work to, equal to either the specified max number of nodes or total
         number of spatiotemporal chunks"""
         nodes = (self._max_nodes if self._max_nodes is not None
-                 and not self._max_nodes > self.chunks else self.chunks)
+                 and not self._max_nodes > self.chunks
+                 else self.fwp_slicer.n_temporal_chunks)
         return nodes
 
     @property
@@ -960,8 +966,11 @@ class ForwardPassStrategy(InputMixIn):
         nodes this will return [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]. So the first
         node will be used to run forward passes on the first 5 spatiotemporal
         chunks and the second node will be used for the last 5"""
-        n_chunks = np.min((self.max_nodes, self.chunks))
-        return np.array_split(np.arange(self.chunks), n_chunks)
+        if self._node_chunks is None:
+            n_chunks = np.min((self.max_nodes, self.chunks))
+            self._node_chunks = np.array_split(np.arange(self.chunks),
+                                               n_chunks)
+        return self._node_chunks
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -1008,7 +1017,7 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
-    def __init__(self, strategy, chunk_index=0):
+    def __init__(self, strategy, chunk_index=0, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
 
@@ -1020,14 +1029,18 @@ class ForwardPass:
         chunk_index : int
             Index used to select spatiotemporal chunk on which to run
             forward pass.
+        node_index : int
+            Index of node used to run forward pass
         """
 
         self.strategy = strategy
         self.chunk_index = chunk_index
+        self.node_index = node_index
 
         logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
                     f'(temporal_chunk={self.temporal_chunk_index}, '
-                    f'spatial_chunk={self.spatial_chunk_index})')
+                    f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
+                    f' Total number of chunks for the current node.')
 
         self.model_args = self.strategy.model_args
         self.model_class = self.strategy.model_class
@@ -1104,6 +1117,11 @@ class ForwardPass:
                                    self.exogenous_data,
                                    self.strategy.s_enhancements)
         self.input_data, self.exogenous_data = out
+
+    @property
+    def chunks(self):
+        """Number of chunks for current node"""
+        return len(self.strategy.node_chunks[self.node_index])
 
     @property
     def spatial_chunk_index(self):
@@ -1479,7 +1497,7 @@ class ForwardPass:
         """This routine runs forward passes on all spatiotemporal chunks for
         the given node index"""
         for chunk_index in strategy.node_chunks[node_index]:
-            fwp = cls(strategy, chunk_index)
+            fwp = cls(strategy, chunk_index, node_index)
             fwp.run_chunk()
 
     def run_chunk(self):

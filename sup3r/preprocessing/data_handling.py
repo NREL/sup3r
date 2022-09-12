@@ -304,6 +304,8 @@ class InputMixIn:
                         pickle.dump(self._raw_time_index, f)
                 logger.debug(f'Built full time index in {dt.now() - now} '
                              'seconds.')
+            if (self._raw_time_index.hour == 12).all():
+                self._raw_time_index -= pd.Timedelta(12, 'h')
         return self._raw_time_index
 
     @property
@@ -1930,16 +1932,6 @@ class DataHandlerNCforCC(DataHandlerNC):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, **kwargs)
-
-    @property
-    def raw_time_index(self):
-        """Time index for input data without time pruning. This is the base
-        time index for the raw input data."""
-        if self._raw_time_index is None:
-            self._raw_time_index = self.get_time_index(self.file_paths)
-            if (self._raw_time_index.hour == 12).all():
-                self._raw_time_index -= pd.Timedelta(12, 'h')
-        return self._raw_time_index
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
