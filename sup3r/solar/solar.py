@@ -5,12 +5,19 @@ to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
+import os
 import pandas as pd
 import numpy as np
+import logging
 from scipy.spatial import KDTree
 from farms.disc import disc
 from farms.utilities import calc_dhi, dark_night
 from rex import Resource, MultiTimeResource
+
+from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
+
+
+logger = logging.getLogger(__name__)
 
 
 class Solar:
@@ -18,8 +25,8 @@ class Solar:
     ratio to GHI, DNI, and DHI using NSRDB data and utility modules like
     DISC"""
 
-    def __init__(self, sup3r_fps, nsrdb_fp, tz=-6, agg_factor=1,
-                 nn_threshold=0.5, cloud_threshold=0.99):
+    def __init__(self, sup3r_fps, nsrdb_fp, t_slice=slice(None), tz=-6,
+                 agg_factor=1, nn_threshold=0.5, cloud_threshold=0.99):
         """
         Parameters
         ----------
@@ -34,6 +41,14 @@ class Solar:
         nsrdb_fp : str
             Filepath to NSRDB .h5 file containing clearsky_ghi, clearsky_dni,
             clearsky_dhi data.
+        t_slice : slice
+            Slicing argument to slice the temporal axis of the sup3r_fps source
+            data after doing the tz roll to UTC but before returning the
+            irradiance variables. This can be used to effectively pad the solar
+            irradiance calculation in UTC time. For example, if sup3r_fps is 3
+            files each with 24 hours of data, t_slice can be slice(24, 48) to
+            only output the middle day of irradiance data, but padded by the
+            other two days for the UTC output.
         tz : int
             The timezone offset for the data in sup3r_fps. It is assumed that
             the GAN is trained on data in local time and therefore the output
@@ -52,6 +67,7 @@ class Solar:
             and DNI is calculated using DISC.
         """
 
+        self.t_slice = t_slice
         self.agg_factor = agg_factor
         self.nn_threshold = nn_threshold
         self.cloud_threshold = cloud_threshold
@@ -75,6 +91,14 @@ class Solar:
 
         self.preflight()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+        if type is not None:
+            raise
+
     def preflight(self):
         """Run preflight checks on source data to make sure everything will
         work together."""
@@ -91,14 +115,6 @@ class Solar:
         msg = ('Its assumed that the sup3r GAN output solar data will be '
                'hourly but received time index: {}'.format(ti_gan))
         assert delta == 3600, msg
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-        if type is not None:
-            raise
 
     def close(self):
         """Close all internal file handlers"""
@@ -142,6 +158,16 @@ class Solar:
         return self._dist
 
     @property
+    def time_index(self):
+        """Time index for the sup3r GAN output data but sliced by t_slice
+
+        Returns
+        -------
+        pd.DatetimeIndex
+        """
+        return self.gan_data.time_index[self.t_slice]
+
+    @property
     def out_of_bounds(self):
         """Get a boolean mask for the sup3r data that is out of bounds (too far
         from the NSRDB data).
@@ -159,13 +185,13 @@ class Solar:
         """Get the time slice of the NSRDB data corresponding to the sup3r GAN
         output."""
         ti_nsrdb = self.nsrdb.time_index
-        ti_gan = self.gan_data.time_index
+        ti_gan = self.time_index
         mask = ti_nsrdb.isin(ti_gan)
         msg = ('Time index intersection of the NSRDB time index and sup3r GAN '
-               'output does not have more than 24 common timesteps! Something '
+               'output has only {} common timesteps! Something '
                'went wrong.\nNSRDB time index: \n{}\nSup3r GAN output time '
-               'index:\n{}'.format(ti_nsrdb, ti_gan))
-        assert mask.sum() > 24, msg
+               'index:\n{}'.format(mask.sum(), ti_nsrdb, ti_gan))
+        assert mask.sum() > 0, msg
         ilocs = np.where(mask)[0]
         t0, t1 = ilocs[0], ilocs[-1] + 1
         step = pd.Series(np.diff(ilocs)).mode().values[0]
@@ -190,15 +216,19 @@ class Solar:
             # otherwise you can get seams
             self._cs_ratio[:-self.tz, :] = self._cs_ratio[-self.tz, :]
 
+            # apply temporal slicing of source data, see docstring on t_slice
+            # for more info
+            self._cs_ratio = self._cs_ratio[self.t_slice, :]
+
         return self._cs_ratio
 
     @property
-    def sza(self):
+    def solar_zenith_angle(self):
         """Get the solar zenith angle (degrees)
 
         Returns
         -------
-        sza : np.ndarray
+        solar_zenith_angle : np.ndarray
             2D array with shape (time, sites) in UTC.
         """
         if self._sza is None:
@@ -216,6 +246,7 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._ghi is None:
+            logger.info('Calculating GHI.')
             self._ghi = (self.get_nsrdb_data('clearsky_ghi')
                          * self.clearsky_ratio)
             self._ghi[:, self.out_of_bounds] = 0
@@ -233,13 +264,15 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._dni is None:
+            logger.info('Calculating DNI.')
             self._dni = self.get_nsrdb_data('clearsky_dni')
             pressure = self.get_nsrdb_data('surface_pressure')
-            doy = self.gan_data.time_index.day_of_year.values
-            cloudy_dni = disc(self.ghi, self.sza, doy, pressure=pressure)
+            doy = self.time_index.day_of_year.values
+            cloudy_dni = disc(self.ghi, self.solar_zenith_angle, doy,
+                              pressure=pressure)
             cloudy_dni = np.minimum(self._dni, cloudy_dni)
             self._dni[self.cloud_mask] = cloudy_dni[self.cloud_mask]
-            self._dni = dark_night(self._dni, self.sza)
+            self._dni = dark_night(self._dni, self.solar_zenith_angle)
             self._dni[:, self.out_of_bounds] = 0
         return self._dni
 
@@ -254,8 +287,10 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._dhi is None:
-            self._dhi, self._dni = calc_dhi(self.dni, self.ghi, self.sza)
-            self._dhi = dark_night(self._dhi, self.sza)
+            logger.info('Calculating DHI.')
+            self._dhi, self._dni = calc_dhi(self.dni, self.ghi,
+                                            self.solar_zenith_angle)
+            self._dhi = dark_night(self._dhi, self.solar_zenith_angle)
             self._dhi[:, self.out_of_bounds] = 0
         return self._dhi
 
@@ -288,6 +323,7 @@ class Solar:
             the sites is an average across multiple NSRDB sites.
         """
 
+        logger.debug('Retrieving "{}" from NSRDB source data.'.format(dset))
         out = None
 
         for idx in range(self.idnn.shape[1]):
@@ -302,3 +338,41 @@ class Solar:
         out /= self.idnn.shape[1]
 
         return out
+
+    def write(self, fp_out, features=('ghi', 'dni', 'dhi')):
+        """Write irradiance datasets (ghi, dni, dhi) to output h5 file.
+
+        Parameters
+        ----------
+        fp_out : str
+            Filepath to an output h5 file to write irradiance variables to.
+            Parent directory will be created if it does not exist.
+        """
+
+        if not os.path.exists(os.path.dirname(fp_out)):
+            os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
+        with RexOutputs(fp_out, 'w') as fh:
+            fh.meta = self.gan_data.meta
+            fh.time_index = self.time_index
+
+            for i, feat_name in enumerate(features):
+                attrs = H5_ATTRS[feat_name]
+                arr = getattr(self, feat_name, None)
+                if arr is None:
+                    msg = ('Feature "{}" was not available from Solar '
+                           'module class.'.format(feat_name))
+                    logger.error(msg)
+                    raise AttributeError(msg)
+
+                fh.add_dataset(fp_out, feat_name, arr,
+                               dtype=attrs['dtype'],
+                               attrs=attrs,
+                               chunks=attrs['chunks'])
+                logger.info(f'Added {feat_name} to output file.')
+
+            run_attrs = self.gan_data.h5[self._sup3r_fps[0]].global_attrs
+            run_attrs['nsrdb_source'] = self._nsrdb_fp
+            fh.run_attrs = run_attrs
+
+        logger.info(f'Finished writing file: {fp_out}')

@@ -5,6 +5,7 @@ import os
 import numpy as np
 import tempfile
 import matplotlib.pyplot as plt
+from rex import Resource
 
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
@@ -18,6 +19,8 @@ def test_solar_module(plot=False):
 
     nsrdb_fp = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
 
+    gan_meta = {'s_enhance': 4, 't_enhance': 24}
+
     lr_lat = np.linspace(40, 39, 5)
     lr_lon = np.linspace(-105.5, -104.3, 5)
     lr_lon, lr_lat = np.meshgrid(lr_lon, lr_lat)
@@ -25,8 +28,11 @@ def test_solar_module(plot=False):
     lr_lat = np.expand_dims(lr_lat, axis=2)
     low_res_lat_lon = np.concatenate((lr_lat, lr_lon), axis=2)
 
+    t_slice = slice(24, 48)
     low_res_times = pd_date_range('20180101', '20180104',
                                   inclusive='left', freq='1d')
+    high_res_times = pd_date_range('20180101', '20180104',
+                                   inclusive='left', freq='1h')
 
     fps = []
 
@@ -45,10 +51,15 @@ def test_solar_module(plot=False):
             OutputHandlerH5.write_output(cs_ratio, ['clearsky_ratio'],
                                          low_res_lat_lon,
                                          [timestamp],
-                                         out_file, max_workers=1)
+                                         out_file, max_workers=1,
+                                         meta_data=gan_meta)
             fps.append(out_file)
 
-        with Solar(fps, nsrdb_fp) as solar:
+        with Resource(fps[1]) as res:
+            meta_base = res.meta
+            attrs_base = res.global_attrs
+
+        with Solar(fps, nsrdb_fp, t_slice=t_slice) as solar:
             ghi = solar.ghi
             dni = solar.dni
             dhi = solar.dhi
@@ -62,11 +73,25 @@ def test_solar_module(plot=False):
             assert (dni >= 0).all()
             assert (dhi >= 0).all()
 
-            # make sure the roll worked and the overflow is back filled instead
-            # of leaving the roll seam.
-            for i in range(6):
-                assert np.allclose(solar.clearsky_ratio[i, :],
-                                   solar.clearsky_ratio[6, :])
+            fp_out = os.path.join(td, 'solar/out.h5')
+            solar.write(fp_out)
+
+            assert os.path.exists(fp_out)
+            with Resource(fp_out) as res:
+                assert np.allclose(res['ghi'], ghi, atol=1)
+                assert np.allclose(res['dni'], dni, atol=1)
+                assert np.allclose(res['dhi'], dhi, atol=1)
+
+                res_ti = res.time_index.tz_convert(None)
+                assert (high_res_times[t_slice] == res_ti).all()
+                assert np.allclose(res.meta['latitude'],
+                                   meta_base['latitude'])
+                assert np.allclose(res.meta['longitude'],
+                                   meta_base['longitude'])
+
+                assert res.global_attrs['nsrdb_source'] == nsrdb_fp
+                for k, v in attrs_base.items():
+                    assert res.global_attrs[k] == v
 
         if plot:
             for i in range(len(ghi)):
@@ -75,3 +100,6 @@ def test_solar_module(plot=False):
                 plt.colorbar(a)
                 plt.savefig('./test_ghi_{}.png'.format(i))
                 plt.close()
+
+
+test_solar_module()
