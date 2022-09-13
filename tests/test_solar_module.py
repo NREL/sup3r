@@ -27,9 +27,9 @@ LR_LON, LR_LAT = np.meshgrid(LR_LON, LR_LAT)
 LR_LON = np.expand_dims(LR_LON, axis=2)
 LR_LAT = np.expand_dims(LR_LAT, axis=2)
 LOW_RES_LAT_LON = np.concatenate((LR_LAT, LR_LON), axis=2)
-LOW_RES_TIMES = pd_date_range('20180101', '20180104',
+LOW_RES_TIMES = pd_date_range('20500101', '20500104',
                               inclusive='left', freq='1d')
-HIGH_RES_TIMES = pd_date_range('20180101', '20180104',
+HIGH_RES_TIMES = pd_date_range('20500101', '20500104',
                                inclusive='left', freq='1h')
 
 

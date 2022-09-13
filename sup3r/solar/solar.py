@@ -85,6 +85,7 @@ class Solar:
         self.nsrdb = Resource(self._nsrdb_fp)
 
         # cached variables
+        self._nsrdb_tslice = None
         self._idnn = None
         self._dist = None
         self._sza = None
@@ -188,18 +189,37 @@ class Solar:
     def nsrdb_tslice(self):
         """Get the time slice of the NSRDB data corresponding to the sup3r GAN
         output."""
-        ti_nsrdb = self.nsrdb.time_index
-        ti_gan = self.time_index
-        mask = ti_nsrdb.isin(ti_gan)
-        msg = ('Time index intersection of the NSRDB time index and sup3r GAN '
-               'output has only {} common timesteps! Something '
-               'went wrong.\nNSRDB time index: \n{}\nSup3r GAN output time '
-               'index:\n{}'.format(mask.sum(), ti_nsrdb, ti_gan))
-        assert mask.sum() > 0, msg
-        ilocs = np.where(mask)[0]
-        t0, t1 = ilocs[0], ilocs[-1] + 1
-        step = pd.Series(np.diff(ilocs)).mode().values[0]
-        return slice(t0, t1, step)
+
+        if self._nsrdb_tslice is None:
+            doy_nsrdb = self.nsrdb.time_index.day_of_year
+            doy_gan = self.time_index.day_of_year
+            mask = doy_nsrdb.isin(doy_gan)
+
+            if mask.sum() == 0:
+                msg = ('Time index intersection of the NSRDB time index and '
+                       'sup3r GAN output has only {} common timesteps! '
+                       'Something went wrong.\nNSRDB time index: \n{}\nSup3r '
+                       'GAN output time index:\n{}'
+                       .format(mask.sum(), self.nsrdb.time_index,
+                               self.time_index))
+                logger.error(msg)
+                raise RuntimeError(msg)
+
+            ilocs = np.where(mask)[0]
+            t0, t1 = ilocs[0], ilocs[-1] + 1
+
+            ti_nsrdb = self.nsrdb.time_index
+            ti_nsrdb_1 = np.roll(ti_nsrdb, 1)
+            delta = (ti_nsrdb - ti_nsrdb_1)[1:].mean().total_seconds()
+            step = int(3600 // delta)
+            self._nsrdb_tslice = slice(t0, t1, step)
+
+            logger.info('Found nsrdb_tslice {} with corresponding '
+                        'time index: {}'
+                        .format(self._nsrdb_tslice,
+                                self.nsrdb.time_index[self._nsrdb_tslice]))
+
+        return self._nsrdb_tslice
 
     @property
     def clearsky_ratio(self):
