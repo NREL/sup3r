@@ -209,8 +209,8 @@ class ForwardPassSlicer:
                                 if s is not None]
                 s_enhance = np.product(enhancements)
                 exo_slices = []
-                pad_shape_0 = self.grid_shape[0]# + 2 * self.spatial_pad
-                pad_shape_1 = self.grid_shape[1]# + 2 * self.spatial_pad
+                pad_shape_0 = self.grid_shape[0]
+                pad_shape_1 = self.grid_shape[1]
                 s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
                                                        pad_shape_0,
                                                        s_enhance,
@@ -279,14 +279,12 @@ class ForwardPassSlicer:
     @property
     def s1_hr_slices(self):
         """Get high res spatial slices for first spatial dimension"""
-        return self.get_hr_slices(self.s1_lr_slices, self.s_enhance,
-                                  self.spatial_pad)
+        return self.get_hr_slices(self.s1_lr_slices, self.s_enhance)
 
     @property
     def s2_hr_slices(self):
         """Get high res spatial slices for second spatial dimension"""
-        return self.get_hr_slices(self.s2_lr_slices, self.s_enhance,
-                                  self.spatial_pad)
+        return self.get_hr_slices(self.s2_lr_slices, self.s_enhance)
 
     @property
     def s_hr_slices(self):
@@ -438,7 +436,7 @@ class ForwardPassSlicer:
         return ti_slices
 
     @staticmethod
-    def get_hr_slices(slices, enhancement, padding, step=None):
+    def get_hr_slices(slices, enhancement, step=None):
         """Get high resolution slices for temporal or spatial slices
 
         Parameters
@@ -447,10 +445,6 @@ class ForwardPassSlicer:
             Low resolution slices to be enhanced
         enhancement : int
             Enhancement factor
-        padding : int
-            Low-res padding to ignore in the hr_slices. For example, if the
-            unpadded low res slice starts at slice(2, 4), setting padding=2
-            will set the high res slice to start at 0
 
         Returns
         -------
@@ -1084,7 +1078,6 @@ class ForwardPass:
 
         n_tsteps = len(self.strategy.raw_time_index[self.ti_slice])
 
-        breakpoint()
         self.hr_data_shape = (self.strategy.s_enhance * self.data_shape[0],
                               self.strategy.s_enhance * self.data_shape[1],
                               self.strategy.t_enhance * n_tsteps,

@@ -526,8 +526,6 @@ def test_fwp_multi_step_model_topo_exoskip():
 
         forward_pass = ForwardPass(handler)
 
-        breakpoint()
-
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
