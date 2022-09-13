@@ -6,7 +6,8 @@ import click
 import logging
 
 from sup3r.version import __version__
-from sup3r.pipeline.forward_pass_cli import from_config as fp_cli
+from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
+from sup3r.solar.solar_cli import from_config as solar_cli
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
 from sup3r.qa.qa_cli import from_config as qa_cli
@@ -113,7 +114,56 @@ def forward_pass(ctx, verbose):
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(fp_cli, config_file=config_file, verbose=verbose)
+    ctx.invoke(fwp_cli, config_file=config_file, verbose=verbose)
+
+
+@main.command()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def solar(ctx, verbose):
+    """Sup3r solar module to convert GAN output clearsky ratio to irradiance
+
+    Typically we train solar GAN's on clearsky ratio to remove the dependence
+    on known variables like solar position and clearsky irradiance. This module
+    converts the clearsky ratio output by the GAN in the forward-pass step to
+    actual irradiance values (ghi, dni, and dhi). This should be run after the
+    forward-pass but before the data-collect step.
+
+    You can call the solar module via the sup3r-pipeline CLI, or call it
+    directly with either of these equivelant commands::
+
+        $ sup3r -c config_solar.json solar
+
+        $ sup3r-solar from-config -c config_solar.json
+
+    A sup3r solar config.json file can contain any arguments or keyword
+    arguments required to call the
+    :meth:`sup3r.solar.solar.Solar.run_temporal_chunk` method. You do not need
+    to include the ``i_t_chunk`` input, this is added by the CLI. The config
+    also has several optional arguments: ``log_pattern``, ``log_level``, and
+    ``execution_control``. Here's a small example forward pass config::
+
+        {
+            "fp_pattern": "./chunks/sup3r*.h5",
+            "nsrdb_fp": "/datasets/NSRDB/current/nsrdb_2015.h5",
+            "execution_control": {
+                "option": "local"
+            },
+            "execution_control_eagle": {
+                "option": "eagle",
+                "walltime": 4,
+                "alloc": "sup3r"
+            }
+        }
+
+    Note that the ``execution_control`` block will run the job locally, while
+    the ``execution_control_eagle`` block are kwargs that would be required to
+    distribute the job on multiple nodes on the NREL HPC.
+    """
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(solar_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
