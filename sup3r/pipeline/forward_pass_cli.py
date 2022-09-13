@@ -76,7 +76,11 @@ def from_config(ctx, config_file, verbose):
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
     node_index = config.get('node_index', None)
-    nodes = [node_index] if node_index is not None else range(strategy.nodes)
+    if node_index is not None:
+        if not isinstance(node_index, list):
+            nodes = [node_index]
+    else:
+        nodes = range(strategy.nodes)
     for i in nodes:
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i
@@ -84,7 +88,7 @@ def from_config(ctx, config_file, verbose):
             log_pattern if log_pattern is None
             else os.path.normpath(log_pattern.format(node_index=i)))
         name = ('sup3r_fwp_{}_{}'.format(os.path.basename(status_dir),
-                                         str(i).zfill(5)))
+                                         str(i).zfill(6)))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
         cmd = ForwardPass.get_node_cmd(node_config)

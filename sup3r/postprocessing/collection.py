@@ -149,9 +149,8 @@ class Collector:
 
         final_index = final_meta.index
         new_index = new_meta.index
-
         row_loc = np.where(final_time_index.isin(new_time_index))[0]
-        col_loc = np.where(final_index.isin(new_index))[0]
+        col_loc = np.where(final_meta['gid'].isin(new_meta['gid']))[0]
 
         if not any(row_loc):
             msg = ('Could not find row locations in file collection. '
@@ -168,9 +167,8 @@ class Collector:
             raise RuntimeError(msg)
 
         row_slice = slice(np.min(row_loc), np.max(row_loc) + 1)
-        col_slice = slice(np.min(col_loc), np.max(col_loc) + 1)
 
-        return row_slice, col_slice
+        return row_slice, col_loc
 
     def get_data(self, file_path, feature, time_index, meta, scale_factor,
                  dtype):
@@ -290,6 +288,7 @@ class Collector:
         if 'latitude' in meta and 'longitude' in meta:
             meta = meta.drop_duplicates(subset=['latitude', 'longitude'])
 
+        meta = meta.sort_values('gid')
         shape = (len(time_index), len(meta))
 
         with RexOutputs(file_paths[0], mode='r') as fin:
@@ -322,8 +321,8 @@ class Collector:
             logger.info('Initializing collection output file with shape {} '
                         'and meta data:\n{}'
                         .format((len(time_index), len(meta)), meta))
-            f['time_index'] = time_index
-            f['meta'] = meta
+            f.time_index = time_index
+            f.meta = meta
             f.run_attrs = global_attrs
 
     @staticmethod
@@ -496,10 +495,9 @@ class Collector:
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
 
-        logger.info('Collecting data from {} to {}'.format(file_paths,
-                                                           out_file))
-
         collector = cls(file_paths)
+        logger.info('Collecting data from {} to {}'.format(collector.flist,
+                                                           out_file))
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if n_writes > len(collector.flist):
@@ -527,7 +525,7 @@ class Collector:
         if write_status and job_name is not None:
             status = {'out_dir': os.path.dirname(out_file),
                       'fout': out_file,
-                      'flist': file_paths,
+                      'flist': collector.flist,
                       'job_status': 'successful',
                       'runtime': (time.time() - t0) / 60}
             Status.make_job_file(os.path.dirname(out_file), 'collect',

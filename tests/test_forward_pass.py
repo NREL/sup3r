@@ -69,21 +69,22 @@ def test_forward_pass_nc_cc():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers, input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
 
 
 def test_forward_pass_nc():
@@ -118,21 +119,22 @@ def test_forward_pass_nc():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with xr.open_dataset(handler.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(handler.time_index), s_enhance * shape[0],
-                s_enhance * shape[1])
+                t_enhance * len(handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1])
 
 
 def test_forward_pass_temporal_slice():
@@ -171,17 +173,17 @@ def test_forward_pass_temporal_slice():
             overwrite_cache=True, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * n_tsteps,
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * n_tsteps,
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -241,20 +243,19 @@ def test_fwd_pass_handler():
             overwrite_cache=True,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
-        data = forward_pass.run()
+        data = forward_pass.run_chunk()
 
-        assert data.shape == (s_enhance * shape[0],
-                              s_enhance * shape[1],
+        assert data.shape == (s_enhance * fwp_chunk_shape[0],
+                              s_enhance * fwp_chunk_shape[1],
                               t_enhance * len(input_files), 2)
 
 
-def test_fwd_pass_chunking():
-    """Test forward pass chunking. Make sure chunking agrees closely
+def test_fwd_pass_space_chunking():
+    """Test forward pass spatial chunking. Make sure chunking agrees closely
     with non chunking forward pass.
     """
 
@@ -295,15 +296,91 @@ def test_fwd_pass_chunking():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run()
+            overwrite_cache=True,
+            ti_workers=1)
+
+        data = []
+        for i in range(handler.chunks):
+            forward_pass = ForwardPass(handler, chunk_index=i)
+            data_chunked = forward_pass.run_chunk()
+            data.append(data_chunked)
 
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape)
+                                  val_split=0.0, shape=shape, ti_workers=1)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
+
+        data_chunked = np.zeros(data_nochunk.shape)
+        data_chunked[:12, :12, :, :] = data[0]
+        data_chunked[12:, 12:, :, :] = data[1]
+
+        assert np.mean(
+            (np.abs(data_chunked - data_nochunk)
+             / np.product(data_chunked.shape))) < 0.01
+
+
+def test_fwd_pass_time_chunking():
+    """Test forward pass temporal chunking. Make sure chunking agrees closely
+    with non chunking forward pass.
+    """
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=(20, 20),
+                            sample_shape=(18, 18, 24),
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            max_workers=1)
+
+    batch_handler = BatchHandler([handler], batch_size=4,
+                                 s_enhance=s_enhance,
+                                 t_enhance=t_enhance,
+                                 n_batches=4)
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        np.random.shuffle(input_files)
+        model.train(batch_handler, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=2,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        cache_pattern = os.path.join(td, 'cache')
+        handler = ForwardPassStrategy(
+            input_files, model_args=out_dir,
+            fwp_chunk_shape=(shape[0], shape[1], len(input_files) // 2),
+            spatial_pad=1, temporal_pad=1,
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            cache_pattern=cache_pattern,
+            overwrite_cache=True,
+            ti_workers=1)
+
+        data = []
+        for i in range(handler.chunks):
+            forward_pass = ForwardPass(handler, chunk_index=i)
+            data_chunked = forward_pass.run_chunk()
+            data.append(data_chunked)
+
+        handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
+                                  val_split=0.0, shape=shape, ti_workers=1)
+
+        data_nochunk = model.generate(
+            np.expand_dims(handlerNC.data, axis=0))[0]
+
+        data_chunked = np.zeros(data_nochunk.shape)
+        data_chunked[..., :16, :] = data[0]
+        data_chunked[..., 16:, :] = data[1]
 
         assert np.mean(
             (np.abs(data_chunked - data_nochunk)
@@ -352,9 +429,10 @@ def test_fwd_pass_nochunking():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
-            overwrite_cache=True)
+            overwrite_cache=True,
+            ti_workers=1)
         forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run()
+        data_chunked = forward_pass.run_chunk()
 
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
@@ -363,7 +441,8 @@ def test_fwd_pass_nochunking():
                                   cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
-                                  val_split=0.0)
+                                  val_split=0.0,
+                                  ti_workers=1)
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -435,22 +514,24 @@ def test_fwp_multi_step_model_topo_exoskip():
             out_pattern=out_files,
             temporal_slice=temporal_slice,
             max_workers=max_workers,
-            exo_kwargs=exo_kwargs)
+            exo_kwargs=exo_kwargs,
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -530,22 +611,24 @@ def test_fwp_multi_step_model_topo():
             out_pattern=out_files,
             temporal_slice=temporal_slice,
             max_workers=max_workers,
-            exo_kwargs=exo_kwargs)
+            exo_kwargs=exo_kwargs,
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 
@@ -605,7 +688,9 @@ def test_fwp_multi_step_model():
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             out_pattern=out_files,
-            max_workers=max_workers)
+            max_workers=max_workers,
+            max_nodes=1,
+            ti_workers=1)
 
         forward_pass = ForwardPass(handler)
         ones = np.ones((fwp_chunk_shape[2], fwp_chunk_shape[0],
@@ -613,18 +698,18 @@ def test_fwp_multi_step_model():
         out = forward_pass.model.generate(ones)
         assert out.shape == (1, 24, 24, 32, 2)
 
-        assert forward_pass.pass_workers == max_workers
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
         assert forward_pass.data_handler.extract_workers == max_workers
 
-        forward_pass.run()
+        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files),
-                                s_enhance**2 * shape[0] * shape[1])
+            assert fh.shape == (
+                t_enhance * len(input_files),
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1])
             assert all(f in fh.attrs for f in ('windspeed_100m',
                                                'winddirection_100m'))
 

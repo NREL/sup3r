@@ -74,9 +74,12 @@ class InputMixIn:
     def __init__(self):
         self.raster_file = None
         self.raster_index = None
+        self.overwrite_cache = False
+        self.ti_workers = None
         self.lat_lon = None
         self._raw_time_index = None
         self._time_index = None
+        self._time_index_file = None
         self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
@@ -89,9 +92,8 @@ class InputMixIn:
         """Get target and shape for largest domain possible when target + shape
         are not specified"""
 
-    @classmethod
     @abstractmethod
-    def get_time_index(cls, file_paths):
+    def get_time_index(self, file_paths, max_workers=None):
         """Get raw time index for source data"""
 
     @property
@@ -182,7 +184,9 @@ class InputMixIn:
             if '{feature}' not in self._cache_pattern:
                 self._cache_pattern = self._cache_pattern.replace(
                     '.pkl', '_{feature}.pkl')
-
+            basedir = os.path.dirname(self._cache_pattern)
+            if not os.path.exists(basedir):
+                os.makedirs(basedir, exist_ok=True)
         return self._cache_pattern
 
     @cache_pattern.setter
@@ -206,7 +210,7 @@ class InputMixIn:
                  or not os.path.exists(self.raster_file))
         check = check and (self._target is None or self._grid_shape is None)
         if check:
-            new_target, new_shape = self.get_full_domain(self.file_paths)
+            new_target, new_shape = self.get_full_domain(self.file_paths[0:1])
             self._target = self._target or new_target
             self._grid_shape = self._grid_shape or new_shape
             logger.info('Target + shape not specified. Getting full domain '
@@ -260,11 +264,48 @@ class InputMixIn:
         self._grid_shape = grid_shape
 
     @property
+    def time_index_file(self):
+        """Get time index file path"""
+        if self.cache_pattern is not None and self._time_index_file is None:
+            basename = self.cache_pattern.replace('{times}', '')
+            basename = basename.replace('{shape}', str(len(self.file_paths)))
+            basename = basename.replace('_{target}', '')
+            basename = basename.replace('{feature}', 'time_index')
+            basename = basename.replace('_.pkl', '.pkl')
+            self._time_index_file = basename
+        return self._time_index_file
+
+    @property
     def raw_time_index(self):
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
         if self._raw_time_index is None:
-            self._raw_time_index = self.get_time_index(self.file_paths)
+            check = (self.time_index_file is not None
+                     and os.path.exists(self.time_index_file)
+                     and not self.overwrite_cache)
+            if check:
+                logger.debug('Loading raw_time_index from '
+                             f'{self.time_index_file}')
+                with open(self.time_index_file, 'rb') as f:
+                    self._raw_time_index = pickle.load(f)
+            else:
+                now = dt.now()
+                logger.debug('Did not find time index file: '
+                             f'{self.time_index_file}')
+                logger.debug(f'Getting time index for {len(self.file_paths)} '
+                             'input files.')
+                self._raw_time_index = self.get_time_index(self.file_paths,
+                                                           self.ti_workers)
+
+                if self.time_index_file is not None:
+                    logger.debug('Saved raw_time_index to '
+                                 f'{self.time_index_file}')
+                    with open(self.time_index_file, 'wb') as f:
+                        pickle.dump(self._raw_time_index, f)
+                logger.debug(f'Built full time index in {dt.now() - now} '
+                             'seconds.')
+            if (self._raw_time_index.hour == 12).all():
+                self._raw_time_index -= pd.Timedelta(12, 'h')
         return self._raw_time_index
 
     @property
@@ -335,24 +376,14 @@ class DataHandler(FeatureHandler, InputMixIn):
                            'topography')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=20,
-                 temporal_slice=slice(None),
-                 hr_spatial_coarsen=None,
-                 time_roll=0,
-                 val_split=0.05,
-                 sample_shape=(10, 10, 1),
-                 raster_file=None,
-                 shuffle_time=False,
-                 time_chunk_size=None,
-                 cache_pattern=None,
-                 overwrite_cache=False,
-                 load_cached=False,
-                 train_only_features=None,
-                 max_workers=None,
-                 extract_workers=None,
-                 compute_workers=None,
-                 load_workers=None,
-                 norm_workers=None):
+                 max_delta=20, temporal_slice=slice(None),
+                 hr_spatial_coarsen=None, time_roll=0, val_split=0.05,
+                 sample_shape=(10, 10, 1), raster_file=None,
+                 shuffle_time=False, time_chunk_size=None, cache_pattern=None,
+                 overwrite_cache=False, load_cached=False,
+                 train_only_features=None, max_workers=None,
+                 extract_workers=None, compute_workers=None, load_workers=None,
+                 norm_workers=None, ti_workers=None):
         """
         Parameters
         ----------
@@ -437,10 +468,17 @@ class DataHandler(FeatureHandler, InputMixIn):
             max number of workers to use for loading cached feature data.
         norm_workers : int | None
             max number of workers to use for normalizing feature data.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
         """
         if max_workers is not None:
             extract_workers = compute_workers = max_workers
-            load_workers = norm_workers = max_workers
+            load_workers = norm_workers = ti_workers = max_workers
 
         self.file_paths = file_paths
         self.features = features
@@ -460,6 +498,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.val_data = None
         self.target = target
         self.grid_shape = shape
+        self.ti_workers = ti_workers
         self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
@@ -471,6 +510,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._cache_files = None
         self._raw_time_index = None
         self._time_index = None
+        self._time_index_file = None
         self._lat_lon = None
         self._raster_index = None
         self._handle_features = None
@@ -921,15 +961,12 @@ class DataHandler(FeatureHandler, InputMixIn):
             List of cache file names
         """
         if cache_pattern is not None:
-            basedir = os.path.dirname(cache_pattern)
-            if not os.path.exists(basedir):
-                os.makedirs(basedir, exist_ok=True)
             cache_files = [cache_pattern.replace('{feature}', f.lower())
                            for f in self.features]
-
             for i, f in enumerate(cache_files):
                 if '{shape}' in f:
                     shape = f'{self.grid_shape[0]}x{self.grid_shape[1]}'
+                    shape += f'x{len(self.time_index)}'
                     f = f.replace('{shape}', shape)
                 if '{target}' in f:
                     target = f'{self.target[0]:.2f}_{self.target[1]:.2f}'
@@ -1205,9 +1242,9 @@ class DataHandler(FeatureHandler, InputMixIn):
                 msg = ('Data loaded from from cache file "{}" '
                        'could not be written to feature channel {} '
                        'of full data array of shape {}. '
-                       'Make sure the cached data has the '
-                       'appropriate shape.'
-                       .format(fp, idx, self.data.shape))
+                       'The cached data has the wrong shape {}.'
+                       .format(fp, idx, self.data.shape,
+                               pickle.load(fh).shape))
                 raise RuntimeError(msg) from e
 
     def load_cached_data(self):
@@ -1544,7 +1581,7 @@ class DataHandlerNC(DataHandler):
                                  concat_dim='Time', **kwargs)
 
     @classmethod
-    def get_time_index(cls, file_paths):
+    def get_file_times(cls, file_paths):
         """Get time index from data files
 
         Parameters
@@ -1567,8 +1604,56 @@ class DataHandlerNC(DataHandler):
             elif hasattr(handle, 'times'):
                 time_index = np_to_pd_times(handle.times.values)
             else:
-                raise ValueError(f'Could not get time_index for {file_paths}')
+                msg = (f'Could not get time_index for {file_paths}')
+                time_index = None
+                logger.warning(msg)
+                warnings.warn(msg)
+
         return time_index
+
+    @classmethod
+    def get_time_index(cls, file_paths, max_workers=None):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        max_workers : int | None
+            Max number of workers to use for parallel time index building
+
+        Returns
+        -------
+        time_index : pd.Datetimeindex
+            List of times as a Datetimeindex
+        """
+        if max_workers == 1:
+            return cls.get_file_times(file_paths)
+        ti = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i, f in enumerate(file_paths):
+                future = exe.submit(cls.get_file_times, [f])
+                futures[future] = {'idx': i, 'file': f}
+
+            logger.info(f'Started building time index from {len(file_paths)} '
+                        f'files in {dt.now() - now}.')
+
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    val = future.result()
+                    if val is not None:
+                        ti[futures[future]['idx']] = list(val)
+                except Exception as e:
+                    msg = ('Error while getting time index from file '
+                           f'{futures[future]["file"]}.')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+                logger.debug(
+                    f'Stored {i+1} out of {len(futures)} file times')
+        times = np.concatenate(list(ti.values()))
+        return pd.DatetimeIndex(sorted(set(times)))
 
     @classmethod
     def feature_registry(cls):
@@ -1848,16 +1933,6 @@ class DataHandlerNCforCC(DataHandlerNC):
         """
         return xr.open_mfdataset(file_paths, **kwargs)
 
-    @property
-    def raw_time_index(self):
-        """Time index for input data without time pruning. This is the base
-        time index for the raw input data."""
-        if self._raw_time_index is None:
-            self._raw_time_index = self.get_time_index(self.file_paths)
-            if (self._raw_time_index.hour == 12).all():
-                self._raw_time_index -= pd.Timedelta(12, 'h')
-        return self._raw_time_index
-
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
         un-manipulated datasets.
@@ -1995,13 +2070,15 @@ class DataHandlerH5(DataHandler):
         raise ValueError(msg)
 
     @classmethod
-    def get_time_index(cls, file_paths):
+    def get_time_index(cls, file_paths, max_workers=None):
         """Get time index from data files
 
         Parameters
         ----------
         file_paths : list
             path to data file
+        max_workers : int | None
+            placeholder to match signature
 
         Returns
         -------

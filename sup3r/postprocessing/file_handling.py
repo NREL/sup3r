@@ -146,6 +146,7 @@ class OutputHandler:
         new_points = np.zeros((np.product(shape), 2), dtype=np.float32)
         lats = low_res_lat_lon[..., 0].flatten()
         lons = low_res_lat_lon[..., 1].flatten()
+        lons = (lons + 360) % 360
 
         # This shifts the indices for the old points by the downsampling
         # fraction so that we can calculate the centers of the new points with
@@ -166,6 +167,7 @@ class OutputHandler:
         old_points[:, 1] += lon_shift
         lats = RBFInterpolator(old_points, lats, neighbors=10)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=10)(new_points)
+        lons = (lons + 180) % 360 - 180
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         return lat_lon
 
@@ -204,12 +206,12 @@ class OutputHandler:
     @classmethod
     @abstractmethod
     def _write_output(cls, data, features, lat_lon, times, out_file, meta_data,
-                      max_workers=None):
+                      max_workers=None, gids=None):
         """Write output to file with specified times and lats/lons"""
 
     @classmethod
     def write_output(cls, data, features, low_res_lat_lon, low_res_times,
-                     out_file, meta_data=None, max_workers=None):
+                     out_file, meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to file
 
         Parameters
@@ -231,11 +233,14 @@ class OutputHandler:
         max_workers : int | None
             Max workers to use for inverse uv transform. If None the
             max_workers will be estimated based on memory limits.
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         cls._write_output(data, features, lat_lon, times, out_file,
-                          meta_data, max_workers)
+                          meta_data, max_workers, gids)
 
 
 class OutputHandlerNC(OutputHandler):
@@ -244,7 +249,7 @@ class OutputHandlerNC(OutputHandler):
     # pylint: disable=W0613
     @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None):
+                      meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to NETCDF file
 
         Parameters
@@ -266,6 +271,9 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         max_workers : int | None
             Has no effect. For compliance with H5 output handler
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         coords = {'Times': (['Time'], times),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
@@ -416,8 +424,34 @@ class OutputHandlerH5(OutputHandler):
         data[..., v_idx] = wd
 
     @classmethod
+    def _transform_output(cls, data, features, lat_lon, max_workers=None):
+        """Transform output data before writing to H5 file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
+        """
+
+        cls.invert_uv_features(data, features, lat_lon,
+                               max_workers=max_workers)
+        features = cls.get_renamed_features(features)
+        data = cls.enforce_limits(features, data)
+        return data, features
+
+    @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None):
+                      meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to H5 file
 
         Parameters
@@ -440,17 +474,21 @@ class OutputHandlerH5(OutputHandler):
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
-        features = cls.get_renamed_features(features)
-        meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
+        data, features = cls._transform_output(data.copy(), features, lat_lon,
+                                               max_workers)
+        gids = (gids if gids is not None
+                else np.arange(np.product(lat_lon.shape[:-1])))
+        meta = pd.DataFrame({'gid': gids.flatten(),
+                             'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
+
         with RexOutputs(out_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = times
-
-            data = cls.enforce_limits(features, data)
 
             for i, f in enumerate(features):
                 attrs = H5_ATTRS[Feature.get_basename(f)]

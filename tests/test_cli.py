@@ -36,6 +36,105 @@ def runner():
     return CliRunner()
 
 
+def test_pipeline_fwp_collect(runner):
+    """Test pipeline with forward pass and data collection"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:2]
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        fp_out = os.path.join(td, 'fwp_combined.h5')
+        fwp_chunk_shape = (4, 4, 6)
+        n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
+        n_nodes *= shape[0] // fwp_chunk_shape[0]
+        n_nodes *= shape[1] // fwp_chunk_shape[1]
+        cache_pattern = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        log_prefix = os.path.join(td, 'log.log')
+        fwp_config = {'ti_workers': 1,
+                      'file_paths': input_files,
+                      'target': (19.3, -123.5),
+                      'model_args': out_dir,
+                      'out_pattern': out_files,
+                      'cache_pattern': cache_pattern,
+                      'log_pattern': log_prefix,
+                      'shape': shape,
+                      'fwp_chunk_shape': fwp_chunk_shape,
+                      'time_chunk_size': 10,
+                      'max_workers': 1,
+                      'spatial_pad': 5,
+                      'temporal_pad': 5,
+                      'overwrite_cache': True,
+                      'execution_control': {
+                          "option": "local"}}
+
+        features = ['windspeed_100m', 'winddirection_100m']
+        out_files = os.path.join(td, 'out_*.h5')
+        dc_config = {'file_paths': out_files,
+                     'out_file': fp_out,
+                     'features': features,
+                     'log_file': os.path.join(td, 'log.log'),
+                     'execution_control': {
+                         "option": "local"}}
+
+        fwp_config_path = os.path.join(td, 'config_fwp.json')
+        dc_config_path = os.path.join(td, 'config_dc.json')
+        pipe_config_path = os.path.join(td, 'config_pipe.json')
+        pipe_flog = os.path.join(td, 'pipeline.log')
+
+        pipe_config = {"logging": {"log_level": "DEBUG",
+                                   "log_file": pipe_flog},
+                       "pipeline": [{"forward-pass": fwp_config_path},
+                                    {"data-collect": dc_config_path}]}
+
+        with open(fwp_config_path, 'w') as fh:
+            json.dump(fwp_config, fh)
+        with open(dc_config_path, 'w') as fh:
+            json.dump(dc_config, fh)
+        with open(pipe_config_path, 'w') as fh:
+            json.dump(pipe_config, fh)
+
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
+                                           '-v', '--monitor'])
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
+
+        assert os.path.exists(fp_out)
+        with ResourceX(fp_out) as fh:
+            assert all(f in fh for f in features)
+            full_ti = fh.time_index
+            full_gids = fh.meta['gid']
+            combined_ti = []
+            for _, f in enumerate(glob.glob(out_files)):
+                with ResourceX(f) as fh_i:
+                    fi_ti = fh_i.time_index
+                    fi_gids = fh_i.meta['gid']
+                    assert all(gid in full_gids for gid in fi_gids)
+                    s_indices = np.where(full_gids.isin(fi_gids))[0]
+                    t_indices = np.where(full_ti.isin(fi_ti))[0]
+                    t_indices = slice(t_indices[0], t_indices[-1] + 1)
+                    chunk = fh['windspeed_100m'][t_indices, s_indices]
+                    assert np.allclose(chunk, fh_i['windspeed_100m'])
+                    chunk = fh['winddirection_100m'][t_indices, s_indices]
+                    assert np.allclose(chunk, fh_i['winddirection_100m'])
+                    combined_ti += list(fh_i.time_index)
+            assert len(full_ti) == len(set(combined_ti))
+
+
 def test_data_collection_cli(runner):
     """Test cli call to data collection on forward pass output"""
 
@@ -45,7 +144,8 @@ def test_data_collection_cli(runner):
         (out_files, _, _, _, features, _, _, _, _) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
-        config = {'file_paths': out_files,
+        config = {'ti_workers': 1,
+                  'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
                   'log_file': os.path.join(td, 'log.log'),
@@ -106,16 +206,19 @@ def test_fwd_pass_cli(runner):
 
         fwp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
+        n_chunks = n_nodes * shape[0] // fwp_chunk_shape[0]
+        n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
-        config = {'file_paths': input_files,
+        config = {'ti_workers': 1,
+                  'file_paths': input_files,
                   'target': (19.3, -123.5),
                   'model_args': out_dir,
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
-                  'shape': (8, 8),
+                  'shape': shape,
                   'fwp_chunk_shape': fwp_chunk_shape,
                   'time_chunk_size': 10,
                   'max_workers': 1,
@@ -137,9 +240,11 @@ def test_fwd_pass_cli(runner):
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
 
-        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES * n_nodes)
+        # include time index cache file
+        n_cache_files = 1 + ((len(FEATURES) + 1) * n_nodes)
+        assert len(glob.glob(f'{td}/cache*')) == n_cache_files
         assert len(glob.glob(f'{td}/*.log')) == n_nodes
-        assert len(glob.glob(f'{td}/out*')) == n_nodes
+        assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
 def test_data_extract_cli(runner):
@@ -169,7 +274,7 @@ def test_data_extract_cli(runner):
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
 
-        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
+        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES) + 1
         assert len(glob.glob(f'{log_file}')) == 1
 
 
@@ -210,7 +315,7 @@ def test_pipeline_fwp_qa(runner):
                           "option": "local"}}
 
         qa_config = {'source_file_paths': input_files,
-                     'out_file_path': os.path.join(td, 'out_00000.h5'),
+                     'out_file_path': os.path.join(td, 'out_000000_000000.h5'),
                      'qa_fp': os.path.join(td, 'qa.h5'),
                      's_enhance': 3,
                      't_enhance': 4,

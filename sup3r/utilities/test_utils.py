@@ -22,8 +22,10 @@ def make_fake_nc_files(td, input_file, n_files):
     fake_files : list
         List of dummy files
     """
-    fake_dates = [f'2014-10-01_0{i}_00_00' for i in range(n_files)]
-    fake_times = [f'2014-10-01 0{i}:00:00' for i in range(n_files)]
+    fake_dates = [f'2014-10-01_{str(i).zfill(2)}_00_00'
+                  for i in range(n_files)]
+    fake_times = [f'2014-10-01 {str(i).zfill(2)}:00:00'
+                  for i in range(n_files)]
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
         input_dset = xr.open_dataset(input_file)
@@ -80,8 +82,8 @@ def make_fake_h5_chunks(td):
     lon, lat = np.meshgrid(lon, lat)
     low_res_lat_lon = np.dstack((lat, lon))
 
-    low_res_times = pd_date_range('20220101', '20220103', freq='1h',
-                                  inclusive='left').values
+    low_res_times = pd_date_range('20220101', '20220103', freq='3600s',
+                                  inclusive='left')
 
     slices_lr = [slice(0, 24), slice(24, None)]
     slices_hr = [slice(0, 48), slice(48, None)]
