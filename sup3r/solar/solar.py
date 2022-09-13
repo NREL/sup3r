@@ -344,9 +344,8 @@ class Solar:
         return out
 
     @staticmethod
-    def get_sup3r_fps(config):
-        """Get a list of file chunks to run in parallel based on a solar config
-        with key "fp_pattern".
+    def get_sup3r_fps(fp_pattern):
+        """Get a list of file chunks to run in parallel based on a file pattern
 
         NOTE: it's assumed that all source files have the pattern
         sup3r_file_TTTTTT_SSSSSS.h5 where TTTTTT is the zero-padded temporal
@@ -354,10 +353,9 @@ class Solar:
 
         Parameters
         ----------
-        config : dict
-            Solar config with args to initialize Solar class and to run
-            Solar.write(), must have "fp_pattern" that returns
-            spatiotemporally chunked sup3r forward pass output files.
+        fp_pattern : str
+            Unix-style file*pattern that matches a set of spatiotemporally
+            chunked sup3r forward pass output files.
 
         Returns
         -------
@@ -371,10 +369,12 @@ class Solar:
             List of t_slice arguments corresponding to fp_sets to pass to
             Solar class initialization that will slice and reduce the
             overlapping time axis when Solar outputs irradiance data.
+        temporal_ids : list
+            List of temporal id strings TTTTTT corresponding to the fp_sets
+        spatial_ids : list
+            List of spatial id strings SSSSSS corresponding to the fp_sets
         """
 
-        assert 'fp_pattern' in config, 'Need fp_pattern in config!'
-        fp_pattern = config['fp_pattern']
         all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
         all_fps = sorted(all_fps)
 
@@ -392,6 +392,8 @@ class Solar:
 
         fp_sets = []
         t_slices = []
+        temporal_ids = []
+        spatial_ids = []
         for idt, id_temporal in enumerate(all_id_temporal):
             start = 0
             single_chunk_id_temps = [id_temporal]
@@ -412,27 +414,28 @@ class Solar:
 
                 fp_sets.append(single_fp_set)
                 t_slices.append(slice(start, start + 24))
+                temporal_ids.append(id_temporal)
+                spatial_ids.append(id_spatial)
 
-        return fp_sets, t_slices
+        return fp_sets, t_slices, temporal_ids, spatial_ids
 
     @classmethod
     def get_node_cmd(cls, config):
-        """Get a CLI call to initialize Solar and run Solar.write() on a single
+        """Get a CLI call to run Solar.run_temporal_chunk() on a single
         node based on an input config.
 
         Parameters
         ----------
         config : dict
-            sup3r solar config with all necessary args and kwargs to initialize
-            Solar and run Solar.write() on a single node.
+            sup3r solar config with all necessary args and kwargs to
+            run Solar.run_temporal_chunk() on a single node.
         """
         import_str = 'import time;\n'
         import_str += 'from reV.pipeline.status import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += 'from sup3r.solar import {cls.__name__};\n'
 
-        init_str = get_fun_call_str(cls, config)
-        write_args = get_arg_str(cls.write, config)
+        fun_str = get_fun_call_str(cls.run_temporal_chunk, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -443,8 +446,7 @@ class Solar:
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"with {init_str} as solar;\n"
-               f"\tsolar.write({write_args});\n"
+               f"{fun_str};\n"
                "t_elap = time.time() - t0;\n")
 
         job_name = config.get('job_name', None)
@@ -475,6 +477,9 @@ class Solar:
         fp_out : str
             Filepath to an output h5 file to write irradiance variables to.
             Parent directory will be created if it does not exist.
+        features : list | tuple
+            List of features to write to disk. These have to be attributes of
+            the Solar class (ghi, dni, dhi).
         """
 
         if not os.path.exists(os.path.dirname(fp_out)):
@@ -504,3 +509,74 @@ class Solar:
             fh.run_attrs = run_attrs
 
         logger.info(f'Finished writing file: {fp_out}')
+
+    @classmethod
+    def run_temporal_chunk(cls, i_t_chunk, fp_pattern, nsrdb_fp, fp_out,
+                           tz=-6, agg_factor=1,
+                           nn_threshold=0.5, cloud_threshold=0.99,
+                           features=('ghi', 'dni', 'dhi')):
+        """Run the solar module on all spatial chunks for a single temporal
+        chunk corresponding to the fp_pattern. This typically gets run from the
+        CLI.
+
+        Parameters
+        ----------
+        i_t_chunk : int
+            Index of the sorted list of unique temporal indices to run (parsed
+            from the files matching fp_pattern). This input typically gets set
+            from the CLI.
+        fp_pattern : str
+            Unix-style file*pattern that matches a set of spatiotemporally
+            chunked sup3r forward pass output files.
+        nsrdb_fp : str
+            Filepath to NSRDB .h5 file containing clearsky_ghi, clearsky_dni,
+            clearsky_dhi data.
+        fp_out : str
+            Filepath to an output h5 file to write irradiance variables to.
+            Parent directory will be created if it does not exist.
+        t_slice : slice
+            Slicing argument to slice the temporal axis of the sup3r_fps source
+            data after doing the tz roll to UTC but before returning the
+            irradiance variables. This can be used to effectively pad the solar
+            irradiance calculation in UTC time. For example, if sup3r_fps is 3
+            files each with 24 hours of data, t_slice can be slice(24, 48) to
+            only output the middle day of irradiance data, but padded by the
+            other two days for the UTC output.
+        tz : int
+            The timezone offset for the data in sup3r_fps. It is assumed that
+            the GAN is trained on data in local time and therefore the output
+            in sup3r_fps should be treated as local time. For example, -6 is
+            CST which is default for CONUS training data.
+        agg_factor : int
+            Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
+            NSRDB spatial pixels to average for a single sup3r GAN output site.
+        nn_threshold : float
+            The KDTree nearest neighbor threshold that determines how far the
+            sup3r GAN output data has to be from the NSRDB source data to get
+            irradiance=0. Note that is value is in decimal degrees which is a
+            very approximate way to determine real distance.
+        cloud_threshold : float
+            Clearsky ratio threshold below which the data is considered cloudy
+            and DNI is calculated using DISC.
+        features : list | tuple
+            List of features to write to disk. These have to be attributes of
+            the Solar class (ghi, dni, dhi).
+        """
+        temp = cls.get_sup3r_fps(fp_pattern)
+        fp_sets, t_slices, temporal_ids, spatial_ids = temp
+
+        i_fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
+                     if temporal_ids[i] == temporal_ids[i_t_chunk]]
+        i_t_slices = [t_slice for i, t_slice in enumerate(t_slices)
+                      if temporal_ids[i] == temporal_ids[i_t_chunk]]
+
+        for i, (fp_set, t_slice) in enumerate(zip(i_fp_sets, i_t_slices)):
+            logger.info('Running temporal index {} out of {}.'
+                        .format(i + 1, len(i_fp_sets)))
+            kwargs = dict(t_slice=t_slice,
+                          tz=tz,
+                          agg_factor=agg_factor,
+                          nn_threshold=nn_threshold,
+                          cloud_threshold=cloud_threshold)
+            with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
+                solar.write(fp_out, features=features)
