@@ -5,6 +5,7 @@ to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
+import json
 import os
 import pandas as pd
 import numpy as np
@@ -13,7 +14,9 @@ from scipy.spatial import KDTree
 from farms.disc import disc
 from farms.utilities import calc_dhi, dark_night
 from rex import Resource, MultiTimeResource
+from rex.utilities.fun_utils import get_fun_call_str, get_arg_str
 
+from sup3r.utilities import ModuleName
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 
 
@@ -338,6 +341,58 @@ class Solar:
         out /= self.idnn.shape[1]
 
         return out
+
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize Solar and run Solar.write() on a single
+        node based on an input config.
+
+        Parameters
+        ----------
+        config : dict
+            sup3r solar config with all necessary args and kwargs to initialize
+            Solar and run Solar.write() on a single node.
+        """
+        import_str = 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += 'from sup3r.solar import {cls.__name__};\n'
+
+        init_str = get_fun_call_str(cls, config)
+        write_args = get_arg_str(cls.write, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"with {init_str} as solar;\n"
+               f"\tsolar.write({write_args});\n"
+               "t_elap = time.time() - t0;\n")
+
+        job_name = config.get('job_name', None)
+        if job_name is not None:
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.SOLAR}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
 
     def write(self, fp_out, features=('ghi', 'dni', 'dhi')):
         """Write irradiance datasets (ghi, dni, dhi) to output h5 file.
