@@ -145,8 +145,8 @@ def test_chunk_file_parser():
                 all_st_ids.append('{}_{}'.format(idt, ids))
                 all_fps.append(fp)
 
-        config = {'fp_pattern': os.path.join(td, 'sup3r_chunk_*.h5')}
-        fp_sets, t_slices = Solar.get_sup3r_fps(config)
+        fp_pattern = os.path.join(td, 'sup3r_chunk_*.h5')
+        fp_sets, t_slices, _, _, _ = Solar.get_sup3r_fps(fp_pattern)
 
         for fp_set, t_slice in zip(fp_sets, t_slices):
             s_ids = [os.path.basename(fp).replace('.h5', '').split('_')[-1]

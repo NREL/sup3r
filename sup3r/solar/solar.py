@@ -15,7 +15,7 @@ from scipy.spatial import KDTree
 from farms.disc import disc
 from farms.utilities import calc_dhi, dark_night
 from rex import Resource, MultiTimeResource
-from rex.utilities.fun_utils import get_fun_call_str, get_arg_str
+from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities import ModuleName
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
