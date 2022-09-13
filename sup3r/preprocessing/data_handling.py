@@ -287,7 +287,7 @@ class InputMixIn:
                 logger.debug('Loading raw_time_index from '
                              f'{self.time_index_file}')
                 with open(self.time_index_file, 'rb') as f:
-                    self._raw_time_index = pickle.load(f)
+                    self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
             else:
                 now = dt.now()
                 logger.debug('Did not find time index file: '

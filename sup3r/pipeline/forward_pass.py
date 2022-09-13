@@ -938,7 +938,7 @@ class ForwardPassStrategy(InputMixIn):
     def max_nodes(self):
         """Get the maximum number of nodes that this strategy should distribute
         work to, equal to either the specified max number of nodes or total
-        number of spatiotemporal chunks"""
+        number of temporal chunks"""
         nodes = (self._max_nodes if self._max_nodes is not None
                  and not self._max_nodes > self.chunks
                  else self.fwp_slicer.n_temporal_chunks)
@@ -948,7 +948,7 @@ class ForwardPassStrategy(InputMixIn):
     def nodes(self):
         """Get the number of nodes that this strategy should distribute work
         to, equal to either the specified max number of nodes or total number
-        of spatiotemporal chunks"""
+        of temporal chunks"""
         return len(self.node_chunks)
 
     @property
