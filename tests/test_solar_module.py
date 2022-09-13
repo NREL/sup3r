@@ -7,6 +7,7 @@ import numpy as np
 import tempfile
 import matplotlib.pyplot as plt
 from rex import Resource
+from pathlib import Path
 
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
@@ -110,3 +111,38 @@ def test_solar_module(plot=False):
                 plt.colorbar(a)
                 plt.savefig('./test_ghi_{}.png'.format(timestamp))
                 plt.close()
+
+
+def test_chunk_file_parser():
+    """Test the solar utility that retrieves the fwp chunked output file sets
+    to be run."""
+    id_temporal = [str(i).zfill(6) for i in range(4, 7)]
+    id_spatial = [str(i).zfill(6) for i in range(6, 10)]
+    all_st_ids = []
+    all_fps = []
+    with tempfile.TemporaryDirectory() as td:
+        for idt in id_temporal:
+            for ids in id_spatial:
+                fn = ('sup3r_chunk_out_{}_{}.h5'.format(idt, ids))
+                fp = os.path.join(td, fn)
+                Path(fp).touch()
+                all_st_ids.append('{}_{}'.format(idt, ids))
+                all_fps.append(fp)
+
+        config = {'fp_pattern': os.path.join(td, 'sup3r_chunk_*.h5')}
+        fp_sets, t_slices = Solar.get_sup3r_fps(config)
+
+        for fp_set, t_slice in zip(fp_sets, t_slices):
+            s_ids = [os.path.basename(fp).replace('.h5', '').split('_')[-1]
+                     for fp in fp_set]
+            t_ids = [os.path.basename(fp).replace('.h5', '').split('_')[-2]
+                     for fp in fp_set]
+
+            assert len(set(s_ids)) == 1
+
+            if t_slice.start == 0:
+                assert id_temporal.index(t_ids[0]) == 0
+                assert id_temporal.index(t_ids[-1]) == 1
+
+            if id_temporal.index(t_ids[0]) == len(id_temporal) - 2:
+                assert len(fp_set) == 2

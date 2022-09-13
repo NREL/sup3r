@@ -5,6 +5,7 @@ to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
+import glob
 import json
 import os
 import pandas as pd
@@ -341,6 +342,78 @@ class Solar:
         out /= self.idnn.shape[1]
 
         return out
+
+    @staticmethod
+    def get_sup3r_fps(config):
+        """Get a list of file chunks to run in parallel based on a solar config
+        with key "fp_pattern".
+
+        NOTE: it's assumed that all source files have the pattern
+        sup3r_file_TTTTTT_SSSSSS.h5 where TTTTTT is the zero-padded temporal
+        chunk index and SSSSSS is the zero-padded spatial chunk index.
+
+        Parameters
+        ----------
+        config : dict
+            Solar config with args to initialize Solar class and to run
+            Solar.write(), must have "fp_pattern" that returns
+            spatiotemporally chunked sup3r forward pass output files.
+
+        Returns
+        -------
+        fp_sets : list
+            List of file sets where each file set is 3 temporally sequential
+            files over the same spatial chunk. Each file set overlaps with its
+            neighbor such that fp_sets[0][-1] == fp_sets[1][0] (this is so
+            Solar can do temporal padding when rolling from GAN local time
+            output to UTC).
+        t_slices : list
+            List of t_slice arguments corresponding to fp_sets to pass to
+            Solar class initialization that will slice and reduce the
+            overlapping time axis when Solar outputs irradiance data.
+        """
+
+        assert 'fp_pattern' in config, 'Need fp_pattern in config!'
+        fp_pattern = config['fp_pattern']
+        all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
+        all_fps = sorted(all_fps)
+
+        source_dir = os.path.dirname(all_fps[0])
+        source_fn_base = os.path.basename(all_fps[0]).replace('.h5', '')
+        source_fn_base = '_'.join(source_fn_base.split('_')[:-2])
+
+        all_id_spatial = [fp.replace('.h5', '').split('_')[-1]
+                          for fp in all_fps]
+        all_id_temporal = [fp.replace('.h5', '').split('_')[-2]
+                           for fp in all_fps]
+
+        all_id_spatial = sorted(list(set(all_id_spatial)))
+        all_id_temporal = sorted(list(set(all_id_temporal)))
+
+        fp_sets = []
+        t_slices = []
+        for idt, id_temporal in enumerate(all_id_temporal):
+            start = 0
+            single_chunk_id_temps = [id_temporal]
+
+            if idt > 0:
+                start = 24
+                single_chunk_id_temps.insert(0, all_id_temporal[idt - 1])
+
+            if idt < (len(all_id_temporal) - 1):
+                single_chunk_id_temps.append(all_id_temporal[idt + 1])
+
+            for ids, id_spatial in enumerate(all_id_spatial):
+                single_fp_set = []
+                for t_str in single_chunk_id_temps:
+                    fp = os.path.join(source_dir, source_fn_base)
+                    fp += f'_{t_str}_{id_spatial}.h5'
+                    single_fp_set.append(fp)
+
+                fp_sets.append(single_fp_set)
+                t_slices.append(slice(start, start + 24))
+
+        return fp_sets, t_slices
 
     @classmethod
     def get_node_cmd(cls, config):
