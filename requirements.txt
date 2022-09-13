@@ -2,6 +2,7 @@ matplotlib>=3.1
 NREL-rex>=0.2.71
 NREL-phygnn>=0.0.20
 NREL-rev>=0.6.6
+NREL-farms>=1.0.4
 pytest>=5.2
 pillow
 tensorflow>2.4
