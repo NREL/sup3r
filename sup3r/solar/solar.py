@@ -356,7 +356,7 @@ class Solar:
             fh.meta = self.gan_data.meta
             fh.time_index = self.time_index
 
-            for i, feat_name in enumerate(features):
+            for feat_name in features:
                 attrs = H5_ATTRS[feat_name]
                 arr = getattr(self, feat_name, None)
                 if arr is None:

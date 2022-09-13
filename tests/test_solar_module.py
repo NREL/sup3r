@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
+import json
 import os
 import numpy as np
 import tempfile
@@ -59,7 +60,7 @@ def test_solar_module(plot=False):
             meta_base = res.meta
             attrs_base = res.global_attrs
 
-        with Solar(fps, nsrdb_fp, t_slice=t_slice) as solar:
+        with Solar(fps, nsrdb_fp, t_slice=t_slice, nn_threshold=0.4) as solar:
             ghi = solar.ghi
             dni = solar.dni
             dhi = solar.dhi
@@ -72,6 +73,14 @@ def test_solar_module(plot=False):
             assert (ghi >= 0).all()
             assert (dni >= 0).all()
             assert (dhi >= 0).all()
+            assert 0.3 < ((ghi > 0).sum() / ghi.size) < 0.4
+            assert 0.2 < ((dni > 0).sum() / dni.size) < 0.3
+
+            # check that some pixels are out of bounds
+            assert 10 < solar.out_of_bounds.sum() < 30
+            assert (ghi[:, solar.out_of_bounds] == 0).all()
+            assert (dni[:, solar.out_of_bounds] == 0).all()
+            assert (dhi[:, solar.out_of_bounds] == 0).all()
 
             fp_out = os.path.join(td, 'solar/out.h5')
             solar.write(fp_out)
@@ -90,16 +99,14 @@ def test_solar_module(plot=False):
                                    meta_base['longitude'])
 
                 assert res.global_attrs['nsrdb_source'] == nsrdb_fp
+                assert res.global_attrs['gan_meta'] == json.dumps(gan_meta)
                 for k, v in attrs_base.items():
                     assert res.global_attrs[k] == v
 
         if plot:
-            for i in range(len(ghi)):
+            for i, timestamp in enumerate(high_res_times[t_slice]):
                 ghi_raster = ghi[i].reshape((20, 20))
                 a = plt.imshow(ghi_raster, vmin=0, vmax=cs_ghi.max())
                 plt.colorbar(a)
-                plt.savefig('./test_ghi_{}.png'.format(i))
+                plt.savefig('./test_ghi_{}.png'.format(timestamp))
                 plt.close()
-
-
-test_solar_module()
