@@ -526,20 +526,17 @@ class Solar:
         logger.info(f'Finished writing file: {fp_out}')
 
     @classmethod
-    def run_temporal_chunk(cls, i_t_chunk, fp_pattern, nsrdb_fp,
+    def run_temporal_chunk(cls, fp_pattern, nsrdb_fp,
                            fp_out_suffix='irradiance', tz=-6, agg_factor=1,
                            nn_threshold=0.5, cloud_threshold=0.99,
-                           features=('ghi', 'dni', 'dhi')):
+                           features=('ghi', 'dni', 'dhi'),
+                           i_t_chunk=None):
         """Run the solar module on all spatial chunks for a single temporal
         chunk corresponding to the fp_pattern. This typically gets run from the
         CLI.
 
         Parameters
         ----------
-        i_t_chunk : int
-            Index of the sorted list of unique temporal indices to run (parsed
-            from the files matching fp_pattern). This input typically gets set
-            from the CLI.
         fp_pattern : str
             Unix-style file*pattern that matches a set of spatiotemporally
             chunked sup3r forward pass output files.
@@ -576,23 +573,28 @@ class Solar:
         features : list | tuple
             List of features to write to disk. These have to be attributes of
             the Solar class (ghi, dni, dhi).
+        i_t_chunk : int | None
+            Index of the sorted list of unique temporal indices to run (parsed
+            from the files matching fp_pattern). This input typically gets set
+            from the CLI. If None, this will run all temporal indices.
         """
 
         temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
         fp_sets, t_slices, temporal_ids, spatial_ids, target_fps = temp
 
-        i_fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
-                     if temporal_ids[i] == temporal_ids[i_t_chunk]]
-        i_t_slices = [t_slice for i, t_slice in enumerate(t_slices)
-                      if temporal_ids[i] == temporal_ids[i_t_chunk]]
-        i_target_fps = [target_fp for i, target_fp in enumerate(target_fps)
+        if i_t_chunk is not None:
+            fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
+                       if temporal_ids[i] == temporal_ids[i_t_chunk]]
+            t_slices = [t_slice for i, t_slice in enumerate(t_slices)
                         if temporal_ids[i] == temporal_ids[i_t_chunk]]
+            target_fps = [target_fp for i, target_fp in enumerate(target_fps)
+                          if temporal_ids[i] == temporal_ids[i_t_chunk]]
 
-        zip_iter = zip(i_fp_sets, i_t_slices, i_target_fps)
+        zip_iter = zip(fp_sets, t_slices, target_fps)
         for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
             fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
             logger.info('Running temporal index {} out of {}.'
-                        .format(i + 1, len(i_fp_sets)))
+                        .format(i + 1, len(fp_sets)))
             kwargs = dict(t_slice=t_slice,
                           tz=tz,
                           agg_factor=agg_factor,
