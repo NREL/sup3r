@@ -453,6 +453,8 @@ def transform_rotate_wind(ws, wd, lat_lon):
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
     dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+    dy = (dx + 90) % 180 - 90
+    dx = (dx + 180) % 360 - 180
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
@@ -498,6 +500,8 @@ def invert_uv(u, v, lat_lon):
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
     dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+    dy = (dx + 90) % 180 - 90
+    dx = (dx + 180) % 360 - 180
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)

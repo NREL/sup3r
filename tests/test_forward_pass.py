@@ -297,7 +297,8 @@ def test_fwd_pass_space_chunking():
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True,
-            ti_workers=1)
+            ti_workers=1,
+            max_workers=1)
 
         data = []
         for i in range(handler.chunks):
@@ -364,7 +365,8 @@ def test_fwd_pass_time_chunking():
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True,
-            ti_workers=1)
+            ti_workers=1,
+            max_workers=1)
 
         data = []
         for i in range(handler.chunks):
@@ -430,7 +432,8 @@ def test_fwd_pass_nochunking():
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True,
-            ti_workers=1)
+            ti_workers=1,
+            max_workers=1)
         forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run_chunk()
 
@@ -522,6 +525,8 @@ def test_fwp_multi_step_model_topo_exoskip():
             ti_workers=1)
 
         forward_pass = ForwardPass(handler)
+
+        breakpoint()
 
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers

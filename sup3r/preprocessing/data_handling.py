@@ -270,6 +270,7 @@ class InputMixIn:
             basename = self.cache_pattern.replace('{times}', '')
             basename = basename.replace('{shape}', str(len(self.file_paths)))
             basename = basename.replace('_{target}', '')
+            basename = basename.replace('_{spatial_chunk_index}', '')
             basename = basename.replace('{feature}', 'time_index')
             basename = basename.replace('_.pkl', '.pkl')
             self._time_index_file = basename
@@ -279,6 +280,7 @@ class InputMixIn:
     def raw_time_index(self):
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
+
         if self._raw_time_index is None:
             check = (self.time_index_file is not None
                      and os.path.exists(self.time_index_file)
@@ -304,8 +306,13 @@ class InputMixIn:
                         pickle.dump(self._raw_time_index, f)
                 logger.debug(f'Built full time index in {dt.now() - now} '
                              'seconds.')
-            if (self._raw_time_index.hour == 12).all():
+
+            check = (self._raw_time_index is not None
+                     and (self._raw_time_index.hour == 12).all())
+            if check:
                 self._raw_time_index -= pd.Timedelta(12, 'h')
+            else:
+                self._raw_time_index = [None, None]
         return self._raw_time_index
 
     @property
