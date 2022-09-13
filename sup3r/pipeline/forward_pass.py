@@ -573,7 +573,7 @@ class ForwardPassStrategy(InputMixIn):
     stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths, model_args, fwp_chunk_shape,
+    def __init__(self, file_paths, model_kwargs, fwp_chunk_shape,
                  spatial_pad, temporal_pad,
                  temporal_slice=slice(None),
                  model_class='Sup3rGan',
@@ -584,7 +584,7 @@ class ForwardPassStrategy(InputMixIn):
                  out_pattern=None,
                  overwrite_cache=False,
                  input_handler=None,
-                 spatial_coarsen=None,
+                 input_handler_kwargs=None,
                  max_workers=None,
                  extract_workers=None,
                  compute_workers=None,
@@ -604,8 +604,8 @@ class ForwardPassStrategy(InputMixIn):
             Each file must have the same number of timesteps. Can also pass a
             string with a unix-style file path which will be passed through
             glob.glob
-        model_args : str | list
-            Positional arguments to send to `model_class.load(*model_args)` to
+        model_kwargs : str | list
+            Keyword arguments to send to `model_class.load(**model_kwargs)` to
             initialize the GAN. Typically this is just the string path to the
             model directory, but can be multiple models or arguments for more
             complex models.
@@ -684,11 +684,10 @@ class ForwardPassStrategy(InputMixIn):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        spatial_coarsen : int | None
-            Optional input to coarsen the low-resolution spatial field from the
-            file_paths input. This can be used if (for example) you have 2km
-            validation data, you can coarsen it with the same factor as
-            s_enhance to do a validation study.
+        input_handler_kwargs : dict | None
+            Optional kwargs for initializing the input_handler class. For
+            example, this could be {'hr_spatial_coarsen': 2} if you wanted to
+            artificially coarsen the input data for testing.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             extract_workers, compute_workers, output_workers, and load_workers.
@@ -726,7 +725,7 @@ class ForwardPassStrategy(InputMixIn):
 
         self._i = 0
         self.file_paths = file_paths
-        self.model_args = model_args
+        self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
         self.spatial_pad = spatial_pad
         self.temporal_pad = temporal_pad
@@ -746,8 +745,8 @@ class ForwardPassStrategy(InputMixIn):
         self._cache_pattern = cache_pattern
         self._input_handler_class = None
         self._input_handler_name = input_handler
-        self._spatial_coarsen = spatial_coarsen
         self._max_nodes = max_nodes
+        self._input_handler_kwargs = input_handler_kwargs or {}
         self._grid_shape = shape
         self._target = target
         self._time_index = None
@@ -758,8 +757,8 @@ class ForwardPassStrategy(InputMixIn):
         self._node_chunks = None
 
         model_class = getattr(sup3r.models, self.model_class, None)
-        if isinstance(self.model_args, str):
-            self.model_args = [self.model_args]
+        if isinstance(self.model_kwargs, str):
+            self.model_kwargs = {'model_dir': self.model_kwargs}
 
         if model_class is None:
             msg = ('Could not load requested model class "{}" from '
@@ -768,7 +767,7 @@ class ForwardPassStrategy(InputMixIn):
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args, verbose=False)
+        self.model = model_class.load(**self.model_kwargs, verbose=False)
         models = getattr(self.model, 'models', [self.model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
@@ -1042,7 +1041,7 @@ class ForwardPass:
                     f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
                     f' Total number of chunks for the current node.')
 
-        self.model_args = self.strategy.model_args
+        self.model_kwargs = self.strategy.model_kwargs
         self.model_class = self.strategy.model_class
         model_class = getattr(sup3r.models, self.model_class, None)
 
@@ -1053,7 +1052,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(*self.model_args, verbose=True)
+        self.model = model_class.load(**self.model_kwargs, verbose=True)
         self.features = self.model.training_features
         self.output_features = self.model.output_features
         self.meta_data = self.model.meta
@@ -1095,19 +1094,23 @@ class ForwardPass:
             file_paths = self.file_paths
             ti_pad_slice = self.ti_pad_slice
 
-        self.data_handler = self.input_handler_class(
-            file_paths, self.features, target=self.strategy.target,
-            shape=self.strategy.grid_shape, temporal_slice=ti_pad_slice,
+        input_handler_kwargs = dict(
+            file_paths=file_paths,
+            features=self.features,
+            target=self.strategy.target,
+            shape=self.strategy.grid_shape,
+            temporal_slice=ti_pad_slice,
             raster_file=self.strategy.raster_file,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
-            hr_spatial_coarsen=self.strategy._spatial_coarsen,
+            val_split=0.0,
             max_workers=self.max_workers,
             extract_workers=self.extract_workers,
             compute_workers=self.compute_workers,
-            load_workers=self.load_workers, val_split=0.0)
-
+            load_workers=self.load_workers)
+        input_handler_kwargs.update(self.strategy._input_handler_kwargs)
+        self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
 
         out = self.pad_source_data(self.data_handler.data,
@@ -1313,7 +1316,7 @@ class ForwardPass:
 
     @classmethod
     def forward_pass_chunk(cls, data_chunk, hr_crop_slices,
-                           model=None, model_args=None, model_class=None,
+                           model=None, model_kwargs=None, model_class=None,
                            s_enhance=None, t_enhance=None,
                            exo_data=None):
         """Run forward pass on smallest data chunk. Each chunk has a maximum
@@ -1330,18 +1333,18 @@ class ForwardPass:
             before stitching chunks.
         model : Sup3rGan
             A loaded Sup3rGan model (any model imported from sup3r.models).
-            You need to provide either model or (model_args and model_class)
-        model_args : str | list
-            Positional arguments to send to `model_class.load(*model_args)` to
+            You need to provide either model or (model_kwargs and model_class)
+        model_kwargs : str | list
+            Keyword arguments to send to `model_class.load(**model_kwargs)` to
             initialize the GAN. Typically this is just the string path to the
             model directory, but can be multiple models or arguments for more
             complex models.
-            You need to provide either model or (model_args and model_class)
+            You need to provide either model or (model_kwargs and model_class)
         model_class : str
             Name of the sup3r model class for the GAN model to load. The
             default is the basic spatial / spatiotemporal Sup3rGan model. This
             will be loaded from sup3r.models
-            You need to provide either model or (model_args and model_class)
+            You need to provide either model or (model_kwargs and model_class)
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
@@ -1356,11 +1359,11 @@ class ForwardPass:
             High resolution data generated by GAN
         """
         if model is None:
-            msg = 'If model not provided, model_args and model_class must be'
-            assert model_args is not None, msg
+            msg = 'If model not provided, model_kwargs and model_class must be'
+            assert model_kwargs is not None, msg
             assert model_class is not None, msg
             model_class = getattr(sup3r.models, model_class)
-            model = model_class.load(*model_args, verbose=False)
+            model = model_class.load(**model_kwargs, verbose=False)
 
         for i, arr in enumerate(exo_data):
             if arr is not None:
@@ -1486,7 +1489,7 @@ class ForwardPass:
 
         out_data = self.forward_pass_chunk(
             data_chunk, hr_crop_slices=self.hr_crop_slice, model=self.model,
-            model_args=self.model_args, model_class=self.model_class,
+            model_kwargs=self.model_kwargs, model_class=self.model_class,
             s_enhance=self.strategy.s_enhance,
             t_enhance=self.strategy.t_enhance,
             exo_data=exo_data)
@@ -1518,7 +1521,7 @@ class ForwardPass:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class.write_output(
                 data=out_data,
-                features=self.data_handler.output_features,
+                features=self.model.output_features,
                 low_res_lat_lon=lr_lat_lon,
                 low_res_times=lr_times,
                 out_file=self.out_file, meta_data=self.meta_data,

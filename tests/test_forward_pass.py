@@ -60,7 +60,7 @@ def test_forward_pass_nc_cc():
         # 1st forward pass
         max_workers = 1
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -110,7 +110,7 @@ def test_forward_pass_nc():
         # 1st forward pass
         max_workers = 1
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -164,7 +164,7 @@ def test_forward_pass_temporal_slice():
         raw_time_index = np.arange(20)
         n_tsteps = len(raw_time_index[temporal_slice])
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -234,7 +234,7 @@ def test_fwd_pass_handler():
         max_workers = 1
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -290,7 +290,7 @@ def test_fwd_pass_space_chunking():
 
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -357,7 +357,7 @@ def test_fwd_pass_time_chunking():
 
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(shape[0], shape[1], len(input_files) // 2),
             spatial_pad=1, temporal_pad=1,
             target=target, shape=shape,
@@ -423,7 +423,7 @@ def test_fwd_pass_nochunking():
 
         cache_pattern = os.path.join(td, 'cache')
         handler = ForwardPassStrategy(
-            input_files, model_args=out_dir,
+            input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             spatial_pad=0, temporal_pad=0,
             target=target, shape=shape,
@@ -504,9 +504,12 @@ def test_fwp_multi_step_model_topo_exoskip():
                       'exo_steps': [0, 1]
                       }
 
+        model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
+                        'temporal_model_dirs': st_out_dir}
+
         out_files = os.path.join(td, 'out_{file_id}.h5')
         handler = ForwardPassStrategy(
-            input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
+            input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
@@ -601,9 +604,12 @@ def test_fwp_multi_step_model_topo():
                       'agg_factors': [2, 4, 12]
                       }
 
+        model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
+                        'temporal_model_dirs': st_out_dir}
+
         out_files = os.path.join(td, 'out_{file_id}.h5')
         handler = ForwardPassStrategy(
-            input_files, model_args=[[s1_out_dir, s2_out_dir], st_out_dir],
+            input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
@@ -680,8 +686,11 @@ def test_fwp_multi_step_model():
         s_enhance = 6
         t_enhance = 4
 
+        model_kwargs = {'spatial_model_dirs': s_out_dir,
+                        'temporal_model_dirs': st_out_dir}
+
         handler = ForwardPassStrategy(
-            input_files, model_args=[s_out_dir, st_out_dir],
+            input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
