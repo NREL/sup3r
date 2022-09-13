@@ -73,7 +73,7 @@ def test_fwp_pipeline():
         config = {'ti_workers': 1,
                   'file_paths': input_files,
                   'target': target,
-                  'model_args': out_dir,
+                  'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
