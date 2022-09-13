@@ -71,7 +71,7 @@ def from_config(ctx, config_file, verbose):
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
     fp_pattern = config['fp_pattern']
-    fp_sets, _, temporal_ids, _ = Solar.get_sup3r_fps(fp_pattern)
+    fp_sets, _, temporal_ids, _, _ = Solar.get_sup3r_fps(fp_pattern)
     logger.info('Solar module found {} sets of chunked source files to run '
                 'on. Submitting to {} nodes based on the number of temporal '
                 'chunks'.format(len(fp_sets), len(set(temporal_ids))))

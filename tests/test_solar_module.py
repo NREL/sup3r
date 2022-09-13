@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
+import pytest
+from click.testing import CliRunner
+import glob
 import json
 import os
 import numpy as np
@@ -13,55 +16,68 @@ from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
+from sup3r.solar.solar_cli import from_config as solar_main
+
+
+NSRDB_FP = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
+GAN_META = {'s_enhance': 4, 't_enhance': 24}
+LR_LAT = np.linspace(40, 39, 5)
+LR_LON = np.linspace(-105.5, -104.3, 5)
+LR_LON, LR_LAT = np.meshgrid(LR_LON, LR_LAT)
+LR_LON = np.expand_dims(LR_LON, axis=2)
+LR_LAT = np.expand_dims(LR_LAT, axis=2)
+LOW_RES_LAT_LON = np.concatenate((LR_LAT, LR_LON), axis=2)
+LOW_RES_TIMES = pd_date_range('20180101', '20180104',
+                              inclusive='left', freq='1d')
+HIGH_RES_TIMES = pd_date_range('20180101', '20180104',
+                               inclusive='left', freq='1h')
+
+
+@pytest.fixture(scope='module')
+def runner():
+    """Cli runner helper utility."""
+    return CliRunner()
+
+
+def make_cs_ratio_files(td, low_res_times, low_res_lat_lon):
+    """Make a set of dummy clearsky ratio files that match the GAN fwp outputs
+    """
+    fps = []
+    chunk_dir = os.path.join(td, 'chunks/')
+    os.makedirs(chunk_dir)
+
+    for idt, timestamp in enumerate(low_res_times):
+        fn = ('sup3r_chunk_{}_{}.h5'
+              .format(str(idt).zfill(6), str(0).zfill(6)))
+        out_file = os.path.join(chunk_dir, fn)
+        fps.append(out_file)
+
+        cs_ratio = np.random.uniform(0, 1, (20, 20, 1, 1))
+        cs_ratio = np.repeat(cs_ratio, 24, axis=2)
+
+        OutputHandlerH5.write_output(cs_ratio, ['clearsky_ratio'],
+                                     low_res_lat_lon,
+                                     [timestamp],
+                                     out_file, max_workers=1,
+                                     meta_data=GAN_META)
+    return fps
 
 
 def test_solar_module(plot=False):
     """Test the solar module operating on a set of SolarMultiStepGan chunked
     outputs"""
 
-    nsrdb_fp = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
-
-    gan_meta = {'s_enhance': 4, 't_enhance': 24}
-
-    lr_lat = np.linspace(40, 39, 5)
-    lr_lon = np.linspace(-105.5, -104.3, 5)
-    lr_lon, lr_lat = np.meshgrid(lr_lon, lr_lat)
-    lr_lon = np.expand_dims(lr_lon, axis=2)
-    lr_lat = np.expand_dims(lr_lat, axis=2)
-    low_res_lat_lon = np.concatenate((lr_lat, lr_lon), axis=2)
-
     t_slice = slice(24, 48)
-    low_res_times = pd_date_range('20180101', '20180104',
-                                  inclusive='left', freq='1d')
-    high_res_times = pd_date_range('20180101', '20180104',
-                                   inclusive='left', freq='1h')
-
-    fps = []
 
     with tempfile.TemporaryDirectory() as td:
-        chunk_dir = os.path.join(td, 'chunks/')
-        os.makedirs(chunk_dir)
 
-        for idt, timestamp in enumerate(low_res_times):
-            fn = ('sup3r_chunk_{}_{}.h5'
-                  .format(str(idt).zfill(6), str(0).zfill(6)))
-            out_file = os.path.join(chunk_dir, fn)
-
-            cs_ratio = np.random.uniform(0, 1, (20, 20, 1, 1))
-            cs_ratio = np.repeat(cs_ratio, 24, axis=2)
-
-            OutputHandlerH5.write_output(cs_ratio, ['clearsky_ratio'],
-                                         low_res_lat_lon,
-                                         [timestamp],
-                                         out_file, max_workers=1,
-                                         meta_data=gan_meta)
-            fps.append(out_file)
+        fps = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
             attrs_base = res.global_attrs
 
-        with Solar(fps, nsrdb_fp, t_slice=t_slice, nn_threshold=0.4) as solar:
+        with Solar(fps, NSRDB_FP, t_slice=t_slice, nn_threshold=0.4) as solar:
             ghi = solar.ghi
             dni = solar.dni
             dhi = solar.dhi
@@ -93,19 +109,19 @@ def test_solar_module(plot=False):
                 assert np.allclose(res['dhi'], dhi, atol=1)
 
                 res_ti = res.time_index.tz_convert(None)
-                assert (high_res_times[t_slice] == res_ti).all()
+                assert (HIGH_RES_TIMES[t_slice] == res_ti).all()
                 assert np.allclose(res.meta['latitude'],
                                    meta_base['latitude'])
                 assert np.allclose(res.meta['longitude'],
                                    meta_base['longitude'])
 
-                assert res.global_attrs['nsrdb_source'] == nsrdb_fp
-                assert res.global_attrs['gan_meta'] == json.dumps(gan_meta)
+                assert res.global_attrs['nsrdb_source'] == NSRDB_FP
+                assert res.global_attrs['gan_meta'] == json.dumps(GAN_META)
                 for k, v in attrs_base.items():
                     assert res.global_attrs[k] == v
 
         if plot:
-            for i, timestamp in enumerate(high_res_times[t_slice]):
+            for i, timestamp in enumerate(HIGH_RES_TIMES[t_slice]):
                 ghi_raster = ghi[i].reshape((20, 20))
                 a = plt.imshow(ghi_raster, vmin=0, vmax=cs_ghi.max())
                 plt.colorbar(a)
@@ -146,3 +162,40 @@ def test_chunk_file_parser():
 
             if id_temporal.index(t_ids[0]) == len(id_temporal) - 2:
                 assert len(fp_set) == 2
+
+
+def test_solar_cli(runner):
+    """Test the solar CLI. This test is here and not in the test_cli.py file
+    because it uses some common test utilities stored here."""
+    with tempfile.TemporaryDirectory() as td:
+        fps = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
+        fp_pattern = os.path.join(td, 'chunks/sup3r*.h5')
+        config = {'fp_pattern': fp_pattern,
+                  'nsrdb_fp': NSRDB_FP,
+                  'log_level': 'DEBUG',
+                  'log_pattern': os.path.join(td, 'logs/solar.log')}
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(solar_main, ['-c', config_path, '-v'])
+
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+
+            log_file = os.path.join(td, 'logs/sup3r_solar.log')
+            if os.path.exists(log_file):
+                with open(log_file, 'r') as f:
+                    logs = ''.join(list(f.readlines()))
+                msg += '\nlogs:\n{}'.format(logs)
+
+            raise RuntimeError(msg)
+
+        status_files = glob.glob(os.path.join(td, 'jobstatus_*.json'))
+        assert len(status_files) == len(fps)
+
+        out_files = glob.glob(os.path.join(td, 'chunks/*_irradiance.h5'))
+        assert len(out_files) == len(fps)

@@ -344,7 +344,7 @@ class Solar:
         return out
 
     @staticmethod
-    def get_sup3r_fps(fp_pattern):
+    def get_sup3r_fps(fp_pattern, ignore=None):
         """Get a list of file chunks to run in parallel based on a file pattern
 
         NOTE: it's assumed that all source files have the pattern
@@ -356,6 +356,8 @@ class Solar:
         fp_pattern : str
             Unix-style file*pattern that matches a set of spatiotemporally
             chunked sup3r forward pass output files.
+        ignore : str | None
+            Ignore all files that have this string in their filenames.
 
         Returns
         -------
@@ -373,9 +375,17 @@ class Solar:
             List of temporal id strings TTTTTT corresponding to the fp_sets
         spatial_ids : list
             List of spatial id strings SSSSSS corresponding to the fp_sets
+        target_fps : list
+            List of actual target files corresponding to fp_sets, so for
+            example the file set fp_sets[10] sliced by t_slices[10] is designed
+            to process target_fps[10]
         """
 
         all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
+        if ignore is not None:
+            all_fps = [fp for fp in all_fps
+                       if ignore not in os.path.basename(fp)]
+
         all_fps = sorted(all_fps)
 
         source_dir = os.path.dirname(all_fps[0])
@@ -394,6 +404,7 @@ class Solar:
         t_slices = []
         temporal_ids = []
         spatial_ids = []
+        target_fps = []
         for idt, id_temporal in enumerate(all_id_temporal):
             start = 0
             single_chunk_id_temps = [id_temporal]
@@ -412,12 +423,16 @@ class Solar:
                     fp += f'_{t_str}_{id_spatial}.h5'
                     single_fp_set.append(fp)
 
+                fp_target = os.path.join(source_dir, source_fn_base)
+                fp_target += f'_{id_temporal}_{id_spatial}.h5'
+
                 fp_sets.append(single_fp_set)
                 t_slices.append(slice(start, start + 24))
                 temporal_ids.append(id_temporal)
                 spatial_ids.append(id_spatial)
+                target_fps.append(fp_target)
 
-        return fp_sets, t_slices, temporal_ids, spatial_ids
+        return fp_sets, t_slices, temporal_ids, spatial_ids, target_fps
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -433,7 +448,7 @@ class Solar:
         import_str = 'import time;\n'
         import_str += 'from reV.pipeline.status import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += 'from sup3r.solar import {cls.__name__};\n'
+        import_str += f'from sup3r.solar import {cls.__name__};\n'
 
         fun_str = get_fun_call_str(cls.run_temporal_chunk, config)
 
@@ -511,8 +526,8 @@ class Solar:
         logger.info(f'Finished writing file: {fp_out}')
 
     @classmethod
-    def run_temporal_chunk(cls, i_t_chunk, fp_pattern, nsrdb_fp, fp_out,
-                           tz=-6, agg_factor=1,
+    def run_temporal_chunk(cls, i_t_chunk, fp_pattern, nsrdb_fp,
+                           fp_out_suffix='irradiance', tz=-6, agg_factor=1,
                            nn_threshold=0.5, cloud_threshold=0.99,
                            features=('ghi', 'dni', 'dhi')):
         """Run the solar module on all spatial chunks for a single temporal
@@ -531,9 +546,9 @@ class Solar:
         nsrdb_fp : str
             Filepath to NSRDB .h5 file containing clearsky_ghi, clearsky_dni,
             clearsky_dhi data.
-        fp_out : str
-            Filepath to an output h5 file to write irradiance variables to.
-            Parent directory will be created if it does not exist.
+        fp_out_suffix : str
+            Suffix to add to the input sup3r source files when writing the
+            processed solar irradiance data to new data files.
         t_slice : slice
             Slicing argument to slice the temporal axis of the sup3r_fps source
             data after doing the tz roll to UTC but before returning the
@@ -562,15 +577,20 @@ class Solar:
             List of features to write to disk. These have to be attributes of
             the Solar class (ghi, dni, dhi).
         """
-        temp = cls.get_sup3r_fps(fp_pattern)
-        fp_sets, t_slices, temporal_ids, spatial_ids = temp
+
+        temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
+        fp_sets, t_slices, temporal_ids, spatial_ids, target_fps = temp
 
         i_fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
                      if temporal_ids[i] == temporal_ids[i_t_chunk]]
         i_t_slices = [t_slice for i, t_slice in enumerate(t_slices)
                       if temporal_ids[i] == temporal_ids[i_t_chunk]]
+        i_target_fps = [target_fp for i, target_fp in enumerate(target_fps)
+                        if temporal_ids[i] == temporal_ids[i_t_chunk]]
 
-        for i, (fp_set, t_slice) in enumerate(zip(i_fp_sets, i_t_slices)):
+        zip_iter = zip(i_fp_sets, i_t_slices, i_target_fps)
+        for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
+            fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
             logger.info('Running temporal index {} out of {}.'
                         .format(i + 1, len(i_fp_sets)))
             kwargs = dict(t_slice=t_slice,
