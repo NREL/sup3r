@@ -907,8 +907,8 @@ class ForwardPassStrategy(InputMixIn):
         work to, equal to either the specified max number of nodes or total
         number of temporal chunks"""
         nodes = (self._max_nodes if self._max_nodes is not None
-                 and not self._max_nodes > self.chunks
                  else self.fwp_slicer.n_temporal_chunks)
+        nodes = np.min((nodes, self.chunks))
         return nodes
 
     @property
