@@ -6,6 +6,7 @@ import tempfile
 import tensorflow as tf
 import numpy as np
 import xarray as xr
+import matplotlib.pyplot as plt
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR, __version__
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
@@ -15,6 +16,7 @@ from sup3r.models import Sup3rGan
 from sup3r.utilities.test_utils import make_fake_nc_files
 
 from rex import ResourceX
+from rex import init_logger
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -107,7 +109,7 @@ def test_forward_pass_nc():
 
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
-        # 1st forward pass
+
         max_workers = 1
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
@@ -254,10 +256,13 @@ def test_fwd_pass_handler():
                               t_enhance * len(input_files), 2)
 
 
-def test_fwd_pass_space_chunking():
-    """Test forward pass spatial chunking. Make sure chunking agrees closely
-    with non chunking forward pass.
+def test_fwp_chunking(log=True, plot=True):
+    """Test forward pass spatialtemporal chunking. Make sure chunking agrees
+    closely with non chunking forward pass.
     """
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -279,20 +284,22 @@ def test_fwd_pass_space_chunking():
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        model.train(batch_handler, n_epoch=1,
+        model.train(batch_handler, n_epoch=2,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=2,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
+        out_dir = os.path.join(td, 'test_1')
 
+        spatial_pad = 20
+        temporal_pad = 20
         cache_pattern = os.path.join(td, 'cache')
+        fwp_shape = (4, 4, len(input_files) // 2)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=1, temporal_pad=1,
+            fwp_chunk_shape=fwp_shape,
+            spatial_pad=spatial_pad, temporal_pad=temporal_pad,
             target=target, shape=shape,
             temporal_slice=temporal_slice,
             cache_pattern=cache_pattern,
@@ -300,93 +307,56 @@ def test_fwd_pass_space_chunking():
             ti_workers=1,
             max_workers=1)
 
-        data = []
-        for i in range(handler.chunks):
-            forward_pass = ForwardPass(handler, chunk_index=i)
-            data_chunked = forward_pass.run_chunk()
-            data.append(data_chunked)
-
+        data_chunked = np.zeros((shape[0] * s_enhance, shape[1] * s_enhance,
+                                 len(input_files) * t_enhance,
+                                 len(model.output_features)))
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
                                   val_split=0.0, shape=shape, ti_workers=1)
-
+        pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
+                     (temporal_pad, temporal_pad), (0, 0))
+        hr_crop = (slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
+                   slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
+                   slice(t_enhance * temporal_pad, -t_enhance * temporal_pad),
+                   slice(None))
+        input_data = np.pad(handlerNC.data, pad_width=pad_width,
+                            mode='reflect')
         data_nochunk = model.generate(
-            np.expand_dims(handlerNC.data, axis=0))[0]
-
-        data_chunked = np.zeros(data_nochunk.shape)
-        data_chunked[:12, :12, :, :] = data[0]
-        data_chunked[12:, 12:, :, :] = data[1]
-
-        assert np.mean(
-            (np.abs(data_chunked - data_nochunk)
-             / np.product(data_chunked.shape))) < 0.01
-
-
-def test_fwd_pass_time_chunking():
-    """Test forward pass temporal chunking. Make sure chunking agrees closely
-    with non chunking forward pass.
-    """
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
-
-    with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        np.random.shuffle(input_files)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
-        handler = ForwardPassStrategy(
-            input_files, model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=(shape[0], shape[1], len(input_files) // 2),
-            spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            ti_workers=1,
-            max_workers=1)
-
-        data = []
+            np.expand_dims(input_data, axis=0))[0][hr_crop]
         for i in range(handler.chunks):
-            forward_pass = ForwardPass(handler, chunk_index=i)
-            data_chunked = forward_pass.run_chunk()
-            data.append(data_chunked)
+            fwp = ForwardPass(handler, chunk_index=i)
+            out = fwp.run_chunk()
+            t_hr_slice = slice(fwp.ti_slice.start * t_enhance,
+                               fwp.ti_slice.stop * t_enhance)
+            data_chunked[fwp.hr_slice][..., t_hr_slice, :] = out
 
-        handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape, ti_workers=1)
+        if plot:
+            for ifeature in range(data_nochunk.shape[-1]):
+                fig = plt.figure(figsize=(15, 5))
+                ax1 = fig.add_subplot(131)
+                ax2 = fig.add_subplot(132)
+                ax3 = fig.add_subplot(133)
+                vmin = np.min(data_nochunk)
+                vmax = np.max(data_nochunk)
+                nc = ax1.imshow(data_nochunk[..., 0, ifeature], vmin=vmin,
+                                vmax=vmax)
+                ch = ax2.imshow(data_chunked[..., 0, ifeature], vmin=vmin,
+                                vmax=vmax)
+                err = (data_chunked[..., 0, ifeature]
+                       - data_nochunk[..., 0, ifeature])
+                err /= data_nochunk[..., 0, ifeature]
+                diff = ax3.imshow(err)
+                ax1.set_title('Non chunked output')
+                ax2.set_title('Chunked output')
+                ax3.set_title('Difference')
+                fig.colorbar(nc, ax=ax1, shrink=0.6,
+                             label=f'{model.output_features[ifeature]}')
+                fig.colorbar(ch, ax=ax2, shrink=0.6,
+                             label=f'{model.output_features[ifeature]}')
+                fig.colorbar(diff, ax=ax3, shrink=0.6, label='Difference')
+                plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
+                plt.close()
 
-        data_nochunk = model.generate(
-            np.expand_dims(handlerNC.data, axis=0))[0]
-
-        data_chunked = np.zeros(data_nochunk.shape)
-        data_chunked[..., :16, :] = data[0]
-        data_chunked[..., 16:, :] = data[1]
-
-        assert np.mean(
-            (np.abs(data_chunked - data_nochunk)
-             / np.product(data_chunked.shape))) < 0.01
+        assert np.allclose(data_chunked, data_nochunk, rtol=0.05)
 
 
 def test_fwd_pass_nochunking():
