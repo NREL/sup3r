@@ -178,8 +178,8 @@ class ForwardPassSlicer:
         """
         if self._s_lr_pad_slices is None:
             self._s_lr_pad_slices = []
-            for _, s2 in enumerate(self.s1_lr_pad_slices):
-                for _, s1 in enumerate(self.s2_lr_pad_slices):
+            for _, s1 in enumerate(self.s1_lr_pad_slices):
+                for _, s2 in enumerate(self.s2_lr_pad_slices):
                     pad_slice = (s1, s2, slice(None), slice(None))
                     self._s_lr_pad_slices.append(pad_slice)
 
@@ -828,6 +828,7 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
+        logger.info('Getting lat/lon for entire forward pass domain.')
         self.lr_lat_lon = self.input_handler_class(
             self.file_paths[0], [], target=self.target, shape=self.grid_shape,
             ti_workers=1).lat_lon
@@ -1041,7 +1042,7 @@ class ForwardPass:
         logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
                     f'(temporal_chunk={self.temporal_chunk_index}, '
                     f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
-                    f' Total number of chunks for the current node.')
+                    f' total chunks for the current node.')
 
         self.model_kwargs = self.strategy.model_kwargs
         self.model_class = self.strategy.model_class
@@ -1185,14 +1186,14 @@ class ForwardPass:
 
         self.cache_pattern = strategy.cache_pattern
         if self.cache_pattern is not None:
-            self.cache_pattern = strategy.cache_pattern.replace(
+            self.cache_pattern = self.cache_pattern.replace(
                 '{temporal_chunk_index}', str(t_chunk_index))
-            self.cache_pattern = strategy.cache_pattern.replace(
+            self.cache_pattern = self.cache_pattern.replace(
                 '{spatial_chunk_index}', str(s_chunk_index))
 
         self.raster_file = strategy.raster_file
         if self.raster_file is not None:
-            self.raster_file = strategy.raster_file.replace(
+            self.raster_file = self.raster_file.replace(
                 '{spatial_chunk_index}', str(s_chunk_index))
 
         self.ti_start = self.ti_slice.start or 0

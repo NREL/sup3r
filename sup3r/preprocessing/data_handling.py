@@ -272,9 +272,10 @@ class InputMixIn:
             basename = self.cache_pattern.replace('{times}', '')
             basename = basename.replace('{shape}', str(len(self.file_paths)))
             basename = basename.replace('_{target}', '')
-            basename = basename.replace('_{spatial_chunk_index}', '')
             basename = basename.replace('{feature}', 'time_index')
-            basename = basename.replace('_.pkl', '.pkl')
+            tmp = basename.split('_')
+            if tmp[-2].isdigit() and tmp[-1].strip('.pkl').isdigit():
+                basename = '_'.join(tmp[:-1]) + '.pkl'
             self._time_index_file = basename
         return self._time_index_file
 
@@ -294,8 +295,6 @@ class InputMixIn:
                     self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
             else:
                 now = dt.now()
-                logger.debug('Did not find time index file: '
-                             f'{self.time_index_file}')
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
                              'input files.')
                 self._raw_time_index = self.get_time_index(self.file_paths,
@@ -313,7 +312,7 @@ class InputMixIn:
                      and (self._raw_time_index.hour == 12).all())
             if check:
                 self._raw_time_index -= pd.Timedelta(12, 'h')
-            else:
+            elif self._raw_time_index is None:
                 self._raw_time_index = [None, None]
         return self._raw_time_index
 
