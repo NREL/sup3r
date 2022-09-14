@@ -442,7 +442,7 @@ class Solar:
             if idt < (len(all_id_temporal) - 1):
                 single_chunk_id_temps.append(all_id_temporal[idt + 1])
 
-            for ids, id_spatial in enumerate(all_id_spatial):
+            for id_spatial in all_id_spatial:
                 single_fp_set = []
                 for t_str in single_chunk_id_temps:
                     fp = os.path.join(source_dir, source_fn_base)
@@ -606,7 +606,7 @@ class Solar:
         """
 
         temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
-        fp_sets, t_slices, temporal_ids, spatial_ids, target_fps = temp
+        fp_sets, t_slices, temporal_ids, _, target_fps = temp
 
         if temporal_id is not None:
             fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
