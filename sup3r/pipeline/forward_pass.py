@@ -411,6 +411,26 @@ class ForwardPassSlicer:
         return hr_slices
 
     @property
+    def chunk_lookup(self):
+        """Get a 3D array with shape
+        (n_spatial_1_chunks, n_spatial_2_chunks, n_temporal_chunks)
+        where each value is the chunk index."""
+        n_s1 = len(self.s1_lr_slices)
+        n_s2 = len(self.s2_lr_slices)
+        n_t = self.n_temporal_chunks
+        lookup = np.arange(self.n_chunks).reshape((n_t, n_s1, n_s2))
+        lookup = np.transpose(lookup, axes=(1, 2, 0))
+        return lookup
+
+    @property
+    def spatial_chunk_lookup(self):
+        """Get a 2D array with shape (n_spatial_1_chunks, n_spatial_2_chunks)
+        where each value is the spatial chunk index."""
+        n_s1 = len(self.s1_lr_slices)
+        n_s2 = len(self.s2_lr_slices)
+        return np.arange(self.n_spatial_chunks).reshape((n_s1, n_s2))
+
+    @property
     def n_spatial_chunks(self):
         """Get the number of spatial chunks"""
         return len(self.hr_crop_slices[0])
@@ -1036,19 +1056,12 @@ class ForwardPass:
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
-        if self.single_time_step_files:
-            file_paths = self.file_paths[self.ti_pad_slice]
-            ti_pad_slice = slice(None)
-        else:
-            file_paths = self.file_paths
-            ti_pad_slice = self.ti_pad_slice
-
         input_handler_kwargs = dict(
-            file_paths=file_paths,
+            file_paths=self.file_paths,
             features=self.features,
             target=self.target,
             shape=self.shape,
-            temporal_slice=ti_pad_slice,
+            temporal_slice=self.temporal_pad_slice,
             raster_file=self.raster_file,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
@@ -1070,6 +1083,25 @@ class ForwardPass:
                                    self.pad_t_start, self.pad_t_end,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+
+    @property
+    def file_paths(self):
+        """Get a list of source filepaths to get data from. This list is
+        reduced if there are single timesteps per file."""
+        file_paths = self._file_paths
+        if self.single_time_step_files:
+            file_paths = self._file_paths[self._ti_pad_slice]
+
+        return file_paths
+
+    @property
+    def temporal_pad_slice(self):
+        """Get the low resolution temporal slice including padding."""
+        ti_pad_slice = self._ti_pad_slice
+        if self.single_time_step_files:
+            ti_pad_slice = slice(None)
+
+        return ti_pad_slice
 
     @property
     def target(self):
@@ -1123,7 +1155,7 @@ class ForwardPass:
         t_chunk_index = self.temporal_chunk_index
 
         self.out_file = strategy.out_files[chunk_index]
-        self.ti_pad_slice = strategy.ti_pad_slices[t_chunk_index]
+        self._ti_pad_slice = strategy.ti_pad_slices[t_chunk_index]
         self.ti_slice = strategy.ti_slices[t_chunk_index]
         hr_crop_slices = strategy.fwp_slicer.hr_crop_slices[t_chunk_index]
 
@@ -1171,14 +1203,14 @@ class ForwardPass:
                                              - strategy.grid_shape[1])))
 
         self.data_shape = (*strategy.grid_shape,
-                           len(strategy.raw_time_index[self.ti_pad_slice]))
+                           len(strategy.raw_time_index[self._ti_pad_slice]))
 
         self.chunk_shape = (
             self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
             self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
             self.data_shape[2])
 
-        self.file_paths = strategy.file_paths
+        self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
         self.extract_workers = strategy.extract_workers
         self.compute_workers = strategy.compute_workers
@@ -1191,9 +1223,9 @@ class ForwardPass:
         """Check if there is a file for each time step, in which case we can
         send a subset of files to the data handler according to ti_pad_slice"""
 
-        t_steps = self.input_handler_class.get_time_index(self.file_paths[:1],
+        t_steps = self.input_handler_class.get_time_index(self._file_paths[:1],
                                                           max_workers=1)
-        check = (len(self.file_paths) == len(self.strategy.raw_time_index)
+        check = (len(self._file_paths) == len(self.strategy.raw_time_index)
                  and t_steps is not None and len(t_steps) == 1)
         return check
 
