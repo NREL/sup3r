@@ -222,6 +222,9 @@ class Sup3rQa:
                 features = self.output_handler.dsets
             features = [f for f in features if f.lower() not in ignore]
 
+        elif isinstance(self._features, (list, tuple)):
+            features = self._features
+
         elif isinstance(self._features, dict):
             features = sorted(self._features.keys())
 
