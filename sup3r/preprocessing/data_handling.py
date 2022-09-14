@@ -561,10 +561,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             bad_shape = (sample_shape[0] > self.grid_shape[0]
                          and sample_shape[1] > self.grid_shape[1])
             if bad_shape:
-                msg = (f'spatial_sample_shape {sample_shape[:2]} is larger '
-                       f'than the raster size {self.grid_shape}')
-                logger.warning(msg)
-                warnings.warn(msg)
+                logger.debug(f'spatial_sample_shape {sample_shape[:2]} is '
+                             f'larger than the raster size {self.grid_shape}')
 
             if any(self.features):
                 self.data = self.run_all_data_init()
@@ -1259,9 +1257,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Load data from cache files and split into training and validation
         """
         if self.data is not None:
-            msg = ('Called load_cached_data() but self.data is not None')
-            logger.warning(msg)
-            warnings.warn(msg)
+            logger.info('Called load_cached_data() but self.data is not None')
 
         elif self.data is None:
             shape = get_raster_shape(self.raster_index)

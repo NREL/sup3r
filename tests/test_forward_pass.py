@@ -734,3 +734,148 @@ def test_fwp_multi_step_model():
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
             assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m']
+
+
+def test_slicing_no_pad():
+    """Test the slicing of input data via the ForwardPassStrategy +
+    ForwardPassSlicer vs. the actual source data. Does not include any
+    reflected padding at the edges."""
+    Sup3rGan.seed()
+    s_enhance = 3
+    t_enhance = 4
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    features = ['U_100m', 'V_100m']
+    st_model.meta['training_features'] = features
+    st_model.meta['output_features'] = features
+    st_model.meta['s_enhance'] = s_enhance
+    st_model.meta['t_enhance'] = t_enhance
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        st_out_dir = os.path.join(td, 'st_gan')
+        st_model.save(st_out_dir)
+
+        handler = DataHandlerNC(input_files, features,
+                                target=target, shape=shape,
+                                sample_shape=(1, 1, 1),
+                                val_split=0.0, max_workers=1)
+
+        strategy = ForwardPassStrategy(
+            input_files, model_kwargs={'model_dir': st_out_dir},
+            model_class='Sup3rGan',
+            fwp_chunk_shape=(3, 2, 4),
+            spatial_pad=0, temporal_pad=0,
+            target=target, shape=shape,
+            temporal_slice=slice(None),
+            out_pattern=out_files,
+            max_workers=1,
+            max_nodes=1)
+
+        for ichunk in range(strategy.chunks):
+            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
+
+            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
+            lr_data_slice = (s_slices[0], s_slices[1],
+                             forward_pass._ti_pad_slice,
+                             slice(None))
+
+            truth = handler.data[lr_data_slice]
+            assert np.allclose(forward_pass.input_data, truth)
+
+
+def test_slicing_pad():
+    """Test the slicing of input data via the ForwardPassStrategy +
+    ForwardPassSlicer vs. the actual source data. Includes reflected padding
+    at the edges."""
+    Sup3rGan.seed()
+    s_enhance = 3
+    t_enhance = 4
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    features = ['U_100m', 'V_100m']
+    st_model.meta['training_features'] = features
+    st_model.meta['output_features'] = features
+    st_model.meta['s_enhance'] = s_enhance
+    st_model.meta['t_enhance'] = t_enhance
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        st_out_dir = os.path.join(td, 'st_gan')
+        st_model.save(st_out_dir)
+
+        handler = DataHandlerNC(input_files, features,
+                                target=target, shape=shape,
+                                sample_shape=(1, 1, 1),
+                                val_split=0.0, max_workers=1)
+
+        strategy = ForwardPassStrategy(
+            input_files, model_kwargs={'model_dir': st_out_dir},
+            model_class='Sup3rGan',
+            fwp_chunk_shape=(2, 1, 4),
+            spatial_pad=2, temporal_pad=2,
+            target=target, shape=shape,
+            temporal_slice=slice(None),
+            out_pattern=out_files,
+            max_workers=1,
+            max_nodes=1)
+
+        chunk_lookup = strategy.fwp_slicer.chunk_lookup
+        n_s1 = len(strategy.fwp_slicer.s1_lr_slices)
+        n_s2 = len(strategy.fwp_slicer.s2_lr_slices)
+        n_t = len(strategy.fwp_slicer.t_lr_slices)
+
+        assert chunk_lookup[0, 0, 0] == 0
+        assert chunk_lookup[0, 1, 0] == 1
+        assert chunk_lookup[0, 2, 0] == 2
+        assert chunk_lookup[1, 0, 0] == n_s2
+        assert chunk_lookup[1, 1, 0] == n_s2 + 1
+        assert chunk_lookup[2, 0, 0] == n_s2 * 2
+        assert chunk_lookup[0, 0, 1] == n_s1 * n_s2
+        assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
+
+        for ichunk in range(strategy.chunks):
+            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
+
+            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
+            lr_data_slice = (s_slices[0], s_slices[1],
+                             forward_pass._ti_pad_slice,
+                             slice(None))
+
+            # do a manual calculation of what the padding should be.
+            # s1 and t axes should have padding of 2 and the borders and
+            # padding of 1 when 1 index away from the borders (chunk shape is 1
+            # in those axes). s2 should have padding of 2 at the
+            # borders and 0 everywhere else.
+            ids1, ids2, idt = np.where(chunk_lookup == ichunk)
+            ids1, ids2, idt = ids1[0], ids2[0], idt[0]
+
+            start_s1_pad_lookup = {0: 2}
+            start_s2_pad_lookup = {0: 2, 1: 1}
+            start_t_pad_lookup = {0: 2}
+            end_s1_pad_lookup = {n_s1 - 1: 2}
+            end_s2_pad_lookup = {n_s2 - 1: 2, n_s2 - 2: 1}
+            end_t_pad_lookup = {n_t - 1: 2}
+
+            pad_s1_start = start_s1_pad_lookup.get(ids1, 0)
+            pad_s2_start = start_s2_pad_lookup.get(ids2, 0)
+            pad_t_start = start_t_pad_lookup.get(idt, 0)
+            pad_s1_end = end_s1_pad_lookup.get(ids1, 0)
+            pad_s2_end = end_s2_pad_lookup.get(ids2, 0)
+            pad_t_end = end_t_pad_lookup.get(idt, 0)
+
+            pad_width = ((pad_s1_start, pad_s1_end),
+                         (pad_s2_start, pad_s2_end),
+                         (pad_t_start, pad_t_end), (0, 0))
+
+            truth = handler.data[lr_data_slice]
+            padded_truth = np.pad(truth, pad_width, mode='reflect')
+
+            assert forward_pass.input_data.shape == padded_truth.shape
+            assert np.allclose(forward_pass.input_data, padded_truth)
