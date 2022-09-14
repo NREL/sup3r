@@ -80,6 +80,13 @@ class Solar:
         if isinstance(self._sup3r_fps, str):
             self._sup3r_fps = [self._sup3r_fps]
 
+        logger.debug('Initializing solar module with sup3r files: {}'
+                     .format([os.path.basename(fp) for fp in self._sup3r_fps]))
+        logger.debug('Initializing solar module with temporal slice: {}'
+                     .format(self.t_slice))
+        logger.debug('Initializing solar module with NSRDB source fp: {}'
+                     .format(self._nsrdb_fp))
+
         self.gan_data = MultiTimeResource(self._sup3r_fps)
         self.nsrdb = Resource(self._nsrdb_fp)
 
@@ -213,10 +220,10 @@ class Solar:
             step = int(3600 // delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 
-            logger.info('Found nsrdb_tslice {} with corresponding '
-                        'time index: {}'
-                        .format(self._nsrdb_tslice,
-                                self.nsrdb.time_index[self._nsrdb_tslice]))
+            logger.debug('Found nsrdb_tslice {} with corresponding '
+                         'time index:\n\t{}'
+                         .format(self._nsrdb_tslice,
+                                 self.nsrdb.time_index[self._nsrdb_tslice]))
 
         return self._nsrdb_tslice
 
@@ -269,7 +276,7 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._ghi is None:
-            logger.info('Calculating GHI.')
+            logger.debug('Calculating GHI.')
             self._ghi = (self.get_nsrdb_data('clearsky_ghi')
                          * self.clearsky_ratio)
             self._ghi[:, self.out_of_bounds] = 0
@@ -287,7 +294,7 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._dni is None:
-            logger.info('Calculating DNI.')
+            logger.debug('Calculating DNI.')
             self._dni = self.get_nsrdb_data('clearsky_dni')
             pressure = self.get_nsrdb_data('surface_pressure')
             doy = self.time_index.day_of_year.values
@@ -310,7 +317,7 @@ class Solar:
             2D array with shape (time, sites) in UTC.
         """
         if self._dhi is None:
-            logger.info('Calculating DHI.')
+            logger.debug('Calculating DHI.')
             self._dhi, self._dni = calc_dhi(self.dni, self.ghi,
                                             self.solar_zenith_angle)
             self._dhi = dark_night(self._dhi, self.solar_zenith_angle)
@@ -523,20 +530,20 @@ class Solar:
             fh.meta = self.gan_data.meta
             fh.time_index = self.time_index
 
-            for feat_name in features:
-                attrs = H5_ATTRS[feat_name]
-                arr = getattr(self, feat_name, None)
+            for feature in features:
+                attrs = H5_ATTRS[feature]
+                arr = getattr(self, feature, None)
                 if arr is None:
                     msg = ('Feature "{}" was not available from Solar '
-                           'module class.'.format(feat_name))
+                           'module class.'.format(feature))
                     logger.error(msg)
                     raise AttributeError(msg)
 
-                fh.add_dataset(fp_out, feat_name, arr,
+                fh.add_dataset(fp_out, feature, arr,
                                dtype=attrs['dtype'],
                                attrs=attrs,
                                chunks=attrs['chunks'])
-                logger.info(f'Added {feat_name} to output file.')
+                logger.info(f'Added "{feature}" to output file.')
 
             run_attrs = self.gan_data.h5[self._sup3r_fps[0]].global_attrs
             run_attrs['nsrdb_source'] = self._nsrdb_fp
