@@ -256,7 +256,7 @@ def test_fwd_pass_handler():
                               t_enhance * len(input_files), 2)
 
 
-def test_fwp_chunking(log=True, plot=True):
+def test_fwp_chunking(log=False, plot=False):
     """Test forward pass spatialtemporal chunking. Make sure chunking agrees
     closely with non chunking forward pass.
     """
