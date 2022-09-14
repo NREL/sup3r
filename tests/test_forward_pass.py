@@ -33,7 +33,7 @@ s_enhance = 3
 t_enhance = 4
 
 
-def test_forward_pass_nc_cc():
+def test_fwp_nc_cc():
     """Test forward pass handler output for netcdf write with cc data."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -89,7 +89,7 @@ def test_forward_pass_nc_cc():
                 s_enhance * fwp_chunk_shape[1])
 
 
-def test_forward_pass_nc():
+def test_fwp_nc():
     """Test forward pass handler output for netcdf write."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -139,7 +139,7 @@ def test_forward_pass_nc():
                 s_enhance * fwp_chunk_shape[1])
 
 
-def test_forward_pass_temporal_slice():
+def test_fwp_temporal_slice():
     """Test forward pass handler output to h5 file. Includes temporal
     slicing."""
 
@@ -200,7 +200,7 @@ def test_forward_pass_temporal_slice():
             assert gan_meta['training_features'] == ['U_100m', 'V_100m']
 
 
-def test_fwd_pass_handler():
+def test_fwp_handler():
     """Test forward pass handler. Make sure it is
     returning the correct data shape"""
 
@@ -329,6 +329,8 @@ def test_fwp_chunking(log=False, plot=False):
                                fwp.ti_slice.stop * t_enhance)
             data_chunked[fwp.hr_slice][..., t_hr_slice, :] = out
 
+        err = (data_chunked - data_nochunk)
+        err /= data_nochunk
         if plot:
             for ifeature in range(data_nochunk.shape[-1]):
                 fig = plt.figure(figsize=(15, 5))
@@ -341,10 +343,7 @@ def test_fwp_chunking(log=False, plot=False):
                                 vmax=vmax)
                 ch = ax2.imshow(data_chunked[..., 0, ifeature], vmin=vmin,
                                 vmax=vmax)
-                err = (data_chunked[..., 0, ifeature]
-                       - data_nochunk[..., 0, ifeature])
-                err /= data_nochunk[..., 0, ifeature]
-                diff = ax3.imshow(err)
+                diff = ax3.imshow(err[..., 0, ifeature])
                 ax1.set_title('Non chunked output')
                 ax2.set_title('Chunked output')
                 ax3.set_title('Difference')
@@ -356,10 +355,10 @@ def test_fwp_chunking(log=False, plot=False):
                 plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
                 plt.close()
 
-        assert np.allclose(data_chunked, data_nochunk, rtol=0.05)
+        assert (np.abs(err.flatten()) < 0.01).all()
 
 
-def test_fwd_pass_nochunking():
+def test_fwp_nochunking():
     """Test forward pass without chunking. Make sure using a single chunk
     (a.k.a nochunking) matches direct forward pass of full dataset.
     """
