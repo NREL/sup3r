@@ -32,8 +32,7 @@ class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
     def __init__(self, coarse_shape, time_index, temporal_slice, chunk_shape,
-                 s_enhancements, t_enhancements, spatial_pad, temporal_pad,
-                 exo_s_enhancements=None):
+                 s_enhancements, t_enhancements, spatial_pad, temporal_pad):
         """
         Parameters
         ----------
@@ -87,7 +86,6 @@ class ForwardPassSlicer:
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape
-        self.exo_s_enhancements = exo_s_enhancements
 
         self._s1_lr_slices = None
         self._s2_lr_slices = None
@@ -100,7 +98,6 @@ class ForwardPassSlicer:
         self._s_hr_slices = None
         self._s_hr_crop_slices = None
         self._t_hr_crop_slices = None
-        self._s_exo_slices = None
         self._hr_crop_slices = None
         self._gids = None
 
@@ -184,53 +181,6 @@ class ForwardPassSlicer:
                     self._s_lr_pad_slices.append(pad_slice)
 
         return self._s_lr_pad_slices
-
-    @property
-    def s_exo_slices(self):
-        """Get padded slices for each spatial enhancement step to use for
-        indexing exogenous data
-
-        Returns
-        -------
-        _s_exo_slices : np.ndarray
-            Array of lists of slices which have been padded for indexing
-            exogenous data for the appropriate spatial enhancement step. e.g.
-            If there are two spatial enhancement steps this will be a list of
-            length=3. _s_exo_slices[0] will be a list of padded slices for the
-            model input resolution, _s_exo_slices[1] will be a list of slices
-            for the resolution after the first spatial enhancement step, and
-            _s_exo_slices[2] will be a list of slices for the resolution after
-            the second spatial enhancement step.
-        """
-        if self._s_exo_slices is None and self.exo_s_enhancements is not None:
-            self._s_exo_slices = []
-            for s, _ in enumerate(self.exo_s_enhancements):
-                enhancements = [s for s in self.exo_s_enhancements[:s + 1]
-                                if s is not None]
-                s_enhance = np.product(enhancements)
-                exo_slices = []
-                pad_shape_0 = self.grid_shape[0]
-                pad_shape_1 = self.grid_shape[1]
-                s1_pad_slices = self.get_padded_slices(self.s1_lr_slices,
-                                                       pad_shape_0,
-                                                       s_enhance,
-                                                       self.spatial_pad)
-                s2_pad_slices = self.get_padded_slices(self.s2_lr_slices,
-                                                       pad_shape_1,
-                                                       s_enhance,
-                                                       self.spatial_pad)
-
-                for i, _ in enumerate(self.s1_lr_slices):
-                    for j, _ in enumerate(self.s2_lr_slices):
-                        pad_slice = (s1_pad_slices[i], s2_pad_slices[j],
-                                     slice(None), slice(None))
-                        exo_slices.append(pad_slice)
-
-                self._s_exo_slices.append(exo_slices)
-
-            self._s_exo_slices = np.array(self.s_exo_slices)
-
-        return self._s_exo_slices
 
     @property
     def t_lr_pad_slices(self):
@@ -653,10 +603,6 @@ class ForwardPassStrategy(InputMixIn):
             load_cached_data is called. The cache_pattern can also include
             {shape}, {target}, {times} which will help ensure unique cache
             files for complex problems.
-
-            NOTE: For best performance, with large spatial domains,
-            cache_pattern should be provided so that data does not have to be
-            extracted for every forward_pass call.
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data
@@ -761,7 +707,6 @@ class ForwardPassStrategy(InputMixIn):
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
 
-        exo_s_en = self.exo_kwargs.get('s_enhancements', None)
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
                                             self.raw_time_index,
                                             self.temporal_slice,
@@ -769,8 +714,7 @@ class ForwardPassStrategy(InputMixIn):
                                             self.s_enhancements,
                                             self.t_enhancements,
                                             self.spatial_pad,
-                                            self.temporal_pad,
-                                            exo_s_enhancements=exo_s_en)
+                                            self.temporal_pad)
 
         logger.info('Initializing ForwardPassStrategy for '
                     f'{self.input_file_info}. Using n_nodes={self.nodes} with '
@@ -828,6 +772,7 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
+        # pylint: disable=E1102
         logger.info('Getting lat/lon for entire forward pass domain.')
         self.lr_lat_lon = self.input_handler_class(
             self.file_paths[0], [], target=self.target, shape=self.grid_shape,
@@ -1118,14 +1063,12 @@ class ForwardPass:
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
 
+        exo_s_en = self.exo_kwargs.get('s_enhancements', None)
         out = self.pad_source_data(self.data_handler.data,
-                                   self.pad_s1_start,
-                                   self.pad_s1_end,
-                                   self.pad_s2_start,
-                                   self.pad_s2_end,
-                                   self.pad_t_start,
-                                   self.pad_t_end,
-                                   self.exogenous_data)
+                                   self.pad_s1_start, self.pad_s1_end,
+                                   self.pad_s2_start, self.pad_s2_end,
+                                   self.pad_t_start, self.pad_t_end,
+                                   self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
 
     @property
@@ -1242,7 +1185,6 @@ class ForwardPass:
         self.load_workers = strategy.load_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
-        self.exo_slices = strategy.fwp_slicer.s_exo_slices
 
     @property
     def single_time_step_files(self):
@@ -1258,7 +1200,7 @@ class ForwardPass:
     @staticmethod
     def pad_source_data(input_data, pad_s1_start, pad_s1_end, pad_s2_start,
                         pad_s2_end, pad_t_start, pad_t_end, exo_data,
-                        mode='reflect'):
+                        exo_s_enhancements, mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
         Parameters
@@ -1316,23 +1258,25 @@ class ForwardPass:
         if exo_data is not None:
             for i, i_exo_data in enumerate(exo_data):
                 if i_exo_data is not None:
-                    pad_width = ((pad_s1_start, pad_s1_end),
-                                 (pad_s2_start, pad_s2_end), (0, 0))
+                    total_s_enhance = exo_s_enhancements[:i + 1]
+                    total_s_enhance = [s for s in total_s_enhance
+                                       if s is not None]
+                    total_s_enhance = np.product(total_s_enhance)
+                    pad_width = ((total_s_enhance * pad_s1_start,
+                                  total_s_enhance * pad_s1_end),
+                                 (total_s_enhance * pad_s2_start,
+                                  total_s_enhance * pad_s2_end), (0, 0))
                     exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
 
         return out, exo_data
 
-    def _prep_exogenous_input(self, chunk_shape, exogenous_slices):
+    def _prep_exogenous_input(self, chunk_shape):
         """Shape exogenous data according to model type and model steps
 
         Parameters
         ----------
         chunk_shape : tuple
             Shape of data chunk going through forward pass
-        exogenous_slices : list
-            List of padded slices to index exogenous data for each model step.
-            If there are two spatial enhancement steps this is a list of length
-            3 with padded slices for each intermediate spatial resolution.
 
         Returns
         -------
@@ -1343,12 +1287,11 @@ class ForwardPass:
         """
         exo_data = []
         if self.exogenous_data is not None:
-            for arr, exo_slice in zip(self.exogenous_data, exogenous_slices):
+            for arr in self.exogenous_data:
                 if arr is not None:
                     og_shape = arr.shape
                     arr = np.expand_dims(arr, axis=2)
                     arr = np.repeat(arr, chunk_shape[2], axis=2)
-                    arr = arr[tuple(exo_slice)]
 
                     target_shape = (arr.shape[0], arr.shape[1], chunk_shape[2],
                                     arr.shape[-1])
@@ -1516,13 +1459,8 @@ class ForwardPass:
 
         return cmd.replace('\\', '/')
 
-    def _run_single_fwd_pass(self, chunk_index):
-        """Run forward passes for a given chunk index
-
-        Parameters
-        ----------
-        chunk_index : int
-            Spatial chunk index
+    def _run_single_fwd_pass(self):
+        """Run forward pass for current chunk index
 
         Returns
         -------
@@ -1532,8 +1470,7 @@ class ForwardPass:
         data_chunk = self.input_data
         exo_data = []
         if self.exogenous_data is not None:
-            exo_data = self._prep_exogenous_input(
-                data_chunk.shape, self.exo_slices[:, chunk_index])
+            exo_data = self._prep_exogenous_input(data_chunk.shape)
 
         out_data = self.forward_pass_chunk(
             data_chunk, hr_crop_slices=self.hr_crop_slice, model=self.model,
@@ -1559,7 +1496,7 @@ class ForwardPass:
                f'of {self.strategy.temporal_pad}.')
         logger.info(msg)
 
-        out_data = self._run_single_fwd_pass(self.spatial_chunk_index)
+        out_data = self._run_single_fwd_pass()
 
         lr_times = self.strategy.raw_time_index[self.ti_slice]
         gids = self.strategy.gids[self.hr_slice[0], self.hr_slice[1]]

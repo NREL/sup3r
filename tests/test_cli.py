@@ -205,8 +205,8 @@ def test_fwd_pass_cli(runner):
         model.save(out_dir)
 
         fwp_chunk_shape = (4, 4, 6)
-        n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
-        n_chunks = n_nodes * shape[0] // fwp_chunk_shape[0]
+        t_chunks = len(input_files) // fwp_chunk_shape[2] + 1
+        n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
         n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
@@ -241,9 +241,9 @@ def test_fwd_pass_cli(runner):
             raise RuntimeError(msg)
 
         # include time index cache file
-        n_cache_files = 1 + ((len(FEATURES) + 1) * n_nodes)
+        n_cache_files = 1 + t_chunks + (len(FEATURES) * n_chunks)
         assert len(glob.glob(f'{td}/cache*')) == n_cache_files
-        assert len(glob.glob(f'{td}/*.log')) == n_nodes
+        assert len(glob.glob(f'{td}/*.log')) == t_chunks
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 

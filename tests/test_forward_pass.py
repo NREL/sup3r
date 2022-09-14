@@ -553,7 +553,7 @@ def test_fwp_multi_step_model_topo_exoskip():
                                                         'topography']
 
 
-def test_fwp_multi_step_model_topo():
+def test_fwp_multi_step_model_topo_noskip():
     """Test the forward pass with a multi step model class using exogenous data
     for all model steps"""
     Sup3rGan.seed()
