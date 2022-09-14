@@ -44,6 +44,7 @@ def make_cs_ratio_files(td, low_res_times, low_res_lat_lon):
     """
     fps = []
     chunk_dir = os.path.join(td, 'chunks/')
+    fp_pattern = os.path.join(chunk_dir, 'sup3r_chunk_*.h5')
     os.makedirs(chunk_dir)
 
     for idt, timestamp in enumerate(low_res_times):
@@ -60,7 +61,7 @@ def make_cs_ratio_files(td, low_res_times, low_res_lat_lon):
                                      [timestamp],
                                      out_file, max_workers=1,
                                      meta_data=GAN_META)
-    return fps
+    return fps, fp_pattern
 
 
 def test_solar_module(plot=False):
@@ -71,13 +72,14 @@ def test_solar_module(plot=False):
 
     with tempfile.TemporaryDirectory() as td:
 
-        fps = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
+        fps, _ = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
             attrs_base = res.global_attrs
 
-        with Solar(fps, NSRDB_FP, t_slice=t_slice, nn_threshold=0.4) as solar:
+        with Solar(fps, NSRDB_FP, t_slice=t_slice,
+                   nn_threshold=0.4) as solar:
             ghi = solar.ghi
             dni = solar.dni
             dhi = solar.dhi
@@ -168,8 +170,8 @@ def test_solar_cli(runner):
     """Test the solar CLI. This test is here and not in the test_cli.py file
     because it uses some common test utilities stored here."""
     with tempfile.TemporaryDirectory() as td:
-        fps = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
-        fp_pattern = os.path.join(td, 'chunks/sup3r*.h5')
+        fps, fp_pattern = make_cs_ratio_files(td, LOW_RES_TIMES,
+                                              LOW_RES_LAT_LON)
         config = {'fp_pattern': fp_pattern,
                   'nsrdb_fp': NSRDB_FP,
                   'log_level': 'DEBUG',

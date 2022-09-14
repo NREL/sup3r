@@ -76,7 +76,7 @@ def from_config(ctx, config_file, verbose):
                 'on. Submitting to {} nodes based on the number of temporal '
                 'chunks'.format(len(fp_sets), len(set(temporal_ids))))
 
-    for i_node, _ in enumerate(temporal_ids):
+    for i_node, temporal_id in enumerate(sorted(set(temporal_ids))):
         node_config = copy.deepcopy(config)
         node_config['log_file'] = (
             log_pattern if log_pattern is None
@@ -86,7 +86,7 @@ def from_config(ctx, config_file, verbose):
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
 
-        node_config['i_t_chunk'] = i_node
+        node_config['temporal_id'] = temporal_id
         cmd = Solar.get_node_cmd(node_config)
 
         cmd_log = '\n\t'.join(cmd.split('\n'))

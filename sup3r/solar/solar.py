@@ -8,7 +8,6 @@ as daily average GHI / daily average clearsky GHI.
 import glob
 import json
 import os
-import pandas as pd
 import numpy as np
 import logging
 from scipy.spatial import KDTree
@@ -550,7 +549,7 @@ class Solar:
                            fp_out_suffix='irradiance', tz=-6, agg_factor=1,
                            nn_threshold=0.5, cloud_threshold=0.99,
                            features=('ghi', 'dni', 'dhi'),
-                           i_t_chunk=None):
+                           temporal_id=None):
         """Run the solar module on all spatial chunks for a single temporal
         chunk corresponding to the fp_pattern. This typically gets run from the
         CLI.
@@ -593,22 +592,22 @@ class Solar:
         features : list | tuple
             List of features to write to disk. These have to be attributes of
             the Solar class (ghi, dni, dhi).
-        i_t_chunk : int | None
-            Index of the sorted list of unique temporal indices to run (parsed
-            from the files matching fp_pattern). This input typically gets set
-            from the CLI. If None, this will run all temporal indices.
+        temporal_id : str | None
+            One of the unique zero-padded temporal id's from the file chunks
+            that match fp_pattern. This input typically gets set from the CLI.
+            If None, this will run all temporal indices.
         """
 
         temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
         fp_sets, t_slices, temporal_ids, spatial_ids, target_fps = temp
 
-        if i_t_chunk is not None:
+        if temporal_id is not None:
             fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
-                       if temporal_ids[i] == temporal_ids[i_t_chunk]]
+                       if temporal_ids[i] == temporal_id]
             t_slices = [t_slice for i, t_slice in enumerate(t_slices)
-                        if temporal_ids[i] == temporal_ids[i_t_chunk]]
+                        if temporal_ids[i] == temporal_id]
             target_fps = [target_fp for i, target_fp in enumerate(target_fps)
-                          if temporal_ids[i] == temporal_ids[i_t_chunk]]
+                          if temporal_ids[i] == temporal_id]
 
         zip_iter = zip(fp_sets, t_slices, target_fps)
         for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
