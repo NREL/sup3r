@@ -202,6 +202,36 @@ class CloudMaskH5(DerivedFeature):
         return cloud_mask
 
 
+class PotentialTempNC(DerivedFeature):
+    """Potential Temperature feature class for NETCDF data. Needed since T is
+    perturbation potential temperature."""
+
+    @classmethod
+    def inputs(cls, feature):
+        height = Feature.get_height(feature)
+        features = [f'T_{height}m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute Potential Temperature from NETCDF data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        return data[f'T_{height}m'] + 300
+
+
 class TempNC(DerivedFeature):
     """Temperature feature class for NETCDF data. Needed since T is potential
     temperature not standard temp."""
@@ -209,8 +239,8 @@ class TempNC(DerivedFeature):
     @classmethod
     def inputs(cls, feature):
         height = Feature.get_height(feature)
-        features = [f'T_{height}m',
-                    f'P_{height}m']
+        features = [f'PotentialTemp_{height}m',
+                    f'Pressure_{height}m']
         return features
 
     @classmethod
@@ -230,7 +260,39 @@ class TempNC(DerivedFeature):
             Derived feature array
 
         """
-        return invert_pot_temp(data[f'T_{height}m'], data[f'P_{height}m'])
+        return invert_pot_temp(data[f'PotentialTemp_{height}m'],
+                               data[f'Pressure_{height}m'])
+
+
+class PressureNC(DerivedFeature):
+    """Pressure feature class for NETCDF data. Needed since P is perturbation
+    pressure."""
+
+    @classmethod
+    def inputs(cls, feature):
+        height = Feature.get_height(feature)
+        features = [f'P_{height}m',
+                    f'PB_{height}m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute pressure from NETCDF data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        return data[f'P_{height}m'] + data[f'PB_{height}m']
 
 
 class BVFreqSquaredNC(DerivedFeature):
@@ -240,8 +302,8 @@ class BVFreqSquaredNC(DerivedFeature):
     @classmethod
     def inputs(cls, feature):
         height = Feature.get_height(feature)
-        features = [f'T_{height}m',
-                    f'T_{int(height) - 100}m']
+        features = [f'PT_{height}m',
+                    f'PT_{int(height) - 100}m']
 
         return features
 
@@ -265,8 +327,8 @@ class BVFreqSquaredNC(DerivedFeature):
         # T is perturbation potential temperature for wrf and the
         # base potential temperature is 300K
         bvf2 = np.float32(9.81 / 100)
-        bvf2 *= (data[f'T_{height}m'] - data[f'T_{int(height) - 100}m'])
-        bvf2 /= (data[f'T_{height}m'] + data[f'T_{int(height) - 100}m'] + 600)
+        bvf2 *= (data[f'PT_{height}m'] - data[f'PT_{int(height) - 100}m'])
+        bvf2 /= (data[f'PT_{height}m'] + data[f'PT_{int(height) - 100}m'])
         bvf2 /= np.float32(2)
         return bvf2
 

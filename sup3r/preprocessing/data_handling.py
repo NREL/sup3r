@@ -49,6 +49,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonNC,
                                                   LatLonNCforCC,
                                                   TempNC,
+                                                  PotentialTempNC,
+                                                  PressureNC,
                                                   UWind,
                                                   VWind,
                                                   LatLonH5,
@@ -1683,7 +1685,9 @@ class DataHandlerNC(DataHandler):
             'Shear_(.*)m': Shear,
             'REWS_(.*)m': Rews,
             'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': 'P_(.*)m',
+            'Pressure_(.*)m': PressureNC,
+            'PotentialTemp_(.*)m': PotentialTempNC,
+            'PT_(.*)m': PotentialTempNC,
             'topography': 'HGT'}
         return registry
 

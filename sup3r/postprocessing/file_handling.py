@@ -367,11 +367,13 @@ class OutputHandlerH5(OutputHandler):
             will be estimated based on memory limits.
         """
 
-        logger.info('Converting u/v to windspeed/winddirection for h5 output')
         heights = []
         for f in features:
             if re.match('U_(.*?)m'.lower(), f.lower()):
                 heights.append(Feature.get_height(f))
+        if heights:
+            logger.info('Converting u/v to windspeed/winddirection for h5'
+                        ' output')
 
         logger.debug('Found heights {} for output features {}'
                      .format(heights, features))

@@ -1021,7 +1021,7 @@ def invert_pot_temp(PT, P):
     ndarray
         Temperature in celsius
     """
-    out = PT / (np.float32(100000) / P) ** np.float32(0.286)
+    out = PT * (P / np.float32(100000)) ** np.float32(0.286)
     out -= np.float32(273.15)
     return out
 
