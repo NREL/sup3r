@@ -38,14 +38,16 @@ NOTE: The installation instruction below assume that you have python installed
 on your machine and are using `conda <https://docs.conda.io/en/latest/index.html>`_
 as your package/environment manager.
 
-Option 1: Install from PIP or Conda (recommended for analysts):
----------------------------------------------------------------
+Option 1: Install from PIP (recommended for analysts):
+------------------------------------------------------
 
 1. Create a new environment: ``conda create --name sup3r python=3.9``
 
-2. Activate directory: ``conda activate sup3r``
+2. Activate environment: ``conda activate sup3r``
 
-3. Install sup3r: ``pip install NREL-sup3r``
+3. Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
+
+4. Install sup3r: ``pip install NREL-sup3r``
 
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------
@@ -55,10 +57,11 @@ Option 2: Clone repo (recommended for developers)
 2. Create ``sup3r`` environment and install package
     1) Create a conda env: ``conda create -n sup3r``
     2) Run the command: ``conda activate sup3r``
-    3) cd into the repo cloned in 1.
-    4) prior to running ``pip`` below, make sure the branch is correct (install
+    3) ``cd`` into the repo cloned in 1.
+    4) Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
+    5) Prior to running ``pip`` below, make sure the branch is correct (install
        from main!)
-    5) Install ``sup3r`` and its dependencies by running:
+    6) Install ``sup3r`` and its dependencies by running:
        ``pip install .`` (or ``pip install -e .`` if running a dev branch
        or working on the source code)
 
