@@ -453,6 +453,8 @@ def transform_rotate_wind(ws, wd, lat_lon):
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
     dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+    dy = (dy + 90) % 180 - 90
+    dx = (dx + 180) % 360 - 180
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
@@ -498,6 +500,8 @@ def invert_uv(u, v, lat_lon):
     # get the dy/dx to the nearest vertical neighbor
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
     dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
+    dy = (dy + 90) % 180 - 90
+    dx = (dx + 180) % 360 - 180
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
@@ -1017,7 +1021,7 @@ def invert_pot_temp(PT, P):
     ndarray
         Temperature in celsius
     """
-    out = PT / (np.float32(100000) / P) ** np.float32(0.286)
+    out = PT * (P / np.float32(100000)) ** np.float32(0.286)
     out -= np.float32(273.15)
     return out
 

@@ -49,6 +49,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonNC,
                                                   LatLonNCforCC,
                                                   TempNC,
+                                                  PotentialTempNC,
+                                                  PressureNC,
                                                   UWind,
                                                   VWind,
                                                   LatLonH5,
@@ -271,7 +273,9 @@ class InputMixIn:
             basename = basename.replace('{shape}', str(len(self.file_paths)))
             basename = basename.replace('_{target}', '')
             basename = basename.replace('{feature}', 'time_index')
-            basename = basename.replace('_.pkl', '.pkl')
+            tmp = basename.split('_')
+            if tmp[-2].isdigit() and tmp[-1].strip('.pkl').isdigit():
+                basename = '_'.join(tmp[:-1]) + '.pkl'
             self._time_index_file = basename
         return self._time_index_file
 
@@ -279,6 +283,7 @@ class InputMixIn:
     def raw_time_index(self):
         """Time index for input data without time pruning. This is the base
         time index for the raw input data."""
+
         if self._raw_time_index is None:
             check = (self.time_index_file is not None
                      and os.path.exists(self.time_index_file)
@@ -290,8 +295,6 @@ class InputMixIn:
                     self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
             else:
                 now = dt.now()
-                logger.debug('Did not find time index file: '
-                             f'{self.time_index_file}')
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
                              'input files.')
                 self._raw_time_index = self.get_time_index(self.file_paths,
@@ -304,8 +307,13 @@ class InputMixIn:
                         pickle.dump(self._raw_time_index, f)
                 logger.debug(f'Built full time index in {dt.now() - now} '
                              'seconds.')
-            if (self._raw_time_index.hour == 12).all():
+
+            check = (self._raw_time_index is not None
+                     and (self._raw_time_index.hour == 12).all())
+            if check:
                 self._raw_time_index -= pd.Timedelta(12, 'h')
+            elif self._raw_time_index is None:
+                self._raw_time_index = [None, None]
         return self._raw_time_index
 
     @property
@@ -553,10 +561,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             bad_shape = (sample_shape[0] > self.grid_shape[0]
                          and sample_shape[1] > self.grid_shape[1])
             if bad_shape:
-                msg = (f'spatial_sample_shape {sample_shape[:2]} is larger '
-                       f'than the raster size {self.grid_shape}')
-                logger.warning(msg)
-                warnings.warn(msg)
+                logger.debug(f'spatial_sample_shape {sample_shape[:2]} is '
+                             f'larger than the raster size {self.grid_shape}')
 
             if any(self.features):
                 self.data = self.run_all_data_init()
@@ -1251,9 +1257,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Load data from cache files and split into training and validation
         """
         if self.data is not None:
-            msg = ('Called load_cached_data() but self.data is not None')
-            logger.warning(msg)
-            warnings.warn(msg)
+            logger.info('Called load_cached_data() but self.data is not None')
 
         elif self.data is None:
             shape = get_raster_shape(self.raster_index)
@@ -1676,7 +1680,9 @@ class DataHandlerNC(DataHandler):
             'Shear_(.*)m': Shear,
             'REWS_(.*)m': Rews,
             'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': 'P_(.*)m',
+            'Pressure_(.*)m': PressureNC,
+            'PotentialTemp_(.*)m': PotentialTempNC,
+            'PT_(.*)m': PotentialTempNC,
             'topography': 'HGT'}
         return registry
 
