@@ -182,6 +182,29 @@ def tke_spectrum(u, v):
     return E_k
 
 
+def tke_series(u, v):
+    """Longitudinal Turbulent Kinetic Energy Spectrum time series. Gives the
+    mean tke spectrum over time.
+
+    Parameters
+    ----------
+    u: ndarray
+        (lat, lon, time)
+        U component of wind
+    v : ndarray
+        (lat, lon, time)
+        V component of wind
+
+    Returns
+    -------
+    ndarray
+        1D array of mean tke amplitudes over time
+    """
+
+    return [np.mean(tke_spectrum(u[..., t], v[..., t]))
+            for t in range(u.shape[-1])]
+
+
 def velocity_gradient_dist(u, bins=50, range=None):
     """Returns the longitudinal velocity gradient distribution.
 
