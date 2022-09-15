@@ -306,7 +306,7 @@ def test_spatiotemporal_normalization():
                                      t_enhance=t_enhance)
 
         stacked_data = np.concatenate(
-                [d.data for d in batch_handler.data_handlers], axis=2)
+            [d.data for d in batch_handler.data_handlers], axis=2)
 
         for i in range(len(features)):
             std = np.std(stacked_data[:, :, :, i])
