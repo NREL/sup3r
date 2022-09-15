@@ -70,7 +70,7 @@ def test_fwp_pipeline():
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         t_enhance = 4
-        config = {'ti_workers': 1,
+        config = {'max_workers': 1,
                   'file_paths': input_files,
                   'target': target,
                   'model_kwargs': {'model_dir': out_dir},
@@ -96,7 +96,8 @@ def test_fwp_pipeline():
         out_files = os.path.join(td, 'fp_out_*.h5')
         features = ['windspeed_100m', 'winddirection_100m']
         fp_out = os.path.join(td, 'out_combined.h5')
-        config = {'file_paths': out_files,
+        config = {'max_workers': 1,
+                  'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
                   'log_file': os.path.join(td, 'log.log'),
