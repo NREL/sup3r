@@ -140,8 +140,7 @@ class ClearSkyRatioCC(DerivedFeature):
         """
 
         cs_ratio = data['rsds'] / data['clearsky_ghi']
-        if cs_ratio.max() > 1:
-            cs_ratio /= cs_ratio.max()
+        cs_ratio = np.minimum(cs_ratio, 1)
         cs_ratio = np.maximum(cs_ratio, 0)
 
         return cs_ratio
