@@ -355,7 +355,7 @@ def test_fwp_chunking(log=False, plot=False):
                 plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
                 plt.close()
 
-        assert (np.abs(err.flatten()) < 0.01).all()
+        assert np.mean(np.abs(err.flatten())) < 0.01
 
 
 def test_fwp_nochunking():
