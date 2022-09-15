@@ -69,14 +69,15 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert 'model_disc.pkl' in os.listdir(td + '/test_5')
 
         # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6)
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6,
+                         loss='MeanAbsoluteError')
 
         # test save/load functionality
         out_dir = os.path.join(td, 'spatial_gan')
         model.save(out_dir)
         loaded = model.load(out_dir)
 
-        assert isinstance(dummy.loss_fun, tf.keras.losses.MeanSquaredError)
+        assert isinstance(dummy.loss_fun, tf.keras.losses.MeanAbsoluteError)
         assert isinstance(model.loss_fun, tf.keras.losses.MeanAbsoluteError)
         assert isinstance(loaded.loss_fun, tf.keras.losses.MeanAbsoluteError)
 
