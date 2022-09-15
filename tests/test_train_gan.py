@@ -29,7 +29,7 @@ FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 
 
 def test_train_spatial(log=False, full_shape=(20, 20),
-                       sample_shape=(10, 10, 1), n_epoch=6):
+                       sample_shape=(10, 10, 1), n_epoch=4):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -38,7 +38,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6,
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
                      loss='MeanAbsoluteError')
 
     # need to reduce the number of temporal examples to test faster
@@ -60,16 +60,15 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert len(model.history) == n_epoch
         vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
-        assert (np.diff(vlossg) < 0).all()
-        assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 2)
+        assert np.sum(np.diff(vlossg)) < 0
+        assert np.sum(np.diff(tlossg)) < 0
         assert 'test_0' in os.listdir(td)
         assert 'test_2' in os.listdir(td)
-        assert 'test_5' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_5')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_5')
+        assert 'model_gen.pkl' in os.listdir(td + '/test_3')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_3')
 
         # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-6,
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
                          loss='MeanAbsoluteError')
 
         # test save/load functionality
