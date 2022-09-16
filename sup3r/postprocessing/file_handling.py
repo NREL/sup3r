@@ -42,6 +42,24 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                                'chunks': (2000, 500),
                                'min': 0,
                                'max': 1},
+            'dhi': {'scale_factor': 1.0,
+                    'units': 'W/m2',
+                    'dtype': 'uint16',
+                    'chunks': (2000, 500),
+                    'min': 0,
+                    'max': 1350},
+            'dni': {'scale_factor': 1.0,
+                    'units': 'W/m2',
+                    'dtype': 'uint16',
+                    'chunks': (2000, 500),
+                    'min': 0,
+                    'max': 1350},
+            'ghi': {'scale_factor': 1.0,
+                    'units': 'W/m2',
+                    'dtype': 'uint16',
+                    'chunks': (2000, 500),
+                    'min': 0,
+                    'max': 1350},
             'temperature': {'scale_factor': 100.0,
                             'units': 'C',
                             'dtype': 'int16',
@@ -506,7 +524,7 @@ class OutputHandlerH5(OutputHandler):
                 flat_data = np.transpose(flat_data, (1, 0))
                 fh.add_dataset(out_file, f, flat_data, dtype=attrs['dtype'],
                                attrs=attrs, chunks=attrs['chunks'])
-                logger.debug(f'Added {f} to output file')
+                logger.info(f'Added {f} to output file.')
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}

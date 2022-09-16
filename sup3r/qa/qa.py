@@ -26,6 +26,7 @@ class Sup3rQa:
 
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
                  temporal_coarsening_method,
+                 features=None,
                  temporal_slice=slice(None),
                  target=None,
                  shape=None,
@@ -63,6 +64,11 @@ class Sup3rQa:
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
+        features : list | dict | None
+            Explicit list of features to validate. Can be a list of string
+            feature names, a dictionary mapping the sup3r output feature name
+            to the source_handler feature name (e.g. {'ghi': 'rsds'}), or None
+            for all features found in the out_file_path.
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
@@ -134,6 +140,7 @@ class Sup3rQa:
         self.t_enhance = t_enhance
         self._t_meth = temporal_coarsening_method
         self._out_fp = out_file_path
+        self._features = features
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
@@ -141,7 +148,7 @@ class Sup3rQa:
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
         self.source_handler = HandlerClass(source_file_paths,
-                                           self.features,
+                                           self.source_features,
                                            target=target,
                                            shape=shape,
                                            temporal_slice=temporal_slice,
@@ -160,7 +167,6 @@ class Sup3rQa:
 
     def __exit__(self, type, value, traceback):
         self.close()
-
         if type is not None:
             raise
 
@@ -206,18 +212,36 @@ class Sup3rQa:
         -------
         list
         """
-
         # all lower case
         ignore = ('meta', 'time_index', 'times', 'xlat', 'xlong')
 
-        if self.output_type == 'nc':
-            features = list(self.output_handler.variables.keys())
-        elif self.output_type == 'h5':
-            features = self.output_handler.dsets
+        if self._features is None:
+            if self.output_type == 'nc':
+                features = list(self.output_handler.variables.keys())
+            elif self.output_type == 'h5':
+                features = self.output_handler.dsets
+            features = [f for f in features if f.lower() not in ignore]
 
-        features = [f for f in features if f.lower() not in ignore]
+        elif isinstance(self._features, (list, tuple)):
+            features = self._features
+
+        elif isinstance(self._features, dict):
+            features = sorted(self._features.keys())
 
         return features
+
+    @property
+    def source_features(self):
+        """Get a list of feature names from the source input file, excluding
+        meta and time index datasets. This property considers the features
+        input mapping if a dictionary was provided, e.g. if
+        features={'ghi': 'rsds'}, this property will return ['rsds']"""
+        if isinstance(self._features, dict):
+            source_features = [self._features[f] for f in self.features]
+        else:
+            source_features = self.features
+
+        return source_features
 
     @property
     def output_type(self):

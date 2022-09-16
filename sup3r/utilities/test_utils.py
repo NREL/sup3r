@@ -105,6 +105,52 @@ def make_fake_h5_chunks(td):
     return out
 
 
+def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):
+    """Make a set of dummy clearsky ratio files that match the GAN fwp outputs
+
+    Parameters
+    ----------
+    td : tempfile.TemporaryDirectory
+        Test TemporaryDirectory
+    low_res_times :
+        List of times for low res input data. If there is only a single low
+        res timestep, it is assumed the data is daily.
+    low_res_lat_lon
+        Array of lat/lon for input data.
+        (spatial_1, spatial_2, 2)
+        Last dimension has ordering (lat, lon)
+    gan_meta : dict
+        Meta data for model to write to file.
+
+    Returns
+    -------
+    fps : list
+        List of clearsky ratio .h5 chunked files.
+    fp_pattern : str
+        Glob pattern*string to find fps
+    """
+    fps = []
+    chunk_dir = os.path.join(td, 'chunks/')
+    fp_pattern = os.path.join(chunk_dir, 'sup3r_chunk_*.h5')
+    os.makedirs(chunk_dir)
+
+    for idt, timestamp in enumerate(low_res_times):
+        fn = ('sup3r_chunk_{}_{}.h5'
+              .format(str(idt).zfill(6), str(0).zfill(6)))
+        out_file = os.path.join(chunk_dir, fn)
+        fps.append(out_file)
+
+        cs_ratio = np.random.uniform(0, 1, (20, 20, 1, 1))
+        cs_ratio = np.repeat(cs_ratio, 24, axis=2)
+
+        OutputHandlerH5.write_output(cs_ratio, ['clearsky_ratio'],
+                                     low_res_lat_lon,
+                                     [timestamp],
+                                     out_file, max_workers=1,
+                                     meta_data=gan_meta)
+    return fps, fp_pattern
+
+
 def tke_spectrum(u, v):
     """Longitudinal Turbulent Kinetic Energy Spectrum. Gives the portion of
     kinetic energy associated with each longitudinal wavenumber.
