@@ -22,6 +22,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
+SAVE_FEATURES = ['U', 'V', 'PHB', 'PH', 'HGT', 'P', 'PB', 'T', 'Times']
+
 
 class Regridder:
     """Regridder class for stitching domains"""
@@ -164,7 +166,7 @@ def get_handles(input_files):
     handles = []
     for f in input_files:
         handle = xr.open_dataset(f)
-        handle = handle[['U', 'V', 'PHB', 'PH', 'HGT', 'P', 'T', 'Times']]
+        handle = handle[SAVE_FEATURES]
         handles.append(handle)
     return handles
 
