@@ -14,8 +14,8 @@ from pathlib import Path
 
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
-from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
+from sup3r.utilities.test_utils import make_fake_cs_ratio_files
 from sup3r.solar.solar_cli import from_config as solar_main
 
 
@@ -39,31 +39,6 @@ def runner():
     return CliRunner()
 
 
-def make_cs_ratio_files(td, low_res_times, low_res_lat_lon):
-    """Make a set of dummy clearsky ratio files that match the GAN fwp outputs
-    """
-    fps = []
-    chunk_dir = os.path.join(td, 'chunks/')
-    fp_pattern = os.path.join(chunk_dir, 'sup3r_chunk_*.h5')
-    os.makedirs(chunk_dir)
-
-    for idt, timestamp in enumerate(low_res_times):
-        fn = ('sup3r_chunk_{}_{}.h5'
-              .format(str(idt).zfill(6), str(0).zfill(6)))
-        out_file = os.path.join(chunk_dir, fn)
-        fps.append(out_file)
-
-        cs_ratio = np.random.uniform(0, 1, (20, 20, 1, 1))
-        cs_ratio = np.repeat(cs_ratio, 24, axis=2)
-
-        OutputHandlerH5.write_output(cs_ratio, ['clearsky_ratio'],
-                                     low_res_lat_lon,
-                                     [timestamp],
-                                     out_file, max_workers=1,
-                                     meta_data=GAN_META)
-    return fps, fp_pattern
-
-
 def test_solar_module(plot=False):
     """Test the solar module operating on a set of SolarMultiStepGan chunked
     outputs"""
@@ -72,7 +47,8 @@ def test_solar_module(plot=False):
 
     with tempfile.TemporaryDirectory() as td:
 
-        fps, _ = make_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON)
+        fps, _ = make_fake_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON,
+                                          gan_meta=GAN_META)
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
@@ -170,8 +146,9 @@ def test_solar_cli(runner):
     """Test the solar CLI. This test is here and not in the test_cli.py file
     because it uses some common test utilities stored here."""
     with tempfile.TemporaryDirectory() as td:
-        fps, fp_pattern = make_cs_ratio_files(td, LOW_RES_TIMES,
-                                              LOW_RES_LAT_LON)
+        fps, fp_pattern = make_fake_cs_ratio_files(td, LOW_RES_TIMES,
+                                                   LOW_RES_LAT_LON,
+                                                   gan_meta=GAN_META)
         config = {'fp_pattern': fp_pattern,
                   'nsrdb_fp': NSRDB_FP,
                   'log_level': 'DEBUG',
