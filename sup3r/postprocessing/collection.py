@@ -353,6 +353,7 @@ class Collector:
         else:
             meta, time_index = cls._get_collection_attrs_parallel(
                 file_paths, max_workers=max_workers)
+            time_index = pd.DatetimeIndex(np.concatenate(time_index))
 
         time_index = time_index.sort_values()
         time_index = time_index.drop_duplicates()
