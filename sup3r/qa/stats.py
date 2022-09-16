@@ -16,7 +16,8 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        )
 from sup3r.utilities.test_utils import (ramp_rate_dist, tke_series,
                                         velocity_gradient_dist,
-                                        vorticity_dist, tke_spectrum)
+                                        vorticity_dist, tke_spectrum,
+                                        st_interp)
 
 
 logger = logging.getLogger(__name__)
@@ -26,18 +27,11 @@ class Sup3rWindStats:
     """Class for doing statistical QA on sup3r forward pass wind outputs."""
 
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
-                 heights, temporal_slice=slice(None),
-                 target=None,
-                 shape=None,
-                 raster_file=None,
-                 qa_fp=None,
-                 time_chunk_size=None,
-                 cache_pattern=None,
-                 overwrite_cache=False,
-                 input_handler=None,
-                 max_workers=None,
-                 extract_workers=None,
-                 compute_workers=None,
+                 heights, temporal_slice=slice(None), target=None,
+                 shape=None, raster_file=None, qa_fp=None,
+                 time_chunk_size=None, cache_pattern=None,
+                 overwrite_cache=False, input_handler=None, max_workers=None,
+                 extract_workers=None, compute_workers=None,
                  load_workers=None):
         """
         Parameters
@@ -148,6 +142,7 @@ class Sup3rWindStats:
                                            extract_workers=extract_workers,
                                            compute_workers=compute_workers,
                                            load_workers=load_workers)
+        self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
 
     def __enter__(self):
         return self
@@ -201,7 +196,7 @@ class Sup3rWindStats:
         return self.source_handler.shape
 
     @property
-    def time_index(self):
+    def lr_time_index(self):
         """Get the time index associated with the source low-res data
 
         Returns
@@ -209,6 +204,45 @@ class Sup3rWindStats:
         pd.DatetimeIndex
         """
         return self.source_handler.time_index
+
+    @property
+    def hr_time_index(self):
+        """Get the time index associated with the high-res data
+
+        Returns
+        -------
+        pd.DatetimeIndex
+        """
+        if self.output_type == 'nc':
+            raise NotImplementedError('Netcdf output not yet supported')
+        return self.output_handler.time_index
+
+    def time_overlap_slices(self):
+        """Get slices for temporal overlap of low and high resolution data
+
+        Returns
+        -------
+        lr_slice : slice
+            Slice for overlap of low resolution data with high resolution data
+        hr_slice : slice
+            Slice for overlap of high resolution data with low resolution data
+        """
+        min_time = np.max((self.lr_time_index[0], self.hr_time_index[0]))
+        max_time = np.min((self.lr_time_index[-1], self.hr_time_index[-1]))
+
+        lr_start = next(i for i, t in enumerate(self.lr_time_index)
+                        if t >= min_time)
+        hr_start = next(i for i, t in enumerate(self.hr_time_index)
+                        if t >= min_time)
+
+        lr_end = next(len(self.lr_time_index) - i
+                      for i, t in enumerate(self.lr_time_index[::-1])
+                      if t <= max_time)
+        hr_end = next(len(self.hr_time_index) - i
+                      for i, t in enumerate(self.hr_time_index[::-1])
+                      if t <= max_time)
+
+        return slice(lr_start, lr_end), slice(hr_start, hr_end)
 
     @property
     def features(self):
@@ -295,8 +329,10 @@ class Sup3rWindStats:
         if self.output_type == 'nc':
             raise NotImplementedError('Netcdf output not yet supported')
         elif self.output_type == 'h5':
-            ws = self.output_handler[f'windspeed_{height}m']
-            wd = self.output_handler[f'winddirection_{height}m']
+            ws_f = f'windspeed_{height}m'
+            wd_f = f'winddirection_{height}m'
+            ws = self.output_handler[ws_f][self.hr_t_slice]
+            wd = self.output_handler[wd_f][self.hr_t_slice]
             ws = ws.T.reshape(self.hr_shape)
             wd = wd.T.reshape(self.hr_shape)
             u, v = transform_rotate_wind(ws, wd, self.hr_lat_lon)
@@ -373,6 +409,33 @@ class Sup3rWindStats:
 
         return cmd.replace('\\', '/')
 
+    @staticmethod
+    def get_wind_stats(u, v):
+        """Get stats for wind fields
+
+        Parameters
+        ----------
+        u: ndarray
+            Longitudinal velocity component
+            (lat, lon, temporal)
+        v : ndarray
+            Latitudinal velocity component
+            (lat, lon, temporal)
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of stats for wind fields
+        """
+        v_dist = velocity_gradient_dist(u)
+        vort_dist = vorticity_dist(u, v)
+        rr_dist = ramp_rate_dist(u, v)
+        tke_ts = tke_series(u, v)
+        tke_avg = tke_spectrum(np.mean(u, axis=-1),
+                               np.mean(v, axis=-1))
+        return {'velocity_gradient': v_dist, 'vorticity': vort_dist,
+                'ramp_rate': rr_dist, 'tke_ts': tke_ts, 'tke_avg': tke_avg}
+
     def get_height_stats(self, height):
         """Get stats for high and low resolution wind fields
 
@@ -387,45 +450,20 @@ class Sup3rWindStats:
             Dictionary of stats for low resolution wind fields
         high_res : dict
             Dictionary of stats for high resolution wind fields
+        interp : dict
+            Dictionary of stats for spatiotemporally interpolated wind fields
         """
-        low_res = {}
-        high_res = {}
         u_hr, v_hr = self.get_uv_out(height)
         uidx, vidx = self.feature_indices(height)
-        u_lr = self.source_handler.data[..., uidx]
-        v_lr = self.source_handler.data[..., vidx]
+        u_lr = self.source_handler.data[..., self.lr_t_slice, uidx]
+        v_lr = self.source_handler.data[..., self.lr_t_slice, vidx]
+        u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
+        v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
 
-        v_dist_hr = velocity_gradient_dist(u_hr)
-        v_dist_lr = velocity_gradient_dist(u_lr)
-
-        vort_dist_hr = vorticity_dist(u_hr, v_hr)
-        vort_dist_lr = vorticity_dist(u_lr, v_lr)
-
-        rr_dist_hr = ramp_rate_dist(u_hr, v_hr)
-        rr_dist_lr = ramp_rate_dist(u_lr, v_lr)
-
-        tke_series_hr = tke_series(u_hr, v_hr)
-        tke_series_lr = tke_series(u_lr, v_lr)
-
-        tke_avg_hr = tke_spectrum(np.mean(u_hr, axis=-1),
-                                  np.mean(v_hr, axis=-1))
-
-        tke_avg_lr = tke_spectrum(np.mean(u_lr, axis=-1),
-                                  np.mean(v_lr, axis=-1))
-
-        low_res['velocity_gradient'] = v_dist_lr
-        low_res['vorticity'] = vort_dist_lr
-        low_res['ramp_rate'] = rr_dist_lr
-        low_res['tke_series'] = tke_series_lr
-        low_res['tke_avg'] = tke_avg_lr
-
-        high_res['velocity_gradient'] = v_dist_hr
-        high_res['vorticity'] = vort_dist_hr
-        high_res['ramp_rate'] = rr_dist_hr
-        high_res['tke_series'] = tke_series_hr
-        high_res['tke_avg'] = tke_avg_hr
-
-        return low_res, high_res
+        low_res = self.get_wind_stats(u_lr, v_lr)
+        high_res = self.get_wind_stats(u_hr, v_hr)
+        interp = self.get_wind_stats(u_itp, v_itp)
+        return low_res, high_res, interp
 
     def run(self):
         """Go through all datasets and get the error for the re-coarsened
@@ -443,10 +481,11 @@ class Sup3rWindStats:
         for idf, height in enumerate(self.heights):
             logger.info('Running WindStats on height {} of {}: "{}m"'
                         .format(idf + 1, len(self.heights), height))
-            lr_stats, hr_stats = self.get_height_stats(height)
+            lr_stats, hr_stats, interp = self.get_height_stats(height)
 
             stats[f'lr_{height}m'] = lr_stats
             stats[f'hr_{height}m'] = hr_stats
+            stats[f'interp_{height}m'] = interp
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)

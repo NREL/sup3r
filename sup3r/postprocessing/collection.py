@@ -229,7 +229,70 @@ class Collector:
         self.data[row_slice, col_slice] = f_data
 
     @staticmethod
-    def _get_collection_attrs(file_paths, feature, sort=True, sort_key=None):
+    def _get_file_attrs(file):
+        """Get meta data and time index for a single file"""
+        with RexOutputs(file, mode='r') as f:
+            meta = f.meta
+            time_index = f.time_index
+        return meta, time_index
+
+    @classmethod
+    def _get_collection_attrs_parallel(cls, file_paths, max_workers=None):
+        """Get meta data and time index from a file list to be collected.
+
+        Assumes the file list is chunked in time (row chunked).
+
+        Parameters
+        ----------
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
+        max_workers : int | None
+            Number of workers to use in parallel. 1 runs serial,
+            None will use all available workers.
+
+        Returns
+        -------
+        time_index : pd.datetimeindex
+            List of datetime indices for each file that is being collected
+        meta : pd.DataFrame
+            List of meta data for each files that is being
+            collected
+        """
+
+        time_index = [None] * len(file_paths)
+        meta = [None] * len(file_paths)
+        futures = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            for i, fn in enumerate(file_paths):
+                future = exe.submit(cls._get_file_attrs, fn)
+                futures[future] = i
+
+            interval = np.int(np.ceil(len(futures) / 10))
+            for i, future in enumerate(as_completed(futures)):
+                if interval > 0 and i % interval == 0:
+                    mem = psutil.virtual_memory()
+                    logger.info('Collection futures completed: '
+                                '{0} out of {1}. '
+                                'Current memory usage is '
+                                '{2:.3f} GB out of {3:.3f} GB total.'
+                                .format(i + 1, len(futures),
+                                        mem.used / 1e9, mem.total / 1e9))
+                try:
+                    idx = futures[future]
+                    meta[idx], time_index[idx] = future.result()
+                except Exception as e:
+                    msg = ('Falied to get attrs from '
+                           f'{file_paths[futures[future]]}')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+        return meta, time_index
+
+    @classmethod
+    def _get_collection_attrs(cls, file_paths, feature, sort=True,
+                              sort_key=None, max_workers=None):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -248,6 +311,9 @@ class Collector:
         sort_key : None | fun
             Optional sort key to sort flist by (determines how meta is built
             if out_file does not exist).
+        max_workers : int | None
+            Number of workers to use in parallel. 1 runs serial,
+            None will use all available workers.
 
         Returns
         -------
@@ -270,16 +336,23 @@ class Collector:
         if sort:
             file_paths = sorted(file_paths, key=sort_key)
 
-        time_index = None
-        meta = []
-        for fn in file_paths:
-            with RexOutputs(fn, mode='r') as f:
-                meta.append(f.meta)
+        logger.info('Getting collection attrs for full dataset')
 
-                if time_index is None:
-                    time_index = f.time_index
-                else:
-                    time_index = time_index.append(f.time_index)
+        if max_workers == 1:
+            meta = []
+            time_index = None
+            for i, fn in enumerate(file_paths):
+                with RexOutputs(fn, mode='r') as f:
+                    meta.append(f.meta)
+
+                    if time_index is None:
+                        time_index = f.time_index
+                    else:
+                        time_index = time_index.append(f.time_index)
+                logger.debug(f'{i+1} / {len(file_paths)} files finished')
+        else:
+            meta, time_index = cls._get_collection_attrs_parallel(
+                file_paths, max_workers=max_workers)
 
         time_index = time_index.sort_values()
         time_index = time_index.drop_duplicates()
@@ -496,8 +569,8 @@ class Collector:
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
 
         collector = cls(file_paths)
-        logger.info('Collecting data from {} to {}'.format(collector.flist,
-                                                           out_file))
+        logger.info('Collecting {} files to {}'.format(len(collector.flist),
+                                                       out_file))
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if n_writes > len(collector.flist):
@@ -509,7 +582,8 @@ class Collector:
 
             if not os.path.exists(out_file):
                 time_index, meta, _, _, global_attrs = \
-                    collector._get_collection_attrs(collector.flist, dset)
+                    collector._get_collection_attrs(collector.flist, dset,
+                                                    max_workers=max_workers)
                 collector._init_collected_h5(out_file, time_index, meta,
                                              global_attrs)
 

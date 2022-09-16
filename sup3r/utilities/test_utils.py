@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import xarray as xr
+from PIL import Image
 
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
@@ -298,3 +299,85 @@ def ramp_rate_dist(u, v, bins=50, range=None):
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.max()
     return centers, counts
+
+
+def spatial_interp(low, s_enhance):
+    """Spatial bilinear interpolation for low resolution field. Used to provide
+    baseline for comparison with gan output
+
+    Parameters
+    ----------
+    low : ndarray
+        Low resolution field to interpolate.
+        (spatial_1, spatial_2, temporal)
+    s_enhance : int
+        Factor by which to enhance the spatial domain
+
+    Returns
+    -------
+    ndarray
+        Spatially interpolated low resolution output
+    """
+
+    high = np.zeros((low.shape[0] * s_enhance, low.shape[1] * s_enhance,
+                     low.shape[-1]))
+    for t in range(low.shape[-1]):
+        im = Image.fromarray(low[..., t])
+        im = im.resize((low[..., t].shape[1] * s_enhance,
+                        low[..., t].shape[0] * s_enhance),
+                       resample=Image.Resampling.BILINEAR)
+        high[..., t] = np.array(im)
+    return high
+
+
+def temporal_interp(low, t_enhance):
+    """Temporal bilinear interpolation for low resolution field. Used to
+    provide baseline for comparison with gan output
+
+    Parameters
+    ----------
+    low : ndarray
+        Low resolution field to interpolate.
+        (spatial_1, spatial_2, temporal)
+    t_enhance : int
+        Factor by which to enhance the temporal domain
+
+    Returns
+    -------
+    ndarray
+        Temporally interpolated low resolution output
+    """
+
+    high = np.zeros((low.shape[0], low.shape[1], low.shape[-1] * t_enhance))
+    for t in range(high.shape[-1]):
+        t0 = t // t_enhance
+        t1 = t0 + 1
+        alpha = (t / t_enhance - t0) / (t1 - t0)
+        if t1 == low.shape[-1]:
+            tmp = low[..., t0]
+        else:
+            tmp = (1 - alpha) * low[..., t0] + alpha * low[..., t1]
+        high[..., t] = tmp
+    return high
+
+
+def st_interp(low, s_enhance, t_enhance):
+    """Spatiotemporal bilinear interpolation for low resolution field. Used to
+    provide baseline for comparison with gan output
+
+    Parameters
+    ----------
+    low : ndarray
+        Low resolution field to interpolate.
+        (spatial_1, spatial_2, temporal)
+    s_enhance : int
+        Factor by which to enhance the spatial domain
+    t_enhance : int
+        Factor by which to enhance the temporal domain
+
+    Returns
+    -------
+    ndarray
+        Spatiotemporally interpolated low resolution output
+    """
+    return temporal_interp(spatial_interp(low, s_enhance), t_enhance)
