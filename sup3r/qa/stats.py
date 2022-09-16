@@ -4,6 +4,8 @@ import json
 import pandas as pd
 import numpy as np
 import xarray as xr
+import os
+import pickle
 import logging
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
@@ -80,7 +82,7 @@ class Sup3rWindStats:
         qa_fp : str | None
             Optional filepath to output QA file when you call
             Sup3rWindStats.run()
-            (only .h5 is supported)
+            (only .pkl is supported)
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size
@@ -301,16 +303,34 @@ class Sup3rWindStats:
 
         return u, v
 
+    def export(self, qa_fp, data):
+        """Export stats dictionary to pkl file.
+
+        Parameters
+        ----------
+        qa_fp : str | None
+            Optional filepath to output QA file (only .h5 is supported)
+        data : dict
+            A dictionary with stats for low and high resolution wind fields
+        """
+
+        if not os.path.exists(qa_fp):
+            logger.info('Initializing qa output file: "{}"'.format(qa_fp))
+            with open(qa_fp, 'wb') as f:
+                pickle.dump(data, f)
+        else:
+            logger.info(f'{qa_fp} already exists.')
+
     @classmethod
     def get_node_cmd(cls, config):
-        """Get a CLI call to initialize Sup3rQa and execute the Sup3rQa.run()
-        method based on an input config
+        """Get a CLI call to initialize Sup3rWindStats and execute the
+        Sup3rWindStats.run() method based on an input config
 
         Parameters
         ----------
         config : dict
-            sup3r QA config with all necessary args and kwargs to
-            initialize Sup3rQa and execute Sup3rQa.run()
+            sup3r wind stats config with all necessary args and kwargs to
+            initialize Sup3rWindStats and execute Sup3rWindStats.run()
         """
         import_str = 'import time;\n'
         import_str += 'from reV.pipeline.status import Status;\n'
@@ -428,6 +448,8 @@ class Sup3rWindStats:
             stats[f'lr_{height}m'] = lr_stats
             stats[f'hr_{height}m'] = hr_stats
 
+        if self.qa_fp is not None:
+            self.export(self.qa_fp, stats)
         logger.info('Finished Sup3rWindStats run method.')
 
         return stats

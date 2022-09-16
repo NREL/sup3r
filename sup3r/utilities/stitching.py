@@ -439,11 +439,10 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
                                        output_pattern, n_domains=n_domains)
     out_files = out_files if day is None else out_files[day - 1: day]
     for i, out_file in enumerate(out_files):
-        if not os.path.exists(out_file):
-            handles = stitch_domains(year, month, i, input_files,
-                                     overlap=overlap, n_domains=n_domains,
-                                     max_level=max_level)
-            basedir = os.path.dirname(out_file)
-            os.makedirs(basedir, exist_ok=True)
-            handles[0].to_netcdf(out_file)
-            logger.info(f'Saved stitched file to {out_file}')
+        handles = stitch_domains(year, month, i, input_files,
+                                 overlap=overlap, n_domains=n_domains,
+                                 max_level=max_level)
+        basedir = os.path.dirname(out_file)
+        os.makedirs(basedir, exist_ok=True)
+        handles[0].to_netcdf(out_file)
+        logger.info(f'Saved stitched file to {out_file}')
