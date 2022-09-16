@@ -1513,12 +1513,18 @@ class ForwardPass:
         return out_data
 
     @classmethod
-    def run(cls, strategy, node_index):
+    def run(cls, strategy, node_index, incremental=True):
         """This routine runs forward passes on all spatiotemporal chunks for
         the given node index"""
         for chunk_index in strategy.node_chunks[node_index]:
-            fwp = cls(strategy, chunk_index, node_index)
-            fwp.run_chunk()
+            out_file = strategy.out_files[chunk_index]
+
+            if os.path.exists(out_file) and incremental:
+                logger.info('Not running chunk index {}, output file exists: '
+                            '{}'.format(chunk_index, out_file))
+            else:
+                fwp = cls(strategy, chunk_index, node_index)
+                fwp.run_chunk()
 
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
