@@ -522,12 +522,12 @@ class ForwardPassSlicer:
 class ForwardPassStrategy(InputMixIn):
     """Class to prepare data for forward passes through generator.
 
-    A full file list of contiguous times is provided.  This file list is split
-    up into chunks each of which is passed to a different node. These chunks
-    can overlap in time. The file list chunk is further split up into temporal
-    and spatial chunks which can also overlap. This handler stores information
-    on these chunks, how they overlap, and how to crop generator output to
-    stich the chunks back togerther.
+    A full file list of contiguous times is provided. The corresponding data is
+    split into spatiotemporal chunks which can overlap in time and space. These
+    chunks are distributed across nodes according to the max nodes input or
+    number of temporal chunks. This strategy stores information on these
+    chunks, how they overlap, how they are distributed to nodes, and how to
+    crop generator output to stich the chunks back togerther.
     """
 
     def __init__(self, file_paths, model_kwargs, fwp_chunk_shape,
@@ -700,6 +700,7 @@ class ForwardPassStrategy(InputMixIn):
         self.output_workers = output_workers
         self.ti_workers = ti_workers
         self.exo_kwargs = exo_kwargs or {}
+        self.incremental = incremental
         self._cache_pattern = cache_pattern
         self._input_handler_class = None
         self._input_handler_name = input_handler

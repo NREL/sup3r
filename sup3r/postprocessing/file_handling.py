@@ -392,9 +392,9 @@ class OutputHandlerH5(OutputHandler):
         if heights:
             logger.info('Converting u/v to windspeed/winddirection for h5'
                         ' output')
+            logger.debug('Found heights {} for output features {}'
+                         .format(heights, features))
 
-        logger.debug('Found heights {} for output features {}'
-                     .format(heights, features))
         proc_mem = 4 * np.product(data.shape[:-1])
         n_procs = len(heights)
         max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
