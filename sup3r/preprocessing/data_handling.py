@@ -566,6 +566,11 @@ class DataHandler(FeatureHandler, InputMixIn):
 
             if any(self.features):
                 self.data = self.run_all_data_init()
+                nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
+                if nan_perc > 0:
+                    msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
+                    logger.warning(msg)
+                    warnings.warn(msg)
 
             if cache_pattern is not None:
                 self.cache_data(self.cache_files)
