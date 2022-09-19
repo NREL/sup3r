@@ -542,6 +542,7 @@ class ForwardPassStrategy(InputMixIn):
                  overwrite_cache=False,
                  input_handler=None,
                  input_handler_kwargs=None,
+                 incremental=True,
                  max_workers=None,
                  extract_workers=None,
                  compute_workers=None,
@@ -641,6 +642,10 @@ class ForwardPassStrategy(InputMixIn):
             Optional kwargs for initializing the input_handler class. For
             example, this could be {'hr_spatial_coarsen': 2} if you wanted to
             artificially coarsen the input data for testing.
+        incremental : bool
+            Allow the forward pass iteration to skip spatiotemporal chunks that
+            already have an output file (True, default) or iterate through all
+            chunks and overwrite any pre-existing outputs (False).
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
             extract_workers, compute_workers, output_workers, and load_workers.
@@ -708,6 +713,7 @@ class ForwardPassStrategy(InputMixIn):
         self._file_ids = None
         self._time_index_file = None
         self._node_chunks = None
+        self.incremental = incremental
 
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_kwargs, str):
@@ -1517,8 +1523,14 @@ class ForwardPass:
         """This routine runs forward passes on all spatiotemporal chunks for
         the given node index"""
         for chunk_index in strategy.node_chunks[node_index]:
-            fwp = cls(strategy, chunk_index, node_index)
-            fwp.run_chunk()
+            out_file = strategy.out_files[chunk_index]
+
+            if os.path.exists(out_file) and strategy.incremental:
+                logger.info('Not running chunk index {}, output file exists: '
+                            '{}'.format(chunk_index, out_file))
+            else:
+                fwp = cls(strategy, chunk_index, node_index)
+                fwp.run_chunk()
 
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
