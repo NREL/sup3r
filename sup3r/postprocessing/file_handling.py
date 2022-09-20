@@ -213,6 +213,7 @@ class OutputHandler:
             Array of times for high res output file.
         """
         logger.debug('Getting high resolution time indices')
+        logger.debug(f'Low res times: {low_res_times}')
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
             offset = (low_res_times[1] - low_res_times[0])
@@ -225,6 +226,7 @@ class OutputHandler:
                  for i in range(shape)]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
         times = pd_date_range(times[0], times[-1], freq=freq)
+        logger.debug(f'High res times: {times}')
         return times
 
     @classmethod

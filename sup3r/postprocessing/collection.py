@@ -522,9 +522,35 @@ class Collector:
                              os.path.basename(out_file)))
 
     @classmethod
-    def collect(cls, file_paths, out_file, features, n_writes=1,
+    def group_time_chunks(cls, file_paths):
+        """Group files by temporal_chunk_index. Assumes file_paths have a
+        suffix format like _{temporal_chunk_index}_{spatial_chunk_index}.h5
+
+        Parameters
+        ----------
+        file_paths : list
+            List of file paths each with a suffix
+            _{temporal_chunk_index}_{spatial_chunk_index}.h5
+
+        Returns
+        -------
+        file_chunks : list
+            List of lists of file paths groups by temporal_chunk_index
+        """
+        file_split = {}
+        for f in file_paths:
+            tmp = f.split('_')
+            t_chunk = tmp[-2]
+            file_split[t_chunk] = file_split.get(t_chunk, []) + [f]
+        file_chunks = []
+        for files in file_split.values():
+            file_chunks.append(files)
+        return file_chunks
+
+    @classmethod
+    def collect(cls, file_paths, out_file, features,
                 max_workers=None, log_level=None, log_file=None,
-                write_status=False, job_name=None):
+                write_status=False, job_name=None, join_times=True):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
@@ -543,11 +569,6 @@ class Collector:
             File path of final output file.
         features : list
             List of dsets to collect
-        n_writes : None | int
-            Number of file list divisions to write per dataset. For example,
-            if ghi and dni are being collected and n_writes is set to 2,
-            half of the source ghi files will be collected at once and then
-            written, then the second half of ghi files, then dni.
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None will use all available workers.
@@ -559,6 +580,11 @@ class Collector:
             Flag to write status file once complete if running from pipeline.
         job_name : str
             Job name for status file if running from pipeline.
+        join_time : bool
+            Option to split full file list into chunks with each chunk having
+            the same temporal_chunk_index. The number of temporal chunk indices
+            will then be used as the number of writes. Assumes file_paths have
+            a suffix format _{temporal_chunk_index}_{spatial_chunk_index}.h5
         """
         t0 = time.time()
 
@@ -574,12 +600,12 @@ class Collector:
                                                        out_file))
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
-            if n_writes > len(collector.flist):
-                e = ('Cannot split file list of length {} into '
-                     '{} write chunks!'
-                     .format(len(collector.flist), n_writes))
-                logger.error(e)
-                raise ValueError(e)
+            if join_times:
+                flist_chunks = collector.group_time_chunks(collector.flist)
+                logger.debug(f'Split file list into {len(flist_chunks)} chunks'
+                             ' according to temporal chunk indices')
+            else:
+                flist_chunks = [collector.flist]
 
             if not os.path.exists(out_file):
                 time_index, meta, _, _, global_attrs = \
@@ -588,9 +614,6 @@ class Collector:
                 collector._init_collected_h5(out_file, time_index, meta,
                                              global_attrs)
 
-            flist_chunks = np.array_split(np.array(collector.flist),
-                                          n_writes)
-            flist_chunks = [fl.tolist() for fl in flist_chunks]
             for j, flist in enumerate(flist_chunks):
                 logger.info('Collecting file list chunk {} out of {} '
                             .format(j + 1, len(flist_chunks)))
