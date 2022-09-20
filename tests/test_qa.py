@@ -10,7 +10,7 @@ import xarray as xr
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
-from sup3r.utilities.test_utils import make_fake_nc_files
+from sup3r.utilities.pytest_utils import make_fake_nc_files
 from sup3r.qa.qa import Sup3rQa
 
 

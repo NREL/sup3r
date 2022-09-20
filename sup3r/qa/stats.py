@@ -14,10 +14,9 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        transform_rotate_wind
                                        )
-from sup3r.utilities.test_utils import (ramp_rate_dist, tke_series,
-                                        velocity_gradient_dist,
-                                        vorticity_dist, tke_spectrum,
-                                        st_interp)
+from sup3r.qa.utilities import (ramp_rate_dist, tke_series,
+                                velocity_gradient_dist, vorticity_dist,
+                                tke_spectrum, st_interp)
 
 
 logger = logging.getLogger(__name__)

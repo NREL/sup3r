@@ -13,7 +13,7 @@ from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import (ForwardPass, ForwardPassStrategy)
 from sup3r.models import Sup3rGan
-from sup3r.utilities.test_utils import make_fake_nc_files
+from sup3r.utilities.pytest_utils import make_fake_nc_files
 
 from rex import ResourceX
 from rex import init_logger

@@ -275,7 +275,7 @@ class Collector:
             for i, future in enumerate(as_completed(futures)):
                 if interval > 0 and i % interval == 0:
                     mem = psutil.virtual_memory()
-                    logger.info('Collection futures completed: '
+                    logger.info('Meta collection futures completed: '
                                 '{0} out of {1}. '
                                 'Current memory usage is '
                                 '{2:.3f} GB out of {3:.3f} GB total.'
@@ -559,10 +559,9 @@ class Collector:
         return file_chunks
 
     @classmethod
-    def collect(cls, file_paths, out_file, features,
-                max_workers=None, log_level=None, log_file=None,
-                write_status=False, job_name=None, join_times=True,
-                mask_file=None):
+    def collect(cls, file_paths, out_file, features, max_workers=None,
+                log_level=None, log_file=None, write_status=False,
+                job_name=None, join_times=True, mask_file=None):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
