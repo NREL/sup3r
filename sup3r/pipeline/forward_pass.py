@@ -699,6 +699,10 @@ class ForwardPassStrategy(InputMixIn):
             must receive a generic numpy array of data to be bias corrected
         bias_correct_kwargs : dict | None
             Optional namespace of kwargs to provide to bias_correct_method.
+            If this is provided, it must be a dictionary where each key is a
+            feature name and each value is a dictionary of kwargs to correct
+            that feature. You can bias correct only certain input features by
+            only including those feature names in this dict.
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
@@ -1374,7 +1378,8 @@ class ForwardPass:
         Parameters
         ----------
         data : np.ndarray
-            Any source data to be bias corrected
+            Any source data to be bias corrected, with the feature channel in
+            the last axis.
 
         Returns
         -------
@@ -1385,10 +1390,14 @@ class ForwardPass:
         method = self.strategy.bias_correct_method
         kwargs = self.strategy.bias_correct_kwargs
         if method is not None:
-            logger.info('Bias correcting data using {} with kwargs {}'
-                        .format(method, kwargs))
             method = getattr(sup3r.bias, method)
-            data = method(data, **kwargs)
+            logger.info('Running bias correction with: {}'.format(method))
+            for feature, feature_kwargs in kwargs.items():
+                idf = self.data_handler.features.index(feature)
+                data[..., idf] = method(data[..., idf], **feature_kwargs)
+                logger.debug('Bias corrected feature "{}" at axis index {} '
+                             'using function: {} with kwargs: {}'
+                             .format(feature, idf, method, feature_kwargs))
 
         return data
 
