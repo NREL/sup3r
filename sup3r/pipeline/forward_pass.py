@@ -17,6 +17,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.execution import SpawnProcessPool
 
 import sup3r.models
+import sup3r.bias
 from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
@@ -558,8 +559,10 @@ class ForwardPassStrategy(InputMixIn):
                  output_workers=None,
                  ti_workers=None,
                  exo_kwargs=None,
-                 max_nodes=None,
-                 pass_workers=1):
+                 pass_workers=1,
+                 bias_correct_method=None,
+                 bias_correct_kwargs=None,
+                 max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -688,6 +691,14 @@ class ForwardPassStrategy(InputMixIn):
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
             pass
+        bias_correct_method : str | None
+            Optional bias correction function name that can be imported from
+            the sup3r.bias module. This will transform the source data
+            according to some predefined bias correction transformation along
+            with the bias_correct_kwargs. As the first argument, this method
+            must receive a generic numpy array of data to be bias corrected
+        bias_correct_kwargs : dict | None
+            Optional namespace of kwargs to provide to bias_correct_method.
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
@@ -729,6 +740,8 @@ class ForwardPassStrategy(InputMixIn):
         self._time_index_file = None
         self._node_chunks = None
         self.incremental = incremental
+        self.bias_correct_method = bias_correct_method
+        self.bias_correct_kwargs = bias_correct_kwargs or {}
 
         self.cap_worker_args(max_workers)
 
@@ -1142,6 +1155,8 @@ class ForwardPass:
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
 
+        self.input_data = self.bias_correct_source_data(self.input_data)
+
     @property
     def file_paths(self):
         """Get a list of source filepaths to get data from. This list is
@@ -1352,6 +1367,31 @@ class ForwardPass:
 
         return out, exo_data
 
+    def bias_correct_source_data(self, data):
+        """Bias correct data using a method defined by the bias_correct_method
+        input to ForwardPassStrategy
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Any source data to be bias corrected
+
+        Returns
+        -------
+        data : np.ndarray
+            Data corrected by the bias_correct_method ready for input to the
+            forward pass through the generative model.
+        """
+        method = self.strategy.bias_correct_method
+        kwargs = self.strategy.bias_correct_kwargs
+        if method is not None:
+            logger.info('Bias correcting data using {} with kwargs {}'
+                        .format(method, kwargs))
+            method = getattr(sup3r.bias, method)
+            data = method(data, **kwargs)
+
+        return data
+
     def _prep_exogenous_input(self, chunk_shape):
         """Shape exogenous data according to model type and model steps
 
@@ -1551,6 +1591,7 @@ class ForwardPass:
         """
         data_chunk = self.input_data
         exo_data = []
+
         if self.exogenous_data is not None:
             exo_data = self._prep_exogenous_input(data_chunk.shape)
 
