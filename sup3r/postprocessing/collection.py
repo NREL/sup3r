@@ -10,6 +10,7 @@ import psutil
 import time
 import glob
 from warnings import warn
+from scipy.spatial import KDTree
 
 from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
@@ -170,6 +171,19 @@ class Collector:
 
         return row_slice, col_loc
 
+    @classmethod
+    def get_coordinate_indices(cls, mask_meta, full_meta):
+        """Get coorindate indices in meta data for given targets"""
+        ll2 = np.vstack((full_meta.latitude.values,
+                         full_meta.longitude.values)).T
+        tree = KDTree(ll2)
+
+        targets = np.vstack((mask_meta.latitude.values,
+                             mask_meta.longitude.values)).T
+        _, indices = tree.query(targets, distance_upper_bound=0.001)
+        indices = [i for i in indices if i < len(full_meta)]
+        return indices
+
     def get_data(self, file_path, feature, time_index, meta, scale_factor,
                  dtype):
         """Retreive a data array from a chunked file.
@@ -213,7 +227,8 @@ class Collector:
                 logger.error(e)
                 raise KeyError(e)
 
-            mask = f_meta['gid'].isin(meta['gid'])
+            mask = self.get_coordinate_indices(meta, f_meta)
+            f_meta = f_meta.iloc[mask]
             f_data = f[feature][:, mask]
 
         row_slice, col_slice = Collector.get_slices(time_index, meta,
@@ -370,8 +385,8 @@ class Collector:
 
         if mask_file is not None and os.path.exists(mask_file):
             mask_meta = pd.read_csv(mask_file)
-            mask_ids = np.where(meta['gid'].isin(mask_meta['gid']))[0]
-            meta = meta.iloc[mask_ids]
+            mask = cls.get_coordinate_indices(mask_meta, meta)
+            meta = meta.iloc[mask]
 
         shape = (len(time_index), len(meta))
 
