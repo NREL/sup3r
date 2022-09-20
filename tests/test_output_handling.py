@@ -4,6 +4,7 @@ import numpy as np
 import os
 import tensorflow as tf
 import tempfile
+import pandas as pd
 
 from sup3r import __version__
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
@@ -165,3 +166,29 @@ def test_h5_out_and_collect():
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
             assert gan_meta['foo'] == 'bar'
+
+
+def test_h5_collect_mask():
+    """Test h5 file collection with mask meta"""
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_combined.h5')
+        fp_out_mask = os.path.join(td, 'out_combined_masked.h5')
+        mask_file = os.path.join(td, 'mask.csv')
+
+        out = make_fake_h5_chunks(td)
+        (out_files, _, _, _, features, _, _, _, _) = out
+
+        Collector.collect(out_files, fp_out, features=features)
+        with ResourceX(fp_out) as fh:
+            meta = fh.meta
+            mask_meta = meta[10:-10]
+            mask_meta.to_csv(mask_file)
+
+        Collector.collect(out_files, fp_out_mask, features=features,
+                          mask_file=mask_file, max_workers=1)
+        with ResourceX(fp_out_mask) as fh:
+            mask_meta = pd.read_csv(mask_file, dtype=np.float32)
+            assert np.array_equal(mask_meta['gid'], fh.meta['gid'])
+            assert np.array_equal(mask_meta['longitude'], fh.meta['longitude'])
+            assert np.array_equal(mask_meta['latitude'], fh.meta['latitude'])
