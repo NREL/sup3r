@@ -815,18 +815,6 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
 
-        msg = (f'Using a larger temporal_pad {self.temporal_pad} than '
-               f'temporal_chunk_size {self.fwp_chunk_shape[2]}.')
-        if self.temporal_pad > self.fwp_chunk_shape[2]:
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        msg = (f'Using a larger spatial_pad {self.spatial_pad} than '
-               f'spatial_chunk_size {self.fwp_chunk_shape[:2]}.')
-        if any(self.spatial_pad > sc for sc in self.fwp_chunk_shape[:2]):
-            logger.warning(msg)
-            warnings.warn(msg)
-
         msg = ('Using a padded chunk size '
                f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
                'larger than the full temporal domain '
