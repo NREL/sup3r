@@ -1686,6 +1686,8 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
+        max_workers = (len(file_paths) if max_workers is None
+                       else np.min((max_workers, len(file_paths))))
         if max_workers == 1:
             return cls.get_file_times(file_paths)
         ti = {}
