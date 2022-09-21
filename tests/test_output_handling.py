@@ -177,18 +177,29 @@ def test_h5_collect_mask():
         mask_file = os.path.join(td, 'mask.csv')
 
         out = make_fake_h5_chunks(td)
-        (out_files, _, _, _, features, _, _, _, _) = out
+        (out_files, data, _, _, features, _, _, _, _) = out
 
         Collector.collect(out_files, fp_out, features=features)
+        indices = np.arange(np.product(data.shape[:2]))
+        removed = []
+        for _ in range(10):
+            removed.append(np.random.choice(indices))
+        print(f'removed gids: {removed}')
+        mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             meta = fh.meta
-            mask_meta = meta[10:-10]
-            mask_meta.to_csv(mask_file)
+            mask_meta = meta.iloc[mask_slice].reset_index(drop=True)
+            mask_meta['gid'][:] = np.arange(len(mask_meta))
+            mask_meta.to_csv(mask_file, index=False)
 
         Collector.collect(out_files, fp_out_mask, features=features,
-                          mask_file=mask_file, max_workers=1)
+                          target_final_meta_file=mask_file, max_workers=1)
         with ResourceX(fp_out_mask) as fh:
             mask_meta = pd.read_csv(mask_file, dtype=np.float32)
             assert np.array_equal(mask_meta['gid'], fh.meta['gid'])
             assert np.array_equal(mask_meta['longitude'], fh.meta['longitude'])
             assert np.array_equal(mask_meta['latitude'], fh.meta['latitude'])
+
+            with ResourceX(fp_out) as fh_o:
+                assert np.array_equal(fh_o['windspeed_100m', :, mask_slice],
+                                      fh['windspeed_100m'])

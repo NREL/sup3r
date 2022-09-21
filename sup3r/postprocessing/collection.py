@@ -124,8 +124,9 @@ class Collector:
 
         return cmd.replace('\\', '/')
 
-    @staticmethod
-    def get_slices(final_time_index, final_meta, new_time_index, new_meta):
+    @classmethod
+    def get_slices(cls, final_time_index, final_meta, new_time_index,
+                   new_meta):
         """Get index slices where the new ti/meta belong in the final ti/meta.
 
         Parameters
@@ -172,14 +173,14 @@ class Collector:
         return row_slice, col_loc
 
     @classmethod
-    def get_coordinate_indices(cls, mask_meta, full_meta):
-        """Get coorindate indices in meta data for given targets"""
+    def get_coordinate_indices(cls, target_meta, full_meta):
+        """Get coordindate indices in meta data for given targets"""
         ll2 = np.vstack((full_meta.latitude.values,
                          full_meta.longitude.values)).T
         tree = KDTree(ll2)
 
-        targets = np.vstack((mask_meta.latitude.values,
-                             mask_meta.longitude.values)).T
+        targets = np.vstack((target_meta.latitude.values,
+                             target_meta.longitude.values)).T
         _, indices = tree.query(targets, distance_upper_bound=0.001)
         indices = [i for i in indices if i < len(full_meta)]
         return indices
@@ -308,7 +309,8 @@ class Collector:
 
     @classmethod
     def _get_collection_attrs(cls, file_paths, feature, sort=True,
-                              sort_key=None, max_workers=None, mask_file=None):
+                              sort_key=None, max_workers=None,
+                              target_final_meta_file=None):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -330,18 +332,21 @@ class Collector:
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None will use all available workers.
-        mask_file : str
-            Path to meta mask containing coordinates to keep from the full
-            file list collected meta
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full file list collected meta
 
         Returns
         -------
         time_index : pd.datetimeindex
             Concatenated full size datetime index from the flist that is
             being collected
-        meta : pd.DataFrame
+        target_final_meta : pd.DataFrame
             Concatenated full size meta data from the flist that is being
-            collected
+            collected or provided target meta
+        masked_meta : pd.DataFrame
+            Concatenated full size meta data from the flist that is being
+            collected masked against target_final_meta
         shape : tuple
             Output (collected) dataset shape
         dtype : str
@@ -383,18 +388,22 @@ class Collector:
 
         meta = meta.sort_values('gid')
 
-        if mask_file is not None and os.path.exists(mask_file):
-            mask_meta = pd.read_csv(mask_file)
-            mask = cls.get_coordinate_indices(mask_meta, meta)
-            meta = meta.iloc[mask]
+        if (target_final_meta_file is not None
+                and os.path.exists(target_final_meta_file)):
+            target_final_meta = pd.read_csv(target_final_meta_file)
+            mask = cls.get_coordinate_indices(target_final_meta, meta)
+            masked_meta = meta.iloc[mask]
+        else:
+            target_final_meta = masked_meta = meta
 
-        shape = (len(time_index), len(meta))
+        shape = (len(time_index), len(target_final_meta))
 
         with RexOutputs(file_paths[0], mode='r') as fin:
             dtype = fin.get_dset_properties(feature)[1]
             global_attrs = fin.global_attrs
 
-        return time_index, meta, shape, dtype, global_attrs
+        return (time_index, target_final_meta, masked_meta, shape, dtype,
+                global_attrs)
 
     @staticmethod
     def _init_collected_h5(out_file, time_index, meta, global_attrs):
@@ -447,7 +456,8 @@ class Collector:
                                chunks=attrs.get('chunks', None))
 
     def collect_flist(self, file_paths, out_file, feature, sort=False,
-                      sort_key=None, max_workers=None, mask_file=None):
+                      sort_key=None, max_workers=None,
+                      target_final_meta_file=None, masked_target_meta=None):
         """Collect a dataset from a file list with data pre-init.
 
         Collects data that can be chunked in both space and time.
@@ -473,12 +483,18 @@ class Collector:
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None uses all available.
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full file list collected meta
+        masked_target_meta : pd.DataFrame
+            Collected meta data with mask applied from target final meta so
+            original gids are preserved.
         """
 
-        time_index, meta, shape, _, _ = \
-            Collector._get_collection_attrs(file_paths, feature, sort=sort,
-                                            sort_key=sort_key,
-                                            mask_file=mask_file)
+        time_index, target_final_meta, masked_meta, shape, _, _ = \
+            Collector._get_collection_attrs(
+                file_paths, feature, sort=sort, sort_key=sort_key,
+                target_final_meta_file=target_final_meta_file)
 
         attrs, final_dtype = get_dset_attrs(feature)
         scale_factor = attrs.get('scale_factor', 1)
@@ -498,8 +514,8 @@ class Collector:
             for i, fname in enumerate(file_paths):
                 logger.debug('Collecting data from file {} out of {}.'
                              .format(i + 1, len(file_paths)))
-                self.get_data(fname, feature, time_index, meta, scale_factor,
-                              final_dtype)
+                self.get_data(fname, feature, time_index, masked_meta,
+                              scale_factor, final_dtype)
         else:
             logger.info('Running parallel collection on {} workers.'
                         .format(max_workers))
@@ -509,7 +525,7 @@ class Collector:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for fname in file_paths:
                     future = exe.submit(self.get_data, fname, feature,
-                                        time_index, meta, scale_factor,
+                                        time_index, masked_meta, scale_factor,
                                         final_dtype)
                     futures[future] = fname
                 for future in as_completed(futures):
@@ -529,16 +545,14 @@ class Collector:
                         raise RuntimeError(msg) from e
 
         if not os.path.exists(out_file):
-            Collector._init_collected_h5(out_file, time_index, meta)
+            Collector._init_collected_h5(out_file, time_index,
+                                         target_final_meta)
             x_write_slice, y_write_slice = slice(None), slice(None)
         else:
             with RexOutputs(out_file, 'r') as f:
-                target_meta = f.meta
                 target_ti = f.time_index
-            y_write_slice, x_write_slice = Collector.get_slices(target_ti,
-                                                                target_meta,
-                                                                time_index,
-                                                                meta)
+            y_write_slice, x_write_slice = Collector.get_slices(
+                target_ti, masked_target_meta, time_index, masked_meta)
         Collector._ensure_dset_in_output(out_file, feature)
         with RexOutputs(out_file, mode='a') as f:
             f[feature, y_write_slice, x_write_slice] = self.data
@@ -576,7 +590,7 @@ class Collector:
     @classmethod
     def collect(cls, file_paths, out_file, features, max_workers=None,
                 log_level=None, log_file=None, write_status=False,
-                job_name=None, join_times=True, mask_file=None):
+                job_name=None, join_times=True, target_final_meta_file=None):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
@@ -611,9 +625,9 @@ class Collector:
             the same temporal_chunk_index. The number of temporal chunk indices
             will then be used as the number of writes. Assumes file_paths have
             a suffix format _{temporal_chunk_index}_{spatial_chunk_index}.h5
-        mask_file : str
-            Path to meta mask containing coordinates to keep from the full
-            file list collected meta
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full file list collected meta
         """
         t0 = time.time()
 
@@ -637,18 +651,20 @@ class Collector:
                 flist_chunks = [collector.flist]
 
             if not os.path.exists(out_file):
-                time_index, meta, _, _, global_attrs = \
-                    collector._get_collection_attrs(collector.flist, dset,
-                                                    max_workers=max_workers,
-                                                    mask_file=mask_file)
-                collector._init_collected_h5(out_file, time_index, meta,
-                                             global_attrs)
+                out = collector._get_collection_attrs(
+                    collector.flist, dset, max_workers=max_workers,
+                    target_final_meta_file=target_final_meta_file)
+                time_index, final_target_meta, masked_target_meta = out[:3]
+                _, _, global_attrs = out[3:]
+                collector._init_collected_h5(out_file, time_index,
+                                             final_target_meta, global_attrs)
             for j, flist in enumerate(flist_chunks):
                 logger.info('Collecting file list chunk {} out of {} '
                             .format(j + 1, len(flist_chunks)))
-                collector.collect_flist(flist, out_file, dset,
-                                        max_workers=max_workers,
-                                        mask_file=mask_file)
+                collector.collect_flist(
+                    flist, out_file, dset, max_workers=max_workers,
+                    target_final_meta_file=target_final_meta_file,
+                    masked_target_meta=masked_target_meta)
 
         if write_status and job_name is not None:
             status = {'out_dir': os.path.dirname(out_file),
