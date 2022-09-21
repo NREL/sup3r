@@ -36,7 +36,7 @@ def test_data_handling_nc_cc():
                                  features=[f'U_{int(plevel)}pa',
                                            f'V_{int(plevel)}pa'],
                                  target=target, shape=(20, 20),
-                                 val_split=0.0)
+                                 val_split=0.0, max_workers=1)
     if handler.invert_lat:
         handler.data = handler.data[::-1]
     assert handler.data.shape == (20, 20, 20, 2)
