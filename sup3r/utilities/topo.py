@@ -279,7 +279,8 @@ class TopoExtractNC(TopoExtract):
 
         super().__init__(*args, **kwargs)
         self.source_handler = DataHandlerNC(self._topo_source,
-                                            features=['topography'])
+                                            features=['topography'],
+                                            ti_workers=1)
 
     @property
     def source_elevation(self):

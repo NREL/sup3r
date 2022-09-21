@@ -60,10 +60,14 @@ def make_fake_h5_chunks(td):
     features : list
         List of feature names corresponding to the last dimension of data
         ['windspeed_100m', 'winddirection_100m']
-    slices_lr : list
-        List of low res temporal slices corresponding to the out_files list
-    slices_hr : list
-        List of high res temporal slices corresponding to the out_files list
+    t_slices_lr : list
+        List of low res temporal slices
+    t_slices_hr : list
+        List of high res temporal slices
+    s_slices_lr : list
+        List of low res spatial slices
+    s_slices_hr : list
+        List of high res spatial slices
     low_res_lat_lon : ndarray
         Array of lat/lon for input data. (spatial_1, spatial_2, 2)
         Last dimension has ordering (lat, lon)
@@ -82,25 +86,34 @@ def make_fake_h5_chunks(td):
     lon, lat = np.meshgrid(lon, lat)
     low_res_lat_lon = np.dstack((lat, lon))
 
+    gids = np.arange(np.product(shape[:2]))
+    gids = gids.reshape(shape[:2])
+
     low_res_times = pd_date_range('20220101', '20220103', freq='3600s',
                                   inclusive='left')
 
-    slices_lr = [slice(0, 24), slice(24, None)]
-    slices_hr = [slice(0, 48), slice(48, None)]
+    t_slices_lr = [slice(0, 24), slice(24, None)]
+    t_slices_hr = [slice(0, 48), slice(48, None)]
 
-    out_files = [os.path.join(td, 'fp_out_0.h5'),
-                 os.path.join(td, 'fp_out_1.h5')]
+    s_slices_lr = [slice(0, 5), slice(5, 10)]
+    s_slices_hr = [slice(0, 25), slice(25, 50)]
 
-    for i, (slice_lr, slice_hr) in enumerate(zip(slices_lr, slices_hr)):
-        OutputHandlerH5.write_output(data[:, :, slice_hr, :], features,
-                                     low_res_lat_lon,
-                                     low_res_times[slice_lr],
-                                     out_files[i],
-                                     model_meta_data,
-                                     max_workers=1)
+    out_pattern = os.path.join(td, 'fp_out_{i}_{j}_{k}.h5')
+    out_files = []
+    for i, (slice_lr, slice_hr) in enumerate(zip(t_slices_lr, t_slices_hr)):
+        for j, (s1_lr, s1_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
+            for k, (s2_lr, s2_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
+                out_file = out_pattern.format(i=i, j=j, k=k)
+                out_files.append(out_file)
+                OutputHandlerH5.write_output(
+                    data[s1_hr, s2_hr, slice_hr, :], features,
+                    low_res_lat_lon[s1_lr, s2_lr], low_res_times[slice_lr],
+                    out_file, model_meta_data, max_workers=1,
+                    gids=gids[s1_hr, s2_hr])
 
-    out = (out_files, data, ws_true, wd_true, features, slices_lr, slices_hr,
-           low_res_lat_lon, low_res_times)
+    out = (out_files, data, ws_true, wd_true, features, t_slices_lr,
+           t_slices_hr, s_slices_lr, s_slices_hr, low_res_lat_lon,
+           low_res_times)
 
     return out
 

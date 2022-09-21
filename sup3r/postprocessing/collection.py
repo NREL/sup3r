@@ -11,6 +11,7 @@ import time
 import glob
 from warnings import warn
 from scipy.spatial import KDTree
+import re
 
 from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
@@ -393,6 +394,8 @@ class Collector:
             target_final_meta = pd.read_csv(target_final_meta_file)
             mask = cls.get_coordinate_indices(target_final_meta, meta)
             masked_meta = meta.iloc[mask]
+            mask = cls.get_coordinate_indices(meta, target_final_meta)
+            target_final_meta = target_final_meta.iloc[mask]
         else:
             target_final_meta = masked_meta = meta
 
@@ -579,8 +582,7 @@ class Collector:
         """
         file_split = {}
         for f in file_paths:
-            tmp = f.split('_')
-            t_chunk = tmp[-2]
+            t_chunk = re.search(r'\d+', f).group()
             file_split[t_chunk] = file_split.get(t_chunk, []) + [f]
         file_chunks = []
         for files in file_split.values():
@@ -590,7 +592,7 @@ class Collector:
     @classmethod
     def collect(cls, file_paths, out_file, features, max_workers=None,
                 log_level=None, log_file=None, write_status=False,
-                job_name=None, join_times=True, target_final_meta_file=None):
+                job_name=None, join_times=False, target_final_meta_file=None):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).

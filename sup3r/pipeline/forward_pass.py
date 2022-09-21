@@ -761,6 +761,12 @@ class ForwardPassStrategy(InputMixIn):
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
                     f'{self.chunks / self.nodes} chunks per node on average.')
+        logger.info(f'Using extract_workers={extract_workers}, '
+                    f'compute_workers={compute_workers}, '
+                    f'pass_workers={pass_workers}, '
+                    f'load_workers={load_workers}, '
+                    f'output_workers={output_workers}, '
+                    f'ti_workers={ti_workers}')
 
         self.preflight()
 
@@ -1245,6 +1251,7 @@ class ForwardPass:
 
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
+        self.pass_workers = strategy.pass_workers
         self.extract_workers = strategy.extract_workers
         self.compute_workers = strategy.compute_workers
         self.load_workers = strategy.load_workers
@@ -1575,12 +1582,16 @@ class ForwardPass:
             Index of node on which the forward passes for spatiotemporal chunks
             will be run.
         """
-        pass_workers = strategy.pass_workers
-        if pass_workers == 1:
+        if strategy.pass_workers == 1:
+            logger.debug(f'Running forward passes on node {node_index} in '
+                         'serial.')
             for chunk_index in strategy.node_chunks[node_index]:
                 cls.incremental_check_run(strategy, node_index, chunk_index)
         else:
-            with ThreadPoolExecutor(max_workers=pass_workers) as exe:
+            logger.debug(f'Running forward passes on node {node_index} in '
+                         'parallel with pass_workers='
+                         f'{strategy.pass_workers}.')
+            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
                 futures = {}
                 now = dt.now()
                 for chunk_index in strategy.node_chunks[node_index]:

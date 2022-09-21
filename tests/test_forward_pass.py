@@ -422,9 +422,13 @@ def test_fwp_nochunking():
         assert np.array_equal(data_chunked, data_nochunk)
 
 
-def test_fwp_multi_step_model_topo_exoskip():
+def test_fwp_multi_step_model_topo_exoskip(log=True):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -490,12 +494,12 @@ def test_fwp_multi_step_model_topo_exoskip():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1,
-            ti_workers=1)
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 
         assert forward_pass.output_workers == max_workers
+        assert forward_pass.pass_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
@@ -590,8 +594,7 @@ def test_fwp_multi_step_model_topo_noskip():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1,
-            ti_workers=1)
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 
