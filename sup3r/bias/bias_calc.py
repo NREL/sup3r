@@ -78,7 +78,7 @@ class DataRetrievalBase:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        elif len(self.bias_features) != 1:
+        elif 'windspeed' not in self.base_dset and len(self.bias_features) != 1:
             msg = ('If base dataset is not windspeed, cannot handle more than '
                    'one feature from the bias data, but received: {}'
                    .format(self.bias_features))
@@ -105,6 +105,7 @@ class DataRetrievalBase:
         self.bias_tree = KDTree(self.bias_meta[['latitude', 'longitude']])
         self.bias_gid_raster = np.arange(lats.size)
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
+        logger.info('Finished initializing DataRetrievalBase.')
 
     def get_bias_data(self, bias_gid):
         """Get data from the biased data source for a single gid
@@ -190,6 +191,7 @@ class LinearCorrection(DataRetrievalBase):
         super().__init__(*args, **kwargs)
         self.scalar = None
         self.adder = None
+        logger.info('Finished initializing LinearCorrection.')
 
     @staticmethod
     def compare_dists(base_data, bias_data, adder=0, scalar=1):
@@ -294,6 +296,7 @@ class LinearCorrection(DataRetrievalBase):
             2D array of adder factors corresponding to the bias raster data
             shape (lat, lon)
         """
+        logger.debug('Starting linear correction calculation...')
 
         if isinstance(test_adders, (list, tuple)):
             test_adders = np.linspace(*test_adders)
@@ -308,24 +311,27 @@ class LinearCorrection(DataRetrievalBase):
         self.adder = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
 
         if max_workers == 1:
+            logger.debug('Running serial calculation.')
             for i, (bias_gid, row) in enumerate(self.bias_meta.iterrows()):
                 raster_loc = np.where(self.bias_gid_raster == bias_gid)
                 coord = row[['latitude', 'longitude']]
                 d, base_gid = self.base_tree.query(coord, k=knn)
 
-                if d.mean() < threshold:
+                if np.mean(d) < threshold:
                     bias_data = self.get_bias_data(bias_gid)
                     out = self._run_single(bias_data, self.base_fps,
                                            self.base_dset, base_gid,
                                            self.base_handler, test_adders,
                                            test_scalars)
                     self.scalar[raster_loc] = out[0]
-                    self.adders[raster_loc] = out[1]
+                    self.adder[raster_loc] = out[1]
 
                 logger.info('Completed bias calculations for {} out of {} '
                             'sites'.format(i + 1, len(self.bias_meta)))
 
         else:
+            logger.debug('Running parallel calculation with {} workers.'
+                         .format(max_workers))
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 for bias_gid, bias_row in self.bias_meta.iterrows():
@@ -342,10 +348,11 @@ class LinearCorrection(DataRetrievalBase):
                                             test_adders, test_scalars)
                         futures[future] = raster_loc
 
+                logger.debug('Finished launching futures.')
                 for i, future in enumerate(as_completed(futures)):
                     raster_loc = futures[future]
                     self.scalar[raster_loc] = future.result()[0]
-                    self.adders[raster_loc] = future.result()[1]
+                    self.adder[raster_loc] = future.result()[1]
 
                     logger.info('Completed bias calculations for {} out of {} '
                                 'sites'.format(i + 1, len(futures)))
