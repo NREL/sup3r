@@ -687,10 +687,6 @@ class ForwardPassStrategy(InputMixIn):
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
         """
-        if max_workers is not None:
-            extract_workers = compute_workers = pass_workers = max_workers
-            load_workers = output_workers = ti_workers = max_workers
-
         self._i = 0
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
@@ -728,6 +724,8 @@ class ForwardPassStrategy(InputMixIn):
         self._node_chunks = None
         self.incremental = incremental
 
+        self.cap_worker_args(max_workers)
+
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_kwargs, str):
             self.model_kwargs = {'model_dir': self.model_kwargs}
@@ -761,14 +759,21 @@ class ForwardPassStrategy(InputMixIn):
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
                     f'{self.chunks / self.nodes} chunks per node on average.')
-        logger.info(f'Using extract_workers={extract_workers}, '
-                    f'compute_workers={compute_workers}, '
-                    f'pass_workers={pass_workers}, '
-                    f'load_workers={load_workers}, '
-                    f'output_workers={output_workers}, '
-                    f'ti_workers={ti_workers}')
+        logger.info(f'Using max_workers={self.max_workers}, '
+                    f'extract_workers={self.extract_workers}, '
+                    f'compute_workers={self.compute_workers}, '
+                    f'pass_workers={self.pass_workers}, '
+                    f'load_workers={self.load_workers}, '
+                    f'output_workers={self.output_workers}, '
+                    f'ti_workers={self.ti_workers}')
 
         self.preflight()
+
+    @property
+    def worker_attrs(self):
+        """Get all worker args defined in init"""
+        return ['ti_workers', 'compute_workers', 'pass_workers',
+                'load_workers', 'output_workers', 'extract_workers']
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""

@@ -187,7 +187,6 @@ def test_h5_collect_mask():
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta
-            print(mask_meta[:10])
             mask_meta = mask_meta.iloc[mask_slice].reset_index(drop=True)
             mask_meta['gid'][:] = np.arange(len(mask_meta))
             mask_meta.to_csv(mask_file, index=False)
