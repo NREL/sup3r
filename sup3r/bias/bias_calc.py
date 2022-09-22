@@ -107,6 +107,88 @@ class DataRetrievalBase:
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
         logger.info('Finished initializing DataRetrievalBase.')
 
+    @staticmethod
+    def compare_dists(base_data, bias_data, adder=0, scalar=1):
+        """Compare two distributions using the two-sample Kolmogorov-Smirnov.
+        When the output is minimized, the two distributions are similar.
+
+        Parameters
+        ----------
+        base_data : np.ndarray
+            1D array of base data observations.
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        adder : float
+            Factor to adjust the biased data before comparing distributions:
+            bias_data * scalar + adder
+        scalar : float
+            Factor to adjust the biased data before comparing distributions:
+            bias_data * scalar + adder
+
+        Returns
+        -------
+        out : float
+            KS test statistic
+        """
+        out = ks_2samp(base_data, bias_data * scalar + adder)
+        return out.statistic
+
+    def get_base_gid(self, bias_gid, knn):
+        """Get one or more base gid(s) corresponding to a bias gid.
+
+        Parameters
+        ----------
+        bias_gid : int
+            gid of the data to retrieve in the bias data source raster data.
+            The gids for this data source are the enumerated indices of the
+            flattened coordinate array.
+        knn : int
+            Number of nearest neighbors to aggregate from the base data when
+            comparing to a single site from the bias data.
+
+        Returns
+        -------
+        dist : np.ndarray
+            Array of nearest neighbor distances with length == knn
+        base_gid : np.ndarray
+            Array of base gids that are the nearest neighbors of bias_gid with
+            length == knn
+        """
+        coord = self.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
+        dist, base_gid = self.base_tree.query(coord, k=knn)
+        return dist, base_gid
+
+    def get_data_pair(self, bias_gid, knn, daily_avg=True):
+        """Get base and bias data observations based on a single bias gid.
+
+        Parameters
+        ----------
+        bias_gid : int
+            gid of the data to retrieve in the bias data source raster data.
+            The gids for this data source are the enumerated indices of the
+            flattened coordinate array.
+        knn : int
+            Number of nearest neighbors to aggregate from the base data when
+            comparing to a single site from the bias data.
+        daily_avg : bool
+            Flag to do temporal daily averaging of the base data.
+
+        Returns
+        -------
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+            and possibly daily-averaged as well.
+        bias_data : np.ndarray
+            1D array of temporal data at the requested gid.
+        dist : np.ndarray
+            Array of nearest neighbor distances with length == knn
+        """
+        dist, base_gid = self.get_base_gid(bias_gid, knn)
+        bias_data = self.get_bias_data(bias_gid)
+        base_data = self.get_base_data(self.base_fps, self.base_dset, base_gid,
+                                       self.base_handler, daily_avg=daily_avg)
+        return base_data, bias_data, dist
+
     def get_bias_data(self, bias_gid):
         """Get data from the biased data source for a single gid
 
@@ -193,49 +275,25 @@ class LinearCorrection(DataRetrievalBase):
         self.adder = None
         logger.info('Finished initializing LinearCorrection.')
 
-    @staticmethod
-    def compare_dists(base_data, bias_data, adder=0, scalar=1):
-        """Compare two distributions using the two-sample Kolmogorov-Smirnov.
-        When the output is minimized, the two distributions are similar.
-
-        Parameters
-        ----------
-        base_data : np.ndarray
-            1D array of base data observations.
-        bias_data : np.ndarray
-            1D array of biased data observations.
-        adder : float
-            Factor to adjust the biased data before comparing distributions:
-            bias_data * scalar + adder
-        scalar : float
-            Factor to adjust the biased data before comparing distributions:
-            bias_data * scalar + adder
-
-        Returns
-        -------
-        out : float
-            KS test statistic
-        """
-        out = ks_2samp(base_data, bias_data * scalar + adder)
-        return out.statistic
-
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, test_adders, test_scalars):
+                    base_handler, daily_avg):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
         base_data = cls.get_base_data(base_fps, base_dset,
-                                      base_gid, base_handler)
+                                      base_gid, base_handler,
+                                      daily_avg=daily_avg)
 
-        err = np.zeros_like(test_adders)
-        zip_iter = zip(test_adders, test_scalars)
-        for i, (adder, scalar) in enumerate(zip_iter):
-            err[i] = cls.compare_dists(base_data, bias_data,
-                                       adder=adder, scalar=scalar)
+        bias_mean = bias_data.mean()
+        bias_std = bias_data.std()
+        base_mean = base_data.mean()
+        base_std = base_data.std()
 
-        i = np.argmin(err)
-        return test_scalars[i], test_adders[i]
+        scalar = (base_std / bias_std)
+        adder = (base_mean - bias_mean * scalar)
+
+        return scalar, adder
 
     def write_outputs(self, fp_out):
         """Write outputs to an .h5 file.
@@ -258,21 +316,13 @@ class LinearCorrection(DataRetrievalBase):
                 logger.info('Wrote scalar adder factors to file: {}'
                             .format(fp_out))
 
-    def run(self, test_adders, test_scalars, knn, threshold=0.6,
-            fp_out=None, max_workers=None):
+    def run(self, knn, threshold=0.6, fp_out=None, max_workers=None,
+            daily_avg=True):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
         Parameters
         ----------
-        test_adders : np.ndarray | list
-            The adder factors to test. This can be a list of length three that
-            sets the np.linspace arguments (start, stop, num) to get a set of
-            test_adders
-        test_scalars : np.ndarray | list
-            The scalar factors to test. This can be a list of length three that
-            sets the np.linspace arguments (start, stop, num) to get a set of
-            test_scalars
         knn : int
             Number of nearest neighbors to aggregate from the base data when
             comparing to a single site from the bias data.
@@ -286,6 +336,8 @@ class LinearCorrection(DataRetrievalBase):
         max_workers : int
             Number of workers to run in parallel. 1 is serial and None is all
             available.
+        daily_avg : bool
+            Flag to do temporal daily averaging of the base data.
 
         Returns
         -------
@@ -298,15 +350,6 @@ class LinearCorrection(DataRetrievalBase):
         """
         logger.debug('Starting linear correction calculation...')
 
-        if isinstance(test_adders, (list, tuple)):
-            test_adders = np.linspace(*test_adders)
-        if isinstance(test_scalars, (list, tuple)):
-            test_scalars = np.linspace(*test_scalars)
-
-        test_adders, test_scalars = np.meshgrid(test_adders, test_scalars)
-        test_adders = test_adders.flatten()
-        test_scalars = test_scalars.flatten()
-
         self.scalar = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
         self.adder = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
 
@@ -315,14 +358,13 @@ class LinearCorrection(DataRetrievalBase):
             for i, (bias_gid, row) in enumerate(self.bias_meta.iterrows()):
                 raster_loc = np.where(self.bias_gid_raster == bias_gid)
                 coord = row[['latitude', 'longitude']]
-                d, base_gid = self.base_tree.query(coord, k=knn)
+                dist, base_gid = self.base_tree.query(coord, k=knn)
 
-                if np.mean(d) < threshold:
+                if np.mean(dist) < threshold:
                     bias_data = self.get_bias_data(bias_gid)
                     out = self._run_single(bias_data, self.base_fps,
                                            self.base_dset, base_gid,
-                                           self.base_handler, test_adders,
-                                           test_scalars)
+                                           self.base_handler, daily_avg)
                     self.scalar[raster_loc] = out[0]
                     self.adder[raster_loc] = out[1]
 
@@ -337,15 +379,15 @@ class LinearCorrection(DataRetrievalBase):
                 for bias_gid, bias_row in self.bias_meta.iterrows():
                     raster_loc = np.where(self.bias_gid_raster == bias_gid)
                     coord = bias_row[['latitude', 'longitude']]
-                    d, base_gid = self.base_tree.query(coord, k=knn)
+                    dist, base_gid = self.base_tree.query(coord, k=knn)
 
-                    if d.mean() < threshold:
+                    if dist.mean() < threshold:
                         bias_data = self.get_bias_data(bias_gid)
 
                         future = exe.submit(self._run_single, bias_data,
                                             self.base_fps, self.base_dset,
                                             base_gid, self.base_handler,
-                                            test_adders, test_scalars)
+                                            daily_avg)
                         futures[future] = raster_loc
 
                 logger.debug('Finished launching futures.')
@@ -363,69 +405,3 @@ class LinearCorrection(DataRetrievalBase):
         self.write_outputs(fp_out)
 
         return self.scalar, self.adder
-
-    @classmethod
-    def run_multi_dset(cls, base_fps, bias_fps, multi_dset_map,
-                       target, shape, test_adders, test_scalars, knn,
-                       threshold=0.6, fp_out=None, max_workers=None,
-                       base_handler='Resource',
-                       bias_handler='DataHandlerNCforCC',
-                       bias_handler_kwargs=None):
-        """
-        Parameters
-        ----------
-        base_fps : list | str
-            One or more baseline .h5 filepaths representing non-biased data to
-            use to correct the biased dataset. This is typically several years
-            of WTK or NSRDB files.
-        bias_fps : list | str
-            One or more biased .nc or .h5 filepaths representing the biased
-            data to be corrected based on the baseline data. This is typically
-            several years of GCM .nc files.
-        multi_dset_map : dict
-            A dictionary mapping of single base_dset names from base_fps (keys)
-            to one or more corresponding bias_features names to retrieve from
-            bias_fps (values). For example:
-            {"windspeed_100m": ["U_100m", "V_100m"], "ghi": "rsds"}
-        target : tuple
-            (lat, lon) lower left corner of raster to retrieve from bias_fps.
-        shape : tuple
-            (rows, cols) grid size to retrieve from bias_fps.
-        test_adders : np.ndarray | list
-            The adder factors to test. This can be a list of length three that
-            sets the np.linspace arguments (start, stop, num) to get a set of
-            test_adders
-        test_scalars : np.ndarray | list
-            The scalar factors to test. This can be a list of length three that
-            sets the np.linspace arguments (start, stop, num) to get a set of
-            test_scalars
-        knn : int
-            Number of nearest neighbors to aggregate from the base data when
-            comparing to a single site from the bias data.
-        threshold : float
-            If the bias data coordinate is on average further from the base
-            data coordinates than this threshold, no bias correction factors
-            will be calculated directly and will just be filled from nearest
-            neighbor.
-        fp_out : str | None
-            Optional .h5 output file to write scalar and adder arrays.
-        max_workers : int
-            Number of workers to run in parallel. 1 is serial and None is all
-            available.
-        base_handler : str
-            Name of rex resource handler class to be retrieved from the rex
-            library.
-        bias_handler : str
-            Name of the bias data handler class to be retrieved from the
-            sup3r.preprocessing.data_handling library.
-        """
-
-        for base_dset, bias_features in multi_dset_map.items():
-            logger.info('Running LinearCorrection calculation for {}'
-                        .format(base_dset))
-            calc = cls(base_fps, bias_fps, base_dset, bias_features, target,
-                       shape, base_handler=base_handler,
-                       bias_handler=bias_handler,
-                       bias_handler_kwargs=bias_handler_kwargs)
-            calc.run(test_adders, test_scalars, knn, threshold=threshold,
-                     fp_out=fp_out, max_workers=max_workers)

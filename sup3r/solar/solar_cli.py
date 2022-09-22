@@ -5,7 +5,6 @@ sup3r solar CLI entry points.
 import copy
 import click
 import logging
-from inspect import signature
 import os
 
 from reV.pipeline.status import Status
