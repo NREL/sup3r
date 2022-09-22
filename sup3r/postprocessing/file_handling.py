@@ -517,7 +517,7 @@ class OutputHandlerH5(OutputHandler):
         meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
-        tmp_file = out_file.replace('.h5', '_tmp.h5')
+        tmp_file = out_file.replace('.h5', '.h5.tmp')
         with RexOutputs(tmp_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = times

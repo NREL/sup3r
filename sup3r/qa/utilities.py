@@ -126,8 +126,8 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=14):
     return centers, counts
 
 
-def ramp_rate_dist(u, v, bins=50, range=None, diff_max=10):
-    """Returns the ramp rate distribution.
+def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
+    """Returns the windspeed ramp rate distribution.
 
     Parameters
     ----------
@@ -143,6 +143,9 @@ def ramp_rate_dist(u, v, bins=50, range=None, diff_max=10):
         Optional min/max range for the ramp rate pdf.
     diff_max : float
         Max value to keep for ramp rate
+    t_steps : int
+        Number of time steps to use for differences. e.g. If t_steps=1 this
+        uses ws[i + 1] - [i] to compute ramp rates.
 
     Returns
     -------
@@ -151,7 +154,7 @@ def ramp_rate_dist(u, v, bins=50, range=None, diff_max=10):
     ndarray
         Normalized delta_ws / delta_t value counts
     """
-    diffs = np.diff(np.sqrt(u**2 + v**2), axis=-1).flatten()
+    diffs = np.diff(np.sqrt(u**2 + v**2), n=t_steps, axis=-1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
     diffs = diffs / np.sqrt(np.mean(diffs**2))
     counts, edges = np.histogram(diffs, bins=bins, range=range)

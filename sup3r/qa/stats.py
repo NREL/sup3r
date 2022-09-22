@@ -14,7 +14,7 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        transform_rotate_wind
                                        )
-from sup3r.qa.utilities import (ramp_rate_dist, tke_series,
+from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
                                 velocity_gradient_dist, vorticity_dist,
                                 tke_spectrum, st_interp)
 
@@ -31,7 +31,8 @@ class Sup3rWindStats:
                  time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, input_handler=None, max_workers=None,
                  extract_workers=None, compute_workers=None,
-                 load_workers=None):
+                 load_workers=None, ti_workers=None, ws_ramp_rate_max=10,
+                 v_grad_max=7, vorticity_max=14, ramp_rate_t_step=1):
         """
         Parameters
         ----------
@@ -110,12 +111,26 @@ class Sup3rWindStats:
             raw features in source data.
         load_workers : int | None
             max number of workers to use for loading cached feature data.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
+        ws_ramp_rate_max : float
+            Max value to keep for ramp rate distribution
+        v_grad_max : float
+            Max value to keep for velocity gradient distribution
+        vorticity_max : float
+            Max value to keep for vorticity distribution
         """
 
         logger.info('Initializing Sup3rWindStats and retrieving source data')
 
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
+            ti_workers = max_workers
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -124,6 +139,10 @@ class Sup3rWindStats:
         self.qa_fp = qa_fp
         self.output_handler = self.output_handler_class(self._out_fp)
         self._hr_lat_lon = None
+        self.ws_ramp_rate_max = ws_ramp_rate_max
+        self.v_grad_max = v_grad_max
+        self.vorticity_max = vorticity_max
+        self.ramp_rate_t_step = ramp_rate_t_step
 
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
@@ -140,7 +159,8 @@ class Sup3rWindStats:
                                            max_workers=max_workers,
                                            extract_workers=extract_workers,
                                            compute_workers=compute_workers,
-                                           load_workers=load_workers)
+                                           load_workers=load_workers,
+                                           ti_workers=ti_workers)
         self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
 
     def __enter__(self):
@@ -338,7 +358,8 @@ class Sup3rWindStats:
 
         return u, v
 
-    def export(self, qa_fp, data):
+    @classmethod
+    def export(cls, qa_fp, data):
         """Export stats dictionary to pkl file.
 
         Parameters
@@ -408,8 +429,7 @@ class Sup3rWindStats:
 
         return cmd.replace('\\', '/')
 
-    @staticmethod
-    def get_wind_stats(u, v):
+    def get_wind_stats(self, u, v):
         """Get stats for wind fields
 
         Parameters
@@ -426,14 +446,15 @@ class Sup3rWindStats:
         stats : dict
             Dictionary of stats for wind fields
         """
-        v_dist = velocity_gradient_dist(u)
-        vort_dist = vorticity_dist(u, v)
-        rr_dist = ramp_rate_dist(u, v)
+        v_dist = velocity_gradient_dist(u, diff_max=self.v_grad_max)
+        vort_dist = vorticity_dist(u, v, diff_max=self.vorticity_max)
+        rr_dist = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
+                                    t_steps=self.ramp_rate_t_step)
         tke_ts = tke_series(u, v)
         tke_avg = tke_spectrum(np.mean(u, axis=-1),
                                np.mean(v, axis=-1))
         return {'velocity_gradient': v_dist, 'vorticity': vort_dist,
-                'ramp_rate': rr_dist, 'tke_ts': tke_ts, 'tke_avg': tke_avg}
+                'ws_ramp_rate': rr_dist, 'tke_ts': tke_ts, 'tke_avg': tke_avg}
 
     def get_height_stats(self, height):
         """Get stats for high and low resolution wind fields

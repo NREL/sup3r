@@ -233,18 +233,25 @@ class Collector:
             f_meta = f_meta.iloc[mask]
             f_data = f[feature][:, mask]
 
-        row_slice, col_slice = Collector.get_slices(time_index, meta,
-                                                    f_ti, f_meta)
+        if len(mask) == 0:
+            msg = ('No target coordinates found in masked meta. '
+                   f'Skipping collection for {file_path}.')
+            logger.warning(msg)
+            warn(msg)
 
-        if scale_factor != source_scale_factor:
-            f_data = f_data.astype(np.float32)
-            f_data *= (scale_factor / source_scale_factor)
+        else:
+            row_slice, col_slice = Collector.get_slices(time_index, meta,
+                                                        f_ti, f_meta)
 
-        if np.issubdtype(dtype, np.integer):
-            f_data = np.round(f_data)
+            if scale_factor != source_scale_factor:
+                f_data = f_data.astype(np.float32)
+                f_data *= (scale_factor / source_scale_factor)
 
-        f_data = f_data.astype(dtype)
-        self.data[row_slice, col_slice] = f_data
+            if np.issubdtype(dtype, np.integer):
+                f_data = np.round(f_data)
+
+            f_data = f_data.astype(dtype)
+            self.data[row_slice, col_slice] = f_data
 
     @staticmethod
     def _get_file_attrs(file):
@@ -394,8 +401,10 @@ class Collector:
             target_final_meta = pd.read_csv(target_final_meta_file)
             mask = cls.get_coordinate_indices(target_final_meta, meta)
             masked_meta = meta.iloc[mask]
-            mask = cls.get_coordinate_indices(meta, target_final_meta)
+            logger.info(f'Masked meta coordinates: {len(masked_meta)}')
+            mask = cls.get_coordinate_indices(masked_meta, target_final_meta)
             target_final_meta = target_final_meta.iloc[mask]
+            logger.info(f'Target meta coordinates: {len(target_final_meta)}')
         else:
             target_final_meta = masked_meta = meta
 
@@ -499,70 +508,76 @@ class Collector:
                 file_paths, feature, sort=sort, sort_key=sort_key,
                 target_final_meta_file=target_final_meta_file)
 
-        attrs, final_dtype = get_dset_attrs(feature)
-        scale_factor = attrs.get('scale_factor', 1)
+        if len(masked_meta) > 0:
+            attrs, final_dtype = get_dset_attrs(feature)
+            scale_factor = attrs.get('scale_factor', 1)
 
-        logger.debug('Collecting file list of shape {}: {}'
-                     .format(shape, file_paths))
+            logger.debug('Collecting file list of shape {}: {}'
+                         .format(shape, file_paths))
 
-        self.data = np.zeros(shape, dtype=final_dtype)
-        mem = psutil.virtual_memory()
-        logger.debug('Initializing output dataset "{0}" in-memory with shape '
-                     '{1} and dtype {2}. Current memory usage is '
-                     '{3:.3f} GB out of {4:.3f} GB total.'
-                     .format(feature, shape, final_dtype,
-                             mem.used / 1e9, mem.total / 1e9))
+            self.data = np.zeros(shape, dtype=final_dtype)
+            mem = psutil.virtual_memory()
+            logger.debug('Initializing output dataset "{0}" in-memory with '
+                         'shape {1} and dtype {2}. Current memory usage is '
+                         '{3:.3f} GB out of {4:.3f} GB total.'
+                         .format(feature, shape, final_dtype,
+                                 mem.used / 1e9, mem.total / 1e9))
 
-        if max_workers == 1:
-            for i, fname in enumerate(file_paths):
-                logger.debug('Collecting data from file {} out of {}.'
-                             .format(i + 1, len(file_paths)))
-                self.get_data(fname, feature, time_index, masked_meta,
-                              scale_factor, final_dtype)
+            if max_workers == 1:
+                for i, fname in enumerate(file_paths):
+                    logger.debug('Collecting data from file {} out of {}.'
+                                 .format(i + 1, len(file_paths)))
+                    self.get_data(fname, feature, time_index, masked_meta,
+                                  scale_factor, final_dtype)
+            else:
+                logger.info('Running parallel collection on {} workers.'
+                            .format(max_workers))
+
+                futures = {}
+                completed = 0
+                with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                    for fname in file_paths:
+                        future = exe.submit(self.get_data, fname, feature,
+                                            time_index, masked_meta,
+                                            scale_factor, final_dtype)
+                        futures[future] = fname
+                    for future in as_completed(futures):
+                        completed += 1
+                        mem = psutil.virtual_memory()
+                        logger.info('Collection futures completed: '
+                                    '{0} out of {1}. '
+                                    'Current memory usage is '
+                                    '{2:.3f} GB out of {3:.3f} GB total.'
+                                    .format(completed, len(futures),
+                                            mem.used / 1e9, mem.total / 1e9))
+                        try:
+                            future.result()
+                        except Exception as e:
+                            msg = 'Failed to collect data from '
+                            msg += f'{futures[future]}'
+                            logger.exception(msg)
+                            raise RuntimeError(msg) from e
+            if not os.path.exists(out_file):
+                Collector._init_collected_h5(out_file, time_index,
+                                             target_final_meta)
+                x_write_slice, y_write_slice = slice(None), slice(None)
+            else:
+                with RexOutputs(out_file, 'r') as f:
+                    target_ti = f.time_index
+                    y_write_slice, x_write_slice = Collector.get_slices(
+                        target_ti, masked_target_meta, time_index, masked_meta)
+            Collector._ensure_dset_in_output(out_file, feature)
+            with RexOutputs(out_file, mode='a') as f:
+                f[feature, y_write_slice, x_write_slice] = self.data
+
+            logger.debug('Finished writing "{}" for row {} and col {} to: {}'
+                         .format(feature, y_write_slice, x_write_slice,
+                                 os.path.basename(out_file)))
         else:
-            logger.info('Running parallel collection on {} workers.'
-                        .format(max_workers))
-
-            futures = {}
-            completed = 0
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for fname in file_paths:
-                    future = exe.submit(self.get_data, fname, feature,
-                                        time_index, masked_meta, scale_factor,
-                                        final_dtype)
-                    futures[future] = fname
-                for future in as_completed(futures):
-                    completed += 1
-                    mem = psutil.virtual_memory()
-                    logger.info('Collection futures completed: '
-                                '{0} out of {1}. '
-                                'Current memory usage is '
-                                '{2:.3f} GB out of {3:.3f} GB total.'
-                                .format(completed, len(futures),
-                                        mem.used / 1e9, mem.total / 1e9))
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = f'Falied to collect data from {futures[future]}'
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-
-        if not os.path.exists(out_file):
-            Collector._init_collected_h5(out_file, time_index,
-                                         target_final_meta)
-            x_write_slice, y_write_slice = slice(None), slice(None)
-        else:
-            with RexOutputs(out_file, 'r') as f:
-                target_ti = f.time_index
-            y_write_slice, x_write_slice = Collector.get_slices(
-                target_ti, masked_target_meta, time_index, masked_meta)
-        Collector._ensure_dset_in_output(out_file, feature)
-        with RexOutputs(out_file, mode='a') as f:
-            f[feature, y_write_slice, x_write_slice] = self.data
-
-        logger.debug('Finished writing "{}" for row {} and col {} to: {}'
-                     .format(feature, y_write_slice, x_write_slice,
-                             os.path.basename(out_file)))
+            msg = ('No target coordinates found in masked meta. Skipping '
+                   f'collection for {file_paths}.')
+            logger.warning(msg)
+            warn(msg)
 
     @classmethod
     def group_time_chunks(cls, file_paths):
@@ -636,6 +651,10 @@ class Collector:
         if log_level is not None:
             init_logger('sup3r.preprocessing', log_file=log_file,
                         log_level=log_level)
+
+        if target_final_meta_file is not None:
+            logger.info(
+                f'Using target_final_meta_file={target_final_meta_file}')
 
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)

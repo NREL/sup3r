@@ -12,7 +12,7 @@ from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 from sup3r.utilities.pytest_utils import make_fake_h5_chunks
 
-from rex import ResourceX
+from rex import ResourceX, init_logger
 
 
 def test_get_lat_lon():
@@ -166,8 +166,11 @@ def test_h5_out_and_collect():
             assert gan_meta['foo'] == 'bar'
 
 
-def test_h5_collect_mask():
+def test_h5_collect_mask(log=True):
     """Test h5 file collection with mask meta"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
@@ -178,12 +181,11 @@ def test_h5_collect_mask():
         (out_files, data, _, _, features, _, _, _, _, _, _) = out
 
         Collector.collect(out_files, fp_out, features=features)
-        print('Initial collect finished')
         indices = np.arange(np.product(data.shape[:2]))
+        indices = indices[-len(indices) // 2:]
         removed = []
         for _ in range(10):
             removed.append(np.random.choice(indices))
-        print(f'removed gids: {removed}')
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta
