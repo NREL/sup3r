@@ -77,9 +77,9 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7):
     Returns
     -------
     ndarray
-        du/dx at bin centers
+        Normalized du / dx at bin centers
     ndarray
-        Normalized delta_u / delta_x value counts
+        Normalized du / dx value counts
     """
     diffs = np.diff(u, axis=1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
