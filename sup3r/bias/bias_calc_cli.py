@@ -83,7 +83,7 @@ def from_config(ctx, config_file, verbose):
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
 
-        cmd = BiasCalcClass.get_node_cmd(job)
+        cmd = BiasCalcClass.get_node_cmd(node_config)
 
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
@@ -126,7 +126,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         ctx.obj['SLURM_MANAGER'] = slurm_manager
 
     status = Status.retrieve_job_status(out_dir,
-                                        module=ModuleName.SOLAR,
+                                        module=ModuleName.BIAS_CALC,
                                         job_name=name,
                                         hardware='slurm',
                                         subprocess_manager=slurm_manager)
@@ -153,7 +153,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
                    .format(name, out))
 
         # add job to sup3r status file.
-        Status.add_job(out_dir, module=ModuleName.SOLAR,
+        Status.add_job(out_dir, module=ModuleName.BIAS_CALC,
                        job_name=name, replace=True,
                        job_attrs={'job_id': out, 'hardware': 'slurm'})
 
@@ -177,7 +177,7 @@ def kickoff_local_job(ctx, cmd):
     out_dir = ctx.obj['OUT_DIR']
     subprocess_manager = SubprocessManager
     status = Status.retrieve_job_status(out_dir,
-                                        module=ModuleName.SOLAR,
+                                        module=ModuleName.BIAS_CALC,
                                         job_name=name)
     msg = 'sup3r bias calc CLI failed to submit jobs!'
     if status == 'successful':
@@ -189,7 +189,7 @@ def kickoff_local_job(ctx, cmd):
     else:
         logger.info('Running sup3r bias calc locally with job name "{}".'
                     .format(name))
-        Status.add_job(out_dir, module=ModuleName.SOLAR,
+        Status.add_job(out_dir, module=ModuleName.BIAS_CALC,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
         msg = ('Completed sup3r bias calc job "{}".'.format(name))

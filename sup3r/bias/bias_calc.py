@@ -59,6 +59,10 @@ class DataRetrievalBase:
             Name of the bias data handler class to be retrieved from the
             sup3r.preprocessing.data_handling library.
         """
+
+        logger.info('Initializing DataRetrievalBase for base dset "{}" '
+                    'correcting biased dataset(s): {}'
+                    .format(base_dset, bias_features))
         self.base_fps = base_fps
         self.bias_fps = bias_fps
         self.base_dset = base_dset
@@ -163,6 +167,7 @@ class DataRetrievalBase:
         # pylint: disable=E1101
         init_str = get_fun_call_str(cls, config)
         fun_str = get_fun_call_str(cls.run, config)
+        fun_str = fun_str.replace(cls.__name__, 'bc')
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -174,7 +179,7 @@ class DataRetrievalBase:
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
                f"bc = {init_str};\n"
-               f"bc.{fun_str};\n"
+               f"{fun_str};\n"
                "t_elap = time.time() - t0;\n")
 
         job_name = config.get('job_name', None)
@@ -191,9 +196,9 @@ class DataRetrievalBase:
                                                .replace("true", "True")))
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
+            cmd += f'Status.make_job_file({status_file_arg_str});\n'
 
-        cmd += (";\'\n")
+        cmd += "\'"
 
         return cmd.replace('\\', '/')
 
@@ -333,12 +338,6 @@ class LinearCorrection(DataRetrievalBase):
     """Calculate linear correction *scalar +adder factors to bias correct data
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.scalar = None
-        self.adder = None
-        logger.info('Finished initializing LinearCorrection.')
-
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
                     base_handler, daily_avg):
@@ -359,13 +358,19 @@ class LinearCorrection(DataRetrievalBase):
 
         return scalar, adder
 
-    def write_outputs(self, fp_out):
+    def write_outputs(self, fp_out, scalar, adder):
         """Write outputs to an .h5 file.
 
         Parameters
         ----------
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
+        scalar : np.ndarray
+            2D array of scalar factors corresponding to the bias raster data
+            shape (lat, lon)
+        adder : np.ndarray
+            2D array of adder factors corresponding to the bias raster data
+            shape (lat, lon)
         """
 
         if not os.path.exists(os.path.dirname(fp_out)):
@@ -379,8 +384,8 @@ class LinearCorrection(DataRetrievalBase):
                 f.create_dataset('latitude', data=lat)
                 f.create_dataset('longitude', data=lon)
                 for name in self.bias_features:
-                    f.create_dataset(f'{name}_scalar', data=self.scalar)
-                    f.create_dataset(f'{name}_adder', data=self.adder)
+                    f.create_dataset(f'{name}_scalar', data=scalar)
+                    f.create_dataset(f'{name}_adder', data=adder)
 
                 logger.info('Wrote scalar adder factors to file: {}'
                             .format(fp_out))
@@ -419,8 +424,8 @@ class LinearCorrection(DataRetrievalBase):
         """
         logger.debug('Starting linear correction calculation...')
 
-        self.scalar = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
-        self.adder = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
+        scalar = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
+        adder = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
 
         if max_workers == 1:
             logger.debug('Running serial calculation.')
@@ -434,8 +439,8 @@ class LinearCorrection(DataRetrievalBase):
                     out = self._run_single(bias_data, self.base_fps,
                                            self.base_dset, base_gid,
                                            self.base_handler, daily_avg)
-                    self.scalar[raster_loc] = out[0]
-                    self.adder[raster_loc] = out[1]
+                    scalar[raster_loc] = out[0]
+                    adder[raster_loc] = out[1]
 
                 logger.info('Completed bias calculations for {} out of {} '
                             'sites'.format(i + 1, len(self.bias_meta)))
@@ -462,15 +467,15 @@ class LinearCorrection(DataRetrievalBase):
                 logger.debug('Finished launching futures.')
                 for i, future in enumerate(as_completed(futures)):
                     raster_loc = futures[future]
-                    self.scalar[raster_loc] = future.result()[0]
-                    self.adder[raster_loc] = future.result()[1]
+                    scalar[raster_loc] = future.result()[0]
+                    adder[raster_loc] = future.result()[1]
 
                     logger.info('Completed bias calculations for {} out of {} '
                                 'sites'.format(i + 1, len(futures)))
 
-        self.scalar = nn_fill_array(self.scalar)
-        self.adder = nn_fill_array(self.adder)
+        scalar = nn_fill_array(scalar)
+        adder = nn_fill_array(adder)
 
-        self.write_outputs(fp_out)
+        self.write_outputs(fp_out, scalar, adder)
 
-        return self.scalar, self.adder
+        return scalar, adder
