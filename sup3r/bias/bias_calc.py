@@ -2,6 +2,7 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+import os
 import h5py
 import json
 import logging
@@ -366,6 +367,10 @@ class LinearCorrection(DataRetrievalBase):
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
         """
+
+        if not os.path.exists(os.path.dirname(fp_out)):
+            os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
         if fp_out is not None:
             with h5py.File(fp_out, 'a') as f:
                 # pylint: disable=E1136
