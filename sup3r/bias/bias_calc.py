@@ -81,7 +81,8 @@ class DataRetrievalBase:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        elif 'windspeed' not in self.base_dset and len(self.bias_features) != 1:
+        elif ('windspeed' not in self.base_dset
+                and len(self.bias_features) != 1):
             msg = ('If base dataset is not windspeed, cannot handle more than '
                    'one feature from the bias data, but received: {}'
                    .format(self.bias_features))
@@ -158,6 +159,7 @@ class DataRetrievalBase:
             logger.error(msg)
             raise NotImplementedError(msg)
 
+        # pylint: disable=E1101
         init_str = get_fun_call_str(cls, config)
         fun_str = get_fun_call_str(cls.run, config)
 
@@ -366,6 +368,7 @@ class LinearCorrection(DataRetrievalBase):
         """
         if fp_out is not None:
             with h5py.File(fp_out, 'a') as f:
+                # pylint: disable=E1136
                 lat = self.bias_dh.lat_lon[..., 0]
                 lon = self.bias_dh.lat_lon[..., 1]
                 f.create_dataset('latitude', data=lat)

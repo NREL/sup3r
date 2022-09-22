@@ -15,6 +15,7 @@ from sup3r.qa.windstats_cli import from_config as windstats_cli
 from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.batch.batch_cli import from_config as batch_cli
+from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
 
 
 logger = logging.getLogger(__name__)
@@ -143,7 +144,7 @@ def solar(ctx, verbose):
     :meth:`sup3r.solar.solar.Solar.run_temporal_chunk` method. You do not need
     to include the ``i_t_chunk`` input, this is added by the CLI. The config
     also has several optional arguments: ``log_pattern``, ``log_level``, and
-    ``execution_control``. Here's a small example forward pass config::
+    ``execution_control``. Here's a small example solar config::
 
         {
             "fp_pattern": "./chunks/sup3r*.h5",
@@ -165,6 +166,70 @@ def solar(ctx, verbose):
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(solar_cli, config_file=config_file, verbose=verbose)
+
+
+@main.command()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def bias_calc(ctx, verbose):
+    """Sup3r bias correction calculation module to create bias correction
+    factors for low res input data.
+
+    This is typically used to understand and correct the biases in global
+    climate model (GCM) data from CMIP. Bias correcting GCM data is a very
+    common process when dealing with climate data and this helps automate that
+    process prior to passing GCM data through sup3r generative models. This is
+    typically the first step in a GCM downscaling pipeline.
+
+    You can call the bias calc module via the sup3r-pipeline CLI, or call it
+    directly with either of these equivelant commands::
+
+        $ sup3r -c config_bias.json bias-calc
+
+        $ sup3r-bias-calc from-config -c config_bias.json
+
+    A sup3r bias calc config.json file can contain any arguments or keyword
+    arguments required to call the
+
+    The config has high level ``bias_calc_class`` and ``jobs`` keys. The
+    ``bias_calc_class`` is a class name from the :mod:`sup3r.bias.bias_calc`
+    module, and the ``jobs`` argument is a list of kwargs required to
+    initialize the ``bias_calc_class`` and run the ``bias_calc_class.run()``
+    method (for example, see
+    :meth:`sup3r.bias.bias_calc.LinearCorrection.run`). There are also has
+    several optional arguments: ``log_pattern``, ``log_level``, and
+    ``execution_control``. Here's a small example bias calc config::
+
+        {
+            "bias_calc_class": "LinearCorrection",
+            "jobs": [
+                {
+                    "base_fps" : ["/datasets/WIND/HRRR/HRRR_2015.h5"],
+                    "bias_fps": ["./ta_day_EC-Earth3-Veg_ssp585.nc"],
+                    "base_dset": "windspeed_100m",
+                    "bias_features": ["U_100m", "V_100m"],
+                    "target": [20, -130],
+                    "shape": [48, 95]
+                 }
+            ],
+            "execution_control": {
+                "option": "local"
+            },
+            "execution_control_eagle": {
+                "option": "eagle",
+                "walltime": 4,
+                "alloc": "sup3r"
+            }
+        }
+
+    Note that the ``execution_control`` block will run the job locally, while
+    the ``execution_control_eagle`` block are kwargs that would be required to
+    distribute the job on multiple nodes on the NREL HPC.
+    """
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(bias_calc_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
