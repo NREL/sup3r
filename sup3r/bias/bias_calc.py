@@ -183,8 +183,8 @@ class DataRetrievalBase:
                "t_elap = time.time() - t0;\n")
 
         job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
+        status_dir = config.get('status_dir', None)
+        if job_name is not None and status_dir is not None:
             status_file_arg_str = f'"{status_dir}", '
             status_file_arg_str += f'module="{ModuleName.BIAS_CALC}", '
             status_file_arg_str += f'job_name="{job_name}", '

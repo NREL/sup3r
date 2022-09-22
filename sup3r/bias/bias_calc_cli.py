@@ -75,6 +75,7 @@ def from_config(ctx, config_file, verbose):
     jobs = config['jobs']
     for i_node, job in enumerate(jobs):
         node_config = copy.deepcopy(job)
+        node_config['status_dir'] = status_dir
         node_config['log_file'] = (
             log_pattern if log_pattern is None
             else os.path.normpath(log_pattern.format(node_index=i_node)))

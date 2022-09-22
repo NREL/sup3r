@@ -12,6 +12,7 @@ import warnings
 import copy
 from datetime import datetime as dt
 import psutil
+from inspect import signature
 
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.execution import SpawnProcessPool
@@ -1138,16 +1139,17 @@ class ForwardPass:
         input_handler_kwargs.update(self.strategy._input_handler_kwargs)
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
+        self.input_data = self.data_handler.data
+
+        self.input_data = self.bias_correct_source_data(self.input_data)
 
         exo_s_en = self.exo_kwargs.get('s_enhancements', None)
-        out = self.pad_source_data(self.data_handler.data,
+        out = self.pad_source_data(self.input_data,
                                    self.pad_s1_start, self.pad_s1_end,
                                    self.pad_s2_start, self.pad_s2_end,
                                    self.pad_t_start, self.pad_t_end,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
-
-        self.input_data = self.bias_correct_source_data(self.input_data)
 
     @property
     def file_paths(self):
@@ -1169,16 +1171,30 @@ class ForwardPass:
         return ti_pad_slice
 
     @property
+    def lr_padded_slice(self):
+        """Get the padded slice argument that can be used to slice the full
+        domain source low res data to return just the extent used for the
+        current chunk.
+
+        Returns
+        -------
+        lr_padded_slice : tuple
+            Tuple of length four that slices (spatial_1, spatial_2, temporal,
+            features) where each tuple entry is a slice object for that axes.
+        """
+        return self.strategy.lr_pad_slices[self.spatial_chunk_index]
+
+    @property
     def target(self):
         """Get target for current spatial chunk"""
-        lr_slice = self.strategy.lr_pad_slices[self.spatial_chunk_index]
-        return self.strategy.lr_lat_lon[lr_slice[0], lr_slice[1]][-1, 0]
+        spatial_slice = self.lr_padded_slice[0], self.lr_padded_slice[1]
+        return self.strategy.lr_lat_lon[spatial_slice][-1, 0]
 
     @property
     def shape(self):
         """Get shape for current spatial chunk"""
-        lr_slice = self.strategy.lr_pad_slices[self.spatial_chunk_index]
-        return self.strategy.lr_lat_lon[lr_slice[0], lr_slice[1]].shape[:-1]
+        spatial_slice = self.lr_padded_slice[0], self.lr_padded_slice[1]
+        return self.strategy.lr_lat_lon[spatial_slice].shape[:-1]
 
     @property
     def chunks(self):
@@ -1382,10 +1398,15 @@ class ForwardPass:
             logger.info('Running bias correction with: {}'.format(method))
             for feature, feature_kwargs in kwargs.items():
                 idf = self.data_handler.features.index(feature)
-                data[..., idf] = method(data[..., idf], **feature_kwargs)
-                logger.debug('Bias corrected feature "{}" at axis index {} '
+
+                if 'lr_padded_slice' in signature(method).parameters:
+                    feature_kwargs['lr_padded_slice'] = self.lr_padded_slice
+
+                logger.debug('Bias correcting feature "{}" at axis index {} '
                              'using function: {} with kwargs: {}'
                              .format(feature, idf, method, feature_kwargs))
+
+                data[..., idf] = method(data[..., idf], **feature_kwargs)
 
         return data
 
@@ -1623,11 +1644,17 @@ class ForwardPass:
             logger.info('Not running chunk index {}, output file '
                         'exists: {}'.format(chunk_index, out_file))
         else:
-            fwp = cls(strategy, chunk_index, node_index)
-            logger.info(f'Running forward pass for chunk_index={chunk_index}, '
-                        f'node_index={node_index}, '
-                        f'file_paths={fwp.file_paths}')
-            fwp.run_chunk()
+            try:
+                fwp = cls(strategy, chunk_index, node_index)
+                logger.info(f'Running forward pass for '
+                            f'chunk_index={chunk_index}, '
+                            f'node_index={node_index}, '
+                            f'file_paths={fwp.file_paths}')
+                fwp.run_chunk()
+            except Exception as e:
+                msg = ('Sup3r ForwardPass chunk failed!')
+                logger.exception(msg)
+                raise RuntimeError(msg) from e
 
     @classmethod
     def run(cls, strategy, node_index):
@@ -1667,9 +1694,10 @@ class ForwardPass:
                 for chunk_index in strategy.node_chunks[node_index]:
                     future = exe.submit(cls.incremental_check_run,
                                         strategy=strategy,
-                                        chunk_index=chunk_index,
-                                        node_index=node_index)
+                                        node_index=node_index,
+                                        chunk_index=chunk_index)
                     futures[future] = chunk_index
+
                 logger.info(f'Started {len(futures)} forward passes '
                             f'in {dt.now() - now}.')
 
