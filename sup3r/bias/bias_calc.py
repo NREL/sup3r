@@ -3,6 +3,7 @@
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
 import h5py
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -10,6 +11,8 @@ from scipy.spatial import KDTree
 from scipy.stats import ks_2samp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import rex
+from rex.utilities.fun_utils import get_fun_call_str
+from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import nn_fill_array
 import sup3r.preprocessing.data_handling
 
@@ -132,6 +135,64 @@ class DataRetrievalBase:
         """
         out = ks_2samp(base_data, bias_data * scalar + adder)
         return out.statistic
+
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to call cls.run() on a single node based on an input
+        config.
+
+        Parameters
+        ----------
+        config : dict
+            sup3r bias calc config with all necessary args and kwargs to
+            initialize the class and call run() on a single node.
+        """
+        import_str = 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += f'from sup3r.bias.bias_calc import {cls.__name__};\n'
+
+        if not hasattr(cls, 'run'):
+            msg = ('I can only get you a node command for subclasses of '
+                   'DataRetrievalBase with a run() method.')
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
+        init_str = get_fun_call_str(cls, config)
+        fun_str = get_fun_call_str(cls.run, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"bc = {init_str};\n"
+               f"bc.{fun_str};\n"
+               "t_elap = time.time() - t0;\n")
+
+        job_name = config.get('job_name', None)
+        if job_name is not None:
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.BIAS_CALC}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
 
     def get_base_gid(self, bias_gid, knn):
         """Get one or more base gid(s) corresponding to a bias gid.
