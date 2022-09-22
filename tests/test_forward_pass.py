@@ -422,7 +422,7 @@ def test_fwp_nochunking():
         assert np.array_equal(data_chunked, data_nochunk)
 
 
-def test_fwp_multi_step_model_topo_exoskip(log=True):
+def test_fwp_multi_step_model_topo_exoskip(log=False):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
 

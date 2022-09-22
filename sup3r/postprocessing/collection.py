@@ -183,7 +183,7 @@ class Collector:
         targets = np.vstack((target_meta.latitude.values,
                              target_meta.longitude.values)).T
         _, indices = tree.query(targets, distance_upper_bound=0.001)
-        indices = [i for i in indices if i < len(full_meta)]
+        indices = indices[indices < len(full_meta)]
         return indices
 
     def get_data(self, file_path, feature, time_index, meta, scale_factor,

@@ -166,7 +166,7 @@ def test_h5_out_and_collect():
             assert gan_meta['foo'] == 'bar'
 
 
-def test_h5_collect_mask(log=True):
+def test_h5_collect_mask(log=False):
     """Test h5 file collection with mask meta"""
 
     if log:
