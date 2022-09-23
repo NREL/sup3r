@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 from scipy.stats import ks_2samp
+from scipy.ndimage.filters import gaussian_filter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
@@ -391,7 +392,7 @@ class LinearCorrection(DataRetrievalBase):
                             .format(fp_out))
 
     def run(self, knn, threshold=0.6, fp_out=None, max_workers=None,
-            daily_avg=True):
+            daily_avg=True, smoothing=0):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
@@ -412,6 +413,10 @@ class LinearCorrection(DataRetrievalBase):
             available.
         daily_avg : bool
             Flag to do temporal daily averaging of the base data.
+        smoothing : float
+            Option to smooth the scalar/adder data outside of the spatial
+            domain set by the threshold input. This alleviates the weird seams
+            far from the domain of interest.
 
         Returns
         -------
@@ -473,8 +478,19 @@ class LinearCorrection(DataRetrievalBase):
                     logger.info('Completed bias calculations for {} out of {} '
                                 'sites'.format(i + 1, len(futures)))
 
+        logger.info('Finished calculating bias corrections. '
+                    'Mean scalar: {:.3f} mean adder: {:.3f}'
+                    .format(np.nanmean(scalar), np.nanmean(adder)))
+
+        nan_mask = np.isnan(scalar)
         scalar = nn_fill_array(scalar)
         adder = nn_fill_array(adder)
+
+        if smoothing > 0:
+            scalar[nan_mask] = gaussian_filter(scalar, smoothing,
+                                               mode='nearest')[nan_mask]
+            adder[nan_mask] = gaussian_filter(adder, smoothing,
+                                              mode='nearest')[nan_mask]
 
         self.write_outputs(fp_out, scalar, adder)
 
