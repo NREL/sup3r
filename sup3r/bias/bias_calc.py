@@ -27,7 +27,7 @@ class DataRetrievalBase:
     baseline data
     """
 
-    def __init__(self, base_fps, bias_fps, base_dset, bias_features,
+    def __init__(self, base_fps, bias_fps, base_dset, bias_feature,
                  target, shape,
                  base_handler='Resource', bias_handler='DataHandlerNCforCC',
                  bias_handler_kwargs=None):
@@ -43,12 +43,12 @@ class DataRetrievalBase:
             data to be corrected based on the baseline data. This is typically
             several years of GCM .nc files.
         base_dset : str
-            A single dataset from the base_fps to retrieve.
-        bias_features : str | list
-            This is the biased features from bias_fps to retrieve. This should
-            be a single feature name, or in the case of windspeed this will be
-            the two north/east components (e.g. bias_features=[U_100m, V_100m]
-            corresponding to base_dset=windspeed_100m)
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be U_100m or V_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset
         target : tuple
             (lat, lon) lower left corner of raster to retrieve from bias_fps.
         shape : tuple
@@ -63,11 +63,11 @@ class DataRetrievalBase:
 
         logger.info('Initializing DataRetrievalBase for base dset "{}" '
                     'correcting biased dataset(s): {}'
-                    .format(base_dset, bias_features))
+                    .format(base_dset, bias_feature))
         self.base_fps = base_fps
         self.bias_fps = bias_fps
         self.base_dset = base_dset
-        self.bias_features = bias_features
+        self.bias_feature = bias_feature
         self.target = target
         self.shape = shape
         bias_handler_kwargs = bias_handler_kwargs or {}
@@ -76,24 +76,6 @@ class DataRetrievalBase:
             self.base_fps = [self.base_fps]
         if isinstance(self.bias_fps, str):
             self.bias_fps = [self.bias_fps]
-        if isinstance(self.bias_features, str):
-            self.bias_features = [self.bias_features]
-
-        if 'windspeed' in self.base_dset and len(self.bias_features) != 2:
-            msg = ('Base windspeed dataset of "{}" needs exactly two features '
-                   'for the bias data corresponding to the U and V '
-                   'components, but received: {}'
-                   .format(self.base_dset, self.bias_features))
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        elif ('windspeed' not in self.base_dset
-                and len(self.bias_features) != 1):
-            msg = ('If base dataset is not windspeed, cannot handle more than '
-                   'one feature from the bias data, but received: {}'
-                   .format(self.bias_features))
-            logger.error(msg)
-            raise RuntimeError(msg)
 
         self.base_handler = getattr(rex, base_handler)
         self.bias_handler = getattr(sup3r.preprocessing.data_handling,
@@ -103,7 +85,7 @@ class DataRetrievalBase:
             self.base_meta = res.meta
             self.base_tree = KDTree(self.base_meta[['latitude', 'longitude']])
 
-        self.bias_dh = self.bias_handler(self.bias_fps, self.bias_features,
+        self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
                                          target=self.target, shape=self.shape,
                                          val_split=0.0, **bias_handler_kwargs)
 
@@ -276,13 +258,13 @@ class DataRetrievalBase:
         """
         idx = np.where(self.bias_gid_raster == bias_gid)
         bias_data = self.bias_dh.data[idx][0]
-        if bias_data.shape[-1] > 1 and 'windspeed' in self.base_dset:
-            bias_data = np.hypot(bias_data[:, 0], bias_data[:, 1])
-        elif bias_data.shape[-1] == 1:
+
+        if bias_data.shape[-1] == 1:
             bias_data = bias_data[:, 0]
         else:
             msg = ('Found a weird number of feature channels for the bias '
-                   'data retrieval: {}'.format(bias_data.shape))
+                   'data retrieval: {}. Need just one channel'
+                   .format(bias_data.shape))
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -316,11 +298,27 @@ class DataRetrievalBase:
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged as well.
         """
+
         out = []
         for fp in base_fps:
             with base_handler(fp) as res:
                 base_ti = res.time_index
-                base_data = res[base_dset, :, base_gid]
+
+                if base_dset.startswith(('U_', 'V_')):
+                    dset_ws = base_dset.replace('U_', 'windspeed_')
+                    dset_ws = dset_ws.replace('V_', 'windspeed_')
+                    dset_wd = dset_ws.replace('speed', 'direction')
+                    base_ws = res[dset_ws, :, base_gid]
+                    base_wd = res[dset_wd, :, base_gid]
+
+                    if base_dset.startswith('U_'):
+                        base_data = -base_ws * np.sin(np.radians(base_wd))
+                    else:
+                        base_data = -base_ws * np.cos(np.radians(base_wd))
+
+                else:
+                    base_data = res[base_dset, :, base_gid]
+
                 if len(base_data.shape) == 2:
                     base_data = base_data.mean(axis=1)
 
@@ -384,9 +382,8 @@ class LinearCorrection(DataRetrievalBase):
                 lon = self.bias_dh.lat_lon[..., 1]
                 f.create_dataset('latitude', data=lat)
                 f.create_dataset('longitude', data=lon)
-                for name in self.bias_features:
-                    f.create_dataset(f'{name}_scalar', data=scalar)
-                    f.create_dataset(f'{name}_adder', data=adder)
+                f.create_dataset(f'{self.bias_feature}_scalar', data=scalar)
+                f.create_dataset(f'{self.bias_feature}_adder', data=adder)
 
                 logger.info('Wrote scalar adder factors to file: {}'
                             .format(fp_out))

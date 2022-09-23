@@ -207,8 +207,8 @@ def bias_calc(ctx, verbose):
                 {
                     "base_fps" : ["/datasets/WIND/HRRR/HRRR_2015.h5"],
                     "bias_fps": ["./ta_day_EC-Earth3-Veg_ssp585.nc"],
-                    "base_dset": "windspeed_100m",
-                    "bias_features": ["U_100m", "V_100m"],
+                    "base_dset": "U_100m",
+                    "bias_feature": "U_100m",
                     "target": [20, -130],
                     "shape": [48, 95]
                  }
