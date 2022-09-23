@@ -1659,7 +1659,6 @@ class ForwardPass:
     @classmethod
     def run(cls, strategy, node_index):
         """This routine runs forward passes on all spatiotemporal chunks for
-        the given node index
 
         Parameters
         ----------
@@ -1684,6 +1683,7 @@ class ForwardPass:
                             'complete. Current memory usage is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB total.')
+
         else:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
