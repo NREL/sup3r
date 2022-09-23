@@ -8,6 +8,7 @@ import xarray as xr
 import logging
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
+import sup3r.bias
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import ModuleName
@@ -32,6 +33,8 @@ class Sup3rQa:
                  shape=None,
                  raster_file=None,
                  qa_fp=None,
+                 bias_correct_method=None,
+                 bias_correct_kwargs=None,
                  save_sources=True,
                  time_chunk_size=None,
                  cache_pattern=None,
@@ -92,6 +95,18 @@ class Sup3rQa:
         qa_fp : str | None
             Optional filepath to output QA file when you call Sup3rQa.run()
             (only .h5 is supported)
+        bias_correct_method : str | None
+            Optional bias correction function name that can be imported from
+            the sup3r.bias module. This will transform the source data
+            according to some predefined bias correction transformation along
+            with the bias_correct_kwargs. As the first argument, this method
+            must receive a generic numpy array of data to be bias corrected
+        bias_correct_kwargs : dict | None
+            Optional namespace of kwargs to provide to bias_correct_method.
+            If this is provided, it must be a dictionary where each key is a
+            feature name and each value is a dictionary of kwargs to correct
+            that feature. You can bias correct only certain input features by
+            only including those feature names in this dict.
         save_sources : bool
             Flag to save re-coarsened synthetic data and true low-res data to
             qa_fp in addition to the error dataset
@@ -144,6 +159,9 @@ class Sup3rQa:
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
+
+        self.bias_correct_method = bias_correct_method
+        self.bias_correct_kwargs = bias_correct_kwargs or {}
 
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
@@ -271,6 +289,55 @@ class Sup3rQa:
             return xr.open_dataset
         elif self.output_type == 'h5':
             return Resource
+
+    def bias_correct_source_data(self, data, feature):
+        """Bias correct data using a method defined by the bias_correct_method
+        input to ForwardPassStrategy
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Any source data to be bias corrected, with the feature channel in
+            the last axis.
+
+        Returns
+        -------
+        data : np.ndarray
+            Data corrected by the bias_correct_method ready for input to the
+            forward pass through the generative model.
+        """
+        method = self.bias_correct_method
+        kwargs = self.bias_correct_kwargs
+        if method is not None:
+            method = getattr(sup3r.bias, method)
+            logger.info('Running bias correction with: {}'.format(method))
+            feature_kwargs = kwargs[feature]
+            logger.debug('Bias correcting feature "{}" using function: {} '
+                         'with kwargs: {}'
+                         .format(feature, method, feature_kwargs))
+
+            data = method(data, **feature_kwargs)
+
+        return data
+
+    def get_source_dset(self, idf, feature):
+        """Get source low res input data including optional bias correction
+
+        Parameters
+        ----------
+        idf : int
+            Feature index in axis=-1 of the source data handler.
+        feature : str
+            Feature name
+
+        Returns
+        -------
+        data_true : np.array
+            Low-res source input data including optional bias correction
+        """
+        data_true = self.source_handler.data[..., idf]
+        data_true = self.bias_correct_source_data(data_true, feature)
+        return data_true
 
     def get_dset_out(self, name):
         """Get an output dataset from the forward pass output file.
@@ -446,7 +513,7 @@ class Sup3rQa:
                         .format(idf + 1, len(self.features), feature))
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(data_syn)
-            data_true = self.source_handler.data[..., idf]
+            data_true = self.get_source_dset(idf, feature)
 
             if data_syn.shape != data_true.shape:
                 msg = ('Sup3rQa failed while trying to inspect the "{}" '

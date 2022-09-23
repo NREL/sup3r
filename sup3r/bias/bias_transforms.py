@@ -47,11 +47,13 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
         the full low-resolution shape of the forward pass input that will be
         sliced using lr_padded_slice for the current chunk.
-    lr_padded_slice : tuple
+    lr_padded_slice : tuple | None
         Tuple of length four that slices (spatial_1, spatial_2, temporal,
         features) where each tuple entry is a slice object for that axes.
         Note that if this method is called as part of a sup3r forward pass, the
         lr_padded_slice will be included in the kwargs for the active chunk.
+        If this is None, no slicing will be done and the full bias correction
+        source shape will be used.
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
 
@@ -67,9 +69,10 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         scalar = res[scalar]
         adder = res[adder]
 
-    spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
-    scalar = scalar[spatial_slice]
-    adder = adder[spatial_slice]
+    if lr_padded_slice is not None:
+        spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
+        scalar = scalar[spatial_slice]
+        adder = adder[spatial_slice]
 
     scalar = np.expand_dims(scalar, axis=-1)
     adder = np.expand_dims(adder, axis=-1)
