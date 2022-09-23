@@ -198,7 +198,7 @@ def unstagger_vars(handles):
     return handles
 
 
-def prune_levels(handles, max_level=10):
+def prune_levels(handles, max_level=15):
     """Prune pressure levels to reduce memory footprint
 
     Parameters
@@ -251,7 +251,7 @@ def forward_avg(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def blend_domains(arr1, arr2, overlap=15):
+def blend_domains(arr1, arr2, overlap=50):
     """Blend smaller domain edges
 
     Parameters
@@ -271,12 +271,11 @@ def blend_domains(arr1, arr2, overlap=15):
     out = arr2.copy()
     for i in range(overlap):
         alpha = i / overlap
-        out[..., i, :] = out[..., i, :] * alpha + arr1[..., i, :] * (1 - alpha)
-        out[..., -i, :] = (out[..., -i, :] * alpha
-                           + arr1[..., -i, :] * (1 - alpha))
-        out[..., :, i] = out[..., :, i] * alpha + arr1[..., :, i] * (1 - alpha)
-        out[..., :, -i] = (out[..., :, -i] * alpha
-                           + arr1[..., :, -i] * (1 - alpha))
+        beta = 1 - alpha
+        out[..., i, :] = out[..., i, :] * alpha + arr1[..., i, :] * beta
+        out[..., -i, :] = out[..., -i, :] * alpha + arr1[..., -i, :] * beta
+        out[..., :, i] = out[..., :, i] * alpha + arr1[..., :, i] * beta
+        out[..., :, -i] = out[..., :, -i] * alpha + arr1[..., :, -i] * beta
     return out
 
 
@@ -327,7 +326,7 @@ def get_domain_region(handles, domain_num):
             n_lats, n_lons)
 
 
-def impute_domain(handles, domain_num, overlap=15):
+def impute_domain(handles, domain_num, overlap=50):
     """Impute smaller domain in largest domain
 
     Parameters
@@ -362,8 +361,8 @@ def impute_domain(handles, domain_num, overlap=15):
     return handles
 
 
-def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
-                   max_level=10):
+def stitch_domains(year, month, day, input_files, overlap=50, n_domains=4,
+                   max_level=15):
     """Stitch all smaller domains into largest domain
 
     Parameters
@@ -410,7 +409,7 @@ def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
 
 
 def stitch_and_save(year, month, input_pattern, output_pattern,
-                    day=None, overlap=15, n_domains=4, max_level=10):
+                    day=None, overlap=50, n_domains=4, max_level=10):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
