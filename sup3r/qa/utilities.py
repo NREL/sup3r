@@ -3,7 +3,36 @@ import numpy as np
 from PIL import Image
 
 
-def tke_spectrum(u, v, axis=0):
+def tke_frequency_spectrum(u, v):
+    """Turbulent Kinetic Energy Spectrum. Gives the portion of kinetic energy
+    associated with each wavenumber.
+
+    Parameters
+    ----------
+    u: ndarray
+        (lat, lon)
+        U component of wind
+    v : ndarray
+        (lat, lon)
+        V component of wind
+
+    Returns
+    -------
+    ndarray
+        1D array of amplitudes corresponding to the portion of total energy
+        with a given frequency
+    """
+    v_f = np.fft.fftn(np.mean(v, axis=(0, 1)))
+    u_f = np.fft.fftn(np.mean(u, axis=(0, 1)))
+    E_f = np.abs(v_f)**2 + np.abs(u_f)**2
+    n_steps = E_f.shape[0] // 2
+    E_f_a = E_f[:n_steps]
+    E_f_b = E_f[-n_steps:][::-1]
+    E_f = E_f_a + E_f_b
+    return E_f
+
+
+def tke_wavenumber_spectrum(u, v, axis=0):
     """Turbulent Kinetic Energy Spectrum. Gives the portion of kinetic energy
     associated with each wavenumber.
 
@@ -55,7 +84,7 @@ def tke_series(u, v):
         1D array of mean tke amplitudes over time
     """
 
-    return [np.mean(tke_spectrum(u[..., t], v[..., t]))
+    return [np.mean(tke_wavenumber_spectrum(u[..., t], v[..., t]))
             for t in range(u.shape[-1])]
 
 
@@ -77,13 +106,12 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7):
     Returns
     -------
     ndarray
-        Normalized du / dx at bin centers
+        du / dx at bin centers
     ndarray
         Normalized du / dx value counts
     """
     diffs = np.diff(u, axis=1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    diffs = diffs / np.sqrt(np.mean(diffs**2))
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
@@ -150,13 +178,15 @@ def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
     Returns
     -------
     ndarray
-        dws/dt values at bin centers
+        dws / dt values at bin centers
     ndarray
         Normalized delta_ws / delta_t value counts
     """
+    msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
+           f'only has {u.shape[-1]} time steps')
+    assert t_steps < u.shape[-1], msg
     diffs = np.diff(np.sqrt(u**2 + v**2), n=t_steps, axis=-1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    diffs = diffs / np.sqrt(np.mean(diffs**2))
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()

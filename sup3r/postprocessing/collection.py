@@ -11,7 +11,6 @@ import time
 import glob
 from warnings import warn
 from scipy.spatial import KDTree
-import re
 
 from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
@@ -597,7 +596,7 @@ class Collector:
         """
         file_split = {}
         for f in file_paths:
-            t_chunk = re.search(r'\d+', f).group()
+            t_chunk = f.split('_')[-2]
             file_split[t_chunk] = file_split.get(t_chunk, []) + [f]
         file_chunks = []
         for files in file_split.values():

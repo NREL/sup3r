@@ -7,7 +7,7 @@ import xarray as xr
 import os
 import pickle
 import logging
-from rex import Resource
+from rex import MultiFileResourceX
 from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
@@ -16,7 +16,8 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        )
 from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
                                 velocity_gradient_dist, vorticity_dist,
-                                tke_spectrum, st_interp)
+                                tke_wavenumber_spectrum,
+                                tke_frequency_spectrum, st_interp)
 
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,10 @@ class Sup3rWindStats:
             Max value to keep for velocity gradient distribution
         vorticity_max : float
             Max value to keep for vorticity distribution
+        ramp_rate_t_step : int | list
+            Number of time steps to use for ramp rate calculation. If low res
+            data is hourly then t_step=1 will calculate the hourly ramp rate.
+            Can provide a list of different t_step values.
         """
 
         logger.info('Initializing Sup3rWindStats and retrieving source data')
@@ -135,14 +140,17 @@ class Sup3rWindStats:
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.heights = heights if isinstance(heights, list) else [heights]
-        self._out_fp = out_file_path
+        self._out_fp = (out_file_path if isinstance(out_file_path, list)
+                        else [out_file_path])
         self.qa_fp = qa_fp
         self.output_handler = self.output_handler_class(self._out_fp)
         self._hr_lat_lon = None
         self.ws_ramp_rate_max = ws_ramp_rate_max
         self.v_grad_max = v_grad_max
         self.vorticity_max = vorticity_max
-        self.ramp_rate_t_step = ramp_rate_t_step
+        self.ramp_rate_t_step = (ramp_rate_t_step
+                                 if isinstance(ramp_rate_t_step, list)
+                                 else [ramp_rate_t_step])
 
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
@@ -189,10 +197,10 @@ class Sup3rWindStats:
         """Get lat/lon for output data"""
         if self._hr_lat_lon is None:
             meta = self.output_handler.meta
-            lats = meta.latitude
-            lons = meta.longitude
-            lat_lon = np.dstack(lats.reshape(self.hr_shape[:-1]),
-                                lons.reshape(self.hr_shape[:-1]))
+            lats = meta.latitude.values
+            lons = meta.longitude.values
+            lat_lon = np.dstack((lats.reshape(self.hr_shape[:-1]),
+                                 lons.reshape(self.hr_shape[:-1])))
         return lat_lon
 
     @property
@@ -212,7 +220,7 @@ class Sup3rWindStats:
     def lr_shape(self):
         """Get the shape of the source low-res data raster
         (rows, cols, time, features)"""
-        return self.source_handler.shape
+        return self.source_handler.data[..., self.lr_t_slice, 0].shape
 
     @property
     def lr_time_index(self):
@@ -222,7 +230,7 @@ class Sup3rWindStats:
         -------
         pd.DatetimeIndex
         """
-        return self.source_handler.time_index
+        return self.source_handler.time_index.tz_localize(None)
 
     @property
     def hr_time_index(self):
@@ -234,7 +242,7 @@ class Sup3rWindStats:
         """
         if self.output_type == 'nc':
             raise NotImplementedError('Netcdf output not yet supported')
-        return self.output_handler.time_index
+        return self.output_handler.time_index.tz_localize(None)
 
     def time_overlap_slices(self):
         """Get slices for temporal overlap of low and high resolution data
@@ -256,10 +264,14 @@ class Sup3rWindStats:
 
         lr_end = next(len(self.lr_time_index) - i
                       for i, t in enumerate(self.lr_time_index[::-1])
-                      if t <= max_time)
+                      if t <= max_time) + 1
         hr_end = next(len(self.hr_time_index) - i
                       for i, t in enumerate(self.hr_time_index[::-1])
-                      if t <= max_time)
+                      if t <= max_time) + 1
+        logger.info('Low res time index: '
+                    f'{self.lr_time_index[lr_start:lr_end]}')
+        logger.info('High res time index: '
+                    f'{self.hr_time_index[hr_start:hr_end]}')
 
         return slice(lr_start, lr_end), slice(hr_start, hr_end)
 
@@ -326,7 +338,7 @@ class Sup3rWindStats:
         if self.output_type == 'nc':
             return xr.open_dataset
         elif self.output_type == 'h5':
-            return Resource
+            return MultiFileResourceX
 
     def get_uv_out(self, height):
         """Get an output dataset from the forward pass output file.
@@ -350,10 +362,10 @@ class Sup3rWindStats:
         elif self.output_type == 'h5':
             ws_f = f'windspeed_{height}m'
             wd_f = f'winddirection_{height}m'
-            ws = self.output_handler[ws_f][self.hr_t_slice]
-            wd = self.output_handler[wd_f][self.hr_t_slice]
-            ws = ws.T.reshape(self.hr_shape)
-            wd = wd.T.reshape(self.hr_shape)
+            ws = self.output_handler[ws_f, self.hr_t_slice, :]
+            wd = self.output_handler[wd_f, self.hr_t_slice, :]
+            ws = ws.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            wd = wd.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
             u, v = transform_rotate_wind(ws, wd, self.hr_lat_lon)
 
         return u, v
@@ -429,7 +441,7 @@ class Sup3rWindStats:
 
         return cmd.replace('\\', '/')
 
-    def get_wind_stats(self, u, v):
+    def get_wind_stats(self, u, v, res='high'):
         """Get stats for wind fields
 
         Parameters
@@ -446,15 +458,31 @@ class Sup3rWindStats:
         stats : dict
             Dictionary of stats for wind fields
         """
+        stats_dict = {}
+        logger.info('Computing velocity gradient distribution.')
         v_dist = velocity_gradient_dist(u, diff_max=self.v_grad_max)
+        logger.info('Computing vorticity distribution.')
         vort_dist = vorticity_dist(u, v, diff_max=self.vorticity_max)
-        rr_dist = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
-                                    t_steps=self.ramp_rate_t_step)
+        logger.info('Computing mean kinetic energy spectrum series.')
         tke_ts = tke_series(u, v)
-        tke_avg = tke_spectrum(np.mean(u, axis=-1),
-                               np.mean(v, axis=-1))
-        return {'velocity_gradient': v_dist, 'vorticity': vort_dist,
-                'ws_ramp_rate': rr_dist, 'tke_ts': tke_ts, 'tke_avg': tke_avg}
+        logger.info('Computing time averaged kinetic energy'
+                    ' wavenumber spectrum.')
+        tke_avg_k = tke_wavenumber_spectrum(np.mean(u, axis=-1),
+                                            np.mean(v, axis=-1))
+        logger.info('Computing time averaged kinetic energy'
+                    ' frequency spectrum.')
+        tke_avg_f = tke_frequency_spectrum(u, v)
+        stats_dict = {'velocity_gradient': v_dist, 'vorticity': vort_dist,
+                      'tke_ts': tke_ts, 'tke_avg_k': tke_avg_k,
+                      'tke_avg_f': tke_avg_f}
+        for time in self.ramp_rate_t_step:
+            if res == 'high':
+                time = time * self.t_enhance
+            logger.info(f'Computing t_step={time} ramp rate distribution.')
+            out = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
+                                    t_steps=time)
+            stats_dict[f'ramp_ramp_{time}'] = out
+        return stats_dict
 
     def get_height_stats(self, height):
         """Get stats for high and low resolution wind fields
@@ -477,12 +505,18 @@ class Sup3rWindStats:
         uidx, vidx = self.feature_indices(height)
         u_lr = self.source_handler.data[..., self.lr_t_slice, uidx]
         v_lr = self.source_handler.data[..., self.lr_t_slice, vidx]
+        logger.info(f'Interpolating low res U for height={height}')
         u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
+        logger.info(f'Interpolating low res V for height={height}')
         v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
 
-        low_res = self.get_wind_stats(u_lr, v_lr)
-        high_res = self.get_wind_stats(u_hr, v_hr)
-        interp = self.get_wind_stats(u_itp, v_itp)
+        logger.info(f'Getting low res stats for height={height}m')
+        low_res = self.get_wind_stats(u_lr, v_lr, res='low')
+        logger.info(f'Getting high res stats for height={height}m')
+        high_res = self.get_wind_stats(u_hr, v_hr, res='high')
+        logger.info('Getting interpolated baseline stats for '
+                    f'height={height}m')
+        interp = self.get_wind_stats(u_itp, v_itp, res='high')
         return low_res, high_res, interp
 
     def run(self):

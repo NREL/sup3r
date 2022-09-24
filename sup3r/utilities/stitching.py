@@ -165,6 +165,7 @@ def get_handles(input_files):
     """
     handles = []
     for f in input_files:
+        logger.info(f'Getting handle for {f}')
         handle = xr.open_dataset(f)
         handle = handle[SAVE_FEATURES]
         handles.append(handle)
@@ -361,8 +362,8 @@ def impute_domain(handles, domain_num, overlap=50):
     return handles
 
 
-def stitch_domains(year, month, day, input_files, overlap=50, n_domains=4,
-                   max_level=15):
+def stitch_domains(year, month, time_step, input_files, overlap=50,
+                   n_domains=4, max_level=15):
     """Stitch all smaller domains into largest domain
 
     Parameters
@@ -371,8 +372,10 @@ def stitch_domains(year, month, day, input_files, overlap=50, n_domains=4,
         Year for input files
     month : int
         Month for input files
-    day : int
-        Day for input files. If None then stitch and save will be done for full
+    time_step : int
+        Time step for input files for the specified month. e.g. if year=2017,
+        month=3, time_step=0 this will select the file for the first time step
+        of 2017-03-01. If None then stitch and save will be done for full
         month.
     input_files : dict
         Dictionary of input files with keys corresponding to domain number
@@ -390,8 +393,8 @@ def stitch_domains(year, month, day, input_files, overlap=50, n_domains=4,
         handles[0]
     """
     logger.info(f'Getting domain files for year={year}, month={month},'
-                f' timestep={day}.')
-    step_files = [input_files[d][day] for d in range(n_domains)]
+                f' timestep={time_step}.')
+    step_files = [input_files[d][time_step] for d in range(n_domains)]
     logger.info(f'Getting data handles for files: {step_files}')
     handles = get_handles(step_files)
     logger.info('Unstaggering variables for all handles')
@@ -399,17 +402,17 @@ def stitch_domains(year, month, day, input_files, overlap=50, n_domains=4,
     logger.info(f'Pruning pressure levels to level={max_level}')
     handles = prune_levels(handles, max_level=max_level)
     logger.info(f'Regridding main domain for year={year}, month={month}, '
-                f'timestep={day}')
+                f'timestep={time_step}')
     handles = regrid_main_domain(handles)
     for j in range(1, n_domains):
         logger.info(f'Imputing domain {j + 1} for year={year}, '
-                    f'month={month}, timestep={day}')
+                    f'month={month}, timestep={time_step}')
         handles = impute_domain(handles, j, overlap=overlap)
     return handles
 
 
 def stitch_and_save(year, month, input_pattern, output_pattern,
-                    day=None, overlap=50, n_domains=4, max_level=10):
+                    time_step=None, overlap=50, n_domains=4, max_level=15):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
@@ -418,8 +421,10 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
         Year for input files
     month : int
         Month for input files
-    day : int
-        Day for input files. If None then stitch and save will be done for full
+    time_step : int
+        Time step for input files for the specified month. e.g. if year=2017,
+        month=3, time_step=0 this will select the file for the first time step
+        of 2017-03-01. If None then stitch and save will be done for full
         month.
     input_pattern : str
         Pattern for input files. Assumes pattern contains {month}, {year}, and
@@ -436,7 +441,8 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
                                        output_pattern, n_domains=n_domains)
-    out_files = out_files if day is None else out_files[day - 1: day]
+    out_files = (out_files if time_step is None
+                 else out_files[time_step - 1: time_step])
     for i, out_file in enumerate(out_files):
         handles = stitch_domains(year, month, i, input_files,
                                  overlap=overlap, n_domains=n_domains,
