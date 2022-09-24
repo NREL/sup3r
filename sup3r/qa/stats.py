@@ -32,8 +32,9 @@ class Sup3rWindStats:
                  time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, input_handler=None, max_workers=None,
                  extract_workers=None, compute_workers=None,
-                 load_workers=None, ti_workers=None, ws_ramp_rate_max=10,
-                 v_grad_max=7, vorticity_max=14, ramp_rate_t_step=1):
+                 load_workers=None, ti_workers=None, get_interp=False,
+                 get_hr=True, get_lr=True, include_stats=None, max_values=None,
+                 ramp_rate_t_step=1):
         """
         Parameters
         ----------
@@ -119,12 +120,18 @@ class Sup3rWindStats:
             parallel and then concatenated to get the full time index. If input
             files do not all have time indices or if there are few input files
             this should be set to one.
-        ws_ramp_rate_max : float
-            Max value to keep for ramp rate distribution
-        v_grad_max : float
-            Max value to keep for velocity gradient distribution
-        vorticity_max : float
-            Max value to keep for vorticity distribution
+        get_interp : bool
+            Whether to include interpolated baseline stats in output
+        get_hr : bool
+            Whether to include high resolution stats in output
+        get_lr : bool
+            Whether to include low resolution stats in output
+        include_stats : list | None
+            List of stats to include in output. e.g. ['ws_ramp_rate',
+            'velocity_grad', 'vorticity', 'tke_avg_k', 'tke_avg_f', 'tke_ts']
+        max_values : dict | None
+            Dictionary of max values to keep for stats. e.g.
+            {'ws_ramp_rate_max': 10, 'v_grad_max': 14, 'vorticity_max': 7}
         ramp_rate_t_step : int | list
             Number of time steps to use for ramp rate calculation. If low res
             data is hourly then t_step=1 will calculate the hourly ramp rate.
@@ -137,6 +144,18 @@ class Sup3rWindStats:
             extract_workers = compute_workers = load_workers = max_workers
             ti_workers = max_workers
 
+        self.max_values = max_values or {}
+        self.ws_ramp_rate_max = self.max_values.get('ws_ramp_rate_max', 10)
+        self.v_grad_max = self.max_values.get('v_grad_max', 7)
+        self.vorticity_max = self.max_values.get('vorticity_max', 14)
+        self.ramp_rate_t_step = (ramp_rate_t_step
+                                 if isinstance(ramp_rate_t_step, list)
+                                 else [ramp_rate_t_step])
+        self.include_stats = include_stats or ['ws_ramp_rate', 'velocity_grad',
+                                               'vorticity', 'tke_avg_k',
+                                               'tke_avg_f', 'tke_ts',
+                                               'mean_ws_ramp_rate']
+
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.heights = heights if isinstance(heights, list) else [heights]
@@ -145,31 +164,35 @@ class Sup3rWindStats:
         self.qa_fp = qa_fp
         self.output_handler = self.output_handler_class(self._out_fp)
         self._hr_lat_lon = None
-        self.ws_ramp_rate_max = ws_ramp_rate_max
-        self.v_grad_max = v_grad_max
-        self.vorticity_max = vorticity_max
-        self.ramp_rate_t_step = (ramp_rate_t_step
-                                 if isinstance(ramp_rate_t_step, list)
-                                 else [ramp_rate_t_step])
+        self.get_interp = get_interp
+        self.get_hr = get_hr
+        self.get_lr = get_lr
+        self.cache_pattern = cache_pattern
 
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
-        self.source_handler = HandlerClass(source_file_paths,
-                                           self.features,
-                                           target=target,
-                                           shape=shape,
-                                           temporal_slice=temporal_slice,
-                                           raster_file=raster_file,
-                                           cache_pattern=cache_pattern,
-                                           time_chunk_size=time_chunk_size,
-                                           overwrite_cache=overwrite_cache,
-                                           val_split=0.0,
-                                           max_workers=max_workers,
-                                           extract_workers=extract_workers,
-                                           compute_workers=compute_workers,
-                                           load_workers=load_workers,
-                                           ti_workers=ti_workers)
-        self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
+        if self.get_lr:
+            self.source_handler = HandlerClass(source_file_paths,
+                                               self.features,
+                                               target=target,
+                                               shape=shape,
+                                               temporal_slice=temporal_slice,
+                                               raster_file=raster_file,
+                                               cache_pattern=cache_pattern,
+                                               time_chunk_size=time_chunk_size,
+                                               overwrite_cache=overwrite_cache,
+                                               val_split=0.0,
+                                               max_workers=max_workers,
+                                               extract_workers=extract_workers,
+                                               compute_workers=compute_workers,
+                                               load_workers=load_workers,
+                                               ti_workers=ti_workers)
+            self.source_handler.load_cached_data()
+        if self.get_hr and self.get_lr:
+            self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
+        else:
+            self.lr_t_slice = slice(None)
+            self.hr_t_slice = slice(None)
 
     def __enter__(self):
         return self
@@ -268,10 +291,6 @@ class Sup3rWindStats:
         hr_end = next(len(self.hr_time_index) - i
                       for i, t in enumerate(self.hr_time_index[::-1])
                       if t <= max_time) + 1
-        logger.info('Low res time index: '
-                    f'{self.lr_time_index[lr_start:lr_end]}')
-        logger.info('High res time index: '
-                    f'{self.hr_time_index[hr_start:hr_end]}')
 
         return slice(lr_start, lr_end), slice(hr_start, hr_end)
 
@@ -356,19 +375,77 @@ class Sup3rWindStats:
             array of shape (spatial_1, spatial_2, temporal)
         """
 
-        logger.debug('Getting sup3r u/v data "({}m)"'.format(height))
+        logger.debug('Getting sup3r u/v data ({}m)'.format(height))
+        t_steps = len(self.hr_time_index[self.hr_t_slice])
+        shape = f'{self.hr_shape[0]}x{self.hr_shape[1]}x{t_steps}'
+
+        u_file = v_file = None
+        if self.cache_pattern is not None:
+            tmp_file = self.cache_pattern.replace('{shape}', f'{shape}')
+            u_file = tmp_file.replace('{feature}', f'u_{height}m')
+            v_file = tmp_file.replace('{feature}', f'v_{height}m')
+
+            if os.path.exists(u_file) and os.path.exists(v_file):
+                u = self.load_cache(u_file)
+                v = self.load_cache(v_file)
+                return u, v
+
         if self.output_type == 'nc':
             raise NotImplementedError('Netcdf output not yet supported')
         elif self.output_type == 'h5':
             ws_f = f'windspeed_{height}m'
             wd_f = f'winddirection_{height}m'
+            logger.info('Extracting data from output handler for '
+                        f'time_slice={self.hr_t_slice}')
             ws = self.output_handler[ws_f, self.hr_t_slice, :]
             wd = self.output_handler[wd_f, self.hr_t_slice, :]
-            ws = ws.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
-            wd = wd.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            ws = ws.reshape((-1, self.hr_shape[0], self.hr_shape[1]))
+            ws = np.transpose(ws, axis=(1, 2, 0))
+            wd = wd.reshape((-1, self.hr_shape[0], self.hr_shape[1]))
+            wd = np.transpose(wd, axis=(1, 2, 0))
+            logger.info(f'Transforming ws / wd to u / v for height={height}m '
+                        f'with shape={ws.shape}')
             u, v = transform_rotate_wind(ws, wd, self.hr_lat_lon)
+            if u_file is not None:
+                self.save_cache(u, u_file)
+            if v_file is not None:
+                self.save_cache(v, v_file)
 
         return u, v
+
+    @classmethod
+    def save_cache(cls, array, file_name):
+        """Save data to cache file
+
+        Parameters
+        ----------
+        array : ndarray
+            Wind field data
+        file_name : str
+            Path to cache file
+        """
+        logger.info(f'Saving data to {file_name}')
+        with open(file_name, 'wb') as f:
+            pickle.dump(array, f, protocol=4)
+
+    @classmethod
+    def load_cache(cls, file_name):
+        """Load data from cache file
+
+        Parameters
+        ----------
+        file_name : str
+            Path to cache file
+
+        Returns
+        -------
+        array : ndarray
+            Wind field data
+        """
+        logger.info(f'Loading data from {file_name}')
+        with open(file_name, 'rb') as f:
+            arr = pickle.load(f)
+        return arr
 
     @classmethod
     def export(cls, qa_fp, data):
@@ -441,8 +518,8 @@ class Sup3rWindStats:
 
         return cmd.replace('\\', '/')
 
-    def get_wind_stats(self, u, v, res='high'):
-        """Get stats for wind fields
+    def get_spectra_stats(self, u, v):
+        """Compute spectra based statistics
 
         Parameters
         ----------
@@ -456,32 +533,104 @@ class Sup3rWindStats:
         Returns
         -------
         stats : dict
+            Dictionary of spectra stats for wind fields
+        """
+
+        stats_dict = {}
+        if 'tke_ts' in self.include_stats:
+            logger.info('Computing mean kinetic energy spectrum series.')
+            stats_dict['tke_ts'] = tke_series(u, v)
+
+        if 'tke_avg_k' in self.include_stats:
+            logger.info('Computing time averaged kinetic energy'
+                        ' wavenumber spectrum.')
+            stats_dict['tke_avg_k'] = tke_wavenumber_spectrum(
+                np.mean(u, axis=-1), np.mean(v, axis=-1))
+
+        if 'tke_avg_f' in self.include_stats:
+            logger.info('Computing time averaged kinetic energy'
+                        ' frequency spectrum.')
+            stats_dict['tke_avg_f'] = tke_frequency_spectrum(u, v)
+
+        return stats_dict
+
+    def get_ramp_rate_stats(self, u, v, res='high'):
+        """
+        Parameters
+        ----------
+        u: ndarray
+            Longitudinal velocity component
+            (lat, lon, temporal)
+        v : ndarray
+            Latitudinal velocity component
+            (lat, lon, temporal)
+        res : str
+            Resolution of input fields. If this is 'high' then the ramp rate
+            time step needs to be multipled by the temporal enhancement factor
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of ramp rate stats for wind fields
+        """
+
+        stats_dict = {}
+        if 'ws_ramp_rate' in self.include_stats:
+            for i, time in enumerate(self.ramp_rate_t_step):
+                freq = time * (self.lr_time_index[1] - self.lr_time_index[0])
+                if res == 'high':
+                    time = time * self.t_enhance
+                logger.info(f'Computing ramp rate pdf ({freq}).')
+                out = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
+                                        t_steps=time)
+                stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
+        if 'mean_ws_ramp_rate' in self.include_stats:
+            for i, time in enumerate(self.ramp_rate_t_step):
+                freq = time * (self.lr_time_index[1] - self.lr_time_index[0])
+                if res == 'high':
+                    time = time * self.t_enhance
+                logger.info(f'Computing mean ramp rate pdf ({freq}).')
+                out = ws_ramp_rate_dist(np.mean(u, axis=(0, 1)),
+                                        np.mean(v, axis=(0, 1)),
+                                        diff_max=self.ws_ramp_rate_max,
+                                        t_steps=time)
+                stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
+        return stats_dict
+
+    def get_wind_stats(self, u, v, res='high'):
+        """Get stats for wind fields
+
+        Parameters
+        ----------
+        u: ndarray
+            Longitudinal velocity component
+            (lat, lon, temporal)
+        v : ndarray
+            Latitudinal velocity component
+            (lat, lon, temporal)
+        res : str
+            Resolution of input fields. If this is 'high' then the ramp rate
+            time step needs to be multipled by the temporal enhancement factor
+
+        Returns
+        -------
+        stats : dict
             Dictionary of stats for wind fields
         """
-        stats_dict = {}
-        logger.info('Computing velocity gradient distribution.')
-        v_dist = velocity_gradient_dist(u, diff_max=self.v_grad_max)
-        logger.info('Computing vorticity distribution.')
-        vort_dist = vorticity_dist(u, v, diff_max=self.vorticity_max)
-        logger.info('Computing mean kinetic energy spectrum series.')
-        tke_ts = tke_series(u, v)
-        logger.info('Computing time averaged kinetic energy'
-                    ' wavenumber spectrum.')
-        tke_avg_k = tke_wavenumber_spectrum(np.mean(u, axis=-1),
-                                            np.mean(v, axis=-1))
-        logger.info('Computing time averaged kinetic energy'
-                    ' frequency spectrum.')
-        tke_avg_f = tke_frequency_spectrum(u, v)
-        stats_dict = {'velocity_gradient': v_dist, 'vorticity': vort_dist,
-                      'tke_ts': tke_ts, 'tke_avg_k': tke_avg_k,
-                      'tke_avg_f': tke_avg_f}
-        for time in self.ramp_rate_t_step:
-            if res == 'high':
-                time = time * self.t_enhance
-            logger.info(f'Computing t_step={time} ramp rate distribution.')
-            out = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
-                                    t_steps=time)
-            stats_dict[f'ramp_ramp_{time}'] = out
+        stats_dict = self.get_spectra_stats(u, v)
+
+        if 'velocity_grad' in self.include_stats:
+            logger.info('Computing velocity gradient pdf.')
+            stats_dict['velocity_grad'] = velocity_gradient_dist(
+                u, diff_max=self.v_grad_max)
+
+        if 'vorticity' in self.include_stats:
+            logger.info('Computing vorticity pdf.')
+            stats_dict['vorticity'] = vorticity_dist(
+                u, v, diff_max=self.vorticity_max)
+
+        out = self.get_ramp_rate_stats(u, v, res=res)
+        stats_dict.update(out)
         return stats_dict
 
     def get_height_stats(self, height):
@@ -501,22 +650,29 @@ class Sup3rWindStats:
         interp : dict
             Dictionary of stats for spatiotemporally interpolated wind fields
         """
-        u_hr, v_hr = self.get_uv_out(height)
-        uidx, vidx = self.feature_indices(height)
-        u_lr = self.source_handler.data[..., self.lr_t_slice, uidx]
-        v_lr = self.source_handler.data[..., self.lr_t_slice, vidx]
-        logger.info(f'Interpolating low res U for height={height}')
-        u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
-        logger.info(f'Interpolating low res V for height={height}')
-        v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
+        low_res = {}
+        if self.get_lr:
+            uidx, vidx = self.feature_indices(height)
+            u_lr = self.source_handler.data[..., self.lr_t_slice, uidx]
+            v_lr = self.source_handler.data[..., self.lr_t_slice, vidx]
+            logger.info(f'Getting low res stats for height={height}m')
+            low_res = self.get_wind_stats(u_lr, v_lr, res='low')
 
-        logger.info(f'Getting low res stats for height={height}m')
-        low_res = self.get_wind_stats(u_lr, v_lr, res='low')
-        logger.info(f'Getting high res stats for height={height}m')
-        high_res = self.get_wind_stats(u_hr, v_hr, res='high')
-        logger.info('Getting interpolated baseline stats for '
-                    f'height={height}m')
-        interp = self.get_wind_stats(u_itp, v_itp, res='high')
+        high_res = {}
+        if self.get_hr:
+            u_hr, v_hr = self.get_uv_out(height)
+            logger.info(f'Getting high res stats for height={height}m')
+            high_res = self.get_wind_stats(u_hr, v_hr, res='high')
+
+        interp = {}
+        if self.get_interp:
+            logger.info(f'Interpolating low res U for height={height}')
+            u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
+            logger.info(f'Interpolating low res V for height={height}')
+            v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
+            logger.info('Getting interpolated baseline stats for '
+                        f'height={height}m')
+            interp = self.get_wind_stats(u_itp, v_itp, res='high')
         return low_res, high_res, interp
 
     def run(self):
@@ -533,13 +689,16 @@ class Sup3rWindStats:
 
         stats = {}
         for idf, height in enumerate(self.heights):
-            logger.info('Running WindStats on height {} of {}: "{}m"'
+            logger.info('Running WindStats on height {} of {} ({}m)'
                         .format(idf + 1, len(self.heights), height))
             lr_stats, hr_stats, interp = self.get_height_stats(height)
 
-            stats[f'lr_{height}m'] = lr_stats
-            stats[f'hr_{height}m'] = hr_stats
-            stats[f'interp_{height}m'] = interp
+            if self.get_lr:
+                stats[f'lr_{height}m'] = lr_stats
+            if self.get_hr:
+                stats[f'hr_{height}m'] = hr_stats
+            if self.get_interp:
+                stats[f'interp_{height}m'] = interp
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)

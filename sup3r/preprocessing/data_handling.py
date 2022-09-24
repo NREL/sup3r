@@ -78,8 +78,8 @@ class InputMixIn:
         self.raster_index = None
         self.overwrite_cache = False
         self.max_workers = None
-        self.ti_workers = None
         self.lat_lon = None
+        self._ti_workers = None
         self._raw_time_index = None
         self._time_index = None
         self._time_index_file = None
@@ -210,6 +210,18 @@ class InputMixIn:
         self._file_paths = sorted(self._file_paths)
 
     @property
+    def ti_workers(self):
+        """Get max number of workers for computing time index"""
+        if self._ti_workers is None:
+            self._ti_workers = len(self._file_paths)
+        return self._ti_workers
+
+    @ti_workers.setter
+    def ti_workers(self, val):
+        """Set max number of workers for computing time index"""
+        self._ti_workers = val
+
+    @property
     def cache_pattern(self):
         """Get correct cache file pattern for formatting.
 
@@ -334,9 +346,10 @@ class InputMixIn:
             else:
                 now = dt.now()
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
-                             'input files.')
-                self._raw_time_index = self.get_time_index(self.file_paths,
-                                                           self.ti_workers)
+                             'input files. Using ti_workers='
+                             f'{self.ti_workers}')
+                self._raw_time_index = self.get_time_index(
+                    self.file_paths, max_workers=self.ti_workers)
 
                 if self.time_index_file is not None:
                     logger.debug('Saved raw_time_index to '
@@ -540,11 +553,11 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.val_data = None
         self.target = target
         self.grid_shape = shape
-        self.ti_workers = ti_workers
         self.max_workers = max_workers
         self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
+        self._ti_workers = ti_workers
         self._extract_workers = extract_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
@@ -629,7 +642,7 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def worker_attrs(self):
         """Get all worker args defined in init"""
-        return ['ti_workers', '_norm_workers', '_compute_workers',
+        return ['_ti_workers', '_norm_workers', '_compute_workers',
                 '_extract_workers', '_load_workers']
 
     @classmethod

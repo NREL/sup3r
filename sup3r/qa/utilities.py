@@ -106,16 +106,20 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7):
     Returns
     -------
     ndarray
-        du / dx at bin centers
+        Normalized du / dx at bin centers
     ndarray
         Normalized du / dx value counts
+    float
+        Normalization factor
     """
     diffs = np.diff(u, axis=1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
+    norm = np.sqrt(np.mean(diffs**2))
+    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts
+    return centers, counts, norm
 
 
 def vorticity_dist(u, v, bins=50, range=None, diff_max=14):
@@ -139,19 +143,22 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=14):
     Returns
     -------
     ndarray
-        vorticity values at bin centers
+        Normalized vorticity values at bin centers
     ndarray
         Normalized vorticity value counts
+    float
+        Normalization factor
     """
     dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    diffs = diffs / np.sqrt(np.mean(diffs**2))
+    norm = np.sqrt(np.mean(diffs**2))
+    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts
+    return centers, counts, norm
 
 
 def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
@@ -178,19 +185,23 @@ def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
     Returns
     -------
     ndarray
-        dws / dt values at bin centers
+        Normalized dws / dt values at bin centers
     ndarray
         Normalized delta_ws / delta_t value counts
+    float
+        Normalization factor
     """
     msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
            f'only has {u.shape[-1]} time steps')
     assert t_steps < u.shape[-1], msg
     diffs = np.diff(np.sqrt(u**2 + v**2), n=t_steps, axis=-1).flatten()
     diffs = diffs[(np.abs(diffs) < diff_max)]
+    norm = np.sqrt(np.mean(diffs**2))
+    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts
+    return centers, counts, norm
 
 
 def spatial_interp(low, s_enhance):

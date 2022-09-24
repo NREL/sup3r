@@ -606,7 +606,8 @@ class Collector:
     @classmethod
     def collect(cls, file_paths, out_file, features, max_workers=None,
                 log_level=None, log_file=None, write_status=False,
-                job_name=None, join_times=False, target_final_meta_file=None):
+                job_name=None, join_times=False, target_final_meta_file=None,
+                n_writes=None):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
@@ -636,7 +637,7 @@ class Collector:
             Flag to write status file once complete if running from pipeline.
         job_name : str
             Job name for status file if running from pipeline.
-        join_time : bool
+        join_times : bool
             Option to split full file list into chunks with each chunk having
             the same temporal_chunk_index. The number of temporal chunk indices
             will then be used as the number of writes. Assumes file_paths have
@@ -644,6 +645,9 @@ class Collector:
         target_final_meta_file : str
             Path to target final meta containing coordinates to keep from the
             full file list collected meta
+        n_writes : int | None
+            Number of writes to split full file list into. Must be less than
+            or equal to the number of temporal chunks.
         """
         t0 = time.time()
 
@@ -663,10 +667,20 @@ class Collector:
                                                        out_file))
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
-            if join_times:
+            if join_times or n_writes is not None:
                 flist_chunks = collector.group_time_chunks(collector.flist)
                 logger.debug(f'Split file list into {len(flist_chunks)} chunks'
                              ' according to temporal chunk indices')
+                if n_writes is not None:
+                    msg = (f'n_writes ({n_writes}) must be less than or equal'
+                           'to the number of temporal chunks '
+                           f'({len(flist_chunks)}).')
+                    assert n_writes < len(flist_chunks), msg
+                    flist_chunks = np.array_split(flist_chunks, n_writes)
+                    flist_chunks = [np.concatenate(fp_chunk)
+                                    for fp_chunk in flist_chunks]
+                    logger.debug(f'Split file list into {len(flist_chunks)} '
+                                 f'chunks according to n_writes={n_writes}')
             else:
                 flist_chunks = [collector.flist]
 
