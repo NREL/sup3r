@@ -3,7 +3,6 @@
 
    Home page <self>
    Installation and Usage <misc/installation_usage>
-   Examples <misc/examples>
    API reference <_autosummary/sup3r>
    CLI reference <_cli/cli>
 

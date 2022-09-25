@@ -167,6 +167,7 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
+
         x1_coarse = tf.reduce_mean(x1, axis=(1, 2))
         x2_coarse = tf.reduce_mean(x2, axis=(1, 2))
         return self.MSE_LOSS(x1_coarse, x2_coarse)
