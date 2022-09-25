@@ -12,8 +12,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
-                                       transform_rotate_wind
-                                       )
+                                       transform_rotate_wind)
 from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
                                 velocity_gradient_dist, vorticity_dist,
                                 tke_wavenumber_spectrum,
