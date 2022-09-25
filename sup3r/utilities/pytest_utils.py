@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Utilities used for pytests"""
 import os
 import numpy as np

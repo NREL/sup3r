@@ -69,6 +69,7 @@ def from_config(ctx, config_file, cancel, monitor, background, verbose):
 def pipeline_monitor_background(config_file, verbose=False):
     """Submit the pipeline execution with monitoring in the background using
     the nohup linux command.
+
     Parameters
     ----------
     config_file : STR

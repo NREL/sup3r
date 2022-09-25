@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Utilities used for QA"""
 import numpy as np
 from PIL import Image
