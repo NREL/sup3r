@@ -9,3 +9,4 @@ tensorflow>2.4
 xarray
 netcdf4>=1.5.8
 dask
+sphinx!=5.2.0.post0
