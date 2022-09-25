@@ -555,7 +555,8 @@ class Sup3rWindStats:
         return stats_dict
 
     def get_ramp_rate_stats(self, u, v, res='high'):
-        """
+        """Compute statistics for ramp rates
+
         Parameters
         ----------
         u: ndarray
