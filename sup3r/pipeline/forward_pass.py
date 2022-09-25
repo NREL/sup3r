@@ -10,6 +10,7 @@ import logging
 import os
 import warnings
 import copy
+from datetime import datetime as dt
 
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -22,6 +23,8 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
 from sup3r.utilities import ModuleName
+
+from concurrent.futures import (as_completed, ThreadPoolExecutor)
 
 np.random.seed(42)
 
@@ -87,6 +90,7 @@ class ForwardPassSlicer:
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape
 
+        self._chunk_lookup = None
         self._s1_lr_slices = None
         self._s2_lr_slices = None
         self._s1_lr_pad_slices = None
@@ -415,12 +419,13 @@ class ForwardPassSlicer:
         """Get a 3D array with shape
         (n_spatial_1_chunks, n_spatial_2_chunks, n_temporal_chunks)
         where each value is the chunk index."""
-        n_s1 = len(self.s1_lr_slices)
-        n_s2 = len(self.s2_lr_slices)
-        n_t = self.n_temporal_chunks
-        lookup = np.arange(self.n_chunks).reshape((n_t, n_s1, n_s2))
-        lookup = np.transpose(lookup, axes=(1, 2, 0))
-        return lookup
+        if self._chunk_lookup is None:
+            n_s1 = len(self.s1_lr_slices)
+            n_s2 = len(self.s2_lr_slices)
+            n_t = self.n_temporal_chunks
+            lookup = np.arange(self.n_chunks).reshape((n_t, n_s1, n_s2))
+            self._chunk_lookup = np.transpose(lookup, axes=(1, 2, 0))
+        return self._chunk_lookup
 
     @property
     def spatial_chunk_lookup(self):
@@ -522,12 +527,12 @@ class ForwardPassSlicer:
 class ForwardPassStrategy(InputMixIn):
     """Class to prepare data for forward passes through generator.
 
-    A full file list of contiguous times is provided.  This file list is split
-    up into chunks each of which is passed to a different node. These chunks
-    can overlap in time. The file list chunk is further split up into temporal
-    and spatial chunks which can also overlap. This handler stores information
-    on these chunks, how they overlap, and how to crop generator output to
-    stich the chunks back togerther.
+    A full file list of contiguous times is provided. The corresponding data is
+    split into spatiotemporal chunks which can overlap in time and space. These
+    chunks are distributed across nodes according to the max nodes input or
+    number of temporal chunks. This strategy stores information on these
+    chunks, how they overlap, how they are distributed to nodes, and how to
+    crop generator output to stich the chunks back togerther.
     """
 
     def __init__(self, file_paths, model_kwargs, fwp_chunk_shape,
@@ -550,7 +555,8 @@ class ForwardPassStrategy(InputMixIn):
                  output_workers=None,
                  ti_workers=None,
                  exo_kwargs=None,
-                 max_nodes=None):
+                 max_nodes=None,
+                 pass_workers=1):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -662,6 +668,10 @@ class ForwardPassStrategy(InputMixIn):
             max number of workers to use for loading cached feature data.
         output_workers : int | None
             max number of workers to use for writing forward pass output.
+        pass_workers : int | None
+            max number of workers to use for performing forward passes on a
+            single node. If 1 then all forward passes on chunks distributed to
+            a single node will be run in serial.
         ti_workers : int | None
             max number of workers to use to get full time index. Useful when
             there are many input files each with a single time step. If this is
@@ -677,10 +687,6 @@ class ForwardPassStrategy(InputMixIn):
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
         """
-        if max_workers is not None:
-            extract_workers = compute_workers = max_workers
-            load_workers = output_workers = ti_workers = max_workers
-
         self._i = 0
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
@@ -698,8 +704,11 @@ class ForwardPassStrategy(InputMixIn):
         self.compute_workers = compute_workers
         self.load_workers = load_workers
         self.output_workers = output_workers
+        self.pass_workers = pass_workers
         self.ti_workers = ti_workers
         self.exo_kwargs = exo_kwargs or {}
+        self.incremental = incremental
+        self._single_time_step_files = None
         self._cache_pattern = cache_pattern
         self._input_handler_class = None
         self._input_handler_name = input_handler
@@ -715,6 +724,8 @@ class ForwardPassStrategy(InputMixIn):
         self._node_chunks = None
         self.incremental = incremental
 
+        self.cap_worker_args(max_workers)
+
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_kwargs, str):
             self.model_kwargs = {'model_dir': self.model_kwargs}
@@ -726,7 +737,7 @@ class ForwardPassStrategy(InputMixIn):
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(**self.model_kwargs, verbose=False)
+        self.model = model_class.load(**self.model_kwargs, verbose=True)
         models = getattr(self.model, 'models', [self.model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
@@ -748,8 +759,21 @@ class ForwardPassStrategy(InputMixIn):
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
                     f'{self.chunks / self.nodes} chunks per node on average.')
+        logger.info(f'Using max_workers={self.max_workers}, '
+                    f'extract_workers={self.extract_workers}, '
+                    f'compute_workers={self.compute_workers}, '
+                    f'pass_workers={self.pass_workers}, '
+                    f'load_workers={self.load_workers}, '
+                    f'output_workers={self.output_workers}, '
+                    f'ti_workers={self.ti_workers}')
 
         self.preflight()
+
+    @property
+    def worker_attrs(self):
+        """Get all worker args defined in init"""
+        return ['ti_workers', 'compute_workers', 'pass_workers',
+                'load_workers', 'output_workers', 'extract_workers']
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""
@@ -823,6 +847,19 @@ class ForwardPassStrategy(InputMixIn):
         """
         return self.input_handler_class.get_time_index(file_paths,
                                                        max_workers=max_workers)
+
+    @property
+    def single_time_step_files(self):
+        """Check if there is a file for each time step, in which case we can
+        send a subset of files to the data handler according to ti_pad_slice"""
+
+        if self._single_time_step_files is None:
+            t_steps = self.input_handler_class.get_time_index(
+                self.file_paths[:1], max_workers=1)
+            check = (len(self._file_paths) == len(self.raw_time_index)
+                     and t_steps is not None and len(t_steps) == 1)
+            self._single_time_step_files = check
+        return self._single_time_step_files
 
     @property
     def file_ids(self):
@@ -1009,6 +1046,7 @@ class ForwardPass:
         self.strategy = strategy
         self.chunk_index = chunk_index
         self.node_index = node_index
+        self._single_time_step_files = None
 
         logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
                     f'(temporal_chunk={self.temporal_chunk_index}, '
@@ -1026,7 +1064,7 @@ class ForwardPass:
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(**self.model_kwargs, verbose=True)
+        self.model = model_class.load(**self.model_kwargs, verbose=False)
         self.features = self.model.training_features
         self.output_features = self.model.output_features
         self.meta_data = self.model.meta
@@ -1218,22 +1256,13 @@ class ForwardPass:
 
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
+        self.pass_workers = strategy.pass_workers
         self.extract_workers = strategy.extract_workers
         self.compute_workers = strategy.compute_workers
         self.load_workers = strategy.load_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
-
-    @property
-    def single_time_step_files(self):
-        """Check if there is a file for each time step, in which case we can
-        send a subset of files to the data handler according to ti_pad_slice"""
-
-        t_steps = self.input_handler_class.get_time_index(self._file_paths[:1],
-                                                          max_workers=1)
-        check = (len(self._file_paths) == len(self.strategy.raw_time_index)
-                 and t_steps is not None and len(t_steps) == 1)
-        return check
+        self.single_time_step_files = strategy.single_time_step_files
 
     @staticmethod
     def pad_source_data(input_data, pad_s1_start, pad_s1_end, pad_s2_start,
@@ -1519,18 +1548,81 @@ class ForwardPass:
         return out_data
 
     @classmethod
+    def incremental_check_run(cls, strategy, node_index, chunk_index):
+        """Run forward pass on chunk with incremental check
+
+        Parameters
+        ----------
+        strategy : ForwardPassStrategy
+            ForwardPassStrategy instance with information on data chunks to run
+            forward passes on.
+        node_index : int
+            Index of node on which the forward pass for the given chunk will
+            be run.
+        chunk_index : int
+            Index to select chunk specific variables. This index selects the
+            corresponding file set, cropped_file_slice, padded_file_slice,
+            and padded/overlapping/cropped spatial slice for a spatiotemporal
+            chunk
+        """
+        out_file = strategy.out_files[chunk_index]
+        if os.path.exists(out_file) and strategy.incremental:
+            logger.info('Not running chunk index {}, output file '
+                        'exists: {}'.format(chunk_index, out_file))
+        else:
+            fwp = cls(strategy, chunk_index, node_index)
+            fwp.run_chunk()
+
+    @classmethod
     def run(cls, strategy, node_index):
         """This routine runs forward passes on all spatiotemporal chunks for
-        the given node index"""
-        for chunk_index in strategy.node_chunks[node_index]:
-            out_file = strategy.out_files[chunk_index]
+        the given node index
 
-            if os.path.exists(out_file) and strategy.incremental:
-                logger.info('Not running chunk index {}, output file exists: '
-                            '{}'.format(chunk_index, out_file))
-            else:
-                fwp = cls(strategy, chunk_index, node_index)
-                fwp.run_chunk()
+        Parameters
+        ----------
+        strategy : ForwardPassStrategy
+            ForwardPassStrategy instance with information on data chunks to run
+            forward passes on.
+        node_index : int
+            Index of node on which the forward passes for spatiotemporal chunks
+            will be run.
+        """
+        if strategy.pass_workers == 1:
+            logger.debug(f'Running forward passes on node {node_index} in '
+                         'serial.')
+            for chunk_index in strategy.node_chunks[node_index]:
+                cls.incremental_check_run(strategy, node_index, chunk_index)
+        else:
+            logger.debug(f'Running forward passes on node {node_index} in '
+                         'parallel with pass_workers='
+                         f'{strategy.pass_workers}.')
+            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
+                futures = {}
+                now = dt.now()
+                for chunk_index in strategy.node_chunks[node_index]:
+
+                    out_file = strategy.out_files[chunk_index]
+                    if os.path.exists(out_file) and strategy.incremental:
+                        logger.info('Not running chunk index {}, output file '
+                                    'exists: {}'.format(chunk_index, out_file))
+                    else:
+                        fwp = cls(strategy, chunk_index, node_index)
+                        future = exe.submit(fwp.run_chunk)
+                        futures[future] = chunk_index
+
+                logger.info(f'Started {len(futures)} forward passes '
+                            f'in {dt.now() - now}.')
+
+                for i, future in enumerate(as_completed(futures)):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        msg = ('Error running forward pass on chunk '
+                               f'{futures[future]}.')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
+                    logger.debug(f'{i+1} out of {len(futures)} forward passes '
+                                 'completed.')
 
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.

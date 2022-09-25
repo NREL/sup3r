@@ -165,6 +165,7 @@ def get_handles(input_files):
     """
     handles = []
     for f in input_files:
+        logger.info(f'Getting handle for {f}')
         handle = xr.open_dataset(f)
         handle = handle[SAVE_FEATURES]
         handles.append(handle)
@@ -198,7 +199,7 @@ def unstagger_vars(handles):
     return handles
 
 
-def prune_levels(handles, max_level=10):
+def prune_levels(handles, max_level=15):
     """Prune pressure levels to reduce memory footprint
 
     Parameters
@@ -251,7 +252,7 @@ def forward_avg(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def blend_domains(arr1, arr2, overlap=15):
+def blend_domains(arr1, arr2, overlap=50):
     """Blend smaller domain edges
 
     Parameters
@@ -271,12 +272,11 @@ def blend_domains(arr1, arr2, overlap=15):
     out = arr2.copy()
     for i in range(overlap):
         alpha = i / overlap
-        out[..., i, :] = out[..., i, :] * alpha + arr1[..., i, :] * (1 - alpha)
-        out[..., -i, :] = (out[..., -i, :] * alpha
-                           + arr1[..., -i, :] * (1 - alpha))
-        out[..., :, i] = out[..., :, i] * alpha + arr1[..., :, i] * (1 - alpha)
-        out[..., :, -i] = (out[..., :, -i] * alpha
-                           + arr1[..., :, -i] * (1 - alpha))
+        beta = 1 - alpha
+        out[..., i, :] = out[..., i, :] * alpha + arr1[..., i, :] * beta
+        out[..., -i, :] = out[..., -i, :] * alpha + arr1[..., -i, :] * beta
+        out[..., :, i] = out[..., :, i] * alpha + arr1[..., :, i] * beta
+        out[..., :, -i] = out[..., :, -i] * alpha + arr1[..., :, -i] * beta
     return out
 
 
@@ -327,7 +327,7 @@ def get_domain_region(handles, domain_num):
             n_lats, n_lons)
 
 
-def impute_domain(handles, domain_num, overlap=15):
+def impute_domain(handles, domain_num, overlap=50):
     """Impute smaller domain in largest domain
 
     Parameters
@@ -362,8 +362,8 @@ def impute_domain(handles, domain_num, overlap=15):
     return handles
 
 
-def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
-                   max_level=10):
+def stitch_domains(year, month, time_step, input_files, overlap=50,
+                   n_domains=4, max_level=15):
     """Stitch all smaller domains into largest domain
 
     Parameters
@@ -372,8 +372,10 @@ def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
         Year for input files
     month : int
         Month for input files
-    day : int
-        Day for input files. If None then stitch and save will be done for full
+    time_step : int
+        Time step for input files for the specified month. e.g. if year=2017,
+        month=3, time_step=0 this will select the file for the first time step
+        of 2017-03-01. If None then stitch and save will be done for full
         month.
     input_files : dict
         Dictionary of input files with keys corresponding to domain number
@@ -391,8 +393,8 @@ def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
         handles[0]
     """
     logger.info(f'Getting domain files for year={year}, month={month},'
-                f' timestep={day}.')
-    step_files = [input_files[d][day] for d in range(n_domains)]
+                f' timestep={time_step}.')
+    step_files = [input_files[d][time_step] for d in range(n_domains)]
     logger.info(f'Getting data handles for files: {step_files}')
     handles = get_handles(step_files)
     logger.info('Unstaggering variables for all handles')
@@ -400,17 +402,17 @@ def stitch_domains(year, month, day, input_files, overlap=15, n_domains=4,
     logger.info(f'Pruning pressure levels to level={max_level}')
     handles = prune_levels(handles, max_level=max_level)
     logger.info(f'Regridding main domain for year={year}, month={month}, '
-                f'timestep={day}')
+                f'timestep={time_step}')
     handles = regrid_main_domain(handles)
     for j in range(1, n_domains):
         logger.info(f'Imputing domain {j + 1} for year={year}, '
-                    f'month={month}, timestep={day}')
+                    f'month={month}, timestep={time_step}')
         handles = impute_domain(handles, j, overlap=overlap)
     return handles
 
 
 def stitch_and_save(year, month, input_pattern, output_pattern,
-                    day=None, overlap=15, n_domains=4, max_level=10):
+                    time_step=None, overlap=50, n_domains=4, max_level=15):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
@@ -419,8 +421,10 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
         Year for input files
     month : int
         Month for input files
-    day : int
-        Day for input files. If None then stitch and save will be done for full
+    time_step : int
+        Time step for input files for the specified month. e.g. if year=2017,
+        month=3, time_step=0 this will select the file for the first time step
+        of 2017-03-01. If None then stitch and save will be done for full
         month.
     input_pattern : str
         Pattern for input files. Assumes pattern contains {month}, {year}, and
@@ -437,13 +441,13 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
                                        output_pattern, n_domains=n_domains)
-    out_files = out_files if day is None else out_files[day - 1: day]
+    out_files = (out_files if time_step is None
+                 else out_files[time_step - 1: time_step])
     for i, out_file in enumerate(out_files):
-        if not os.path.exists(out_file):
-            handles = stitch_domains(year, month, i, input_files,
-                                     overlap=overlap, n_domains=n_domains,
-                                     max_level=max_level)
-            basedir = os.path.dirname(out_file)
-            os.makedirs(basedir, exist_ok=True)
-            handles[0].to_netcdf(out_file)
-            logger.info(f'Saved stitched file to {out_file}')
+        handles = stitch_domains(year, month, i, input_files,
+                                 overlap=overlap, n_domains=n_domains,
+                                 max_level=max_level)
+        basedir = os.path.dirname(out_file)
+        os.makedirs(basedir, exist_ok=True)
+        handles[0].to_netcdf(out_file)
+        logger.info(f'Saved stitched file to {out_file}')

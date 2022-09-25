@@ -13,7 +13,7 @@ from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import (ForwardPass, ForwardPassStrategy)
 from sup3r.models import Sup3rGan
-from sup3r.utilities.test_utils import make_fake_nc_files
+from sup3r.utilities.pytest_utils import make_fake_nc_files
 
 from rex import ResourceX
 from rex import init_logger
@@ -422,9 +422,13 @@ def test_fwp_nochunking():
         assert np.array_equal(data_chunked, data_nochunk)
 
 
-def test_fwp_multi_step_model_topo_exoskip():
+def test_fwp_multi_step_model_topo_exoskip(log=False):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -490,12 +494,14 @@ def test_fwp_multi_step_model_topo_exoskip():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1,
-            ti_workers=1)
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 
         assert forward_pass.output_workers == max_workers
+        assert forward_pass.pass_workers == max_workers
+        assert forward_pass.max_workers == max_workers
+        assert forward_pass.data_handler.max_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
         assert forward_pass.data_handler.norm_workers == max_workers
@@ -590,8 +596,7 @@ def test_fwp_multi_step_model_topo_noskip():
             temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
-            max_nodes=1,
-            ti_workers=1)
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
 

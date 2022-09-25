@@ -77,8 +77,9 @@ class InputMixIn:
         self.raster_file = None
         self.raster_index = None
         self.overwrite_cache = False
-        self.ti_workers = None
+        self.max_workers = None
         self.lat_lon = None
+        self._ti_workers = None
         self._raw_time_index = None
         self._time_index = None
         self._time_index_file = None
@@ -87,6 +88,43 @@ class InputMixIn:
         self._cache_pattern = None
         self._target = None
         self._grid_shape = None
+
+    @property
+    def worker_attrs(self):
+        """Get all worker args defined in init"""
+        return ['ti_workers']
+
+    @staticmethod
+    def get_capped_workers(max_workers_cap, max_workers):
+        """Get max number of workers for a given job. Capped to global max
+        workers if specified
+
+        Parameters
+        ----------
+        max_workers_cap : int | None
+            Cap for job specific max_workers
+        max_workers : int | None
+            Job specific max_workers
+
+        Returns
+        -------
+        max_workers : int | None
+            job specific max_workers capped by max_workers_cap if provided
+        """
+        if max_workers is None and max_workers_cap is None:
+            return max_workers
+        elif max_workers_cap is not None and max_workers is None:
+            return max_workers_cap
+        elif max_workers is not None and max_workers_cap is None:
+            return max_workers
+        else:
+            return np.min((max_workers_cap, max_workers))
+
+    def cap_worker_args(self, max_workers):
+        """Cap all workers args by max_workers"""
+        for v in self.worker_attrs:
+            capped_val = self.get_capped_workers(getattr(self, v), max_workers)
+            setattr(self, v, capped_val)
 
     @classmethod
     @abstractmethod
@@ -170,6 +208,18 @@ class InputMixIn:
                 self._file_paths = [self._file_paths]
 
         self._file_paths = sorted(self._file_paths)
+
+    @property
+    def ti_workers(self):
+        """Get max number of workers for computing time index"""
+        if self._ti_workers is None:
+            self._ti_workers = len(self._file_paths)
+        return self._ti_workers
+
+    @ti_workers.setter
+    def ti_workers(self, val):
+        """Set max number of workers for computing time index"""
+        self._ti_workers = val
 
     @property
     def cache_pattern(self):
@@ -296,9 +346,10 @@ class InputMixIn:
             else:
                 now = dt.now()
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
-                             'input files.')
-                self._raw_time_index = self.get_time_index(self.file_paths,
-                                                           self.ti_workers)
+                             'input files. Using ti_workers='
+                             f'{self.ti_workers}')
+                self._raw_time_index = self.get_time_index(
+                    self.file_paths, max_workers=self.ti_workers)
 
                 if self.time_index_file is not None:
                     logger.debug('Saved raw_time_index to '
@@ -484,10 +535,6 @@ class DataHandler(FeatureHandler, InputMixIn):
             files do not all have time indices or if there are few input files
             this should be set to one.
         """
-        if max_workers is not None:
-            extract_workers = compute_workers = max_workers
-            load_workers = norm_workers = ti_workers = max_workers
-
         self.file_paths = file_paths
         self.features = features
         self.val_time_index = None
@@ -506,10 +553,11 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.val_data = None
         self.target = target
         self.grid_shape = shape
-        self.ti_workers = ti_workers
+        self.max_workers = max_workers
         self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
+        self._ti_workers = ti_workers
         self._extract_workers = extract_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
@@ -528,6 +576,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._raw_data = {}
         self._time_chunks = None
 
+        self.cap_worker_args(max_workers)
+
         msg = (f'Initializing DataHandler {self.input_file_info}. '
                f'Getting temporal range {str(self.time_index[0])} to '
                f'{str(self.time_index[-1])} (inclusive) '
@@ -535,6 +585,13 @@ class DataHandler(FeatureHandler, InputMixIn):
         logger.info(msg)
 
         self.preflight()
+
+        logger.info(f'Using max_workers={max_workers}, '
+                    f'_norm_workers={self._norm_workers}, '
+                    f'extract_workers={self.extract_workers}, '
+                    f'compute_workers={self.compute_workers}, '
+                    f'load_workers={self.load_workers}, '
+                    f'ti_workers={self.ti_workers}')
 
         try_load = (cache_pattern is not None
                     and not self.overwrite_cache
@@ -566,6 +623,11 @@ class DataHandler(FeatureHandler, InputMixIn):
 
             if any(self.features):
                 self.data = self.run_all_data_init()
+                nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
+                if nan_perc > 0:
+                    msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
+                    logger.warning(msg)
+                    warnings.warn(msg)
 
             if cache_pattern is not None:
                 self.cache_data(self.cache_files)
@@ -576,6 +638,12 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    @property
+    def worker_attrs(self):
+        """Get all worker args defined in init"""
+        return ['_ti_workers', '_norm_workers', '_compute_workers',
+                '_extract_workers', '_load_workers']
 
     @classmethod
     @abstractmethod
@@ -1631,6 +1699,8 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
+        max_workers = (len(file_paths) if max_workers is None
+                       else np.min((max_workers, len(file_paths))))
         if max_workers == 1:
             return cls.get_file_times(file_paths)
         ti = {}

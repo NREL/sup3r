@@ -12,6 +12,7 @@ from scipy.interpolate import RBFInterpolator
 import re
 from datetime import datetime as dt
 import json
+import os
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
@@ -213,6 +214,8 @@ class OutputHandler:
             Array of times for high res output file.
         """
         logger.debug('Getting high resolution time indices')
+        logger.debug(f'Low res times: {low_res_times[0]} to '
+                     f'{low_res_times[-1]}')
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
             offset = (low_res_times[1] - low_res_times[0])
@@ -225,6 +228,7 @@ class OutputHandler:
                  for i in range(shape)]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
         times = pd_date_range(times[0], times[-1], freq=freq)
+        logger.debug(f'High res times: {times[0]} to {times[-1]}')
         return times
 
     @classmethod
@@ -392,9 +396,9 @@ class OutputHandlerH5(OutputHandler):
         if heights:
             logger.info('Converting u/v to windspeed/winddirection for h5'
                         ' output')
+            logger.debug('Found heights {} for output features {}'
+                         .format(heights, features))
 
-        logger.debug('Found heights {} for output features {}'
-                     .format(heights, features))
         proc_mem = 4 * np.product(data.shape[:-1])
         n_procs = len(heights)
         max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
@@ -513,8 +517,8 @@ class OutputHandlerH5(OutputHandler):
         meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
-
-        with RexOutputs(out_file, 'w') as fh:
+        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        with RexOutputs(tmp_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = times
 
@@ -522,10 +526,11 @@ class OutputHandlerH5(OutputHandler):
                 attrs = H5_ATTRS[Feature.get_basename(f)]
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                fh.add_dataset(out_file, f, flat_data, dtype=attrs['dtype'],
+                fh.add_dataset(tmp_file, f, flat_data, dtype=attrs['dtype'],
                                attrs=attrs, chunks=attrs['chunks'])
                 logger.info(f'Added {f} to output file.')
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
+        os.rename(tmp_file, out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')

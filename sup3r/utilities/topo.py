@@ -24,7 +24,7 @@ class TopoExtract(ABC):
 
     def __init__(self, file_paths, topo_source, s_enhance, agg_factor,
                  target=None, shape=None, raster_file=None, max_delta=20,
-                 input_handler=None):
+                 input_handler=None, ti_workers=1):
         """
         Parameters
         ----------
@@ -66,6 +66,14 @@ class TopoExtract(ABC):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
+
         """
 
         logger.info('Initializing TopoExtract utility.')
@@ -74,6 +82,7 @@ class TopoExtract(ABC):
         self._s_enhance = s_enhance
         self._agg_factor = agg_factor
         self._tree = None
+        self.ti_workers = ti_workers
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -100,7 +109,8 @@ class TopoExtract(ABC):
                                            target=target,
                                            shape=shape,
                                            raster_file=raster_file,
-                                           max_delta=max_delta)
+                                           max_delta=max_delta,
+                                           ti_workers=ti_workers)
 
     @property
     @abstractmethod
@@ -279,7 +289,8 @@ class TopoExtractNC(TopoExtract):
 
         super().__init__(*args, **kwargs)
         self.source_handler = DataHandlerNC(self._topo_source,
-                                            features=['topography'])
+                                            features=['topography'],
+                                            ti_workers=self.ti_workers)
 
     @property
     def source_elevation(self):

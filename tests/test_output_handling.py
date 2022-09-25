@@ -4,14 +4,15 @@ import numpy as np
 import os
 import tensorflow as tf
 import tempfile
+import pandas as pd
 
 from sup3r import __version__
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
-from sup3r.utilities.test_utils import make_fake_h5_chunks
+from sup3r.utilities.pytest_utils import make_fake_h5_chunks
 
-from rex import ResourceX
+from rex import ResourceX, init_logger
 
 
 def test_get_lat_lon():
@@ -113,33 +114,33 @@ def test_h5_out_and_collect():
 
         out = make_fake_h5_chunks(td)
         (out_files, data, ws_true, wd_true, features, _,
-         slices_hr, _, low_res_times) = out
+         t_slices_hr, _, s_slices_hr, _, low_res_times) = out
 
         Collector.collect(out_files, fp_out, features=features)
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []
-            for i, f in enumerate(out_files):
-                slice_hr = slices_hr[i]
+            for _, f in enumerate(out_files):
+                tmp = f.replace('.h5', '').split('_')
+                t_idx = int(tmp[-3])
+                s1_idx = int(tmp[-2])
+                s2_idx = int(tmp[-1])
+                t_hr = t_slices_hr[t_idx]
+                s1_hr = s_slices_hr[s1_idx]
+                s2_hr = s_slices_hr[s2_idx]
                 with ResourceX(f) as fh_i:
-                    combined_ti += list(fh_i.time_index)
+                    if s1_idx == s2_idx == 0:
+                        combined_ti += list(fh_i.time_index)
 
-                    ws_i = np.transpose(data[..., slice_hr, 0], axes=(2, 0, 1))
-                    wd_i = np.transpose(data[..., slice_hr, 1], axes=(2, 0, 1))
-                    ws_i = ws_i.reshape(48, 2500)
-                    wd_i = wd_i.reshape(48, 2500)
+                    ws_i = np.transpose(data[s1_hr, s2_hr, t_hr, 0],
+                                        axes=(2, 0, 1))
+                    wd_i = np.transpose(data[s1_hr, s2_hr, t_hr, 1],
+                                        axes=(2, 0, 1))
+                    ws_i = ws_i.reshape(48, 625)
+                    wd_i = wd_i.reshape(48, 625)
                     assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
                     assert np.allclose(wd_i, fh_i['winddirection_100m'],
                                        atol=0.1)
-
-                    if i == 0:
-                        ws = fh_i['windspeed_100m']
-                        wd = fh_i['winddirection_100m']
-                    else:
-                        ws = np.concatenate([ws, fh_i['windspeed_100m']],
-                                            axis=0)
-                        wd = np.concatenate([wd, fh_i['winddirection_100m']],
-                                            axis=0)
 
                     for k, v in fh_i.global_attrs.items():
                         assert k in fh.global_attrs, k
@@ -147,8 +148,6 @@ def test_h5_out_and_collect():
 
             assert len(full_ti) == len(combined_ti)
             assert len(full_ti) == 2 * len(low_res_times)
-            assert np.allclose(ws, fh['windspeed_100m'])
-            assert np.allclose(wd, fh['winddirection_100m'])
             wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
             ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
             wd_true = wd_true.reshape(96, 2500)
@@ -165,3 +164,44 @@ def test_h5_out_and_collect():
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
             assert gan_meta['foo'] == 'bar'
+
+
+def test_h5_collect_mask(log=False):
+    """Test h5 file collection with mask meta"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_combined.h5')
+        fp_out_mask = os.path.join(td, 'out_combined_masked.h5')
+        mask_file = os.path.join(td, 'mask.csv')
+
+        out = make_fake_h5_chunks(td)
+        (out_files, data, _, _, features, _, _, _, _, _, _) = out
+
+        Collector.collect(out_files, fp_out, features=features)
+        indices = np.arange(np.product(data.shape[:2]))
+        indices = indices[-len(indices) // 2:]
+        removed = []
+        for _ in range(10):
+            removed.append(np.random.choice(indices))
+        mask_slice = [i for i in indices if i not in removed]
+        with ResourceX(fp_out) as fh:
+            mask_meta = fh.meta
+            mask_meta = mask_meta.iloc[mask_slice].reset_index(drop=True)
+            mask_meta['gid'][:] = np.arange(len(mask_meta))
+            mask_meta.to_csv(mask_file, index=False)
+
+        Collector.collect(out_files, fp_out_mask, features=features,
+                          target_final_meta_file=mask_file,
+                          max_workers=1, join_times=False)
+        with ResourceX(fp_out_mask) as fh:
+            mask_meta = pd.read_csv(mask_file, dtype=np.float32)
+            assert np.array_equal(mask_meta['gid'], fh.meta['gid'])
+            assert np.array_equal(mask_meta['longitude'], fh.meta['longitude'])
+            assert np.array_equal(mask_meta['latitude'], fh.meta['latitude'])
+
+            with ResourceX(fp_out) as fh_o:
+                assert np.array_equal(fh_o['windspeed_100m', :, mask_slice],
+                                      fh['windspeed_100m'])
