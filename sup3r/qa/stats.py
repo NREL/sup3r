@@ -677,15 +677,16 @@ class Sup3rWindStats:
         return low_res, high_res, interp
 
     def run(self):
-        """Go through all datasets and get the error for the re-coarsened
-        synthetic minus the true low-res source data.
+        """Go through all datasets and get the dictionary of wind field
+        statistics.
 
         Returns
         -------
-        errors : dict
-            Dictionary of errors, where keys are the feature names, and each
-            value is an array with shape (space1, space2, time) that represents
-            the re-coarsened synthetic data minus the source true low-res data
+        stats : dict
+            Dictionary of statistics, where keys are lr/hr/interp appended with
+            the height of the corresponding wind field. Values are dictionaries
+            of statistics, such as velocity_gradient, vorticity, ws_ramp_rate,
+            etc
         """
 
         stats = {}
