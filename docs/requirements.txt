@@ -1,4 +1,4 @@
 ghp-import
-sphinx!=5.2.0.post0
+sphinx
 sphinx-click
 sphinx_rtd_theme
