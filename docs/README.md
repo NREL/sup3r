@@ -21,7 +21,7 @@ pip install sphinx-click
 - Add the following to the top of the new CLI module's .rst file:
 ```
 .. click:: module_path:main
-   :prog: CLI-Alias # e.g. NSRDB
+   :prog: CLI-Alias # e.g. Sup3r
    :show-nested:
 ```
 - `git push` changes to the documentation source code as needed.
