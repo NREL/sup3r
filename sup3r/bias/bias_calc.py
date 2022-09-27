@@ -99,6 +99,18 @@ class DataRetrievalBase:
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
         logger.info('Finished initializing DataRetrievalBase.')
 
+    @property
+    def meta(self):
+        """Get a meta data dictionary on how these bias factors were calculated
+        """
+        meta = {'base_fps': self.base_fps,
+                'bias_fps': self.bias_fps,
+                'base_dset': self.base_dset,
+                'bias_feature': self.bias_feature,
+                'target': self.target,
+                'shape': self.shape}
+        return meta
+
     @staticmethod
     def compare_dists(base_data, bias_data, adder=0, scalar=1):
         """Compare two distributions using the two-sample Kolmogorov-Smirnov.
@@ -376,7 +388,7 @@ class LinearCorrection(DataRetrievalBase):
             os.makedirs(os.path.dirname(fp_out), exist_ok=True)
 
         if fp_out is not None:
-            with h5py.File(fp_out, 'a') as f:
+            with h5py.File(fp_out, 'w') as f:
                 # pylint: disable=E1136
                 lat = self.bias_dh.lat_lon[..., 0]
                 lon = self.bias_dh.lat_lon[..., 1]
@@ -384,6 +396,9 @@ class LinearCorrection(DataRetrievalBase):
                 f.create_dataset('longitude', data=lon)
                 f.create_dataset(f'{self.bias_feature}_scalar', data=scalar)
                 f.create_dataset(f'{self.bias_feature}_adder', data=adder)
+
+                for k, v in self.meta.items():
+                    f.attrs[k] = v
 
                 logger.info('Wrote scalar adder factors to file: {}'
                             .format(fp_out))
