@@ -9,6 +9,7 @@ import logging
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 import sup3r.bias
+from sup3r.preprocessing.feature_handling import Feature
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import ModuleName
@@ -71,7 +72,11 @@ class Sup3rQa:
             Explicit list of features to validate. Can be a list of string
             feature names, a dictionary mapping the sup3r output feature name
             to the source_handler feature name (e.g. {'ghi': 'rsds'}), or None
-            for all features found in the out_file_path.
+            for all features found in the out_file_path. The dict can also map
+            the special case of one sup3r output windspeed name to two
+            source_handler windspeed component names so that each windspeed
+            component gets bias corrected separately
+            (e.g. {'windspeed_100m': ['U_100m', 'V_100m']})
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
@@ -255,7 +260,13 @@ class Sup3rQa:
         input mapping if a dictionary was provided, e.g. if
         features={'ghi': 'rsds'}, this property will return ['rsds']"""
         if isinstance(self._features, dict):
-            source_features = [self._features[f] for f in self.features]
+            temp = [self._features[f] for f in self.features]
+            source_features = []
+            for feat in temp:
+                if isinstance(feat, (list, tuple)):
+                    source_features += list(feat)
+                else:
+                    source_features.append(feat)
         else:
             source_features = self.features
 
@@ -335,8 +346,29 @@ class Sup3rQa:
         data_true : np.array
             Low-res source input data including optional bias correction
         """
-        data_true = self.source_handler.data[..., idf]
-        data_true = self.bias_correct_source_data(data_true, feature)
+
+        height = str(Feature.get_height(feature))
+        uv_comps = np.sum([name.startswith(('U_', 'V_'))
+                           for name in self.source_features
+                           if height in name])
+
+        if 'windspeed' in feature and uv_comps >= 2:
+            u_feat = feature.replace('windspeed_', 'U_')
+            v_feat = feature.replace('windspeed_', 'V_')
+            logger.info('For sup3r output feature "{}", retrieving u/v '
+                        'components "{}" and "{}"'
+                        .format(feature, u_feat, v_feat))
+            u_idf = self.source_handler.features.index(u_feat)
+            v_idf = self.source_handler.features.index(v_feat)
+            u_true = self.source_handler.data[..., u_idf]
+            v_true = self.source_handler.data[..., v_idf]
+            u_true = self.bias_correct_source_data(u_true, u_feat)
+            v_true = self.bias_correct_source_data(v_true, v_feat)
+            data_true = np.hypot(u_true, v_true)
+        else:
+            data_true = self.source_handler.data[..., idf]
+            data_true = self.bias_correct_source_data(data_true, feature)
+
         return data_true
 
     def get_dset_out(self, name):
