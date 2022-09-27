@@ -441,16 +441,7 @@ class Sup3rGan(AbstractSup3rGan):
                    else np.concatenate((low_res, exogenous_data), axis=-1))
 
         if norm_in and self._means is not None:
-            low_res = low_res.copy()
-            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                low_res[..., i] -= m
-                if s > 0:
-                    low_res[..., i] /= s
-                else:
-                    msg = ('Standard deviation is zero for '
-                           f'{self.training_features[i]}')
-                    logger.warning(msg)
-                    warn(msg)
+            low_res = self.norm_input(low_res)
 
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
@@ -465,12 +456,7 @@ class Sup3rGan(AbstractSup3rGan):
         hi_res = hi_res.numpy()
 
         if un_norm_out and self._means is not None:
-            for i, feature in enumerate(self.training_features):
-                if feature in self.output_features:
-                    m = self._means[i]
-                    s = self._stdevs[i]
-                    j = self.output_features.index(feature)
-                    hi_res[..., j] = (hi_res[..., j] * s) + m
+            hi_res = self.un_norm_output(hi_res)
 
         return hi_res
 
@@ -596,6 +582,43 @@ class Sup3rGan(AbstractSup3rGan):
 
         return out
 
+    def norm_input(self, low_res):
+        """Normalize low resolution data being input to the generator.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Un-normalized low-resolution input data in physical units, usually
+            a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        low_res : np.ndarray
+            Normalized low-resolution input data, usually a 4D or 5D array of
+            shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        if self._means is not None:
+            if isinstance(low_res, tf.Tensor):
+                low_res = low_res.numpy()
+
+            low_res = low_res.copy()
+            for idf in range(low_res.shape[-1]):
+                low_res[..., idf] -= self._means[idf]
+
+                if self._stdevs[idf] != 0:
+                    low_res[..., idf] /= self._stdevs[idf]
+                else:
+                    msg = ('Standard deviation is zero for '
+                           f'{self.training_features[idf]}')
+                    logger.warning(msg)
+                    warn(msg)
+
+        return low_res
+
     def un_norm_output(self, hi_res):
         """Un-normalize synthetically generated output data to physical units
 
@@ -613,12 +636,12 @@ class Sup3rGan(AbstractSup3rGan):
             if isinstance(hi_res, tf.Tensor):
                 hi_res = hi_res.numpy()
 
-            for i, feature in enumerate(self.training_features):
-                if feature in self.output_features:
-                    m = self._means[i]
-                    s = self._stdevs[i]
-                    j = self.output_features.index(feature)
-                    hi_res[..., j] = (hi_res[..., j] * s) + m
+            for idf in range(hi_res.shape[-1]):
+                feature_name = self.output_features[idf]
+                i = self.training_features.index(feature_name)
+                mean = self._means[i]
+                stdev = self._stdevs[i]
+                hi_res[..., idf] = (hi_res[..., idf] * stdev) + mean
 
         return hi_res
 
