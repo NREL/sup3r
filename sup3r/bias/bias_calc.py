@@ -92,6 +92,7 @@ class DataRetrievalBase:
         lats = self.bias_dh.lat_lon[..., 0].flatten()
         lons = self.bias_dh.lat_lon[..., 1].flatten()
         self.bias_meta = pd.DataFrame({'latitude': lats, 'longitude': lons})
+        self.bias_ti = self.bias_dh.time_index
 
         raster_shape = self.bias_dh.lat_lon[..., 0].shape
         self.bias_tree = KDTree(self.bias_meta[['latitude', 'longitude']])
@@ -108,7 +109,9 @@ class DataRetrievalBase:
                 'base_dset': self.base_dset,
                 'bias_feature': self.bias_feature,
                 'target': self.target,
-                'shape': self.shape}
+                'shape': self.shape,
+                'class': str(self.__class__),
+                }
         return meta
 
     @staticmethod
@@ -162,7 +165,8 @@ class DataRetrievalBase:
         # pylint: disable=E1101
         init_str = get_fun_call_str(cls, config)
         fun_str = get_fun_call_str(cls.run, config)
-        fun_str = fun_str.replace(cls.__name__, 'bc')
+        fun_str = fun_str.partition('.')[-1]
+        fun_str = 'bc.' + fun_str
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -271,6 +275,7 @@ class DataRetrievalBase:
         bias_data = self.get_bias_data(bias_gid)
         base_data = self.get_base_data(self.base_fps, self.base_dset, base_gid,
                                        self.base_handler, daily_avg=daily_avg)
+        base_data = base_data[0]
         return base_data, bias_data, dist
 
     def get_bias_data(self, bias_gid):
@@ -329,9 +334,13 @@ class DataRetrievalBase:
         out : np.ndarray
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged as well.
+        out_ti : pd.DatetimeIndex
+            DatetimeIndex object of datetimes corresponding to the
+            output data.
         """
 
         out = []
+        out_ti = []
         for fp in base_fps:
             with base_handler(fp) as res:
                 base_ti = res.time_index
@@ -359,15 +368,23 @@ class DataRetrievalBase:
                               for date in sorted(set(base_ti.date))]
                     base_data = np.array([base_data[s0].mean()
                                           for s0 in slices])
+                    base_ti = np.array(sorted(set(base_ti.date)))
 
             out.append(base_data)
+            out_ti.append(base_ti)
 
-        return np.hstack(out)
+        return np.hstack(out), pd.DatetimeIndex(np.hstack(out_ti))
 
 
 class LinearCorrection(DataRetrievalBase):
     """Calculate linear correction *scalar +adder factors to bias correct data
+
+    This calculation operates on single bias sites for the full time series of
+    available data (no season bias correction)
     """
+
+    # size of the time dimension, 1 is no time-based bias correction
+    NT = 1
 
     @staticmethod
     def get_linear_correction(bias_data, base_data):
@@ -395,13 +412,13 @@ class LinearCorrection(DataRetrievalBase):
 
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, daily_avg):
+                    base_handler, daily_avg, bias_ti):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
-        base_data = cls.get_base_data(base_fps, base_dset,
-                                      base_gid, base_handler,
-                                      daily_avg=daily_avg)
+        base_data, _ = cls.get_base_data(base_fps, base_dset,
+                                         base_gid, base_handler,
+                                         daily_avg=daily_avg)
 
         scalar, adder = cls.get_linear_correction(bias_data, base_data)
 
@@ -415,11 +432,11 @@ class LinearCorrection(DataRetrievalBase):
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
         scalar : np.ndarray
-            2D array of scalar factors corresponding to the bias raster data
-            shape (lat, lon)
+            3D array of scalar factors corresponding to the bias raster data
+            shape (lat, lon, time)
         adder : np.ndarray
-            2D array of adder factors corresponding to the bias raster data
-            shape (lat, lon)
+            3D array of adder factors corresponding to the bias raster data
+            shape (lat, lon, time)
         """
 
         if not os.path.exists(os.path.dirname(fp_out)):
@@ -471,16 +488,21 @@ class LinearCorrection(DataRetrievalBase):
         Returns
         -------
         scalar : np.ndarray
-            2D array of scalar factors corresponding to the bias raster data
-            shape (lat, lon)
+            3D array of scalar factors corresponding to the bias raster data
+            shape (lat, lon, time)
         adder : np.ndarray
-            2D array of adder factors corresponding to the bias raster data
-            shape (lat, lon)
+            3D array of adder factors corresponding to the bias raster data
+            shape (lat, lon, time)
         """
         logger.debug('Starting linear correction calculation...')
 
-        scalar = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
-        adder = np.full(self.bias_gid_raster.shape, np.nan, np.float32)
+        scalar = np.full(self.bias_gid_raster.shape + (self.NT,),
+                         np.nan, np.float32)
+        adder = np.full(self.bias_gid_raster.shape + (self.NT,),
+                        np.nan, np.float32)
+
+        logger.info('Initialized scalar / adder with shape: {}'
+                    .format(scalar.shape))
 
         if max_workers == 1:
             logger.debug('Running serial calculation.')
@@ -493,7 +515,8 @@ class LinearCorrection(DataRetrievalBase):
                     bias_data = self.get_bias_data(bias_gid)
                     out = self._run_single(bias_data, self.base_fps,
                                            self.base_dset, base_gid,
-                                           self.base_handler, daily_avg)
+                                           self.base_handler, daily_avg,
+                                           self.bias_ti)
                     scalar[raster_loc] = out[0]
                     adder[raster_loc] = out[1]
 
@@ -516,7 +539,7 @@ class LinearCorrection(DataRetrievalBase):
                         future = exe.submit(self._run_single, bias_data,
                                             self.base_fps, self.base_dset,
                                             base_gid, self.base_handler,
-                                            daily_avg)
+                                            daily_avg, self.bias_ti)
                         futures[future] = raster_loc
 
                 logger.debug('Finished launching futures.')
@@ -532,16 +555,54 @@ class LinearCorrection(DataRetrievalBase):
                     'Mean scalar: {:.3f} mean adder: {:.3f}'
                     .format(np.nanmean(scalar), np.nanmean(adder)))
 
-        nan_mask = np.isnan(scalar)
-        scalar = nn_fill_array(scalar)
-        adder = nn_fill_array(adder)
+        nan_mask = np.isnan(scalar[..., 0])
 
-        if smoothing > 0:
-            scalar[nan_mask] = gaussian_filter(scalar, smoothing,
-                                               mode='nearest')[nan_mask]
-            adder[nan_mask] = gaussian_filter(adder, smoothing,
-                                              mode='nearest')[nan_mask]
+        for idt in range(self.NT):
+            scalar[..., idt] = nn_fill_array(scalar[..., idt])
+            adder[..., idt] = nn_fill_array(adder[..., idt])
+            if smoothing > 0:
+                scalar_smooth = gaussian_filter(scalar[..., idt], smoothing,
+                                                mode='nearest')
+                adder_smooth = gaussian_filter(adder[..., idt], smoothing,
+                                               mode='nearest')
+                scalar[nan_mask, idt] = scalar_smooth[nan_mask]
+                adder[nan_mask, idt] = adder_smooth[nan_mask]
 
         self.write_outputs(fp_out, scalar, adder)
+
+        return scalar, adder
+
+
+class MonthlyLinearCorrection(LinearCorrection):
+    """Calculate linear correction *scalar +adder factors to bias correct data
+
+    This calculation operates on single bias sites on a montly basis
+    """
+
+    # size of the time dimension, 12 is monthly bias correction
+    NT = 12
+
+    @classmethod
+    def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
+                    base_handler, daily_avg, bias_ti):
+        """Find the nominal scalar + adder combination to bias correct data
+        at a single site"""
+
+        base_data, base_ti = cls.get_base_data(base_fps, base_dset,
+                                               base_gid, base_handler,
+                                               daily_avg=daily_avg)
+
+        scalar = np.full(cls.NT, np.nan, dtype=np.float32)
+        adder = np.full(cls.NT, np.nan, dtype=np.float32)
+
+        for month in range(1, 13):
+            bias_mask = bias_ti.month == month
+            base_mask = base_ti.month == month
+
+            ms, ma = cls.get_linear_correction(bias_data[bias_mask],
+                                               base_data[base_mask])
+
+            scalar[month - 1] = ms
+            adder[month - 1] = ma
 
         return scalar, adder
