@@ -7,12 +7,16 @@ import xarray as xr
 import os
 import pickle
 import logging
+import copy
+from scipy.ndimage.filters import gaussian_filter
 from rex import MultiFileResourceX
 from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
-                                       transform_rotate_wind)
+                                       transform_rotate_wind,
+                                       temporal_coarsening,
+                                       spatial_coarsening)
 from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
                                 velocity_gradient_dist, vorticity_dist,
                                 tke_wavenumber_spectrum,
@@ -29,11 +33,13 @@ class Sup3rWindStats:
                  heights, temporal_slice=slice(None), target=None,
                  shape=None, raster_file=None, qa_fp=None,
                  time_chunk_size=None, cache_pattern=None,
-                 overwrite_cache=False, input_handler=None, max_workers=None,
+                 overwrite_cache=False, overwrite_stats=False,
+                 input_handler=None, output_handler=None, max_workers=None,
                  extract_workers=None, compute_workers=None,
                  load_workers=None, ti_workers=None, get_interp=False,
                  get_hr=True, get_lr=True, include_stats=None, max_values=None,
-                 ramp_rate_t_step=1):
+                 ramp_rate_t_step=1, coarsen=False, smoothing=None,
+                 spatial_res=None, max_delta=10):
         """
         Parameters
         ----------
@@ -93,8 +99,14 @@ class Sup3rWindStats:
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
             feature data
+        overwrite_stats : bool
+            Whether to overwrite saved stats
         input_handler : str | None
             data handler class to use for input data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        output_handler : str | None
+            data handler class to use for output data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
         max_workers : int | None
@@ -135,6 +147,11 @@ class Sup3rWindStats:
             Number of time steps to use for ramp rate calculation. If low res
             data is hourly then t_step=1 will calculate the hourly ramp rate.
             Can provide a list of different t_step values.
+        smoothing : float | None
+            Value passed to gaussian filter used for smoothing source data
+        spatial_res : float | None
+            Spatial resolution for source data in meters. e.g. 2000. This is
+            used to determine the wavenumber range for spectra calculations.
         """
 
         logger.info('Initializing Sup3rWindStats and retrieving source data')
@@ -160,38 +177,57 @@ class Sup3rWindStats:
         self.heights = heights if isinstance(heights, list) else [heights]
         self._out_fp = (out_file_path if isinstance(out_file_path, list)
                         else [out_file_path])
-        self.qa_fp = qa_fp
-        self.output_handler = self.output_handler_class(self._out_fp)
         self._hr_lat_lon = None
+        self._hr_time_index = None
         self.get_interp = get_interp
         self.get_hr = get_hr
         self.get_lr = get_lr
         self.cache_pattern = cache_pattern
+        self.overwrite_cache = overwrite_cache
+        self.overwrite_stats = overwrite_stats
+        self.coarsen = coarsen
+        self.k_range = None
+        self.qa_fp = qa_fp
 
-        HandlerClass = get_input_handler_class(source_file_paths,
-                                               input_handler)
-        if self.get_lr:
-            self.source_handler = HandlerClass(source_file_paths,
-                                               self.features,
-                                               target=target,
-                                               shape=shape,
-                                               temporal_slice=temporal_slice,
-                                               raster_file=raster_file,
-                                               cache_pattern=cache_pattern,
-                                               time_chunk_size=time_chunk_size,
-                                               overwrite_cache=overwrite_cache,
-                                               val_split=0.0,
-                                               max_workers=max_workers,
-                                               extract_workers=extract_workers,
-                                               compute_workers=compute_workers,
-                                               load_workers=load_workers,
-                                               ti_workers=ti_workers)
-            self.source_handler.load_cached_data()
-        if self.get_hr and self.get_lr:
+        source_handler_kwargs = dict(target=target,
+                                     shape=shape,
+                                     temporal_slice=temporal_slice,
+                                     raster_file=raster_file,
+                                     cache_pattern=cache_pattern,
+                                     time_chunk_size=time_chunk_size,
+                                     overwrite_cache=overwrite_cache,
+                                     max_workers=max_workers,
+                                     extract_workers=extract_workers,
+                                     compute_workers=compute_workers,
+                                     load_workers=load_workers,
+                                     ti_workers=ti_workers,
+                                     max_delta=max_delta)
+        self.source_data = self.get_source_data(source_file_paths,
+                                                input_handler, smoothing,
+                                                spatial_res,
+                                                source_handler_kwargs)
+        if self.get_hr and self._out_fp is not None:
             self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
         else:
             self.lr_t_slice = slice(None)
             self.hr_t_slice = slice(None)
+
+        if self.get_hr and self._out_fp is not None:
+            if shape is not None or target is not None:
+                shape = (self.source_handler.shape[0] * s_enhance,
+                         self.source_handler.shape[1] * s_enhance)
+                target = self.source_handler.target
+            raster_file = (None if raster_file is None
+                           else raster_file.replace('.txt', '_hr.txt'))
+
+            output_handler_kwargs = copy.deepcopy(source_handler_kwargs)
+            update_kwargs = dict(target=target, shape=shape,
+                                 temporal_slice=self.hr_t_slice,
+                                 raster_file=raster_file)
+            output_handler_kwargs.update(update_kwargs)
+            self.output_data = self.get_output_data(self._out_fp,
+                                                    output_handler,
+                                                    output_handler_kwargs)
 
     def __enter__(self):
         return self
@@ -205,6 +241,104 @@ class Sup3rWindStats:
     def close(self):
         """Close any open file handlers"""
         self.output_handler.close()
+
+    def get_source_data(self, source_file_paths, input_handler, smoothing=None,
+                        spatial_res=None, source_handler_kwargs=None):
+        """Get source data using provided source file paths
+
+        Parameters
+        ----------
+
+        source_file_paths : list | str
+            A list of low-resolution source files to extract raster data from.
+            Each file must have the same number of timesteps. Can also pass a
+            string with a unix-style file path which will be passed through
+            glob.glob
+        input_handler : str | None
+            data handler class to use for input data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        smoothing : float | None
+            Value passed to gaussian filter used for smoothing source data
+        spatial_res : float | None
+            Spatial resolution for source data in meters. e.g. 2000. This is
+            used to determine the wavenumber range for spectra calculations.
+        source_handler_kwargs : dict
+            Dictionary of keyword arguments passed to
+            `sup3r.preprocessing.data_handling.DataHandler`
+
+        Returns
+        -------
+        data : ndarray
+            Array of data from source file paths
+            (spatial_1, spatial_2, temporal, features)
+        """
+
+        HandlerClass = get_input_handler_class(source_file_paths,
+                                               input_handler)
+        self.source_handler = HandlerClass(source_file_paths,
+                                           self.features,
+                                           val_split=0.0,
+                                           **source_handler_kwargs)
+        self.source_handler.load_cached_data()
+        if self.coarsen:
+            logger.info('Coarsening input data with shape='
+                        f'{self.source_handler.data.shape}')
+            self.source_handler.data = self.coarsen_data(
+                self.source_handler.data, smoothing=smoothing)
+            logger.info('Coarsened shape='
+                        f'{self.source_handler.data.shape}')
+        if spatial_res is not None:
+            domain_size = spatial_res * self.source_handler.data.shape[1]
+            self.k_range = [1 / domain_size, 1 / spatial_res]
+        return self.source_handler.data
+
+    def get_output_data(self, out_file_paths, output_handler,
+                        output_handler_kwargs=None):
+        """Get source data using provided source file paths
+
+        Parameters
+        ----------
+
+        out_file_paths : str | list
+            A list of sup3r-resolved output files (either .nc or .h5) with
+            high-resolution data corresponding to the
+            source_file_paths * s_enhance * t_enhance
+        output_handler : str | None
+            data handler class to use for output data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        output_handler_kwargs : dict
+            Dictionary of keyword arguments passed to
+            `sup3r.preprocessing.data_handling.DataHandler`
+
+        Returns
+        -------
+        data : ndarray
+            Array of data from output file paths
+            (spatial_1, spatial_2, temporal, features)
+        """
+        shape = output_handler_kwargs.get('shape', None)
+        target = output_handler_kwargs.get('target', None)
+        if shape is None and target is None:
+            self.output_handler = self.output_handler_class(self._out_fp)
+            data = np.zeros((self.hr_shape[0], self.hr_shape[1],
+                             len(self.hr_time_index[self.hr_t_slice]),
+                             len(self.features)), dtype=np.float32)
+            for i, height in enumerate(self.heights):
+                u, v = self.get_uv_out(height)
+                data[..., 2 * i] = u
+                data[..., 2 * i + 1] = v
+            return data
+        else:
+            HandlerClass = get_input_handler_class(out_file_paths,
+                                                   output_handler)
+            self.output_handler = HandlerClass(out_file_paths,
+                                               self.features,
+                                               val_split=0.0,
+                                               **output_handler_kwargs)
+            self.output_handler.load_cached_data()
+            return self.output_handler.data
 
     @property
     def hr_shape(self):
@@ -262,9 +396,13 @@ class Sup3rWindStats:
         -------
         pd.DatetimeIndex
         """
-        if self.output_type == 'nc':
-            raise NotImplementedError('Netcdf output not yet supported')
-        return self.output_handler.time_index.tz_localize(None)
+        if self._hr_time_index is None:
+            if self.output_type == 'nc':
+                raise NotImplementedError('Netcdf output not yet supported')
+            else:
+                ti = self.output_handler_class(self._out_fp).time_index
+                self._hr_time_index = ti.tz_localize(None)
+        return self._hr_time_index
 
     def time_overlap_slices(self):
         """Get slices for temporal overlap of low and high resolution data
@@ -384,7 +522,8 @@ class Sup3rWindStats:
             u_file = tmp_file.replace('{feature}', f'u_{height}m')
             v_file = tmp_file.replace('{feature}', f'v_{height}m')
 
-            if os.path.exists(u_file) and os.path.exists(v_file):
+            if (os.path.exists(u_file) and os.path.exists(v_file)
+                    and not self.overwrite_cache):
                 u = self.load_cache(u_file)
                 v = self.load_cache(v_file)
                 return u, v
@@ -398,11 +537,9 @@ class Sup3rWindStats:
                         f'time_slice={self.hr_t_slice}')
             ws = self.output_handler[ws_f, self.hr_t_slice, :]
             wd = self.output_handler[wd_f, self.hr_t_slice, :]
-            ws = ws.reshape((-1, self.hr_shape[0], self.hr_shape[1]))
-            ws = np.transpose(ws, axis=(1, 2, 0))
-            wd = wd.reshape((-1, self.hr_shape[0], self.hr_shape[1]))
-            wd = np.transpose(wd, axis=(1, 2, 0))
-            logger.info(f'Transforming ws / wd to u / v for height={height}m '
+            ws = ws.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            wd = wd.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            logger.info(f'Transforming ws/wd to u/v for height={height}m '
                         f'with shape={ws.shape}')
             u, v = transform_rotate_wind(ws, wd, self.hr_lat_lon)
             if u_file is not None:
@@ -446,8 +583,7 @@ class Sup3rWindStats:
             arr = pickle.load(f)
         return arr
 
-    @classmethod
-    def export(cls, qa_fp, data):
+    def export(self, qa_fp, data):
         """Export stats dictionary to pkl file.
 
         Parameters
@@ -458,12 +594,13 @@ class Sup3rWindStats:
             A dictionary with stats for low and high resolution wind fields
         """
 
-        if not os.path.exists(qa_fp):
-            logger.info('Initializing qa output file: "{}"'.format(qa_fp))
+        if not os.path.exists(qa_fp) or self.overwrite_stats:
+            logger.info('Saving windstats output file: "{}"'.format(qa_fp))
             with open(qa_fp, 'wb') as f:
                 pickle.dump(data, f)
         else:
-            logger.info(f'{qa_fp} already exists.')
+            logger.info(f'{qa_fp} already exists. Delete file or run with '
+                        'overwrite_stats=True.')
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -517,7 +654,7 @@ class Sup3rWindStats:
 
         return cmd.replace('\\', '/')
 
-    def get_spectra_stats(self, u, v):
+    def get_spectra_stats(self, u, v, res='low'):
         """Compute spectra based statistics
 
         Parameters
@@ -535,6 +672,12 @@ class Sup3rWindStats:
             Dictionary of spectra stats for wind fields
         """
 
+        k_range = None
+        if self.k_range is not None:
+            k_range = [self.k_range[0], self.k_range[1]]
+            if res == 'high':
+                k_range[1] *= self.s_enhance
+
         stats_dict = {}
         if 'tke_ts' in self.include_stats:
             logger.info('Computing mean kinetic energy spectrum series.')
@@ -542,9 +685,10 @@ class Sup3rWindStats:
 
         if 'tke_avg_k' in self.include_stats:
             logger.info('Computing time averaged kinetic energy'
-                        ' wavenumber spectrum.')
+                        f' wavenumber spectrum for res={res}. '
+                        f'Using k_range={k_range}.')
             stats_dict['tke_avg_k'] = tke_wavenumber_spectrum(
-                np.mean(u, axis=-1), np.mean(v, axis=-1))
+                np.mean(u, axis=-1), np.mean(v, axis=-1), k_range=k_range)
 
         if 'tke_avg_f' in self.include_stats:
             logger.info('Computing time averaged kinetic energy'
@@ -553,7 +697,42 @@ class Sup3rWindStats:
 
         return stats_dict
 
-    def get_ramp_rate_stats(self, u, v, res='high'):
+    def coarsen_data(self, data, smoothing=None):
+        """Re-coarsen a high-resolution synthetic output dataset
+
+        Parameters
+        ----------
+        data : np.ndarray
+            A copy of the high-resolution output data as a numpy
+            array of shape (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        data : np.ndarray
+            A spatiotemporally coarsened copy of the input dataset, still with
+            shape (spatial_1, spatial_2, temporal)
+        """
+        n_lats = self.s_enhance * (data.shape[0] // self.s_enhance)
+        n_lons = self.s_enhance * (data.shape[1] // self.s_enhance)
+        data = spatial_coarsening(data[:n_lats, :n_lons],
+                                  s_enhance=self.s_enhance,
+                                  obs_axis=False)
+
+        # t_coarse needs shape to be 5D: (obs, s1, s2, t, f)
+        data = np.expand_dims(data, axis=0)
+        data = temporal_coarsening(data, t_enhance=self.t_enhance)
+        data = data[0]
+
+        if smoothing is not None:
+            for i in range(data.shape[-1]):
+                for t in range(data.shape[-2]):
+                    data[..., t, i] = gaussian_filter(data[..., t, i],
+                                                      smoothing,
+                                                      mode='nearest')
+
+        return data
+
+    def get_ramp_rate_stats(self, u, v, scale=1):
         """Compute statistics for ramp rates
 
         Parameters
@@ -577,27 +756,21 @@ class Sup3rWindStats:
         stats_dict = {}
         if 'ws_ramp_rate' in self.include_stats:
             for i, time in enumerate(self.ramp_rate_t_step):
-                freq = time * (self.lr_time_index[1] - self.lr_time_index[0])
-                if res == 'high':
-                    time = time * self.t_enhance
-                logger.info(f'Computing ramp rate pdf ({freq}).')
+                logger.info('Computing ramp rate pdf.')
                 out = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
-                                        t_steps=time)
+                                        t_steps=time, scale=scale)
                 stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
         if 'mean_ws_ramp_rate' in self.include_stats:
             for i, time in enumerate(self.ramp_rate_t_step):
-                freq = time * (self.lr_time_index[1] - self.lr_time_index[0])
-                if res == 'high':
-                    time = time * self.t_enhance
-                logger.info(f'Computing mean ramp rate pdf ({freq}).')
+                logger.info('Computing mean ramp rate pdf.')
                 out = ws_ramp_rate_dist(np.mean(u, axis=(0, 1)),
                                         np.mean(v, axis=(0, 1)),
                                         diff_max=self.ws_ramp_rate_max,
-                                        t_steps=time)
+                                        t_steps=time, scale=scale)
                 stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
         return stats_dict
 
-    def get_wind_stats(self, u, v, res='high'):
+    def get_wind_stats(self, u, v, res='low'):
         """Get stats for wind fields
 
         Parameters
@@ -617,19 +790,32 @@ class Sup3rWindStats:
         stats : dict
             Dictionary of stats for wind fields
         """
-        stats_dict = self.get_spectra_stats(u, v)
+        stats_dict = self.get_spectra_stats(u, v, res=res)
 
+        scale = 1 if res == 'high' else self.s_enhance
         if 'velocity_grad' in self.include_stats:
             logger.info('Computing velocity gradient pdf.')
             stats_dict['velocity_grad'] = velocity_gradient_dist(
-                u, diff_max=self.v_grad_max)
+                u, diff_max=self.v_grad_max, scale=scale)
+
+        if 'mean_velocity_grad' in self.include_stats:
+            logger.info('Computing mean velocity gradient pdf.')
+            stats_dict['mean_velocity_grad'] = velocity_gradient_dist(
+                np.mean(u, axis=-1), diff_max=self.v_grad_max, scale=scale)
 
         if 'vorticity' in self.include_stats:
             logger.info('Computing vorticity pdf.')
             stats_dict['vorticity'] = vorticity_dist(
-                u, v, diff_max=self.vorticity_max)
+                u, v, diff_max=self.vorticity_max, scale=scale)
 
-        out = self.get_ramp_rate_stats(u, v, res=res)
+        if 'mean_vorticity' in self.include_stats:
+            logger.info('Computing mean vorticity pdf.')
+            stats_dict['mean_vorticity'] = vorticity_dist(
+                np.mean(u, axis=-1), np.mean(v, axis=-1),
+                diff_max=self.vorticity_max, scale=scale)
+
+        scale = 1 if res == 'high' else self.t_enhance
+        out = self.get_ramp_rate_stats(u, v, scale=scale)
         stats_dict.update(out)
         return stats_dict
 
@@ -653,14 +839,16 @@ class Sup3rWindStats:
         low_res = {}
         if self.get_lr:
             uidx, vidx = self.feature_indices(height)
-            u_lr = self.source_handler.data[..., self.lr_t_slice, uidx]
-            v_lr = self.source_handler.data[..., self.lr_t_slice, vidx]
+            u_lr = self.source_data[..., self.lr_t_slice, uidx]
+            v_lr = self.source_data[..., self.lr_t_slice, vidx]
             logger.info(f'Getting low res stats for height={height}m')
             low_res = self.get_wind_stats(u_lr, v_lr, res='low')
 
         high_res = {}
         if self.get_hr:
-            u_hr, v_hr = self.get_uv_out(height)
+            uidx, vidx = self.feature_indices(height)
+            u_hr = self.output_data[..., uidx]
+            v_hr = self.output_data[..., vidx]
             logger.info(f'Getting high res stats for height={height}m')
             high_res = self.get_wind_stats(u_hr, v_hr, res='high')
 

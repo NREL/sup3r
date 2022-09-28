@@ -50,7 +50,7 @@ def from_config(ctx, config_file, verbose):
     config_verbose = (config_verbose == 'DEBUG')
     verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_qa', os.path.join(status_dir, 'logs/'),
+    init_mult('sup3r_windstats', os.path.join(status_dir, 'logs/'),
               modules=[__name__, 'sup3r'], verbose=verbose)
 
     exec_kwargs = config.get('execution_control', {})
@@ -87,7 +87,7 @@ def kickoff_local_job(ctx, cmd):
         Click context object where ctx.obj is a dictionary
     cmd : str
         Command to be submitted in shell script. Example:
-            'python -m sup3r.cli qa -c <config_file>'
+            'python -m sup3r.cli windstats -c <config_file>'
     """
 
     name = ctx.obj['NAME']
@@ -106,10 +106,10 @@ def kickoff_local_job(ctx, cmd):
     else:
         logger.info('Running sup3r WindStats locally with job name "{}".'
                     .format(name))
-        Status.add_job(out_dir, module=ModuleName.QA,
+        Status.add_job(out_dir, module=ModuleName.WIND_STATS,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
-        msg = ('Completed sup3r QA job "{}".'.format(name))
+        msg = ('Completed sup3r WindStats job "{}".'.format(name))
 
     click.echo(msg)
     logger.info(msg)
@@ -125,7 +125,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         Click context object where ctx.obj is a dictionary
     cmd : str
         Command to be submitted in SLURM shell script. Example:
-            'python -m sup3r.cli qa -c <config_file>'
+            'python -m sup3r.cli windstats -c <config_file>'
     alloc : str
         HPC project (allocation) handle. Example: 'sup3r'.
     memory : int

@@ -442,8 +442,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  overwrite_cache=False, overwrite_ti_cache=False,
                  load_cached=False, train_only_features=None, max_workers=None,
                  extract_workers=None, compute_workers=None, load_workers=None,
-                 norm_workers=None, ti_workers=None, handle_features=None,
-                 lat_lon=None):
+                 norm_workers=None, ti_workers=None, handle_features=None):
         """
         Parameters
         ----------
@@ -578,7 +577,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._raw_time_index = None
         self._time_index = None
         self._time_index_file = None
-        self._lat_lon = lat_lon
+        self._lat_lon = None
         self._raster_index = raster_index
         self._handle_features = handle_features
         self._extract_features = None
@@ -1283,8 +1282,10 @@ class DataHandler(FeatureHandler, InputMixIn):
                     logger.info(f'Saving {self.features[i]} with shape '
                                 f'{self.data[..., i].shape} to {fp}')
 
-                with open(fp, 'wb') as fh:
+                tmp_file = fp.replace('.pkl', '.pkl.tmp')
+                with open(tmp_file, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
+                os.rename(tmp_file, fp)
             else:
                 msg = (f'Called cache_data but {fp} already exists. Set to '
                        'overwrite_cache to True to overwrite.')
@@ -1912,6 +1913,52 @@ class DataHandlerNC(DataHandler):
         col = col[0]
         return row, col
 
+    @classmethod
+    def compute_raster_index(cls, file_paths, target, grid_shape):
+        """Get raster index for a given target and shape
+
+        Parameters
+        ----------
+        file_paths : list
+            List of input data file paths
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+
+        Returns
+        -------
+        list
+            List of slices corresponding to extracted data region
+        """
+        lat_lon = cls.get_lat_lon(file_paths[:1],
+                                  [slice(None), slice(None)],
+                                  invert_lat=False)
+        min_lat = np.min(lat_lon[..., 0])
+        min_lon = np.min(lat_lon[..., 1])
+        max_lat = np.max(lat_lon[..., 0])
+        max_lon = np.max(lat_lon[..., 1])
+        logger.debug('Calculating raster index from WRF file '
+                     f'for shape {grid_shape} and target '
+                     f'{target}')
+        msg = (f'target {target} out of bounds with min lat/lon '
+               f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
+        assert (min_lat <= target[0] <= max_lat
+                and min_lon <= target[1] <= max_lon), msg
+
+        row, col = cls.get_closest_lat_lon(lat_lon, target)
+        raster_index = [slice(row, row + grid_shape[0]),
+                        slice(col, col + grid_shape[1])]
+
+        if (raster_index[0].stop > lat_lon.shape[0]
+           or raster_index[1].stop > lat_lon.shape[1]):
+            msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
+                   f'{raster_index} for data domain of size '
+                   f'{lat_lon.shape[:-1]} with lower left corner '
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}).')
+            raise ValueError(msg)
+        return raster_index
+
     def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in
         file_paths all have data with the same spatial domain. We use the first
@@ -1934,38 +1981,12 @@ class DataHandlerNC(DataHandler):
             msg = ('Must provide raster file or shape + target to get '
                    'raster index')
             assert check, msg
-            lat_lon = self.get_lat_lon(self.file_paths[:1],
-                                       [slice(None), slice(None)],
-                                       invert_lat=False)
-            min_lat = np.min(lat_lon[..., 0])
-            min_lon = np.min(lat_lon[..., 1])
-            max_lat = np.max(lat_lon[..., 0])
-            max_lon = np.max(lat_lon[..., 1])
-            logger.debug('Calculating raster index from WRF file '
-                         f'for shape {self.grid_shape} and target '
-                         f'{self.target}')
-            msg = (f'target {self.target} out of bounds with min lat/lon '
-                   f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
-            assert (min_lat <= self.target[0] <= max_lat
-                    and min_lon <= self._target[1] <= max_lon), msg
-
-            row, col = self.get_closest_lat_lon(lat_lon, self.target)
-            raster_index = [slice(row, row + self.grid_shape[0]),
-                            slice(col, col + self.grid_shape[1])]
+            raster_index = self.compute_raster_index(self.file_paths,
+                                                     self.target,
+                                                     self.grid_shape)
             logger.debug('Found raster index with row, col slices: {}'
                          .format(raster_index))
 
-            if (raster_index[0].stop > lat_lon.shape[0]
-               or raster_index[1].stop > lat_lon.shape[1]):
-                msg = (f'Invalid target {self.target}, shape '
-                       f'{self.grid_shape}, and raster '
-                       f'{raster_index} for data domain of size '
-                       f'{lat_lon.shape[:-1]} with lower left corner '
-                       f'({np.min(lat_lon[..., 0])}, '
-                       f'{np.min(lat_lon[..., 1])}).')
-                raise ValueError(msg)
-
-            lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)

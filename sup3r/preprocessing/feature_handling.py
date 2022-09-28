@@ -884,17 +884,15 @@ class LatLonNC:
                 lat_key = 'latitude'
             if lon_key not in handle.variables:
                 lon_key = 'longitude'
-            if len(handle.variables[lat_key].dims) == 4:
-                idx = (0, slice(None), slice(None), slice(None))
-            elif len(handle.variables[lat_key].dims) == 3:
-                idx = (0, slice(None), slice(None))
+            if len(handle.variables[lat_key].dims) == 3:
+                idx = (0, raster_index[0], raster_index[1])
+            elif len(handle.variables[lat_key].dims) == 4:
+                idx = (0, raster_index[0], raster_index[1], 0)
             else:
-                idx = (slice(None), slice(None))
+                idx = (raster_index[0], raster_index[1])
             lats = handle.variables[lat_key].values[idx]
             lons = handle.variables[lon_key].values[idx]
-            lat_lon = np.concatenate(
-                [lats[tuple(raster_index)][..., np.newaxis],
-                 lons[tuple(raster_index)][..., np.newaxis]], axis=-1)
+            lat_lon = np.dstack((lats, lons))
         return lat_lon
 
 

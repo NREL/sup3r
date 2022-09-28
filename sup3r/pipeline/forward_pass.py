@@ -834,7 +834,6 @@ class ForwardPassStrategy(InputMixIn):
                                        shape=self.grid_shape, ti_workers=1)
         self.lr_lat_lon = out.lat_lon
         self.invert_lat = out.invert_lat
-
         self.single_time_step_files = self.is_single_ts_files()
         if self.single_time_step_files:
             self.handle_features = out.handle_features
@@ -1112,20 +1111,6 @@ class ForwardPass:
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
-        if self.strategy.input_type == 'nc':
-            raster_index = [self.lr_pad_slice[0], self.lr_pad_slice[1]]
-            print(raster_index)
-            if self.strategy.invert_lat:
-                start = self.strategy.grid_shape[0] + 1
-                start -= self.lr_pad_slice[0].stop
-                stop = self.strategy.grid_shape[0] + 1
-                stop -= self.lr_pad_slice[0].start
-                raster_index[0] = slice(start, stop)
-            lat_lon = self.strategy.lr_lat_lon[self.lr_pad_slice[0],
-                                               self.lr_pad_slice[1]]
-        else:
-            raster_index = None
-
         input_handler_kwargs = dict(
             file_paths=self.file_paths,
             features=self.features,
@@ -1133,7 +1118,6 @@ class ForwardPass:
             shape=self.shape,
             temporal_slice=self.temporal_pad_slice,
             raster_file=self.raster_file,
-            raster_index=raster_index,
             cache_pattern=self.cache_pattern,
             time_chunk_size=self.strategy.time_chunk_size,
             overwrite_cache=self.strategy.overwrite_cache,
@@ -1143,7 +1127,6 @@ class ForwardPass:
             load_workers=self.load_workers,
             ti_workers=self.ti_workers,
             handle_features=self.strategy.handle_features,
-            lat_lon=lat_lon,
             val_split=0.0)
 
         input_handler_kwargs.update(self.strategy._input_handler_kwargs)
@@ -1621,11 +1604,20 @@ class ForwardPass:
             Index of node on which the forward passes for spatiotemporal chunks
             will be run.
         """
+        start = dt.now()
         if strategy.pass_workers == 1:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'serial.')
-            for chunk_index in strategy.node_chunks[node_index]:
+            for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
+                now = dt.now()
                 cls.incremental_check_run(strategy, node_index, chunk_index)
+                mem = psutil.virtual_memory()
+                logger.info('Finished forward pass on chunk='
+                            f'{chunk_index} in {dt.now() - now}. {i + 1} of '
+                            f'{len(strategy.node_chunks[node_index])} '
+                            'complete. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
         else:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
@@ -1640,19 +1632,30 @@ class ForwardPass:
                         logger.info('Not running chunk index {}, output file '
                                     'exists: {}'.format(chunk_index, out_file))
                     else:
-                        future = exe.submit(cls.incremental_check_run,
-                                            strategy, node_index, chunk_index)
-                        futures[future] = chunk_index
+                        out_file = strategy.out_files[chunk_index]
+                        if os.path.exists(out_file) and strategy.incremental:
+                            logger.info('Not running chunk index {}, output '
+                                        'file exists: {}'
+                                        .format(chunk_index, out_file))
+                        else:
+                            fwp = cls(strategy, chunk_index, node_index)
+                            logger.info('Running forward pass for '
+                                        f'chunk_index={chunk_index}, '
+                                        f'node_index={node_index}, '
+                                        f'file_paths={fwp.file_paths}')
+                            future = exe.submit(fwp.run_chunk)
+                            futures[future] = chunk_index
 
                 logger.info(f'Started {len(futures)} forward passes '
                             f'in {dt.now() - now}.')
 
-                for _, future in enumerate(as_completed(futures)):
+                for i, future in enumerate(as_completed(futures)):
                     try:
                         future.result()
                         mem = psutil.virtual_memory()
                         logger.info('Finished forward pass on chunk='
-                                    f'{futures[future]}. '
+                                    f'{futures[future]}. {i + 1} of '
+                                    f'{len(futures)} complete.'
                                     'Current memory usage is '
                                     f'{mem.used / 1e9:.3f} GB out of '
                                     f'{mem.total / 1e9:.3f} GB total.')
@@ -1661,6 +1664,9 @@ class ForwardPass:
                                f'{futures[future]}.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
+        logger.info('Finished forward passes on '
+                    f'{len(strategy.node_chunks[node_index])} chunks in'
+                    f'{dt.now() - start}')
 
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
