@@ -197,6 +197,27 @@ class DataRetrievalBase:
 
         return cmd.replace('\\', '/')
 
+    def get_bias_gid(self, coord):
+        """Get the bias gid from a coordinate.
+
+        Parameters
+        ----------
+        coord : tuple
+            (lat, lon) to get data for.
+
+        Returns
+        -------
+        bias_gid : int
+            gid of the data to retrieve in the bias data source raster data.
+            The gids for this data source are the enumerated indices of the
+            flattened coordinate array.
+        d : float
+            Distance in decimal degrees from coord to bias gid
+        """
+        d, i = self.bias_tree.query(coord)
+        bias_gid = self.bias_gid_raster.flatten()[i]
+        return bias_gid, d
+
     def get_base_gid(self, bias_gid, knn):
         """Get one or more base gid(s) corresponding to a bias gid.
 
@@ -222,15 +243,13 @@ class DataRetrievalBase:
         dist, base_gid = self.base_tree.query(coord, k=knn)
         return dist, base_gid
 
-    def get_data_pair(self, bias_gid, knn, daily_avg=True):
+    def get_data_pair(self, coord, knn, daily_avg=True):
         """Get base and bias data observations based on a single bias gid.
 
         Parameters
         ----------
-        bias_gid : int
-            gid of the data to retrieve in the bias data source raster data.
-            The gids for this data source are the enumerated indices of the
-            flattened coordinate array.
+        coord : tuple
+            (lat, lon) to get data for.
         knn : int
             Number of nearest neighbors to aggregate from the base data when
             comparing to a single site from the bias data.
@@ -247,6 +266,7 @@ class DataRetrievalBase:
         dist : np.ndarray
             Array of nearest neighbor distances with length == knn
         """
+        bias_gid = self.get_bias_gid(coord)[0]
         dist, base_gid = self.get_base_gid(bias_gid, knn)
         bias_data = self.get_bias_data(bias_gid)
         base_data = self.get_base_data(self.base_fps, self.base_dset, base_gid,
@@ -349,6 +369,30 @@ class LinearCorrection(DataRetrievalBase):
     """Calculate linear correction *scalar +adder factors to bias correct data
     """
 
+    @staticmethod
+    def get_linear_correction(bias_data, base_data):
+        """Get the linear correction factors based on 1D bias and base datasets
+
+        Parameters
+        ----------
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        base_data : np.ndarray
+            1D array of base data observations.
+
+        Returns
+        -------
+        scalar : float
+            Factor to adjust the biased data before comparing distributions:
+            bias_data * scalar + adder
+        adder : float
+            Factor to adjust the biased data before comparing distributions:
+            bias_data * scalar + adder
+        """
+        scalar = (base_data.std() / bias_data.std())
+        adder = (base_data.mean() - bias_data.mean() * scalar)
+        return scalar, adder
+
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
                     base_handler, daily_avg):
@@ -359,13 +403,7 @@ class LinearCorrection(DataRetrievalBase):
                                       base_gid, base_handler,
                                       daily_avg=daily_avg)
 
-        bias_mean = bias_data.mean()
-        bias_std = bias_data.std()
-        base_mean = base_data.mean()
-        base_std = base_data.std()
-
-        scalar = (base_std / bias_std)
-        adder = (base_mean - bias_mean * scalar)
+        scalar, adder = cls.get_linear_correction(bias_data, base_data)
 
         return scalar, adder
 
