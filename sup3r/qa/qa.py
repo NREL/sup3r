@@ -6,12 +6,12 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import logging
+from inspect import signature
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
-import sup3r.bias
+import sup3r.bias.bias_transforms
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
-from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
@@ -102,10 +102,11 @@ class Sup3rQa:
             (only .h5 is supported)
         bias_correct_method : str | None
             Optional bias correction function name that can be imported from
-            the sup3r.bias module. This will transform the source data
-            according to some predefined bias correction transformation along
-            with the bias_correct_kwargs. As the first argument, this method
-            must receive a generic numpy array of data to be bias corrected
+            the sup3r.bias.bias_transforms module. This will transform the
+            source data according to some predefined bias correction
+            transformation along with the bias_correct_kwargs. As the first
+            argument, this method must receive a generic numpy array of data to
+            be bias corrected
         bias_correct_kwargs : dict | None
             Optional namespace of kwargs to provide to bias_correct_method.
             If this is provided, it must be a dictionary where each key is a
@@ -320,9 +321,11 @@ class Sup3rQa:
         method = self.bias_correct_method
         kwargs = self.bias_correct_kwargs
         if method is not None:
-            method = getattr(sup3r.bias, method)
+            method = getattr(sup3r.bias.bias_transforms, method)
             logger.info('Running bias correction with: {}'.format(method))
             feature_kwargs = kwargs[feature]
+            if 'time_index' in signature(method).parameters:
+                feature_kwargs['time_index'] = self.time_index
             logger.debug('Bias correcting feature "{}" using function: {} '
                          'with kwargs: {}'
                          .format(feature, method, feature_kwargs))
