@@ -14,6 +14,7 @@ from datetime import datetime as dt
 import psutil
 
 from rex.utilities.fun_utils import get_fun_call_str
+from rex.utilities.execution import SpawnProcessPool
 
 import sup3r.models
 from sup3r.preprocessing.data_handling import InputMixIn
@@ -26,7 +27,6 @@ from sup3r.utilities.utilities import (get_chunk_slices,
 from sup3r.utilities import ModuleName
 
 from concurrent.futures import as_completed
-from rex.utilities.execution import SpawnProcessPool
 
 np.random.seed(42)
 
