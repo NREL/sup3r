@@ -25,7 +25,8 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_input_handler_class)
 from sup3r.utilities import ModuleName
 
-from concurrent.futures import (as_completed, ThreadPoolExecutor)
+from concurrent.futures import as_completed
+from rex.utilities.execution import SpawnProcessPool
 
 np.random.seed(42)
 
@@ -742,8 +743,8 @@ class ForwardPassStrategy(InputMixIn):
             logger.error(msg)
             raise KeyError(msg)
 
-        self.model = model_class.load(**self.model_kwargs, verbose=True)
-        models = getattr(self.model, 'models', [self.model])
+        model = model_class.load(**self.model_kwargs, verbose=True)
+        models = getattr(model, 'models', [model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
         self.s_enhance = np.product(self.s_enhancements)
@@ -1612,7 +1613,7 @@ class ForwardPass:
                 now = dt.now()
                 cls.incremental_check_run(strategy, node_index, chunk_index)
                 mem = psutil.virtual_memory()
-                logger.info('Finished forward pass on chunk='
+                logger.info('Finished forward pass on chunk_index='
                             f'{chunk_index} in {dt.now() - now}. {i + 1} of '
                             f'{len(strategy.node_chunks[node_index])} '
                             'complete. Current memory usage is '
@@ -1622,30 +1623,15 @@ class ForwardPass:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
                          f'{strategy.pass_workers}.')
-            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
+            with SpawnProcessPool(max_workers=strategy.pass_workers) as exe:
                 futures = {}
                 now = dt.now()
                 for chunk_index in strategy.node_chunks[node_index]:
-
-                    out_file = strategy.out_files[chunk_index]
-                    if os.path.exists(out_file) and strategy.incremental:
-                        logger.info('Not running chunk index {}, output file '
-                                    'exists: {}'.format(chunk_index, out_file))
-                    else:
-                        out_file = strategy.out_files[chunk_index]
-                        if os.path.exists(out_file) and strategy.incremental:
-                            logger.info('Not running chunk index {}, output '
-                                        'file exists: {}'
-                                        .format(chunk_index, out_file))
-                        else:
-                            fwp = cls(strategy, chunk_index, node_index)
-                            logger.info('Running forward pass for '
-                                        f'chunk_index={chunk_index}, '
-                                        f'node_index={node_index}, '
-                                        f'file_paths={fwp.file_paths}')
-                            future = exe.submit(fwp.run_chunk)
-                            futures[future] = chunk_index
-
+                    future = exe.submit(cls.incremental_check_run,
+                                        strategy=strategy,
+                                        chunk_index=chunk_index,
+                                        node_index=node_index)
+                    futures[future] = chunk_index
                 logger.info(f'Started {len(futures)} forward passes '
                             f'in {dt.now() - now}.')
 
@@ -1653,9 +1639,9 @@ class ForwardPass:
                     try:
                         future.result()
                         mem = psutil.virtual_memory()
-                        logger.info('Finished forward pass on chunk='
+                        logger.info('Finished forward pass on chunk_index='
                                     f'{futures[future]}. {i + 1} of '
-                                    f'{len(futures)} complete.'
+                                    f'{len(futures)} complete. '
                                     'Current memory usage is '
                                     f'{mem.used / 1e9:.3f} GB out of '
                                     f'{mem.total / 1e9:.3f} GB total.')
@@ -1665,7 +1651,7 @@ class ForwardPass:
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
         logger.info('Finished forward passes on '
-                    f'{len(strategy.node_chunks[node_index])} chunks in'
+                    f'{len(strategy.node_chunks[node_index])} chunks in '
                     f'{dt.now() - start}')
 
     def run_chunk(self):

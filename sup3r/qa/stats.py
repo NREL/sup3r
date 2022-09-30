@@ -35,11 +35,11 @@ class Sup3rWindStats:
                  time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_stats=False,
                  input_handler=None, output_handler=None, max_workers=None,
-                 extract_workers=None, compute_workers=None,
-                 load_workers=None, ti_workers=None, get_interp=False,
-                 get_hr=True, get_lr=True, include_stats=None, max_values=None,
-                 ramp_rate_t_step=1, coarsen=False, smoothing=None,
-                 spatial_res=None, max_delta=10):
+                 extract_workers=None, compute_workers=None, load_workers=None,
+                 ti_workers=None, get_interp=False, get_hr=True, get_lr=True,
+                 include_stats=None, max_values=None, ramp_rate_t_step=1,
+                 coarsen=False, smoothing=None, spatial_res=None,
+                 max_delta=10):
         """
         Parameters
         ----------
@@ -149,9 +149,16 @@ class Sup3rWindStats:
             Can provide a list of different t_step values.
         smoothing : float | None
             Value passed to gaussian filter used for smoothing source data
+        coarsen : bool
+            Option to coarsen source data according to s_enhance and t_enhance
         spatial_res : float | None
             Spatial resolution for source data in meters. e.g. 2000. This is
             used to determine the wavenumber range for spectra calculations.
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
         """
 
         logger.info('Initializing Sup3rWindStats and retrieving source data')
