@@ -684,12 +684,12 @@ class Collector:
             else:
                 flist_chunks = [collector.flist]
 
+            out = collector._get_collection_attrs(
+                collector.flist, dset, max_workers=max_workers,
+                target_final_meta_file=target_final_meta_file)
+            time_index, final_target_meta, masked_target_meta = out[:3]
+            _, _, global_attrs = out[3:]
             if not os.path.exists(out_file):
-                out = collector._get_collection_attrs(
-                    collector.flist, dset, max_workers=max_workers,
-                    target_final_meta_file=target_final_meta_file)
-                time_index, final_target_meta, masked_target_meta = out[:3]
-                _, _, global_attrs = out[3:]
                 collector._init_collected_h5(out_file, time_index,
                                              final_target_meta, global_attrs)
             for j, flist in enumerate(flist_chunks):
