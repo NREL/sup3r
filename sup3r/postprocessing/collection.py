@@ -466,47 +466,40 @@ class Collector:
                                attrs=attrs, data=data,
                                chunks=attrs.get('chunks', None))
 
-    def collect_flist(self, file_paths, out_file, feature, sort=False,
-                      sort_key=None, max_workers=None,
-                      target_final_meta_file=None, masked_target_meta=None):
-        """Collect a dataset from a file list with data pre-init.
-
-        Collects data that can be chunked in both space and time.
+    def _collect_flist(self, feature, masked_meta, time_index, shape,
+                       file_paths, out_file, target_final_meta,
+                       masked_target_meta, max_workers=None):
+        """Collect a dataset from a file list without getting attributes first.
 
         Parameters
         ----------
+        feature : str
+            Dataset name to collect.
+        masked_meta : pd.DataFrame
+            Concatenated meta datafor the flist chunk that is being
+            collected masked against target_final_meta
+        time_index : pd.datetimeindex
+            Concatenated full size datetime index from the flist that is
+            being collected
+        shape : tuple
+            Output (collected) dataset shape
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
             or a single string with unix-style /search/patt*ern.h5. Files
             should have non-overlapping time_index dataset and fully
             overlapping meta dataset.
-        collect_dir : str
-            Directory of chunked files (flist).
         out_file : str
             File path of final output file.
-        dset : str
-            Dataset name to collect.
-        sort : bool
-            flag to sort flist to determine meta data order.
-        sort_key : None | fun
-            Optional sort key to sort flist by (determines how meta is built
-            if out_file does not exist).
-        max_workers : int | None
-            Number of workers to use in parallel. 1 runs serial,
-            None uses all available.
         target_final_meta_file : str
             Path to target final meta containing coordinates to keep from the
             full file list collected meta
         masked_target_meta : pd.DataFrame
             Collected meta data with mask applied from target final meta so
             original gids are preserved.
+        max_workers : int | None
+            Number of workers to use in parallel. 1 runs serial,
+            None uses all available.
         """
-
-        time_index, target_final_meta, masked_meta, shape, _, _ = \
-            Collector._get_collection_attrs(
-                file_paths, feature, sort=sort, sort_key=sort_key,
-                target_final_meta_file=target_final_meta_file)
-
         if len(masked_meta) > 0:
             attrs, final_dtype = get_dset_attrs(feature)
             scale_factor = attrs.get('scale_factor', 1)
@@ -578,6 +571,51 @@ class Collector:
             logger.warning(msg)
             warn(msg)
 
+    def collect_flist(self, file_paths, out_file, feature, sort=False,
+                      sort_key=None, max_workers=None,
+                      target_final_meta_file=None, masked_target_meta=None):
+        """Collect a dataset from a file list with data pre-init.
+
+        Collects data that can be chunked in both space and time.
+
+        Parameters
+        ----------
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.h5. Files
+            should have non-overlapping time_index dataset and fully
+            overlapping meta dataset.
+        collect_dir : str
+            Directory of chunked files (flist).
+        out_file : str
+            File path of final output file.
+        dset : str
+            Dataset name to collect.
+        sort : bool
+            flag to sort flist to determine meta data order.
+        sort_key : None | fun
+            Optional sort key to sort flist by (determines how meta is built
+            if out_file does not exist).
+        max_workers : int | None
+            Number of workers to use in parallel. 1 runs serial,
+            None uses all available.
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full file list collected meta
+        masked_target_meta : pd.DataFrame
+            Collected meta data with mask applied from target final meta so
+            original gids are preserved.
+        """
+
+        time_index, target_final_meta, masked_meta, shape, _, _ = \
+            Collector._get_collection_attrs(
+                file_paths, feature, sort=sort, sort_key=sort_key,
+                target_final_meta_file=target_final_meta_file)
+
+        self._collect_flist(feature, masked_meta, time_index, shape,
+                            file_paths, out_file, target_final_meta,
+                            masked_target_meta, max_workers=max_workers)
+
     @classmethod
     def group_time_chunks(cls, file_paths):
         """Group files by temporal_chunk_index. Assumes file_paths have a
@@ -602,6 +640,37 @@ class Collector:
         for files in file_split.values():
             file_chunks.append(files)
         return file_chunks
+
+    def get_flist_chunks(self, file_paths, n_writes=None):
+        """Get file list chunks based on n_writes
+
+        Parameters
+        ----------
+        file_paths : list
+            List of file paths to collect
+        n_writes : int | None
+            Number of writes to use for collection
+
+        Returns
+        -------
+        flist_chunks : list
+            List of file list chunks. Used to split collection and writing into
+            multiple steps.
+        """
+        flist_chunks = self.group_time_chunks(file_paths)
+        logger.debug(f'Split file list into {len(flist_chunks)} chunks'
+                     ' according to temporal chunk indices')
+        if n_writes is not None:
+            msg = (f'n_writes ({n_writes}) must be less than or equal'
+                   'to the number of temporal chunks '
+                   f'({len(flist_chunks)}).')
+            assert n_writes < len(flist_chunks), msg
+            flist_chunks = np.array_split(flist_chunks, n_writes)
+            flist_chunks = [np.concatenate(fp_chunk)
+                            for fp_chunk in flist_chunks]
+            logger.debug(f'Split file list into {len(flist_chunks)} '
+                         f'chunks according to n_writes={n_writes}')
+        return flist_chunks
 
     @classmethod
     def collect(cls, file_paths, out_file, features, max_workers=None,
@@ -655,9 +724,7 @@ class Collector:
             init_logger('sup3r.preprocessing', log_file=log_file,
                         log_level=log_level)
 
-        if target_final_meta_file is not None:
-            logger.info(
-                f'Using target_final_meta_file={target_final_meta_file}')
+        logger.info(f'Using target_final_meta_file={target_final_meta_file}')
 
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
@@ -668,19 +735,8 @@ class Collector:
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
-                flist_chunks = collector.group_time_chunks(collector.flist)
-                logger.debug(f'Split file list into {len(flist_chunks)} chunks'
-                             ' according to temporal chunk indices')
-                if n_writes is not None:
-                    msg = (f'n_writes ({n_writes}) must be less than or equal'
-                           'to the number of temporal chunks '
-                           f'({len(flist_chunks)}).')
-                    assert n_writes < len(flist_chunks), msg
-                    flist_chunks = np.array_split(flist_chunks, n_writes)
-                    flist_chunks = [np.concatenate(fp_chunk)
-                                    for fp_chunk in flist_chunks]
-                    logger.debug(f'Split file list into {len(flist_chunks)} '
-                                 f'chunks according to n_writes={n_writes}')
+                flist_chunks = collector.get_flist_chunks(collector.flist,
+                                                          n_writes=n_writes)
             else:
                 flist_chunks = [collector.flist]
 
@@ -688,17 +744,23 @@ class Collector:
                 collector.flist, dset, max_workers=max_workers,
                 target_final_meta_file=target_final_meta_file)
             time_index, final_target_meta, masked_target_meta = out[:3]
-            _, _, global_attrs = out[3:]
+            shape, _, global_attrs = out[3:]
             if not os.path.exists(out_file):
                 collector._init_collected_h5(out_file, time_index,
                                              final_target_meta, global_attrs)
-            for j, flist in enumerate(flist_chunks):
-                logger.info('Collecting file list chunk {} out of {} '
-                            .format(j + 1, len(flist_chunks)))
-                collector.collect_flist(
-                    flist, out_file, dset, max_workers=max_workers,
-                    target_final_meta_file=target_final_meta_file,
-                    masked_target_meta=masked_target_meta)
+            if len(flist_chunks) == 1:
+                collector._collect_flist(dset, masked_target_meta, time_index,
+                                         shape, flist_chunks[0], out_file,
+                                         final_target_meta, masked_target_meta,
+                                         max_workers=max_workers)
+            else:
+                for j, flist in enumerate(flist_chunks):
+                    logger.info('Collecting file list chunk {} out of {} '
+                                .format(j + 1, len(flist_chunks)))
+                    collector.collect_flist(
+                        flist, out_file, dset, max_workers=max_workers,
+                        target_final_meta_file=target_final_meta_file,
+                        masked_target_meta=masked_target_meta)
 
         if write_status and job_name is not None:
             status = {'out_dir': os.path.dirname(out_file),
