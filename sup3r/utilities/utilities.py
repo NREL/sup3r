@@ -451,6 +451,12 @@ def transform_rotate_wind(ws, wd, lat_lon):
         (spatial_1, spatial_2, temporal)
     """
     # get the dy/dx to the nearest vertical neighbor
+    invert_lat = False
+    if lat_lon[-1, 0, 0] > lat_lon[0, 0, 0]:
+        invert_lat = True
+        lat_lon = lat_lon[::-1]
+        ws = ws[::-1]
+        wd = wd[::-1]
     dy = lat_lon[:, :, 0] - np.roll(lat_lon[:, :, 0], 1, axis=0)
     dx = lat_lon[:, :, 1] - np.roll(lat_lon[:, :, 1], 1, axis=0)
     dy = (dy + 90) % 180 - 90
@@ -467,6 +473,10 @@ def transform_rotate_wind(ws, wd, lat_lon):
 
     v_rot = -np.sin(theta)[:, :, np.newaxis] * ws * np.sin(wd)
     v_rot += np.cos(theta)[:, :, np.newaxis] * ws * np.cos(wd)
+
+    if invert_lat:
+        u_rot = u_rot[::-1]
+        v_rot = v_rot[::-1]
     del theta, ws, wd
     return u_rot, v_rot
 
@@ -515,6 +525,11 @@ def invert_uv(u, v, lat_lon):
 
     ws = np.sqrt(u_rot**2 + v_rot**2)
     wd = (np.degrees(np.arctan2(u_rot, v_rot)) + 360) % 360
+
+    # if lats are descending then we have calculated angle relative to the
+    # south direction. Need to shift so it is relative to the north direction
+    if lat_lon[-1, 0, 0] > lat_lon[0, 0, 0]:
+        wd = (wd + 180) % 360
 
     return ws, wd
 
