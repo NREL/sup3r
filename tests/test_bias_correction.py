@@ -9,6 +9,7 @@ import xarray as xr
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.models import Sup3rGan
+from sup3r.qa.qa import Sup3rQa
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
@@ -289,3 +290,77 @@ def test_fwp_integration():
             truth = fwp.input_data * i_scalar + i_adder
 
             assert np.allclose(bc_fwp.input_data, truth, equal_nan=True)
+
+
+def test_qa_integration():
+    """Test BC integration with QA module"""
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    features = ['U_100m', 'V_100m']
+    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['training_features'] = features
+    model.meta['output_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+
+    with tempfile.TemporaryDirectory() as td:
+        bias_fp = os.path.join(td, 'bc.h5')
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        out_file_path = os.path.join(td, 'sup3r_out.h5')
+        with h5py.File(out_file_path, 'w') as f:
+            f.create_dataset('meta', data=np.random.uniform(0, 1, 10))
+
+        scalar = np.random.uniform(0.5, 1, (20, 20, 1))
+        adder = np.random.uniform(0, 1, (20, 20, 1))
+
+        with h5py.File(bias_fp, 'w') as f:
+            f.create_dataset('U_100m_scalar', data=scalar)
+            f.create_dataset('U_100m_adder', data=adder)
+            f.create_dataset('V_100m_scalar', data=scalar)
+            f.create_dataset('V_100m_adder', data=adder)
+
+        bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
+                                          'bias_fp': bias_fp},
+                               'V_100m': {'feature_name': 'V_100m',
+                                          'bias_fp': bias_fp}}
+
+        qa_kw = {'s_enhance': 3,
+                 't_enhance': 4,
+                 'temporal_coarsening_method': 'average',
+                 'features': features,
+                 'input_handler': 'DataHandlerNCforCC',
+                 }
+
+        bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
+                                          'bias_fp': bias_fp,
+                                          'lr_padded_slice': None},
+                               'V_100m': {'feature_name': 'V_100m',
+                                          'bias_fp': bias_fp,
+                                          'lr_padded_slice': None}}
+
+        bc_qa_kw = {'s_enhance': 3,
+                    't_enhance': 4,
+                    'temporal_coarsening_method': 'average',
+                    'features': features,
+                    'input_handler': 'DataHandlerNCforCC',
+                    'bias_correct_method': 'local_linear_bc',
+                    'bias_correct_kwargs': bias_correct_kwargs,
+                    }
+
+        for idf, feature in enumerate(features):
+            with Sup3rQa(input_files, out_file_path, **qa_kw) as qa:
+                data_base = qa.get_source_dset(idf, feature)
+                data_truth = data_base * scalar + adder
+            with Sup3rQa(input_files, out_file_path, **bc_qa_kw) as qa:
+                data_bc = qa.get_source_dset(idf, feature)
+
+            assert np.allclose(data_bc, data_truth, equal_nan=True)
