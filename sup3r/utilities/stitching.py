@@ -412,7 +412,8 @@ def stitch_domains(year, month, time_step, input_files, overlap=50,
 
 
 def stitch_and_save(year, month, input_pattern, output_pattern,
-                    time_step=None, overlap=50, n_domains=4, max_level=15):
+                    time_step=None, overlap=50, n_domains=4, max_level=15,
+                    overwrite=False):
     """Stitch all smaller domains into largest domain and save output
 
     Parameters
@@ -437,6 +438,8 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
         Number of domains to stitch together
     max_level : int
         Max pressure level index
+    overwrite : bool
+        Whether to overwrite existing files
     """
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
@@ -444,10 +447,11 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
     out_files = (out_files if time_step is None
                  else out_files[time_step - 1: time_step])
     for i, out_file in enumerate(out_files):
-        handles = stitch_domains(year, month, i, input_files,
-                                 overlap=overlap, n_domains=n_domains,
-                                 max_level=max_level)
-        basedir = os.path.dirname(out_file)
-        os.makedirs(basedir, exist_ok=True)
-        handles[0].to_netcdf(out_file)
-        logger.info(f'Saved stitched file to {out_file}')
+        if not os.path.exists(out_file) or overwrite:
+            handles = stitch_domains(year, month, i, input_files,
+                                     overlap=overlap, n_domains=n_domains,
+                                     max_level=max_level)
+            basedir = os.path.dirname(out_file)
+            os.makedirs(basedir, exist_ok=True)
+            handles[0].to_netcdf(out_file)
+            logger.info(f'Saved stitched file to {out_file}')
