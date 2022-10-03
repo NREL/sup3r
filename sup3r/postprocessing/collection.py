@@ -470,24 +470,22 @@ class Collector:
                        file_paths, out_file, target_final_meta,
                        masked_target_meta, max_workers=None):
         """Collect a dataset from a file list without getting attributes first.
+        This file list can be a subset of a full file list to be collected.
 
         Parameters
         ----------
         feature : str
             Dataset name to collect.
         masked_meta : pd.DataFrame
-            Concatenated meta data for the flist chunk that is being
-            collected masked against target_final_meta
+            Concatenated meta data for the given file paths. This masked
+            against the target_final_meta.
         time_index : pd.datetimeindex
-            Concatenated full size datetime index from the flist that is
-            being collected
+            Concatenated datetime index for the given file paths.
         shape : tuple
             Output (collected) dataset shape
         file_paths : list | str
-            Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            File list to be collected. This can be a subset of a full file list
+            to be collected.
         out_file : str
             File path of final output file.
         target_final_meta : str
