@@ -29,7 +29,7 @@ def make_fake_nc_files(td, input_file, n_files):
                   for i in range(n_files)]
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
-        input_dset = xr.open_dataset(input_file)
+        input_dset = xr.open_dataset(input_file, engine='netcdf4')
         with xr.Dataset(input_dset) as dset:
             dset['Times'][:] = np.array([fake_times[i].encode('ASCII')],
                                         dtype='|S19')
