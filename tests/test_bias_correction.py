@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
+import h5py
 import os
 import pytest
 import tempfile
 import numpy as np
 import xarray as xr
 
-from sup3r import TEST_DATA_DIR
+from sup3r import TEST_DATA_DIR, CONFIG_DIR
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 
@@ -31,9 +34,9 @@ def test_linear_bc():
     bias_gid = 5
     dist, base_gid = calc.get_base_gid(bias_gid, 1)
     bias_data = calc.get_bias_data(bias_gid)
-    base_data, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
-                                            base_gid, calc.base_handler,
-                                            daily_avg=True)
+    base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                      base_gid, calc.base_handler,
+                                      daily_avg=True)
     bias_coord = calc.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
     base_coord = calc.base_meta.loc[base_gid, ['latitude', 'longitude']]
     true_dist = bias_coord.values - base_coord.values
@@ -176,9 +179,9 @@ def test_montly_linear_transform():
     calc = MonthlyLinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
                                    TARGET, SHAPE,
                                    bias_handler='DataHandlerNCforCC')
-    base_data, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
-                                            5, calc.base_handler,
-                                            daily_avg=True)
+    _, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                    5, calc.base_handler,
+                                    daily_avg=True)
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'bc.h5')
         scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
@@ -205,3 +208,84 @@ def test_montly_linear_transform():
         for i, m in enumerate(base_ti.month):
             truth = scalar[..., m - 1] + adder[..., m - 1]
             assert np.allclose(truth, out[..., i])
+
+
+def test_fwp_integration():
+    """Test the integration of the bias correction method into the forward pass
+    framework"""
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    features = ['U_100m', 'V_100m']
+    target = (13.67, 125.0)
+    shape = (8, 8)
+    temporal_slice = slice(None, None, 1)
+    fwp_chunk_shape = (4, 4, 150)
+    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['training_features'] = features
+    model.meta['output_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+
+    with tempfile.TemporaryDirectory() as td:
+        bias_fp = os.path.join(td, 'bc.h5')
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+
+        scalar = np.random.uniform(0.5, 1, (8, 8, 1))
+        adder = np.random.uniform(0, 1, (8, 8, 1))
+
+        with h5py.File(bias_fp, 'w') as f:
+            f.create_dataset('U_100m_scalar', data=scalar)
+            f.create_dataset('U_100m_adder', data=adder)
+            f.create_dataset('V_100m_scalar', data=scalar)
+            f.create_dataset('V_100m_adder', data=adder)
+
+        bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
+                                          'bias_fp': bias_fp},
+                               'V_100m': {'feature_name': 'V_100m',
+                                          'bias_fp': bias_fp}}
+
+        strat = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=0, temporal_pad=0,
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            out_pattern=os.path.join(td, 'out_{file_id}.nc'),
+            max_workers=1,
+            input_handler='DataHandlerNCforCC')
+        bc_strat = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=0, temporal_pad=0,
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            out_pattern=os.path.join(td, 'out_{file_id}.nc'),
+            max_workers=1,
+            input_handler='DataHandlerNCforCC',
+            bias_correct_method='local_linear_bc',
+            bias_correct_kwargs=bias_correct_kwargs)
+
+        for ichunk in range(strat.chunks):
+
+            fwp = ForwardPass(strat, chunk_index=ichunk)
+            bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+
+            i_scalar = np.expand_dims(scalar, axis=-1)
+            i_adder = np.expand_dims(adder, axis=-1)
+            i_scalar = i_scalar[bc_fwp.lr_padded_slice[0],
+                                bc_fwp.lr_padded_slice[1]]
+            i_adder = i_adder[bc_fwp.lr_padded_slice[0],
+                              bc_fwp.lr_padded_slice[1]]
+            truth = fwp.input_data * i_scalar + i_adder
+
+            assert np.allclose(bc_fwp.input_data, truth, equal_nan=True)
