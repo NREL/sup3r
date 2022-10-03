@@ -406,8 +406,8 @@ class LinearCorrection(DataRetrievalBase):
             Factor to adjust the biased data before comparing distributions:
             bias_data * scalar + adder
         """
-        scalar = (base_data.std() / bias_data.std())
-        adder = (base_data.mean() - bias_data.mean() * scalar)
+        scalar = base_data.std() / bias_data.std()
+        adder = base_data.mean() - bias_data.mean() * scalar
         return scalar, adder
 
     @classmethod
@@ -439,10 +439,10 @@ class LinearCorrection(DataRetrievalBase):
             shape (lat, lon, time)
         """
 
-        if not os.path.exists(os.path.dirname(fp_out)):
-            os.makedirs(os.path.dirname(fp_out), exist_ok=True)
-
         if fp_out is not None:
+            if not os.path.exists(os.path.dirname(fp_out)):
+                os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
             with h5py.File(fp_out, 'w') as f:
                 # pylint: disable=E1136
                 lat = self.bias_dh.lat_lon[..., 0]
@@ -459,7 +459,7 @@ class LinearCorrection(DataRetrievalBase):
                             .format(fp_out))
 
     def run(self, knn, threshold=0.6, fp_out=None, max_workers=None,
-            daily_avg=True, smoothing=0):
+            daily_avg=True, fill_extend=True, smooth_extend=0):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
@@ -472,7 +472,7 @@ class LinearCorrection(DataRetrievalBase):
             If the bias data coordinate is on average further from the base
             data coordinates than this threshold, no bias correction factors
             will be calculated directly and will just be filled from nearest
-            neighbor.
+            neighbor (if fill_extend=True, else it will be nan).
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
         max_workers : int
@@ -480,10 +480,14 @@ class LinearCorrection(DataRetrievalBase):
             available.
         daily_avg : bool
             Flag to do temporal daily averaging of the base data.
-        smoothing : float
+        fill_extend : bool
+            Flag to fill data past threshold using spatial nearest neighbor. If
+            False, the extended domain will be left as NaN.
+        smooth_extend : float
             Option to smooth the scalar/adder data outside of the spatial
             domain set by the threshold input. This alleviates the weird seams
-            far from the domain of interest.
+            far from the domain of interest. This value is the standard
+            deviation for the gaussian_filter kernel
 
         Returns
         -------
@@ -533,7 +537,7 @@ class LinearCorrection(DataRetrievalBase):
                     coord = bias_row[['latitude', 'longitude']]
                     dist, base_gid = self.base_tree.query(coord, k=knn)
 
-                    if dist.mean() < threshold:
+                    if np.mean(dist) < threshold:
                         bias_data = self.get_bias_data(bias_gid)
 
                         future = exe.submit(self._run_single, bias_data,
@@ -557,16 +561,19 @@ class LinearCorrection(DataRetrievalBase):
 
         nan_mask = np.isnan(scalar[..., 0])
 
-        for idt in range(self.NT):
-            scalar[..., idt] = nn_fill_array(scalar[..., idt])
-            adder[..., idt] = nn_fill_array(adder[..., idt])
-            if smoothing > 0:
-                scalar_smooth = gaussian_filter(scalar[..., idt], smoothing,
-                                                mode='nearest')
-                adder_smooth = gaussian_filter(adder[..., idt], smoothing,
-                                               mode='nearest')
-                scalar[nan_mask, idt] = scalar_smooth[nan_mask]
-                adder[nan_mask, idt] = adder_smooth[nan_mask]
+        if fill_extend:
+            for idt in range(self.NT):
+                scalar[..., idt] = nn_fill_array(scalar[..., idt])
+                adder[..., idt] = nn_fill_array(adder[..., idt])
+                if smooth_extend > 0:
+                    scalar_smooth = gaussian_filter(scalar[..., idt],
+                                                    smooth_extend,
+                                                    mode='nearest')
+                    adder_smooth = gaussian_filter(adder[..., idt],
+                                                   smooth_extend,
+                                                   mode='nearest')
+                    scalar[nan_mask, idt] = scalar_smooth[nan_mask]
+                    adder[nan_mask, idt] = adder_smooth[nan_mask]
 
         self.write_outputs(fp_out, scalar, adder)
 
@@ -599,10 +606,11 @@ class MonthlyLinearCorrection(LinearCorrection):
             bias_mask = bias_ti.month == month
             base_mask = base_ti.month == month
 
-            ms, ma = cls.get_linear_correction(bias_data[bias_mask],
-                                               base_data[base_mask])
+            if any(bias_mask) and any(base_mask):
+                ms, ma = cls.get_linear_correction(bias_data[bias_mask],
+                                                   base_data[base_mask])
 
-            scalar[month - 1] = ms
-            adder[month - 1] = ma
+                scalar[month - 1] = ms
+                adder[month - 1] = ma
 
         return scalar, adder
