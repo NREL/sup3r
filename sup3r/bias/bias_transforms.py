@@ -86,6 +86,12 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         scalar = scalar[spatial_slice]
         adder = adder[spatial_slice]
 
+    if np.isnan(scalar).any() or np.isnan(adder).any():
+        msg = ('Bias correction scalar/adder values had NaNs for "{}" from: {}'
+               .format(feature_name, bias_fp))
+        logger.warning(msg)
+        warn(msg)
+
     scalar = np.expand_dims(scalar, axis=-1)
     adder = np.expand_dims(adder, axis=-1)
 
@@ -174,6 +180,12 @@ def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
                    'with temporal averaging over a time index with >2 months.')
             warn(msg)
             logger.warning(msg)
+
+    if np.isnan(scalar).any() or np.isnan(adder).any():
+        msg = ('Bias correction scalar/adder values had NaNs for "{}" from: {}'
+               .format(feature_name, bias_fp))
+        logger.warning(msg)
+        warn(msg)
 
     out = input * scalar + adder
     if out_range is not None:

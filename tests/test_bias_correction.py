@@ -1,27 +1,31 @@
 # -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
 import os
+import pytest
+import tempfile
 import numpy as np
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR
 from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
+from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 
+with xr.open_mfdataset(FP_CC) as fh:
+    MIN_LAT = np.min(fh.lat.values)
+    MIN_LON = np.min(fh.lon.values) - 360
+    TARGET = (MIN_LAT, MIN_LON)
+    SHAPE = (len(fh.lat.values), len(fh.lon.values))
+
 
 def test_linear_bc():
     """Test linear bias correction"""
-    with xr.open_mfdataset(FP_CC) as fh:
-        min_lat = np.min(fh.lat.values)
-        min_lon = np.min(fh.lon.values) - 360
-        target = (min_lat, min_lon)
-        shape = (len(fh.lat.values), len(fh.lon.values))
 
     calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
-                            target, shape, bias_handler='DataHandlerNCforCC')
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
 
     # test a known in-bounds gid
     bias_gid = 5
@@ -78,17 +82,18 @@ def test_linear_bc():
     assert not np.allclose(smooth_scalar[nan_mask], scalar[nan_mask])
     assert not np.allclose(smooth_adder[nan_mask], adder[nan_mask])
 
+    # parallel test
+    par_scalar, par_adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
+                                     smooth_extend=2, max_workers=2)
+    assert np.allclose(smooth_scalar, par_scalar)
+    assert np.allclose(smooth_adder, par_adder)
+
 
 def test_monthly_linear_bc():
     """Test linear bias correction on a month-by-month basis"""
-    with xr.open_mfdataset(FP_CC) as fh:
-        min_lat = np.min(fh.lat.values)
-        min_lon = np.min(fh.lon.values) - 360
-        target = (min_lat, min_lon)
-        shape = (len(fh.lat.values), len(fh.lon.values))
 
     calc = MonthlyLinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
-                                   target, shape,
+                                   TARGET, SHAPE,
                                    bias_handler='DataHandlerNCforCC')
 
     # test a known in-bounds gid
@@ -125,3 +130,78 @@ def test_monthly_linear_bc():
     last_mon = base_ti.month[-1]
     assert np.isnan(scalar[..., last_mon:]).all()
     assert np.isnan(adder[..., last_mon:]).all()
+
+
+def test_linear_transform():
+    """Test the linear bc transform method"""
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'bc.h5')
+        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=False,
+                                 max_workers=1, fp_out=fp_out)
+        test_data = np.ones_like(scalar)
+        with pytest.warns():
+            out = local_linear_bc(test_data, 'rsds', fp_out,
+                                  lr_padded_slice=None, out_range=None)
+
+        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
+                                 max_workers=1, fp_out=fp_out)
+        test_data = np.ones_like(scalar)
+        out = local_linear_bc(test_data, 'rsds', fp_out,
+                              lr_padded_slice=None, out_range=None)
+        assert np.allclose(out, scalar + adder)
+
+        out_range = (0, 10)
+        too_big = out > np.max(out_range)
+        too_small = out < np.min(out_range)
+        out_mask = too_big | too_small
+        assert out_mask.any()
+
+        out = local_linear_bc(test_data, 'rsds', fp_out,
+                              lr_padded_slice=None, out_range=out_range)
+
+        assert np.allclose(out[too_big], np.max(out_range))
+        assert np.allclose(out[too_small], np.min(out_range))
+
+        lr_slice = (slice(1, 2), slice(2, 3), slice(None))
+        sliced_out = local_linear_bc(test_data[lr_slice], 'rsds', fp_out,
+                                     lr_padded_slice=lr_slice,
+                                     out_range=out_range)
+        assert np.allclose(out[lr_slice], sliced_out)
+
+
+def test_montly_linear_transform():
+    """Test the montly linear bc transform method"""
+    calc = MonthlyLinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                                   TARGET, SHAPE,
+                                   bias_handler='DataHandlerNCforCC')
+    base_data, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                            5, calc.base_handler,
+                                            daily_avg=True)
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'bc.h5')
+        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
+                                 max_workers=1, fp_out=fp_out)
+        test_data = np.ones((scalar.shape[0], scalar.shape[1], len(base_ti)))
+        with pytest.warns():
+            out = monthly_local_linear_bc(test_data, 'rsds', fp_out,
+                                          lr_padded_slice=None,
+                                          time_index=base_ti,
+                                          temporal_avg=True,
+                                          out_range=None)
+
+        im = base_ti.month - 1
+        truth = scalar[..., im].mean(axis=-1) + adder[..., im].mean(axis=-1)
+        truth = np.expand_dims(truth, axis=-1)
+        assert np.allclose(truth, out)
+
+        out = monthly_local_linear_bc(test_data, 'rsds', fp_out,
+                                      lr_padded_slice=None,
+                                      time_index=base_ti,
+                                      temporal_avg=False,
+                                      out_range=None)
+
+        for i, m in enumerate(base_ti.month):
+            truth = scalar[..., m - 1] + adder[..., m - 1]
+            assert np.allclose(truth, out[..., i])
