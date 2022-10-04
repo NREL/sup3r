@@ -44,7 +44,8 @@ class Sup3rQa:
                  max_workers=None,
                  extract_workers=None,
                  compute_workers=None,
-                 load_workers=None):
+                 load_workers=None,
+                 ti_workers=None):
         """
         Parameters
         ----------
@@ -150,12 +151,20 @@ class Sup3rQa:
             raw features in source data.
         load_workers : int | None
             max number of workers to use for loading cached feature data.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
 
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
+            ti_workers = max_workers
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -184,6 +193,7 @@ class Sup3rQa:
                                            max_workers=max_workers,
                                            extract_workers=extract_workers,
                                            compute_workers=compute_workers,
+                                           ti_workers=ti_workers,
                                            load_workers=load_workers)
 
     def __enter__(self):
