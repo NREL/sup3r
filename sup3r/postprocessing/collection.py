@@ -698,14 +698,17 @@ class Collector:
                 target_final_meta_file=target_final_meta_file)
             time_index, final_target_meta, masked_target_meta = out[:3]
             shape, _, global_attrs = out[3:]
+
             if not os.path.exists(out_file):
                 collector._init_collected_h5(out_file, time_index,
                                              final_target_meta, global_attrs)
+
             if len(flist_chunks) == 1:
                 collector._collect_flist(dset, masked_target_meta, time_index,
                                          shape, flist_chunks[0], out_file,
                                          final_target_meta, masked_target_meta,
                                          max_workers=max_workers)
+
             else:
                 for j, flist in enumerate(flist_chunks):
                     logger.info('Collecting file list chunk {} out of {} '
@@ -719,6 +722,7 @@ class Collector:
                                              target_final_meta,
                                              masked_target_meta,
                                              max_workers=max_workers)
+
         if write_status and job_name is not None:
             status = {'out_dir': os.path.dirname(out_file),
                       'fout': out_file,

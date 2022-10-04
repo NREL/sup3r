@@ -12,11 +12,13 @@ import warnings
 import copy
 from datetime import datetime as dt
 import psutil
+from inspect import signature
 
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.execution import SpawnProcessPool
 
 import sup3r.models
+import sup3r.bias.bias_transforms
 from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
@@ -558,8 +560,10 @@ class ForwardPassStrategy(InputMixIn):
                  output_workers=None,
                  ti_workers=None,
                  exo_kwargs=None,
-                 max_nodes=None,
-                 pass_workers=1):
+                 pass_workers=1,
+                 bias_correct_method=None,
+                 bias_correct_kwargs=None,
+                 max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -688,6 +692,19 @@ class ForwardPassStrategy(InputMixIn):
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
             pass
+        bias_correct_method : str | None
+            Optional bias correction function name that can be imported from
+            the sup3r.bias.bias_transforms module. This will transform the
+            source data according to some predefined bias correction
+            transformation along with the bias_correct_kwargs. As the first
+            argument, this method must receive a generic numpy array of data to
+            be bias corrected
+        bias_correct_kwargs : dict | None
+            Optional namespace of kwargs to provide to bias_correct_method.
+            If this is provided, it must be a dictionary where each key is a
+            feature name and each value is a dictionary of kwargs to correct
+            that feature. You can bias correct only certain input features by
+            only including those feature names in this dict.
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
@@ -729,6 +746,8 @@ class ForwardPassStrategy(InputMixIn):
         self._time_index_file = None
         self._node_chunks = None
         self.incremental = incremental
+        self.bias_correct_method = bias_correct_method
+        self.bias_correct_kwargs = bias_correct_kwargs or {}
 
         self.cap_worker_args(max_workers)
 
@@ -797,18 +816,6 @@ class ForwardPassStrategy(InputMixIn):
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
-
-        msg = (f'Using a larger temporal_pad {self.temporal_pad} than '
-               f'temporal_chunk_size {self.fwp_chunk_shape[2]}.')
-        if self.temporal_pad > self.fwp_chunk_shape[2]:
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        msg = (f'Using a larger spatial_pad {self.spatial_pad} than '
-               f'spatial_chunk_size {self.fwp_chunk_shape[:2]}.')
-        if any(self.spatial_pad > sc for sc in self.fwp_chunk_shape[:2]):
-            logger.warning(msg)
-            warnings.warn(msg)
 
         msg = ('Using a padded chunk size '
                f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
@@ -1133,9 +1140,12 @@ class ForwardPass:
         input_handler_kwargs.update(self.strategy._input_handler_kwargs)
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
+        self.input_data = self.data_handler.data
+
+        self.input_data = self.bias_correct_source_data(self.input_data)
 
         exo_s_en = self.exo_kwargs.get('s_enhancements', None)
-        out = self.pad_source_data(self.data_handler.data,
+        out = self.pad_source_data(self.input_data,
                                    self.pad_s1_start, self.pad_s1_end,
                                    self.pad_s2_start, self.pad_s2_end,
                                    self.pad_t_start, self.pad_t_end,
@@ -1162,16 +1172,30 @@ class ForwardPass:
         return ti_pad_slice
 
     @property
+    def lr_padded_slice(self):
+        """Get the padded slice argument that can be used to slice the full
+        domain source low res data to return just the extent used for the
+        current chunk.
+
+        Returns
+        -------
+        lr_padded_slice : tuple
+            Tuple of length four that slices (spatial_1, spatial_2, temporal,
+            features) where each tuple entry is a slice object for that axes.
+        """
+        return self.strategy.lr_pad_slices[self.spatial_chunk_index]
+
+    @property
     def target(self):
         """Get target for current spatial chunk"""
-        lr_slice = self.strategy.lr_pad_slices[self.spatial_chunk_index]
-        return self.strategy.lr_lat_lon[lr_slice[0], lr_slice[1]][-1, 0]
+        spatial_slice = self.lr_padded_slice[0], self.lr_padded_slice[1]
+        return self.strategy.lr_lat_lon[spatial_slice][-1, 0]
 
     @property
     def shape(self):
         """Get shape for current spatial chunk"""
-        lr_slice = self.strategy.lr_pad_slices[self.spatial_chunk_index]
-        return self.strategy.lr_lat_lon[lr_slice[0], lr_slice[1]].shape[:-1]
+        spatial_slice = self.lr_padded_slice[0], self.lr_padded_slice[1]
+        return self.strategy.lr_lat_lon[spatial_slice].shape[:-1]
 
     @property
     def chunks(self):
@@ -1351,6 +1375,43 @@ class ForwardPass:
                     exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
 
         return out, exo_data
+
+    def bias_correct_source_data(self, data):
+        """Bias correct data using a method defined by the bias_correct_method
+        input to ForwardPassStrategy
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Any source data to be bias corrected, with the feature channel in
+            the last axis.
+
+        Returns
+        -------
+        data : np.ndarray
+            Data corrected by the bias_correct_method ready for input to the
+            forward pass through the generative model.
+        """
+        method = self.strategy.bias_correct_method
+        kwargs = self.strategy.bias_correct_kwargs
+        if method is not None:
+            method = getattr(sup3r.bias.bias_transforms, method)
+            logger.info('Running bias correction with: {}'.format(method))
+            for feature, feature_kwargs in kwargs.items():
+                idf = self.data_handler.features.index(feature)
+
+                if 'lr_padded_slice' in signature(method).parameters:
+                    feature_kwargs['lr_padded_slice'] = self.lr_padded_slice
+                if 'time_index' in signature(method).parameters:
+                    feature_kwargs['time_index'] = self.data_handler.time_index
+
+                logger.debug('Bias correcting feature "{}" at axis index {} '
+                             'using function: {} with kwargs: {}'
+                             .format(feature, idf, method, feature_kwargs))
+
+                data[..., idf] = method(data[..., idf], **feature_kwargs)
+
+        return data
 
     def _prep_exogenous_input(self, chunk_shape):
         """Shape exogenous data according to model type and model steps
@@ -1551,6 +1612,7 @@ class ForwardPass:
         """
         data_chunk = self.input_data
         exo_data = []
+
         if self.exogenous_data is not None:
             exo_data = self._prep_exogenous_input(data_chunk.shape)
 
@@ -1585,16 +1647,22 @@ class ForwardPass:
             logger.info('Not running chunk index {}, output file '
                         'exists: {}'.format(chunk_index, out_file))
         else:
-            fwp = cls(strategy, chunk_index, node_index)
-            logger.info(f'Running forward pass for chunk_index={chunk_index}, '
-                        f'node_index={node_index}, '
-                        f'file_paths={fwp.file_paths}')
-            fwp.run_chunk()
+            try:
+                fwp = cls(strategy, chunk_index, node_index)
+                logger.info(f'Running forward pass for '
+                            f'chunk_index={chunk_index}, '
+                            f'node_index={node_index}, '
+                            f'file_paths={fwp.file_paths}')
+                fwp.run_chunk()
+            except Exception as e:
+                msg = ('Sup3r ForwardPass chunk failed!')
+                logger.exception(msg)
+                raise RuntimeError(msg) from e
 
     @classmethod
     def run(cls, strategy, node_index):
         """This routine runs forward passes on all spatiotemporal chunks for
-        the given node index
+        the given node index.
 
         Parameters
         ----------
@@ -1619,6 +1687,7 @@ class ForwardPass:
                             'complete. Current memory usage is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB total.')
+
         else:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
@@ -1629,9 +1698,10 @@ class ForwardPass:
                 for chunk_index in strategy.node_chunks[node_index]:
                     future = exe.submit(cls.incremental_check_run,
                                         strategy=strategy,
-                                        chunk_index=chunk_index,
-                                        node_index=node_index)
+                                        node_index=node_index,
+                                        chunk_index=chunk_index)
                     futures[future] = chunk_index
+
                 logger.info(f'Started {len(futures)} forward passes '
                             f'in {dt.now() - now}.')
 

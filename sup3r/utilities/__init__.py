@@ -45,6 +45,7 @@ class ModuleName(str, Enum):
     QA = 'qa'
     SOLAR = 'solar'
     WIND_STATS = 'wind-stats'
+    BIAS_CALC = 'bias-calc'
 
     @classmethod
     def all_names(cls):

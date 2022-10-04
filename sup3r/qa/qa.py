@@ -6,10 +6,12 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import logging
+from inspect import signature
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
-from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
+import sup3r.bias.bias_transforms
 from sup3r.preprocessing.feature_handling import Feature
+from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
@@ -32,6 +34,8 @@ class Sup3rQa:
                  shape=None,
                  raster_file=None,
                  qa_fp=None,
+                 bias_correct_method=None,
+                 bias_correct_kwargs=None,
                  save_sources=True,
                  time_chunk_size=None,
                  cache_pattern=None,
@@ -40,7 +44,8 @@ class Sup3rQa:
                  max_workers=None,
                  extract_workers=None,
                  compute_workers=None,
-                 load_workers=None):
+                 load_workers=None,
+                 ti_workers=None):
         """
         Parameters
         ----------
@@ -68,7 +73,11 @@ class Sup3rQa:
             Explicit list of features to validate. Can be a list of string
             feature names, a dictionary mapping the sup3r output feature name
             to the source_handler feature name (e.g. {'ghi': 'rsds'}), or None
-            for all features found in the out_file_path.
+            for all features found in the out_file_path. The dict can also map
+            the special case of one sup3r output windspeed name to two
+            source_handler windspeed component names so that each windspeed
+            component gets bias corrected separately
+            (e.g. {'windspeed_100m': ['U_100m', 'V_100m']})
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
@@ -92,6 +101,19 @@ class Sup3rQa:
         qa_fp : str | None
             Optional filepath to output QA file when you call Sup3rQa.run()
             (only .h5 is supported)
+        bias_correct_method : str | None
+            Optional bias correction function name that can be imported from
+            the sup3r.bias.bias_transforms module. This will transform the
+            source data according to some predefined bias correction
+            transformation along with the bias_correct_kwargs. As the first
+            argument, this method must receive a generic numpy array of data to
+            be bias corrected
+        bias_correct_kwargs : dict | None
+            Optional namespace of kwargs to provide to bias_correct_method.
+            If this is provided, it must be a dictionary where each key is a
+            feature name and each value is a dictionary of kwargs to correct
+            that feature. You can bias correct only certain input features by
+            only including those feature names in this dict.
         save_sources : bool
             Flag to save re-coarsened synthetic data and true low-res data to
             qa_fp in addition to the error dataset
@@ -129,12 +151,20 @@ class Sup3rQa:
             raw features in source data.
         load_workers : int | None
             max number of workers to use for loading cached feature data.
+        ti_workers : int | None
+            max number of workers to use to get full time index. Useful when
+            there are many input files each with a single time step. If this is
+            greater than one, time indices for input files will be extracted in
+            parallel and then concatenated to get the full time index. If input
+            files do not all have time indices or if there are few input files
+            this should be set to one.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
 
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
+            ti_workers = max_workers
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -144,6 +174,9 @@ class Sup3rQa:
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
+
+        self.bias_correct_method = bias_correct_method
+        self.bias_correct_kwargs = bias_correct_kwargs or {}
 
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
@@ -160,6 +193,7 @@ class Sup3rQa:
                                            max_workers=max_workers,
                                            extract_workers=extract_workers,
                                            compute_workers=compute_workers,
+                                           ti_workers=ti_workers,
                                            load_workers=load_workers)
 
     def __enter__(self):
@@ -237,7 +271,13 @@ class Sup3rQa:
         input mapping if a dictionary was provided, e.g. if
         features={'ghi': 'rsds'}, this property will return ['rsds']"""
         if isinstance(self._features, dict):
-            source_features = [self._features[f] for f in self.features]
+            temp = [self._features[f] for f in self.features]
+            source_features = []
+            for feat in temp:
+                if isinstance(feat, (list, tuple)):
+                    source_features += list(feat)
+                else:
+                    source_features.append(feat)
         else:
             source_features = self.features
 
@@ -271,6 +311,78 @@ class Sup3rQa:
             return xr.open_dataset
         elif self.output_type == 'h5':
             return Resource
+
+    def bias_correct_source_data(self, data, feature):
+        """Bias correct data using a method defined by the bias_correct_method
+        input to ForwardPassStrategy
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Any source data to be bias corrected, with the feature channel in
+            the last axis.
+
+        Returns
+        -------
+        data : np.ndarray
+            Data corrected by the bias_correct_method ready for input to the
+            forward pass through the generative model.
+        """
+        method = self.bias_correct_method
+        kwargs = self.bias_correct_kwargs
+        if method is not None:
+            method = getattr(sup3r.bias.bias_transforms, method)
+            logger.info('Running bias correction with: {}'.format(method))
+            feature_kwargs = kwargs[feature]
+            if 'time_index' in signature(method).parameters:
+                feature_kwargs['time_index'] = self.time_index
+            logger.debug('Bias correcting feature "{}" using function: {} '
+                         'with kwargs: {}'
+                         .format(feature, method, feature_kwargs))
+
+            data = method(data, **feature_kwargs)
+
+        return data
+
+    def get_source_dset(self, idf, feature):
+        """Get source low res input data including optional bias correction
+
+        Parameters
+        ----------
+        idf : int
+            Feature index in axis=-1 of the source data handler.
+        feature : str
+            Feature name
+
+        Returns
+        -------
+        data_true : np.array
+            Low-res source input data including optional bias correction
+        """
+
+        height = str(Feature.get_height(feature))
+        uv_comps = np.sum([name.startswith(('U_', 'V_'))
+                           for name in self.source_features
+                           if height in name])
+
+        if 'windspeed' in feature and uv_comps >= 2:
+            u_feat = feature.replace('windspeed_', 'U_')
+            v_feat = feature.replace('windspeed_', 'V_')
+            logger.info('For sup3r output feature "{}", retrieving u/v '
+                        'components "{}" and "{}"'
+                        .format(feature, u_feat, v_feat))
+            u_idf = self.source_handler.features.index(u_feat)
+            v_idf = self.source_handler.features.index(v_feat)
+            u_true = self.source_handler.data[..., u_idf]
+            v_true = self.source_handler.data[..., v_idf]
+            u_true = self.bias_correct_source_data(u_true, u_feat)
+            v_true = self.bias_correct_source_data(v_true, v_feat)
+            data_true = np.hypot(u_true, v_true)
+        else:
+            data_true = self.source_handler.data[..., idf]
+            data_true = self.bias_correct_source_data(data_true, feature)
+
+        return data_true
 
     def get_dset_out(self, name):
         """Get an output dataset from the forward pass output file.
@@ -446,7 +558,7 @@ class Sup3rQa:
                         .format(idf + 1, len(self.features), feature))
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(data_syn)
-            data_true = self.source_handler.data[..., idf]
+            data_true = self.get_source_dset(idf, feature)
 
             if data_syn.shape != data_true.shape:
                 msg = ('Sup3rQa failed while trying to inspect the "{}" '
