@@ -138,11 +138,11 @@ class Sup3rWindStats:
         get_lr : bool
             Whether to include low resolution stats in output
         include_stats : list | None
-            List of stats to include in output. e.g. ['ws_ramp_rate',
+            List of stats to include in output. e.g. ['ramp_rate',
             'velocity_grad', 'vorticity', 'tke_avg_k', 'tke_avg_f', 'tke_ts']
         max_values : dict | None
             Dictionary of max values to keep for stats. e.g.
-            {'ws_ramp_rate_max': 10, 'v_grad_max': 14, 'vorticity_max': 7}
+            {'ramp_rate_max': 10, 'v_grad_max': 14, 'vorticity_max': 7}
         ramp_rate_t_step : int | list
             Number of time steps to use for ramp rate calculation. If low res
             data is hourly then t_step=1 will calculate the hourly ramp rate.
@@ -168,16 +168,16 @@ class Sup3rWindStats:
             ti_workers = max_workers
 
         self.max_values = max_values or {}
-        self.ws_ramp_rate_max = self.max_values.get('ws_ramp_rate_max', 10)
+        self.ramp_rate_max = self.max_values.get('ramp_rate_max', 10)
         self.v_grad_max = self.max_values.get('v_grad_max', 7)
         self.vorticity_max = self.max_values.get('vorticity_max', 14)
         self.ramp_rate_t_step = (ramp_rate_t_step
                                  if isinstance(ramp_rate_t_step, list)
                                  else [ramp_rate_t_step])
-        self.include_stats = include_stats or ['ws_ramp_rate', 'velocity_grad',
+        self.include_stats = include_stats or ['ramp_rate', 'velocity_grad',
                                                'vorticity', 'tke_avg_k',
                                                'tke_avg_f', 'tke_ts',
-                                               'mean_ws_ramp_rate']
+                                               'mean_ramp_rate']
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -761,18 +761,18 @@ class Sup3rWindStats:
         """
 
         stats_dict = {}
-        if 'ws_ramp_rate' in self.include_stats:
+        if 'ramp_rate' in self.include_stats:
             for i, time in enumerate(self.ramp_rate_t_step):
                 logger.info('Computing ramp rate pdf.')
-                out = ws_ramp_rate_dist(u, v, diff_max=self.ws_ramp_rate_max,
+                out = ws_ramp_rate_dist(u, v, diff_max=self.ramp_rate_max,
                                         t_steps=time, scale=scale)
                 stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
-        if 'mean_ws_ramp_rate' in self.include_stats:
+        if 'mean_ramp_rate' in self.include_stats:
             for i, time in enumerate(self.ramp_rate_t_step):
                 logger.info('Computing mean ramp rate pdf.')
                 out = ws_ramp_rate_dist(np.mean(u, axis=(0, 1)),
                                         np.mean(v, axis=(0, 1)),
-                                        diff_max=self.ws_ramp_rate_max,
+                                        diff_max=self.ramp_rate_max,
                                         t_steps=time, scale=scale)
                 stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
         return stats_dict
@@ -879,7 +879,7 @@ class Sup3rWindStats:
         stats : dict
             Dictionary of statistics, where keys are lr/hr/interp appended with
             the height of the corresponding wind field. Values are dictionaries
-            of statistics, such as velocity_gradient, vorticity, ws_ramp_rate,
+            of statistics, such as velocity_gradient, vorticity, ramp_rate,
             etc
         """
 
