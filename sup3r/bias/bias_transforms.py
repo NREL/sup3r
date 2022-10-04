@@ -38,7 +38,8 @@ def global_linear_bc(input, scalar, adder, out_range=None):
 
 def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
                     out_range=None):
-    """Bias correct data using a simple global *scalar +adder method.
+    """Bias correct data using a simple annual (or multi-year) *scalar +adder
+    method on a site-by-site basis.
 
     Parameters
     ----------
@@ -108,7 +109,8 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
 
 def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
                             time_index, temporal_avg=True, out_range=None):
-    """Bias correct data using a simple global *scalar +adder method.
+    """Bias correct data using a simple monthly *scalar +adder method on a
+    site-by-site basis.
 
     Parameters
     ----------

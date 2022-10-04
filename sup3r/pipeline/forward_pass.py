@@ -1662,6 +1662,7 @@ class ForwardPass:
     @classmethod
     def run(cls, strategy, node_index):
         """This routine runs forward passes on all spatiotemporal chunks for
+        the given node index.
 
         Parameters
         ----------

@@ -455,7 +455,7 @@ class LinearCorrection(DataRetrievalBase):
                 f.create_dataset(f'{self.bias_feature}_adder', data=adder)
 
                 for k, v in self.meta.items():
-                    f.attrs[k] = v
+                    f.attrs[k] = json.dumps(v)
 
                 logger.info('Wrote scalar adder factors to file: {}'
                             .format(fp_out))
