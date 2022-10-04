@@ -710,10 +710,14 @@ def test_fwp_multi_step_model():
             assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m']
 
 
-def test_slicing_no_pad():
+def test_slicing_no_pad(log=False):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Does not include any
     reflected padding at the edges."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
     Sup3rGan.seed()
     s_enhance = 3
     t_enhance = 4
@@ -751,7 +755,6 @@ def test_slicing_no_pad():
 
         for ichunk in range(strategy.chunks):
             forward_pass = ForwardPass(strategy, chunk_index=ichunk)
-
             s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
             lr_data_slice = (s_slices[0], s_slices[1],
                              forward_pass._ti_pad_slice,
@@ -761,10 +764,14 @@ def test_slicing_no_pad():
             assert np.allclose(forward_pass.input_data, truth)
 
 
-def test_slicing_pad():
+def test_slicing_pad(log=False):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Includes reflected padding
     at the edges."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
     Sup3rGan.seed()
     s_enhance = 3
     t_enhance = 4

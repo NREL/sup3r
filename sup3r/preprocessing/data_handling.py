@@ -76,7 +76,7 @@ class InputMixIn:
     def __init__(self):
         self.raster_file = None
         self.raster_index = None
-        self.overwrite_cache = False
+        self.overwrite_ti_cache = False
         self.max_workers = None
         self.lat_lon = None
         self._ti_workers = None
@@ -337,7 +337,7 @@ class InputMixIn:
         if self._raw_time_index is None:
             check = (self.time_index_file is not None
                      and os.path.exists(self.time_index_file)
-                     and not self.overwrite_cache)
+                     and not self.overwrite_ti_cache)
             if check:
                 logger.debug('Loading raw_time_index from '
                              f'{self.time_index_file}')
@@ -437,12 +437,12 @@ class DataHandler(FeatureHandler, InputMixIn):
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=20, temporal_slice=slice(None),
                  hr_spatial_coarsen=None, time_roll=0, val_split=0.05,
-                 sample_shape=(10, 10, 1), raster_file=None,
+                 sample_shape=(10, 10, 1), raster_file=None, raster_index=None,
                  shuffle_time=False, time_chunk_size=None, cache_pattern=None,
-                 overwrite_cache=False, load_cached=False,
-                 train_only_features=None, max_workers=None,
+                 overwrite_cache=False, overwrite_ti_cache=False,
+                 load_cached=False, train_only_features=None, max_workers=None,
                  extract_workers=None, compute_workers=None, load_workers=None,
-                 norm_workers=None, ti_workers=None):
+                 norm_workers=None, ti_workers=None, handle_features=None):
         """
         Parameters
         ----------
@@ -485,9 +485,14 @@ class DataHandler(FeatureHandler, InputMixIn):
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist.  If None
-            raster_index will be calculated directly. Either need target+shape
-            or raster_file.
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
+        raster_index : list
+            List of tuples or slices. Used as an alternative to computing the
+            raster index from target+shape or loading the raster index from
+            file
         shuffle_time : bool
             Whether to shuffle time indices before valiidation split
         time_chunk_size : int
@@ -504,6 +509,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             files for complex problems.
         overwrite_cache : bool
             Whether to overwrite any previously saved cache files.
+        overwrite_ti_cache : bool
+            Whether to overwrite any previously saved time index cache files.
+        overwrite_ti_cache : bool
+            Whether to overwrite saved time index cache files.
         load_cached : bool
             Whether to load data from cache files
         train_only_features : list | tuple | None
@@ -548,6 +557,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.shuffle_time = shuffle_time
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
+        self.overwrite_ti_cache = overwrite_ti_cache
         self.load_cached = load_cached
         self.data = None
         self.val_data = None
@@ -568,8 +578,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._time_index = None
         self._time_index_file = None
         self._lat_lon = None
-        self._raster_index = None
-        self._handle_features = None
+        self._raster_index = raster_index
+        self._handle_features = handle_features
         self._extract_features = None
         self._noncached_features = None
         self._raw_features = None
@@ -587,7 +597,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.preflight()
 
         logger.info(f'Using max_workers={max_workers}, '
-                    f'_norm_workers={self._norm_workers}, '
+                    f'norm_workers={self.norm_workers}, '
                     f'extract_workers={self.extract_workers}, '
                     f'compute_workers={self.compute_workers}, '
                     f'load_workers={self.load_workers}, '
@@ -733,9 +743,12 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def norm_workers(self):
         """Get upper bound on workers used for normalization."""
-        norm_workers = estimate_max_workers(self._norm_workers,
-                                            2 * self.feature_mem,
-                                            self.shape[-1])
+        if self.data is not None:
+            norm_workers = estimate_max_workers(self._norm_workers,
+                                                2 * self.feature_mem,
+                                                self.shape[-1])
+        else:
+            norm_workers = self._norm_workers
         return norm_workers
 
     @property
@@ -813,13 +826,32 @@ class DataHandler(FeatureHandler, InputMixIn):
         """Update raster index property"""
         self._raster_index = raster_index
 
+    @classmethod
+    def get_handle_features(cls, file_paths):
+        """Get all available features in input data
+
+        Parameters
+        ----------
+        file_paths : list
+            List of input file paths
+
+        Returns
+        -------
+        handle_features : list
+            List of available input features
+        """
+        handle_features = []
+        for f in file_paths:
+            with cls.source_handler([f]) as handle:
+                for r in handle:
+                    handle_features.append(Feature.get_basename(r))
+        return list(set(handle_features))
+
     @property
     def handle_features(self):
         """All features available in raw input"""
         if self._handle_features is None:
-            with self.source_handler(self.file_paths) as handle:
-                self._handle_features = [Feature.get_basename(r)
-                                         for r in handle]
+            self._handle_features = self.get_handle_features(self.file_paths)
         return self._handle_features
 
     @property
@@ -1250,8 +1282,10 @@ class DataHandler(FeatureHandler, InputMixIn):
                     logger.info(f'Saving {self.features[i]} with shape '
                                 f'{self.data[..., i].shape} to {fp}')
 
-                with open(fp, 'wb') as fh:
+                tmp_file = fp.replace('.pkl', '.pkl.tmp')
+                with open(tmp_file, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
+                os.rename(tmp_file, fp)
             else:
                 msg = (f'Called cache_data but {fp} already exists. Set to '
                        'overwrite_cache to True to overwrite.')
@@ -1879,6 +1913,52 @@ class DataHandlerNC(DataHandler):
         col = col[0]
         return row, col
 
+    @classmethod
+    def compute_raster_index(cls, file_paths, target, grid_shape):
+        """Get raster index for a given target and shape
+
+        Parameters
+        ----------
+        file_paths : list
+            List of input data file paths
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+
+        Returns
+        -------
+        list
+            List of slices corresponding to extracted data region
+        """
+        lat_lon = cls.get_lat_lon(file_paths[:1],
+                                  [slice(None), slice(None)],
+                                  invert_lat=False)
+        min_lat = np.min(lat_lon[..., 0])
+        min_lon = np.min(lat_lon[..., 1])
+        max_lat = np.max(lat_lon[..., 0])
+        max_lon = np.max(lat_lon[..., 1])
+        logger.debug('Calculating raster index from WRF file '
+                     f'for shape {grid_shape} and target '
+                     f'{target}')
+        msg = (f'target {target} out of bounds with min lat/lon '
+               f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
+        assert (min_lat <= target[0] <= max_lat
+                and min_lon <= target[1] <= max_lon), msg
+
+        row, col = cls.get_closest_lat_lon(lat_lon, target)
+        raster_index = [slice(row, row + grid_shape[0]),
+                        slice(col, col + grid_shape[1])]
+
+        if (raster_index[0].stop > lat_lon.shape[0]
+           or raster_index[1].stop > lat_lon.shape[1]):
+            msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
+                   f'{raster_index} for data domain of size '
+                   f'{lat_lon.shape[:-1]} with lower left corner '
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}).')
+            raise ValueError(msg)
+        return raster_index
+
     def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in
         file_paths all have data with the same spatial domain. We use the first
@@ -1901,38 +1981,12 @@ class DataHandlerNC(DataHandler):
             msg = ('Must provide raster file or shape + target to get '
                    'raster index')
             assert check, msg
-            lat_lon = self.get_lat_lon(self.file_paths[:1],
-                                       [slice(None), slice(None)],
-                                       invert_lat=False)
-            min_lat = np.min(lat_lon[..., 0])
-            min_lon = np.min(lat_lon[..., 1])
-            max_lat = np.max(lat_lon[..., 0])
-            max_lon = np.max(lat_lon[..., 1])
-            logger.debug('Calculating raster index from WRF file '
-                         f'for shape {self.grid_shape} and target '
-                         f'{self.target}')
-            msg = (f'target {self.target} out of bounds with min lat/lon '
-                   f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
-            assert (min_lat <= self.target[0] <= max_lat
-                    and min_lon <= self._target[1] <= max_lon), msg
-
-            row, col = self.get_closest_lat_lon(lat_lon, self.target)
-            raster_index = [slice(row, row + self.grid_shape[0]),
-                            slice(col, col + self.grid_shape[1])]
+            raster_index = self.compute_raster_index(self.file_paths,
+                                                     self.target,
+                                                     self.grid_shape)
             logger.debug('Found raster index with row, col slices: {}'
                          .format(raster_index))
 
-            if (raster_index[0].stop > lat_lon.shape[0]
-               or raster_index[1].stop > lat_lon.shape[1]):
-                msg = (f'Invalid target {self.target}, shape '
-                       f'{self.grid_shape}, and raster '
-                       f'{raster_index} for data domain of size '
-                       f'{lat_lon.shape[:-1]} with lower left corner '
-                       f'({np.min(lat_lon[..., 0])}, '
-                       f'{np.min(lat_lon[..., 1])}).')
-                raise ValueError(msg)
-
-            lat_lon = lat_lon[tuple(raster_index + [slice(None)])]
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)

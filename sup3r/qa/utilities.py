@@ -33,7 +33,7 @@ def tke_frequency_spectrum(u, v):
     return E_f
 
 
-def tke_wavenumber_spectrum(u, v, axis=0):
+def tke_wavenumber_spectrum(u, v, k_range=None, axis=0):
     """Turbulent Kinetic Energy Spectrum. Gives the portion of kinetic energy
     associated with each wavenumber.
 
@@ -45,6 +45,11 @@ def tke_wavenumber_spectrum(u, v, axis=0):
     v : ndarray
         (lat, lon)
         V component of wind
+    k_range : list | None
+        List with min and max wavenumber. When comparing spectra for different
+        domains this needs to be tailored to the specific domain.  e.g. k =
+        [1/max_length, ..., 1/min_length] If this is not specified k with be
+        set to [0, ..., len(y)] where y is the fft output.
     axis : int
         Axis to average over to get a 1D wind field. If axis=0 this returns
         the zonal energy spectrum
@@ -55,15 +60,19 @@ def tke_wavenumber_spectrum(u, v, axis=0):
         1D array of amplitudes corresponding to the portion of total energy
         with a given wavenumber
     """
-    v_k = np.fft.fftn(np.mean(v, axis=axis))
-    u_k = np.fft.fftn(np.mean(u, axis=axis))
-    E_k = np.abs(v_k)**2 + np.abs(u_k)**2
-    E_k *= np.arange(E_k.shape[0])**2
-    n_steps = E_k.shape[0] // 2
-    E_k_a = E_k[:n_steps]
+    u_k = np.fft.fftn(u)
+    v_k = np.fft.fftn(v)
+    E_k = np.mean(np.abs(v_k)**2 + np.abs(u_k)**2, axis=axis)
+    if k_range is None:
+        k = np.arange(len(E_k))
+    else:
+        k = np.linspace(k_range[0], k_range[1], len(E_k))
+    n_steps = len(k) // 2
+    E_k = k**2 * E_k
+    E_k_a = E_k[1:n_steps + 1]
     E_k_b = E_k[-n_steps:][::-1]
     E_k = E_k_a + E_k_b
-    return E_k
+    return k[:n_steps], E_k
 
 
 def tke_series(u, v):
@@ -89,7 +98,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def velocity_gradient_dist(u, bins=50, range=None, diff_max=7):
+def velocity_gradient_dist(u, bins=50, range=None, diff_max=7, scale=1):
     """Returns the longitudinal velocity gradient distribution.
 
     Parameters
@@ -114,16 +123,16 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7):
         Normalization factor
     """
     diffs = np.diff(u, axis=1).flatten()
+    diffs /= scale
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
     return centers, counts, norm
 
 
-def vorticity_dist(u, v, bins=50, range=None, diff_max=14):
+def vorticity_dist(u, v, bins=50, range=None, diff_max=14, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -153,16 +162,17 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=14):
     dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
+    diffs /= scale
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
     return centers, counts, norm
 
 
-def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
+def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1,
+                      scale=1):
     """Returns the windspeed ramp rate distribution.
 
     Parameters
@@ -186,19 +196,20 @@ def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1):
     Returns
     -------
     ndarray
-        Normalized dws / dt values at bin centers
+        d(ws) / dt values at bin centers
     ndarray
-        Normalized delta_ws / delta_t value counts
+        Normalized d(ws) / dt value counts
     float
         Normalization factor
     """
     msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
            f'only has {u.shape[-1]} time steps')
     assert t_steps < u.shape[-1], msg
-    diffs = np.diff(np.sqrt(u**2 + v**2), n=t_steps, axis=-1).flatten()
+    ws = np.sqrt(u**2 + v**2)
+    diffs = (ws[..., t_steps:] - ws[..., :-t_steps]).flatten()
+    diffs /= scale
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    diffs = diffs / norm
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
