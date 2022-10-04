@@ -411,6 +411,7 @@ class LinearCorrection(DataRetrievalBase):
         adder = base_data.mean() - bias_data.mean() * scalar
         return scalar, adder
 
+    # pylint: disable=W0613
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
                     base_handler, daily_avg, bias_ti):

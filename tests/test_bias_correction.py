@@ -294,26 +294,14 @@ def test_fwp_integration():
 
 def test_qa_integration():
     """Test BC integration with QA module"""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     features = ['U_100m', 'V_100m']
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
-    model.meta['training_features'] = features
-    model.meta['output_features'] = features
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
-
     with tempfile.TemporaryDirectory() as td:
         bias_fp = os.path.join(td, 'bc.h5')
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
 
         out_file_path = os.path.join(td, 'sup3r_out.h5')
         with h5py.File(out_file_path, 'w') as f:
@@ -327,11 +315,6 @@ def test_qa_integration():
             f.create_dataset('U_100m_adder', data=adder)
             f.create_dataset('V_100m_scalar', data=scalar)
             f.create_dataset('V_100m_adder', data=adder)
-
-        bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
-                                          'bias_fp': bias_fp},
-                               'V_100m': {'feature_name': 'V_100m',
-                                          'bias_fp': bias_fp}}
 
         qa_kw = {'s_enhance': 3,
                  't_enhance': 4,
