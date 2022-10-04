@@ -14,7 +14,7 @@ from scipy.ndimage.filters import gaussian_filter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
-from sup3r.utilities import ModuleName
+from sup3r.utilities import ModuleName, VERSION_RECORD
 from sup3r.utilities.utilities import nn_fill_array
 import sup3r.preprocessing.data_handling
 
@@ -111,6 +111,7 @@ class DataRetrievalBase:
                 'target': self.target,
                 'shape': self.shape,
                 'class': str(self.__class__),
+                'version_record': VERSION_RECORD,
                 }
         return meta
 
