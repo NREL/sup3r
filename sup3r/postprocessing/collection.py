@@ -326,9 +326,7 @@ class Collector:
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            or a single string with unix-style /search/patt*ern.h5.
         feature : str
             Dataset name to collect.
         sort : bool
@@ -341,7 +339,8 @@ class Collector:
             None will use all available workers.
         target_final_meta_file : str
             Path to target final meta containing coordinates to keep from the
-            full file list collected meta
+            full list of coordinates present in the collected meta for the full
+            file list.
 
         Returns
         -------
@@ -477,8 +476,11 @@ class Collector:
         feature : str
             Dataset name to collect.
         masked_meta : pd.DataFrame
-            Concatenated meta data for the given file paths. This masked
-            against the target_final_meta.
+            Meta data containing the list of coordinates present in both the
+            given file paths and the target_final_meta. This can be a subset of
+            the coordinates present in the full file list. The coordinates
+            contained in this dataframe have the same gids as those present in
+            the meta for the full file list.
         time_index : pd.datetimeindex
             Concatenated datetime index for the given file paths.
         shape : tuple
@@ -488,12 +490,16 @@ class Collector:
             to be collected.
         out_file : str
             File path of final output file.
-        target_final_meta : str
-            Target final meta containing coordinates to keep from the
-            full file list collected meta
+        target_final_meta : pd.DataFrame
+            Meta data containing coordinates to keep from the full file list
+            collected meta. This can be but is not necessarily a subset of the
+            full list of coordinates for all files in the file list. This is
+            used to remove coordinates from the full file list which are not
+            present in the target_final_meta.
         masked_target_meta : pd.DataFrame
-            Collected meta data with mask applied from target_final_meta so
-            original gids are preserved.
+            Dataframe containing the same coordinates contrained in the
+            target_final_meta but with the same gids that are present in the
+            full list of coordinates present in the full file list.
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None uses all available.
@@ -641,9 +647,7 @@ class Collector:
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            or a single string with unix-style /search/patt*ern.h5.
         out_file : str
             File path of final output file.
         features : list
@@ -666,7 +670,13 @@ class Collector:
             a suffix format _{temporal_chunk_index}_{spatial_chunk_index}.h5
         target_final_meta_file : str
             Path to target final meta containing coordinates to keep from the
-            full file list collected meta
+            full file list collected meta. This can be but is not necessarily a
+            subset of the full list of coordinates for all files in the file
+            list. This is used to remove coordinates from the full file list
+            which are not present in the target_final_meta. Either this full
+            meta or a subset, depending on which coordinates are present in
+            the data to be collected, will be the final meta for the collected
+            output files.
         n_writes : int | None
             Number of writes to split full file list into. Must be less than
             or equal to the number of temporal chunks.
