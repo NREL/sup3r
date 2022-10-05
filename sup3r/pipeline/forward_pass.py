@@ -728,7 +728,7 @@ class ForwardPassStrategy(InputMixIn):
         Parameters
         ----------
         input_handler_kwargs : dict
-            Dictionary of args to pass to the
+            Dictionary of args to pass to the data handler
             :class:`sup3r.preprocessing.data_handling.DataHandler`
         """
         self._target = input_handler_kwargs.get('target', None)
@@ -1075,7 +1075,8 @@ class ForwardPass:
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
-        input_handler_kwargs = dict(
+        input_handler_kwargs = copy.deepcopy(strategy._input_handler_kwargs)
+        fwp_input_handler_kwargs = dict(
             file_paths=self.file_paths,
             features=self.features,
             target=self.target,
@@ -1083,17 +1084,10 @@ class ForwardPass:
             temporal_slice=self.temporal_pad_slice,
             raster_file=self.raster_file,
             cache_pattern=self.cache_pattern,
-            time_chunk_size=self.strategy.time_chunk_size,
-            overwrite_cache=self.strategy.overwrite_cache,
             max_workers=self.max_workers,
-            extract_workers=self.extract_workers,
-            compute_workers=self.compute_workers,
-            load_workers=self.load_workers,
-            ti_workers=self.ti_workers,
             handle_features=self.strategy.handle_features,
             val_split=0.0)
-
-        input_handler_kwargs.update(self.strategy._input_handler_kwargs)
+        input_handler_kwargs.update(fwp_input_handler_kwargs)
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
         self.input_data = self.data_handler.data
@@ -1251,10 +1245,6 @@ class ForwardPass:
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
         self.pass_workers = strategy.pass_workers
-        self.ti_workers = strategy.ti_workers
-        self.extract_workers = strategy.extract_workers
-        self.compute_workers = strategy.compute_workers
-        self.load_workers = strategy.load_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
         self.single_time_step_files = strategy.single_time_step_files

@@ -1285,7 +1285,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 tmp_file = fp.replace('.pkl', '.pkl.tmp')
                 with open(tmp_file, 'wb') as fh:
                     pickle.dump(self.data[..., i], fh, protocol=4)
-                os.rename(tmp_file, fp)
+                os.replace(tmp_file, fp)
             else:
                 msg = (f'Called cache_data but {fp} already exists. Set to '
                        'overwrite_cache to True to overwrite.')

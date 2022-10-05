@@ -532,5 +532,5 @@ class OutputHandlerH5(OutputHandler):
 
             if meta_data is not None:
                 fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
-        os.rename(tmp_file, out_file)
+        os.replace(tmp_file, out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')
