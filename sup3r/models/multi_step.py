@@ -2,6 +2,7 @@
 """Sup3r model software"""
 import logging
 import numpy as np
+import tensorflow as tf
 from warnings import warn
 
 from sup3r.models.abstract import AbstractSup3rGan
@@ -168,13 +169,14 @@ class MultiStepGan(AbstractSup3rGan):
 
         if means is not None:
             low_res = low_res.copy()
-            for i, (m, s) in enumerate(zip(means, stdevs)):
-                low_res[..., i] -= m
-                if s > 0:
-                    low_res[..., i] /= s
+            for idf in range(low_res.shape[-1]):
+                low_res[..., idf] -= means[idf]
+
+                if stdevs[idf] != 0:
+                    low_res[..., idf] /= stdevs[idf]
                 else:
                     msg = ('Standard deviation is zero for '
-                           f'{self.training_features[i]}')
+                           f'{self.models[0].training_features[idf]}')
                     logger.warning(msg)
                     warn(msg)
 
@@ -203,12 +205,13 @@ class MultiStepGan(AbstractSup3rGan):
         stdevs = self.models[-1].stdevs
 
         if means is not None:
-            for i, feature in enumerate(self.models[-1].training_features):
-                if feature in self.models[-1].output_features:
-                    m = means[i]
-                    s = stdevs[i]
-                    j = self.models[-1].output_features.index(feature)
-                    hi_res[..., j] = (hi_res[..., j] * s) + m
+            if isinstance(hi_res, tf.Tensor):
+                hi_res = hi_res.numpy()
+
+            for idf in range(hi_res.shape[-1]):
+                feature_name = self.models[-1].output_features[idf]
+                i = self.models[-1].training_features.index(feature_name)
+                hi_res[..., idf] = (hi_res[..., idf] * stdevs[i]) + means[i]
 
         return hi_res
 

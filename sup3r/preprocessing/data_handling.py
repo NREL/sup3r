@@ -2328,7 +2328,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = ('topography',)
+    TRAIN_ONLY_FEATURES = tuple()
 
     def __init__(self, *args, **kwargs):
         """
