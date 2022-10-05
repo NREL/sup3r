@@ -238,9 +238,7 @@ def test_stats():
                       max_workers=1, ramp_rate_t_step=1)
         with Sup3rWindStats(*args, **kwargs) as qa:
             qa.run()
-
             assert os.path.exists(qa_fp)
-
             with open(qa_fp, 'rb') as fh:
                 qa_out = pickle.load(fh)
                 assert 'lr_100m' in qa_out

@@ -526,7 +526,7 @@ def invert_uv(u, v, lat_lon):
     v_rot = np.sin(theta)[:, :, np.newaxis] * u
     v_rot += np.cos(theta)[:, :, np.newaxis] * v
 
-    ws = np.sqrt(u_rot**2 + v_rot**2)
+    ws = np.hypot(u_rot, v_rot)
     wd = (np.degrees(np.arctan2(u_rot, v_rot)) + 360) % 360
 
     if invert_lat:
