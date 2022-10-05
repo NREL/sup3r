@@ -1375,11 +1375,12 @@ class ForwardPass:
                     total_s_enhance = [s for s in total_s_enhance
                                        if s is not None]
                     total_s_enhance = np.product(total_s_enhance)
-                    pad_width = ((total_s_enhance * pad_width[0][0],
-                                  total_s_enhance * pad_width[0][1]),
-                                 (total_s_enhance * pad_width[1][0],
-                                  total_s_enhance * pad_width[1][1]), (0, 0))
-                    exo_data[i] = np.pad(i_exo_data, pad_width, mode=mode)
+                    exo_pad_width = ((total_s_enhance * pad_width[0][0],
+                                      total_s_enhance * pad_width[0][1]),
+                                     (total_s_enhance * pad_width[1][0],
+                                      total_s_enhance * pad_width[1][1]),
+                                     (0, 0))
+                    exo_data[i] = np.pad(i_exo_data, exo_pad_width, mode=mode)
 
         return out, exo_data
 

@@ -765,7 +765,7 @@ def test_slicing_no_pad(log=False):
             forward_pass = ForwardPass(strategy, chunk_index=ichunk)
             s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
             lr_data_slice = (s_slices[0], s_slices[1],
-                             forward_pass._ti_pad_slice,
+                             forward_pass.ti_pad_slice,
                              slice(None))
 
             truth = handler.data[lr_data_slice]
@@ -835,7 +835,7 @@ def test_slicing_pad(log=False):
 
             s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
             lr_data_slice = (s_slices[0], s_slices[1],
-                             forward_pass._ti_pad_slice,
+                             forward_pass.ti_pad_slice,
                              slice(None))
 
             # do a manual calculation of what the padding should be.
