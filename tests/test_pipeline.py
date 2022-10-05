@@ -17,31 +17,6 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 
 
-def test_config_gen():
-    """Test configuration generation for forward pass and collect"""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, 6, 2)))
-    model.meta['training_features'] = ['U_100m', 'V_100m']
-    model.meta['output_features'] = ['U_100m', 'V_100m']
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
-    with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-        fp_config = os.path.join(td, 'config_fwp.json')
-        dc_config = os.path.join(td, 'config_collect.json')
-        pipe_config = os.path.join(td, 'config_pipeline.json')
-        Pipeline.init_pass_collect(td, input_files, out_dir)
-        assert os.path.exists(fp_config)
-        assert os.path.exists(dc_config)
-        assert os.path.exists(pipe_config)
-
-
 def test_fwp_pipeline():
     """Test sup3r pipeline"""
 
@@ -70,17 +45,20 @@ def test_fwp_pipeline():
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         t_enhance = 4
+
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    overwrite_cache=True,
+                                    time_chunk_size=10,
+                                    temporal_slice=[t_slice.start,
+                                                    t_slice.stop])
         config = {'max_workers': 1,
                   'file_paths': input_files,
-                  'target': target,
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
                   'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
-                  'shape': shape,
                   'fwp_chunk_shape': fp_chunk_shape,
-                  'time_chunk_size': 10,
-                  'temporal_slice': [t_slice.start, t_slice.stop],
+                  'input_handler_kwargs': input_handler_kwargs,
                   'spatial_pad': 2,
                   'temporal_pad': 2,
                   'overwrite_cache': True,

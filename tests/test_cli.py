@@ -236,18 +236,18 @@ def test_fwd_pass_cli(runner):
         log_prefix = os.path.join(td, 'log.log')
         config = {'ti_workers': 1,
                   'file_paths': input_files,
-                  'target': (19.3, -123.5),
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
-                  'cache_pattern': cache_pattern,
                   'log_pattern': log_prefix,
-                  'shape': shape,
+                  'input_handler_kwargs': {'target': (19.3, -123.5),
+                                           'cache_pattern': cache_pattern,
+                                           'shape': shape,
+                                           'overwrite_cache': False,
+                                           'time_chunk_size': 10},
                   'fwp_chunk_shape': fwp_chunk_shape,
-                  'time_chunk_size': 10,
                   'max_workers': 1,
                   'spatial_pad': 5,
                   'temporal_pad': 5,
-                  'overwrite_cache': False,
                   'execution_control': {
                       "option": "local"}}
 
@@ -322,18 +322,18 @@ def test_pipeline_fwp_qa(runner):
         model.save(out_dir)
 
         fwp_config = {'file_paths': input_files,
-                      'target': (19.3, -123.5),
                       'model_kwargs': {'model_dir': out_dir},
                       'out_pattern': os.path.join(td, 'out_{file_id}.h5'),
                       'log_pattern': os.path.join(td, 'fwp_log.log'),
                       'log_level': 'DEBUG',
-                      'shape': (8, 8),
+                      'input_handler_kwargs': {'target': (19.3, -123.5),
+                                               'shape': (8, 8),
+                                               'time_chunk_size': 10,
+                                               'overwrite_cache': False},
                       'fwp_chunk_shape': (100, 100, 100),
-                      'time_chunk_size': 10,
                       'max_workers': 1,
                       'spatial_pad': 5,
                       'temporal_pad': 5,
-                      'overwrite_cache': False,
                       'execution_control': {
                           "option": "local"}}
 

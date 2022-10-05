@@ -53,8 +53,8 @@ def test_qa_nc():
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
-            target=TARGET, shape=SHAPE,
-            temporal_slice=TEMPORAL_SLICE,
+            input_handler_kwargs=dict(target=TARGET, shape=SHAPE,
+                                      temporal_slice=TEMPORAL_SLICE),
             out_pattern=out_files,
             max_workers=1,
             max_nodes=1)
@@ -131,12 +131,13 @@ def test_qa_h5():
         model.save(out_dir)
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=TARGET, shape=SHAPE,
+                                    temporal_slice=TEMPORAL_SLICE)
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
-            target=TARGET, shape=SHAPE,
-            temporal_slice=TEMPORAL_SLICE,
+            input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             max_workers=1,
             max_nodes=1)
@@ -220,7 +221,7 @@ def test_stats():
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(100, 100, 100),
             spatial_pad=1, temporal_pad=1,
-            temporal_slice=TEMPORAL_SLICE,
+            input_handler_kwargs=dict(temporal_slice=TEMPORAL_SLICE),
             out_pattern=out_files,
             max_workers=1,
             max_nodes=1)

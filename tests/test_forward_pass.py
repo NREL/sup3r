@@ -61,14 +61,15 @@ def test_fwp_nc_cc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         max_workers = 1
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True, out_pattern=out_files,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
             max_workers=max_workers, input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
@@ -111,14 +112,15 @@ def test_fwp_nc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
 
         max_workers = 1
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True, out_pattern=out_files,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
@@ -165,14 +167,15 @@ def test_fwp_temporal_slice():
         temporal_slice = slice(5, 17, 3)
         raw_time_index = np.arange(20)
         n_tsteps = len(raw_time_index[temporal_slice])
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True, out_pattern=out_files,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
@@ -235,14 +238,15 @@ def test_fwp_handler():
 
         max_workers = 1
         cache_pattern = os.path.join(td, 'cache')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
+            input_handler_kwargs=input_handler_kwargs,
             max_workers=max_workers)
         forward_pass = ForwardPass(handler)
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -296,17 +300,16 @@ def test_fwp_chunking(log=False, plot=False):
         temporal_pad = 20
         cache_pattern = os.path.join(td, 'cache')
         fwp_shape = (4, 4, len(input_files) // 2)
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_shape,
-            spatial_pad=spatial_pad, temporal_pad=temporal_pad,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            ti_workers=1,
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs,
             max_workers=1)
-
         data_chunked = np.zeros((shape[0] * s_enhance, shape[1] * s_enhance,
                                  len(input_files) * t_enhance,
                                  len(model.output_features)))
@@ -393,15 +396,15 @@ def test_fwp_nochunking():
         model.save(out_dir)
 
         cache_pattern = os.path.join(td, 'cache')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    cache_pattern=cache_pattern,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             spatial_pad=0, temporal_pad=0,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            ti_workers=1,
+            input_handler_kwargs=input_handler_kwargs,
             max_workers=1)
         forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run_chunk()
@@ -484,14 +487,16 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
                         'temporal_model_dirs': st_out_dir}
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
+            input_handler_kwargs=input_handler_kwargs,
             spatial_pad=0, temporal_pad=0,
-            target=target, shape=shape,
             out_pattern=out_files,
-            temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
             max_nodes=1)
@@ -586,14 +591,16 @@ def test_fwp_multi_step_model_topo_noskip():
                         'temporal_model_dirs': st_out_dir}
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
-            target=target, shape=shape,
+            input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            temporal_slice=temporal_slice,
             max_workers=max_workers,
             exo_kwargs=exo_kwargs,
             max_nodes=1)
@@ -666,17 +673,18 @@ def test_fwp_multi_step_model():
         model_kwargs = {'spatial_model_dirs': s_out_dir,
                         'temporal_model_dirs': st_out_dir}
 
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
-            target=target, shape=shape,
-            temporal_slice=temporal_slice,
+            input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             max_workers=max_workers,
-            max_nodes=1,
-            ti_workers=1)
+            max_nodes=1)
 
         forward_pass = ForwardPass(handler)
         ones = np.ones((fwp_chunk_shape[2], fwp_chunk_shape[0],
@@ -742,13 +750,14 @@ def test_slicing_no_pad(log=False):
                                 sample_shape=(1, 1, 1),
                                 val_split=0.0, max_workers=1)
 
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    overwrite_cache=True)
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
             fwp_chunk_shape=(3, 2, 4),
             spatial_pad=0, temporal_pad=0,
-            target=target, shape=shape,
-            temporal_slice=slice(None),
+            input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             max_workers=1,
             max_nodes=1)
@@ -796,13 +805,14 @@ def test_slicing_pad(log=False):
                                 sample_shape=(1, 1, 1),
                                 val_split=0.0, max_workers=1)
 
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    overwrite_cache=True)
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
             fwp_chunk_shape=(2, 1, 4),
+            input_handler_kwargs=input_handler_kwargs,
             spatial_pad=2, temporal_pad=2,
-            target=target, shape=shape,
-            temporal_slice=slice(None),
             out_pattern=out_files,
             max_workers=1,
             max_nodes=1)
