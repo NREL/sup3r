@@ -300,15 +300,14 @@ def test_fwp_chunking(log=False, plot=False):
         temporal_pad = 20
         cache_pattern = os.path.join(td, 'cache')
         fwp_shape = (4, 4, len(input_files) // 2)
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_shape,
-            spatial_pad=1, temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            spatial_pad=spatial_pad, temporal_pad=temporal_pad,
+            input_handler_kwargs=dict(target=target, shape=shape,
+                                      temporal_slice=temporal_slice,
+                                      cache_pattern=cache_pattern,
+                                      overwrite_cache=True, ti_workers=1),
             max_workers=1)
         data_chunked = np.zeros((shape[0] * s_enhance, shape[1] * s_enhance,
                                  len(input_files) * t_enhance,
