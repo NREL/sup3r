@@ -1147,8 +1147,7 @@ class ForwardPass:
         self.input_data = self.bias_correct_source_data(self.input_data)
 
         exo_s_en = self.exo_kwargs.get('s_enhancements', None)
-        pad_width = self.get_padding()
-        out = self.pad_source_data(self.input_data, pad_width,
+        out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
 
@@ -1288,7 +1287,8 @@ class ForwardPass:
                 '{spatial_chunk_index}', str(self.spatial_chunk_index))
         return raster_file
 
-    def get_padding(self):
+    @property
+    def pad_width(self):
         """Get padding for the current spatiotemporal chunk
 
         Returns

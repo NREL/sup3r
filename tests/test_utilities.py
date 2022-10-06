@@ -2,6 +2,7 @@
 """pytests for general utilities"""
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
@@ -10,6 +11,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_box_sampler,
                                        spatial_coarsening,
                                        transform_rotate_wind)
+from sup3r.qa.utilities import st_interp
 
 
 def test_get_chunk_slices():
@@ -334,3 +336,48 @@ def test_transform_rotate():
 
     assert np.allclose(u, u_target, atol=1e-5)
     assert np.allclose(v, v_target, atol=1e-5)
+
+
+def test_st_interpolation(plot=False):
+    """Test spatiotemporal linear interpolation"""
+
+    X, Y, T = np.meshgrid(np.arange(10), np.arange(10), np.arange(1, 11))
+    arr = 100 * np.exp(-((X - 5)**2 + (Y - 5)**2) / T)
+
+    s_interp = st_interp(arr, s_enhance=3, t_enhance=1)
+
+    if plot:
+        fig = plt.figure(figsize=(5, 5))
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+        a = ax1.imshow(np.mean(s_interp, axis=-1))
+        b = ax2.imshow(np.mean(arr, axis=-1))
+        fig.suptitle('Spatial Interpolation')
+        ax1.set_title('Interpolated')
+        ax2.set_title('Not Interpolated')
+        fig.colorbar(a, ax=ax1, shrink=0.5)
+        fig.colorbar(b, ax=ax2, shrink=0.5)
+        plt.show()
+
+    err = np.mean(s_interp) - np.mean(arr)
+    err = np.abs(err / np.mean(arr))
+    assert err < 0.1
+
+    t_interp = st_interp(arr, s_enhance=1, t_enhance=4)
+
+    if plot:
+        fig = plt.figure(figsize=(5, 5))
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+        a = ax1.imshow(np.mean(t_interp, axis=-1))
+        b = ax2.imshow(np.mean(arr, axis=-1))
+        fig.suptitle('Temporal Interpolation')
+        ax1.set_title('Interpolated')
+        ax2.set_title('Not Interpolated')
+        fig.colorbar(a, ax=ax1, shrink=0.5)
+        fig.colorbar(b, ax=ax2, shrink=0.5)
+        plt.show()
+
+    err = np.mean(t_interp) - np.mean(arr)
+    err = np.abs(err / np.mean(arr))
+    assert err < 0.01
