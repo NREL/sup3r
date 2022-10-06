@@ -205,7 +205,7 @@ def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1,
     msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
            f'only has {u.shape[-1]} time steps')
     assert t_steps < u.shape[-1], msg
-    ws = np.sqrt(u**2 + v**2)
+    ws = np.hypot(u, v)
     diffs = (ws[..., t_steps:] - ws[..., :-t_steps]).flatten()
     diffs /= scale
     diffs = diffs[(np.abs(diffs) < diff_max)]
