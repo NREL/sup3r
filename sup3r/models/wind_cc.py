@@ -19,6 +19,10 @@ class WindCC(Sup3rGan):
           data in the true batch observation. This topo channel is appended to
           the generated output so the discriminator can look at the wind fields
           compared to the associated hi res topo.
+        - If a custom Sup3rAdder or Sup3rConcat layer (from phygnn) is present
+          in the network, the hi-res topography will be added or concatenated
+          to the data at that point in the network during either training or
+          the forward pass.
     """
 
     def set_model_params(self, **kwargs):
@@ -88,6 +92,12 @@ class WindCC(Sup3rGan):
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
             hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
             hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
+
+        if len(hi_res_topo.shape) != len(hi_res.shape):
+            msg = ('hi_res and hi_res_topo arrays are not of the same rank: '
+                   '{} and {}'.format(hi_res.shape, hi_res_topo.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         return hi_res_topo
 
