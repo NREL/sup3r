@@ -3,7 +3,7 @@
 import numpy as np
 import logging
 import tensorflow as tf
-from phygnn.layers.custom_layers import Sup3rWindTopo
+from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
 from sup3r.models.base import Sup3rGan
 
@@ -55,11 +55,11 @@ class WindCC(Sup3rGan):
             for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
             (temporal), features) corresponding to the high-resolution
             spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rWindTopo layer if found in the generative network. This
-            differs from the exogenous_data input in that exogenous_data always
-            matches the low-res input. For this function, hi_res_topo can also
-            be a 2D array (spatial_1, spatial_2). Note that this input gets
-            normalized if norm_in=True.
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input. For this function,
+            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
+            that this input gets normalized if norm_in=True.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -82,9 +82,12 @@ class WindCC(Sup3rGan):
 
         if len(hi_res_topo.shape) == 2 and len(hi_res.shape) == 4:
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
 
         elif len(hi_res_topo.shape) == 2 and len(hi_res.shape) == 5:
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
 
         return hi_res_topo
 
@@ -116,11 +119,11 @@ class WindCC(Sup3rGan):
             for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
             (temporal), features) corresponding to the high-resolution
             spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rWindTopo layer if found in the generative network. This
-            differs from the exogenous_data input in that exogenous_data always
-            matches the low-res input. For this function, hi_res_topo can also
-            be a 2D array (spatial_1, spatial_2). Note that this input gets
-            normalized if norm_in=True.
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input. For this function,
+            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
+            that this input gets normalized if norm_in=True.
 
         Returns
         -------
@@ -139,7 +142,7 @@ class WindCC(Sup3rGan):
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, Sup3rWindTopo)
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
                         and hi_res_topo is not None):
                     hi_res_topo = self._reshape_norm_topo(hi_res, hi_res_topo,
                                                           norm_in=norm_in)
@@ -173,9 +176,9 @@ class WindCC(Sup3rGan):
             for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
             (temporal), features) corresponding to the high-resolution
             spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rWindTopo layer if found in the generative network. This
-            differs from the exogenous_data input in that exogenous_data always
-            matches the low-res input.
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input.
 
         Returns
         -------
@@ -186,7 +189,7 @@ class WindCC(Sup3rGan):
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, Sup3rWindTopo)
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
                         and hi_res_topo is not None):
                     hi_res = layer(hi_res, hi_res_topo)
                 else:

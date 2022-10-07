@@ -277,9 +277,11 @@ def test_wind_cc_model_spatial(log=False):
     assert y.shape[3] == x.shape[3] - 1
 
 
-def test_wind_topo_model(log=False):
-    """Test a special wind cc model with the custom Sup3rWindTopo layer that
-    adds hi-res topography in the middle of the network."""
+@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_hi_res_topo(custom_layer, log=False):
+    """Test a special wind cc model with the custom Sup3rAdder or Sup3rConcat
+    layer that adds/concatenates hi-res topography in the middle of the
+    network."""
 
     handler = DataHandlerH5WindCC(INPUT_FILE_W,
                                   ('U_100m', 'V_100m', 'topography'),
@@ -320,7 +322,7 @@ def test_wind_topo_model(log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": "Sup3rWindTopo"},
+                 {"class": custom_layer},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
