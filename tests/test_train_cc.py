@@ -2,6 +2,7 @@
 """Test the basic training of super resolution GAN for solar climate change
 applications"""
 import os
+import pytest
 import numpy as np
 import tempfile
 from tensorflow.keras.losses import MeanAbsoluteError
@@ -270,6 +271,90 @@ def test_wind_cc_model_spatial(log=False):
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
     y = model.generate(x)
+    assert y.shape[0] == x.shape[0]
+    assert y.shape[1] == x.shape[1] * 2
+    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[3] == x.shape[3] - 1
+
+
+def test_wind_topo_model(log=False):
+    """Test a special wind cc model with the custom Sup3rWindTopo layer that
+    adds hi-res topography in the middle of the network."""
+
+    handler = DataHandlerH5WindCC(INPUT_FILE_W,
+                                  ('U_100m', 'V_100m', 'topography'),
+                                  target=TARGET_W, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 2),
+                                  time_roll=-7,
+                                  val_split=0.1,
+                                  sample_shape=(20, 20),
+                                  max_workers=1,
+                                  train_only_features=tuple())
+
+    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+                                    s_enhance=2)
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+                 {"class": "SpatialExpansion", "spatial_mult": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": "Sup3rWindTopo"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    WindCC.seed()
+    model = WindCC(gen_model, fp_disc, learning_rate=1e-4)
+
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batcher, n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=None,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert 'test_0' in os.listdir(td)
+        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['class'] == 'WindCC'
+        assert 'topography' in batcher.output_features
+        assert 'topography' not in model.output_features
+
+    x = np.random.uniform(0, 1, (4, 30, 30, 3))
+    hi_res_topo = np.random.uniform(0, 1, (60, 60))
+
+    with pytest.raises(RuntimeError):
+        y = model.generate(x, hi_res_topo=None)
+
+    y = model.generate(x, hi_res_topo=hi_res_topo)
+
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
