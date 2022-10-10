@@ -81,8 +81,8 @@ class WindCC(Sup3rGan):
 
         if norm_in:
             idf = self.training_features.index('topography')
-            hi_res_topo -= self._means[idf]
-            hi_res_topo /= self._stdevs[idf]
+            hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
+                           / self._stdevs[idf])
 
         if len(hi_res_topo.shape) == 2 and len(hi_res.shape) == 4:
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
