@@ -567,6 +567,7 @@ class Sup3rWindStats:
         file_name : str
             Path to cache file
         """
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
         logger.info(f'Saving data to {file_name}')
         with open(file_name, 'wb') as f:
             pickle.dump(array, f, protocol=4)
@@ -601,6 +602,7 @@ class Sup3rWindStats:
             A dictionary with stats for low and high resolution wind fields
         """
 
+        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
         if not os.path.exists(qa_fp) or self.overwrite_stats:
             logger.info('Saving windstats output file: "{}"'.format(qa_fp))
             with open(qa_fp, 'wb') as f:

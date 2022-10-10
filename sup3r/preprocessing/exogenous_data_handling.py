@@ -25,11 +25,11 @@ class ExogenousDataHandler:
         Parameters
         ----------
         file_paths : str | list
-            A single source h5 file to extract raster data from or a list
-            of netcdf files with identical grid. The string can be a unix-style
-            file path which will be passed through glob.glob. This is
-            typically low-res WRF output or GCM netcdf data files that is
-            source low-resolution data intended to be sup3r resolved.
+            A single source h5 file or netcdf file to extract raster data from.
+            The string can be a unix-style file path which will be passed
+            through glob.glob. This is typically low-res WRF output or GCM
+            netcdf data that is source low-resolution data intended to be
+            sup3r resolved.
         features : list
             List of exogenous features to extract from source_h5
         source_file : str

@@ -963,7 +963,7 @@ def interp_var_to_height(data, var, raster_index, heights,
     """
     if len(data[var].dims) == 5:
         raster_index = [0] + raster_index
-    logger.debug(f'Interpolating {var} to heights (m): {heights}')
+    logger.debug(f'Interpolating {var} to heights (meters): {heights}')
     return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
                            calc_height(data, raster_index, time_slice),
                            heights)[0]
