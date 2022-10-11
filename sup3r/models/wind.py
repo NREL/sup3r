@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Sup3r model software"""
+"""Wind super resolution GAN with handling of low and high res topography
+inputs."""
 import numpy as np
 import logging
 import tensorflow as tf
@@ -11,8 +12,9 @@ from sup3r.models.base import Sup3rGan
 logger = logging.getLogger(__name__)
 
 
-class WindCC(Sup3rGan):
-    """Wind climate change model.
+class WindGan(Sup3rGan):
+    """Wind super resolution GAN with handling of low and high res topography
+    inputs.
 
     Modifications to standard Sup3rGan:
         - Hi res topography is expected as the last feature channel in the true
@@ -102,7 +104,7 @@ class WindCC(Sup3rGan):
         return hi_res_topo
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None, hi_res_topo=None):
+                 exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -120,20 +122,12 @@ class WindCC(Sup3rGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : ndarray | None
-            Exogenous data array, usually a 4D or 5D array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        hi_res_topo : np.ndarray
-            This should be a 4D array for spatial enhancement model or 5D array
-            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
-            (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input. For this function,
-            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
-            that this input gets normalized if norm_in=True.
+        exogenous_data : ndarray | list | None
+            Exogenous data for topography inputs. The first entry in this list
+            (or only entry) is a low-resolution topography array that can be
+            concatenated to the low_res input array. The second entry is
+            high-resolution topography (either 2D or 4D/5D depending on if
+            spatial or spatiotemporal super res).
 
         Returns
         -------
@@ -143,8 +137,18 @@ class WindCC(Sup3rGan):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res = (low_res if not exogenous_data
-                   else np.concatenate((low_res, exogenous_data), axis=-1))
+
+        low_res_topo = None
+        hi_res_topo = None
+        if isinstance(exogenous_data, np.ndarray):
+            low_res_topo = exogenous_data
+        elif isinstance(exogenous_data, (list, tuple)):
+            low_res_topo = exogenous_data[0]
+            if len(exogenous_data) > 1:
+                hi_res_topo = exogenous_data[1]
+
+        low_res = (low_res if not low_res_topo
+                   else np.concatenate((low_res, low_res_topo), axis=-1))
 
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
