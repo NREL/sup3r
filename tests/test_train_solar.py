@@ -10,9 +10,8 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan, SolarCC, WindCC
-from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
-                                               DataHandlerH5WindCC)
+from sup3r.models import Sup3rGan, SolarCC
+from sup3r.preprocessing.data_handling import DataHandlerH5SolarCC
 from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
                                                 SpatialBatchHandlerCC)
 
@@ -178,99 +177,3 @@ def test_solar_custom_loss(sub_daily_shape=24, log=False):
 
         assert loss1 > loss2
         assert loss2 == 0
-
-
-def test_wind_cc_model(log=False):
-    """Test the wind climate change wtk super res model.
-
-    NOTE that the full 10x model is too big to train on the 20x20 test data.
-    """
-
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  sample_shape=(20, 20, 96),
-                                  max_workers=1,
-                                  train_only_features=tuple())
-
-    batcher = BatchHandlerCC([handler], batch_size=4, n_batches=2,
-                             s_enhance=4, sub_daily_shape=None)
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_4x_24x_3f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    WindCC.seed()
-    model = WindCC(fp_gen, fp_disc, learning_rate=1e-4)
-
-    with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert 'test_0' in os.listdir(td)
-        assert model.meta['class'] == 'WindCC'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
-        assert len(model.output_features) == len(FEATURES_W) - 1
-
-    x = np.random.uniform(0, 1, (1, 4, 4, 4, 4))
-    y = model.generate(x)
-    assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 4
-    assert y.shape[2] == x.shape[2] * 4
-    assert y.shape[3] == x.shape[3] * 24
-    assert y.shape[4] == x.shape[4] - 1
-
-
-def test_wind_cc_model_spatial(log=False):
-    """Test the wind climate change wtk super res model with spatial
-    enhancement only.
-    """
-    handler = DataHandlerH5WindCC(INPUT_FILE_W,
-                                  ('U_100m', 'V_100m', 'topography'),
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  val_split=0.1,
-                                  sample_shape=(20, 20),
-                                  max_workers=1,
-                                  train_only_features=tuple())
-
-    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
-                                    s_enhance=2)
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-
-    WindCC.seed()
-    model = WindCC(fp_gen, fp_disc, learning_rate=1e-4)
-
-    with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindCC'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
-
-    x = np.random.uniform(0, 1, (4, 30, 30, 3))
-    y = model.generate(x)
-    assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 2
-    assert y.shape[2] == x.shape[2] * 2
-    assert y.shape[3] == x.shape[3] - 1
