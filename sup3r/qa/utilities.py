@@ -2,6 +2,7 @@
 """Utilities used for QA"""
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+from PIL import Image
 
 
 def tke_frequency_spectrum(u, v):
@@ -98,7 +99,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def velocity_gradient_dist(u, bins=50, range=None, diff_max=7, scale=1):
+def velocity_gradient_dist(u, bins=20, range=None, diff_max=7, scale=1):
     """Returns the longitudinal velocity gradient distribution.
 
     Parameters
@@ -132,7 +133,7 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7, scale=1):
     return centers, counts, norm
 
 
-def vorticity_dist(u, v, bins=50, range=None, diff_max=14, scale=1):
+def vorticity_dist(u, v, bins=20, range=None, diff_max=14, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -171,7 +172,7 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=14, scale=1):
     return centers, counts, norm
 
 
-def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1,
+def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
                       scale=1):
     """Returns the windspeed ramp rate distribution.
 
@@ -235,13 +236,13 @@ def st_interp(low, s_enhance, t_enhance):
     ndarray
         Spatiotemporally interpolated low resolution output
     """
-    x = np.arange(low.shape[0])
-    y = np.arange(low.shape[1])
+    y = np.arange(low.shape[0])
+    x = np.arange(low.shape[1])
     t = np.arange(low.shape[2])
-    interp = RegularGridInterpolator((x, y, t), low)
+    interp = RegularGridInterpolator((y, x, t), low)
     new_x = np.linspace(0, x[-1], s_enhance * len(x))
     new_y = np.linspace(0, y[-1], s_enhance * len(y))
     new_t = np.linspace(0, t[-1], t_enhance * len(t))
     X, Y, T = np.meshgrid(new_x, new_y, new_t)
-    out = interp((X, Y, T))
+    out = interp((Y, X, T))
     return out
