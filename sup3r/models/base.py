@@ -437,7 +437,7 @@ class Sup3rGan(AbstractSup3rGan):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res = (low_res if not exogenous_data
+        low_res = (low_res if exogenous_data is None
                    else np.concatenate((low_res, exogenous_data), axis=-1))
 
         if norm_in and self._means is not None:

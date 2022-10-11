@@ -719,8 +719,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     def compute_workers(self):
         """Get upper bound for compute workers based on memory limits. Used to
         compute derived features from source dataset."""
-        proc_mem = np.int(np.ceil(len(self.extract_features)
-                                  / np.maximum(len(self.derive_features), 1)))
+        proc_mem = int(np.ceil(len(self.extract_features)
+                               / np.maximum(len(self.derive_features), 1)))
         proc_mem *= 4 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.derive_features)
@@ -782,7 +782,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             if step_mem == 0:
                 self._time_chunk_size = self.n_tsteps
             else:
-                self._time_chunk_size = np.min([np.int(1e9 / step_mem),
+                self._time_chunk_size = np.min([int(1e9 / step_mem),
                                                 self.n_tsteps])
             logger.info('time_chunk_size arg not specified. Using '
                         f'{self._time_chunk_size}.')
@@ -1584,7 +1584,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
                 self.data_fill(t, ts, f_index, f)
-            interval = np.int(np.ceil(len(shifted_time_chunks) / 10))
+            interval = int(np.ceil(len(shifted_time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
                             'chunks to final data array')
@@ -1623,7 +1623,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 logger.info(f'Started adding {len(futures)} chunks '
                             f'to data array in {dt.now() - now}.')
 
-                interval = np.int(np.ceil(len(futures) / 10))
+                interval = int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     try:
                         future.result()

@@ -81,16 +81,21 @@ class WindGan(Sup3rGan):
         if hi_res_topo is None:
             return hi_res_topo
 
-        if norm_in:
+        if norm_in and self._means is not None:
             idf = self.training_features.index('topography')
             hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
                            / self._stdevs[idf])
 
-        if len(hi_res_topo.shape) == 2 and len(hi_res.shape) == 4:
+        if len(hi_res_topo.shape) > 2:
+            slicer = [0] * len(hi_res_topo.shape)
+            slicer[1] = slice(None)
+            slicer[2] = slice(None)
+            hi_res_topo = hi_res_topo[tuple(slicer)]
+
+        if len(hi_res.shape) == 4:
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
             hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
-
-        elif len(hi_res_topo.shape) == 2 and len(hi_res.shape) == 5:
+        elif len(hi_res.shape) == 5:
             hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
             hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
             hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
@@ -147,7 +152,7 @@ class WindGan(Sup3rGan):
             if len(exogenous_data) > 1:
                 hi_res_topo = exogenous_data[1]
 
-        low_res = (low_res if not low_res_topo
+        low_res = (low_res if low_res_topo is None
                    else np.concatenate((low_res, low_res_topo), axis=-1))
 
         if norm_in and self._means is not None:

@@ -294,7 +294,7 @@ class Collector:
                 future = exe.submit(cls._get_file_attrs, fn)
                 futures[future] = i
 
-            interval = np.int(np.ceil(len(futures) / 10))
+            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 if interval > 0 and i % interval == 0:
                     mem = psutil.virtual_memory()

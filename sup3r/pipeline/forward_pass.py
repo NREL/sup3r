@@ -386,7 +386,7 @@ class ForwardPassSlicer:
         """Low resolution temporal slices"""
         n_tsteps = len(self.raw_time_index[self.temporal_slice])
         n_chunks = n_tsteps / self.chunk_shape[2]
-        n_chunks = np.int(np.ceil(n_chunks))
+        n_chunks = int(np.ceil(n_chunks))
         ti_slices = np.arange(len(self.raw_time_index))[self.temporal_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
         ti_slices = [slice(c[0], c[-1] + 1, self.temporal_slice.step)
@@ -1507,14 +1507,15 @@ class ForwardPass:
             model_class = getattr(sup3r.models, model_class)
             model = model_class.load(**model_kwargs, verbose=False)
 
-        for i, arr in enumerate(exo_data):
-            if arr is not None:
-                check = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
-                check = check and (i < len(model.spatial_models))
-                if check:
-                    exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
-                else:
-                    exo_data[i] = np.expand_dims(arr, axis=0)
+        if exo_data is not None:
+            for i, arr in enumerate(exo_data):
+                if arr is not None:
+                    tp = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
+                    tp = tp and (i < len(model.spatial_models))
+                    if tp:
+                        exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
+                    else:
+                        exo_data[i] = np.expand_dims(arr, axis=0)
 
         if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
             i_lr_t = 0
@@ -1619,7 +1620,7 @@ class ForwardPass:
             Forward pass output corresponding to the given chunk index
         """
         data_chunk = self.input_data
-        exo_data = []
+        exo_data = None
 
         if self.exogenous_data is not None:
             exo_data = self._prep_exogenous_input(data_chunk.shape)

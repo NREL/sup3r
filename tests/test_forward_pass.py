@@ -2,6 +2,7 @@
 """pytests for data handling"""
 import json
 import os
+import pytest
 import tempfile
 import tensorflow as tf
 import numpy as np
@@ -12,7 +13,7 @@ from sup3r import TEST_DATA_DIR, CONFIG_DIR, __version__
 from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
 from sup3r.preprocessing.batch_handling import BatchHandler
 from sup3r.pipeline.forward_pass import (ForwardPass, ForwardPassStrategy)
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGan, WindGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 
 from rex import ResourceX
@@ -869,3 +870,125 @@ def test_slicing_pad(log=False):
 
             assert forward_pass.input_data.shape == padded_truth.shape
             assert np.allclose(forward_pass.input_data, padded_truth)
+
+
+def test_fwp_wind_hi_res_topo():
+    """Test the forward pass with WindGan models requiring high-resolution
+    topograph input from the exogenous_data feature."""
+    Sup3rGan.seed()
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+                 {"class": "SpatialExpansion", "spatial_mult": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": "Sup3rConcat"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    s1_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['s_enhance'] = 2
+    s1_model.meta['t_enhance'] = 1
+    _ = s1_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+
+    s2_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['s_enhance'] = 2
+    s2_model.meta['t_enhance'] = 1
+    _ = s2_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        s1_out_dir = os.path.join(td, 's1_gan')
+        s2_out_dir = os.path.join(td, 's2_gan')
+        st_model.save(st_out_dir)
+        s1_model.save(s1_out_dir)
+        s2_model.save(s2_out_dir)
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_file': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [1, 2, 2],
+                      'agg_factors': [2, 4, 12],
+                      }
+
+        model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
+                        'temporal_model_dirs': st_out_dir}
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+
+        # should get an error on a bad tensorflow concatenation
+        with pytest.raises(RuntimeError):
+            exo_kwargs['s_enhancements'] = [1, 1, 1]
+            handler = ForwardPassStrategy(
+                input_files, model_kwargs=model_kwargs,
+                model_class='SpatialThenTemporalGan',
+                fwp_chunk_shape=(4, 4, 8),
+                spatial_pad=1, temporal_pad=1,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_workers=1,
+                exo_kwargs=exo_kwargs,
+                max_nodes=1)
+            forward_pass = ForwardPass(handler)
+            forward_pass.run(handler, node_index=0)
+
+        exo_kwargs['s_enhancements'] = [1, 2, 2]
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='SpatialThenTemporalGan',
+            fwp_chunk_shape=(4, 4, 8),
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_workers=1,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+        forward_pass = ForwardPass(handler)
+        forward_pass.run(handler, node_index=0)
+
+        for fp in handler.out_files:
+            assert os.path.exists(fp)
