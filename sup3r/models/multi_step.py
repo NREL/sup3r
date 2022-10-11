@@ -26,53 +26,10 @@ class MultiStepGan(AbstractSup3rGan):
             An ordered list/tuple of one or more trained Sup3rGan models
         """
         self._models = tuple(models)
-        self._all_same_norm_stats = self._norm_stats_same()
 
     def __len__(self):
         """Get number of model steps"""
         return len(self._models)
-
-    def _norm_stats_same(self):
-        """Determine whether or not the normalization stats for the models are
-        the same or not.
-
-        Returns
-        -------
-        all_same : bool
-            True if all the norm stats for all models are the same
-        """
-
-        all_means = [model.means for model in self.models]
-        nones = [m is None for m in all_means]
-
-        if any(nones) and not all(nones):
-            m_all_same = False
-        elif all(nones):
-            m_all_same = True
-        else:
-            m_all_same = True
-            m0 = all_means[0]
-            for m1 in all_means[1:]:
-                if m0.shape != m1.shape or not np.allclose(m0, m1):
-                    m_all_same = False
-                    break
-
-        all_stdevs = [model.stdevs for model in self.models]
-        nones = [m is None for m in all_stdevs]
-
-        if any(nones) and not all(nones):
-            s_all_same = False
-        elif all(nones):
-            s_all_same = True
-        else:
-            s_all_same = True
-            s0 = all_stdevs[0]
-            for s1 in all_stdevs[1:]:
-                if s0.shape != s1.shape or not np.allclose(s0, s1):
-                    s_all_same = False
-                    break
-
-        return m_all_same and s_all_same
 
     @classmethod
     def load(cls, model_dirs, verbose=True):
@@ -106,33 +63,25 @@ class MultiStepGan(AbstractSup3rGan):
 
     @property
     def means(self):
-        """Get the data normalization mean values. This is either
-        a 1D np.ndarray if all the models have the same means values or a
-        tuple of means from all models if they are not all the same.
+        """Get the data normalization mean values. This is a tuple of means
+        from all models.
 
         Returns
         -------
         tuple | np.ndarray
         """
-        if self._all_same_norm_stats:
-            return self.models[0].means
-        else:
-            return tuple(model.means for model in self.models)
+        return tuple(model.means for model in self.models)
 
     @property
     def stdevs(self):
-        """Get the data normalization standard deviation values. This is either
-        a 1D np.ndarray if all the models have the same stdevs values or a
-        tuple of stdevs from all models if they are not all the same.
+        """Get the data normalization standard deviation values. This is a
+        tuple of stdevs from all models.
 
         Returns
         -------
         tuple | np.ndarray
         """
-        if self._all_same_norm_stats:
-            return self.models[0].stdevs
-        else:
-            return tuple(model.stdevs for model in self.models)
+        return tuple(model.stdevs for model in self.models)
 
     @staticmethod
     def seed(s=0):
@@ -145,75 +94,6 @@ class MultiStepGan(AbstractSup3rGan):
             Random seed
         """
         Sup3rGan.seed(s=s)
-
-    def _normalize_input(self, low_res):
-        """Normalize an input array before being passed to the first model in
-        the MultiStepGan
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        low_res : np.ndarray
-            Same array shape as input but with the data normalized based on the
-            1st model's means/stdevs
-        """
-
-        means = self.models[0].means
-        stdevs = self.models[0].stdevs
-
-        if means is not None:
-            low_res = low_res.copy()
-            for idf in range(low_res.shape[-1]):
-                low_res[..., idf] -= means[idf]
-
-                if stdevs[idf] != 0:
-                    low_res[..., idf] /= stdevs[idf]
-                else:
-                    msg = ('Standard deviation is zero for '
-                           f'{self.models[0].training_features[idf]}')
-                    logger.warning(msg)
-                    warn(msg)
-
-        return low_res
-
-    def _unnormalize_output(self, hi_res):
-        """Un-normalize an output array before being passed out of the
-        MultiStepGan
-
-        Parameters
-        ----------
-        hi_res : np.ndarray
-            Synthetically generated high-resolution data with mean=0 and
-            stdev=1. Usually a 4D or 5D array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        hi_res : np.ndarray
-            Synthetically generated high-resolution data un-normalized to
-            physical units with mean != 0 and stdev != 1
-        """
-
-        means = self.models[-1].means
-        stdevs = self.models[-1].stdevs
-
-        if means is not None:
-            if isinstance(hi_res, tf.Tensor):
-                hi_res = hi_res.numpy()
-
-            for idf in range(hi_res.shape[-1]):
-                feature_name = self.models[-1].output_features[idf]
-                i = self.models[-1].training_features.index(feature_name)
-                hi_res[..., idf] = (hi_res[..., idf] * stdevs[i]) + means[i]
-
-        return hi_res
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
@@ -255,30 +135,21 @@ class MultiStepGan(AbstractSup3rGan):
 
         exo_data = ([None] * len(self.models) if not exogenous_data
                     else exogenous_data)
-        if exo_data[0] is not None:
-            low_res = np.concatenate((low_res, exo_data[0]), axis=-1)
-
-        if norm_in:
-            low_res = self._normalize_input(low_res)
 
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
-            if i > 0 and exo_data[i] is not None:
-                hi_res = np.concatenate((hi_res, exo_data[i]), axis=-1)
 
-            i_norm_in = False
-            if not self._all_same_norm_stats and model != self.models[0]:
-                i_norm_in = True
-
-            i_un_norm_out = False
-            if not self._all_same_norm_stats and model != self.models[-1]:
-                i_un_norm_out = True
+            i_norm_in = False if (i == 0 and not norm_in) else True
+            i_un_norm_out = (False
+                             if (i + 1 == len(self.models) and not un_norm_out)
+                             else True)
 
             try:
                 logger.debug('Data input to model #{} of {} has shape {}'
                              .format(i + 1, len(self.models), hi_res.shape))
                 hi_res = model.generate(hi_res, norm_in=i_norm_in,
-                                        un_norm_out=i_un_norm_out)
+                                        un_norm_out=i_un_norm_out,
+                                        exogenous_data=exo_data[i])
                 logger.debug('Data output from model #{} of {} has shape {}'
                              .format(i + 1, len(self.models), hi_res.shape))
             except Exception as e:
@@ -287,9 +158,6 @@ class MultiStepGan(AbstractSup3rGan):
                        .format(i + 1, len(self.models), model, hi_res.shape))
                 logger.exception(msg)
                 raise RuntimeError(msg) from e
-
-        if un_norm_out:
-            hi_res = self._unnormalize_output(hi_res)
 
         return hi_res
 
