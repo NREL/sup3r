@@ -61,8 +61,10 @@ class ForwardPassSlicer:
             serial set this equal to the shape of the full spatiotemporal data
             volume for best performance.
         s_enhancements : list
-            List of factor by which the Sup3rGan model will enhance the spatial
-            dimensions of low resolution data
+            List of factors by which the Sup3rGan model will enhance the
+            spatial dimensions of low resolution data. If there are two 5x
+            spatial enhancements, this should be [5, 5] where the total
+            enhancement is the product of these factors.
         t_enhancements : list
             List of factor by which the Sup3rGan model will enhance temporal
             dimension of low resolution data

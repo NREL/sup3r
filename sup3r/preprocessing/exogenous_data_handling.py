@@ -38,16 +38,18 @@ class ExogenousDataHandler:
             file_paths input
         s_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
-            spatial dimensions of low resolution data from file_paths input.
-            For example, if file_paths has 100km data and there are 2 spatial
-            enhancement steps of 4x and 5x to a nominal resolution of 5km,
-            s_enhancements should be [1, 4] and exo_steps should be [0, 1] so
-            that the input to the 4x model gets exogenous data at 100km
-            (s_enhance=1, exo_step=0) and the input to the 5x model gets
-            exogenous data at 25km (s_enhance=4, exo_step=1). With this
-            example, any models after the 5x spatial enhancement will not
-            receive exogenous inputs. The length of this list should be equal
-            to the number of agg_factors and the number of exo_steps
+            spatial dimensions of low resolution data from file_paths input
+            where the total spatial enhancement is the product of these
+            factors. For example, if file_paths has 100km data and there are 2
+            spatial enhancement steps of 4x and 5x to a nominal resolution of
+            5km, s_enhancements should be [1, 4, 5] and exo_steps should be
+            [0, 1, 2] so that the input to the 4x model gets exogenous data
+            at 100km (s_enhance=1, exo_step=0), the input to the 5x model gets
+            exogenous data at 25km (s_enhance=4, exo_step=1), and there is a
+            20x (1*4*5) exogeneous data layer available if the second model can
+            receive a high-res input feature (e.g. WindGan). The length of this
+            list should be equal to the number of agg_factors and the number of
+            exo_steps
         agg_factors : list
             List of factors by which to aggregate the topo_source_h5 elevation
             data to the resolution of the file_paths input enhanced by
