@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Utilities used for QA"""
 import numpy as np
-from PIL import Image
+from scipy.interpolate import RegularGridInterpolator
 
 
 def tke_frequency_spectrum(u, v):
@@ -98,7 +98,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def velocity_gradient_dist(u, bins=50, range=None, diff_max=7, scale=1):
+def velocity_gradient_dist(u, bins=20, range=None, diff_max=7, scale=1):
     """Returns the longitudinal velocity gradient distribution.
 
     Parameters
@@ -132,7 +132,7 @@ def velocity_gradient_dist(u, bins=50, range=None, diff_max=7, scale=1):
     return centers, counts, norm
 
 
-def vorticity_dist(u, v, bins=50, range=None, diff_max=14, scale=1):
+def vorticity_dist(u, v, bins=20, range=None, diff_max=14, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -171,7 +171,7 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=14, scale=1):
     return centers, counts, norm
 
 
-def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1,
+def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
                       scale=1):
     """Returns the windspeed ramp rate distribution.
 
@@ -216,66 +216,6 @@ def ws_ramp_rate_dist(u, v, bins=50, range=None, diff_max=10, t_steps=1,
     return centers, counts, norm
 
 
-def spatial_interp(low, s_enhance):
-    """Spatial bilinear interpolation for low resolution field. Used to provide
-    baseline for comparison with gan output
-
-    Parameters
-    ----------
-    low : ndarray
-        Low resolution field to interpolate.
-        (spatial_1, spatial_2, temporal)
-    s_enhance : int
-        Factor by which to enhance the spatial domain
-
-    Returns
-    -------
-    ndarray
-        Spatially interpolated low resolution output
-    """
-
-    high = np.zeros((low.shape[0] * s_enhance, low.shape[1] * s_enhance,
-                     low.shape[-1]))
-    for t in range(low.shape[-1]):
-        im = Image.fromarray(low[..., t])
-        im = im.resize((low[..., t].shape[1] * s_enhance,
-                        low[..., t].shape[0] * s_enhance),
-                       resample=Image.Resampling.BILINEAR)
-        high[..., t] = np.array(im)
-    return high
-
-
-def temporal_interp(low, t_enhance):
-    """Temporal bilinear interpolation for low resolution field. Used to
-    provide baseline for comparison with gan output
-
-    Parameters
-    ----------
-    low : ndarray
-        Low resolution field to interpolate.
-        (spatial_1, spatial_2, temporal)
-    t_enhance : int
-        Factor by which to enhance the temporal domain
-
-    Returns
-    -------
-    ndarray
-        Temporally interpolated low resolution output
-    """
-
-    high = np.zeros((low.shape[0], low.shape[1], low.shape[-1] * t_enhance))
-    for t in range(high.shape[-1]):
-        t0 = t // t_enhance
-        t1 = t0 + 1
-        alpha = (t / t_enhance - t0) / (t1 - t0)
-        if t1 == low.shape[-1]:
-            tmp = low[..., t0]
-        else:
-            tmp = (1 - alpha) * low[..., t0] + alpha * low[..., t1]
-        high[..., t] = tmp
-    return high
-
-
 def st_interp(low, s_enhance, t_enhance):
     """Spatiotemporal bilinear interpolation for low resolution field. Used to
     provide baseline for comparison with gan output
@@ -295,4 +235,13 @@ def st_interp(low, s_enhance, t_enhance):
     ndarray
         Spatiotemporally interpolated low resolution output
     """
-    return temporal_interp(spatial_interp(low, s_enhance), t_enhance)
+    y = np.arange(low.shape[0])
+    x = np.arange(low.shape[1])
+    t = np.arange(low.shape[2])
+    interp = RegularGridInterpolator((y, x, t), low)
+    new_x = np.linspace(0, x[-1], s_enhance * len(x))
+    new_y = np.linspace(0, y[-1], s_enhance * len(y))
+    new_t = np.linspace(0, t[-1], t_enhance * len(t))
+    X, Y, T = np.meshgrid(new_x, new_y, new_t)
+    out = interp((Y, X, T))
+    return out

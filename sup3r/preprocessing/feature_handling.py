@@ -819,6 +819,45 @@ class VWind(DerivedFeature):
         return v
 
 
+class TempNCforCC(DerivedFeature):
+    """Air temperature variable from climate change nc files"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing ta
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. ta
+
+        Returns
+        -------
+        list
+            List of required features for computing ta
+        """
+        height = Feature.get_height(feature)
+        return [f'ta_{height}m']
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute ta in Celsius from ta source in Kelvin
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+        return data[f'ta_{height}m'] - 273.15
+
+
 class Tas(DerivedFeature):
     """Air temperature near surface variable from climate change nc files"""
 
@@ -1463,6 +1502,53 @@ class FeatureHandler:
         return tmp
 
     @classmethod
+    def _exact_lookup(cls, feature):
+        """Check for exact feature match in feature registry. e.g. check if
+        temperature_2m matches a feature registry entry of temperature_2m.
+        (Still case insensitive)
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        out : str
+            Matching feature registry entry.
+        """
+
+        out = None
+        for k, v in cls.feature_registry().items():
+            if k.lower() == feature.lower():
+                out = v
+                break
+        return out
+
+    @classmethod
+    def _pattern_lookup(cls, feature):
+        """Check for pattern feature match in feature registry. e.g. check if
+        U_100m matches a feature registry entry of U_(.*)m
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        out : str
+            Matching feature registry entry.
+        """
+
+        out = None
+        for k, v in cls.feature_registry().items():
+            if re.match(k.lower(), feature.lower()):
+                out = v
+                break
+        return out
+
+    @classmethod
     def lookup(cls, feature, attr_name, handle_features=None):
         """Lookup feature in feature registry
 
@@ -1483,14 +1569,11 @@ class FeatureHandler:
             Feature registry method corresponding to feature
         """
 
-        if handle_features is None:
-            handle_features = []
+        handle_features = handle_features or []
 
-        out = None
-        for k, v in cls.feature_registry().items():
-            if re.match(k.lower(), feature.lower()):
-                out = v
-                break
+        out = cls._exact_lookup(feature)
+        if out is None:
+            out = cls._pattern_lookup(feature)
 
         if out is None:
             return None
