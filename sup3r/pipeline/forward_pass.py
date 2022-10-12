@@ -1509,24 +1509,8 @@ class ForwardPass:
             model_class = getattr(sup3r.models, model_class)
             model = model_class.load(**model_kwargs, verbose=False)
 
-        if exo_data is not None:
-            for i, arr in enumerate(exo_data):
-                if arr is not None:
-                    tp = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
-                    tp = tp and (i < len(model.spatial_models))
-                    if tp:
-                        exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
-                    else:
-                        exo_data[i] = np.expand_dims(arr, axis=0)
-
-        if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
-            i_lr_t = 0
-            i_lr_s = 1
-            data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
-        else:
-            i_lr_t = 3
-            i_lr_s = 1
-            data_chunk = np.expand_dims(data_chunk, axis=0)
+        temp = cls._reshape_data_chunk(model, data_chunk, exo_data)
+        data_chunk, exo_data, i_lr_t, i_lr_s = temp
 
         try:
             hi_res = model.generate(data_chunk, exogenous_data=exo_data)
@@ -1553,6 +1537,58 @@ class ForwardPass:
             raise RuntimeError(msg)
 
         return hi_res[0][hr_crop_slices]
+
+    @staticmethod
+    def _reshape_data_chunk(model, data_chunk, exo_data):
+        """Reshape and transpose data chunk and exogenous data before being
+        passed to the sup3r model.
+
+        Parameters
+        ----------
+        model : Sup3rGan
+            Sup3rGan or similar sup3r model
+        data_chunk : np.ndarray
+            Low resolution data for a single spatiotemporal chunk that is going
+            to be passed to the model generate function.
+        exo_data : list | None
+            Optional exogenous data which can be a list of arrays of exogenous
+            inputs to complement data_chunk
+
+        Returns
+        -------
+        data_chunk : np.ndarray
+            Same as input but reshaped to (temporal, spatial_1, spatial_2,
+            features) if the model is a spatial-first model or
+            (n_obs, spatial_1, spatial_2, temporal, features) if the
+            model is spatiotemporal
+        exo_data : list | None
+            Same reshaping procedure as for data_chunk
+        i_lr_t : int
+            Axis index for the low-resolution temporal dimension
+        i_lr_s : int
+            Axis index for the low-resolution spatial_1 dimension
+        """
+
+        if exo_data is not None:
+            for i, arr in enumerate(exo_data):
+                if arr is not None:
+                    tp = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
+                    tp = tp and (i < len(model.spatial_models))
+                    if tp:
+                        exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
+                    else:
+                        exo_data[i] = np.expand_dims(arr, axis=0)
+
+        if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
+            i_lr_t = 0
+            i_lr_s = 1
+            data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
+        else:
+            i_lr_t = 3
+            i_lr_s = 1
+            data_chunk = np.expand_dims(data_chunk, axis=0)
+
+        return data_chunk, exo_data, i_lr_t, i_lr_s
 
     @classmethod
     def get_node_cmd(cls, config):
