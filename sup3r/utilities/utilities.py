@@ -964,9 +964,16 @@ def interp_var_to_height(data, var, raster_index, heights,
     if len(data[var].dims) == 5:
         raster_index = [0] + raster_index
     logger.debug(f'Interpolating {var} to heights (meters): {heights}')
-    return interp_to_level(unstagger_var(data, var, raster_index, time_slice),
-                           calc_height(data, raster_index, time_slice),
-                           heights)[0]
+    hgt = calc_height(data, raster_index, time_slice)
+    if data[var].dims == ('plev',):
+        arr = np.array(data[var])
+        arr = np.expand_dims(arr, axis=(0, 2, 3))
+        arr = np.repeat(arr, hgt.shape[0], axis=0)
+        arr = np.repeat(arr, hgt.shape[2], axis=2)
+        arr = np.repeat(arr, hgt.shape[3], axis=3)
+    else:
+        arr = unstagger_var(data, var, raster_index, time_slice)
+    return interp_to_level(arr, hgt, heights)[0]
 
 
 def interp_var_to_pressure(data, var, raster_index, pressures,

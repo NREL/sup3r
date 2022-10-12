@@ -21,7 +21,7 @@ WRF_FEAT = ['U', 'V', 'T', 'UST', 'HFX', 'HGT']
 
 NSRDB_FEAT = ['ghi', 'clearsky_ghi', 'wind_speed', 'wind_direction']
 
-CC_FEAT = ['ua', 'uv', 'tas', 'hurs', 'zg', 'orog']
+CC_FEAT = ['ua', 'uv', 'tas', 'hurs', 'zg', 'orog', 'ta']
 
 
 def test_feature_inputs_h5():
@@ -72,6 +72,12 @@ def test_feature_inputs_cc():
 
     out = DataHandlerNCforCC.get_inputs_recursive('temperature_2m', CC_FEAT)
     assert out == ['tas']
+
+    out = DataHandlerNCforCC.get_inputs_recursive('temperature_100m', CC_FEAT)
+    assert out == ['ta_100m']
+
+    out = DataHandlerNCforCC.get_inputs_recursive('pressure_100m', CC_FEAT)
+    assert out == ['plev_100m']
 
     out = DataHandlerNCforCC.get_inputs_recursive('relativehumidity_2m',
                                                   CC_FEAT)

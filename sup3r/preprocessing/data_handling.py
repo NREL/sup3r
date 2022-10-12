@@ -49,6 +49,7 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   LatLonNC,
                                                   LatLonNCforCC,
                                                   TempNC,
+                                                  TempNCforCC,
                                                   PotentialTempNC,
                                                   PressureNC,
                                                   UWind,
@@ -2045,7 +2046,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'clearsky_ratio': ClearSkyRatioCC,
-            'lat_lon': LatLonNCforCC}
+            'lat_lon': LatLonNCforCC,
+            'Pressure_(.*)': 'plev_(.*)',
+            'Temperature_(.*)': TempNCforCC}
         return registry
 
     @classmethod

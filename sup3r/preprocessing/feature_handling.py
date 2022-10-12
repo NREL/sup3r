@@ -819,6 +819,45 @@ class VWind(DerivedFeature):
         return v
 
 
+class TempNCforCC(DerivedFeature):
+    """Air temperature variable from climate change nc files"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing ta
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. ta
+
+        Returns
+        -------
+        list
+            List of required features for computing ta
+        """
+        height = Feature.get_height(feature)
+        return [f'ta_{height}m']
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute ta in Celsius from ta source in Kelvin
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+        return data[f'ta_{height}m'] - 273.15
+
+
 class Tas(DerivedFeature):
     """Air temperature near surface variable from climate change nc files"""
 
