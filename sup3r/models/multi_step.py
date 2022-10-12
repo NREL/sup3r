@@ -170,6 +170,7 @@ class MultiStepGan(AbstractSup3rGan):
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
 
+            # pylint: disable=R1719
             i_norm_in = False if (i == 0 and not norm_in) else True
             i_un_norm_out = (False
                              if (i + 1 == len(self.models) and not un_norm_out)
@@ -472,8 +473,9 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         ----------
         low_res : np.ndarray
             Low-resolution spatial input data, a 4D array of shape:
-            (n_obs, spatial_1, spatial_2, 2), Where the feature channel is:
-            [temperature_2m, relativehumidity_2m]
+            (n_obs, spatial_1, spatial_2, n_features), Where the feature
+            channel can include temperature_*m, relativehumidity_*m, and/or
+            pressure_*m
         norm_in : bool
             Flag to normalize low_res input data if the self.means,
             self.stdevs attributes are available. The generator should always
@@ -494,7 +496,8 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
             Synthetically generated high-resolution data output from the 2nd
             step (spatio)temporal GAN with a 5D array shape:
             (1, spatial_1, spatial_2, n_temporal, n_features), Where the
-            feature channel is: [temperature_2m, relativehumidity_2m]
+            feature channel can include temperature_*m, relativehumidity_*m,
+            and/or pressure_*m
         """
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))

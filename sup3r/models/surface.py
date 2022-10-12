@@ -416,8 +416,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         ----------
         low_res : np.ndarray
             Low-resolution spatial input data, a 4D array of shape:
-            (n_obs, spatial_1, spatial_2, 2), Where the feature channel is:
-            [temperature_2m, relativehumidity_2m]
+            (n_obs, spatial_1, spatial_2, n_features), Where the feature
+            channel can include temperature_*m, relativehumidity_*m, and/or
+            pressure_*m
         norm_in : bool
             This doesnt do anything for this SurfaceSpatialMetModel, but is
             kept to keep the same interface as Sup3rGan
@@ -435,8 +436,8 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         -------
         hi_res : ndarray
             high-resolution spatial output data, a 4D array of shape:
-            (n_obs, spatial_1, spatial_2, 2), Where the feature channel is:
-            [temperature_2m, relativehumidity_2m]
+            (n_obs, spatial_1, spatial_2, 2), Where the feature channel can
+            include temperature_*m, relativehumidity_*m, and/or pressure_*m
         """
 
         msg = ('exogenous_data is of a bad type {}!'
