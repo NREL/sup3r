@@ -832,9 +832,111 @@ def test_slicing_pad(log=False):
             assert np.allclose(forward_pass.input_data, padded_truth)
 
 
-def test_fwp_wind_hi_res_topo():
-    """Test the forward pass with WindGan models requiring high-resolution
-    topograph input from the exogenous_data feature."""
+def test_fwp_single_step_wind_hi_res_topo():
+    """Test the forward pass with a single spatiotemporal WindGan model
+    requiring high-resolution topograph input from the exogenous_data
+    feature."""
+    Sup3rGan.seed()
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "SpatioTemporalExpansion", "temporal_mult": 2},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": "Sup3rConcat"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 2
+    model.meta['t_enhance'] = 2
+    _ = model.generate(np.ones((4, 10, 10, 6, 3)),
+                       exogenous_data=(None, np.ones((4, 20, 20, 6, 1))))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        model.save(st_out_dir)
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_file': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [1, 2],
+                      'agg_factors': [2, 4],
+                      }
+
+        model_kwargs = {'model_dir': st_out_dir}
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+
+        # should get an error on a bad tensorflow concatenation
+        with pytest.raises(RuntimeError):
+            exo_kwargs['s_enhancements'] = [1, 1]
+            handler = ForwardPassStrategy(
+                input_files, model_kwargs=model_kwargs,
+                model_class='WindGan',
+                fwp_chunk_shape=(4, 4, 8),
+                spatial_pad=1, temporal_pad=1,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_workers=1,
+                exo_kwargs=exo_kwargs,
+                max_nodes=1)
+            forward_pass = ForwardPass(handler)
+            forward_pass.run(handler, node_index=0)
+
+        exo_kwargs['s_enhancements'] = [1, 2]
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='WindGan',
+            fwp_chunk_shape=(4, 4, 8),
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_workers=1,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+        forward_pass = ForwardPass(handler)
+        forward_pass.run(handler, node_index=0)
+
+        for fp in handler.out_files:
+            assert os.path.exists(fp)
+
+
+def test_fwp_multi_step_wind_hi_res_topo():
+    """Test the forward pass with multiple WindGan models requiring
+    high-resolution topograph input from the exogenous_data feature."""
     Sup3rGan.seed()
     gen_model = [{"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
