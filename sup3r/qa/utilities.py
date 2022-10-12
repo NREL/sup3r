@@ -2,7 +2,6 @@
 """Utilities used for QA"""
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from PIL import Image
 
 
 def tke_frequency_spectrum(u, v):
