@@ -361,7 +361,7 @@ def test_st_interpolation(plot=False):
 
     err = np.mean(s_interp) - np.mean(arr)
     err = np.abs(err / np.mean(arr))
-    assert err < 0.1
+    assert err < 0.15
 
     t_interp = st_interp(arr, s_enhance=1, t_enhance=4)
 
