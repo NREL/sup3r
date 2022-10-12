@@ -2043,12 +2043,12 @@ class DataHandlerNCforCC(DataHandlerNC):
             'Windspeed_(.*)m': WindspeedNC,
             'Winddirection_(.*)m': WinddirectionNC,
             'topography': 'orog',
-            'temperature_2m': Tas,
             'relativehumidity_2m': 'hurs',
             'clearsky_ratio': ClearSkyRatioCC,
             'lat_lon': LatLonNCforCC,
             'Pressure_(.*)': 'plev_(.*)',
-            'Temperature_(.*)': TempNCforCC}
+            'Temperature_(.*)': TempNCforCC,
+            'temperature_2m': Tas}
         return registry
 
     @classmethod

@@ -1502,6 +1502,53 @@ class FeatureHandler:
         return tmp
 
     @classmethod
+    def _exact_lookup(cls, feature):
+        """Check for exact feature match in feature registry. e.g. check if
+        temperature_2m matches a feature registry entry of temperature_2m.
+        (Still case insensitive)
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        out : str
+            Matching feature registry entry.
+        """
+
+        out = None
+        for k, v in cls.feature_registry().items():
+            if k.lower() == feature.lower():
+                out = v
+                break
+        return out
+
+    @classmethod
+    def _pattern_lookup(cls, feature):
+        """Check for pattern feature match in feature registry. e.g. check if
+        U_100m matches a feature registry entry of U_(.*)m
+
+        Parameters
+        ----------
+        feature : str
+            Feature to lookup in registry
+
+        Returns
+        -------
+        out : str
+            Matching feature registry entry.
+        """
+
+        out = None
+        for k, v in cls.feature_registry().items():
+            if re.match(k.lower(), feature.lower()):
+                out = v
+                break
+        return out
+
+    @classmethod
     def lookup(cls, feature, attr_name, handle_features=None):
         """Lookup feature in feature registry
 
@@ -1522,14 +1569,11 @@ class FeatureHandler:
             Feature registry method corresponding to feature
         """
 
-        if handle_features is None:
-            handle_features = []
+        handle_features = handle_features or []
 
-        out = None
-        for k, v in cls.feature_registry().items():
-            if re.match(k.lower(), feature.lower()):
-                out = v
-                break
+        out = cls._exact_lookup(feature)
+        if out is None:
+            out = cls._pattern_lookup(feature)
 
         if out is None:
             return None
