@@ -1249,7 +1249,7 @@ class Sup3rGan(AbstractSup3rGan):
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
             sig = signature(self._tf_generate)
-            if len(sig.parameters) > 1:
+            if len(sig.parameters) > 2:
                 high_res_gen = self._tf_generate(val_batch.low_res,
                                                  val_batch.high_res[..., -1:])
             else:
