@@ -522,10 +522,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             default to the class TRAIN_ONLY_FEATURES attribute.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, load_workers, and norm_workers.
-            If max_workers == 1 then all processes will be serialized. If None
-            extract_workers, compute_workers, load_workers, and norm_workers
-            will use their own provided values.
+            extract_workers, compute_workers, load_workers, norm_workers, and
+            ti_workers.  If max_workers == 1 then all processes will be
+            serialized. If None extract_workers, compute_workers, load_workers,
+            and norm_workers will use their own provided values.
         extract_workers : int | None
             max number of workers to use for extracting features from source
             data. If None max workers will be estimated based on memory limits.

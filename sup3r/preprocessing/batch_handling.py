@@ -353,10 +353,9 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, overwrite_stats=False,
-                 smoothing=None, smoothing_ignore=None,
-                 stats_workers=None, norm_workers=None, load_workers=None,
-                 max_workers=None):
+                 means_file=None, overwrite_stats=False, smoothing=None,
+                 smoothing_ignore=None, stats_workers=None, norm_workers=None,
+                 load_workers=None, max_workers=None):
         """
         Parameters
         ----------
