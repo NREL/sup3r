@@ -453,9 +453,8 @@ class BatchHandler:
         self._norm_workers = norm_workers
         self._load_workers = load_workers
 
-        logger.info('Initializing BatchHandler with '
-                    f'smoothing={smoothing}')
-        logger.info(f'Using stats_workers={self.stats_workers}, '
+        logger.info(f'Initializing BatchHandler with smoothing={smoothing}. '
+                    f'Using stats_workers={self.stats_workers}, '
                     f'norm_workers={self.norm_workers}, '
                     f'load_workers={self.load_workers}.')
 

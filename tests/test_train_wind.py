@@ -224,7 +224,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                             ('U_100m', 'V_100m', 'topography'),
                             target=TARGET_COORD, shape=SHAPE,
                             temporal_slice=slice(None, None, 10),
-                            val_split=0.0,
+                            val_split=0.1,
                             sample_shape=(20, 20),
                             max_workers=1,
                             train_only_features=tuple())

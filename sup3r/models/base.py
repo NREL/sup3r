@@ -13,6 +13,7 @@ from tensorflow.keras import optimizers
 from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 from warnings import warn
+from inspect import signature
 
 from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.utilities import VERSION_RECORD
@@ -1247,7 +1248,12 @@ class Sup3rGan(AbstractSup3rGan):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self._tf_generate(val_batch.low_res)
+            sig = signature(self._tf_generate)
+            if len(sig.parameters) > 1:
+                high_res_gen = self._tf_generate(val_batch.low_res,
+                                                 val_batch.high_res[..., -1:])
+            else:
+                high_res_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,
