@@ -1099,26 +1099,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
             self.data[..., i] = self.data[..., i] * stds[i] + means[i]
 
-    def normalize(self, means, stds, max_workers=None):
+    def normalize(self, means, stds):
         """Normalize all data features
-
-        Parameters
-        ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        """
-        if max_workers == 1:
-            for i in range(self.shape[-1]):
-                self._normalize_data(i, means[i], stds[i])
-        else:
-            self.parallel_normalization(means, stds)
-
-    def parallel_normalization(self, means, stds):
-        """Run normalization of features in parallel
 
         Parameters
         ----------
@@ -1131,12 +1113,32 @@ class DataHandler(FeatureHandler, InputMixIn):
         """
         logger.info(f'Normalizing {self.shape[-1]} features.')
         max_workers = self.norm_workers
+        if max_workers == 1:
+            for i in range(self.shape[-1]):
+                self._normalize_data(i, means[i], stds[i])
+        else:
+            self.parallel_normalization(means, stds, max_workers=max_workers)
+
+    def parallel_normalization(self, means, stds, max_workers=None):
+        """Run normalization of features in parallel
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        max_workers : int | None
+            Max number of workers to use for normalizing features
+        """
+
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
-                future = exe.submit(self._normalize_data, i, means[i],
-                                    stds[i])
+                future = exe.submit(self._normalize_data, i, means[i], stds[i])
                 futures[future] = i
 
             logger.info(f'Started normalizing {self.shape[-1]} features '
