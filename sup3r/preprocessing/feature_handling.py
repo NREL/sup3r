@@ -1221,7 +1221,7 @@ class FeatureHandler:
             for f in input_features:
                 data[t][f] = cls.extract_feature(file_paths, raster_index, f,
                                                  t_slice)
-            interval = np.int(np.ceil(len(time_chunks) / 10))
+            interval = int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
                              'chunks extracted.')
@@ -1276,7 +1276,7 @@ class FeatureHandler:
                         f' time chunks of shape ({shape[0]}, {shape[1]}, '
                         f'{time_shape}) for {len(input_features)} features')
 
-            interval = np.int(np.ceil(len(futures) / 10))
+            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 v = futures[future]
                 try:
@@ -1387,7 +1387,7 @@ class FeatureHandler:
                     data=tmp, feature=f, handle_features=handle_features,
                     file_paths=file_paths, raster_index=raster_index)
             cls.pop_old_data(data, t, all_features)
-            interval = np.int(np.ceil(len(time_chunks) / 10))
+            interval = int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
                              'chunks computed.')
@@ -1461,7 +1461,7 @@ class FeatureHandler:
                         f' time chunks of shape ({shape[0]}, {shape[1]}, '
                         f'{time_shape}) for {len(derived_features)} features')
 
-            interval = np.int(np.ceil(len(futures) / 10))
+            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 v = futures[future]
                 chunk_idx = v['chunk']

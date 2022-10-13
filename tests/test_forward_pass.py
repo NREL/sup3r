@@ -2,6 +2,7 @@
 """pytests for data handling"""
 import json
 import os
+import pytest
 import tempfile
 import tensorflow as tf
 import numpy as np
@@ -9,10 +10,9 @@ import xarray as xr
 import matplotlib.pyplot as plt
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR, __version__
-from sup3r.preprocessing.data_handling import DataHandlerH5, DataHandlerNC
-from sup3r.preprocessing.batch_handling import BatchHandler
+from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.pipeline.forward_pass import (ForwardPass, ForwardPassStrategy)
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGan, WindGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 
 from rex import ResourceX
@@ -212,27 +212,14 @@ def test_fwp_handler():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['s_enhance'] = s_enhance
+    model.meta['t_enhance'] = t_enhance
+    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -273,29 +260,16 @@ def test_fwp_chunking(log=False, plot=False):
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['s_enhance'] = s_enhance
+    model.meta['t_enhance'] = t_enhance
+    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        model.train(batch_handler, n_epoch=2,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'test_1')
-
+        model.save(out_dir)
         spatial_pad = 20
         temporal_pad = 20
         cache_pattern = os.path.join(td, 'cache')
@@ -370,27 +344,14 @@ def test_fwp_nochunking():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
-                            temporal_slice=slice(None, None, 1),
-                            val_split=0.005,
-                            max_workers=1)
-
-    batch_handler = BatchHandler([handler], batch_size=4,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=4)
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['s_enhance'] = s_enhance
+    model.meta['t_enhance'] = t_enhance
+    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        model.train(batch_handler, n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -411,7 +372,7 @@ def test_fwp_nochunking():
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
                                   temporal_slice=temporal_slice,
-                                  max_workers=None,
+                                  max_workers=1,
                                   cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
@@ -869,3 +830,227 @@ def test_slicing_pad(log=False):
 
             assert forward_pass.input_data.shape == padded_truth.shape
             assert np.allclose(forward_pass.input_data, padded_truth)
+
+
+def test_fwp_single_step_wind_hi_res_topo():
+    """Test the forward pass with a single spatiotemporal WindGan model
+    requiring high-resolution topograph input from the exogenous_data
+    feature."""
+    Sup3rGan.seed()
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "SpatioTemporalExpansion", "temporal_mult": 2},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": "Sup3rConcat"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv3D", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping3D", "cropping": 2}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 2
+    model.meta['t_enhance'] = 2
+    _ = model.generate(np.ones((4, 10, 10, 6, 3)),
+                       exogenous_data=(None, np.ones((4, 20, 20, 6, 1))))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        model.save(st_out_dir)
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_file': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [1, 2],
+                      'agg_factors': [2, 4],
+                      }
+
+        model_kwargs = {'model_dir': st_out_dir}
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+
+        # should get an error on a bad tensorflow concatenation
+        with pytest.raises(RuntimeError):
+            exo_kwargs['s_enhancements'] = [1, 1]
+            handler = ForwardPassStrategy(
+                input_files, model_kwargs=model_kwargs,
+                model_class='WindGan',
+                fwp_chunk_shape=(4, 4, 8),
+                spatial_pad=1, temporal_pad=1,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_workers=1,
+                exo_kwargs=exo_kwargs,
+                max_nodes=1)
+            forward_pass = ForwardPass(handler)
+            forward_pass.run(handler, node_index=0)
+
+        exo_kwargs['s_enhancements'] = [1, 2]
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='WindGan',
+            fwp_chunk_shape=(4, 4, 8),
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_workers=1,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+        forward_pass = ForwardPass(handler)
+        forward_pass.run(handler, node_index=0)
+
+        for fp in handler.out_files:
+            assert os.path.exists(fp)
+
+
+def test_fwp_multi_step_wind_hi_res_topo():
+    """Test the forward pass with multiple WindGan models requiring
+    high-resolution topograph input from the exogenous_data feature."""
+    Sup3rGan.seed()
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+                 {"class": "SpatialExpansion", "spatial_mult": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": "Sup3rConcat"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    s1_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['s_enhance'] = 2
+    s1_model.meta['t_enhance'] = 1
+    _ = s1_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+
+    s2_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['s_enhance'] = 2
+    s2_model.meta['t_enhance'] = 1
+    _ = s2_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        s1_out_dir = os.path.join(td, 's1_gan')
+        s2_out_dir = os.path.join(td, 's2_gan')
+        st_model.save(st_out_dir)
+        s1_model.save(s1_out_dir)
+        s2_model.save(s2_out_dir)
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_file': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [1, 2, 2],
+                      'agg_factors': [2, 4, 12],
+                      }
+
+        model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
+                        'temporal_model_dirs': st_out_dir}
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+
+        # should get an error on a bad tensorflow concatenation
+        with pytest.raises(RuntimeError):
+            exo_kwargs['s_enhancements'] = [1, 1, 1]
+            handler = ForwardPassStrategy(
+                input_files, model_kwargs=model_kwargs,
+                model_class='SpatialThenTemporalGan',
+                fwp_chunk_shape=(4, 4, 8),
+                spatial_pad=1, temporal_pad=1,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_workers=1,
+                exo_kwargs=exo_kwargs,
+                max_nodes=1)
+            forward_pass = ForwardPass(handler)
+            forward_pass.run(handler, node_index=0)
+
+        exo_kwargs['s_enhancements'] = [1, 2, 2]
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='SpatialThenTemporalGan',
+            fwp_chunk_shape=(4, 4, 8),
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_workers=1,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+        forward_pass = ForwardPass(handler)
+        forward_pass.run(handler, node_index=0)
+
+        for fp in handler.out_files:
+            assert os.path.exists(fp)
