@@ -2347,7 +2347,10 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = tuple()
+    TRAIN_ONLY_FEATURES = ('temperature_max_*m',
+                           'temperature_min_*m',
+                           'relativehumidity_max_*m',
+                           'relativehumidity_min_*m')
 
     def __init__(self, *args, **kwargs):
         """
@@ -2405,9 +2408,18 @@ class DataHandlerH5WindCC(DataHandlerH5):
                                                 n_data_days)
         self.daily_data_slices = [slice(x[0], x[-1] + 1)
                                   for x in self.daily_data_slices]
-        for d, t_slice in enumerate(self.daily_data_slices):
-            self.daily_data[:, :, d, :] = daily_temporal_coarsening(
-                self.data[:, :, t_slice, :], temporal_axis=2)[:, :, 0, :]
+        for idf, fname in enumerate(self.features):
+            for d, t_slice in enumerate(self.daily_data_slices):
+                if '_max_' in fname:
+                    tmp = np.max(self.data[:, :, t_slice, idf], axis=2)
+                    self.daily_data[:, :, d, idf] = tmp[:, :]
+                elif '_min_' in fname:
+                    tmp = np.min(self.data[:, :, t_slice, idf], axis=2)
+                    self.daily_data[:, :, d, idf] = tmp[:, :]
+                else:
+                    tmp = daily_temporal_coarsening(
+                        self.data[:, :, t_slice, idf], temporal_axis=2)
+                    self.daily_data[:, :, d, idf] = tmp[:, :, 0]
 
         logger.info('Finished calculating daily average datasets for {} '
                     'training data days.'.format(n_data_days))
@@ -2441,7 +2453,12 @@ class DataHandlerH5WindCC(DataHandlerH5):
         registry = {'U_(.*)m': UWind,
                     'V_(.*)m': VWind,
                     'lat_lon': LatLonH5,
-                    'topography': TopoH5}
+                    'topography': TopoH5,
+                    'temperature_max_(.*)m': 'temperature_(.*)m',
+                    'temperature_min_(.*)m': 'temperature_(.*)m',
+                    'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
+                    'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m',
+                    }
         return registry
 
     def get_observation_index(self):

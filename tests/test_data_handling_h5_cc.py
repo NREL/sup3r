@@ -24,6 +24,9 @@ INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
 
+INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
+TARGET_SURF = (39.1, -105.4)
+
 
 def test_solar_handler(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
@@ -492,3 +495,45 @@ def test_wind_batching_spatial(plot=False):
 
             if p > 4:
                 break
+
+
+def test_surf_min_max_vars():
+    """Test data handling of min/max training only variables"""
+    surf_features = ['temperature_2m',
+                     'relativehumidity_2m',
+                     'temperature_min_2m',
+                     'temperature_max_2m',
+                     'relativehumidity_min_2m',
+                     'relativehumidity_max_2m']
+
+    handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
+                                  target=TARGET_SURF, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 1),
+                                  time_roll=-7,
+                                  val_split=0.0,
+                                  sample_shape=(20, 20, 72),
+                                  max_workers=1)
+
+    # all of the source hi-res hourly temperature data should be the same
+    assert np.allclose(handler.data[..., 0], handler.data[..., 2])
+    assert np.allclose(handler.data[..., 0], handler.data[..., 3])
+    assert np.allclose(handler.data[..., 1], handler.data[..., 4])
+    assert np.allclose(handler.data[..., 1], handler.data[..., 5])
+
+    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
+                             s_enhance=1, sub_daily_shape=None)
+
+    for batch in batcher:
+        assert batch.high_res.shape[3] == 72
+        assert batch.low_res.shape[3] == 3
+
+        assert batch.high_res.shape[-1] == len(surf_features) - 4
+        assert batch.low_res.shape[-1] == len(surf_features)
+
+        # compare daily avg temp vs min and max
+        assert (batch.low_res[..., 0] > batch.low_res[..., 2]).all()
+        assert (batch.low_res[..., 0] < batch.low_res[..., 3]).all()
+
+        # compare daily avg rh vs min and max
+        assert (batch.low_res[..., 1] > batch.low_res[..., 4]).all()
+        assert (batch.low_res[..., 1] < batch.low_res[..., 5]).all()
