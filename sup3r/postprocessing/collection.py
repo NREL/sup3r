@@ -715,7 +715,7 @@ class Collector:
                                 .format(j + 1, len(flist_chunks)))
                     time_index, target_final_meta, masked_meta, shape, _, _ = \
                         collector._get_collection_attrs(
-                            file_paths, dset,
+                            flist, dset,
                             target_final_meta_file=target_final_meta_file)
                     collector._collect_flist(dset, masked_meta, time_index,
                                              shape, flist, out_file,
