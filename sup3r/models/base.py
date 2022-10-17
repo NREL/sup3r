@@ -407,6 +407,25 @@ class Sup3rGan(AbstractSup3rGan):
         """
         return self.generator.weights
 
+    def _needs_lr_exo(self, low_res):
+        """Determine whether or not the sup3r model needs low-res exogenous
+        data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        needs_lr_exo : bool
+            True if the model requires low-resolution exogenous data.
+        """
+
+        return low_res.shape[-1] < len(self.training_features)
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -438,7 +457,8 @@ class Sup3rGan(AbstractSup3rGan):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res = (low_res if exogenous_data is None
+        exo_check = (exogenous_data is None or not self._needs_lr_exo(low_res))
+        low_res = (low_res if exo_check
                    else np.concatenate((low_res, exogenous_data), axis=-1))
 
         if norm_in and self._means is not None:

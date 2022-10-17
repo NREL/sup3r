@@ -83,6 +83,7 @@ class TopoExtract(ABC):
         self._agg_factor = agg_factor
         self._tree = None
         self.ti_workers = ti_workers
+        self._hr_lat_lon = None
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -155,10 +156,13 @@ class TopoExtract(ABC):
         -------
         ndarray
         """
-        if self._s_enhance > 1:
-            return OutputHandler.get_lat_lon(self.lr_lat_lon, self.hr_shape)
-        else:
-            return self.lr_lat_lon
+        if self._hr_lat_lon is None:
+            if self._s_enhance > 1:
+                self._hr_lat_lon = OutputHandler.get_lat_lon(self.lr_lat_lon,
+                                                             self.hr_shape)
+            else:
+                self._hr_lat_lon = self.lr_lat_lon
+        return self._hr_lat_lon
 
     @property
     def tree(self):
@@ -290,7 +294,8 @@ class TopoExtractNC(TopoExtract):
         super().__init__(*args, **kwargs)
         self.source_handler = DataHandlerNC(self._topo_source,
                                             features=['topography'],
-                                            ti_workers=self.ti_workers)
+                                            ti_workers=self.ti_workers,
+                                            val_split=0.0)
 
     @property
     def source_elevation(self):

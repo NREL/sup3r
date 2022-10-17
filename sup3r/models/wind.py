@@ -152,7 +152,8 @@ class WindGan(Sup3rGan):
             if len(exogenous_data) > 1:
                 hi_res_topo = exogenous_data[1]
 
-        low_res = (low_res if low_res_topo is None
+        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
+        low_res = (low_res if exo_check
                    else np.concatenate((low_res, low_res_topo), axis=-1))
 
         if norm_in and self._means is not None:
