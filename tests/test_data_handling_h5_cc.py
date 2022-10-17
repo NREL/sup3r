@@ -412,7 +412,7 @@ def test_wind_handler():
                                   max_workers=1)
 
     assert handler.data.shape[2] % 24 == 0
-    assert handler.data.val_data is None
+    assert handler.val_data is None
     assert not np.isnan(handler.data).any()
 
     assert handler.daily_data.shape[2] == handler.data.shape[2] / 24
