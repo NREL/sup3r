@@ -189,7 +189,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                 if fnmatch(name, 'relativehumidity_*')]
         return inds
 
-    def _get_temp_ind(self, idf_rh):
+    def _get_temp_rh_ind(self, idf_rh):
         """Get the feature index value for the temperature feature
         corresponding to a relative humidity feature at the same hub height.
 
@@ -205,10 +205,15 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             same hub height as the idf_rh input.
         """
         name_rh = self._features[idf_rh]
-        suffix = name_rh.split('_')[-1]
+        hh_suffix = name_rh.split('_')[-1]
         idf_temp = None
         for i in self.feature_inds_temp:
-            if self._features[i].endswith(suffix):
+            same_hh = self._features[i].endswith(hh_suffix)
+            not_minmax = not any(mm in name_rh for mm in ('_min_', '_max_'))
+            both_mins = '_min_' in name_rh and '_min_' in self._features[i]
+            both_maxs = '_max_' in name_rh and '_max_' in self._features[i]
+
+            if same_hh and (not_minmax or both_mins or both_maxs):
                 idf_temp = i
                 break
 
@@ -488,7 +493,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                 hi_res[iobs, :, :, idf_pres] = _tmp
 
             for idf_rh in self.feature_inds_rh:
-                idf_temp = self._get_temp_ind(idf_rh)
+                idf_temp = self._get_temp_rh_ind(idf_rh)
                 _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
                                          low_res[iobs, :, :, idf_temp],
                                          hi_res[iobs, :, :, idf_temp],
