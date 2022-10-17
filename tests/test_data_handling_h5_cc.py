@@ -37,12 +37,12 @@ def test_solar_handler(plot=False):
                                    target=TARGET_S, shape=SHAPE,
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
-                                   val_split=0.1,
+                                   val_split=0.0,
                                    sample_shape=(20, 20, 24),
                                    max_workers=1)
 
     assert handler.data.shape[2] % 24 == 0
-    assert handler.val_data.shape[2] % 24 == 0
+    assert handler.val_data is None
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
     # the handler as NaN
@@ -412,7 +412,7 @@ def test_wind_handler():
                                   max_workers=1)
 
     assert handler.data.shape[2] % 24 == 0
-    assert handler.val_data.shape[2] == 0
+    assert handler.data.val_data is None
     assert not np.isnan(handler.data).any()
 
     assert handler.daily_data.shape[2] == handler.data.shape[2] / 24

@@ -1179,11 +1179,13 @@ class DataHandler(FeatureHandler, InputMixIn):
             specificed standard deviation for associated feature
         """
 
-        self.val_data[..., feature_index] -= mean
+        if self.val_data is not None:
+            self.val_data[..., feature_index] -= mean
         self.data[..., feature_index] -= mean
 
         if std > 0:
-            self.val_data[..., feature_index] /= std
+            if self.val_data is not None:
+                self.val_data[..., feature_index] /= std
             self.data[..., feature_index] /= std
         else:
             msg = ('Standard Deviation is zero for '

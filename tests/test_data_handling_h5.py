@@ -142,9 +142,8 @@ def test_data_caching():
                               cache_pattern=cache_pattern,
                               overwrite_cache=False, load_cached=True)
         assert handler.data is not None
-        assert handler.val_data is not None
+        assert handler.val_data is None
         assert handler.data.dtype == np.dtype(np.float32)
-        assert handler.val_data.dtype == np.dtype(np.float32)
 
 
 def test_feature_handler():
