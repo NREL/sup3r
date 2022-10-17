@@ -63,6 +63,8 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Shear,
                                                   Rews,
                                                   Tas,
+                                                  TasMin,
+                                                  TasMax,
                                                   TopoH5,
                                                   )
 
@@ -2060,11 +2062,15 @@ class DataHandlerNCforCC(DataHandlerNC):
             'Winddirection_(.*)m': WinddirectionNC,
             'topography': 'orog',
             'relativehumidity_2m': 'hurs',
+            'relativehumidity_min_2m': 'hursmin',
+            'relativehumidity_max_2m': 'hursmax',
             'clearsky_ratio': ClearSkyRatioCC,
             'lat_lon': LatLonNCforCC,
             'Pressure_(.*)': 'plev_(.*)',
             'Temperature_(.*)': TempNCforCC,
-            'temperature_2m': Tas}
+            'temperature_2m': Tas,
+            'temperature_max_2m': TasMax,
+            'temperature_min_2m': TasMin}
         return registry
 
     @classmethod

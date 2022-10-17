@@ -896,6 +896,84 @@ class Tas(DerivedFeature):
         return data['tas'] - 273.15
 
 
+class TasMin(DerivedFeature):
+    """Daily min air temperature near surface variable from climate change nc
+    files"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing tasmin
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. tasmin
+
+        Returns
+        -------
+        list
+            List of required features for computing tasmin
+        """
+        return ['tasmin']
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute tasmin in Celsius from tasmin source in Kelvin
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+        return data['tasmin'] - 273.15
+
+
+class TasMax(DerivedFeature):
+    """Daily max air temperature near surface variable from climate change nc
+    files"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing tasmax
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. tasmax
+
+        Returns
+        -------
+        list
+            List of required features for computing tasmax
+        """
+        return ['tasmax']
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute tasmax in Celsius from tasmax source in Kelvin
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+        """
+        return data['tasmax'] - 273.15
+
+
 class LatLonNC:
     """Lat Lon feature class with compute method"""
 
