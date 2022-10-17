@@ -30,7 +30,7 @@ class DataRetrievalBase:
     def __init__(self, base_fps, bias_fps, base_dset, bias_feature,
                  target, shape,
                  base_handler='Resource', bias_handler='DataHandlerNCforCC',
-                 bias_handler_kwargs=None):
+                 bias_handler_kwargs=None, decimals=None):
         """
         Parameters
         ----------
@@ -59,6 +59,11 @@ class DataRetrievalBase:
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
             sup3r.preprocessing.data_handling library.
+        decimals : int | None
+            Option to round bias and base data to this number of
+            decimals, this gets passed to np.around(). If decimals
+            is negative, it specifies the number of positions to
+            the left of the decimal point.
         """
 
         logger.info('Initializing DataRetrievalBase for base dset "{}" '
@@ -70,6 +75,7 @@ class DataRetrievalBase:
         self.bias_feature = bias_feature
         self.target = target
         self.shape = shape
+        self.decimals = decimals
         bias_handler_kwargs = bias_handler_kwargs or {}
 
         if isinstance(self.base_fps, str):
@@ -248,7 +254,7 @@ class DataRetrievalBase:
         dist, base_gid = self.base_tree.query(coord, k=knn)
         return dist, base_gid
 
-    def get_data_pair(self, coord, knn, daily_avg=True):
+    def get_data_pair(self, coord, knn, daily_reduction='avg'):
         """Get base and bias data observations based on a single bias gid.
 
         Parameters
@@ -258,8 +264,10 @@ class DataRetrievalBase:
         knn : int
             Number of nearest neighbors to aggregate from the base data when
             comparing to a single site from the bias data.
-        daily_avg : bool
-            Flag to do temporal daily averaging of the base data.
+        daily_reduction : None | str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), or "min" (daily min)
 
         Returns
         -------
@@ -268,16 +276,21 @@ class DataRetrievalBase:
             and possibly daily-averaged as well.
         bias_data : np.ndarray
             1D array of temporal data at the requested gid.
-        dist : np.ndarray
-            Array of nearest neighbor distances with length == knn
+        base_dist : np.ndarray
+            Array of nearest neighbor distances from coord to the base data
+            sites with length == knn
+        bias_dist : Float
+            Nearest neighbor distance from coord to the bias data site
         """
-        bias_gid = self.get_bias_gid(coord)[0]
-        dist, base_gid = self.get_base_gid(bias_gid, knn)
+        bias_gid, bias_dist = self.get_bias_gid(coord)
+        base_dist, base_gid = self.get_base_gid(bias_gid, knn)
         bias_data = self.get_bias_data(bias_gid)
         base_data = self.get_base_data(self.base_fps, self.base_dset, base_gid,
-                                       self.base_handler, daily_avg=daily_avg)
+                                       self.base_handler,
+                                       daily_reduction=daily_reduction,
+                                       decimals=self.decimals)
         base_data = base_data[0]
-        return base_data, bias_data, dist
+        return base_data, bias_data, base_dist, bias_dist
 
     def get_bias_data(self, bias_gid):
         """Get data from the biased data source for a single gid
@@ -306,11 +319,14 @@ class DataRetrievalBase:
             logger.error(msg)
             raise RuntimeError(msg)
 
+        if self.decimals is not None:
+            bias_data = np.around(bias_data, decimals=self.decimals)
+
         return bias_data
 
     @staticmethod
     def get_base_data(base_fps, base_dset, base_gid, base_handler,
-                      daily_avg=True):
+                      daily_reduction='avg', decimals=None):
         """Get data from the baseline data source, possibly for many high-res
         base gids corresponding to a single coarse low-res bias gid.
 
@@ -327,8 +343,15 @@ class DataRetrievalBase:
             be spatially averaged across all of these sites.
         base_handler : rex.Resource
             A rex data handler similar to rex.Resource
-        daily_avg : bool
-            Flag to do temporal daily averaging of the base data.
+        daily_reduction : None | str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), or "min" (daily min)
+        decimals : int | None
+            Option to round bias and base data to this number of
+            decimals, this gets passed to np.around(). If decimals
+            is negative, it specifies the number of positions to
+            the left of the decimal point.
 
         Returns
         -------
@@ -364,17 +387,29 @@ class DataRetrievalBase:
                 if len(base_data.shape) == 2:
                     base_data = base_data.mean(axis=1)
 
-                if daily_avg:
+                if daily_reduction is not None:
                     slices = [np.where(base_ti.date == date)
                               for date in sorted(set(base_ti.date))]
-                    base_data = np.array([base_data[s0].mean()
-                                          for s0 in slices])
                     base_ti = np.array(sorted(set(base_ti.date)))
+                    if daily_reduction.lower() == 'avg':
+                        base_data = np.array([base_data[s0].mean()
+                                              for s0 in slices])
+                    elif daily_reduction.lower() == 'max':
+                        base_data = np.array([base_data[s0].max()
+                                              for s0 in slices])
+                    elif daily_reduction.lower() == 'min':
+                        base_data = np.array([base_data[s0].min()
+                                              for s0 in slices])
 
             out.append(base_data)
             out_ti.append(base_ti)
 
-        return np.hstack(out), pd.DatetimeIndex(np.hstack(out_ti))
+        out = np.hstack(out)
+
+        if decimals is not None:
+            out = np.around(out, decimals=decimals)
+
+        return out, pd.DatetimeIndex(np.hstack(out_ti))
 
 
 class LinearCorrection(DataRetrievalBase):
@@ -407,9 +442,11 @@ class LinearCorrection(DataRetrievalBase):
             Factor to adjust the biased data before comparing distributions:
             bias_data * scalar + adder
         """
+
         bias_std = bias_data.std()
         if bias_std == 0:
             bias_std = base_data.std()
+
         scalar = base_data.std() / bias_std
         adder = base_data.mean() - bias_data.mean() * scalar
         return scalar, adder
@@ -417,13 +454,14 @@ class LinearCorrection(DataRetrievalBase):
     # pylint: disable=W0613
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, daily_avg, bias_ti):
+                    base_handler, daily_reduction, bias_ti, decimals):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
         base_data, _ = cls.get_base_data(base_fps, base_dset,
                                          base_gid, base_handler,
-                                         daily_avg=daily_avg)
+                                         daily_reduction=daily_reduction,
+                                         decimals=decimals)
 
         scalar, adder = cls.get_linear_correction(bias_data, base_data)
 
@@ -464,7 +502,7 @@ class LinearCorrection(DataRetrievalBase):
                             .format(fp_out))
 
     def run(self, knn, threshold=0.6, fp_out=None, max_workers=None,
-            daily_avg=True, fill_extend=True, smooth_extend=0):
+            daily_reduction='avg', fill_extend=True, smooth_extend=0):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
@@ -483,8 +521,10 @@ class LinearCorrection(DataRetrievalBase):
         max_workers : int
             Number of workers to run in parallel. 1 is serial and None is all
             available.
-        daily_avg : bool
-            Flag to do temporal daily averaging of the base data.
+        daily_reduction : None | str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), or "min" (daily min)
         fill_extend : bool
             Flag to fill data past threshold using spatial nearest neighbor. If
             False, the extended domain will be left as NaN.
@@ -524,8 +564,8 @@ class LinearCorrection(DataRetrievalBase):
                     bias_data = self.get_bias_data(bias_gid)
                     out = self._run_single(bias_data, self.base_fps,
                                            self.base_dset, base_gid,
-                                           self.base_handler, daily_avg,
-                                           self.bias_ti)
+                                           self.base_handler, daily_reduction,
+                                           self.bias_ti, self.decimals)
                     scalar[raster_loc] = out[0]
                     adder[raster_loc] = out[1]
 
@@ -548,7 +588,8 @@ class LinearCorrection(DataRetrievalBase):
                         future = exe.submit(self._run_single, bias_data,
                                             self.base_fps, self.base_dset,
                                             base_gid, self.base_handler,
-                                            daily_avg, self.bias_ti)
+                                            daily_reduction, self.bias_ti,
+                                            self.decimals)
                         futures[future] = raster_loc
 
                 logger.debug('Finished launching futures.')
@@ -596,13 +637,14 @@ class MonthlyLinearCorrection(LinearCorrection):
 
     @classmethod
     def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, daily_avg, bias_ti):
+                    base_handler, daily_reduction, bias_ti, decimals):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
         base_data, base_ti = cls.get_base_data(base_fps, base_dset,
                                                base_gid, base_handler,
-                                               daily_avg=daily_avg)
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals)
 
         scalar = np.full(cls.NT, np.nan, dtype=np.float32)
         adder = np.full(cls.NT, np.nan, dtype=np.float32)
