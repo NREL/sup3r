@@ -407,7 +407,10 @@ class LinearCorrection(DataRetrievalBase):
             Factor to adjust the biased data before comparing distributions:
             bias_data * scalar + adder
         """
-        scalar = base_data.std() / bias_data.std()
+        bias_std = bias_data.std()
+        if bias_std == 0:
+            bias_std = base_data.std()
+        scalar = base_data.std() / bias_std
         adder = base_data.mean() - bias_data.mean() * scalar
         return scalar, adder
 
