@@ -83,6 +83,7 @@ class TopoExtract(ABC):
         self._agg_factor = agg_factor
         self._tree = None
         self.ti_workers = ti_workers
+        self._hr_lat_lon = None
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -155,10 +156,13 @@ class TopoExtract(ABC):
         -------
         ndarray
         """
-        if self._s_enhance > 1:
-            return OutputHandler.get_lat_lon(self.lr_lat_lon, self.hr_shape)
-        else:
-            return self.lr_lat_lon
+        if self._hr_lat_lon is None:
+            if self._s_enhance > 1:
+                self._hr_lat_lon = OutputHandler.get_lat_lon(self.lr_lat_lon,
+                                                             self.hr_shape)
+            else:
+                self._hr_lat_lon = self.lr_lat_lon
+        return self._hr_lat_lon
 
     @property
     def tree(self):
@@ -222,8 +226,8 @@ class TopoExtract(ABC):
             the resolution of the file_paths input enhanced by s_enhance. For
             example, if file_paths has 100km data and s_enhance is 4 resulting
             in a desired resolution of ~25km and topo_source_h5 has a
-            resolution of 4km, the agg_factor should be 6 so that 6x 4km cells
-            are averaged to the ~25km enhanced grid.
+            resolution of 4km, the agg_factor should be 36 so that 6x6 4km
+            cells are averaged to the ~25km enhanced grid.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -290,7 +294,8 @@ class TopoExtractNC(TopoExtract):
         super().__init__(*args, **kwargs)
         self.source_handler = DataHandlerNC(self._topo_source,
                                             features=['topography'],
-                                            ti_workers=self.ti_workers)
+                                            ti_workers=self.ti_workers,
+                                            val_split=0.0)
 
     @property
     def source_elevation(self):

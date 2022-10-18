@@ -248,15 +248,16 @@ class ValidationData:
 
         val_indices = []
         for i, h in enumerate(self.handlers):
-            for _ in range(h.val_data.shape[2]):
-                spatial_slice = uniform_box_sampler(h.val_data,
-                                                    self.sample_shape[:2])
-                temporal_slice = uniform_time_sampler(h.val_data,
-                                                      self.sample_shape[2])
-                tuple_index = tuple(spatial_slice + [temporal_slice]
-                                    + [np.arange(h.val_data.shape[-1])])
-                val_indices.append({'handler_index': i,
-                                    'tuple_index': tuple_index})
+            if h.val_data is not None:
+                for _ in range(h.val_data.shape[2]):
+                    spatial_slice = uniform_box_sampler(h.val_data,
+                                                        self.sample_shape[:2])
+                    temporal_slice = uniform_time_sampler(h.val_data,
+                                                          self.sample_shape[2])
+                    tuple_index = tuple(spatial_slice + [temporal_slice]
+                                        + [np.arange(h.val_data.shape[-1])])
+                    val_indices.append({'handler_index': i,
+                                        'tuple_index': tuple_index})
         return val_indices
 
     def any(self):
@@ -353,10 +354,9 @@ class BatchHandler:
     def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
-                 means_file=None, overwrite_stats=False,
-                 smoothing=None, smoothing_ignore=None,
-                 stats_workers=None, norm_workers=None, load_workers=None,
-                 max_workers=None):
+                 means_file=None, overwrite_stats=False, smoothing=None,
+                 smoothing_ignore=None, stats_workers=None, norm_workers=None,
+                 load_workers=None, max_workers=None):
         """
         Parameters
         ----------
@@ -453,9 +453,10 @@ class BatchHandler:
         self._norm_workers = norm_workers
         self._load_workers = load_workers
 
-        if smoothing is not None:
-            logger.info('Initializing BatchHandler with '
-                        f'smoothing={smoothing}')
+        logger.info(f'Initializing BatchHandler with smoothing={smoothing}. '
+                    f'Using stats_workers={self.stats_workers}, '
+                    f'norm_workers={self.norm_workers}, '
+                    f'load_workers={self.load_workers}.')
 
         now = dt.now()
         self.parallel_load()

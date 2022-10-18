@@ -152,7 +152,8 @@ class WindGan(Sup3rGan):
             if len(exogenous_data) > 1:
                 hi_res_topo = exogenous_data[1]
 
-        low_res = (low_res if low_res_topo is None
+        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
+        low_res = (low_res if exo_check
                    else np.concatenate((low_res, low_res_topo), axis=-1))
 
         if norm_in and self._means is not None:
@@ -299,4 +300,38 @@ class WindGan(Sup3rGan):
 
         optimizer.apply_gradients(zip(grad, training_weights))
 
+        return loss_details
+
+    def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
+        """Calculate the validation loss at the current state of model training
+
+        Parameters
+        ----------
+        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        loss_details : dict
+            Namespace of the breakdown of loss components
+
+        Returns
+        -------
+        loss_details : dict
+            Same as input but now includes val_* loss info
+        """
+        logger.debug('Starting end-of-epoch validation loss calculation...')
+        loss_details['n_obs'] = 0
+        for val_batch in batch_handler.val_data:
+            high_res_gen = self._tf_generate(val_batch.low_res,
+                                             val_batch.high_res[..., -1:])
+            _, v_loss_details = self.calc_loss(
+                val_batch.high_res, high_res_gen,
+                weight_gen_advers=weight_gen_advers,
+                train_gen=False, train_disc=False)
+
+            loss_details = self.update_loss_details(loss_details,
+                                                    v_loss_details,
+                                                    len(val_batch),
+                                                    prefix='val_')
         return loss_details

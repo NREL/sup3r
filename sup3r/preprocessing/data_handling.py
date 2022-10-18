@@ -522,10 +522,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             default to the class TRAIN_ONLY_FEATURES attribute.
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, load_workers, and norm_workers.
-            If max_workers == 1 then all processes will be serialized. If None
-            extract_workers, compute_workers, load_workers, and norm_workers
-            will use their own provided values.
+            extract_workers, compute_workers, load_workers, norm_workers, and
+            ti_workers.  If max_workers == 1 then all processes will be
+            serialized. If None extract_workers, compute_workers, load_workers,
+            and norm_workers will use their own provided values.
         extract_workers : int | None
             max number of workers to use for extracting features from source
             data. If None max workers will be estimated based on memory limits.
@@ -644,7 +644,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
 
-            if self.data is not None:
+            if self.data is not None and self.val_split > 0.0:
                 self.data, self.val_data = self.split_data()
 
         logger.info('Finished intializing DataHandler.')
@@ -763,15 +763,26 @@ class DataHandler(FeatureHandler, InputMixIn):
             so that each chunk can be extracted individually
         """
         if self._time_chunks is None:
-            self._time_chunks = get_chunk_slices(len(self.raw_time_index),
-                                                 self.time_chunk_size,
-                                                 self.temporal_slice)
+            if self.is_time_independent:
+                self._time_chunks = [slice(None)]
+            else:
+                self._time_chunks = get_chunk_slices(len(self.raw_time_index),
+                                                     self.time_chunk_size,
+                                                     self.temporal_slice)
         return self._time_chunks
+
+    @property
+    def is_time_independent(self):
+        """Get whether source data files are time independent"""
+        return self.raw_time_index[0] is None
 
     @property
     def n_tsteps(self):
         """Get number of time steps to extract"""
-        return len(self.time_index)
+        if self.is_time_independent:
+            return 1
+        else:
+            return len(self.raw_time_index[self.temporal_slice])
 
     @property
     def time_chunk_size(self):
@@ -941,8 +952,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         start = self.temporal_slice.start
         stop = self.temporal_slice.stop
-        n_steps = self.raw_time_index[start:stop]
-        n_steps = len(n_steps)
+        n_steps = self.n_tsteps
         msg = (f'Temporal slice step ({self.temporal_slice.step}) does not '
                f'evenly divide the number of time steps ({n_steps})')
         check = self.temporal_slice.step is None
@@ -1099,26 +1109,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
             self.data[..., i] = self.data[..., i] * stds[i] + means[i]
 
-    def normalize(self, means, stds, max_workers=None):
+    def normalize(self, means, stds):
         """Normalize all data features
-
-        Parameters
-        ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        """
-        if max_workers == 1:
-            for i in range(self.shape[-1]):
-                self._normalize_data(i, means[i], stds[i])
-        else:
-            self.parallel_normalization(means, stds)
-
-    def parallel_normalization(self, means, stds):
-        """Run normalization of features in parallel
 
         Parameters
         ----------
@@ -1131,12 +1123,32 @@ class DataHandler(FeatureHandler, InputMixIn):
         """
         logger.info(f'Normalizing {self.shape[-1]} features.')
         max_workers = self.norm_workers
+        if max_workers == 1:
+            for i in range(self.shape[-1]):
+                self._normalize_data(i, means[i], stds[i])
+        else:
+            self.parallel_normalization(means, stds, max_workers=max_workers)
+
+    def parallel_normalization(self, means, stds, max_workers=None):
+        """Run normalization of features in parallel
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        max_workers : int | None
+            Max number of workers to use for normalizing features
+        """
+
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i in range(self.shape[-1]):
-                future = exe.submit(self._normalize_data, i, means[i],
-                                    stds[i])
+                future = exe.submit(self._normalize_data, i, means[i], stds[i])
                 futures[future] = i
 
             logger.info(f'Started normalizing {self.shape[-1]} features '
@@ -1167,11 +1179,13 @@ class DataHandler(FeatureHandler, InputMixIn):
             specificed standard deviation for associated feature
         """
 
-        self.val_data[..., feature_index] -= mean
+        if self.val_data is not None:
+            self.val_data[..., feature_index] -= mean
         self.data[..., feature_index] -= mean
 
         if std > 0:
-            self.val_data[..., feature_index] /= std
+            if self.val_data is not None:
+                self.val_data[..., feature_index] /= std
             self.data[..., feature_index] /= std
         else:
             msg = ('Standard Deviation is zero for '
@@ -1464,11 +1478,13 @@ class DataHandler(FeatureHandler, InputMixIn):
         logger.debug(f'Loading data for raster of shape {self.grid_shape}')
 
         # get the file-native time index without pruning
-        n_steps = len(self.raw_time_index[self.temporal_slice])
-
-        # split time dimension into smaller slices which can be
-        # extracted in parallel
-        shifted_time_chunks = get_chunk_slices(n_steps, self.time_chunk_size)
+        if self.is_time_independent:
+            n_steps = 1
+            shifted_time_chunks = [slice(None)]
+        else:
+            n_steps = len(self.raw_time_index[self.temporal_slice])
+            shifted_time_chunks = get_chunk_slices(n_steps,
+                                                   self.time_chunk_size)
 
         self.run_data_extraction()
         self.run_data_compute()
@@ -1603,10 +1619,9 @@ class DataHandler(FeatureHandler, InputMixIn):
             max available workers will be used. If 1 cached data will be loaded
             in serial
         """
-        time_index = self.raw_time_index
-        n_steps = len(time_index[self.temporal_slice])
         self.data = np.zeros((self.grid_shape[0], self.grid_shape[1],
-                              n_steps, len(self.features)), dtype=np.float32)
+                              self.n_tsteps, len(self.features)),
+                             dtype=np.float32)
 
         if max_workers == 1:
             self.serial_data_fill(shifted_time_chunks)
@@ -1711,7 +1726,8 @@ class DataHandlerNC(DataHandler):
             elif hasattr(handle, 'times'):
                 time_index = np_to_pd_times(handle.times.values)
             else:
-                msg = (f'Could not get time_index for {file_paths}')
+                msg = (f'Could not get time_index for {file_paths}. '
+                       'Assuming time independence.')
                 time_index = None
                 logger.warning(msg)
                 warnings.warn(msg)
