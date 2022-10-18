@@ -2648,10 +2648,9 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
         i_ratio = self.features.index('clearsky_ratio')
 
         for d, t_slice in enumerate(self.daily_data_slices):
-            self.daily_data[:, :, d, i_ghi] = daily_temporal_coarsening(
-                self.data[:, :, t_slice, i_ghi], temporal_axis=2)[:, :, 0]
-            self.daily_data[:, :, d, i_cs] = daily_temporal_coarsening(
-                self.data[:, :, t_slice, i_cs], temporal_axis=2)[:, :, 0]
+            for idf in range(self.data.shape[-1]):
+                self.daily_data[:, :, d, idf] = daily_temporal_coarsening(
+                    self.data[:, :, t_slice, idf], temporal_axis=2)[:, :, 0]
 
             # note that this ratio of daily irradiance sums is not the same as
             # the average of hourly ratios.
