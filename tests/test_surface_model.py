@@ -119,7 +119,11 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
         fp = os.path.join(td, 'model')
         model.save(fp)
 
-        ms_model = MultiStepSurfaceMetGan.load(FEATURES, s_enhance, fp)
+        surface_model_kwargs = {'features': FEATURES, 's_enhance': s_enhance}
+        temporal_model_kwargs = {'model_dirs': fp}
+        ms_model = MultiStepSurfaceMetGan.load(
+            surface_model_kwargs=surface_model_kwargs,
+            temporal_model_kwargs=temporal_model_kwargs)
 
         for model in ms_model.models:
             assert isinstance(model.s_enhance, int)
