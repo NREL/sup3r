@@ -12,7 +12,7 @@ class LinearInterp(AbstractSup3rGan):
     """Simple model to do linear interpolation on the spatial and temporal axes
     """
 
-    def __init__(self, features, s_enhance, t_enhance):
+    def __init__(self, features, s_enhance, t_enhance, t_centered=False):
         """
         Parameters
         ----------
@@ -24,14 +24,20 @@ class LinearInterp(AbstractSup3rGan):
             Integer factor by which the spatial axes is to be enhanced.
         t_enhance : int
             Integer factor by which the temporal axes is to be enhanced.
+        t_centered : bool
+            Flag to switch time axis from time-beginning (Default, e.g.
+            interpolate 00:00 01:00 to 00:00 00:30 01:00 01:30) to
+            time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
         """
 
         self._features = features
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
+        self._t_centered = t_centered
 
     @classmethod
-    def load(cls, features, s_enhance, t_enhance, verbose=False):
+    def load(cls, features, s_enhance, t_enhance, t_centered=False,
+             verbose=False):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
@@ -45,6 +51,10 @@ class LinearInterp(AbstractSup3rGan):
             Integer factor by which the spatial axes is to be enhanced.
         t_enhance : int
             Integer factor by which the temporal axes is to be enhanced.
+        t_centered : bool
+            Flag to switch time axis from time-beginning (Default, e.g.
+            interpolate 00:00 01:00 to 00:00 00:30 01:00 01:30) to
+            time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -54,7 +64,7 @@ class LinearInterp(AbstractSup3rGan):
             Returns an initialized LinearInterp model
         """
 
-        model = cls(features, s_enhance, t_enhance)
+        model = cls(features, s_enhance, t_enhance, t_centered=t_centered)
 
         if verbose:
             logger.info('Loading LinearInterp with meta data: {}'
@@ -67,6 +77,7 @@ class LinearInterp(AbstractSup3rGan):
         """Get meta data dictionary that defines the model params"""
         return {'s_enhance': self._s_enhance,
                 't_enhance': self._t_enhance,
+                't_centered': self._t_centered,
                 'training_features': self.training_features,
                 'output_features': self.output_features,
                 'class': self.__class__.__name__,
@@ -76,9 +87,6 @@ class LinearInterp(AbstractSup3rGan):
     def training_features(self):
         """Get the list of input feature names that the generative model was
         trained on.
-
-        Note that topography needs to be passed into generate() as an exogenous
-        data input.
         """
         return self._features
 
@@ -133,6 +141,7 @@ class LinearInterp(AbstractSup3rGan):
             for idf in range(low_res.shape[-1]):
                 hi_res[iobs, ..., idf] = st_interp(low_res[iobs, ..., idf],
                                                    self.s_enhance,
-                                                   self.t_enhance)
+                                                   self.t_enhance,
+                                                   t_centered=self._t_centered)
 
         return hi_res

@@ -1451,9 +1451,9 @@ def st_interp(low, s_enhance, t_enhance, t_centered=False):
     t_enhance : int
         Factor by which to enhance the temporal domain
     t_centered : bool
-        Flag to switch time axis from time-beginning (e.g. interpolate
-        00:00 01:00 to 00:00 00:30 01:00 01:30) to time-centered (e.g.
-        interpolate 01:00 02:00 to 00:45 01:15 01:45 02:15)
+        Flag to switch time axis from time-beginning (Default, e.g.
+        interpolate 00:00 01:00 to 00:00 00:30 01:00 01:30) to
+        time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
 
     Returns
     -------
