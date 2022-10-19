@@ -34,8 +34,8 @@ class Sup3rStatsBase(ABC):
     """Base class for doing statistical QA on sup3r forward pass outputs."""
 
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
-                 heights, temporal_slice=slice(None), target=None,
-                 shape=None, raster_file=None, qa_fp=None,
+                 heights, features=None, temporal_slice=slice(None),
+                 target=None, shape=None, raster_file=None, qa_fp=None,
                  time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_stats=False,
                  input_handler=None, output_handler=None, max_workers=None,
@@ -190,6 +190,7 @@ class Sup3rStatsBase(ABC):
                         else [out_file_path])
         self._hr_lat_lon = None
         self._hr_time_index = None
+        self._features = features
         self.get_interp = get_interp
         self.get_hr = get_hr
         self.get_lr = get_lr
@@ -304,6 +305,7 @@ class Sup3rStatsBase(ABC):
             self.k_range = [1 / domain_size, 1 / spatial_res]
         return self.source_handler.data
 
+    @abstractmethod
     def get_output_data(self, out_file_paths, output_handler,
                         output_handler_kwargs=None):
         """Get source data using provided source file paths
@@ -329,27 +331,6 @@ class Sup3rStatsBase(ABC):
             Array of data from output file paths
             (spatial_1, spatial_2, temporal, features)
         """
-        shape = output_handler_kwargs.get('shape', None)
-        target = output_handler_kwargs.get('target', None)
-        if shape is None and target is None:
-            self.output_handler = self.output_handler_class(self._out_fp)
-            data = np.zeros((self.hr_shape[0], self.hr_shape[1],
-                             len(self.hr_time_index[self.hr_t_slice]),
-                             len(self.features)), dtype=np.float32)
-            for i, height in enumerate(self.heights):
-                u, v = self.get_hr_out(height)
-                data[..., 2 * i] = u
-                data[..., 2 * i + 1] = v
-            return data
-        else:
-            HandlerClass = get_input_handler_class(out_file_paths,
-                                                   output_handler)
-            self.output_handler = HandlerClass(out_file_paths,
-                                               self.features,
-                                               val_split=0.0,
-                                               **output_handler_kwargs)
-            self.output_handler.load_cached_data()
-            return self.output_handler.data
 
     @property
     def hr_shape(self):
@@ -444,39 +425,13 @@ class Sup3rStatsBase(ABC):
 
     @property
     def features(self):
-        """Get a list of requested wind feature names
+        """Get a list of requested feature names
 
         Returns
         -------
         list
         """
-
-        # all lower case
-        features = []
-        for height in self.heights:
-            features.append(f'U_{height}m')
-            features.append(f'V_{height}m')
-
-        return features
-
-    def feature_indices(self, height):
-        """Indices for U/V of given height
-
-        Parameters
-        ----------
-        height : int
-            Height in meters for requested U/V fields
-
-        Returns
-        -------
-        uidx : int
-            Index for U_{height}m
-        vidx : int
-            Index for V_{height}m
-        """
-        uidx = self.features.index(f'U_{height}m')
-        vidx = self.features.index(f'V_{height}m')
-        return uidx, vidx
+        return self._features
 
     @property
     def output_type(self):
@@ -693,28 +648,8 @@ class Sup3rStatsBase(ABC):
             Dictionary of stats for given variable
         """
 
-    @abstractmethod
-    def get_height_stats(self, height):
-        """Get stats for high and low resolution wind fields
-
-        Parameters
-        ----------
-        height : int
-            Height in meters for requested U/V fields
-
-        Returns
-        -------
-        low_res : dict
-            Dictionary of stats for low resolution wind fields
-        high_res : dict
-            Dictionary of stats for high resolution wind fields
-        interp : dict
-            Dictionary of stats for spatiotemporally interpolated wind fields
-        """
-
     def run(self):
-        """Go through all datasets and get the dictionary of wind field
-        statistics.
+        """Go through all datasets and get the dictionary of statistics.
 
         Returns
         -------
@@ -1558,10 +1493,9 @@ class Sup3rStatsPT(Sup3rStatsBase):
             data = np.zeros((self.hr_shape[0], self.hr_shape[1],
                              len(self.hr_time_index[self.hr_t_slice]),
                              len(self.features)), dtype=np.float32)
-            for i, height in enumerate(self.heights):
-                u, v = self.get_hr_out(height)
-                data[..., 2 * i] = u
-                data[..., 2 * i + 1] = v
+            for i, feature in enumerate(self.features):
+                out = self.get_hr_out(feature)
+                data[..., i] = out
             return data
         else:
             HandlerClass = get_input_handler_class(out_file_paths,
@@ -1589,77 +1523,46 @@ class Sup3rStatsPT(Sup3rStatsBase):
             self._features = features
         return self._features
 
-    def feature_indices(self, height):
-        """Indices for pressure/temperature of given height
-
-        Parameters
-        ----------
-        height : int
-            Height in meters for requested P/T fields
-
-        Returns
-        -------
-        pidx : int
-            Index for pressure_{height}m
-        tidx : int
-            Index for temperature_{height}m
-        """
-        pidx = self.features.index(f'pressure_{height}m')
-        tidx = self.features.index(f'temperature_{height}m')
-        return pidx, tidx
-
-    def get_hr_out(self, height):
+    def get_hr_out(self, feature):
         """Get an output dataset from the forward pass output file.
 
         Parameters
         ----------
-        name : str
+        feature : str
             Name of the output dataset to retrieve. Must be found in the
             features property and the forward pass output file.
 
         Returns
         -------
-        out : np.ndarray
+        data : np.ndarray
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
         """
 
-        logger.debug('Getting sup3r P/T data ({}m)'.format(height))
+        logger.debug('Getting sup3r data ({})'.format(feature))
         t_steps = len(self.hr_time_index[self.hr_t_slice])
         shape = f'{self.hr_shape[0]}x{self.hr_shape[1]}x{t_steps}'
 
-        p_file = t_file = None
+        cache_file = None
         if self.cache_pattern is not None:
             tmp_file = self.cache_pattern.replace('{shape}', f'{shape}')
-            p_file = tmp_file.replace('{feature}', f'pressure_{height}m')
-            t_file = tmp_file.replace('{feature}', f'temperature_{height}m')
+            cache_file = tmp_file.replace('{feature}', feature)
 
-            if (os.path.exists(p_file) and os.path.exists(t_file)
-                    and not self.overwrite_cache):
-                p = self.load_cache(p_file)
-                t = self.load_cache(t_file)
-                return p, t
+            if (os.path.exists(cache_file) and not self.overwrite_cache):
+                data = self.load_cache(cache_file)
+                return data
 
         if self.output_type == 'nc':
             raise NotImplementedError('Netcdf output not yet supported')
         elif self.output_type == 'h5':
-            ws_f = f'windspeed_{height}m'
-            wd_f = f'winddirection_{height}m'
             logger.info('Extracting data from output handler for '
                         f'time_slice={self.hr_t_slice}')
-            ws = self.output_handler[ws_f, self.hr_t_slice, :]
-            wd = self.output_handler[wd_f, self.hr_t_slice, :]
-            ws = ws.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
-            wd = wd.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
-            logger.info(f'Transforming ws/wd to u/v for height={height}m '
-                        f'with shape={ws.shape}')
-            u, v = transform_rotate_wind(ws, wd, self.hr_lat_lon)
-            if u_file is not None:
-                self.save_cache(u, u_file)
-            if v_file is not None:
-                self.save_cache(v, v_file)
+            data = self.output_handler[feature, self.hr_t_slice, :]
+            data = data.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            if cache_file is not None:
+                self.save_cache(data, cache_file)
 
-        return u, v
+        return data
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1718,11 +1621,8 @@ class Sup3rStatsPT(Sup3rStatsBase):
 
         Parameters
         ----------
-        u: ndarray
+        var: ndarray
             Longitudinal velocity component
-            (lat, lon, temporal)
-        v : ndarray
-            Latitudinal velocity component
             (lat, lon, temporal)
 
         Returns
@@ -1738,15 +1638,15 @@ class Sup3rStatsPT(Sup3rStatsBase):
                 k_range[1] *= self.s_enhance
 
         stats_dict = {}
-        if 'tke_avg_k' in self.include_stats:
+        if 'avg_spectrum_k' in self.include_stats:
             logger.info('Computing time averaged wavenumber spectrum for '
                         f'res={res}. Using k_range={k_range}.')
-            stats_dict['tke_avg_k'] = wavenumber_spectrum(
+            stats_dict['avg_spectrum_k'] = wavenumber_spectrum(
                 np.mean(var, axis=-1), k_range=k_range)
 
-        if 'tke_avg_f' in self.include_stats:
+        if 'avg_spectrum_f' in self.include_stats:
             logger.info('Computing spatially averaged frequency spectrum.')
-            stats_dict['tke_avg_f'] = frequency_spectrum(var)
+            stats_dict['avg_spectrum_f'] = frequency_spectrum(var)
 
         return stats_dict
 
@@ -1769,14 +1669,14 @@ class Sup3rStatsPT(Sup3rStatsBase):
         stats_dict = self.get_spectra_stats(var, res=res)
 
         scale = 1 if res == 'high' else self.s_enhance
-        if 'velocity_grad' in self.include_stats:
+        if 'gradient' in self.include_stats:
             logger.info('Computing velocity gradient pdf.')
-            stats_dict['velocity_grad'] = gradient_dist(
+            stats_dict['gradient'] = gradient_dist(
                 var, diff_max=self.v_grad_max, scale=scale)
 
-        if 'mean_velocity_grad' in self.include_stats:
+        if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean velocity gradient pdf.')
-            stats_dict['mean_velocity_grad'] = gradient_dist(
+            stats_dict['mean_gradient'] = gradient_dist(
                 np.mean(var, axis=-1), diff_max=self.v_grad_max, scale=scale)
 
         scale = 1 if res == 'high' else self.t_enhance
@@ -1784,48 +1684,43 @@ class Sup3rStatsPT(Sup3rStatsBase):
         stats_dict.update(out)
         return stats_dict
 
-    def get_height_stats(self, height):
+    def get_feature_stats(self, feature):
         """Get stats for high and low resolution wind fields
 
         Parameters
         ----------
-        height : int
-            Height in meters for requested U/V fields
+        feature : str
+            Name of feature to get stats for
 
         Returns
         -------
         low_res : dict
-            Dictionary of stats for low resolution wind fields
+            Dictionary of stats for low resolution fields
         high_res : dict
-            Dictionary of stats for high resolution wind fields
+            Dictionary of stats for high resolution fields
         interp : dict
-            Dictionary of stats for spatiotemporally interpolated wind fields
+            Dictionary of stats for spatiotemporally interpolated fields
         """
         low_res = {}
         if self.get_lr:
-            uidx, vidx = self.feature_indices(height)
-            u_lr = self.source_data[..., self.lr_t_slice, uidx]
-            v_lr = self.source_data[..., self.lr_t_slice, vidx]
-            logger.info(f'Getting low res stats for height={height}m')
-            low_res = self.get_wind_stats(u_lr, v_lr, res='low')
+            idx = self.features.index(feature)
+            lr = self.source_data[..., self.lr_t_slice, idx]
+            logger.info(f'Getting low res stats for {feature}')
+            low_res = self.get_stats(lr, res='low')
 
         high_res = {}
         if self.get_hr:
-            uidx, vidx = self.feature_indices(height)
-            u_hr = self.output_data[..., uidx]
-            v_hr = self.output_data[..., vidx]
-            logger.info(f'Getting high res stats for height={height}m')
-            high_res = self.get_wind_stats(u_hr, v_hr, res='high')
+            idx = self.features.index(feature)
+            hr = self.output_data[..., idx]
+            logger.info(f'Getting high res stats for {feature}')
+            high_res = self.get_stats(hr, res='high')
 
         interp = {}
         if self.get_interp:
-            logger.info(f'Interpolating low res U for height={height}')
-            u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
-            logger.info(f'Interpolating low res V for height={height}')
-            v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
-            logger.info('Getting interpolated baseline stats for '
-                        f'height={height}m')
-            interp = self.get_wind_stats(u_itp, v_itp, res='high')
+            logger.info(f'Interpolating low res for {feature}')
+            itp = st_interp(lr, self.s_enhance, self.t_enhance)
+            logger.info(f'Getting interpolated baseline stats for {feature}')
+            interp = self.get_stats(itp, res='high')
         return low_res, high_res, interp
 
     def run(self):
@@ -1836,26 +1731,24 @@ class Sup3rStatsPT(Sup3rStatsBase):
         -------
         stats : dict
             Dictionary of statistics, where keys are lr/hr/interp appended with
-            the height of the corresponding wind field. Values are dictionaries
-            of statistics, such as velocity_gradient, vorticity, ramp_rate,
-            etc
+            the feature name. Values are dictionaries of statistics, such as
+            gradient, avg_spectrum, ramp_rate, etc
         """
 
         stats = {}
-        for idf, height in enumerate(self.heights):
-            logger.info('Running WindStats on height {} of {} ({}m)'
-                        .format(idf + 1, len(self.heights), height))
-            lr_stats, hr_stats, interp = self.get_height_stats(height)
+        for _, feature in enumerate(self.features):
+            logger.info(f'Running Sup3rStats for {feature}')
+            lr_stats, hr_stats, interp = self.get_feature_stats(feature)
 
             if self.get_lr:
-                stats[f'lr_{height}m'] = lr_stats
+                stats[f'lr_{feature}'] = lr_stats
             if self.get_hr:
-                stats[f'hr_{height}m'] = hr_stats
+                stats[f'hr_{feature}'] = hr_stats
             if self.get_interp:
-                stats[f'interp_{height}m'] = interp
+                stats[f'interp_{feature}'] = interp
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)
-        logger.info('Finished Sup3rStatsWind run method.')
+        logger.info('Finished Sup3rStats run method.')
 
         return stats
