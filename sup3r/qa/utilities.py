@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Utilities used for QA"""
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
 
 
 def tke_frequency_spectrum(u, v):
@@ -214,34 +213,3 @@ def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
     return centers, counts, norm
-
-
-def st_interp(low, s_enhance, t_enhance):
-    """Spatiotemporal bilinear interpolation for low resolution field. Used to
-    provide baseline for comparison with gan output
-
-    Parameters
-    ----------
-    low : ndarray
-        Low resolution field to interpolate.
-        (spatial_1, spatial_2, temporal)
-    s_enhance : int
-        Factor by which to enhance the spatial domain
-    t_enhance : int
-        Factor by which to enhance the temporal domain
-
-    Returns
-    -------
-    ndarray
-        Spatiotemporally interpolated low resolution output
-    """
-    y = np.arange(low.shape[0])
-    x = np.arange(low.shape[1])
-    t = np.arange(low.shape[2])
-    interp = RegularGridInterpolator((y, x, t), low)
-    new_x = np.linspace(0, x[-1], s_enhance * len(x))
-    new_y = np.linspace(0, y[-1], s_enhance * len(y))
-    new_t = np.linspace(0, t[-1], t_enhance * len(t))
-    X, Y, T = np.meshgrid(new_x, new_y, new_t)
-    out = interp((Y, X, T))
-    return out
