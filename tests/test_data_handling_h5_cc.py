@@ -96,7 +96,7 @@ def test_solar_handler(plot=False):
                 plt.close()
 
 
-def test_solar_handler_w_wind(plot=False):
+def test_solar_handler_w_wind():
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime. Also test the inclusion of wind features"""
 

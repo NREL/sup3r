@@ -283,7 +283,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        lower_data = single_lr_temp + topo_lr * self._temp_lapse
+        lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
         hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
         hi_res_temp -= topo_hr * self._temp_lapse
 
@@ -388,7 +388,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             warn(msg)
 
         const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
-        single_lr_pres += const
+        single_lr_pres = single_lr_pres.copy() + const
 
         if np.min(single_lr_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
