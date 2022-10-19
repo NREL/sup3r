@@ -385,8 +385,8 @@ def test_st_interpolation(plot=False):
     assert err < 0.01
 
     # spatial test
-    lr = np.random.uniform(0, 100, 3)
-    lr = np.transpose(np.array([[lr, lr]]), axes=(1, 2, 0))
+    s_vals = np.random.uniform(0, 100, 3)
+    lr = np.transpose(np.array([[s_vals, s_vals]]), axes=(1, 2, 0))
     lr = np.repeat(lr, 2, axis=-1)
     hr = st_interp(lr, s_enhance=2, t_enhance=1)
     x = np.linspace(-(1 / 4), 2 + (1 / 4), 6)
