@@ -37,7 +37,7 @@ def test_linear_bc():
     bias_data = calc.get_bias_data(bias_gid)
     base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
                                       base_gid, calc.base_handler,
-                                      daily_avg=True)
+                                      daily_reduction='avg')
     bias_coord = calc.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
     base_coord = calc.base_meta.loc[base_gid, ['latitude', 'longitude']]
     true_dist = bias_coord.values - base_coord.values
@@ -106,7 +106,7 @@ def test_monthly_linear_bc():
     bias_data = calc.get_bias_data(bias_gid)
     base_data, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
                                             base_gid, calc.base_handler,
-                                            daily_avg=True)
+                                            daily_reduction='avg')
     bias_coord = calc.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
     base_coord = calc.base_meta.loc[base_gid, ['latitude', 'longitude']]
     true_dist = bias_coord.values - base_coord.values
@@ -182,7 +182,7 @@ def test_montly_linear_transform():
                                    bias_handler='DataHandlerNCforCC')
     _, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
                                     5, calc.base_handler,
-                                    daily_avg=True)
+                                    daily_reduction='avg')
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'bc.h5')
         scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,

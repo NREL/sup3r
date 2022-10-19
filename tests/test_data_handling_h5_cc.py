@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """pytests for data handling with NSRDB files"""
 import pytest
+import tempfile
+import shutil
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rex import Resource
+from rex import Resource, Outputs
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
@@ -23,6 +25,9 @@ TARGET_S = (39.01, -105.13)
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
+
+INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
+TARGET_SURF = (39.1, -105.4)
 
 
 def test_solar_handler(plot=False):
@@ -89,6 +94,54 @@ def test_solar_handler(plot=False):
                 plt.savefig('./test_nsrdb_handler_{}_{}.png'.format(p, i),
                             dpi=300, bbox_inches='tight')
                 plt.close()
+
+
+def test_solar_handler_w_wind():
+    """Test loading irrad data from NSRDB file and calculating clearsky ratio
+    with NaN values for nighttime. Also test the inclusion of wind features"""
+
+    features_s = ['clearsky_ratio', 'U_200m', 'V_200m', 'ghi', 'clearsky_ghi']
+
+    with tempfile.TemporaryDirectory() as td:
+        res_fp = os.path.join(td, 'solar_w_wind.h5')
+        shutil.copy(INPUT_FILE_S, res_fp)
+
+        with Outputs(res_fp, mode='a') as res:
+            res.write_dataset('windspeed_200m',
+                              np.random.uniform(0, 20, res.shape),
+                              np.float32)
+            res.write_dataset('winddirection_200m',
+                              np.random.uniform(0, 359.9, res.shape),
+                              np.float32)
+
+        handler = DataHandlerH5SolarCC(res_fp, features_s,
+                                       target=TARGET_S, shape=SHAPE,
+                                       temporal_slice=slice(None, None, 2),
+                                       time_roll=-7,
+                                       val_split=0.1,
+                                       sample_shape=(20, 20, 24),
+                                       max_workers=1)
+
+        assert handler.data.shape[2] % 24 == 0
+        assert handler.val_data is None
+
+        # some of the raw clearsky ghi and clearsky ratio data should be loaded
+        # in the handler as NaN
+        assert np.isnan(handler.data).any()
+
+        for _ in range(10):
+            obs_ind_hourly, obs_ind_daily = handler.get_observation_index()
+            assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
+            assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
+
+            obs_hourly, obs_daily = handler.get_next()
+            assert obs_hourly.shape[2] == 24
+            assert obs_daily.shape[2] == 1
+
+            for idf in (1, 2):
+                msg = f'Wind feature "{features_s[idf]}" got messed up'
+                assert not (obs_daily[..., idf] == 0).any(), msg
+                assert not (np.abs(obs_daily[..., idf]) > 20).any(), msg
 
 
 def test_solar_batching(plot=False):
@@ -421,7 +474,7 @@ def test_wind_handler():
         hourly = handler.data[:, :, islice, :]
         truth = np.mean(hourly, axis=2)
         daily = handler.daily_data[:, :, i, :]
-        assert np.allclose(daily, truth)
+        assert np.allclose(daily, truth, atol=1e-6)
 
 
 def test_wind_batching():
@@ -492,3 +545,45 @@ def test_wind_batching_spatial(plot=False):
 
             if p > 4:
                 break
+
+
+def test_surf_min_max_vars():
+    """Test data handling of min/max training only variables"""
+    surf_features = ['temperature_2m',
+                     'relativehumidity_2m',
+                     'temperature_min_2m',
+                     'temperature_max_2m',
+                     'relativehumidity_min_2m',
+                     'relativehumidity_max_2m']
+
+    handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
+                                  target=TARGET_SURF, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 1),
+                                  time_roll=-7,
+                                  val_split=0.0,
+                                  sample_shape=(20, 20, 72),
+                                  max_workers=1)
+
+    # all of the source hi-res hourly temperature data should be the same
+    assert np.allclose(handler.data[..., 0], handler.data[..., 2])
+    assert np.allclose(handler.data[..., 0], handler.data[..., 3])
+    assert np.allclose(handler.data[..., 1], handler.data[..., 4])
+    assert np.allclose(handler.data[..., 1], handler.data[..., 5])
+
+    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
+                             s_enhance=1, sub_daily_shape=None)
+
+    for batch in batcher:
+        assert batch.high_res.shape[3] == 72
+        assert batch.low_res.shape[3] == 3
+
+        assert batch.high_res.shape[-1] == len(surf_features) - 4
+        assert batch.low_res.shape[-1] == len(surf_features)
+
+        # compare daily avg temp vs min and max
+        assert (batch.low_res[..., 0] > batch.low_res[..., 2]).all()
+        assert (batch.low_res[..., 0] < batch.low_res[..., 3]).all()
+
+        # compare daily avg rh vs min and max
+        assert (batch.low_res[..., 1] > batch.low_res[..., 4]).all()
+        assert (batch.low_res[..., 1] < batch.low_res[..., 5]).all()

@@ -861,6 +861,10 @@ class TempNCforCC(DerivedFeature):
 class Tas(DerivedFeature):
     """Air temperature near surface variable from climate change nc files"""
 
+    CC_FEATURE_NAME = 'tas'
+    """Source CC.nc dataset name for air temperature variable. This can be
+    changed in subclasses for other temperature datasets."""
+
     @classmethod
     def inputs(cls, feature):
         """Required inputs for computing tas
@@ -875,7 +879,7 @@ class Tas(DerivedFeature):
         list
             List of required features for computing tas
         """
-        return ['tas']
+        return [cls.CC_FEATURE_NAME]
 
     @classmethod
     def compute(cls, data, height):
@@ -893,7 +897,19 @@ class Tas(DerivedFeature):
         ndarray
             Derived feature array
         """
-        return data['tas'] - 273.15
+        return data[cls.CC_FEATURE_NAME] - 273.15
+
+
+class TasMin(DerivedFeature):
+    """Daily min air temperature near surface variable from climate change nc
+    files"""
+    CC_FEATURE_NAME = 'tasmin'
+
+
+class TasMax(DerivedFeature):
+    """Daily max air temperature near surface variable from climate change nc
+    files"""
+    CC_FEATURE_NAME = 'tasmax'
 
 
 class LatLonNC:

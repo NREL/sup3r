@@ -65,7 +65,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             of noise has been shown to help downstream temporal-only models
             produce diurnal cycles in regions where there is minimal change in
             topography. A noise_adders around 0.07C (temperature) and 0.1%
-            (relative humidity) have been shown to be effective.
+            (relative humidity) have been shown to be effective. This is
+            unnecessary if daily min/max temperatures are provided as low res
+            training features.
         temp_lapse : None | float
             Temperature lapse rate: change in degrees C/K per meter. Defaults
             to the cls.TEMP_LAPSE attribute.
@@ -189,7 +191,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                 if fnmatch(name, 'relativehumidity_*')]
         return inds
 
-    def _get_temp_ind(self, idf_rh):
+    def _get_temp_rh_ind(self, idf_rh):
         """Get the feature index value for the temperature feature
         corresponding to a relative humidity feature at the same hub height.
 
@@ -205,10 +207,15 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             same hub height as the idf_rh input.
         """
         name_rh = self._features[idf_rh]
-        suffix = name_rh.split('_')[-1]
+        hh_suffix = name_rh.split('_')[-1]
         idf_temp = None
         for i in self.feature_inds_temp:
-            if self._features[i].endswith(suffix):
+            same_hh = self._features[i].endswith(hh_suffix)
+            not_minmax = not any(mm in name_rh for mm in ('_min_', '_max_'))
+            both_mins = '_min_' in name_rh and '_min_' in self._features[i]
+            both_maxs = '_max_' in name_rh and '_max_' in self._features[i]
+
+            if same_hh and (not_minmax or both_mins or both_maxs):
                 idf_temp = i
                 break
 
@@ -276,7 +283,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        lower_data = single_lr_temp + topo_lr * self._temp_lapse
+        lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
         hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
         hi_res_temp -= topo_hr * self._temp_lapse
 
@@ -381,7 +388,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             warn(msg)
 
         const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
-        single_lr_pres += const
+        single_lr_pres = single_lr_pres.copy() + const
 
         if np.min(single_lr_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
@@ -488,7 +495,7 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
                 hi_res[iobs, :, :, idf_pres] = _tmp
 
             for idf_rh in self.feature_inds_rh:
-                idf_temp = self._get_temp_ind(idf_rh)
+                idf_temp = self._get_temp_rh_ind(idf_rh)
                 _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
                                          low_res[iobs, :, :, idf_temp],
                                          hi_res[iobs, :, :, idf_temp],
