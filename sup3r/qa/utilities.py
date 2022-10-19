@@ -97,7 +97,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def velocity_gradient_dist(u, bins=20, range=None, diff_max=7, scale=1):
+def velocity_gradient_dist(u, bins=40, range=None, diff_max=7, scale=1):
     """Returns the longitudinal velocity gradient distribution.
 
     Parameters
@@ -120,6 +120,8 @@ def velocity_gradient_dist(u, bins=20, range=None, diff_max=7, scale=1):
         Normalized du / dx value counts
     float
         Normalization factor
+    ndarray
+        Raw differences prior to computing histogram
     """
     diffs = np.diff(u, axis=1).flatten()
     diffs /= scale
@@ -128,10 +130,10 @@ def velocity_gradient_dist(u, bins=20, range=None, diff_max=7, scale=1):
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm
+    return centers, counts, norm, diffs
 
 
-def vorticity_dist(u, v, bins=20, range=None, diff_max=14, scale=1):
+def vorticity_dist(u, v, bins=40, range=None, diff_max=14, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -157,6 +159,8 @@ def vorticity_dist(u, v, bins=20, range=None, diff_max=14, scale=1):
         Normalized vorticity value counts
     float
         Normalization factor
+    ndarray
+        Raw differences prior to computing histogram
     """
     dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
@@ -167,10 +171,10 @@ def vorticity_dist(u, v, bins=20, range=None, diff_max=14, scale=1):
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm
+    return centers, counts, norm, diffs
 
 
-def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
+def ws_ramp_rate_dist(u, v, bins=40, range=None, diff_max=10, t_steps=1,
                       scale=1):
     """Returns the windspeed ramp rate distribution.
 
@@ -200,7 +204,10 @@ def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
         Normalized d(ws) / dt value counts
     float
         Normalization factor
+    ndarray
+        Raw differences prior to computing histogram
     """
+
     msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
            f'only has {u.shape[-1]} time steps')
     assert t_steps < u.shape[-1], msg
@@ -212,4 +219,4 @@ def ws_ramp_rate_dist(u, v, bins=20, range=None, diff_max=10, t_steps=1,
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm
+    return centers, counts, norm, diffs
