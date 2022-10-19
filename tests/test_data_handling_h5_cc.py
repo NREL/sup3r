@@ -123,7 +123,7 @@ def test_solar_handler_w_wind(plot=False):
                                        max_workers=1)
 
         assert handler.data.shape[2] % 24 == 0
-        assert handler.val_data.shape[2] % 24 == 0
+        assert handler.val_data is None
 
         # some of the raw clearsky ghi and clearsky ratio data should be loaded
         # in the handler as NaN
