@@ -15,7 +15,7 @@ from rex.utilities.loggers import init_mult
 from sup3r.pipeline.config import BaseConfig
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
-from sup3r.qa.stats import Sup3rWindStats
+from sup3r.qa.stats import Sup3rStatsWind
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def from_config(ctx, config_file, verbose):
     config['job_name'] = name
     config['status_dir'] = status_dir
 
-    cmd = Sup3rWindStats.get_node_cmd(config)
+    cmd = Sup3rStatsWind.get_node_cmd(config)
 
     cmd_log = '\n\t'.join(cmd.split('\n'))
     logger.debug(f'Running command:\n\t{cmd_log}')

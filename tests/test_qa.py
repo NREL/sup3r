@@ -13,7 +13,7 @@ from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 from sup3r.qa.qa import Sup3rQa
-from sup3r.qa.stats import Sup3rWindStats
+from sup3r.qa.stats import Sup3rStatsWind
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -237,7 +237,7 @@ def test_stats():
                                                   'velocity_grad',
                                                   'tke_avg_k'],
                       max_workers=1, ramp_rate_t_step=1)
-        with Sup3rWindStats(*args, **kwargs) as qa:
+        with Sup3rStatsWind(*args, **kwargs) as qa:
             qa.run()
             assert os.path.exists(qa_fp)
             with open(qa_fp, 'rb') as fh:

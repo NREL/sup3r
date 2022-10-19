@@ -369,7 +369,7 @@ def windstats(ctx, verbose):
         $ sup3r-windstats from-config -c config_windstats.json
 
     A sup3r WindStats config.json file can contain any arguments or keyword
-    arguments required to initialize the :class:`sup3r.qa.stats.Sup3rWindStats`
+    arguments required to initialize the :class:`sup3r.qa.stats.Sup3rStatsWind`
     class.  The config also has several optional arguments: ``log_file``,
     ``log_level``, and ``execution_control``. Here's a small example
     WindStats config::

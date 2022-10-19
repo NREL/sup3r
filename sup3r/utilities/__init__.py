@@ -45,6 +45,7 @@ class ModuleName(str, Enum):
     QA = 'qa'
     SOLAR = 'solar'
     WIND_STATS = 'wind-stats'
+    PT_STATS = 'pt-stats'
     BIAS_CALC = 'bias-calc'
 
     @classmethod
