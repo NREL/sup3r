@@ -65,7 +65,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
             of noise has been shown to help downstream temporal-only models
             produce diurnal cycles in regions where there is minimal change in
             topography. A noise_adders around 0.07C (temperature) and 0.1%
-            (relative humidity) have been shown to be effective.
+            (relative humidity) have been shown to be effective. This is
+            unnecessary if daily min/max temperatures are provided as low res
+            training features.
         temp_lapse : None | float
             Temperature lapse rate: change in degrees C/K per meter. Defaults
             to the cls.TEMP_LAPSE attribute.
