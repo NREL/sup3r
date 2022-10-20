@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 """pytests for general utilities"""
 import numpy as np
+from scipy.interpolate import interp1d
 import pytest
 import matplotlib.pyplot as plt
 
+from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
                                        weighted_box_sampler,
                                        uniform_box_sampler,
                                        spatial_coarsening,
-                                       transform_rotate_wind)
-from sup3r.qa.utilities import st_interp
+                                       transform_rotate_wind,
+                                       st_interp)
 
 
 def test_get_chunk_slices():
@@ -363,7 +365,7 @@ def test_st_interpolation(plot=False):
     err = np.abs(err / np.mean(arr))
     assert err < 0.15
 
-    t_interp = st_interp(arr, s_enhance=1, t_enhance=4)
+    t_interp = st_interp(arr, s_enhance=1, t_enhance=4, t_centered=True)
 
     if plot:
         fig = plt.figure(figsize=(5, 5))
@@ -381,3 +383,42 @@ def test_st_interpolation(plot=False):
     err = np.mean(t_interp) - np.mean(arr)
     err = np.abs(err / np.mean(arr))
     assert err < 0.01
+
+    # spatial test
+    s_vals = np.random.uniform(0, 100, 3)
+    lr = np.transpose(np.array([[s_vals, s_vals]]), axes=(1, 2, 0))
+    lr = np.repeat(lr, 2, axis=-1)
+    hr = st_interp(lr, s_enhance=2, t_enhance=1)
+    x = np.linspace(-(1 / 4), 2 + (1 / 4), 6)
+    ifun = interp1d(np.arange(3), lr[0, :, 0], fill_value='extrapolate')
+    truth = ifun(x)
+    assert np.allclose(lr[0], lr[1])
+    assert not np.allclose(lr[:, 0], lr[:, 1])
+    assert np.allclose(hr[0, :, 0], truth)
+
+    # temporal test
+    t_vals = np.random.uniform(0, 100, 3)
+    lr = np.ones((2, 2, 3)) * t_vals
+    hr = st_interp(lr, s_enhance=1, t_enhance=3, t_centered=True)
+    x = np.linspace(-(1 / 3), 2 + (1 / 3), 9)
+    ifun = interp1d(np.arange(3), lr[0, 0], fill_value='extrapolate')
+    truth = ifun(x)
+    assert np.allclose(hr[0, 0], truth)
+
+    # check vs. lat/lon interpolation
+    lats = np.array([-20, 0, 20])
+    lons = np.array([-30, 0, 30])
+    lons, lats = np.meshgrid(lons, lats)
+    lr_lat_lon = np.dstack((lats, lons))
+    lats = np.repeat(np.expand_dims(lats, -1), 2, axis=-1)
+    lons = np.repeat(np.expand_dims(lons, -1), 2, axis=-1)
+
+    hr_lats_0 = st_interp(lats, s_enhance=2, t_enhance=1)[..., 0]
+    hr_lons_0 = st_interp(lons, s_enhance=2, t_enhance=1)[..., 0]
+
+    hr_lat_lon_1 = OutputHandler.get_lat_lon(lr_lat_lon, (6, 6))
+    hr_lats_1 = hr_lat_lon_1[..., 0]
+    hr_lons_1 = hr_lat_lon_1[..., 1]
+
+    assert np.allclose(hr_lats_0, hr_lats_1)
+    assert np.allclose(hr_lons_0, hr_lons_1)

@@ -443,8 +443,9 @@ class SurfaceSpatialMetModel(AbstractSup3rGan):
         -------
         hi_res : ndarray
             high-resolution spatial output data, a 4D array of shape:
-            (n_obs, spatial_1, spatial_2, 2), Where the feature channel can
-            include temperature_*m, relativehumidity_*m, and/or pressure_*m
+            (n_obs, spatial_1, spatial_2, n_features), Where the feature
+            channel can include temperature_*m, relativehumidity_*m, and/or
+            pressure_*m
         """
 
         msg = ('exogenous_data is of a bad type {}!'

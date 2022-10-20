@@ -72,6 +72,9 @@ class MultiStepGan(AbstractSup3rGan):
 
         models = []
 
+        if isinstance(model_dirs, str):
+            model_dirs = [model_dirs]
+
         for model_dir in model_dirs:
             fp_params = os.path.join(model_dir, 'model_params.json')
             assert os.path.exists(fp_params), f'Could not find: {fp_params}'
@@ -549,35 +552,25 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         return hi_res
 
     @classmethod
-    def load(cls, features, s_enhance, temporal_model_dirs,
-             surface_model_kwargs=None,
-             surface_model_class='SurfaceSpatialMetModel',
+    def load(cls, surface_model_class='SurfaceSpatialMetModel',
+             temporal_model_class='MultiStepGan',
+             surface_model_kwargs=None, temporal_model_kwargs=None,
              verbose=True):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
         Parameters
         ----------
-        features : list
-            List of feature names that this model will operate on for both
-            input and output. This must match the feature axis ordering in the
-            array input to generate(). Typically this is a list containing:
-            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
-            contain multiple instances of each variable at different heights.
-            relativehumidity_*m entries must have corresponding temperature_*m
-            entires at the same hub height.
-        s_enhance : int
-            Integer factor by which the spatial axes are to be enhanced.
-        temporal_model_dirs : str | list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
-            This must contain only (spatio)temporal models that input/output 5D
-            tensors.
-        surface_model_kwargs : None | dict
-            Optional additional kwargs to initialize SurfaceSpatialMetModel
         surface_model_class : str
             Name of surface model class to be retrieved from sup3r.models, this
             is typically "SurfaceSpatialMetModel"
+        temporal_model_class : str
+            Name of temporal model class to be retrieved from sup3r.models,
+            this is typically "Sup3rGan"
+        surface_model_kwargs : None | dict
+            Optional additional kwargs to surface_model_class.load()
+        temporal_model_kwargs : None | dict
+            Optional additional kwargs to temporal_model_class.load()
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -588,16 +581,19 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
             model_dirs
         """
 
-        if isinstance(temporal_model_dirs, str):
-            temporal_model_dirs = [temporal_model_dirs]
-
         if surface_model_kwargs is None:
             surface_model_kwargs = {}
 
+        if temporal_model_kwargs is None:
+            temporal_model_kwargs = {}
+
         SpatialModelClass = getattr(sup3r.models, surface_model_class)
-        s_models = SpatialModelClass.load(features, s_enhance, verbose=verbose,
+        s_models = SpatialModelClass.load(verbose=verbose,
                                           **surface_model_kwargs)
-        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
+
+        TemporalModelClass = getattr(sup3r.models, temporal_model_class)
+        t_models = TemporalModelClass.load(verbose=verbose,
+                                           **temporal_model_kwargs)
 
         return cls(s_models, t_models)
 

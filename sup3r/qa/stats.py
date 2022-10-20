@@ -16,11 +16,12 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        transform_rotate_wind,
                                        temporal_coarsening,
-                                       spatial_coarsening)
+                                       spatial_coarsening,
+                                       st_interp)
 from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
                                 velocity_gradient_dist, vorticity_dist,
                                 tke_wavenumber_spectrum,
-                                tke_frequency_spectrum, st_interp)
+                                tke_frequency_spectrum)
 
 
 logger = logging.getLogger(__name__)
