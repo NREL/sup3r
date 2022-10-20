@@ -900,13 +900,13 @@ class Tas(DerivedFeature):
         return data[cls.CC_FEATURE_NAME] - 273.15
 
 
-class TasMin(DerivedFeature):
+class TasMin(Tas):
     """Daily min air temperature near surface variable from climate change nc
     files"""
     CC_FEATURE_NAME = 'tasmin'
 
 
-class TasMax(DerivedFeature):
+class TasMax(Tas):
     """Daily max air temperature near surface variable from climate change nc
     files"""
     CC_FEATURE_NAME = 'tasmax'
