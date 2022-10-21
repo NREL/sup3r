@@ -179,16 +179,22 @@ class OutputHandler:
         lat_shift = 1 - low_res_lat_lon.shape[0] / shape[0]
         lon_shift = 1 - low_res_lat_lon.shape[1] / shape[1]
 
+        # lats are labeled according to row index
         new_points[:, 0] = np.arange(new_points.shape[0]) // shape[1]
-        new_points[:, 1] = np.arange(new_points.shape[0]) % shape[1]
         old_points[:, 0] = np.arange(old_points.shape[0])
         old_points[:, 0] //= low_res_lat_lon.shape[1]
-        old_points[:, 0] *= s_enhance
-        old_points[:, 0] += lat_shift
+
+        # lons are labeled according to column index
+        new_points[:, 1] = np.arange(new_points.shape[0]) % shape[1]
         old_points[:, 1] = np.arange(old_points.shape[0])
         old_points[:, 1] %= low_res_lat_lon.shape[1]
+
+        # scale and shift old points according to enhancement
+        old_points[:, 0] *= s_enhance
+        old_points[:, 0] += lat_shift
         old_points[:, 1] *= s_enhance
         old_points[:, 1] += lon_shift
+
         lats = RBFInterpolator(old_points, lats, neighbors=10)(new_points)
         lons = RBFInterpolator(old_points, lons, neighbors=10)(new_points)
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))

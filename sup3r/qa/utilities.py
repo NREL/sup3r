@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Utilities used for QA"""
 import numpy as np
+from scipy.interpolate import interp1d
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def tke_frequency_spectrum(u, v):
@@ -158,7 +162,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def gradient_dist(var, bins=40, range=None, diff_max=7, scale=1):
+def gradient_dist(var, bins=50, range=None, diff_max=None, scale=1):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -175,25 +179,22 @@ def gradient_dist(var, bins=40, range=None, diff_max=7, scale=1):
     Returns
     -------
     ndarray
-        Normalized d(var) / dx at bin centers
+        d(var) / dx at bin centers
     ndarray
         Normalized d(var) / dx value counts
     float
         Normalization factor
-    ndarray
-        Raw differences prior to computing histogram
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
+    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    counts, edges = np.histogram(diffs, bins=bins, range=range)
-    centers = edges[:-1] + (np.diff(edges) / 2)
-    counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm, diffs
+    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    return centers, counts, norm
 
 
-def vorticity_dist(u, v, bins=40, range=None, diff_max=14, scale=1):
+def vorticity_dist(u, v, bins=50, range=None, diff_max=None, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -214,27 +215,24 @@ def vorticity_dist(u, v, bins=40, range=None, diff_max=14, scale=1):
     Returns
     -------
     ndarray
-        Normalized vorticity values at bin centers
+        vorticity values at bin centers
     ndarray
         Normalized vorticity value counts
     float
         Normalization factor
-    ndarray
-        Raw differences prior to computing histogram
     """
     dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
     diffs /= scale
+    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    counts, edges = np.histogram(diffs, bins=bins, range=range)
-    centers = edges[:-1] + (np.diff(edges) / 2)
-    counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm, diffs
+    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    return centers, counts, norm
 
 
-def ramp_rate_dist(var, bins=40, range=None, diff_max=10, t_steps=1,
+def ramp_rate_dist(var, bins=50, range=None, diff_max=None, t_steps=1,
                    scale=1):
     """Returns the ramp rate distribution for the given variable.
 
@@ -260,8 +258,6 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=10, t_steps=1,
         Normalized d(var) / dt value counts
     float
         Normalization factor
-    ndarray
-        Raw differences prior to computing histogram
     """
 
     msg = (f'Received t_steps={t_steps} for ramp rate calculation but data '
@@ -269,9 +265,47 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=10, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
+    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
+    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    return centers, counts, norm
+
+
+def continuous_dist(diffs, bins=None, range=None):
+    """Get interpolated distribution from histogram
+
+    Parameters
+    ----------
+    diffs : ndarray
+        Array of values to use to construct distribution
+    bins : int
+        Number of bins for the distribution. If None then the number of bins
+        will be determined from the value range and the smallest difference
+        between values
+    range : tuple | None
+        Optional min/max range for the distribution.
+
+    Returns
+    -------
+    ndarray
+        distribution value counts
+    ndarray
+        distribution values at bin centers
+    """
+    if bins is None:
+        dx = sorted(diffs)
+        dx = np.abs(np.diff(dx))
+        dx = dx[dx > 0]
+        dx = np.mean(dx)
+        bins = int((np.max(diffs) - np.min(diffs)) / dx)
+        logger.debug(f'Using n_bins={bins} to compute distribution')
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
+    indices = np.where(counts > 0)
+    y = counts[indices]
+    x = centers[indices]
+    interp = interp1d(x, y, bounds_error=False, fill_value=None)
+    counts = interp(centers)
     counts = counts.astype(float) / counts.sum()
-    return centers, counts, norm, diffs
+    return counts, centers
