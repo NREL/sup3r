@@ -43,7 +43,7 @@ class Sup3rStatsBase(ABC):
                  extract_workers=None, compute_workers=None, load_workers=None,
                  ti_workers=None, get_interp=False, get_hr=True, get_lr=True,
                  include_stats=None, max_values=None, ramp_rate_t_step=1,
-                 coarsen=False, smoothing=None, spatial_res=None,
+                 coarsen=False, smoothing=None, spatial_res=None, n_bins=40,
                  max_delta=10):
         """
         Parameters
@@ -164,6 +164,8 @@ class Sup3rStatsBase(ABC):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        n_bins : int
+            Number of bins to use for constructing probability distributions
         """
 
         logger.info('Initializing Sup3rStatsWind and retrieving source data')
@@ -173,9 +175,10 @@ class Sup3rStatsBase(ABC):
             ti_workers = max_workers
 
         self.max_values = max_values or {}
+        self.n_bins = n_bins
         self.ramp_rate_max = self.max_values.get('ramp_rate_max', None)
         self.gradient_max = self.max_values.get('gradient_max', None)
-        self.vorticity_max = self.max_values.get('vorticity_max', 14)
+        self.vorticity_max = self.max_values.get('vorticity_max', None)
         self.ramp_rate_t_step = (ramp_rate_t_step
                                  if isinstance(ramp_rate_t_step, list)
                                  else [ramp_rate_t_step])
@@ -585,11 +588,8 @@ class Sup3rStatsBase(ABC):
             Array with fluctuation data
             (spatial_1, spatial_2, temporal)
         """
-        tavg = np.mean(var, axis=-1)
-        dvar = var.copy()
-        for i in range(var.shape[-1]):
-            dvar[..., i] = var[..., i] - tavg
-        return dvar
+        avg = np.mean(var)
+        return var - avg
 
     def interpolate_data(self, feature, low_res):
         """Get interpolated low res field
@@ -648,12 +648,13 @@ class Sup3rStatsBase(ABC):
         if 'gradient' in self.include_stats:
             logger.info('Computing gradient pdf.')
             stats_dict['gradient'] = gradient_dist(
-                var, diff_max=self.gradient_max, scale=scale)
+                var, diff_max=self.gradient_max, scale=scale, bins=self.n_bins)
 
         if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean gradient pdf.')
             stats_dict['mean_gradient'] = gradient_dist(
-                np.mean(var, axis=-1), diff_max=self.gradient_max, scale=scale)
+                np.mean(var, axis=-1), diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
 
         scale = 1 if res == 'high' else self.t_enhance
         out = self.get_ramp_rate_stats(var, scale=scale)
@@ -891,14 +892,16 @@ class Sup3rStatsBase(ABC):
             for i, time in enumerate(self.ramp_rate_t_step):
                 logger.info('Computing ramp rate pdf.')
                 out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
-                                     t_steps=time, scale=scale)
+                                     t_steps=time, scale=scale,
+                                     bins=self.n_bins)
                 stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
         if 'mean_ramp_rate' in self.include_stats:
             for i, time in enumerate(self.ramp_rate_t_step):
                 logger.info('Computing mean ramp rate pdf.')
                 out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
                                      diff_max=self.ramp_rate_max,
-                                     t_steps=time, scale=scale)
+                                     t_steps=time, scale=scale,
+                                     bins=self.n_bins)
                 stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
         return stats_dict
 
@@ -1125,23 +1128,26 @@ class Sup3rStatsWind(Sup3rStatsBase):
         if 'gradient' in self.include_stats:
             logger.info('Computing velocity gradient pdf.')
             stats_dict['gradient'] = gradient_dist(
-                u, diff_max=self.gradient_max, scale=scale)
+                u, diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
 
         if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean velocity gradient pdf.')
             stats_dict['mean_gradient'] = gradient_dist(
-                np.mean(u, axis=-1), diff_max=self.gradient_max, scale=scale)
+                np.mean(u, axis=-1), diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
 
         if 'vorticity' in self.include_stats:
             logger.info('Computing vorticity pdf.')
             stats_dict['vorticity'] = vorticity_dist(
-                u, v, diff_max=self.vorticity_max, scale=scale)
+                u, v, diff_max=self.vorticity_max, scale=scale,
+                bins=self.n_bins)
 
         if 'mean_vorticity' in self.include_stats:
             logger.info('Computing mean vorticity pdf.')
             stats_dict['mean_vorticity'] = vorticity_dist(
                 np.mean(u, axis=-1), np.mean(v, axis=-1),
-                diff_max=self.vorticity_max, scale=scale)
+                diff_max=self.vorticity_max, scale=scale, bins=self.n_bins)
 
         scale = 1 if res == 'high' else self.t_enhance
         out = self.get_ramp_rate_stats(np.hypot(u, v), scale=scale)
@@ -1203,17 +1209,17 @@ class Sup3rStatsWind(Sup3rStatsBase):
         """
 
         stats = {}
-        for idf, height in enumerate(self.heights):
-            logger.info('Running WindStats on height {} of {} ({}m)'
-                        .format(idf + 1, len(self.heights), height))
+        for _, height in enumerate(self.heights):
+            feature = f'windspeed_{height}m'
+            logger.info(f'Running WindStats on {feature}')
             lr_stats, hr_stats, interp = self.get_height_stats(height)
 
             if self.get_lr:
-                stats[f'lr_{height}m'] = lr_stats
+                stats[f'lr_{feature}'] = lr_stats
             if self.get_hr:
-                stats[f'hr_{height}m'] = hr_stats
+                stats[f'hr_{feature}'] = hr_stats
             if self.get_interp:
-                stats[f'interp_{height}m'] = interp
+                stats[f'interp_{feature}'] = interp
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)

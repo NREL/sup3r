@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import logging
-from scipy.interpolate import RBFInterpolator
+from scipy.interpolate import RBFInterpolator, griddata
 import re
 from datetime import datetime as dt
 import json
@@ -145,7 +145,86 @@ class OutputHandler:
         return data
 
     @staticmethod
-    def get_lat_lon(low_res_lat_lon, shape):
+    def pad_lat_lon(lat_lon):
+        """Pad lat lon grid with additional rows and columns to use for
+        interpolation routine
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon for input data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        shape : tuple
+            (lons, lats) Shape of high res grid
+
+        Returns
+        -------
+        lat_lon : ndarray
+            Array of padded lat lons
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        """
+
+        # add row and column to boundaries
+        padded_grid = np.zeros((2 + lat_lon.shape[0],
+                                2 + lat_lon.shape[1], 2))
+
+        # fill in interior values
+        padded_grid[1:-1, 1:-1, :] = lat_lon
+
+        # define edge spacing
+        left_diffs = padded_grid[:, 2, 1] - padded_grid[:, 1, 1]
+        right_diffs = padded_grid[:, -2, 1] - padded_grid[:, -3, 1]
+        top_diffs = padded_grid[1, :, 0] - padded_grid[2, :, 0]
+        bottom_diffs = padded_grid[-3, :, 0] - padded_grid[-2, :, 0]
+
+        # use edge spacing to define new boundary values
+        padded_grid[:, 0, 1] = padded_grid[:, 1, 1] - left_diffs
+        padded_grid[:, 0, 0] = padded_grid[:, 1, 0]
+        padded_grid[:, -1, 1] = padded_grid[:, -2, 1] + right_diffs
+        padded_grid[:, -1, 0] = padded_grid[:, -2, 0]
+        padded_grid[0, :, 0] = padded_grid[1, :, 0] + top_diffs
+        padded_grid[0, :, 1] = padded_grid[1, :, 1]
+        padded_grid[-1, :, 0] = padded_grid[-2, :, 0] - bottom_diffs
+        padded_grid[-1, :, 1] = padded_grid[-2, :, 1]
+
+        # use surrounding cells to define corner values
+        padded_grid[0, 0] = (padded_grid[1, 0] + padded_grid[0, 1]
+                             + padded_grid[1, 1]) / 3
+        padded_grid[-1, 0] = (padded_grid[-2, 0] + padded_grid[-1, 1]
+                              + padded_grid[-2, 1]) / 3
+        padded_grid[0, -1] = (padded_grid[0, -2] + padded_grid[1, -1]
+                              + padded_grid[1, -2]) / 3
+        padded_grid[-1, -1] = (padded_grid[-1, -2] + padded_grid[-2, -1]
+                               + padded_grid[-2, -2]) / 3
+        return padded_grid
+
+    @staticmethod
+    def is_increasing_lons(lat_lon):
+        """Check if longitudes are in increasing order. Need to check this
+        for interpolation routine
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon for input data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+
+        Returns
+        -------
+        bool
+            Whether all lons are in increasing order or not
+
+        """
+        for i in range(lat_lon.shape[0]):
+            if lat_lon[i, :, 1][-1] < lat_lon[i, :, 1][0]:
+                return False
+        return True
+
+    @classmethod
+    def get_lat_lon(cls, low_res_lat_lon, shape):
         """Get lat lon arrays for high res output file
 
         Parameters
@@ -165,39 +244,38 @@ class OutputHandler:
             Last dimension has ordering (lat, lon)
         """
         logger.debug('Getting high resolution lat / lon grid')
-        s_enhance = shape[0] // low_res_lat_lon.shape[0]
-        old_points = np.zeros((np.product(low_res_lat_lon.shape[:-1]), 2),
-                              dtype=np.float32)
-        new_points = np.zeros((np.product(shape), 2), dtype=np.float32)
-        lats = low_res_lat_lon[..., 0].flatten()
-        lons = low_res_lat_lon[..., 1].flatten()
+        # pad lat lon grid
+        if not cls.is_increasing_lons(low_res_lat_lon):
+            low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 360) % 360
+        padded_grid = cls.pad_lat_lon(low_res_lat_lon)
+        lats = padded_grid[..., 0].flatten()
+        lons = padded_grid[..., 1].flatten()
 
-        # This shifts the indices for the old points by the downsampling
-        # fraction so that we can calculate the centers of the new points with
-        # origin at zero. Obviously if the shapes are the same then there
-        # should be no shift
-        lat_shift = 1 - low_res_lat_lon.shape[0] / shape[0]
-        lon_shift = 1 - low_res_lat_lon.shape[1] / shape[1]
+        lr_y, lr_x = low_res_lat_lon.shape[:-1]
+        hr_y, hr_x = shape
 
-        # lats are labeled according to row index
-        new_points[:, 0] = np.arange(new_points.shape[0]) // shape[1]
-        old_points[:, 0] = np.arange(old_points.shape[0])
-        old_points[:, 0] //= low_res_lat_lon.shape[1]
+        # assume outer bounds of mesh (0, 10) w/ points on inside of that range
+        y = np.arange(0, 10, 10 / lr_y) + 5 / lr_y
+        x = np.arange(0, 10, 10 / lr_x) + 5 / lr_x
 
-        # lons are labeled according to column index
-        new_points[:, 1] = np.arange(new_points.shape[0]) % shape[1]
-        old_points[:, 1] = np.arange(old_points.shape[0])
-        old_points[:, 1] %= low_res_lat_lon.shape[1]
+        # add values due to padding
+        y = np.concatenate([[y[0] - 10 / lr_y], y, [y[-1] + 10 / lr_y]])
+        x = np.concatenate([[x[0] - 10 / lr_x], x, [x[-1] + 10 / lr_x]])
 
-        # scale and shift old points according to enhancement
-        old_points[:, 0] *= s_enhance
-        old_points[:, 0] += lat_shift
-        old_points[:, 1] *= s_enhance
-        old_points[:, 1] += lon_shift
+        # remesh (0, 10) with high res spacing
+        new_y = np.arange(0, 10, 10 / hr_y) + 5 / hr_y
+        new_x = np.arange(0, 10, 10 / hr_x) + 5 / hr_x
 
-        lats = RBFInterpolator(old_points, lats, neighbors=10)(new_points)
-        lons = RBFInterpolator(old_points, lons, neighbors=10)(new_points)
+        X, Y = np.meshgrid(x, y)
+        old = np.array([Y.flatten(), X.flatten()]).T
+        X, Y = np.meshgrid(new_x, new_y)
+        new = np.array([Y.flatten(), X.flatten()]).T
+        lons = griddata(old, lons, new)
+        lats = griddata(old, lats, new)
+
+        lons = (lons + 180) % 360 - 180
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
+
         return lat_lon
 
     @staticmethod

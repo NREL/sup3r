@@ -162,7 +162,7 @@ def tke_series(u, v):
             for t in range(u.shape[-1])]
 
 
-def gradient_dist(var, bins=50, range=None, diff_max=None, scale=1):
+def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -187,14 +187,14 @@ def gradient_dist(var, bins=50, range=None, diff_max=None, scale=1):
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
     return centers, counts, norm
 
 
-def vorticity_dist(u, v, bins=50, range=None, diff_max=None, scale=1):
+def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
     """Returns the vorticity distribution.
 
     Parameters
@@ -225,14 +225,14 @@ def vorticity_dist(u, v, bins=50, range=None, diff_max=None, scale=1):
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
     return centers, counts, norm
 
 
-def ramp_rate_dist(var, bins=50, range=None, diff_max=None, t_steps=1,
+def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
                    scale=1):
     """Returns the ramp rate distribution for the given variable.
 
@@ -265,7 +265,7 @@ def ramp_rate_dist(var, bins=50, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 75)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -294,8 +294,7 @@ def continuous_dist(diffs, bins=None, range=None):
         distribution values at bin centers
     """
     if bins is None:
-        dx = sorted(diffs)
-        dx = np.abs(np.diff(dx))
+        dx = np.abs(np.diff(diffs))
         dx = dx[dx > 0]
         dx = np.mean(dx)
         bins = int((np.max(diffs) - np.min(diffs)) / dx)
