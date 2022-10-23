@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import logging
-from scipy.interpolate import RBFInterpolator, griddata
+from scipy.interpolate import griddata
 import re
 from datetime import datetime as dt
 import json
