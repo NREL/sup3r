@@ -244,6 +244,7 @@ class OutputHandler:
             Last dimension has ordering (lat, lon)
         """
         logger.debug('Getting high resolution lat / lon grid')
+
         # pad lat lon grid
         if not cls.is_increasing_lons(low_res_lat_lon):
             low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 360) % 360

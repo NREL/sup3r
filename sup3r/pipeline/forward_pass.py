@@ -858,8 +858,6 @@ class ForwardPassStrategy(InputMixIn):
             lr_lat_lon = self.lr_lat_lon.copy()
             self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
                                                          self.gids.shape)
-            self._hr_lat_lon[..., 1] = (self._hr_lat_lon[..., 1] + 180) % 360
-            self._hr_lat_lon[..., 1] -= 180
         return self._hr_lat_lon
 
     def get_full_domain(self, file_paths):

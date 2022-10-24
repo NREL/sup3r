@@ -187,7 +187,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -225,7 +225,7 @@ def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
     dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
     diffs = dudy - dvdx
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -265,7 +265,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 90)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
