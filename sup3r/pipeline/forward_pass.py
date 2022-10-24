@@ -13,7 +13,6 @@ import copy
 from datetime import datetime as dt
 import psutil
 from inspect import signature
-import pandas as pd
 
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.execution import SpawnProcessPool
