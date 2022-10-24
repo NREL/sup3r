@@ -203,7 +203,10 @@ class OutputHandler:
     @staticmethod
     def is_increasing_lons(lat_lon):
         """Check if longitudes are in increasing order. Need to check this
-        for interpolation routine
+        for interpolation routine. This is primarily to identify whether the
+        lons go through the 180 -> -180 boundary, which creates a
+        discontinuity. For example, [130, 180, -130, -80]. If any lons go from
+        positive to negative the lons need to be shifted to the range 0-360.
 
         Parameters
         ----------
@@ -230,7 +233,11 @@ class OutputHandler:
         Parameters
         ----------
         low_res_lat_lon : ndarray
-            Array of lat/lon for input data.
+            Array of lat/lon for input data. Longitudes must be arranged in
+            a counter-clockwise direction (when looking down from above the
+            north pole). e.g. [-50, -25, 25, 50] or [130, 180, -130, -80]. The
+            latter passes through the 180 -> -180 boundary and will be
+            temporarily shifted to the 0-360 range before interpolation.
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         shape : tuple
@@ -245,9 +252,14 @@ class OutputHandler:
         """
         logger.debug('Getting high resolution lat / lon grid')
 
-        # pad lat lon grid
+        # ensure lons are between -180 and 180
+        low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 180) % 360 - 180
+
+        # check if lons go through the 180 -> -180 boundary.
         if not cls.is_increasing_lons(low_res_lat_lon):
             low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 360) % 360
+
+        # pad lat lon grid
         padded_grid = cls.pad_lat_lon(low_res_lat_lon)
         lats = padded_grid[..., 0].flatten()
         lons = padded_grid[..., 1].flatten()
