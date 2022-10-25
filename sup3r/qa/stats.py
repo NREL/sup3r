@@ -8,6 +8,7 @@ import os
 import pickle
 import logging
 import copy
+from abc import ABC
 from scipy.ndimage.filters import gaussian_filter
 from rex import MultiFileResourceX
 from rex.utilities.fun_utils import get_fun_call_str
@@ -18,28 +19,31 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        temporal_coarsening,
                                        spatial_coarsening,
                                        st_interp)
-from sup3r.qa.utilities import (ws_ramp_rate_dist, tke_series,
-                                velocity_gradient_dist, vorticity_dist,
+from sup3r.qa.utilities import (ramp_rate_dist, tke_series,
+                                gradient_dist, vorticity_dist,
                                 tke_wavenumber_spectrum,
-                                tke_frequency_spectrum)
+                                tke_frequency_spectrum,
+                                wavenumber_spectrum,
+                                frequency_spectrum)
+from sup3r.preprocessing.feature_handling import Feature
 
 
 logger = logging.getLogger(__name__)
 
 
-class Sup3rWindStats:
-    """Class for doing statistical QA on sup3r forward pass wind outputs."""
+class Sup3rStatsBase(ABC):
+    """Base class for doing statistical QA on sup3r forward pass outputs."""
 
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
-                 heights, temporal_slice=slice(None), target=None,
-                 shape=None, raster_file=None, qa_fp=None,
+                 features=None, temporal_slice=slice(None),
+                 target=None, shape=None, raster_file=None, qa_fp=None,
                  time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_stats=False,
                  input_handler=None, output_handler=None, max_workers=None,
                  extract_workers=None, compute_workers=None, load_workers=None,
                  ti_workers=None, get_interp=False, get_hr=True, get_lr=True,
                  include_stats=None, max_values=None, ramp_rate_t_step=1,
-                 coarsen=False, smoothing=None, spatial_res=None,
+                 coarsen=False, smoothing=None, spatial_res=None, n_bins=40,
                  max_delta=10):
         """
         Parameters
@@ -83,7 +87,7 @@ class Sup3rWindStats:
             full source domain will be used.
         qa_fp : str | None
             Optional filepath to output QA file when you call
-            Sup3rWindStats.run()
+            Sup3rStatsWind.run()
             (only .pkl is supported)
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
@@ -143,7 +147,7 @@ class Sup3rWindStats:
             'velocity_grad', 'vorticity', 'tke_avg_k', 'tke_avg_f', 'tke_ts']
         max_values : dict | None
             Dictionary of max values to keep for stats. e.g.
-            {'ramp_rate_max': 10, 'v_grad_max': 14, 'vorticity_max': 7}
+            {'ramp_rate_max': 10, 'gradient_max': 14, 'vorticity_max': 7}
         ramp_rate_t_step : int | list
             Number of time steps to use for ramp rate calculation. If low res
             data is hourly then t_step=1 will calculate the hourly ramp rate.
@@ -160,39 +164,43 @@ class Sup3rWindStats:
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances, by default 20
+        n_bins : int
+            Number of bins to use for constructing probability distributions
         """
 
-        logger.info('Initializing Sup3rWindStats and retrieving source data')
+        logger.info('Initializing Sup3rStatsWind and retrieving source data')
 
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
             ti_workers = max_workers
 
         self.max_values = max_values or {}
-        self.ramp_rate_max = self.max_values.get('ramp_rate_max', 10)
-        self.v_grad_max = self.max_values.get('v_grad_max', 7)
-        self.vorticity_max = self.max_values.get('vorticity_max', 14)
+        self.n_bins = n_bins
+        self.ramp_rate_max = self.max_values.get('ramp_rate', None)
+        self.gradient_max = self.max_values.get('gradient', None)
+        self.vorticity_max = self.max_values.get('vorticity', None)
         self.ramp_rate_t_step = (ramp_rate_t_step
                                  if isinstance(ramp_rate_t_step, list)
                                  else [ramp_rate_t_step])
-        self.include_stats = include_stats or ['ramp_rate', 'velocity_grad',
-                                               'vorticity', 'tke_avg_k',
-                                               'tke_avg_f', 'tke_ts',
+        self.include_stats = include_stats or ['ramp_rate', 'gradient',
+                                               'vorticity', 'avg_spectrum_k',
+                                               'avg_spectrum_f', 'tke_ts',
                                                'mean_ramp_rate']
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self.heights = heights if isinstance(heights, list) else [heights]
         self._out_fp = (out_file_path if isinstance(out_file_path, list)
                         else [out_file_path])
         self._hr_lat_lon = None
         self._hr_time_index = None
+        self._features = features
         self.get_interp = get_interp
         self.get_hr = get_hr
         self.get_lr = get_lr
         self.cache_pattern = cache_pattern
         self.overwrite_cache = overwrite_cache
         self.overwrite_stats = overwrite_stats
+        self.output_handler = None
         self.coarsen = coarsen
         self.k_range = None
         self.qa_fp = qa_fp
@@ -214,11 +222,7 @@ class Sup3rWindStats:
                                                 input_handler, smoothing,
                                                 spatial_res,
                                                 source_handler_kwargs)
-        if self.get_hr and self._out_fp is not None:
-            self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
-        else:
-            self.lr_t_slice = slice(None)
-            self.hr_t_slice = slice(None)
+        self.lr_t_slice, self.hr_t_slice = self.time_overlap_slices()
 
         if self.get_hr and self._out_fp is not None:
             if shape is not None or target is not None:
@@ -333,10 +337,9 @@ class Sup3rWindStats:
             data = np.zeros((self.hr_shape[0], self.hr_shape[1],
                              len(self.hr_time_index[self.hr_t_slice]),
                              len(self.features)), dtype=np.float32)
-            for i, height in enumerate(self.heights):
-                u, v = self.get_uv_out(height)
-                data[..., 2 * i] = u
-                data[..., 2 * i + 1] = v
+            for i, feature in enumerate(self.features):
+                out = self.get_hr_out(feature)
+                data[..., i] = out
             return data
         else:
             HandlerClass = get_input_handler_class(out_file_paths,
@@ -422,6 +425,9 @@ class Sup3rWindStats:
         hr_slice : slice
             Slice for overlap of high resolution data with low resolution data
         """
+        if not self.get_hr or self._out_fp is None:
+            return slice(None), slice(None)
+
         min_time = np.max((self.lr_time_index[0], self.hr_time_index[0]))
         max_time = np.min((self.lr_time_index[-1], self.hr_time_index[-1]))
 
@@ -441,39 +447,13 @@ class Sup3rWindStats:
 
     @property
     def features(self):
-        """Get a list of requested wind feature names
+        """Get a list of requested feature names
 
         Returns
         -------
         list
         """
-
-        # all lower case
-        features = []
-        for height in self.heights:
-            features.append(f'U_{height}m')
-            features.append(f'V_{height}m')
-
-        return features
-
-    def feature_indices(self, height):
-        """Indices for U/V of given height
-
-        Parameters
-        ----------
-        height : int
-            Height in meters for requested U/V fields
-
-        Returns
-        -------
-        uidx : int
-            Index for U_{height}m
-        vidx : int
-            Index for V_{height}m
-        """
-        uidx = self.features.index(f'U_{height}m')
-        vidx = self.features.index(f'V_{height}m')
-        return uidx, vidx
+        return self._features
 
     @property
     def output_type(self):
@@ -504,7 +484,508 @@ class Sup3rWindStats:
         elif self.output_type == 'h5':
             return MultiFileResourceX
 
-    def get_uv_out(self, height):
+    def get_hr_out(self, feature):
+        """Get an output dataset from the forward pass output file.
+
+        Parameters
+        ----------
+        feature : str
+            Name of the output dataset to retrieve. Must be found in the
+            features property and the forward pass output file.
+
+        Returns
+        -------
+        data : np.ndarray
+            A copy of the high-resolution output data as a numpy
+            array of shape (spatial_1, spatial_2, temporal)
+        """
+
+        logger.debug('Getting sup3r data ({})'.format(feature))
+        t_steps = len(self.hr_time_index[self.hr_t_slice])
+        shape = f'{self.hr_shape[0]}x{self.hr_shape[1]}x{t_steps}'
+
+        cache_file = None
+        if self.cache_pattern is not None:
+            tmp_file = self.cache_pattern.replace('{shape}', f'{shape}')
+            cache_file = tmp_file.replace('{feature}', feature)
+
+            if (os.path.exists(cache_file) and not self.overwrite_cache):
+                data = self.load_cache(cache_file)
+                return data
+
+        if self.output_type == 'nc':
+            raise NotImplementedError('Netcdf output not yet supported')
+        elif self.output_type == 'h5':
+            logger.info('Extracting data from output handler for '
+                        f'time_slice={self.hr_t_slice}')
+            data = self.output_handler[feature, self.hr_t_slice, :]
+            data = data.T.reshape((self.hr_shape[0], self.hr_shape[1], -1))
+            if cache_file is not None:
+                self.save_cache(data, cache_file)
+
+        return data
+
+    def get_spectra_stats(self, var, res='low'):
+        """Compute spectra based statistics
+
+        Parameters
+        ----------
+        var: ndarray
+            Longitudinal velocity component
+            (lat, lon, temporal)
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of spectra stats for wind fields
+        """
+
+        k_range = None
+        if self.k_range is not None:
+            k_range = [self.k_range[0], self.k_range[1]]
+            if res == 'high':
+                k_range[1] *= self.s_enhance
+
+        stats_dict = {}
+        if 'avg_fluctuation_spectrum_k' in self.include_stats:
+            logger.info('Computing time averaged fluctuation wavenumber '
+                        f'spectrum for res={res}. Using k_range={k_range}.')
+            dvar = self.get_fluctuation(var)
+            stats_dict['avg_fluctuation_spectrum_k'] = wavenumber_spectrum(
+                np.mean(dvar[..., :-1], axis=-1), k_range=k_range)
+
+        if 'avg_spectrum_k' in self.include_stats:
+            logger.info('Computing time averaged wavenumber spectrum for '
+                        f'res={res}. Using k_range={k_range}.')
+            dvar = self.get_fluctuation(var)
+            stats_dict['avg_spectrum_k'] = wavenumber_spectrum(
+                np.mean(dvar[..., :-1], axis=-1), k_range=k_range)
+
+        if 'avg_fluctuation_spectrum_f' in self.include_stats:
+            logger.info('Computing spatially averaged fluctuation frequency '
+                        'spectrum.')
+            stats_dict['avg_fluctuation_spectrum_f'] = frequency_spectrum(
+                var - np.mean(var))
+        if 'avg_spectrum_f' in self.include_stats:
+            logger.info('Computing spatially averaged frequency spectrum.')
+            stats_dict['avg_spectrum_f'] = frequency_spectrum(var)
+
+        return stats_dict
+
+    @staticmethod
+    def get_fluctuation(var):
+        """Get difference between array and temporal average of the same array
+
+        Parameters
+        ----------
+        var : ndarray
+            Array of data to calculate flucation for
+            (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        dvar : ndarray
+            Array with fluctuation data
+            (spatial_1, spatial_2, temporal)
+        """
+        avg = np.mean(var)
+        return var - avg
+
+    def interpolate_data(self, feature, low_res):
+        """Get interpolated low res field
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to interpolate
+        low_res : ndarray
+            Array of low resolution data to interpolate
+            (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        var_itp : ndarray
+            Array of interpolated data
+            (spatial_1, spatial_2, temporal)
+        """
+
+        shape = f'{low_res.shape[0]}x{low_res.shape[1]}x{low_res.shape[2]}'
+        file_name = None
+        if self.cache_pattern is not None:
+            file_name = self.cache_pattern.replace('{shape}', f'{shape}')
+            file_name = file_name.replace('{feature}',
+                                          f'{feature.lower()}_interp')
+        if file_name is not None and os.path.exists(file_name):
+            var_itp = self.load_cache(file_name)
+        if (file_name is None or not os.path.exists(file_name)
+                or self.overwrite_cache):
+            logger.info(f'Interpolating low res {feature}.')
+
+            var_itp = st_interp(low_res, self.s_enhance, self.t_enhance)
+            if file_name is not None:
+                self.save_cache(var_itp, file_name)
+        return var_itp
+
+    def get_stats(self, var, res='low'):
+        """Get stats for wind fields
+
+        Parameters
+        ----------
+        var: ndarray
+            (lat, lon, temporal)
+        res : str
+            Resolution of input fields. If this is 'high' then the ramp rate
+            time step needs to be multipled by the temporal enhancement factor
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of stats for wind fields
+        """
+        stats_dict = self.get_spectra_stats(var, res=res)
+
+        scale = 1 if res == 'high' else self.s_enhance
+        if 'gradient' in self.include_stats:
+            logger.info('Computing gradient pdf.')
+            stats_dict['gradient'] = gradient_dist(
+                var, diff_max=self.gradient_max, scale=scale, bins=self.n_bins)
+
+        if 'mean_gradient' in self.include_stats:
+            logger.info('Computing mean gradient pdf.')
+            stats_dict['mean_gradient'] = gradient_dist(
+                np.mean(var, axis=-1), diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
+
+        scale = 1 if res == 'high' else self.t_enhance
+        out = self.get_ramp_rate_stats(var, scale=scale)
+        stats_dict.update(out)
+        return stats_dict
+
+    def get_feature_stats(self, feature):
+        """Get stats for high and low resolution fields
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get stats for
+
+        Returns
+        -------
+        low_res : dict
+            Dictionary of stats for low resolution fields
+        high_res : dict
+            Dictionary of stats for high resolution fields
+        interp : dict
+            Dictionary of stats for spatiotemporally interpolated fields
+        """
+        low_res = {}
+        if self.get_lr:
+            idx = self.features.index(feature)
+            lr = self.source_data[..., self.lr_t_slice, idx]
+            logger.info(f'Getting low res stats for {feature}')
+            low_res = self.get_stats(lr, res='low')
+
+        high_res = {}
+        if self.get_hr:
+            idx = self.features.index(feature)
+            hr = self.output_data[..., idx]
+            logger.info(f'Getting high res stats for {feature}')
+            high_res = self.get_stats(hr, res='high')
+
+        interp = {}
+        if self.get_interp:
+            itp = self.interpolate_data(feature, lr)
+            logger.info(f'Getting interpolated baseline stats for {feature}')
+            interp = self.get_stats(itp, res='high')
+        return low_res, high_res, interp
+
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize Sup3rStatsBase and execute the
+        Sup3rStatsBase.run() method based on an input config
+
+        Parameters
+        ----------
+        config : dict
+            sup3r wind stats config with all necessary args and kwargs to
+            initialize Sup3rStatsBase and execute Sup3rStatsBase.run()
+        """
+        import_str = 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += f'from sup3r.qa.stats import {cls.__name__};\n'
+
+        qa_init_str = get_fun_call_str(cls, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"qa = {qa_init_str};\n"
+               "qa.run();\n"
+               "t_elap = time.time() - t0;\n")
+
+        job_name = config.get('job_name', None)
+        if job_name is not None:
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.WIND_STATS}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
+
+    def run(self):
+        """Go through all datasets and get the dictionary of statistics.
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of statistics, where keys are lr/hr/interp appended with
+            the feature name. Values are dictionaries of statistics, such as
+            gradient, avg_spectrum, ramp_rate, etc
+        """
+
+        stats = {}
+        for _, feature in enumerate(self.features):
+            logger.info(f'Running Sup3rStats for {feature}')
+            lr_stats, hr_stats, interp = self.get_feature_stats(feature)
+
+            if self.get_lr:
+                stats[f'lr_{feature}'] = lr_stats
+            if self.get_hr:
+                stats[f'hr_{feature}'] = hr_stats
+            if self.get_interp:
+                stats[f'interp_{feature}'] = interp
+
+        if self.qa_fp is not None:
+            self.export(self.qa_fp, stats)
+        logger.info('Finished Sup3rStats run method.')
+
+        return stats
+
+    @classmethod
+    def save_cache(cls, array, file_name):
+        """Save data to cache file
+
+        Parameters
+        ----------
+        array : ndarray
+            Wind field data
+        file_name : str
+            Path to cache file
+        """
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        logger.info(f'Saving data to {file_name}')
+        with open(file_name, 'wb') as f:
+            pickle.dump(array, f, protocol=4)
+
+    @classmethod
+    def load_cache(cls, file_name):
+        """Load data from cache file
+
+        Parameters
+        ----------
+        file_name : str
+            Path to cache file
+
+        Returns
+        -------
+        array : ndarray
+            Wind field data
+        """
+        logger.info(f'Loading data from {file_name}')
+        with open(file_name, 'rb') as f:
+            arr = pickle.load(f)
+        return arr
+
+    def export(self, qa_fp, data):
+        """Export stats dictionary to pkl file.
+
+        Parameters
+        ----------
+        qa_fp : str | None
+            Optional filepath to output QA file (only .h5 is supported)
+        data : dict
+            A dictionary with stats for low and high resolution wind fields
+        """
+
+        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
+        if not os.path.exists(qa_fp) or self.overwrite_stats:
+            logger.info('Saving sup3r stats output file: "{}"'.format(qa_fp))
+            with open(qa_fp, 'wb') as f:
+                pickle.dump(data, f, protocol=4)
+        else:
+            logger.info(f'{qa_fp} already exists. Delete file or run with '
+                        'overwrite_stats=True.')
+
+    def coarsen_data(self, data, smoothing=None):
+        """Re-coarsen a high-resolution synthetic output dataset
+
+        Parameters
+        ----------
+        data : np.ndarray
+            A copy of the high-resolution output data as a numpy
+            array of shape (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        data : np.ndarray
+            A spatiotemporally coarsened copy of the input dataset, still with
+            shape (spatial_1, spatial_2, temporal)
+        """
+        n_lats = self.s_enhance * (data.shape[0] // self.s_enhance)
+        n_lons = self.s_enhance * (data.shape[1] // self.s_enhance)
+        data = spatial_coarsening(data[:n_lats, :n_lons],
+                                  s_enhance=self.s_enhance,
+                                  obs_axis=False)
+
+        # t_coarse needs shape to be 5D: (obs, s1, s2, t, f)
+        data = np.expand_dims(data, axis=0)
+        data = temporal_coarsening(data, t_enhance=self.t_enhance)
+        data = data[0]
+
+        if smoothing is not None:
+            for i in range(data.shape[-1]):
+                for t in range(data.shape[-2]):
+                    data[..., t, i] = gaussian_filter(data[..., t, i],
+                                                      smoothing,
+                                                      mode='nearest')
+
+        return data
+
+    def get_ramp_rate_stats(self, var, scale=1):
+        """Compute statistics for ramp rates
+
+        Parameters
+        ----------
+        var: ndarray
+            (lat, lon, temporal)
+        res : str
+            Resolution of input fields. If this is 'high' then the ramp rate
+            time step needs to be multipled by the temporal enhancement factor
+
+        Returns
+        -------
+        stats : dict
+            Dictionary of ramp rate stats for pressure or temperature fields
+        """
+
+        stats_dict = {}
+        if 'ramp_rate' in self.include_stats:
+            for i, time in enumerate(self.ramp_rate_t_step):
+                logger.info('Computing ramp rate pdf.')
+                out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
+                                     t_steps=time, scale=scale,
+                                     bins=self.n_bins)
+                stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
+        if 'mean_ramp_rate' in self.include_stats:
+            for i, time in enumerate(self.ramp_rate_t_step):
+                logger.info('Computing mean ramp rate pdf.')
+                out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
+                                     diff_max=self.ramp_rate_max,
+                                     t_steps=time, scale=scale,
+                                     bins=self.n_bins)
+                stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
+        return stats_dict
+
+
+class Sup3rStatsWind(Sup3rStatsBase):
+    """Class for doing statistical QA on sup3r forward pass wind outputs."""
+
+    @property
+    def heights(self):
+        """Get heights for the requested features"""
+        heights = []
+        for feature in self.features:
+            height = Feature.get_height(feature)
+            if height not in heights:
+                heights.append(height)
+        return heights
+
+    def get_output_data(self, out_file_paths, output_handler,
+                        output_handler_kwargs=None):
+        """Get source data using provided source file paths
+
+        Parameters
+        ----------
+
+        out_file_paths : str | list
+            A list of sup3r-resolved output files (either .nc or .h5) with
+            high-resolution data corresponding to the
+            source_file_paths * s_enhance * t_enhance
+        output_handler : str | None
+            data handler class to use for output data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type and time series properties.
+        output_handler_kwargs : dict
+            Dictionary of keyword arguments passed to
+            `sup3r.preprocessing.data_handling.DataHandler`
+
+        Returns
+        -------
+        data : ndarray
+            Array of data from output file paths
+            (spatial_1, spatial_2, temporal, features)
+        """
+        shape = output_handler_kwargs.get('shape', None)
+        target = output_handler_kwargs.get('target', None)
+        if shape is None and target is None:
+            self.output_handler = self.output_handler_class(self._out_fp)
+            data = np.zeros((self.hr_shape[0], self.hr_shape[1],
+                             len(self.hr_time_index[self.hr_t_slice]),
+                             len(self.features)), dtype=np.float32)
+            for i, height in enumerate(self.heights):
+                u, v = self.get_hr_out(height)
+                data[..., 2 * i] = u
+                data[..., 2 * i + 1] = v
+            return data
+        else:
+            HandlerClass = get_input_handler_class(out_file_paths,
+                                                   output_handler)
+            self.output_handler = HandlerClass(out_file_paths,
+                                               self.features,
+                                               val_split=0.0,
+                                               **output_handler_kwargs)
+            self.output_handler.load_cached_data()
+            return self.output_handler.data
+
+    def feature_indices(self, height):
+        """Indices for U/V of given height
+
+        Parameters
+        ----------
+        height : int
+            Height in meters for requested U/V fields
+
+        Returns
+        -------
+        uidx : int
+            Index for U_{height}m
+        vidx : int
+            Index for V_{height}m
+        """
+        uidx = self.features.index(f'U_{height}m')
+        vidx = self.features.index(f'V_{height}m')
+        return uidx, vidx
+
+    def get_hr_out(self, height):
         """Get an output dataset from the forward pass output file.
 
         Parameters
@@ -557,113 +1038,6 @@ class Sup3rWindStats:
 
         return u, v
 
-    @classmethod
-    def save_cache(cls, array, file_name):
-        """Save data to cache file
-
-        Parameters
-        ----------
-        array : ndarray
-            Wind field data
-        file_name : str
-            Path to cache file
-        """
-        os.makedirs(os.path.dirname(file_name), exist_ok=True)
-        logger.info(f'Saving data to {file_name}')
-        with open(file_name, 'wb') as f:
-            pickle.dump(array, f, protocol=4)
-
-    @classmethod
-    def load_cache(cls, file_name):
-        """Load data from cache file
-
-        Parameters
-        ----------
-        file_name : str
-            Path to cache file
-
-        Returns
-        -------
-        array : ndarray
-            Wind field data
-        """
-        logger.info(f'Loading data from {file_name}')
-        with open(file_name, 'rb') as f:
-            arr = pickle.load(f)
-        return arr
-
-    def export(self, qa_fp, data):
-        """Export stats dictionary to pkl file.
-
-        Parameters
-        ----------
-        qa_fp : str | None
-            Optional filepath to output QA file (only .h5 is supported)
-        data : dict
-            A dictionary with stats for low and high resolution wind fields
-        """
-
-        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
-        if not os.path.exists(qa_fp) or self.overwrite_stats:
-            logger.info('Saving windstats output file: "{}"'.format(qa_fp))
-            with open(qa_fp, 'wb') as f:
-                pickle.dump(data, f)
-        else:
-            logger.info(f'{qa_fp} already exists. Delete file or run with '
-                        'overwrite_stats=True.')
-
-    @classmethod
-    def get_node_cmd(cls, config):
-        """Get a CLI call to initialize Sup3rWindStats and execute the
-        Sup3rWindStats.run() method based on an input config
-
-        Parameters
-        ----------
-        config : dict
-            sup3r wind stats config with all necessary args and kwargs to
-            initialize Sup3rWindStats and execute Sup3rWindStats.run()
-        """
-        import_str = 'import time;\n'
-        import_str += 'from reV.pipeline.status import Status;\n'
-        import_str += 'from rex import init_logger;\n'
-        import_str += 'from sup3r.qa.stats import Sup3rWindStats;\n'
-
-        qa_init_str = get_fun_call_str(cls, config)
-
-        log_file = config.get('log_file', None)
-        log_level = config.get('log_level', 'INFO')
-
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
-        if log_file is not None:
-            log_arg_str += f', log_file="{log_file}"'
-
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"qa = {qa_init_str};\n"
-               "qa.run();\n"
-               "t_elap = time.time() - t0;\n")
-
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.WIND_STATS}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
-        cmd += (";\'\n")
-
-        return cmd.replace('\\', '/')
-
     def get_spectra_stats(self, u, v, res='low'):
         """Compute spectra based statistics
 
@@ -690,97 +1064,45 @@ class Sup3rWindStats:
 
         stats_dict = {}
         if 'tke_ts' in self.include_stats:
-            logger.info('Computing mean kinetic energy spectrum series.')
-            stats_dict['tke_ts'] = tke_series(u, v)
+            logger.info('Computing mean turbulent kinetic energy spectrum '
+                        'time series.')
+            du = self.get_fluctuation(u)
+            dv = self.get_fluctuation(v)
+            stats_dict['tke_ts'] = tke_series(du, dv)
 
-        if 'tke_avg_k' in self.include_stats:
-            logger.info('Computing time averaged kinetic energy'
-                        f' wavenumber spectrum for res={res}. '
-                        f'Using k_range={k_range}.')
-            stats_dict['tke_avg_k'] = tke_wavenumber_spectrum(
-                np.mean(u, axis=-1), np.mean(v, axis=-1), k_range=k_range)
+        if 'avg_fluctuation_spectrum_k' in self.include_stats:
+            logger.info('Computing time averaged fluctuation wavenumber '
+                        f'spectrum for res={res}. Using k_range={k_range}.')
+            du = self.get_fluctuation(u)
+            dv = self.get_fluctuation(v)
+            du = np.mean(du[..., :-1], axis=-1)
+            dv = np.mean(dv[..., :-1], axis=-1)
+            stats_dict['avg_fluctuation_spectrum_k'] = tke_wavenumber_spectrum(
+                du, dv, k_range=k_range)
 
-        if 'tke_avg_f' in self.include_stats:
-            logger.info('Computing time averaged kinetic energy'
-                        ' frequency spectrum.')
-            stats_dict['tke_avg_f'] = tke_frequency_spectrum(u, v)
+        if 'avg_spectrum_k' in self.include_stats:
+            logger.info('Computing time averaged wavenumber spectrum for '
+                        f'res={res}. Using k_range={k_range}.')
+            du = np.mean(u, axis=-1)
+            dv = np.mean(v, axis=-1)
+            stats_dict['avg_spectrum_k'] = tke_wavenumber_spectrum(
+                du, dv, k_range=k_range)
+
+        if 'avg_fluctuation_spectrum_f' in self.include_stats:
+            du = u - np.mean(u)
+            dv = v - np.mean(v)
+            logger.info('Computing time averaged fluctuation frequency '
+                        'spectrum.')
+            stats_dict['avg_fluctuation_spectrum_f'] = tke_frequency_spectrum(
+                du, dv)
+        if 'avg_spectrum_f' in self.include_stats:
+            logger.info('Computing time averaged frequency spectrum.')
+            stats_dict['avg_spectrum_f'] = tke_frequency_spectrum(
+                u, v)
 
         return stats_dict
 
-    def coarsen_data(self, data, smoothing=None):
-        """Re-coarsen a high-resolution synthetic output dataset
-
-        Parameters
-        ----------
-        data : np.ndarray
-            A copy of the high-resolution output data as a numpy
-            array of shape (spatial_1, spatial_2, temporal)
-
-        Returns
-        -------
-        data : np.ndarray
-            A spatiotemporally coarsened copy of the input dataset, still with
-            shape (spatial_1, spatial_2, temporal)
-        """
-        n_lats = self.s_enhance * (data.shape[0] // self.s_enhance)
-        n_lons = self.s_enhance * (data.shape[1] // self.s_enhance)
-        data = spatial_coarsening(data[:n_lats, :n_lons],
-                                  s_enhance=self.s_enhance,
-                                  obs_axis=False)
-
-        # t_coarse needs shape to be 5D: (obs, s1, s2, t, f)
-        data = np.expand_dims(data, axis=0)
-        data = temporal_coarsening(data, t_enhance=self.t_enhance)
-        data = data[0]
-
-        if smoothing is not None:
-            for i in range(data.shape[-1]):
-                for t in range(data.shape[-2]):
-                    data[..., t, i] = gaussian_filter(data[..., t, i],
-                                                      smoothing,
-                                                      mode='nearest')
-
-        return data
-
-    def get_ramp_rate_stats(self, u, v, scale=1):
-        """Compute statistics for ramp rates
-
-        Parameters
-        ----------
-        u: ndarray
-            Longitudinal velocity component
-            (lat, lon, temporal)
-        v : ndarray
-            Latitudinal velocity component
-            (lat, lon, temporal)
-        res : str
-            Resolution of input fields. If this is 'high' then the ramp rate
-            time step needs to be multipled by the temporal enhancement factor
-
-        Returns
-        -------
-        stats : dict
-            Dictionary of ramp rate stats for wind fields
-        """
-
-        stats_dict = {}
-        if 'ramp_rate' in self.include_stats:
-            for i, time in enumerate(self.ramp_rate_t_step):
-                logger.info('Computing ramp rate pdf.')
-                out = ws_ramp_rate_dist(u, v, diff_max=self.ramp_rate_max,
-                                        t_steps=time, scale=scale)
-                stats_dict[f'ramp_rate_{self.ramp_rate_t_step[i]}'] = out
-        if 'mean_ramp_rate' in self.include_stats:
-            for i, time in enumerate(self.ramp_rate_t_step):
-                logger.info('Computing mean ramp rate pdf.')
-                out = ws_ramp_rate_dist(np.mean(u, axis=(0, 1)),
-                                        np.mean(v, axis=(0, 1)),
-                                        diff_max=self.ramp_rate_max,
-                                        t_steps=time, scale=scale)
-                stats_dict[f'mean_ramp_rate_{self.ramp_rate_t_step[i]}'] = out
-        return stats_dict
-
-    def get_wind_stats(self, u, v, res='low'):
+    def get_stats(self, u, v, res='low'):
         """Get stats for wind fields
 
         Parameters
@@ -803,29 +1125,32 @@ class Sup3rWindStats:
         stats_dict = self.get_spectra_stats(u, v, res=res)
 
         scale = 1 if res == 'high' else self.s_enhance
-        if 'velocity_grad' in self.include_stats:
+        if 'gradient' in self.include_stats:
             logger.info('Computing velocity gradient pdf.')
-            stats_dict['velocity_grad'] = velocity_gradient_dist(
-                u, diff_max=self.v_grad_max, scale=scale)
+            stats_dict['gradient'] = gradient_dist(
+                u, diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
 
-        if 'mean_velocity_grad' in self.include_stats:
+        if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean velocity gradient pdf.')
-            stats_dict['mean_velocity_grad'] = velocity_gradient_dist(
-                np.mean(u, axis=-1), diff_max=self.v_grad_max, scale=scale)
+            stats_dict['mean_gradient'] = gradient_dist(
+                np.mean(u, axis=-1), diff_max=self.gradient_max, scale=scale,
+                bins=self.n_bins)
 
         if 'vorticity' in self.include_stats:
             logger.info('Computing vorticity pdf.')
             stats_dict['vorticity'] = vorticity_dist(
-                u, v, diff_max=self.vorticity_max, scale=scale)
+                u, v, diff_max=self.vorticity_max, scale=scale,
+                bins=self.n_bins)
 
         if 'mean_vorticity' in self.include_stats:
             logger.info('Computing mean vorticity pdf.')
             stats_dict['mean_vorticity'] = vorticity_dist(
                 np.mean(u, axis=-1), np.mean(v, axis=-1),
-                diff_max=self.vorticity_max, scale=scale)
+                diff_max=self.vorticity_max, scale=scale, bins=self.n_bins)
 
         scale = 1 if res == 'high' else self.t_enhance
-        out = self.get_ramp_rate_stats(u, v, scale=scale)
+        out = self.get_ramp_rate_stats(np.hypot(u, v), scale=scale)
         stats_dict.update(out)
         return stats_dict
 
@@ -846,31 +1171,28 @@ class Sup3rWindStats:
         interp : dict
             Dictionary of stats for spatiotemporally interpolated wind fields
         """
+        uidx, vidx = self.feature_indices(height)
         low_res = {}
         if self.get_lr:
-            uidx, vidx = self.feature_indices(height)
             u_lr = self.source_data[..., self.lr_t_slice, uidx]
             v_lr = self.source_data[..., self.lr_t_slice, vidx]
             logger.info(f'Getting low res stats for height={height}m')
-            low_res = self.get_wind_stats(u_lr, v_lr, res='low')
+            low_res = self.get_stats(u_lr, v_lr, res='low')
 
         high_res = {}
         if self.get_hr:
-            uidx, vidx = self.feature_indices(height)
             u_hr = self.output_data[..., uidx]
             v_hr = self.output_data[..., vidx]
             logger.info(f'Getting high res stats for height={height}m')
-            high_res = self.get_wind_stats(u_hr, v_hr, res='high')
+            high_res = self.get_stats(u_hr, v_hr, res='high')
 
         interp = {}
         if self.get_interp:
-            logger.info(f'Interpolating low res U for height={height}')
-            u_itp = st_interp(u_lr, self.s_enhance, self.t_enhance)
-            logger.info(f'Interpolating low res V for height={height}')
-            v_itp = st_interp(v_lr, self.s_enhance, self.t_enhance)
+            u_itp = self.interpolate_data(f'U_{height}m', u_lr)
+            v_itp = self.interpolate_data(f'V_{height}m', v_lr)
             logger.info('Getting interpolated baseline stats for '
                         f'height={height}m')
-            interp = self.get_wind_stats(u_itp, v_itp, res='high')
+            interp = self.get_stats(u_itp, v_itp, res='high')
         return low_res, high_res, interp
 
     def run(self):
@@ -887,20 +1209,20 @@ class Sup3rWindStats:
         """
 
         stats = {}
-        for idf, height in enumerate(self.heights):
-            logger.info('Running WindStats on height {} of {} ({}m)'
-                        .format(idf + 1, len(self.heights), height))
+        for _, height in enumerate(self.heights):
+            feature = f'windspeed_{height}m'
+            logger.info(f'Running WindStats on {feature}')
             lr_stats, hr_stats, interp = self.get_height_stats(height)
 
             if self.get_lr:
-                stats[f'lr_{height}m'] = lr_stats
+                stats[f'lr_{feature}'] = lr_stats
             if self.get_hr:
-                stats[f'hr_{height}m'] = hr_stats
+                stats[f'hr_{feature}'] = hr_stats
             if self.get_interp:
-                stats[f'interp_{height}m'] = interp
+                stats[f'interp_{feature}'] = interp
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)
-        logger.info('Finished Sup3rWindStats run method.')
+        logger.info('Finished Sup3rStatsWind run method.')
 
         return stats

@@ -22,7 +22,8 @@ import sup3r.bias.bias_transforms
 from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
-                                                OutputHandlerNC)
+                                                OutputHandlerNC,
+                                                OutputHandler)
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
@@ -724,6 +725,7 @@ class ForwardPassStrategy(InputMixIn):
         self._file_ids = None
         self._time_index_file = None
         self._node_chunks = None
+        self._hr_lat_lon = None
         self.incremental = incremental
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = bias_correct_kwargs or {}
@@ -847,6 +849,15 @@ class ForwardPassStrategy(InputMixIn):
         else:
             hf = self.input_handler_class.get_handle_features(self.file_paths)
             self.handle_features = hf
+
+    @property
+    def hr_lat_lon(self):
+        """Get high resolution lat lons"""
+        if self._hr_lat_lon is None:
+            lr_lat_lon = self.lr_lat_lon.copy()
+            self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
+                                                         self.gids.shape)
+        return self._hr_lat_lon
 
     def get_full_domain(self, file_paths):
         """Get target and grid_shape for largest possible domain"""
@@ -1109,13 +1120,6 @@ class ForwardPass:
             logger.info('Got exogenous_data of length {} with shapes: {}'
                         .format(len(self.exogenous_data), shapes))
 
-        n_tsteps = len(self.strategy.raw_time_index[self.ti_slice])
-
-        self.hr_data_shape = (self.strategy.s_enhance * self.data_shape[0],
-                              self.strategy.s_enhance * self.data_shape[1],
-                              self.strategy.t_enhance * n_tsteps,
-                              len(self.output_features))
-
         self.input_handler_class = strategy.input_handler_class
 
         if strategy.output_type == 'nc':
@@ -1152,6 +1156,37 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+
+    @property
+    def s_enhance(self):
+        """Get spatial enhancement factor"""
+        return self.strategy.s_enhance
+
+    @property
+    def t_enhance(self):
+        """Get temporal enhancement factor"""
+        return self.strategy.t_enhance
+
+    @property
+    def hr_lat_lon(self):
+        """Get high resolution lat lon for current chunk"""
+        return self.strategy.hr_lat_lon[self.hr_slice[0], self.hr_slice[1]]
+
+    @property
+    def lr_times(self):
+        """Get low resolution times for the current chunk"""
+        return self.strategy.raw_time_index[self.ti_slice]
+
+    @property
+    def hr_times(self):
+        """Get high resolution times for the current chunk"""
+        return self.output_handler_class.get_times(
+            self.lr_times, self.t_enhance * len(self.lr_times))
+
+    @property
+    def gids(self):
+        """Get gids for the current chunk"""
+        return self.strategy.gids[self.hr_slice[0], self.hr_slice[1]]
 
     @property
     def file_paths(self):
@@ -1257,17 +1292,11 @@ class ForwardPass:
         return lr_crop_slices[self.spatial_chunk_index]
 
     @property
-    def data_shape(self):
-        """Get data shape for the current padded temporal chunk"""
-        return (*self.strategy.grid_shape,
-                len(self.strategy.raw_time_index[self.ti_pad_slice]))
-
-    @property
     def chunk_shape(self):
         """Get shape for the current padded spatiotemporal chunk"""
         return (self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
                 self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
-                self.data_shape[2])
+                len(self.strategy.raw_time_index[self.ti_pad_slice]))
 
     @property
     def cache_pattern(self):
@@ -1666,8 +1695,7 @@ class ForwardPass:
         out_data = self.forward_pass_chunk(
             data_chunk, hr_crop_slices=self.hr_crop_slice, model=self.model,
             model_kwargs=self.model_kwargs, model_class=self.model_class,
-            s_enhance=self.strategy.s_enhance,
-            t_enhance=self.strategy.t_enhance,
+            s_enhance=self.s_enhance, t_enhance=self.t_enhance,
             exo_data=exo_data)
         return out_data
 
@@ -1781,20 +1809,12 @@ class ForwardPass:
 
         out_data = self._run_single_fwd_pass()
 
-        lr_times = self.strategy.raw_time_index[self.ti_slice]
-        gids = self.strategy.gids[self.hr_slice[0], self.hr_slice[1]]
-        lr_lat_lon = self.strategy.lr_lat_lon[self.lr_slice[0],
-                                              self.lr_slice[1]]
-
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
-            self.output_handler_class.write_output(
-                data=out_data,
-                features=self.model.output_features,
-                low_res_lat_lon=lr_lat_lon,
-                low_res_times=lr_times,
+            self.output_handler_class._write_output(
+                data=out_data, features=self.model.output_features,
+                lat_lon=self.hr_lat_lon, times=self.hr_times,
                 out_file=self.out_file, meta_data=self.meta_data,
-                max_workers=self.output_workers,
-                gids=gids)
+                max_workers=self.output_workers, gids=self.gids)
         else:
             return out_data

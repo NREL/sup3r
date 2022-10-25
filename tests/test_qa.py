@@ -4,7 +4,7 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
-from rex import Resource
+from rex import Resource, init_logger
 import xarray as xr
 import pickle
 
@@ -13,7 +13,7 @@ from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 from sup3r.qa.qa import Sup3rQa
-from sup3r.qa.stats import Sup3rWindStats
+from sup3r.qa.stats import Sup3rStatsWind
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -198,8 +198,11 @@ def test_qa_h5():
                         assert np.allclose(test_diff, qa_diff, atol=0.01)
 
 
-def test_stats():
+def test_stats(log=False):
     """Test the WindStats module with forward pass output to h5 file."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -231,20 +234,23 @@ def test_stats():
 
         qa_fp = os.path.join(td, 'stats.pkl')
         args = [input_files, strategy.out_files[0]]
-        kwargs = dict(heights=[100], s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
-                      temporal_slice=TEMPORAL_SLICE,
+        kwargs = dict(features=['U_100m', 'V_100m'], s_enhance=S_ENHANCE,
+                      t_enhance=T_ENHANCE, temporal_slice=TEMPORAL_SLICE,
                       qa_fp=qa_fp, include_stats=['ramp_rate',
-                                                  'velocity_grad',
-                                                  'tke_avg_k'],
-                      max_workers=1, ramp_rate_t_step=1)
-        with Sup3rWindStats(*args, **kwargs) as qa:
+                                                  'gradient',
+                                                  'avg_spectrum_k'],
+                      max_workers=1, ramp_rate_t_step=1, n_bins=10,
+                      max_values={'ramp_rate': 10})
+        with Sup3rStatsWind(*args, **kwargs) as qa:
             qa.run()
             assert os.path.exists(qa_fp)
             with open(qa_fp, 'rb') as fh:
                 qa_out = pickle.load(fh)
-                assert 'lr_100m' in qa_out
-                assert 'hr_100m' in qa_out
+                print(qa_out.keys())
+                assert 'lr_windspeed_100m' in qa_out
+                assert 'hr_windspeed_100m' in qa_out
                 for key in qa_out:
+                    print(qa_out[key].keys())
                     assert 'ramp_rate_1' in qa_out[key]
-                    assert 'velocity_grad' in qa_out[key]
-                    assert 'tke_avg_k' in qa_out[key]
+                    assert 'gradient' in qa_out[key]
+                    assert 'avg_spectrum_k' in qa_out[key]

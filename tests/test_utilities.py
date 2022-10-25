@@ -406,7 +406,7 @@ def test_st_interpolation(plot=False):
     assert np.allclose(hr[0, 0], truth)
 
     # check vs. lat/lon interpolation
-    lats = np.array([-20, 0, 20])
+    lats = np.array([-30, 0, 30])
     lons = np.array([-30, 0, 30])
     lons, lats = np.meshgrid(lons, lats)
     lr_lat_lon = np.dstack((lats, lons))
