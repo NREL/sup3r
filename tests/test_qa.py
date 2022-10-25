@@ -7,7 +7,6 @@ import numpy as np
 from rex import Resource, init_logger
 import xarray as xr
 import pickle
-import logging
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
@@ -199,7 +198,7 @@ def test_qa_h5():
                         assert np.allclose(test_diff, qa_diff, atol=0.01)
 
 
-def test_stats(log=True):
+def test_stats(log=False):
     """Test the WindStats module with forward pass output to h5 file."""
 
     if log:
