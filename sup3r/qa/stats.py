@@ -176,9 +176,9 @@ class Sup3rStatsBase(ABC):
 
         self.max_values = max_values or {}
         self.n_bins = n_bins
-        self.ramp_rate_max = self.max_values.get('ramp_rate_max', None)
-        self.gradient_max = self.max_values.get('gradient_max', None)
-        self.vorticity_max = self.max_values.get('vorticity_max', None)
+        self.ramp_rate_max = self.max_values.get('ramp_rate', None)
+        self.gradient_max = self.max_values.get('gradient', None)
+        self.vorticity_max = self.max_values.get('vorticity', None)
         self.ramp_rate_t_step = (ramp_rate_t_step
                                  if isinstance(ramp_rate_t_step, list)
                                  else [ramp_rate_t_step])

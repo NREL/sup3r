@@ -304,7 +304,8 @@ def continuous_dist(diffs, bins=None, range=None):
     indices = np.where(counts > 0)
     y = counts[indices]
     x = centers[indices]
-    interp = interp1d(x, y, bounds_error=False, fill_value=None)
-    counts = interp(centers)
+    if len(x) > 1:
+        interp = interp1d(x, y, bounds_error=False, fill_value=None)
+        counts = interp(centers)
     counts = counts.astype(float) / counts.sum()
     return counts, centers

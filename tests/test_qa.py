@@ -4,9 +4,10 @@ import os
 import tempfile
 import pandas as pd
 import numpy as np
-from rex import Resource
+from rex import Resource, init_logger
 import xarray as xr
 import pickle
+import logging
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
@@ -198,8 +199,11 @@ def test_qa_h5():
                         assert np.allclose(test_diff, qa_diff, atol=0.01)
 
 
-def test_stats():
+def test_stats(log=True):
     """Test the WindStats module with forward pass output to h5 file."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -236,15 +240,18 @@ def test_stats():
                       qa_fp=qa_fp, include_stats=['ramp_rate',
                                                   'gradient',
                                                   'avg_spectrum_k'],
-                      max_workers=1, ramp_rate_t_step=1)
+                      max_workers=1, ramp_rate_t_step=1, n_bins=10,
+                      max_values={'ramp_rate': 10})
         with Sup3rStatsWind(*args, **kwargs) as qa:
             qa.run()
             assert os.path.exists(qa_fp)
             with open(qa_fp, 'rb') as fh:
                 qa_out = pickle.load(fh)
-                assert 'lr_100m' in qa_out
-                assert 'hr_100m' in qa_out
+                print(qa_out.keys())
+                assert 'lr_windspeed_100m' in qa_out
+                assert 'hr_windspeed_100m' in qa_out
                 for key in qa_out:
+                    print(qa_out[key].keys())
                     assert 'ramp_rate_1' in qa_out[key]
-                    assert 'velocity_grad' in qa_out[key]
-                    assert 'tke_avg_k' in qa_out[key]
+                    assert 'gradient' in qa_out[key]
+                    assert 'avg_spectrum_k' in qa_out[key]
