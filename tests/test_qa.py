@@ -231,11 +231,11 @@ def test_stats():
 
         qa_fp = os.path.join(td, 'stats.pkl')
         args = [input_files, strategy.out_files[0]]
-        kwargs = dict(heights=[100], s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
-                      temporal_slice=TEMPORAL_SLICE,
+        kwargs = dict(features=['U_100m', 'V_100m'], s_enhance=S_ENHANCE,
+                      t_enhance=T_ENHANCE, temporal_slice=TEMPORAL_SLICE,
                       qa_fp=qa_fp, include_stats=['ramp_rate',
-                                                  'velocity_grad',
-                                                  'tke_avg_k'],
+                                                  'gradient',
+                                                  'avg_spectrum_k'],
                       max_workers=1, ramp_rate_t_step=1)
         with Sup3rStatsWind(*args, **kwargs) as qa:
             qa.run()

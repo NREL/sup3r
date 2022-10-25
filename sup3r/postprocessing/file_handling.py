@@ -190,14 +190,19 @@ class OutputHandler:
         padded_grid[-1, :, 1] = padded_grid[-2, :, 1]
 
         # use surrounding cells to define corner values
-        padded_grid[0, 0] = (padded_grid[1, 0] + padded_grid[0, 1]
-                             + padded_grid[1, 1]) / 3
-        padded_grid[-1, 0] = (padded_grid[-2, 0] + padded_grid[-1, 1]
-                              + padded_grid[-2, 1]) / 3
-        padded_grid[0, -1] = (padded_grid[0, -2] + padded_grid[1, -1]
-                              + padded_grid[1, -2]) / 3
-        padded_grid[-1, -1] = (padded_grid[-1, -2] + padded_grid[-2, -1]
-                               + padded_grid[-2, -2]) / 3
+        # top left
+        padded_grid[0, 0, 0] = padded_grid[0, 1, 0]
+        padded_grid[0, 0, 1] = padded_grid[1, 0, 1]
+        # top right
+        padded_grid[0, -1, 0] = padded_grid[0, -2, 0]
+        padded_grid[0, -1, 1] = padded_grid[1, -1, 1]
+        # bottom left
+        padded_grid[-1, 0, 0] = padded_grid[-1, 1, 0]
+        padded_grid[-1, 0, 1] = padded_grid[-2, 0, 1]
+        # bottom right
+        padded_grid[-1, -1, 0] = padded_grid[-1, -2, 0]
+        padded_grid[-1, -1, 1] = padded_grid[-2, -1, 1]
+
         return padded_grid
 
     @staticmethod
