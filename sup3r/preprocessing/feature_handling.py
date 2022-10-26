@@ -20,7 +20,8 @@ from sup3r.utilities.utilities import (invert_pot_temp, invert_uv,
                                        transform_rotate_wind,
                                        bvf_squared,
                                        get_raster_shape,
-                                       inverse_mo_length
+                                       inverse_mo_length,
+                                       vorticity_calc
                                        )
 
 
@@ -771,6 +772,50 @@ class UWind(DerivedFeature):
                                      data[f'winddirection_{height}m'],
                                      data['lat_lon'])
         return u
+
+
+class Vorticity(DerivedFeature):
+    """Vorticity feature class with needed inputs method and compute
+    method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing vorticity
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. vorticity_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing vorticity
+        """
+        height = Feature.get_height(feature)
+        features = [f'U_{height}m', f'V_{height}m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute vorticity
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        vort = vorticity_calc(data[f'U_{height}m'],
+                              data[f'V_{height}m'])
+        return vort
 
 
 class VWind(DerivedFeature):

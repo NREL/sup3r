@@ -13,7 +13,7 @@ from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 from sup3r.qa.qa import Sup3rQa
-from sup3r.qa.stats import Sup3rStatsWind
+from sup3r.qa.stats import Sup3rStatsMulti
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -198,7 +198,7 @@ def test_qa_h5():
                         assert np.allclose(test_diff, qa_diff, atol=0.01)
 
 
-def test_stats(log=False):
+def test_stats(log=True):
     """Test the WindStats module with forward pass output to h5 file."""
 
     if log:
@@ -233,24 +233,26 @@ def test_stats(log=False):
         forward_pass.run_chunk()
 
         qa_fp = os.path.join(td, 'stats.pkl')
-        args = [input_files, strategy.out_files[0]]
-        kwargs = dict(features=['U_100m', 'V_100m'], s_enhance=S_ENHANCE,
-                      t_enhance=T_ENHANCE, temporal_slice=TEMPORAL_SLICE,
-                      qa_fp=qa_fp, include_stats=['ramp_rate',
-                                                  'gradient',
-                                                  'avg_spectrum_k'],
-                      max_workers=1, ramp_rate_t_step=1, n_bins=10,
+        features = ['U_100m', 'V_100m', 'vorticity_100m']
+        include_stats = ['direct', 'ramp_rate', 'gradient', 'avg_spectrum_k']
+        kwargs = dict(features=features,
+                      s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
+                      temporal_slice=TEMPORAL_SLICE,
+                      qa_fp=qa_fp, include_stats=include_stats,
+                      max_workers=1, n_bins=10, get_interp=True,
                       max_values={'ramp_rate': 10})
-        with Sup3rStatsWind(*args, **kwargs) as qa:
+        with Sup3rStatsMulti(source_file_paths=input_files,
+                             out_file_paths=strategy.out_files[0],
+                             **kwargs) as qa:
             qa.run()
             assert os.path.exists(qa_fp)
             with open(qa_fp, 'rb') as fh:
                 qa_out = pickle.load(fh)
-                print(qa_out.keys())
-                assert 'lr_windspeed_100m' in qa_out
-                assert 'hr_windspeed_100m' in qa_out
+                names = ['low_res', 'interp', 'synthetic']
+                assert all(name in qa_out for name in names)
                 for key in qa_out:
-                    print(qa_out[key].keys())
-                    assert 'ramp_rate_1' in qa_out[key]
-                    assert 'gradient' in qa_out[key]
-                    assert 'avg_spectrum_k' in qa_out[key]
+                    assert all(feature in qa_out[key]
+                               for feature in features)
+                    for feature in features:
+                        assert all(metric in qa_out[key][feature]
+                                   for metric in include_stats)

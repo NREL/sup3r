@@ -1490,3 +1490,31 @@ def st_interp(low, s_enhance, t_enhance, t_centered=False):
     out = interp((Y, X, T))
 
     return out
+
+
+def vorticity_calc(u, v, scale=1):
+    """Returns the vorticity field.
+
+    Parameters
+    ----------
+    u: ndarray
+        Longitudinal velocity component
+        (lat, lon, temporal)
+    v : ndarray
+        Latitudinal velocity component
+        (lat, lon, temporal)
+    scale : float
+        Value to scale vorticity by. Typically the spatial resolution, so that
+        spatial derivatives can be compared across different resolutions
+
+    Returns
+    -------
+    ndarray
+        vorticity values
+        (lat, lon, temporal)
+    """
+    dudy = np.diff(u, axis=0, append=np.mean(u))
+    dvdx = np.diff(v, axis=1, append=np.mean(v))
+    diffs = dudy - dvdx
+    diffs /= scale
+    return diffs
