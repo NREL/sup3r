@@ -762,6 +762,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         """Get source data handler"""
         return self._source_handler
 
+    # pylint: disable=E1102
     def get_source_data(self, file_paths, handler_kwargs=None):
         """Get source data using provided source file paths
 
@@ -829,6 +830,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                              'longitude': self.lat_lon[..., 1].flatten()})
         return meta
 
+    # pylint: disable=E1102
     @property
     def time_index(self):
         """Get the time index associated with the source data
