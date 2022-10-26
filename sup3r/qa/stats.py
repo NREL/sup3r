@@ -525,13 +525,13 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             logger.info('Computing ramp rate pdf.')
             out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
                                  t_steps=1, scale=scale, bins=self.n_bins)
-            stats_dict[f'ramp_rate'] = out
+            stats_dict['ramp_rate'] = out
         if 'mean_ramp_rate' in self.include_stats:
             logger.info('Computing mean ramp rate pdf.')
             out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
                                  diff_max=self.ramp_rate_max, t_steps=1,
                                  scale=scale, bins=self.n_bins)
-            stats_dict[f'mean_ramp_rate'] = out
+            stats_dict['mean_ramp_rate'] = out
         return stats_dict
 
 
@@ -697,7 +697,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                                      ti_workers=ti_workers,
                                      max_delta=max_delta)
         self.source_data = self.get_source_data(source_file_paths,
-                                                source_handler,
                                                 source_handler_kwargs)
 
         super().__init__(self.source_data, s_enhance=s_enhance,
@@ -763,8 +762,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         """Get source data handler"""
         return self._source_handler
 
-    def get_source_data(self, file_paths, handler_class=None,
-                        handler_kwargs=None):
+    def get_source_data(self, file_paths, handler_kwargs=None):
         """Get source data using provided source file paths
 
         Parameters
@@ -774,10 +772,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             A list of source files to extract raster data from. Each file must
             have the same number of timesteps. Can also pass a string with a
             unix-style file path which will be passed through glob.glob
-        handler_class : str | None
-            data handler class to use for input data. Provide a string name to
-            match a class in data_handling.py. If None the correct handler will
-            be guessed based on file type and time series properties.
         handler_kwargs : dict
             Dictionary of keyword arguments passed to
             `sup3r.preprocessing.data_handling.DataHandler`
