@@ -20,7 +20,6 @@ from sup3r.qa.utilities import (ramp_rate_dist, direct_dist,
                                 gradient_dist, wavenumber_spectrum,
                                 frequency_spectrum)
 from sup3r.preprocessing.feature_handling import Feature
-from sup3r.preprocessing.data_handling import DataHandlerNC
 
 
 logger = logging.getLogger(__name__)
