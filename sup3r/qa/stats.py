@@ -3,14 +3,11 @@
 import json
 import pandas as pd
 import numpy as np
-import xarray as xr
 import os
 import pickle
 import logging
-import copy
-from abc import ABC
+from abc import ABC, abstractmethod
 from scipy.ndimage.filters import gaussian_filter
-from rex import MultiFileResourceX
 from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
@@ -29,7 +26,137 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 logger = logging.getLogger(__name__)
 
 
-class Sup3rStatsCompute:
+class Sup3rStatsBase(ABC):
+    """Base stats class"""
+
+    def __init__(self):
+        """Base stats class"""
+        self.overwrite_stats = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+        if type is not None:
+            raise
+
+    @abstractmethod
+    def close(self):
+        """Close any open file handlers"""
+
+    @classmethod
+    def save_cache(cls, array, file_name):
+        """Save data to cache file
+
+        Parameters
+        ----------
+        array : ndarray
+            Wind field data
+        file_name : str
+            Path to cache file
+        """
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        logger.info(f'Saving data to {file_name}')
+        with open(file_name, 'wb') as f:
+            pickle.dump(array, f, protocol=4)
+
+    @classmethod
+    def load_cache(cls, file_name):
+        """Load data from cache file
+
+        Parameters
+        ----------
+        file_name : str
+            Path to cache file
+
+        Returns
+        -------
+        array : ndarray
+            Wind field data
+        """
+        logger.info(f'Loading data from {file_name}')
+        with open(file_name, 'rb') as f:
+            arr = pickle.load(f)
+        return arr
+
+    def export(self, qa_fp, data):
+        """Export stats dictionary to pkl file.
+
+        Parameters
+        ----------
+        qa_fp : str | None
+            Optional filepath to output QA file (only .h5 is supported)
+        data : dict
+            A dictionary with stats for low and high resolution wind fields
+        overwrite_stats : bool
+            Whether to overwrite saved stats or not
+        """
+
+        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
+        if not os.path.exists(qa_fp) or self.overwrite_stats:
+            logger.info('Saving sup3r stats output file: "{}"'.format(qa_fp))
+            with open(qa_fp, 'wb') as f:
+                pickle.dump(data, f, protocol=4)
+        else:
+            logger.info(f'{qa_fp} already exists. Delete file or run with '
+                        'overwrite_stats=True.')
+
+    @classmethod
+    def get_node_cmd(cls, config):
+        """Get a CLI call to initialize Sup3rStats and execute the
+        Sup3rStats.run() method based on an input config
+
+        Parameters
+        ----------
+        config : dict
+            sup3r wind stats config with all necessary args and kwargs to
+            initialize Sup3rStats and execute Sup3rStats.run()
+        """
+        import_str = 'import time;\n'
+        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from rex import init_logger;\n'
+        import_str += f'from sup3r.qa.stats import {cls.__name__};\n'
+
+        qa_init_str = get_fun_call_str(cls, config)
+
+        log_file = config.get('log_file', None)
+        log_level = config.get('log_level', 'INFO')
+
+        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        if log_file is not None:
+            log_arg_str += f', log_file="{log_file}"'
+
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"qa = {qa_init_str};\n"
+               "qa.run();\n"
+               "t_elap = time.time() - t0;\n")
+
+        job_name = config.get('job_name', None)
+        if job_name is not None:
+            status_dir = config.get('status_dir', None)
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{ModuleName.WIND_STATS}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f'Status.make_job_file({status_file_arg_str})'
+
+        cmd += (";\'\n")
+
+        return cmd.replace('\\', '/')
+
+
+class Sup3rStatsCompute(Sup3rStatsBase):
     """Base class for computing stats on input data arrays"""
 
     def __init__(self, input_data, s_enhance=1, t_enhance=1,
@@ -376,61 +503,6 @@ class Sup3rStatsCompute:
 
         return stats
 
-    def export(self, qa_fp, data):
-        """Export stats dictionary to pkl file.
-
-        Parameters
-        ----------
-        qa_fp : str | None
-            Optional filepath to output QA file (only .h5 is supported)
-        data : dict
-            A dictionary with stats for low and high resolution wind fields
-        """
-
-        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
-        if not os.path.exists(qa_fp) or self.overwrite_stats:
-            logger.info('Saving sup3r stats output file: "{}"'.format(qa_fp))
-            with open(qa_fp, 'wb') as f:
-                pickle.dump(data, f, protocol=4)
-        else:
-            logger.info(f'{qa_fp} already exists. Delete file or run with '
-                        'overwrite_stats=True.')
-
-    @classmethod
-    def save_cache(cls, array, file_name):
-        """Save data to cache file
-
-        Parameters
-        ----------
-        array : ndarray
-            Wind field data
-        file_name : str
-            Path to cache file
-        """
-        os.makedirs(os.path.dirname(file_name), exist_ok=True)
-        logger.info(f'Saving data to {file_name}')
-        with open(file_name, 'wb') as f:
-            pickle.dump(array, f, protocol=4)
-
-    @classmethod
-    def load_cache(cls, file_name):
-        """Load data from cache file
-
-        Parameters
-        ----------
-        file_name : str
-            Path to cache file
-
-        Returns
-        -------
-        array : ndarray
-            Wind field data
-        """
-        logger.info(f'Loading data from {file_name}')
-        with open(file_name, 'rb') as f:
-            arr = pickle.load(f)
-        return arr
-
     def get_ramp_rate_stats(self, var, scale=1):
         """Compute statistics for ramp rates
 
@@ -626,6 +698,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                                      ti_workers=ti_workers,
                                      max_delta=max_delta)
         self.source_data = self.get_source_data(source_file_paths,
+                                                source_handler,
                                                 source_handler_kwargs)
 
         super().__init__(self.source_data, s_enhance=s_enhance,
@@ -640,15 +713,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                          spatial_res=spatial_res,
                          temporal_res=self.temporal_res, n_bins=n_bins,
                          qa_fp=qa_fp)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-
-        if type is not None:
-            raise
 
     def close(self):
         """Close any open file handlers"""
@@ -700,7 +764,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         """Get source data handler"""
         return self._source_handler
 
-    def get_source_data(self, file_paths, handler_kwargs=None):
+    def get_source_data(self, file_paths, handler_class=None,
+                        handler_kwargs=None):
         """Get source data using provided source file paths
 
         Parameters
@@ -714,8 +779,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        smoothing : float | None
-            Value passed to gaussian filter used for smoothing source data
         handler_kwargs : dict
             Dictionary of keyword arguments passed to
             `sup3r.preprocessing.data_handling.DataHandler`
@@ -729,17 +792,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         if file_paths is None:
             return None
 
-        shape = handler_kwargs.get('shape', None)
-        if self.source_type == 'h5':
-            self._source_handler = self.source_handler_class(file_paths)
-            data = np.zeros((shape[0], shape[1],
-                             len(self.time_index[self.temporal_slice]),
-                             len(self.input_features)), dtype=np.float32)
-            for i, feature in enumerate(self.input_features):
-                out = self.get_h5_data(feature)
-                data[..., i] = out
-            return data
-        logger.info(f'Extracting input_features={self.input_features}')
         self._source_handler = self.source_handler_class(file_paths,
                                                          self.input_features,
                                                          val_split=0.0,
@@ -845,19 +897,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                     self._input_features.append(f'V_{height}m')
         return self._input_features
 
-    @property
-    def source_handler_class(self):
-        """Get the output handler class.
-
-        Returns
-        -------
-        HandlerClass : rex.Resource | DataHandlerNC
-        """
-        if self.source_type == 'nc':
-            return DataHandlerNC
-        elif self.source_type == 'h5':
-            return MultiFileResourceX
-
     def get_uv(self, feature):
         """Get u/v from h5 data. Includes transform and rotation
 
@@ -953,74 +992,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
         return data
 
-    @classmethod
-    def get_node_cmd(cls, config):
-        """Get a CLI call to initialize Sup3rStatsBase and execute the
-        Sup3rStatsBase.run() method based on an input config
-
-        Parameters
-        ----------
-        config : dict
-            sup3r wind stats config with all necessary args and kwargs to
-            initialize Sup3rStatsBase and execute Sup3rStatsBase.run()
-        """
-        import_str = 'import time;\n'
-        import_str += 'from reV.pipeline.status import Status;\n'
-        import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.qa.stats import {cls.__name__};\n'
-
-        qa_init_str = get_fun_call_str(cls, config)
-
-        log_file = config.get('log_file', None)
-        log_level = config.get('log_level', 'INFO')
-
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
-        if log_file is not None:
-            log_arg_str += f', log_file="{log_file}"'
-
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"qa = {qa_init_str};\n"
-               "qa.run();\n"
-               "t_elap = time.time() - t0;\n")
-
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.WIND_STATS}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
-        cmd += (";\'\n")
-
-        return cmd.replace('\\', '/')
-
-    @classmethod
-    def save_cache(cls, array, file_name):
-        """Save data to cache file
-
-        Parameters
-        ----------
-        array : ndarray
-            Wind field data
-        file_name : str
-            Path to cache file
-        """
-        os.makedirs(os.path.dirname(file_name), exist_ok=True)
-        logger.info(f'Saving data to {file_name}')
-        with open(file_name, 'wb') as f:
-            pickle.dump(array, f, protocol=4)
-
     def coarsen_data(self, data, smoothing=None):
         """Re-coarsen a high-resolution synthetic output dataset
 
@@ -1056,7 +1027,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         return data
 
 
-class Sup3rStatsMulti:
+class Sup3rStatsMulti(Sup3rStatsBase):
     """Class for doing statistical QA on multiple datasets."""
 
     def __init__(self, source_file_paths=None, out_file_paths=None,
@@ -1274,15 +1245,6 @@ class Sup3rStatsMulti:
         kwargs_coarse.update(kwargs_new)
         self.coarse_stats = Sup3rStatsSingle(**kwargs_coarse)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-
-        if type is not None:
-            raise
-
     def close(self):
         """Close any open file handlers"""
         if self.output_stats is not None:
@@ -1321,23 +1283,3 @@ class Sup3rStatsMulti:
         logger.info('Finished Sup3rStats run method.')
 
         return stats
-
-    def export(self, qa_fp, data):
-        """Export stats dictionary to pkl file.
-
-        Parameters
-        ----------
-        qa_fp : str | None
-            Optional filepath to output QA file (only .h5 is supported)
-        data : dict
-            A dictionary with stats for low and high resolution wind fields
-        """
-
-        os.makedirs(os.path.dirname(qa_fp), exist_ok=True)
-        if not os.path.exists(qa_fp) or self.overwrite_stats:
-            logger.info('Saving sup3r stats output file: "{}"'.format(qa_fp))
-            with open(qa_fp, 'wb') as f:
-                pickle.dump(data, f, protocol=4)
-        else:
-            logger.info(f'{qa_fp} already exists. Delete file or run with '
-                        'overwrite_stats=True.')
