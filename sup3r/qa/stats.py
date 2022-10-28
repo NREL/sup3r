@@ -260,7 +260,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         """Get range of frequencies to use for frequency spectrum
         calculation"""
         if self.temporal_res is not None:
-            domain_size = self.temporal_res * self.source_data.shape[-2]
+            domain_size = self.temporal_res * self.source_data.shape[2]
             self._f_range = [1 / domain_size, 1 / self.temporal_res]
         return self._f_range
 
@@ -547,8 +547,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                  max_workers=None, extract_workers=None,
                  compute_workers=None, load_workers=None, ti_workers=None,
                  get_interp=False, include_stats=None, max_values=None,
-                 smoothing=None, coarsen=False, spatial_res=None, n_bins=40,
-                 max_delta=10, qa_fp=None):
+                 smoothing=None, coarsen=False, spatial_res=None,
+                 temporal_res=None, n_bins=40, max_delta=10, qa_fp=None):
         """
         Parameters
         ----------
@@ -641,6 +641,10 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         spatial_res : float | None
             Spatial resolution for source data in meters. e.g. 2000. This is
             used to determine the wavenumber range for spectra calculations.
+        temporal_res : float | None
+            Temporal resolution for source data in seconds. e.g. 60. This is
+            used to determine the frequency range for spectra calculations and
+            to scale temporal derivatives.
         coarsen : bool
             Whether to coarsen data or not
         max_delta : int, optional
@@ -654,7 +658,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             File path for saving statistics. Only .pkl supported.
         """
 
-        logger.info('Initializing Sup3rStatsSingle and retrieving source data')
+        logger.info('Initializing Sup3rStatsSingle and retrieving source data'
+                    f' for features={features}.')
 
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
@@ -670,13 +675,13 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         self.overwrite_stats = overwrite_stats
         self.source_file_paths = source_file_paths
         self.spatial_res = spatial_res
+        self.temporal_res = temporal_res
         self.temporal_slice = temporal_slice
         self._shape = shape
         self._target = target
         self._source_handler = None
         self._source_handler_class = source_handler
         self._lat_lon = None
-        self._temporal_res = None
         self._time_index = None
         self._features = features
         self._input_features = None
@@ -715,23 +720,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
     def close(self):
         """Close any open file handlers"""
         self.source_handler.close()
-
-    @property
-    def temporal_res(self):
-        """Get temporal resolution of source data"""
-        if self.source_handler is not None:
-            self._temporal_res = np.diff(self.source_handler.time_index[:2])[0]
-            self._temporal_res = self._temporal_res / np.timedelta64(1, 's')
-        else:
-            self._temporal_res = 1
-        if self.coarsen is not None:
-            self._temporal_res *= self.t_enhance
-        return self._temporal_res
-
-    @temporal_res.setter
-    def temporal_res(self, temporal_res):
-        """Set temporal_res value"""
-        self._temporal_res = temporal_res
 
     @property
     def source_type(self):
@@ -1023,34 +1011,37 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
 
 class Sup3rStatsMulti(Sup3rStatsBase):
-    """Class for doing statistical QA on multiple datasets."""
+    """Class for doing statistical QA on multiple datasets. These datasets
+    are low resolution input to sup3r, the synthetic output, and the true
+    high resolution corresponding to the low resolution input. This class
+    will provide statistics used to compare all these datasets."""
 
-    def __init__(self, source_file_paths=None, out_file_paths=None,
+    def __init__(self, lr_file_paths=None, synth_file_paths=None,
                  hr_file_paths=None, s_enhance=1, t_enhance=1, features=None,
-                 temporal_slice=slice(None), target=None, shape=None,
+                 lr_t_slice=slice(None), synth_t_slice=slice(None),
+                 hr_t_slice=slice(None), target=None, shape=None,
                  raster_file=None, qa_fp=None, time_chunk_size=None,
                  cache_pattern=None, overwrite_cache=False,
                  overwrite_stats=False, source_handler=None,
                  output_handler=None, max_workers=None, extract_workers=None,
                  compute_workers=None, load_workers=None, ti_workers=None,
                  get_interp=False, include_stats=None, max_values=None,
-                 smoothing=None, spatial_res=None, n_bins=40, max_delta=10):
+                 smoothing=None, spatial_res=None, temporal_res=None,
+                 n_bins=40, max_delta=10):
         """
         Parameters
         ----------
-        source_file_paths : list | str
-            A list of low-resolution source files to extract raster data from.
-            Each file must have the same number of timesteps. Can also pass a
-            string with a unix-style file path which will be passed through
-            glob.glob
-        out_file_paths : list | str
+        lr_file_paths : list | str
+            A list of low-resolution source files (either .nc or .h5)
+            to extract raster data from.
+        synth_file_paths : list | str
             Sup3r-resolved output files (either .nc or .h5) with
             high-resolution data corresponding to the
-            source_file_paths * s_enhance * t_enhance
+            lr_file_paths * s_enhance * t_enhance
         hr_file_paths : list | str
             A list of high-resolution source files (either .nc or .h5)
             corresponding to the low-resolution source files in
-            source_file_paths
+            lr_file_paths
         s_enhance : int
             Factor by which the Sup3rGan model will enhance the spatial
             dimensions of low resolution data
@@ -1059,12 +1050,15 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             of low resolution data
         features : list
             Features for which to compute wind stats. e.g. ['pressure_100m',
-            'temperature_100m', 'windspeed_100m']
-        temporal_slice : slice | tuple | list
-            Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then temporal_slice = slice(None) will
-            select all 25 time steps. This can also be a tuple / list with
-            length 3 that will be interpreted as slice(*temporal_slice)
+            'temperature_100m', 'windspeed_100m', 'vorticity_100m']
+        lr_t_slice : slice | tuple | list
+            Slice defining size of temporal domain for the low resolution data.
+        synth_t_slice : slice | tuple | list
+            Slice defining size of temporal domain for the sythetic high
+            resolution data.
+        hr_t_slice : slice | tuple | list
+            Slice defining size of temporal domain for the true high
+            resolution data.
         target : tuple
             (lat, lon) lower left corner of raster. You should provide
             target+shape or raster_file, or if all three are None the full
@@ -1146,6 +1140,10 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         spatial_res : float | None
             Spatial resolution for source data in meters. e.g. 2000. This is
             used to determine the wavenumber range for spectra calculations.
+        temporal_res : float | None
+            Temporal resolution for source data in seconds. e.g. 60. This is
+            used to determine the frequency range for spectra calculations and
+            to scale temporal derivatives.
         max_delta : int, optional
             Optional maximum limit on the raster shape that is retrieved at
             once. If shape is (20, 20) and max_delta=10, the full raster will
@@ -1155,16 +1153,17 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             Number of bins to use for constructing probability distributions
         """
 
-        logger.info('Initializing Sup3rStatsMulti and retrieving source data')
+        logger.info('Initializing Sup3rStatsMulti and retrieving source data'
+                    f' for features={features}.')
 
         self.qa_fp = qa_fp
         self.overwrite_stats = overwrite_stats
 
         # get low res and interp stats
         logger.info('Retrieving source data for low-res and interp stats')
-        kwargs = dict(source_file_paths=source_file_paths,
+        kwargs = dict(source_file_paths=lr_file_paths,
                       s_enhance=s_enhance, t_enhance=t_enhance,
-                      features=features, temporal_slice=slice(None),
+                      features=features, temporal_slice=lr_t_slice,
                       target=target, shape=shape,
                       time_chunk_size=time_chunk_size,
                       cache_pattern=cache_pattern,
@@ -1176,8 +1175,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                       load_workers=load_workers, ti_workers=ti_workers,
                       get_interp=get_interp, include_stats=include_stats,
                       max_values=max_values, smoothing=None,
-                      spatial_res=spatial_res, n_bins=n_bins,
-                      max_delta=max_delta)
+                      spatial_res=spatial_res, temporal_res=temporal_res,
+                      n_bins=n_bins, max_delta=max_delta)
         self.source_stats = Sup3rStatsSingle(**kwargs)
 
         self._grid_shape = self.source_stats.source_handler.grid_shape
@@ -1193,13 +1192,17 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         tmp_cache = (cache_pattern if cache_pattern is None
                      else cache_pattern.replace('.pkl', '_hr.pkl'))
         hr_spatial_res = spatial_res or 1
+        hr_spatial_res /= s_enhance
+        hr_temporal_res = temporal_res or 1
+        hr_temporal_res /= t_enhance
         kwargs_new = dict(source_file_paths=hr_file_paths,
                           s_enhance=1, t_enhance=1,
                           shape=shape, target=target,
-                          spatial_res=hr_spatial_res / s_enhance,
+                          spatial_res=hr_spatial_res,
+                          temporal_res=hr_temporal_res,
                           get_interp=False, source_handler=source_handler,
                           cache_pattern=tmp_cache,
-                          temporal_slice=slice(None))
+                          temporal_slice=hr_t_slice)
         kwargs_hr = kwargs.copy()
         kwargs_hr.update(kwargs_new)
         self.hr_stats = Sup3rStatsSingle(**kwargs_hr)
@@ -1213,13 +1216,14 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                       else raster_file.replace('.txt', '_synth.txt'))
         tmp_cache = (cache_pattern if cache_pattern is None
                      else cache_pattern.replace('.pkl', '_synth.pkl'))
-        kwargs_new = dict(source_file_paths=out_file_paths,
+        kwargs_new = dict(source_file_paths=synth_file_paths,
                           s_enhance=1, t_enhance=1,
                           shape=shape, target=target,
-                          spatial_res=hr_spatial_res / s_enhance,
+                          spatial_res=hr_spatial_res,
+                          temporal_res=hr_temporal_res,
                           get_interp=False, source_handler=output_handler,
                           raster_file=tmp_raster, cache_pattern=tmp_cache,
-                          temporal_slice=temporal_slice)
+                          temporal_slice=synth_t_slice)
         kwargs_output = kwargs.copy()
         kwargs_output.update(kwargs_new)
         self.output_stats = Sup3rStatsSingle(**kwargs_output)
@@ -1231,11 +1235,12 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         tmp_cache = (cache_pattern if cache_pattern is None
                      else cache_pattern.replace('.pkl', '_coarse.pkl'))
         kwargs_new = dict(source_file_paths=hr_file_paths,
-                          spatial_res=spatial_res, target=target,
-                          shape=shape, smoothing=smoothing, coarsen=True,
-                          get_interp=False, source_handler=output_handler,
+                          spatial_res=spatial_res, temporal_res=temporal_res,
+                          target=target, shape=shape, smoothing=smoothing,
+                          coarsen=True, get_interp=False,
+                          source_handler=output_handler,
                           cache_pattern=tmp_cache,
-                          temporal_slice=slice(None))
+                          temporal_slice=hr_t_slice)
         kwargs_coarse = kwargs.copy()
         kwargs_coarse.update(kwargs_new)
         self.coarse_stats = Sup3rStatsSingle(**kwargs_coarse)

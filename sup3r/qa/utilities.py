@@ -33,8 +33,8 @@ def tke_frequency_spectrum(u, v, f_range=None):
         1D array of amplitudes corresponding to the portion of total energy
         with a given frequency
     """
-    v_f = np.fft.fftn(np.mean(v, axis=1))
-    u_f = np.fft.fftn(np.mean(u, axis=1))
+    v_f = np.fft.fftn(v.reshape((-1, v.shape[-1])))
+    u_f = np.fft.fftn(u.reshape((-1, u.shape[-1])))
     E_f = np.abs(v_f)**2 + np.abs(u_f)**2
     E_f = np.mean(E_f, axis=0)
     if f_range is None:
@@ -71,7 +71,7 @@ def frequency_spectrum(var, f_range=None):
         1D array of amplitudes corresponding to the portion of the variable
         with a given frequency
     """
-    var_f = np.fft.fftn(np.mean(var, axis=1))
+    var_f = np.fft.fftn(var.reshape((-1, var.shape[-1])))
     E_f = np.abs(var_f)**2
     E_f = np.mean(E_f, axis=0)
     if f_range is None:
@@ -169,29 +169,6 @@ def wavenumber_spectrum(var, k_range=None, axis=0):
     return k[:n_steps], E_k
 
 
-def tke_series(u, v):
-    """Longitudinal Turbulent Kinetic Energy Spectrum time series. Gives the
-    mean tke spectrum over time.
-
-    Parameters
-    ----------
-    u: ndarray
-        (lat, lon, time)
-        U component of wind
-    v : ndarray
-        (lat, lon, time)
-        V component of wind
-
-    Returns
-    -------
-    ndarray
-        1D array of mean tke amplitudes over time
-    """
-
-    return [np.mean(tke_wavenumber_spectrum(u[..., t], v[..., t]))
-            for t in range(u.shape[-1])]
-
-
 def direct_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """Returns the direct distribution for the given variable.
 
@@ -216,7 +193,7 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1):
         Normalization factor
     """
     diffs = var / scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -248,7 +225,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -283,7 +260,7 @@ def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
         Normalization factor
     """
     diffs = vorticity_calc(u, v, scale).flatten()
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -323,7 +300,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)

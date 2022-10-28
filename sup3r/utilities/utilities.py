@@ -10,6 +10,7 @@ import logging
 import glob
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage.filters import gaussian_filter
 from fnmatch import fnmatch
 import os
 import re
@@ -17,6 +18,7 @@ from warnings import warn
 import psutil
 import pandas as pd
 from packaging import version
+
 
 np.random.seed(42)
 
@@ -608,6 +610,51 @@ def daily_temporal_coarsening(data, temporal_axis=3):
     coarse_data = np.nansum(data, axis=temporal_axis) / 24
     coarse_data = np.expand_dims(coarse_data, axis=temporal_axis)
     return coarse_data
+
+
+def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
+    """Smooth data using a gaussian filter
+
+    Parameters
+    ----------
+    low_res : np.ndarray
+        4D | 5D array
+        (batch_size, spatial_1, spatial_2, features)
+        (batch_size, spatial_1, spatial_2, temporal, features)
+    training_features : list | None
+        Ordered list of training features input to the generative model
+    smoothing_ignore : list | None
+        List of features to ignore for the smoothing filter. None will
+        smooth all features if smoothing kwarg is not None
+    smoothing : float | None
+        Standard deviation to use for gaussian filtering of the coarse
+        data. This can be tuned by matching the kinetic energy of a low
+        resolution simulation with the kinetic energy of a coarsened and
+        smoothed high resolution simulation. If None no smoothing is
+        performed.
+
+    Returns
+    -------
+    low_res : np.ndarray
+        4D | 5D array
+        (batch_size, spatial_1, spatial_2, features)
+        (batch_size, spatial_1, spatial_2, temporal, features)
+    """
+
+    if smoothing is not None:
+        feat_iter = [j for j in range(low_res.shape[-1])
+                     if training_features[j] not in smoothing_ignore]
+        for i in range(low_res.shape[0]):
+            for j in feat_iter:
+                if len(low_res.shape) == 5:
+                    for t in range(low_res.shape[-2]):
+                        low_res[i, ..., t, j] = gaussian_filter(
+                            low_res[i, ..., t, j], smoothing,
+                            mode='nearest')
+                else:
+                    low_res[i, ..., j] = gaussian_filter(
+                        low_res[i, ..., j], smoothing, mode='nearest')
+    return low_res
 
 
 def spatial_coarsening(data, s_enhance=2, obs_axis=True):

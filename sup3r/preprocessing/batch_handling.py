@@ -19,6 +19,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_box_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
+                                       smooth_data,
                                        nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
@@ -151,20 +152,8 @@ class Batch:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
 
-        if smoothing is not None:
-            feat_iter = [j for j in range(low_res.shape[-1])
-                         if training_features[j] not in smoothing_ignore]
-            for i in range(low_res.shape[0]):
-                for j in feat_iter:
-                    if len(low_res.shape) == 5:
-                        for t in range(low_res.shape[-2]):
-                            low_res[i, ..., t, j] = gaussian_filter(
-                                low_res[i, ..., t, j], smoothing,
-                                mode='nearest')
-                    else:
-                        low_res[i, ..., j] = gaussian_filter(
-                            low_res[i, ..., j], smoothing, mode='nearest')
-
+        low_res = smooth_data(low_res, training_features, smoothing_ignore,
+                              smoothing)
         high_res = cls.reduce_features(high_res, output_features_ind)
         batch = cls(low_res, high_res)
 

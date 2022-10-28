@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import re
 import xarray as xr
+import psutil
 
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
@@ -1348,8 +1349,11 @@ class FeatureHandler:
                     logger.error(msg)
                     raise RuntimeError(msg) from e
                 if interval > 0 and i % interval == 0:
-                    logger.debug(f'{i+1} out of {len(futures)} feature '
-                                 'chunks extracted.')
+                    mem = psutil.virtual_memory()
+                    logger.info(f'{i+1} out of {len(futures)} feature '
+                                'chunks extracted. Current memory usage is '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 
@@ -1529,8 +1533,11 @@ class FeatureHandler:
                 data[chunk_idx] = data.get(chunk_idx, {})
                 data[chunk_idx][v['feature']] = future.result()
                 if interval > 0 and i % interval == 0:
-                    logger.debug(f'{i+1} out of {len(futures)} feature '
-                                 'chunks computed')
+                    mem = psutil.virtual_memory()
+                    logger.info(f'{i+1} out of {len(futures)} feature '
+                                'chunks computed. Current memory usage is '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 
