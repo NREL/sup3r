@@ -199,10 +199,7 @@ class Sup3rGan(AbstractSup3rGan):
             fp_history = os.path.join(out_dir, 'history.csv')
             self.history.to_csv(fp_history)
 
-        fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'w') as f:
-            params = self.model_params
-            json.dump(params, f, sort_keys=True, indent=2)
+        self.save_params(out_dir)
 
         logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
 

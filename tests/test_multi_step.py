@@ -7,7 +7,8 @@ import tempfile
 
 from sup3r import CONFIG_DIR
 from sup3r.models import (Sup3rGan, MultiStepGan, SpatialThenTemporalGan,
-                          SolarMultiStepGan)
+                          SpatialGanThenLinearInterp, SolarMultiStepGan,
+                          LinearInterp)
 
 FEATURES = ['U_100m', 'V_100m']
 
@@ -123,6 +124,32 @@ def test_spatial_then_temporal_gan():
         model2.save(fp2)
 
         ms_model = SpatialThenTemporalGan.load(fp1, fp2)
+
+        x = np.ones((4, 10, 10, len(FEATURES)))
+        out = ms_model.generate(x)
+        assert out.shape == (1, 60, 60, 16, 2)
+
+
+def test_spatial_gan_then_linear_interp():
+    """Test the 2-step spatial GAN then linear spatiotemporal interpolation"""
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model1 = Sup3rGan(fp_gen, fp_disc)
+    _ = model1.generate(np.ones((4, 10, 10, len(FEATURES))))
+
+    model2 = LinearInterp(features=FEATURES, s_enhance=3, t_enhance=4)
+
+    model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
+    model1.set_model_params(training_features=FEATURES,
+                            output_features=FEATURES)
+
+    with tempfile.TemporaryDirectory() as td:
+        fp1 = os.path.join(td, 'model1')
+        fp2 = os.path.join(td, 'model2')
+        model1.save(fp1)
+        model2.save(fp2)
+
+        ms_model = SpatialGanThenLinearInterp.load(fp1, fp2)
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)

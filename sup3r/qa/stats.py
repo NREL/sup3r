@@ -311,9 +311,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         if 'avg_spectrum_k' in self.include_stats:
             logger.info('Computing time averaged wavenumber spectrum. Using '
                         f'k_range={k_range}.')
-            dvar = self.get_fluctuation(var)
             stats_dict['avg_spectrum_k'] = wavenumber_spectrum(
-                np.mean(dvar[..., :-1], axis=-1), k_range=k_range)
+                np.mean(var[..., :-1], axis=-1), k_range=k_range)
 
         if 'avg_fluctuation_spectrum_f' in self.include_stats:
             logger.info('Computing spatially averaged fluctuation frequency '
@@ -344,8 +343,9 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Array with fluctuation data
             (spatial_1, spatial_2, temporal)
         """
-        avg = np.mean(var)
-        return var - avg
+        avg = np.mean(var, axis=-1)
+        return var - np.repeat(np.expand_dims(avg, axis=-1),
+                               var.shape[-1], axis=-1)
 
     def interpolate_data(self, feature, low_res):
         """Get interpolated low res field
@@ -445,7 +445,6 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         ndarray
             Array of data for requested feature
         """
-        logger.info(f'Getting data for {feature}')
         if 'vorticity' in feature:
             height = Feature.get_height(feature)
             lower_features = [f.lower() for f in self.input_features]
@@ -681,6 +680,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             extract_workers = compute_workers = load_workers = max_workers
             ti_workers = max_workers
 
+        self.ti_workers = ti_workers
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.smoothing = smoothing
@@ -836,15 +836,19 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
     # pylint: disable=E1102
     @property
-    def time_index(self):
+    def raw_time_index(self):
         """Get the time index associated with the source data
 
         Returns
         -------
         pd.DatetimeIndex
         """
+        if self.source_handler is not None:
+            self._time_index = self.source_handler.time_index.tz_localize(None)
+
         if self._time_index is None:
-            kwargs = {'features': [], 'val_split': 0.0}
+            kwargs = {'features': [], 'val_split': 0.0, 'ti_workers':
+                      self.ti_workers}
             if self.source_type == 'nc':
                 source_handler = self.source_handler_class(
                     self.source_file_paths, **kwargs)
@@ -853,6 +857,16 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                     self.source_file_paths)
             self._time_index = source_handler.time_index.tz_localize(None)
         return self._time_index
+
+    @property
+    def time_index(self):
+        """Get the time index associated with the source data
+
+        Returns
+        -------
+        pd.DatetimeIndex
+        """
+        return self.raw_time_index[self.temporal_slice]
 
     @property
     def input_features(self):
@@ -895,101 +909,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                 if vf.lower() not in [f.lower() for f in self._input_features]:
                     self._input_features.append(f'V_{height}m')
         return self._input_features
-
-    def get_uv(self, feature):
-        """Get u/v from h5 data. Includes transform and rotation
-
-        Parameters
-        ----------
-        feature : str
-            Name of the dataset to retrieve. Must be found in the
-            features property and the source files.
-
-        Returns
-        -------
-        data : np.ndarray
-            A copy of the source data as a numpy
-            array of shape (spatial_1, spatial_2, temporal)
-        """
-        height = Feature.get_height(feature)
-        logger.debug('Getting sup3r u/v data ({}m)'.format(height))
-        t_steps = len(self.time_index[self.temporal_slice])
-        shape = f'{self.shape[0]}x{self.shape[1]}x{t_steps}'
-
-        u_file = v_file = None
-        if self.cache_pattern is not None:
-            tmp_file = self.cache_pattern.replace('{shape}', f'{shape}')
-            u_file = tmp_file.replace('{feature}', f'u_{height}m')
-            v_file = tmp_file.replace('{feature}', f'v_{height}m')
-
-            if (os.path.exists(u_file) and os.path.exists(v_file)
-                    and not self.overwrite_cache):
-                u = self.load_cache(u_file)
-                v = self.load_cache(v_file)
-                return u, v
-
-        ws_f = f'windspeed_{height}m'
-        wd_f = f'winddirection_{height}m'
-        logger.info('Extracting data from output handler for '
-                    f'time_slice={self.temporal_slice}')
-        ws = self.source_handler[ws_f, self.temporal_slice, :]
-        wd = self.source_handler[wd_f, self.temporal_slice, :]
-        ws = ws.T.reshape((self.shape[0], self.shape[1], -1))
-        wd = wd.T.reshape((self.shape[0], self.shape[1], -1))
-        logger.info(f'Transforming ws/wd to u/v for height={height}m '
-                    f'with shape={ws.shape}')
-        u, v = transform_rotate_wind(ws, wd, self.lat_lon)
-        if u_file is not None:
-            self.save_cache(u, u_file)
-        if v_file is not None:
-            self.save_cache(v, v_file)
-        return u, v
-
-    def get_h5_data(self, feature):
-        """Get an output dataset from h5 files.
-
-        Parameters
-        ----------
-        feature : str
-            Name of the dataset to retrieve. Must be found in the
-            features property and the source files.
-
-        Returns
-        -------
-        data : np.ndarray
-            A copy of the source data as a numpy
-            array of shape (spatial_1, spatial_2, temporal)
-        """
-
-        height = Feature.get_height(feature)
-        if feature.lower() == f'u_{height}m':
-            u, _ = self.get_uv(feature)
-            return u
-        if feature.lower() == f'v_{height}m':
-            _, v = self.get_uv(feature)
-            return v
-
-        logger.debug('Getting sup3r data ({})'.format(feature))
-        t_steps = len(self.time_index[self.temporal_slice])
-        shape = f'{self.shape[0]}x{self.shape[1]}x{t_steps}'
-
-        cache_file = None
-        if self.cache_pattern is not None:
-            tmp_file = self.cache_pattern.replace('{shape}', f'{shape}')
-            cache_file = tmp_file.replace('{feature}', feature)
-
-            if (os.path.exists(cache_file) and not self.overwrite_cache):
-                data = self.load_cache(cache_file)
-                return data
-
-        logger.info('Extracting data from source handler for '
-                    f'time_slice={self.temporal_slice} and shape={self.shape}')
-        data = self.source_handler[feature, self.temporal_slice, :]
-        data = data.T.reshape((self.shape[0], self.shape[1], -1))
-        if cache_file is not None:
-            self.save_cache(data, cache_file)
-
-        return data
 
     def coarsen_data(self, data, smoothing=None):
         """Re-coarsen a high-resolution synthetic output dataset
@@ -1202,14 +1121,14 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         self.lr_stats = Sup3rStatsSingle(**kwargs)
 
         if self.lr_stats is not None:
-            lr_shape = self.lr_stats.source_handler.grid_shape
+            self.lr_shape = self.lr_stats.source_handler.grid_shape
             target = self.lr_stats.source_handler.target
         else:
-            lr_shape = None
+            self.lr_shape = None
             target = None
 
         # get high res stats
-        shape = (lr_shape[0] * s_enhance, lr_shape[1] * s_enhance)
+        shape = (self.lr_shape[0] * s_enhance, self.lr_shape[1] * s_enhance)
         logger.info('Retrieving source data for high-res stats with '
                     f'shape={shape}')
         tmp_raster = (raster_file if raster_file is None
@@ -1233,7 +1152,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         self.hr_stats = Sup3rStatsSingle(**kwargs_hr)
 
         # get synthetic stats
-        shape = (lr_shape[0] * s_enhance, lr_shape[1] * s_enhance)
+        shape = (self.lr_shape[0] * s_enhance, self.lr_shape[1] * s_enhance)
         logger.info('Retrieving source data for synthetic stats with '
                     f'shape={shape}')
         tmp_raster = (raster_file if raster_file is None
@@ -1272,8 +1191,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
 
     def close(self):
         """Close any open file handlers"""
-        if self.output_stats is not None:
-            self.output_stats.source_handler.close()
+        if self.synth_stats is not None:
+            self.synth_stats.source_handler.close()
 
     def run(self):
         """Go through all datasets and get the dictionary of statistics.
@@ -1309,12 +1228,15 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         if self.save_fig_data:
             for feature in self.features:
                 fig_data = {
+                    'time_index': self.hr_stats.time_index,
                     'low_res': self.lr_stats.get_feature_data(feature),
                     'synthetic': self.synth_stats.get_feature_data(feature),
                     'high_res': self.hr_stats.get_feature_data(feature)}
 
                 dirname = os.path.dirname(self.qa_fp)
-                file_name = os.path.join(dirname, f'{feature}_compare.pkl')
+                file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}'
+                file_name = os.path.join(dirname,
+                                         f'{feature}_compare_{file_id}.pkl')
                 with open(file_name, 'wb') as fp:
                     pickle.dump(fig_data, fp, protocol=4)
                 logger.info(f'Saved figure data for {feature} to {file_name}.')

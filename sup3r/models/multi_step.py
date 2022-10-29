@@ -9,6 +9,7 @@ from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 import sup3r.models
 from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.models.base import Sup3rGan
+from sup3r.models.linear import LinearInterp
 
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,16 @@ class MultiStepGan(AbstractSup3rGan):
             meta = params.get('meta', {'class': 'Sup3rGan'})
             class_name = meta.get('class', 'Sup3rGan')
             Sup3rClass = getattr(sup3r.models, class_name)
-            models.append(Sup3rClass.load(model_dir, verbose=verbose))
+
+            if class_name == 'LinearInterp':
+                model = Sup3rClass.load(features=meta['training_features'],
+                                        s_enhance=meta['s_enhance'],
+                                        t_enhance=meta['t_enhance'],
+                                        t_centered=meta['t_centered'],
+                                        verbose=verbose)
+                models.append(model)
+            else:
+                models.append(Sup3rClass.load(model_dir, verbose=verbose))
 
         return cls(models)
 
@@ -243,7 +253,193 @@ class MultiStepGan(AbstractSup3rGan):
         return tuple(model.model_params for model in self.models)
 
 
-class SpatialThenTemporalGan(AbstractSup3rGan):
+class SpatialGanThenLinearInterp(MultiStepGan):
+    """A two-step model where the first step is a spatial-only enhancement on a
+    4D tensor and the second step is (spatio)temporal enhancement on a 5D
+    tensor with a linear interpolation model
+
+    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
+    the shape (temporal, spatial_1, spatial_2, features) where temporal
+    (usually the observation index) is a series of sequential timesteps that
+    will be transposed to a 5D tensor of shape
+    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
+    2nd-step (spatio)temporal linear interpolation model.
+    """
+
+    def __init__(self, spatial_models, temporal_models):
+        """
+        Parameters
+        ----------
+        spatial_models : MultiStepGan
+            A loaded MultiStepGan object representing the one or more spatial
+            super resolution steps in this composite SpatialThenTemporalGan
+            model
+        temporal_models : LinearInterp
+            A loaded LinearInterp object representing the single temporal
+            enhancement model in this composite SpatialGanThenLinearTime model
+        """
+        self._spatial_models = spatial_models
+        self._temporal_models = temporal_models
+
+    @property
+    def models(self):
+        """Get an ordered tuple of the Sup3rGan models that are part of this
+        MultiStepGan
+        """
+        return (*self.spatial_models.models, *self.temporal_models.models)
+
+    @property
+    def spatial_models(self):
+        """Get the MultiStepGan object for the spatial-only model(s)
+
+        Returns
+        -------
+        MultiStepGan
+        """
+        return self._spatial_models
+
+    @property
+    def temporal_models(self):
+        """Get the MultiStepGan object for the (spatio)temporal model(s)
+
+        Returns
+        -------
+        MultiStepGan
+        """
+        return self._temporal_models
+
+    @property
+    def meta(self):
+        """Get a tuple of meta data dictionaries for all models
+
+        Returns
+        -------
+        tuple
+        """
+        return self.spatial_models.meta + self.temporal_models.meta
+
+    @property
+    def training_features(self):
+        """Get the list of input feature names that the first spatial
+        generative model in this SpatialGanThenLinearInterp requires as
+        input."""
+        return self.spatial_models.training_features
+
+    @property
+    def output_features(self):
+        """Get the list of output feature names that the last spatiotemporal
+        interpolation model in this SpatialGanThenLinearInterp outputs."""
+        return self.temporal_models.output_features
+
+    def generate(self, low_res, norm_in=True, un_norm_out=True,
+                 exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data to the 1st step spatial GAN, which is a
+            4D array of shape: (temporal, spatial_1, spatial_2, n_features)
+        norm_in : bool
+            Flag to normalize low_res input data if the self.means,
+            self.stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+        exogenous_data : list
+            List of arrays of exogenous_data with length equal to the
+            number of model steps. e.g. If we want to include topography as
+            an exogenous feature in a spatial + temporal multistep model then
+            we need to provide a list of length=2 with topography at the low
+            spatial resolution and at the high resolution. If we include more
+            than one exogenous feature the ordering must be consistent.
+            Each array in the list has 3D or 4D shape:
+            (spatial_1, spatial_2, n_features)
+            (temporal, spatial_1, spatial_2, n_features)
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the 2nd
+            step (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        logger.debug('Data input to the 1st step spatial-only '
+                     'enhancement has shape {}'.format(low_res.shape))
+        t_exogenous = None
+        if exogenous_data is not None:
+            t_exogenous = exogenous_data[len(self.spatial_models):]
+
+        try:
+            hi_res = self.spatial_models.generate(
+                low_res, norm_in=norm_in, un_norm_out=True,
+                exogenous_data=exogenous_data)
+        except Exception as e:
+            msg = ('Could not run the 1st step spatial-only GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
+
+        logger.debug('Data output from the 1st step spatial-only '
+                     'enhancement has shape {}'.format(hi_res.shape))
+        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
+        hi_res = np.expand_dims(hi_res, axis=0)
+        logger.debug('Data from the 1st step spatial-only enhancement has '
+                     'been reshaped to {}'.format(hi_res.shape))
+
+        try:
+            hi_res = self.temporal_models.generate(
+                hi_res, norm_in=True, un_norm_out=un_norm_out,
+                exogenous_data=t_exogenous)
+        except Exception as e:
+            msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
+                   'shape {}'.format(low_res.shape))
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
+
+        logger.debug('Final multistep GAN output has shape: {}'
+                     .format(hi_res.shape))
+
+        return hi_res
+
+    @classmethod
+    def load(cls, spatial_model_dirs, temporal_model_dirs, verbose=True):
+        """Load the GANs with its sub-networks from a previously saved-to
+        output directory.
+
+        Parameters
+        ----------
+        spatial_model_dirs : str | list | tuple
+            An ordered list/tuple of one or more directories containing trained
+            + saved Sup3rGan models created using the Sup3rGan.save() method.
+            This must contain only spatial models that input/output 4D
+            tensors.
+        temporal_model_dirs : str
+            A directory containing LinearInterp model parameters created using
+            the LinearInterp.save() method.
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        out : MultiStepGan
+            Returns a pretrained gan model that was previously saved to
+            model_dirs
+        """
+        if isinstance(spatial_model_dirs, str):
+            spatial_model_dirs = [spatial_model_dirs]
+        if isinstance(temporal_model_dirs, str):
+            temporal_model_dirs = [temporal_model_dirs]
+
+        s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
+        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
+
+        return cls(s_models, t_models)
+
+
+class SpatialThenTemporalGan(MultiStepGan):
     """A two-step GAN where the first step is a spatial-only enhancement on a
     4D tensor and the second step is a (spatio)temporal enhancement on a 5D
     tensor.
@@ -598,7 +794,7 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         return cls(s_models, t_models)
 
 
-class SolarMultiStepGan(AbstractSup3rGan):
+class SolarMultiStepGan(MultiStepGan):
     """Special multi step model for solar clearsky ratio super resolution.
 
     This model takes in two parallel models for wind-only and solar-only

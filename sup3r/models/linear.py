@@ -2,8 +2,11 @@
 """Simple models for super resolution such as linear interp models."""
 import numpy as np
 import logging
+import os
+import json
 from sup3r.utilities.utilities import st_interp
 from sup3r.models.abstract import AbstractSup3rGan
+from sup3r.utilities import VERSION_RECORD
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,7 @@ class LinearInterp(AbstractSup3rGan):
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
         self._t_centered = t_centered
+        self._version_record = VERSION_RECORD
 
     @classmethod
     def load(cls, features, s_enhance, t_enhance, t_centered=False,
@@ -73,6 +77,16 @@ class LinearInterp(AbstractSup3rGan):
         return model
 
     @property
+    def version_record(self):
+        """A record of important versions that this model was built with.
+
+        Returns
+        -------
+        dict
+        """
+        return self._version_record
+
+    @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
         return {'s_enhance': self._s_enhance,
@@ -95,6 +109,30 @@ class LinearInterp(AbstractSup3rGan):
         """Get the list of output feature names that the generative model
         outputs"""
         return self._features
+
+    @property
+    def model_params(self):
+        """
+        Model parameters, used to save model to json
+
+        Returns
+        -------
+        dict
+        """
+        model_params = {'version_record': self.version_record,
+                        'meta': self.meta}
+
+        return model_params
+
+    def save(self, out_dir):
+        """
+        Parameters
+        ----------
+        out_dir : str
+            Directory to save linear model params. This directory will be
+            created if it does not already exist.
+        """
+        self.save_params(out_dir)
 
     # pylint: disable=unused-argument
     def generate(self, low_res, norm_in=False, un_norm_out=False,

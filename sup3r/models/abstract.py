@@ -2,7 +2,8 @@
 """
 Abstract class to define the required interface for Sup3r model subclasses
 """
-
+import os
+import json
 from abc import ABC, abstractmethod
 from phygnn import CustomNetwork
 
@@ -97,3 +98,30 @@ class AbstractSup3rGan(ABC):
     def output_features(self):
         """Get the list of output feature names that the generative model
         outputs and that the discriminator predicts on."""
+
+    @property
+    @abstractmethod
+    def model_params(self):
+        """
+        Model parameters, used to save model to json
+
+        Returns
+        -------
+        dict
+        """
+
+    def save_params(self, out_dir):
+        """
+        Parameters
+        ----------
+        out_dir : str
+            Directory to save linear model params. This directory will be
+            created if it does not already exist.
+        """
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+
+        fp_params = os.path.join(out_dir, 'model_params.json')
+        with open(fp_params, 'w') as f:
+            params = self.model_params
+            json.dump(params, f, sort_keys=True, indent=2)
