@@ -100,15 +100,16 @@ class AbstractSup3rGan(ABC):
         outputs and that the discriminator predicts on."""
 
     @property
-    @abstractmethod
     def model_params(self):
         """
-        Model parameters, used to save model to json
+        Model parameters, used to save model to disc
 
         Returns
         -------
         dict
         """
+        model_params = {'meta': self.meta}
+        return model_params
 
     def save_params(self, out_dir):
         """

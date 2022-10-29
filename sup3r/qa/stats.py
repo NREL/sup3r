@@ -12,7 +12,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
-                                       transform_rotate_wind,
                                        temporal_coarsening,
                                        spatial_coarsening,
                                        st_interp, vorticity_calc)
