@@ -432,6 +432,33 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         stats_dict.update(out)
         return stats_dict
 
+    def get_feature_data(self, feature):
+        """Get data for requested feature
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get stats for
+
+        Returns
+        -------
+        ndarray
+            Array of data for requested feature
+        """
+        logger.info(f'Getting data for {feature}')
+        if 'vorticity' in feature:
+            height = Feature.get_height(feature)
+            lower_features = [f.lower() for f in self.input_features]
+            uidx = lower_features.index(f'u_{height}m')
+            vidx = lower_features.index(f'v_{height}m')
+            out = vorticity_calc(self.source_data[..., uidx],
+                                 self.source_data[..., vidx],
+                                 scale=self.spatial_res)
+        else:
+            idx = self.input_features.index(feature)
+            out = self.source_data[..., idx]
+        return out
+
     def get_feature_stats(self, feature):
         """Get stats for high and low resolution fields
 
@@ -449,18 +476,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         """
         source_stats = {}
         if self.source_data is not None:
-            logger.info(f'Getting stats for {feature}')
-            if 'vorticity' in feature:
-                height = Feature.get_height(feature)
-                lower_features = [f.lower() for f in self.input_features]
-                uidx = lower_features.index(f'u_{height}m')
-                vidx = lower_features.index(f'v_{height}m')
-                out = vorticity_calc(self.source_data[..., uidx],
-                                     self.source_data[..., vidx],
-                                     scale=self.spatial_res)
-            else:
-                idx = self.input_features.index(feature)
-                out = self.source_data[..., idx]
+            out = self.get_feature_data(feature)
             source_stats = self.get_stats(out)
 
         interp = {}
@@ -1022,12 +1038,13 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                  hr_t_slice=slice(None), target=None, shape=None,
                  raster_file=None, qa_fp=None, time_chunk_size=None,
                  cache_pattern=None, overwrite_cache=False,
-                 overwrite_stats=False, source_handler=None,
-                 output_handler=None, max_workers=None, extract_workers=None,
-                 compute_workers=None, load_workers=None, ti_workers=None,
-                 get_interp=False, include_stats=None, max_values=None,
-                 smoothing=None, spatial_res=None, temporal_res=None,
-                 n_bins=40, max_delta=10):
+                 overwrite_synth_cache=False, overwrite_stats=False,
+                 source_handler=None, output_handler=None, max_workers=None,
+                 extract_workers=None, compute_workers=None, load_workers=None,
+                 ti_workers=None, get_interp=False, include_stats=None,
+                 max_values=None, smoothing=None, spatial_res=None,
+                 temporal_res=None, n_bins=40, max_delta=10,
+                 save_fig_data=False):
         """
         Parameters
         ----------
@@ -1064,9 +1081,9 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             target+shape or raster_file, or if all three are None the full
             source domain will be used.
         shape : tuple
-            (rows, cols) grid size. You should provide target+shape or
-            raster_file, or if all three are None the full source domain will
-            be used.
+            Shape of the low resolution grid size. (rows, cols). You should
+            provide target+shape or raster_file, or if all three are None the
+            full source domain will be used.
         raster_file : str | None
             File for raster_index array for the corresponding target and
             shape. If specified the raster_index will be loaded from the file
@@ -1092,7 +1109,10 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             files for complex problems.
         overwrite_cache : bool
             Whether to overwrite cache files storing the computed/extracted
-            feature data
+            feature data for low-resolution and high-resolution data
+        overwrite_synth_cache : bool
+            Whether to overwrite cache files stored computed/extracted data
+            for synthetic output.
         overwrite_stats : bool
             Whether to overwrite saved stats
         input_handler : str | None
@@ -1158,6 +1178,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
 
         self.qa_fp = qa_fp
         self.overwrite_stats = overwrite_stats
+        self.save_fig_data = save_fig_data
+        self.features = features
 
         # get low res and interp stats
         logger.info('Retrieving source data for low-res and interp stats')
@@ -1177,14 +1199,17 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                       max_values=max_values, smoothing=None,
                       spatial_res=spatial_res, temporal_res=temporal_res,
                       n_bins=n_bins, max_delta=max_delta)
-        self.source_stats = Sup3rStatsSingle(**kwargs)
+        self.lr_stats = Sup3rStatsSingle(**kwargs)
 
-        self._grid_shape = self.source_stats.source_handler.grid_shape
-        target = self.source_stats.source_handler.target
+        if self.lr_stats is not None:
+            lr_shape = self.lr_stats.source_handler.grid_shape
+            target = self.lr_stats.source_handler.target
+        else:
+            lr_shape = None
+            target = None
 
         # get high res stats
-        shape = (self._grid_shape[0] * s_enhance,
-                 self._grid_shape[1] * s_enhance)
+        shape = (lr_shape[0] * s_enhance, lr_shape[1] * s_enhance)
         logger.info('Retrieving source data for high-res stats with '
                     f'shape={shape}')
         tmp_raster = (raster_file if raster_file is None
@@ -1208,8 +1233,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         self.hr_stats = Sup3rStatsSingle(**kwargs_hr)
 
         # get synthetic stats
-        shape = (self._grid_shape[0] * s_enhance,
-                 self._grid_shape[1] * s_enhance)
+        shape = (lr_shape[0] * s_enhance, lr_shape[1] * s_enhance)
         logger.info('Retrieving source data for synthetic stats with '
                     f'shape={shape}')
         tmp_raster = (raster_file if raster_file is None
@@ -1223,10 +1247,11 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                           temporal_res=hr_temporal_res,
                           get_interp=False, source_handler=output_handler,
                           raster_file=tmp_raster, cache_pattern=tmp_cache,
+                          overwrite_cache=(overwrite_synth_cache),
                           temporal_slice=synth_t_slice)
-        kwargs_output = kwargs.copy()
-        kwargs_output.update(kwargs_new)
-        self.output_stats = Sup3rStatsSingle(**kwargs_output)
+        kwargs_synth = kwargs.copy()
+        kwargs_synth.update(kwargs_new)
+        self.synth_stats = Sup3rStatsSingle(**kwargs_synth)
 
         # get coarse stats
         logger.info('Retrieving source data for coarse stats')
@@ -1262,8 +1287,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         """
 
         stats = {}
-        lr_stats = self.source_stats.run()
-        out_stats = self.output_stats.run()
+        lr_stats = self.lr_stats.run()
+        synth_stats = self.synth_stats.run()
         coarse_stats = self.coarse_stats.run()
         hr_stats = self.hr_stats.run()
 
@@ -1271,8 +1296,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             stats['low_res'] = lr_stats['source']
         if lr_stats['interp']:
             stats['interp'] = lr_stats['interp']
-        if out_stats['source']:
-            stats['synthetic'] = out_stats['source']
+        if synth_stats['source']:
+            stats['synthetic'] = synth_stats['source']
         if coarse_stats['source']:
             stats['coarse'] = coarse_stats['source']
         if hr_stats['source']:
@@ -1280,6 +1305,20 @@ class Sup3rStatsMulti(Sup3rStatsBase):
 
         if self.qa_fp is not None:
             self.export(self.qa_fp, stats)
+
+        if self.save_fig_data:
+            for feature in self.features:
+                fig_data = {
+                    'low_res': self.lr_stats.get_feature_data(feature),
+                    'synthetic': self.synth_stats.get_feature_data(feature),
+                    'high_res': self.hr_stats.get_feature_data(feature)}
+
+                dirname = os.path.dirname(self.qa_fp)
+                file_name = os.path.join(dirname, f'{feature}_compare.pkl')
+                with open(file_name, 'wb') as fp:
+                    pickle.dump(fig_data, fp, protocol=4)
+                logger.info(f'Saved figure data for {feature} to {file_name}.')
+
         logger.info('Finished Sup3rStats run method.')
 
         return stats

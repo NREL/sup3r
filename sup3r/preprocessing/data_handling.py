@@ -1958,14 +1958,22 @@ class DataHandlerNC(DataHandler):
         max_lat = np.max(lat_lon[..., 0])
         max_lon = np.max(lat_lon[..., 1])
         logger.debug('Calculating raster index from WRF file '
-                     f'for shape {grid_shape} and target '
-                     f'{target}')
+                     f'for shape {grid_shape} and target {target}')
+        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon} , '
+                     f'{max_lat}/{max_lon}')
         msg = (f'target {target} out of bounds with min lat/lon '
                f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
         assert (min_lat <= target[0] <= max_lat
                 and min_lon <= target[1] <= max_lon), msg
 
         row, col = cls.get_closest_lat_lon(lat_lon, target)
+        closest = tuple(lat_lon[row, col])
+        logger.debug(f'Found closest coordinate {closest} to target={target}')
+        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
+            msg = 'Closest coordinate to target is more than 1 degree away'
+            logger.warning(msg)
+            warnings.warn(msg)
+
         raster_index = [slice(row, row + grid_shape[0]),
                         slice(col, col + grid_shape[1])]
 
