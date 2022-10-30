@@ -479,8 +479,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
 
         interp = {}
         if self.get_interp:
-            itp = self.interpolate_data(feature, out)
             logger.info(f'Getting interpolated baseline stats for {feature}')
+            itp = self.interpolate_data(feature, out)
             interp = self.get_stats(itp, interp=True)
         return source_stats, interp
 
@@ -1188,6 +1188,26 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         kwargs_coarse.update(kwargs_new)
         self.coarse_stats = Sup3rStatsSingle(**kwargs_coarse)
 
+    def export_fig_data(self):
+        """Save data fields for data viz comparison"""
+        for feature in self.features:
+            fig_data = {
+                'time_index': self.hr_stats.time_index,
+                'low_res': self.lr_stats.get_feature_data(feature),
+                'synthetic': self.synth_stats.get_feature_data(feature),
+                'high_res': self.hr_stats.get_feature_data(feature),
+                'low_res_grid': self.lr_stats.source_handler.lat_lon,
+                'synthetic_grid': self.synth_stats.source_handler.lat_lon,
+                'high_res_grid': self.hr_stats.source_handler.lat_lon}
+
+            dirname = os.path.dirname(self.qa_fp)
+            file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}'
+            file_name = os.path.join(dirname,
+                                     f'{feature}_compare_{file_id}.pkl')
+            with open(file_name, 'wb') as fp:
+                pickle.dump(fig_data, fp, protocol=4)
+            logger.info(f'Saved figure data for {feature} to {file_name}.')
+
     def close(self):
         """Close any open file handlers"""
         if self.synth_stats is not None:
@@ -1205,9 +1225,15 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         """
 
         stats = {}
+        logger.info('Computing statistics on low-resolution dataset.')
         lr_stats = self.lr_stats.run()
+        logger.info('Computing statistics on synthetic high-resolution '
+                    'dataset.')
         synth_stats = self.synth_stats.run()
+        logger.info('Computing statistics on coarsened low-resolution '
+                    'dataset.')
         coarse_stats = self.coarse_stats.run()
+        logger.info('Computing statistics on high-resolution dataset.')
         hr_stats = self.hr_stats.run()
 
         if lr_stats['source']:
@@ -1225,20 +1251,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             self.export(self.qa_fp, stats)
 
         if self.save_fig_data:
-            for feature in self.features:
-                fig_data = {
-                    'time_index': self.hr_stats.time_index,
-                    'low_res': self.lr_stats.get_feature_data(feature),
-                    'synthetic': self.synth_stats.get_feature_data(feature),
-                    'high_res': self.hr_stats.get_feature_data(feature)}
-
-                dirname = os.path.dirname(self.qa_fp)
-                file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}'
-                file_name = os.path.join(dirname,
-                                         f'{feature}_compare_{file_id}.pkl')
-                with open(file_name, 'wb') as fp:
-                    pickle.dump(fig_data, fp, protocol=4)
-                logger.info(f'Saved figure data for {feature} to {file_name}.')
+            self.export_fig_data()
 
         logger.info('Finished Sup3rStats run method.')
 

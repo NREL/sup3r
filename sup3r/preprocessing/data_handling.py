@@ -35,6 +35,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
                                        weighted_box_sampler,
                                        get_raster_shape,
+                                       get_source_type,
                                        ignore_case_path_fetch,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
@@ -319,8 +320,16 @@ class InputMixIn:
         self._grid_shape = grid_shape
 
     @property
+    def source_type(self):
+        """Get data type for source files. Either nc or h5"""
+        return get_source_type(self.file_paths)
+
+    @property
     def time_index_file(self):
         """Get time index file path"""
+        if self.source_type == 'h5':
+            return None
+
         if self.cache_pattern is not None and self._time_index_file is None:
             basename = self.cache_pattern.replace('{times}', '')
             basename = basename.replace('{shape}', str(len(self.file_paths)))
