@@ -687,6 +687,9 @@ class Collector:
         collector = cls(file_paths)
         logger.info('Collecting {} files to {}'.format(len(collector.flist),
                                                        out_file))
+        if overwrite and os.path.exists(out_file):
+            os.remove(out_file)
+
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
@@ -701,7 +704,7 @@ class Collector:
             time_index, target_final_meta, target_masked_meta = out[:3]
             shape, _, global_attrs = out[3:]
 
-            if not os.path.exists(out_file) or overwrite:
+            if not os.path.exists(out_file):
                 collector._init_collected_h5(out_file, time_index,
                                              target_final_meta, global_attrs)
 

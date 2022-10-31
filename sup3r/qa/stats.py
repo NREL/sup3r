@@ -1225,8 +1225,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
 
     def close(self):
         """Close any open file handlers"""
-        if self.synth_stats is not None:
-            self.synth_stats.source_handler.close()
+        pass
 
     def run(self):
         """Go through all datasets and get the dictionary of statistics.
