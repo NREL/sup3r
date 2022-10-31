@@ -297,7 +297,7 @@ def test_data_extract_cli(runner):
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
 
-        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES) + 1
+        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
         assert len(glob.glob(f'{log_file}')) == 1
 
 
