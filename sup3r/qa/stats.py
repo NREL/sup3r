@@ -741,7 +741,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
     def close(self):
         """Close any open file handlers"""
-        self.source_handler.close()
+        if hasattr(self.source_handler, 'close'):
+            self.source_handler.close()
 
     @property
     def source_type(self):
@@ -1225,7 +1226,10 @@ class Sup3rStatsMulti(Sup3rStatsBase):
 
     def close(self):
         """Close any open file handlers"""
-        pass
+        stats = [self.lr_stats, self.hr_stats, self.synth_stats,
+                 self.coarse_stats]
+        for s_handle in stats:
+            s_handle.close()
 
     def run(self):
         """Go through all datasets and get the dictionary of statistics.
