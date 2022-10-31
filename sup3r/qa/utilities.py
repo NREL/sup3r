@@ -169,7 +169,8 @@ def wavenumber_spectrum(var, k_range=None, axis=0):
     return k[:n_steps], E_k
 
 
-def direct_dist(var, bins=40, range=None, diff_max=None, scale=1):
+def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
+                percentile=99.9):
     """Returns the direct distribution for the given variable.
 
     Parameters
@@ -182,6 +183,17 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1):
         Optional min/max range for the direct pdf.
     diff_max : float
         Max value to keep for given variable
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a vorticity distribution from data with a spatial
+        resolution of 4km then the distribution needs to be scaled by 4km to
+        compare to another scaled vorticity distribution with a different
+        resolution.
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
@@ -193,14 +205,15 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1):
         Normalization factor
     """
     diffs = var / scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
     return centers, counts, norm
 
 
-def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
+def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
+                  percentile=99.9):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -213,6 +226,17 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
         Optional min/max range for the gradient pdf.
     diff_max : float
         Max value to keep for gradient
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a velocity gradient distribution from data with a
+        spatial resolution of 4km then the distribution needs to be scaled by
+        4km to compare to another scaled velocity gradient distribution with a
+        different resolution.
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
@@ -225,42 +249,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
-    diffs = diffs[(np.abs(diffs) < diff_max)]
-    norm = np.sqrt(np.mean(diffs**2))
-    counts, centers = continuous_dist(diffs, bins=bins, range=range)
-    return centers, counts, norm
-
-
-def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
-    """Returns the vorticity distribution.
-
-    Parameters
-    ----------
-    u: ndarray
-        Longitudinal velocity component
-        (lat, lon, temporal)
-    v : ndarray
-        Latitudinal velocity component
-        (lat, lon, temporal)
-    bins : int
-        Number of bins for the vorticity pdf.
-    range : tuple | None
-        Optional min/max range for the vorticity pdf.
-    diff_max : float
-        Max value to keep for vorticity
-
-    Returns
-    -------
-    ndarray
-        vorticity values at bin centers
-    ndarray
-        Normalized vorticity value counts
-    float
-        Normalization factor
-    """
-    diffs = vorticity_calc(u, v, scale).flatten()
-    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -268,7 +257,7 @@ def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
 
 
 def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
-                   scale=1):
+                   scale=1, percentile=99.9):
     """Returns the ramp rate distribution for the given variable.
 
     Parameters
@@ -284,6 +273,17 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     t_steps : int
         Number of time steps to use for differences. e.g. If t_steps=1 this
         uses var[i + 1] - [i] to compute ramp rates.
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a ramp rate distribution from data with a temporal
+        resolution of 15min then the distribution needs to be scaled by 15min
+        to compare to another scaled ramp rate distribution with a different
+        resolution
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
@@ -300,7 +300,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 99.9)
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)

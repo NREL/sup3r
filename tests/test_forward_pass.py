@@ -1133,7 +1133,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
         exo_kwargs['s_enhancements'] = [1, 2]
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
-            model_class='SpatialGanThenLinearInterp',
+            model_class='SpatialThenTemporalGan',
             fwp_chunk_shape=(4, 4, 8),
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,

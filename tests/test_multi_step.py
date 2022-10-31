@@ -7,8 +7,7 @@ import tempfile
 
 from sup3r import CONFIG_DIR
 from sup3r.models import (Sup3rGan, MultiStepGan, SpatialThenTemporalGan,
-                          SpatialGanThenLinearInterp, SolarMultiStepGan,
-                          LinearInterp)
+                          SolarMultiStepGan, LinearInterp)
 
 FEATURES = ['U_100m', 'V_100m']
 
@@ -149,7 +148,7 @@ def test_spatial_gan_then_linear_interp():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialGanThenLinearInterp.load(fp1, fp2)
+        ms_model = SpatialThenTemporalGan.load(fp1, fp2)
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)

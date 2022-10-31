@@ -9,7 +9,6 @@ from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 import sup3r.models
 from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.models.base import Sup3rGan
-from sup3r.models.linear import LinearInterp
 
 
 logger = logging.getLogger(__name__)
@@ -48,8 +47,9 @@ class MultiStepGan(AbstractSup3rGan):
             True if the model requires high-resolution exogenous data,
             typically because of the use of Sup3rAdder or Sup3rConcat layers.
         """
-        return any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                   for layer in model.generator.layers)
+        return (hasattr(model, 'generator')
+                and any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                for layer in model.generator.layers))
 
     @classmethod
     def load(cls, model_dirs, verbose=True):
@@ -328,14 +328,14 @@ class SpatialThenTemporalBase(MultiStepGan):
     @property
     def training_features(self):
         """Get the list of input feature names that the first spatial
-        generative model in this SpatialGanThenLinearInterp requires as
+        generative model in this SpatialThenTemporalBase model requires as
         input."""
         return self.spatial_models.training_features
 
     @property
     def output_features(self):
         """Get the list of output feature names that the last spatiotemporal
-        interpolation model in this SpatialGanThenLinearInterp outputs."""
+        interpolation model in this SpatialThenTemporalBase model outputs."""
         return self.temporal_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
@@ -444,63 +444,6 @@ class SpatialThenTemporalBase(MultiStepGan):
 
         s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
         t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
-
-        return cls(s_models, t_models)
-
-
-class SpatialGanThenLinearInterp(SpatialThenTemporalBase):
-    """A two-step model where the first step is a spatial-only enhancement on a
-    4D tensor and the second step is (spatio)temporal enhancement on a 5D
-    tensor with a linear interpolation model
-
-    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
-    the shape (temporal, spatial_1, spatial_2, features) where temporal
-    (usually the observation index) is a series of sequential timesteps that
-    will be transposed to a 5D tensor of shape
-    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
-    2nd-step (spatio)temporal linear interpolation model.
-    """
-
-    @classmethod
-    def load(cls, spatial_model_dirs, temporal_model_dirs, verbose=True):
-        """Load the GANs with its sub-networks from a previously saved-to
-        output directory.
-
-        Parameters
-        ----------
-        spatial_model_dirs : str | list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
-            This must contain only spatial models that input/output 4D
-            tensors.
-        temporal_model_dirs : str
-            A directory containing LinearInterp model parameters created using
-            the LinearInterp.save() method.
-        verbose : bool
-            Flag to log information about the loaded model.
-
-        Returns
-        -------
-        out : MultiStepGan
-            Returns a pretrained gan model that was previously saved to
-            model_dirs
-        """
-        if isinstance(spatial_model_dirs, str):
-            spatial_model_dirs = [spatial_model_dirs]
-
-        s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
-
-        fp_params = os.path.join(temporal_model_dirs, 'model_params.json')
-        assert os.path.exists(fp_params), f'Could not find: {fp_params}'
-        with open(fp_params, 'r') as f:
-            params = json.load(f)
-
-        meta = params.get('meta', {'class': 'Sup3rGan'})
-        t_models = LinearInterp.load(features=meta['training_features'],
-                                     s_enhance=meta['s_enhance'],
-                                     t_enhance=meta['t_enhance'],
-                                     t_centered=meta['t_centered'],
-                                     verbose=verbose)
 
         return cls(s_models, t_models)
 
