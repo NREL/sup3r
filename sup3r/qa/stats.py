@@ -444,6 +444,9 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         ndarray
             Array of data for requested feature
         """
+        if self.source_data is None:
+            return None
+
         if 'vorticity' in feature:
             height = Feature.get_height(feature)
             lower_features = [f.lower() for f in self.input_features]

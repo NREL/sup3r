@@ -61,7 +61,8 @@ def from_config(ctx, config_file, verbose):
     logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
     logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
-    name = 'sup3r_collect_{}'.format(os.path.basename(status_dir))
+    basename = config.get('job_name', os.path.basename(status_dir))
+    name = 'sup3r_collect_{}'.format(basename)
     config['job_name'] = name
     config['status_dir'] = status_dir
     dset_split = config.get('dset_split', False)
