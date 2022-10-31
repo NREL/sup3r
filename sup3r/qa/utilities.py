@@ -4,8 +4,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 import logging
 
-from sup3r.utilities.utilities import vorticity_calc
-
 logger = logging.getLogger(__name__)
 
 
