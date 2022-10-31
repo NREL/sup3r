@@ -157,7 +157,7 @@ class Sup3rStatsBase(ABC):
 class Sup3rStatsCompute(Sup3rStatsBase):
     """Base class for computing stats on input data arrays"""
 
-    def __init__(self, input_data, s_enhance=1, t_enhance=1,
+    def __init__(self, input_data=None, s_enhance=1, t_enhance=1,
                  compute_features=None, input_features=None,
                  cache_pattern=None, overwrite_cache=False,
                  overwrite_stats=True, get_interp=False,
@@ -218,7 +218,11 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             File path for saving statistics. Only .pkl supported.
         """
 
-        logger.info('Preparing to compute statistics.')
+        msg = 'Preparing to compute statistics.'
+        if input_data is None:
+            msg = ('Received empty input array. Skipping statistics '
+                   'computations.')
+        logger.info(msg)
 
         self.max_values = max_values or {}
         self.n_bins = n_bins
@@ -748,6 +752,9 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         output_type
             e.g. 'nc' or 'h5'
         """
+        if self.source_file_paths is None:
+            return None
+
         ftype = get_source_type(self.source_file_paths)
         if ftype not in ('nc', 'h5'):
             msg = ('Did not recognize source file type: '
@@ -813,6 +820,9 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
     @property
     def lat_lon(self):
         """Get lat/lon for output data"""
+        if self.source_type is None:
+            return None
+
         if self._lat_lon is None:
             if self.source_type == 'h5':
                 meta = self.source_handler.meta
@@ -868,6 +878,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         -------
         pd.DatetimeIndex
         """
+        if self.raw_time_index is None:
+            return None
         return self.raw_time_index[self.temporal_slice]
 
     @property
