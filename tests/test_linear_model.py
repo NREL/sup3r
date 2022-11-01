@@ -8,8 +8,8 @@ from sup3r.models import LinearInterp
 
 def test_linear_spatial():
     """Test the linear interp model on the spatial axis"""
-    model = LinearInterp.load(['feature'], s_enhance=2, t_enhance=1,
-                              t_centered=False, verbose=False)
+    model = LinearInterp(['feature'], s_enhance=2, t_enhance=1,
+                         t_centered=False)
     s_vals = np.random.uniform(0, 100, 3)
     lr = np.transpose(np.array([[s_vals, s_vals]]), axes=(1, 2, 0))
     lr = np.repeat(lr, 6, axis=-1)
@@ -30,8 +30,8 @@ def test_linear_spatial():
 
 def test_linear_temporal():
     """Test the linear interp model on the temporal axis"""
-    model = LinearInterp.load(['feature'], s_enhance=1, t_enhance=3,
-                              t_centered=True, verbose=False)
+    model = LinearInterp(['feature'], s_enhance=1, t_enhance=3,
+                         t_centered=True)
     t_vals = np.random.uniform(0, 100, 3)
     lr = np.ones((2, 2, 3)) * t_vals
     lr = np.expand_dims(lr, (0, 4))
