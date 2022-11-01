@@ -293,6 +293,7 @@ class OutputHandler:
 
         lons = (lons + 180) % 360 - 180
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
+        logger.debug('Finished getting high resolution lat / lon grid')
 
         return lat_lon
 

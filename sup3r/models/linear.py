@@ -2,6 +2,8 @@
 """Simple models for super resolution such as linear interp models."""
 import numpy as np
 import logging
+import os
+import json
 from sup3r.utilities.utilities import st_interp
 from sup3r.models.abstract import AbstractSup3rGan
 
@@ -36,25 +38,14 @@ class LinearInterp(AbstractSup3rGan):
         self._t_centered = t_centered
 
     @classmethod
-    def load(cls, features, s_enhance, t_enhance, t_centered=False,
-             verbose=False):
-        """Load the GAN with its sub-networks from a previously saved-to output
-        directory.
+    def load(cls, model_dir, verbose=False):
+        """Load the LinearInterp model with its params saved to the model_dir
+        created with LinearInterp.save(model_dir)
 
         Parameters
         ----------
-        features : list
-            List of feature names that this model will operate on for both
-            input and output. This must match the feature axis ordering in the
-            array input to generate().
-        s_enhance : int
-            Integer factor by which the spatial axes is to be enhanced.
-        t_enhance : int
-            Integer factor by which the temporal axes is to be enhanced.
-        t_centered : bool
-            Flag to switch time axis from time-beginning (Default, e.g.
-            interpolate 00:00 01:00 to 00:00 00:30 01:00 01:30) to
-            time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
+        model_dir : str
+            Directory to load LinearInterp model files from.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -63,8 +54,16 @@ class LinearInterp(AbstractSup3rGan):
         out : LinearInterp
             Returns an initialized LinearInterp model
         """
+        fp_params = os.path.join(model_dir, 'model_params.json')
+        assert os.path.exists(fp_params), f'Could not find: {fp_params}'
+        with open(fp_params, 'r') as f:
+            params = json.load(f)
 
-        model = cls(features, s_enhance, t_enhance, t_centered=t_centered)
+        meta = params.get('meta', {'class': 'Sup3rGan'})
+        model = cls(features=meta['training_features'],
+                    s_enhance=meta['s_enhance'],
+                    t_enhance=meta['t_enhance'],
+                    t_centered=meta['t_centered'])
 
         if verbose:
             logger.info('Loading LinearInterp with meta data: {}'
@@ -95,6 +94,16 @@ class LinearInterp(AbstractSup3rGan):
         """Get the list of output feature names that the generative model
         outputs"""
         return self._features
+
+    def save(self, out_dir):
+        """
+        Parameters
+        ----------
+        out_dir : str
+            Directory to save linear model params. This directory will be
+            created if it does not already exist.
+        """
+        self.save_params(out_dir)
 
     # pylint: disable=unused-argument
     def generate(self, low_res, norm_in=False, un_norm_out=False,

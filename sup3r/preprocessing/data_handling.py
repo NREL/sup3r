@@ -35,6 +35,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_time_sampler,
                                        weighted_box_sampler,
                                        get_raster_shape,
+                                       get_source_type,
                                        ignore_case_path_fetch,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
@@ -319,8 +320,16 @@ class InputMixIn:
         self._grid_shape = grid_shape
 
     @property
+    def source_type(self):
+        """Get data type for source files. Either nc or h5"""
+        return get_source_type(self.file_paths)
+
+    @property
     def time_index_file(self):
         """Get time index file path"""
+        if self.source_type == 'h5':
+            return None
+
         if self.cache_pattern is not None and self._time_index_file is None:
             basename = self.cache_pattern.replace('{times}', '')
             basename = basename.replace('{shape}', str(len(self.file_paths)))
@@ -1958,14 +1967,22 @@ class DataHandlerNC(DataHandler):
         max_lat = np.max(lat_lon[..., 0])
         max_lon = np.max(lat_lon[..., 1])
         logger.debug('Calculating raster index from WRF file '
-                     f'for shape {grid_shape} and target '
-                     f'{target}')
+                     f'for shape {grid_shape} and target {target}')
+        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon} , '
+                     f'{max_lat}/{max_lon}')
         msg = (f'target {target} out of bounds with min lat/lon '
                f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
         assert (min_lat <= target[0] <= max_lat
                 and min_lon <= target[1] <= max_lon), msg
 
         row, col = cls.get_closest_lat_lon(lat_lon, target)
+        closest = tuple(lat_lon[row, col])
+        logger.debug(f'Found closest coordinate {closest} to target={target}')
+        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
+            msg = 'Closest coordinate to target is more than 1 degree away'
+            logger.warning(msg)
+            warnings.warn(msg)
+
         raster_index = [slice(row, row + grid_shape[0]),
                         slice(col, col + grid_shape[1])]
 

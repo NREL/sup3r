@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def tke_frequency_spectrum(u, v):
+def tke_frequency_spectrum(u, v, f_range=None):
     """Kinetic Energy Spectrum. Gives the portion of kinetic energy
     associated with each frequency.
 
@@ -19,6 +19,11 @@ def tke_frequency_spectrum(u, v):
     v : ndarray
         (lat, lon)
         V component of wind
+    f_range : list | None
+        List with min and max frequency. When comparing spectra for different
+        domains this needs to be tailored to the specific domain.  e.g. f =
+        [1/max_time, ..., 1/min_time] If this is not specified f with be
+        set to [0, ..., len(y)] where y is the fft output.
 
     Returns
     -------
@@ -26,17 +31,23 @@ def tke_frequency_spectrum(u, v):
         1D array of amplitudes corresponding to the portion of total energy
         with a given frequency
     """
-    v_f = np.fft.fftn(np.mean(v, axis=(0, 1)))
-    u_f = np.fft.fftn(np.mean(u, axis=(0, 1)))
+    v_f = np.fft.fftn(v.reshape((-1, v.shape[-1])))
+    u_f = np.fft.fftn(u.reshape((-1, u.shape[-1])))
     E_f = np.abs(v_f)**2 + np.abs(u_f)**2
+    E_f = np.mean(E_f, axis=0)
+    if f_range is None:
+        f = np.arange(len(E_f))
+    else:
+        f = np.linspace(f_range[0], f_range[1], len(E_f))
+    E_f = f**2 * E_f
     n_steps = E_f.shape[0] // 2
     E_f_a = E_f[:n_steps]
     E_f_b = E_f[-n_steps:][::-1]
     E_f = E_f_a + E_f_b
-    return E_f
+    return f[:n_steps], E_f
 
 
-def frequency_spectrum(var):
+def frequency_spectrum(var, f_range=None):
     """Frequency Spectrum. Gives the portion of the variable
     associated with each frequency.
 
@@ -44,20 +55,33 @@ def frequency_spectrum(var):
     ----------
     var: ndarray
         (lat, lon, temporal)
+    f_range : list | None
+        List with min and max frequency. When comparing spectra for different
+        domains this needs to be tailored to the specific domain.  e.g. f =
+        [1/max_time, ..., 1/min_time] If this is not specified f with be
+        set to [0, ..., len(y)] where y is the fft output.
 
     Returns
     -------
     ndarray
+        Array of frequencies corresponding to energy amplitudes
+    ndarray
         1D array of amplitudes corresponding to the portion of the variable
         with a given frequency
     """
-    var_f = np.fft.fftn(np.mean(var, axis=(0, 1)))
+    var_f = np.fft.fftn(var.reshape((-1, var.shape[-1])))
     E_f = np.abs(var_f)**2
+    E_f = np.mean(E_f, axis=0)
+    if f_range is None:
+        f = np.arange(len(E_f))
+    else:
+        f = np.linspace(f_range[0], f_range[1], len(E_f))
+    E_f = f**2 * E_f
     n_steps = E_f.shape[0] // 2
     E_f_a = E_f[:n_steps]
     E_f_b = E_f[-n_steps:][::-1]
     E_f = E_f_a + E_f_b
-    return E_f
+    return f[:n_steps], E_f
 
 
 def tke_wavenumber_spectrum(u, v, k_range=None, axis=0):
@@ -83,6 +107,8 @@ def tke_wavenumber_spectrum(u, v, k_range=None, axis=0):
 
     Returns
     -------
+    ndarray
+        Array of wavenumbers corresponding to energy amplitudes
     ndarray
         1D array of amplitudes corresponding to the portion of total energy
         with a given wavenumber
@@ -122,6 +148,8 @@ def wavenumber_spectrum(var, k_range=None, axis=0):
     Returns
     -------
     ndarray
+        Array of wavenumbers corresponding to amplitudes
+    ndarray
         1D array of amplitudes corresponding to the portion of the given
         variable with a given wavenumber
     """
@@ -139,30 +167,51 @@ def wavenumber_spectrum(var, k_range=None, axis=0):
     return k[:n_steps], E_k
 
 
-def tke_series(u, v):
-    """Longitudinal Turbulent Kinetic Energy Spectrum time series. Gives the
-    mean tke spectrum over time.
+def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
+                percentile=99.9):
+    """Returns the direct distribution for the given variable.
 
     Parameters
     ----------
-    u: ndarray
-        (lat, lon, time)
-        U component of wind
-    v : ndarray
-        (lat, lon, time)
-        V component of wind
+    var: ndarray
+        (lat, lon, temporal)
+    bins : int
+        Number of bins for the direct pdf.
+    range : tuple | None
+        Optional min/max range for the direct pdf.
+    diff_max : float
+        Max value to keep for given variable
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a vorticity distribution from data with a spatial
+        resolution of 4km then the distribution needs to be scaled by 4km to
+        compare to another scaled vorticity distribution with a different
+        resolution.
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
     ndarray
-        1D array of mean tke amplitudes over time
+        var at bin centers
+    ndarray
+        Normalized var value counts
+    float
+        Normalization factor
     """
+    diffs = var / scale
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
+    diffs = diffs[(np.abs(diffs) < diff_max)]
+    norm = np.sqrt(np.mean(diffs**2))
+    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    return centers, counts, norm
 
-    return [np.mean(tke_wavenumber_spectrum(u[..., t], v[..., t]))
-            for t in range(u.shape[-1])]
 
-
-def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
+def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
+                  percentile=99.9):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -175,6 +224,17 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
         Optional min/max range for the gradient pdf.
     diff_max : float
         Max value to keep for gradient
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a velocity gradient distribution from data with a
+        spatial resolution of 4km then the distribution needs to be scaled by
+        4km to compare to another scaled velocity gradient distribution with a
+        different resolution.
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
@@ -187,45 +247,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1):
     """
     diffs = np.diff(var, axis=1).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
-    diffs = diffs[(np.abs(diffs) < diff_max)]
-    norm = np.sqrt(np.mean(diffs**2))
-    counts, centers = continuous_dist(diffs, bins=bins, range=range)
-    return centers, counts, norm
-
-
-def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
-    """Returns the vorticity distribution.
-
-    Parameters
-    ----------
-    u: ndarray
-        Longitudinal velocity component
-        (lat, lon, temporal)
-    v : ndarray
-        Latitudinal velocity component
-        (lat, lon, temporal)
-    bins : int
-        Number of bins for the vorticity pdf.
-    range : tuple | None
-        Optional min/max range for the vorticity pdf.
-    diff_max : float
-        Max value to keep for vorticity
-
-    Returns
-    -------
-    ndarray
-        vorticity values at bin centers
-    ndarray
-        Normalized vorticity value counts
-    float
-        Normalization factor
-    """
-    dudy = np.diff(u, axis=0, append=np.mean(u)).flatten()
-    dvdx = np.diff(v, axis=1, append=np.mean(v)).flatten()
-    diffs = dudy - dvdx
-    diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)
@@ -233,7 +255,7 @@ def vorticity_dist(u, v, bins=40, range=None, diff_max=None, scale=1):
 
 
 def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
-                   scale=1):
+                   scale=1, percentile=99.9):
     """Returns the ramp rate distribution for the given variable.
 
     Parameters
@@ -249,6 +271,17 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     t_steps : int
         Number of time steps to use for differences. e.g. If t_steps=1 this
         uses var[i + 1] - [i] to compute ramp rates.
+    scale : int
+        Factor to scale the distribution by. This is used so that distributions
+        from data with different resolutions can be compared. For instance, if
+        this is calculating a ramp rate distribution from data with a temporal
+        resolution of 15min then the distribution needs to be scaled by 15min
+        to compare to another scaled ramp rate distribution with a different
+        resolution
+    percentile : float
+        Percentile to use to determine the maximum allowable value in the
+        distribution. e.g. percentile=99 eliminates values above the 99th
+        percentile from the histogram.
 
     Returns
     -------
@@ -265,7 +298,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     diffs /= scale
-    diff_max = diff_max or np.percentile(np.abs(diffs), 95)
+    diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range)

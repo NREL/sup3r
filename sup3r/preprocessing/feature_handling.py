@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import re
 import xarray as xr
+import psutil
 
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
@@ -20,7 +21,8 @@ from sup3r.utilities.utilities import (invert_pot_temp, invert_uv,
                                        transform_rotate_wind,
                                        bvf_squared,
                                        get_raster_shape,
-                                       inverse_mo_length
+                                       inverse_mo_length,
+                                       vorticity_calc
                                        )
 
 
@@ -773,6 +775,50 @@ class UWind(DerivedFeature):
         return u
 
 
+class Vorticity(DerivedFeature):
+    """Vorticity feature class with needed inputs method and compute
+    method"""
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing vorticity
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. vorticity_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing vorticity
+        """
+        height = Feature.get_height(feature)
+        features = [f'U_{height}m', f'V_{height}m']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute vorticity
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        vort = vorticity_calc(data[f'U_{height}m'],
+                              data[f'V_{height}m'])
+        return vort
+
+
 class VWind(DerivedFeature):
     """V wind component feature class with needed inputs method and compute
     method"""
@@ -1303,8 +1349,11 @@ class FeatureHandler:
                     logger.error(msg)
                     raise RuntimeError(msg) from e
                 if interval > 0 and i % interval == 0:
-                    logger.debug(f'{i+1} out of {len(futures)} feature '
-                                 'chunks extracted.')
+                    mem = psutil.virtual_memory()
+                    logger.info(f'{i+1} out of {len(futures)} feature '
+                                'chunks extracted. Current memory usage is '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 
@@ -1484,8 +1533,11 @@ class FeatureHandler:
                 data[chunk_idx] = data.get(chunk_idx, {})
                 data[chunk_idx][v['feature']] = future.result()
                 if interval > 0 and i % interval == 0:
-                    logger.debug(f'{i+1} out of {len(futures)} feature '
-                                 'chunks computed')
+                    mem = psutil.virtual_memory()
+                    logger.info(f'{i+1} out of {len(futures)} feature '
+                                'chunks computed. Current memory usage is '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 

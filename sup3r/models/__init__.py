@@ -9,5 +9,6 @@ from .multi_step import (MultiStepGan, SpatialThenTemporalGan,
 from .surface import SurfaceSpatialMetModel
 from .linear import LinearInterp
 
-SPATIAL_FIRST_MODELS = (SpatialThenTemporalGan, MultiStepSurfaceMetGan,
+SPATIAL_FIRST_MODELS = (SpatialThenTemporalGan,
+                        MultiStepSurfaceMetGan,
                         SolarMultiStepGan)

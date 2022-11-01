@@ -47,8 +47,9 @@ class MultiStepGan(AbstractSup3rGan):
             True if the model requires high-resolution exogenous data,
             typically because of the use of Sup3rAdder or Sup3rConcat layers.
         """
-        return any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                   for layer in model.generator.layers)
+        return (hasattr(model, 'generator')
+                and any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                for layer in model.generator.layers))
 
     @classmethod
     def load(cls, model_dirs, verbose=True):
@@ -243,9 +244,9 @@ class MultiStepGan(AbstractSup3rGan):
         return tuple(model.model_params for model in self.models)
 
 
-class SpatialThenTemporalGan(AbstractSup3rGan):
-    """A two-step GAN where the first step is a spatial-only enhancement on a
-    4D tensor and the second step is a (spatio)temporal enhancement on a 5D
+class SpatialThenTemporalBase(MultiStepGan):
+    """A two-step model where the first step is a spatial-only enhancement on a
+    4D tensor and the second step is (spatio)temporal enhancement on a 5D
     tensor.
 
     NOTE: The low res input to the spatial enhancement should be a 4D tensor of
@@ -253,7 +254,7 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
     (usually the observation index) is a series of sequential timesteps that
     will be transposed to a 5D tensor of shape
     (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
-    2nd-step (spatio)temporal GAN.
+    2nd-step (spatio)temporal model.
     """
 
     def __init__(self, spatial_models, temporal_models):
@@ -262,14 +263,11 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         ----------
         spatial_models : MultiStepGan
             A loaded MultiStepGan object representing the one or more spatial
-            super resolution steps in this composite SpatialThenTemporalGan
-            model
+            super resolution steps in this composite SpatialThenTemporal model
         temporal_models : MultiStepGan
-            A loaded MultiStepGan object representing the one or more
-            (spatio)temporal super resolution steps in this composite
-            SpatialThenTemporalGan model
+            A loaded MultiStepGan object representing the single temporal
+            enhancement model in this composite SpatialThenTemporal model
         """
-
         self._spatial_models = spatial_models
         self._temporal_models = temporal_models
 
@@ -278,7 +276,16 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         """Get an ordered tuple of the Sup3rGan models that are part of this
         MultiStepGan
         """
-        return (*self.spatial_models.models, *self.temporal_models.models)
+        if isinstance(self.spatial_models, MultiStepGan):
+            spatial_models = self.spatial_models.models
+        else:
+            spatial_models = [self.spatial_models]
+        if isinstance(self.temporal_models, MultiStepGan):
+            temporal_models = self.temporal_models.models
+        else:
+            temporal_models = [self.temporal_models]
+
+        return (*spatial_models, *temporal_models)
 
     @property
     def spatial_models(self):
@@ -308,18 +315,27 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         -------
         tuple
         """
-        return self.spatial_models.meta + self.temporal_models.meta
+        if isinstance(self.spatial_models, MultiStepGan):
+            spatial_models = self.spatial_models.meta
+        else:
+            spatial_models = list(self.spatial_models.meta)
+        if isinstance(self.temporal_models, MultiStepGan):
+            temporal_models = self.temporal_models.meta
+        else:
+            temporal_models = list(self.temporal_models.meta)
+        return (*spatial_models, *temporal_models)
 
     @property
     def training_features(self):
         """Get the list of input feature names that the first spatial
-        generative model in this SpatialThenTemporalGan requires as input."""
+        generative model in this SpatialThenTemporalBase model requires as
+        input."""
         return self.spatial_models.training_features
 
     @property
     def output_features(self):
         """Get the list of output feature names that the last spatiotemporal
-        generative model in this SpatialThenTemporalGan outputs."""
+        interpolation model in this SpatialThenTemporalBase model outputs."""
         return self.temporal_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
@@ -432,7 +448,21 @@ class SpatialThenTemporalGan(AbstractSup3rGan):
         return cls(s_models, t_models)
 
 
-class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
+class SpatialThenTemporalGan(SpatialThenTemporalBase):
+    """A two-step GAN where the first step is a spatial-only enhancement on a
+    4D tensor and the second step is a (spatio)temporal enhancement on a 5D
+    tensor.
+
+    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
+    the shape (temporal, spatial_1, spatial_2, features) where temporal
+    (usually the observation index) is a series of sequential timesteps that
+    will be transposed to a 5D tensor of shape
+    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
+    2nd-step (spatio)temporal GAN.
+    """
+
+
+class MultiStepSurfaceMetGan(SpatialThenTemporalBase):
     """A two-step GAN where the first step is a spatial-only enhancement on a
     4D tensor of near-surface temperature and relative humidity data, and the
     second step is a (spatio)temporal enhancement on a 5D tensor.
@@ -449,23 +479,6 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
     (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
     2nd-step (spatio)temporal GAN.
     """
-
-    @property
-    def models(self):
-        """Get an ordered tuple of the Sup3rGan models that are part of this
-        MultiStepGan
-        """
-        return (self.spatial_models, *self.temporal_models.models)
-
-    @property
-    def meta(self):
-        """Get a tuple of meta data dictionaries for all models
-
-        Returns
-        -------
-        tuple
-        """
-        return (self.spatial_models.meta,) + self.temporal_models.meta
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
@@ -598,7 +611,7 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         return cls(s_models, t_models)
 
 
-class SolarMultiStepGan(AbstractSup3rGan):
+class SolarMultiStepGan(SpatialThenTemporalBase):
     """Special multi step model for solar clearsky ratio super resolution.
 
     This model takes in two parallel models for wind-only and solar-only
@@ -684,16 +697,6 @@ class SolarMultiStepGan(AbstractSup3rGan):
                'found in the solar + wind model output feature list {}'
                .format(missing, spatial_out_features))
         assert not any(missing), msg
-
-    @property
-    def models(self):
-        """Get an ordered tuple of the Sup3rGan models that are part of this
-        SolarMultiStepGan. This only includes the solar models, where the wind
-        spatial models are considered to be parallel but not part of this
-        ordered + sequential set of models.
-        """
-        return (*self.spatial_solar_models.models,
-                *self.temporal_solar_models.models)
 
     @property
     def spatial_models(self):

@@ -625,7 +625,7 @@ class Collector:
     def collect(cls, file_paths, out_file, features, max_workers=None,
                 log_level=None, log_file=None, write_status=False,
                 job_name=None, join_times=False, target_final_meta_file=None,
-                n_writes=None):
+                n_writes=None, overwrite=True):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
@@ -670,6 +670,8 @@ class Collector:
         n_writes : int | None
             Number of writes to split full file list into. Must be less than
             or equal to the number of temporal chunks.
+        overwrite : bool
+            Whether to overwrite existing output file
         """
         t0 = time.time()
 
@@ -685,6 +687,9 @@ class Collector:
         collector = cls(file_paths)
         logger.info('Collecting {} files to {}'.format(len(collector.flist),
                                                        out_file))
+        if overwrite and os.path.exists(out_file):
+            os.remove(out_file)
+
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
