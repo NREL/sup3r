@@ -1216,10 +1216,10 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                 'synthetic_grid': self.synth_stats.source_handler.lat_lon,
                 'high_res_grid': self.hr_stats.source_handler.lat_lon}
 
-            dirname = os.path.dirname(self.qa_fp)
-            file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}'
-            file_name = os.path.join(dirname,
-                                     f'{feature}_compare_{file_id}.pkl')
+            file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}x'
+            file_id += f'{len(self.lr_stats.time_index)}'
+            file_name = self.qa_fp.replace('.pkl',
+                                           f'_{feature}_compare_{file_id}.pkl')
             with open(file_name, 'wb') as fp:
                 pickle.dump(fig_data, fp, protocol=4)
             logger.info(f'Saved figure data for {feature} to {file_name}.')
