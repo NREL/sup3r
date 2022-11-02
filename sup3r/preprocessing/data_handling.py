@@ -556,6 +556,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             files do not all have time indices or if there are few input files
             this should be set to one.
         """
+
+        msg = 'No files provided to DataHandler. Aborting.'
+        assert file_paths is not None and file_paths is not [], msg
+
         self.file_paths = file_paths
         self.features = features
         self.val_time_index = None
@@ -598,22 +602,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._raw_data = {}
         self._time_chunks = None
 
-        self.cap_worker_args(max_workers)
-
-        msg = (f'Initializing DataHandler {self.input_file_info}. '
-               f'Getting temporal range {str(self.time_index[0])} to '
-               f'{str(self.time_index[-1])} (inclusive) '
-               f'based on temporal_slice {self.temporal_slice}')
-        logger.info(msg)
-
         self.preflight()
-
-        logger.info(f'Using max_workers={max_workers}, '
-                    f'norm_workers={self.norm_workers}, '
-                    f'extract_workers={self.extract_workers}, '
-                    f'compute_workers={self.compute_workers}, '
-                    f'load_workers={self.load_workers}, '
-                    f'ti_workers={self.ti_workers}')
 
         try_load = (cache_pattern is not None
                     and not self.overwrite_cache
@@ -956,6 +945,9 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""
+
+        self.cap_worker_args(self.max_workers)
+
         if len(self.sample_shape) == 2:
             logger.info('Found 2D sample shape of {}. Adding temporal dim of 1'
                         .format(self.sample_shape))
@@ -988,6 +980,19 @@ class DataHandler(FeatureHandler, InputMixIn):
         if t_slice_is_subset and not good_subset:
             logger.error(msg)
             raise RuntimeError(msg)
+
+        msg = (f'Initializing DataHandler {self.input_file_info}. '
+               f'Getting temporal range {str(self.time_index[0])} to '
+               f'{str(self.time_index[-1])} (inclusive) '
+               f'based on temporal_slice {self.temporal_slice}')
+        logger.info(msg)
+
+        logger.info(f'Using max_workers={self.max_workers}, '
+                    f'norm_workers={self.norm_workers}, '
+                    f'extract_workers={self.extract_workers}, '
+                    f'compute_workers={self.compute_workers}, '
+                    f'load_workers={self.load_workers}, '
+                    f'ti_workers={self.ti_workers}')
 
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):

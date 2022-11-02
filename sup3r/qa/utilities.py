@@ -305,7 +305,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     return centers, counts, norm
 
 
-def continuous_dist(diffs, bins=None, range=None):
+def continuous_dist(diffs, bins=None, range=None, interpolate=False):
     """Get interpolated distribution from histogram
 
     Parameters
@@ -318,6 +318,10 @@ def continuous_dist(diffs, bins=None, range=None):
         between values
     range : tuple | None
         Optional min/max range for the distribution.
+    interpolate : bool
+        Whether to interpolate over histogram counts. e.g. if a bin has
+        count = 0 and surrounding bins have count > 0 the bin with count = 0
+        will have an interpolated value.
 
     Returns
     -------
@@ -334,11 +338,12 @@ def continuous_dist(diffs, bins=None, range=None):
         logger.debug(f'Using n_bins={bins} to compute distribution')
     counts, edges = np.histogram(diffs, bins=bins, range=range)
     centers = edges[:-1] + (np.diff(edges) / 2)
-    indices = np.where(counts > 0)
-    y = counts[indices]
-    x = centers[indices]
-    if len(x) > 1:
-        interp = interp1d(x, y, bounds_error=False, fill_value=None)
-        counts = interp(centers)
+    if interpolate:
+        indices = np.where(counts > 0)
+        y = counts[indices]
+        x = centers[indices]
+        if len(x) > 1:
+            interp = interp1d(x, y, bounds_error=False, fill_value=0)
+            counts = interp(centers)
     counts = counts.astype(float) / counts.sum()
     return counts, centers

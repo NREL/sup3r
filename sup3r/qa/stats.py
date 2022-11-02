@@ -703,8 +703,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         self._target = target
         self._source_handler = None
         self._source_handler_class = source_handler
-        self._lat_lon = None
-        self._time_index = None
         self._features = features
         self._input_features = None
         self._k_range = None
@@ -824,16 +822,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         if self.source_type is None:
             return None
 
-        if self._lat_lon is None:
-            if self.source_type == 'h5':
-                meta = self.source_handler.meta
-                lats = meta.latitude.values
-                lons = meta.longitude.values
-                self._lat_lon = np.dstack((lats.reshape(self.shape),
-                                           lons.reshape(self.shape)))
-            else:
-                self._lat_lon = self.source_handler.lat_lon
-        return self._lat_lon
+        return self.source_handler.lat_lon
 
     @property
     def meta(self):
@@ -847,30 +836,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                              'longitude': self.lat_lon[..., 1].flatten()})
         return meta
 
-    # pylint: disable=E1102
-    @property
-    def raw_time_index(self):
-        """Get the time index associated with the source data
-
-        Returns
-        -------
-        pd.DatetimeIndex
-        """
-        if self.source_handler is not None:
-            self._time_index = self.source_handler.time_index.tz_localize(None)
-
-        if self._time_index is None:
-            kwargs = {'features': [], 'val_split': 0.0, 'ti_workers':
-                      self.ti_workers}
-            if self.source_type == 'nc':
-                source_handler = self.source_handler_class(
-                    self.source_file_paths, **kwargs)
-            else:
-                source_handler = self.source_handler_class(
-                    self.source_file_paths)
-            self._time_index = source_handler.time_index.tz_localize(None)
-        return self._time_index
-
     @property
     def time_index(self):
         """Get the time index associated with the source data
@@ -879,9 +844,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         -------
         pd.DatetimeIndex
         """
-        if self.raw_time_index is None:
-            return None
-        return self.raw_time_index[self.temporal_slice]
+        return self.source_handler.time_index
 
     @property
     def input_features(self):
@@ -1208,27 +1171,24 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         """Save data fields for data viz comparison"""
         for feature in self.features:
             fig_data = {}
-            if self.synth_stats is not None:
+            if self.synth_stats.source_data is not None:
                 fig_data.update(
                     {'time_index': self.synth_stats.time_index,
                      'synth': self.synth_stats.get_feature_data(feature),
                      'synth_grid': self.synth_stats.source_handler.lat_lon})
-            if self.lr_stats is not None:
+            if self.lr_stats.source_data is not None:
                 fig_data.update(
                     {'low_res': self.lr_stats.get_feature_data(feature),
                      'low_res_grid': self.lr_stats.source_handler.lat_lon})
-            if self.hr_stats is not None:
+            if self.hr_stats.source_data is not None:
                 fig_data.update(
                     {'high_res': self.hr_stats.get_feature_data(feature),
                      'high_res_grid': self.hr_stats.source_handler.lat_lon})
-            if self.coarse_stats is not None:
+            if self.coarse_stats.source_data is not None:
                 fig_data.update(
                     {'coarse': self.coarse_stats.get_feature_data(feature)})
 
-            file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}x'
-            file_id += f'{len(self.lr_stats.time_index)}'
-            file_name = self.qa_fp.replace('.pkl',
-                                           f'_{feature}_compare_{file_id}.pkl')
+            file_name = self.qa_fp.replace('.pkl', f'_{feature}_compare.pkl')
             with open(file_name, 'wb') as fp:
                 pickle.dump(fig_data, fp, protocol=4)
             logger.info(f'Saved figure data for {feature} to {file_name}.')
