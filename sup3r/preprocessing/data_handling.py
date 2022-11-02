@@ -558,7 +558,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         """
 
         msg = 'No files provided to DataHandler. Aborting.'
-        assert file_paths is not None and file_paths is not [], msg
+        assert file_paths is not None and file_paths != [], msg
 
         self.file_paths = file_paths
         self.features = features
