@@ -1207,14 +1207,23 @@ class Sup3rStatsMulti(Sup3rStatsBase):
     def export_fig_data(self):
         """Save data fields for data viz comparison"""
         for feature in self.features:
-            fig_data = {
-                'time_index': self.hr_stats.time_index,
-                'low_res': self.lr_stats.get_feature_data(feature),
-                'synthetic': self.synth_stats.get_feature_data(feature),
-                'high_res': self.hr_stats.get_feature_data(feature),
-                'low_res_grid': self.lr_stats.source_handler.lat_lon,
-                'synthetic_grid': self.synth_stats.source_handler.lat_lon,
-                'high_res_grid': self.hr_stats.source_handler.lat_lon}
+            fig_data = {}
+            if self.synth_stats is not None:
+                fig_data.update(
+                    {'time_index': self.synth_stats.time_index,
+                     'synth': self.synth_stats.get_feature_data(feature),
+                     'synth_grid': self.synth_stats.source_handler.lat_lon})
+            if self.lr_stats is not None:
+                fig_data.update(
+                    {'low_res': self.lr_stats.get_feature_data(feature),
+                     'low_res_grid': self.lr_stats.source_handler.lat_lon})
+            if self.hr_stats is not None:
+                fig_data.update(
+                    {'high_res': self.hr_stats.get_feature_data(feature),
+                     'high_res_grid': self.hr_stats.source_handler.lat_lon})
+            if self.coarse_stats is not None:
+                fig_data.update(
+                    {'coarse': self.coarse_stats.get_feature_data(feature)})
 
             file_id = f'{self.lr_shape[0]}x{self.lr_shape[1]}x'
             file_id += f'{len(self.lr_stats.time_index)}'
@@ -1259,7 +1268,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         if lr_stats['interp']:
             stats['interp'] = lr_stats['interp']
         if synth_stats['source']:
-            stats['synthetic'] = synth_stats['source']
+            stats['synth'] = synth_stats['source']
         if coarse_stats['source']:
             stats['coarse'] = coarse_stats['source']
         if hr_stats['source']:
