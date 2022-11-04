@@ -1110,7 +1110,6 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             target = self.lr_stats.source_handler.target
         else:
             self.lr_shape = shape
-            target = target
 
         # get high res stats
         shape = (self.lr_shape[0] * s_enhance, self.lr_shape[1] * s_enhance)
