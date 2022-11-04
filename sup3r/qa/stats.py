@@ -162,7 +162,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                  cache_pattern=None, overwrite_cache=False,
                  overwrite_stats=True, get_interp=False,
                  include_stats=None, max_values=None, smoothing=None,
-                 spatial_res=None, temporal_res=None, n_bins=40, qa_fp=None):
+                 spatial_res=None, temporal_res=None, n_bins=40, qa_fp=None,
+                 interp_dists=True):
         """
         Parameters
         ----------
@@ -216,6 +217,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Number of bins to use for constructing probability distributions
         qa_fp : str
             File path for saving statistics. Only .pkl supported.
+        interp_dists : bool
+            Whether to interpolate distributions over bins with count=0.
         """
 
         msg = 'Preparing to compute statistics.'
@@ -248,6 +251,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         self.temporal_res = temporal_res or 1
         self.source_data = input_data
         self.qa_fp = qa_fp
+        self.interp_dists = interp_dists
 
     @property
     def k_range(self):
@@ -407,13 +411,14 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         if 'direct' in self.include_stats:
             logger.info('Computing direct pdf.')
             stats_dict['direct'] = direct_dist(
-                var, diff_max=self.direct_max, bins=self.n_bins)
+                var, diff_max=self.direct_max, bins=self.n_bins,
+                interpolate=self.interp_dists)
 
         if 'mean_direct' in self.include_stats:
             logger.info('Computing mean direct pdf.')
             stats_dict['mean_direct'] = direct_dist(
                 np.mean(var, axis=-1), diff_max=self.direct_max,
-                bins=self.n_bins)
+                bins=self.n_bins, interpolate=self.interp_dists)
 
         scale = (self.spatial_res if not interp
                  else self.spatial_res / self.s_enhance)
@@ -421,13 +426,13 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             logger.info('Computing gradient pdf.')
             stats_dict['gradient'] = gradient_dist(
                 var, diff_max=self.gradient_max, scale=scale,
-                bins=self.n_bins)
+                bins=self.n_bins, interpolate=self.interp_dists)
 
         if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean gradient pdf.')
             stats_dict['mean_gradient'] = gradient_dist(
                 np.mean(var, axis=-1), diff_max=self.gradient_max,
-                scale=scale, bins=self.n_bins)
+                scale=scale, bins=self.n_bins, interpolate=self.interp_dists)
 
         scale = (self.temporal_res if not interp
                  else self.temporal_res / self.t_enhance)
@@ -545,13 +550,15 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         if 'ramp_rate' in self.include_stats:
             logger.info('Computing ramp rate pdf.')
             out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
-                                 t_steps=1, scale=scale, bins=self.n_bins)
+                                 t_steps=1, scale=scale, bins=self.n_bins,
+                                 interpolate=self.interp_dists)
             stats_dict['ramp_rate'] = out
         if 'mean_ramp_rate' in self.include_stats:
             logger.info('Computing mean ramp rate pdf.')
             out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
                                  diff_max=self.ramp_rate_max, t_steps=1,
-                                 scale=scale, bins=self.n_bins)
+                                 scale=scale, bins=self.n_bins,
+                                 interpolate=self.interp_dists)
             stats_dict['mean_ramp_rate'] = out
         return stats_dict
 
@@ -1098,12 +1105,12 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                       n_bins=n_bins, max_delta=max_delta)
         self.lr_stats = Sup3rStatsSingle(**kwargs)
 
-        if self.lr_stats is not None:
+        if self.lr_stats.source_data is not None:
             self.lr_shape = self.lr_stats.source_handler.grid_shape
             target = self.lr_stats.source_handler.target
         else:
-            self.lr_shape = None
-            target = None
+            self.lr_shape = shape
+            target = target
 
         # get high res stats
         shape = (self.lr_shape[0] * s_enhance, self.lr_shape[1] * s_enhance)
@@ -1212,26 +1219,25 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         """
 
         stats = {}
-        logger.info('Computing statistics on low-resolution dataset.')
-        lr_stats = self.lr_stats.run()
-        logger.info('Computing statistics on synthetic high-resolution '
-                    'dataset.')
-        synth_stats = self.synth_stats.run()
-        logger.info('Computing statistics on coarsened low-resolution '
-                    'dataset.')
-        coarse_stats = self.coarse_stats.run()
-        logger.info('Computing statistics on high-resolution dataset.')
-        hr_stats = self.hr_stats.run()
-
-        if lr_stats['source']:
+        if self.lr_stats.source_data is not None:
+            logger.info('Computing statistics on low-resolution dataset.')
+            lr_stats = self.lr_stats.run()
             stats['low_res'] = lr_stats['source']
-        if lr_stats['interp']:
-            stats['interp'] = lr_stats['interp']
-        if synth_stats['source']:
+            if lr_stats['interp']:
+                stats['interp'] = lr_stats['interp']
+        if self.synth_stats.source_data is not None:
+            logger.info('Computing statistics on synthetic high-resolution '
+                        'dataset.')
+            synth_stats = self.synth_stats.run()
             stats['synth'] = synth_stats['source']
-        if coarse_stats['source']:
+        if self.coarse_stats.source_data is not None:
+            logger.info('Computing statistics on coarsened low-resolution '
+                        'dataset.')
+            coarse_stats = self.coarse_stats.run()
             stats['coarse'] = coarse_stats['source']
-        if hr_stats['source']:
+        if self.hr_stats.source_data is not None:
+            logger.info('Computing statistics on high-resolution dataset.')
+            hr_stats = self.hr_stats.run()
             stats['high_res'] = hr_stats['source']
 
         if self.qa_fp is not None:

@@ -168,7 +168,7 @@ def wavenumber_spectrum(var, k_range=None, axis=0):
 
 
 def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
-                percentile=99.9):
+                percentile=99.9, interpolate=False):
     """Returns the direct distribution for the given variable.
 
     Parameters
@@ -192,6 +192,10 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
         Percentile to use to determine the maximum allowable value in the
         distribution. e.g. percentile=99 eliminates values above the 99th
         percentile from the histogram.
+    interpolate : bool
+        Whether to interpolate over histogram counts. e.g. if a bin has
+        count = 0 and surrounding bins have count > 0 the bin with count = 0
+        will have an interpolated value.
 
     Returns
     -------
@@ -206,12 +210,13 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    counts, centers = continuous_dist(diffs, bins=bins, range=range,
+                                      interpolate=interpolate)
     return centers, counts, norm
 
 
 def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
-                  percentile=99.9):
+                  percentile=99.9, interpolate=False):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -235,6 +240,10 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
         Percentile to use to determine the maximum allowable value in the
         distribution. e.g. percentile=99 eliminates values above the 99th
         percentile from the histogram.
+    interpolate : bool
+        Whether to interpolate over histogram counts. e.g. if a bin has
+        count = 0 and surrounding bins have count > 0 the bin with count = 0
+        will have an interpolated value.
 
     Returns
     -------
@@ -250,12 +259,13 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    counts, centers = continuous_dist(diffs, bins=bins, range=range,
+                                      interpolate=interpolate)
     return centers, counts, norm
 
 
 def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
-                   scale=1, percentile=99.9):
+                   scale=1, percentile=99.9, interpolate=False):
     """Returns the ramp rate distribution for the given variable.
 
     Parameters
@@ -282,6 +292,10 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
         Percentile to use to determine the maximum allowable value in the
         distribution. e.g. percentile=99 eliminates values above the 99th
         percentile from the histogram.
+    interpolate : bool
+        Whether to interpolate over histogram counts. e.g. if a bin has
+        count = 0 and surrounding bins have count > 0 the bin with count = 0
+        will have an interpolated value.
 
     Returns
     -------
@@ -301,7 +315,8 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
     norm = np.sqrt(np.mean(diffs**2))
-    counts, centers = continuous_dist(diffs, bins=bins, range=range)
+    counts, centers = continuous_dist(diffs, bins=bins, range=range,
+                                      interpolate=interpolate)
     return centers, counts, norm
 
 
