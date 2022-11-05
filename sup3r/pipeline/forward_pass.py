@@ -859,6 +859,7 @@ class ForwardPassStrategy(InputMixIn):
     def lr_lat_lon(self):
         """Get low resolution lat lons for input entire grid"""
         if self._lr_lat_lon is None:
+            logger.info('Getting low-resolution grid for full input domain.')
             self._lr_lat_lon = self.init_handler.lat_lon
         return self._lr_lat_lon
 
@@ -878,6 +879,7 @@ class ForwardPassStrategy(InputMixIn):
     def hr_lat_lon(self):
         """Get high resolution lat lons"""
         if self._hr_lat_lon is None:
+            logger.info('Getting high-resolution grid for full output domain.')
             lr_lat_lon = self.lr_lat_lon.copy()
             self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
                                                          self.gids.shape)
