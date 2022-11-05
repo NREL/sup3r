@@ -47,7 +47,8 @@ class ForwardPassSlicer:
         coarse_shape : tuple
             Shape of full domain for low res data
         time_steps : int
-            Number of time steps for full temporal domain of low res data
+            Number of time steps for full temporal domain of low res data. This
+            is used to construct a time_index from np.arange(time_steps)
         temporal_slice : slice
             Slice to use to extract range from time_index
         chunk_shape : tuple
@@ -842,6 +843,7 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
+    # pylint: disable=E1102
     @property
     def init_handler(self):
         """Get initial input handler used for extracting handler features and
