@@ -39,15 +39,15 @@ logger = logging.getLogger(__name__)
 class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
-    def __init__(self, coarse_shape, time_index, temporal_slice, chunk_shape,
+    def __init__(self, coarse_shape, time_steps, temporal_slice, chunk_shape,
                  s_enhancements, t_enhancements, spatial_pad, temporal_pad):
         """
         Parameters
         ----------
         coarse_shape : tuple
             Shape of full domain for low res data
-        time_index : pd.Datetimeindex
-            Time index for full temporal domain of low res data
+        time_steps : int
+            Number of time steps for full temporal domain of low res data
         temporal_slice : slice
             Slice to use to extract range from time_index
         chunk_shape : tuple
@@ -91,7 +91,7 @@ class ForwardPassSlicer:
         self.t_enhancements = t_enhancements
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
-        self.raw_time_index = time_index
+        self.raw_time_index = np.arange(time_steps)
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
@@ -555,7 +555,8 @@ class ForwardPassStrategy(InputMixIn):
                  pass_workers=1,
                  bias_correct_method=None,
                  bias_correct_kwargs=None,
-                 max_nodes=None):
+                 max_nodes=None,
+                 single_ts_files=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -700,6 +701,10 @@ class ForwardPassStrategy(InputMixIn):
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
+        single_ts_files : bool | None
+            Whether input files are single time steps or not. If they are this
+            enables some reduced computation. If None then this will be
+            determined from file_paths directly.
         """
         self._i = 0
         self.file_paths = file_paths
@@ -714,7 +719,7 @@ class ForwardPassStrategy(InputMixIn):
         self.pass_workers = pass_workers
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
-        self._single_time_step_files = None
+        self._single_time_step_files = single_ts_files
         self._input_handler_class = None
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
@@ -726,7 +731,9 @@ class ForwardPassStrategy(InputMixIn):
         self._time_index_file = None
         self._node_chunks = None
         self._hr_lat_lon = None
-        self.incremental = incremental
+        self._lr_lat_lon = None
+        self._init_handler = None
+        self._handle_features = None
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = bias_correct_kwargs or {}
 
@@ -771,7 +778,7 @@ class ForwardPassStrategy(InputMixIn):
         self.t_enhance = np.product(self.t_enhancements)
 
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
-                                            self.raw_time_index,
+                                            self.raw_tsteps,
                                             self.temporal_slice,
                                             self.fwp_chunk_shape,
                                             self.s_enhancements,
@@ -779,8 +786,8 @@ class ForwardPassStrategy(InputMixIn):
                                             self.spatial_pad,
                                             self.temporal_pad)
 
-        logger.info('Initializing ForwardPassStrategy for '
-                    f'{self.input_file_info}. Using n_nodes={self.nodes} with '
+        logger.info('Initializing ForwardPassStrategy. '
+                    f'Using n_nodes={self.nodes} with '
                     f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
@@ -820,9 +827,8 @@ class ForwardPassStrategy(InputMixIn):
 
         msg = ('Using a padded chunk size '
                f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
-               'larger than the full temporal domain '
-               f'({len(self.raw_time_index)}). Should just run without '
-               'temporal chunking. ')
+               f'larger than the full temporal domain ({self.raw_tsteps}). '
+               'Should just run without temporal chunking. ')
         if (self.fwp_chunk_shape[2] + 2 * self.temporal_pad
                 >= len(self.raw_time_index)):
             logger.warning(msg)
@@ -836,19 +842,35 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
-        # pylint: disable=E1102
-        logger.info('Getting lat/lon for entire forward pass domain.')
-        out = self.input_handler_class(self.file_paths[0], [],
-                                       target=self.target,
-                                       shape=self.grid_shape, ti_workers=1)
-        self.lr_lat_lon = out.lat_lon
-        self.invert_lat = out.invert_lat
-        self.single_time_step_files = self.is_single_ts_files()
-        if self.single_time_step_files:
-            self.handle_features = out.handle_features
-        else:
-            hf = self.input_handler_class.get_handle_features(self.file_paths)
-            self.handle_features = hf
+    @property
+    def init_handler(self):
+        """Get initial input handler used for extracting handler features and
+        low res grid"""
+        if self._init_handler is None:
+            out = self.input_handler_class(self.file_paths[0], [],
+                                           target=self.target,
+                                           shape=self.grid_shape, ti_workers=1)
+            self._init_handler = out
+        return self._init_handler
+
+    @property
+    def lr_lat_lon(self):
+        """Get low resolution lat lons for input entire grid"""
+        if self._lr_lat_lon is None:
+            self._lr_lat_lon = self.init_handler.lat_lon
+        return self._lr_lat_lon
+
+    @property
+    def handle_features(self):
+        """Get available handle features"""
+        if self._handle_features is None:
+            if self.is_single_ts_files():
+                self._handle_features = self.init_handler.handle_features
+            else:
+                hf = self.input_handler_class.get_handle_features(
+                    self.file_paths)
+                self._handle_features = hf
+        return self._handle_features
 
     @property
     def hr_lat_lon(self):
@@ -858,6 +880,19 @@ class ForwardPassStrategy(InputMixIn):
             self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
                                                          self.gids.shape)
         return self._hr_lat_lon
+
+    @property
+    def raw_tsteps(self):
+        """Get number of time steps all input files"""
+        if self.single_time_step_files:
+            return len(self.file_paths)
+        else:
+            return (self.raw_time_index)
+
+    @property
+    def single_time_step_files(self):
+        """Get whether files are single time steps or not"""
+        return self.is_single_ts_files()
 
     def get_full_domain(self, file_paths):
         """Get target and grid_shape for largest possible domain"""
@@ -1103,7 +1138,6 @@ class ForwardPass:
         self.pass_workers = strategy.pass_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
-        self.single_time_step_files = strategy.single_time_step_files
 
         self.exogenous_handler = None
         self.exogenous_data = None
@@ -1143,7 +1177,7 @@ class ForwardPass:
             compute_workers=strategy.compute_workers,
             load_workers=strategy.load_workers,
             ti_workers=strategy.ti_workers,
-            handle_features=self.strategy.handle_features,
+            handle_features=strategy.handle_features,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
@@ -1156,6 +1190,11 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+
+    @property
+    def single_time_step_files(self):
+        """Get whether input files are single time step or not"""
+        return self.strategy.single_time_step_files
 
     @property
     def s_enhance(self):
