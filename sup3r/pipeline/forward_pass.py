@@ -830,7 +830,7 @@ class ForwardPassStrategy(InputMixIn):
                f'larger than the full temporal domain ({self.raw_tsteps}). '
                'Should just run without temporal chunking. ')
         if (self.fwp_chunk_shape[2] + 2 * self.temporal_pad
-                >= len(self.raw_time_index)):
+                >= self.raw_tsteps):
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -887,7 +887,7 @@ class ForwardPassStrategy(InputMixIn):
         if self.single_time_step_files:
             return len(self.file_paths)
         else:
-            return (self.raw_time_index)
+            return len(self.raw_time_index)
 
     @property
     def single_time_step_files(self):
