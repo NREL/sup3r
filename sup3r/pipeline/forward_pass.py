@@ -778,14 +778,24 @@ class ForwardPassStrategy(InputMixIn):
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
 
-        self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
-                                            self.raw_tsteps,
+        self.fwp_slicer = ForwardPassSlicer(self.grid_shape, self.raw_tsteps,
                                             self.temporal_slice,
                                             self.fwp_chunk_shape,
                                             self.s_enhancements,
                                             self.t_enhancements,
                                             self.spatial_pad,
                                             self.temporal_pad)
+
+        self.preflight()
+
+    @property
+    def worker_attrs(self):
+        """Get all worker args defined in init"""
+        return ['ti_workers', 'compute_workers', 'pass_workers',
+                'load_workers', 'output_workers', 'extract_workers']
+
+    def preflight(self):
+        """Prelight path name formatting and sanity checks"""
 
         logger.info('Initializing ForwardPassStrategy. '
                     f'Using n_nodes={self.nodes} with '
@@ -800,28 +810,6 @@ class ForwardPassStrategy(InputMixIn):
                     f'load_workers={self.load_workers}, '
                     f'output_workers={self.output_workers}, '
                     f'ti_workers={self.ti_workers}')
-
-        self.preflight()
-
-    @property
-    def worker_attrs(self):
-        """Get all worker args defined in init"""
-        return ['ti_workers', 'compute_workers', 'pass_workers',
-                'load_workers', 'output_workers', 'extract_workers']
-
-    def preflight(self):
-        """Prelight path name formatting and sanity checks"""
-        if self.cache_pattern is not None:
-            if '{temporal_chunk_index}' not in self.cache_pattern:
-                self.cache_pattern = self.cache_pattern.replace(
-                    '.pkl', '_{temporal_chunk_index}.pkl')
-            if '{spatial_chunk_index}' not in self.cache_pattern:
-                self.cache_pattern = self.cache_pattern.replace(
-                    '.pkl', '_{spatial_chunk_index}.pkl')
-        if self.raster_file is not None:
-            if '{spatial_chunk_index}' not in self.raster_file:
-                self.raster_file = self.raster_file.replace(
-                    '.txt', '_{spatial_chunk_index}.txt')
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
@@ -1346,6 +1334,12 @@ class ForwardPass:
         """Get cache pattern for the current chunk"""
         cache_pattern = self.strategy.cache_pattern
         if cache_pattern is not None:
+            if '{temporal_chunk_index}' not in cache_pattern:
+                cache_pattern = cache_pattern.replace(
+                    '.pkl', '_{temporal_chunk_index}.pkl')
+            if '{spatial_chunk_index}' not in cache_pattern:
+                cache_pattern = cache_pattern.replace(
+                    '.pkl', '_{spatial_chunk_index}.pkl')
             cache_pattern = cache_pattern.replace(
                 '{temporal_chunk_index}', str(self.temporal_chunk_index))
             cache_pattern = cache_pattern.replace(
@@ -1357,6 +1351,9 @@ class ForwardPass:
         """Get raster file for the current spatial chunk"""
         raster_file = self.strategy.raster_file
         if raster_file is not None:
+            if '{spatial_chunk_index}' not in raster_file:
+                raster_file = raster_file.replace(
+                    '.txt', '_{spatial_chunk_index}.txt')
             raster_file = raster_file.replace(
                 '{spatial_chunk_index}', str(self.spatial_chunk_index))
         return raster_file
