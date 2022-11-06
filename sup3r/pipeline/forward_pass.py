@@ -48,7 +48,7 @@ class ForwardPassSlicer:
             Shape of full domain for low res data
         time_steps : int
             Number of time steps for full temporal domain of low res data. This
-            is used to construct a time_index from np.arange(time_steps)
+            is used to construct a dummy_time_index from np.arange(time_steps)
         temporal_slice : slice
             Slice to use to extract range from time_index
         chunk_shape : tuple
@@ -88,11 +88,12 @@ class ForwardPassSlicer:
             the first non-enhanced spatial input resolution.
         """
         self.grid_shape = coarse_shape
+        self.time_steps = time_steps
         self.s_enhancements = s_enhancements
         self.t_enhancements = t_enhancements
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
-        self.raw_time_index = np.arange(time_steps)
+        self.dummy_time_index = np.arange(time_steps)
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
@@ -146,7 +147,7 @@ class ForwardPassSlicer:
         t_lr_pad_slices : list
             List of low-res padded time index slices. e.g. If fwp_chunk_size[2]
             is 5 the size of these slices will be 15, with exceptions at the
-            start and end of the raw_time_index.
+            start and end of the full time index.
         """
         return self.t_lr_slices, self.t_lr_pad_slices
 
@@ -208,7 +209,7 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices, len(self.raw_time_index), 1,
+                self.t_lr_slices, self.time_steps, 1,
                 self.temporal_pad, self.temporal_slice.step)
         return self._t_lr_pad_slices
 
@@ -388,10 +389,10 @@ class ForwardPassSlicer:
     @property
     def t_lr_slices(self):
         """Low resolution temporal slices"""
-        n_tsteps = len(self.raw_time_index[self.temporal_slice])
+        n_tsteps = len(self.dummy_time_index[self.temporal_slice])
         n_chunks = n_tsteps / self.chunk_shape[2]
         n_chunks = int(np.ceil(n_chunks))
-        ti_slices = np.arange(len(self.raw_time_index))[self.temporal_slice]
+        ti_slices = self.dummy_time_index[self.temporal_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
         ti_slices = [slice(c[0], c[-1] + 1, self.temporal_slice.step)
                      for c in ti_slices]
@@ -1172,6 +1173,8 @@ class ForwardPass:
             handle_features=strategy.handle_features,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
+
+        logger.info(f'Getting input data for chunk_index={chunk_index}.')
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
         self.input_data = self.data_handler.data
@@ -1327,7 +1330,7 @@ class ForwardPass:
         """Get shape for the current padded spatiotemporal chunk"""
         return (self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
                 self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
-                len(self.strategy.raw_time_index[self.ti_pad_slice]))
+                self.ti_pad_slice.stop - self.ti_pad_slice.start)
 
     @property
     def cache_pattern(self):
@@ -1370,12 +1373,11 @@ class ForwardPass:
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         """
         ti_start = self.ti_slice.start or 0
-        ti_stop = self.ti_slice.stop or len(self.strategy.raw_time_index)
+        ti_stop = self.ti_slice.stop or self.strategy.raw_tsteps
         pad_t_start = int(np.maximum(0, (self.strategy.temporal_pad
                                          - ti_start)))
         pad_t_end = int(np.maximum(0, (self.strategy.temporal_pad
-                                       + ti_stop
-                                       - len(self.strategy.raw_time_index))))
+                                       + ti_stop - self.strategy.raw_tsteps)))
 
         s1_start = self.lr_slice[0].start or 0
         s1_stop = self.lr_slice[0].stop or self.strategy.grid_shape[0]
@@ -1770,7 +1772,8 @@ class ForwardPass:
                             f'file_paths={fwp.file_paths}')
                 fwp.run_chunk()
             except Exception as e:
-                msg = ('Sup3r ForwardPass chunk failed!')
+                msg = (f'Sup3r ForwardPass for chunk_index={chunk_index} '
+                       'failed!')
                 logger.exception(msg)
                 raise RuntimeError(msg) from e
 
@@ -1842,9 +1845,9 @@ class ForwardPass:
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
         """
-        msg = (f'Starting forward pass on data shape {self.chunk_shape} with '
-               f'spatial_pad of {self.strategy.spatial_pad} and temporal_pad '
-               f'of {self.strategy.temporal_pad}.')
+        msg = (f'Starting forward pass on chunk_shape={self.chunk_shape} with '
+               f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
+               f'{self.strategy.temporal_pad}.')
         logger.info(msg)
 
         out_data = self._run_single_fwd_pass()
