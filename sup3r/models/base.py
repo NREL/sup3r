@@ -1181,7 +1181,6 @@ class Sup3rGan(AbstractSup3rGan):
 
         return loss_disc
 
-    @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
                   train_gen=True, train_disc=False):
         """Calculate the GAN loss function using generated and true high
