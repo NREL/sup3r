@@ -132,7 +132,7 @@ class Sup3rGan(AbstractSup3rGan):
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
-        config, or .pkl file saved pre=trained model.
+        config, or .pkl file saved pre-trained model.
 
         Parameters
         ----------
