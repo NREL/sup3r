@@ -1041,7 +1041,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.9, 0.99),
+              adaptive_update_bounds=(0.9, 0.99)):
         """Train the model on real low res data and real high res data
 
         Parameters
@@ -1078,7 +1078,6 @@ class Sup3r_cond_mom(AbstractSup3rGan):
             threshold_range[1] then the weight will be decreased by 1 / (1 +
             update_frac).
         """
-
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
             s_enhance=batch_handler.s_enhance,
