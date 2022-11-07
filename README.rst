@@ -1,4 +1,11 @@
 #################
+TO DO
+#################
+
+- [ ] See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
+- [ ] Add `wind_condition_moments.py` to handle topography
+
+#################
 Welcome to SUP3R!
 #################
 
