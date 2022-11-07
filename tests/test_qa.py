@@ -250,7 +250,7 @@ def test_stats(log=True):
             assert os.path.exists(qa_fp)
             with open(qa_fp, 'rb') as fh:
                 qa_out = pickle.load(fh)
-                names = ['low_res', 'interp', 'synthetic']
+                names = ['low_res', 'interp', 'synth']
                 assert all(name in qa_out for name in names)
                 for key in qa_out:
                     assert all(feature in qa_out[key]
