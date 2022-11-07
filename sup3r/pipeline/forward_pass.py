@@ -596,47 +596,10 @@ class ForwardPassStrategy(InputMixIn):
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
             chunks in the temporal dimension will not be padded.
-        temporal_slice : slice | tuple | list
-            Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then temporal_slice = slice(None) will
-            select all 25 time steps. This can also be a tuple / list with
-            length 3 that will be interpreted as slice(*temporal_slice)
         model_class : str
             Name of the sup3r model class for the GAN model to load. The
             default is the basic spatial / spatiotemporal Sup3rGan model. This
             will be loaded from sup3r.models
-        target : tuple
-            (lat, lon) lower left corner of raster. You should provide
-            target+shape or raster_file, or if all three are None the full
-            source domain will be used.
-        shape : tuple
-            (rows, cols) grid size. You should provide target+shape or
-            raster_file, or if all three are None the full source domain will
-            be used.
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. You should
-            provide target+shape or raster_file, or if all three are None the
-            full source domain will be used.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size
-            of the full time index for best performance.
-        cache_pattern : str | None
-            Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl Each feature will be saved to a file with
-            the feature name replaced in cache_pattern. If not None
-            feature arrays will be saved here and not stored in self.data until
-            load_cached_data is called. The cache_pattern can also include
-            {shape}, {target}, {times} which will help ensure unique cache
-            files for complex problems.
-        overwrite_cache : bool
-            Whether to overwrite cache files storing the computed/extracted
-            feature data
-        overwrite_ti_cache : bool
-            Whether to overwrite time index cache files
         out_pattern : str
             Output file pattern. Must be of form <path>/<name>_{file_id}.<ext>.
             e.g. /tmp/sup3r_job_{file_id}.h5
@@ -649,40 +612,25 @@ class ForwardPassStrategy(InputMixIn):
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
         input_handler_kwargs : dict | None
-            Optional kwargs for initializing the input_handler class. For
-            example, this could be {'hr_spatial_coarsen': 2} if you wanted to
-            artificially coarsen the input data for testing.
+            Any kwargs for initializing the input_handler class
+            :class:`sup3r.preprocessing.data_handling.DataHandler`.
         incremental : bool
             Allow the forward pass iteration to skip spatiotemporal chunks that
             already have an output file (True, default) or iterate through all
             chunks and overwrite any pre-existing outputs (False).
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, and load_workers.
-            If max_workers == 1 then all processes will be serialized. If None
-            extract_workers, compute_workers, load_workers, output_workers will
-            use their own provided values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
+            extract_workers, compute_workers, output_workers, load_workers,
+            ti_workers, pass_workers. If max_workers == 1 then all processes
+            will be serialized. If None extract_workers, compute_workers,
+            load_workers, output_workers, etc will use their own provided
+            values.
         output_workers : int | None
             max number of workers to use for writing forward pass output.
         pass_workers : int | None
             max number of workers to use for performing forward passes on a
             single node. If 1 then all forward passes on chunks distributed to
             a single node will be run in serial.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -708,7 +656,6 @@ class ForwardPassStrategy(InputMixIn):
             enables some reduced computation. If None then this will be
             determined from file_paths directly.
         """
-        self._i = 0
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
@@ -728,6 +675,7 @@ class ForwardPassStrategy(InputMixIn):
         self._input_handler_kwargs = input_handler_kwargs or {}
         self._time_index = None
         self._raw_time_index = None
+        self._raw_tsteps = None
         self._out_files = None
         self._file_ids = None
         self._time_index_file = None
@@ -791,7 +739,8 @@ class ForwardPassStrategy(InputMixIn):
 
     @property
     def worker_attrs(self):
-        """Get all worker args defined in init"""
+        """Get all worker args defined in init. Used to determine which
+        attributes need to be capped by max_workers value"""
         return ['ti_workers', 'compute_workers', 'pass_workers',
                 'load_workers', 'output_workers', 'extract_workers']
 
@@ -876,11 +825,13 @@ class ForwardPassStrategy(InputMixIn):
 
     @property
     def raw_tsteps(self):
-        """Get number of time steps all input files"""
-        if self.single_time_step_files:
-            return len(self.file_paths)
-        else:
-            return len(self.raw_time_index)
+        """Get number of time steps for all input files"""
+        if self._raw_tsteps is None:
+            if self.single_time_step_files:
+                self._raw_tsteps = len(self.file_paths)
+            else:
+                self._raw_tsteps = len(self.raw_time_index)
+        return self._raw_tsteps
 
     @property
     def single_time_step_files(self):
