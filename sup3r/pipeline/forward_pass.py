@@ -1785,7 +1785,7 @@ class ForwardPass:
                                     f'{mem.used / 1e9:.3f} GB out of '
                                     f'{mem.total / 1e9:.3f} GB total.')
                     except Exception as e:
-                        msg = ('Error running forward pass on chunk '
+                        msg = ('Error running forward pass on chunk_index='
                                f'{futures[future]}.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
