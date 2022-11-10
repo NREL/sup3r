@@ -1795,8 +1795,7 @@ class ForwardPass:
             extraction is complete asynchronously.
         """
         logger.debug(f'Running data extraction on node {node_index} in '
-                     'parallel with pass_workers='
-                     f'{strategy.pass_workers}.')
+                     f'parallel with pass_workers={strategy.pass_workers}.')
         with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
             futures = {}
             now = dt.now()
@@ -1834,6 +1833,13 @@ class ForwardPass:
                 now = dt.now()
                 mem = psutil.virtual_memory()
                 fwp = load_future.result()
+                logger.info('Finished data extraction on chunk_index='
+                            f'{load_futures[load_future]} in '
+                            f'{dt.now() - now}. {i + 1} of '
+                            f'{len(strategy.node_chunks[node_index])} '
+                            'complete. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
                 if fwp is not None:
                     fwp.run_chunk()
                 logger.info('Finished forward pass on chunk_index='
@@ -1848,11 +1854,18 @@ class ForwardPass:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
                          f'{strategy.pass_workers}.')
-            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
+            with SpawnProcessPool(max_workers=strategy.pass_workers) as exe:
                 futures = {}
                 now = dt.now()
-                for load_future in as_completed(load_futures):
+                for i, load_future in enumerate(as_completed(load_futures)):
                     fwp = load_future.result()
+                    logger.info('Finished data extraction on chunk_index='
+                                f'{load_futures[load_future]} in '
+                                f'{dt.now() - now}. {i + 1} of '
+                                f'{len(strategy.node_chunks[node_index])} '
+                                'complete. Current memory usage is '
+                                f'{mem.used / 1e9:.3f} GB out of '
+                                f'{mem.total / 1e9:.3f} GB total.')
                     if fwp is not None:
                         future = exe.submit(fwp.run_chunk)
                         futures[future] = load_futures[load_future]
