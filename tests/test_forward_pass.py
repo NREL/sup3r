@@ -385,6 +385,108 @@ def test_fwp_nochunking():
         assert np.array_equal(data_chunked, data_nochunk)
 
 
+def test_fwp_async(log=True):
+    """Test the forward pass with the asynchronous run method"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    Sup3rGan.seed()
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s1_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['s_enhance'] = 2
+    s1_model.meta['t_enhance'] = 1
+    _ = s1_model.generate(np.ones((4, 10, 10, 3)))
+
+    s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    s2_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['s_enhance'] = 2
+    s2_model.meta['t_enhance'] = 1
+    _ = s2_model.generate(np.ones((4, 10, 10, 3)))
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['s_enhance'] = 3
+    st_model.meta['t_enhance'] = 4
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        st_out_dir = os.path.join(td, 'st_gan')
+        s1_out_dir = os.path.join(td, 's1_gan')
+        s2_out_dir = os.path.join(td, 's2_gan')
+        st_model.save(st_out_dir)
+        s1_model.save(s1_out_dir)
+        s2_model.save(s2_out_dir)
+
+        max_workers = 1
+        fwp_chunk_shape = (4, 4, 8)
+
+        exo_kwargs = {'file_paths': input_files,
+                      'features': ['topography'],
+                      'source_file': FP_WTK,
+                      'target': target,
+                      'shape': shape,
+                      's_enhancements': [1, 2, 2],
+                      'agg_factors': [2, 4, 16],
+                      'exo_steps': [0, 1]
+                      }
+
+        model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
+                        'temporal_model_dirs': st_out_dir}
+
+        out_files = os.path.join(td, 'out_async_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+        async_handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='SpatialThenTemporalGan',
+            fwp_chunk_shape=fwp_chunk_shape,
+            input_handler_kwargs=input_handler_kwargs,
+            spatial_pad=0, temporal_pad=0,
+            out_pattern=out_files,
+            max_workers=max_workers,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+
+        forward_pass = ForwardPass(async_handler)
+        forward_pass.async_run(async_handler, node_index=0)
+
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target, shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    overwrite_cache=True)
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs=model_kwargs,
+            model_class='SpatialThenTemporalGan',
+            fwp_chunk_shape=fwp_chunk_shape,
+            input_handler_kwargs=input_handler_kwargs,
+            spatial_pad=0, temporal_pad=0,
+            out_pattern=out_files,
+            max_workers=max_workers,
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+
+        forward_pass = ForwardPass(handler)
+        forward_pass.run(handler, node_index=0)
+
+        with ResourceX(handler.out_files[0]) as fh:
+            with ResourceX(async_handler.out_files[0]) as fha:
+                assert np.array_equal(fh['windspeed_100m'],
+                                      fha['windspeed_100m'])
+                assert np.array_equal(fh['winddirection_100m'],
+                                      fha['winddirection_100m'])
+
+
 def test_fwp_multi_step_model_topo_exoskip(log=False):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
