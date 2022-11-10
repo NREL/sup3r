@@ -1832,10 +1832,10 @@ class ForwardPass:
                          'serial.')
             for i, load_future in enumerate(as_completed(load_futures)):
                 now = dt.now()
+                mem = psutil.virtual_memory()
                 fwp = load_future.result()
                 if fwp is not None:
                     fwp.run_chunk()
-                    mem = psutil.virtual_memory()
                 logger.info('Finished forward pass on chunk_index='
                             f'{load_futures[load_future]} in '
                             f'{dt.now() - now}. {i + 1} of '
