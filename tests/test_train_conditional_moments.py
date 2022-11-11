@@ -12,7 +12,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
-from sup3r.models import Sup3r_cond_mom
+from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
@@ -33,8 +33,8 @@ def test_train_st(log=False, full_shape=(20, 20),
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
 
-    Sup3r_cond_mom.seed()
-    model = Sup3r_cond_mom(fp_gen, learning_rate=5e-5)
+    Sup3rCondMom.seed()
+    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -65,8 +65,8 @@ def test_train_spatial(log=False, full_shape=(20, 20),
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
 
-    Sup3r_cond_mom.seed()
-    model = Sup3r_cond_mom(fp_gen, learning_rate=5e-5)
+    Sup3rCondMom.seed()
+    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -95,7 +95,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert 'model_gen.pkl' in os.listdir(out_dir_root + '/test_3')
 
         # make an un-trained dummy model
-        dummy = Sup3r_cond_mom(fp_gen, learning_rate=2e-5)
+        dummy = Sup3rCondMom(fp_gen, learning_rate=2e-5)
 
         # test save/load functionality
         out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
@@ -142,7 +142,7 @@ def test_out_spatial(plot=False, full_shape=(20, 20),
 
     # Load Model
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    model_unloaded = Sup3r_cond_mom(fp_gen, learning_rate=5e-5)
+    model_unloaded = Sup3rCondMom(fp_gen, learning_rate=5e-5)
     if model_dir is None:
         model = model_unloaded
     else:
