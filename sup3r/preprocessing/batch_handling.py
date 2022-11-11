@@ -345,7 +345,7 @@ class BatchHandler:
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, overwrite_stats=False, smoothing=None,
                  smoothing_ignore=None, stats_workers=None, norm_workers=None,
-                 load_workers=None, max_workers=None):
+                 load_workers=None, max_workers=None, model_mom1=None):
         """
         Parameters
         ----------
@@ -407,8 +407,10 @@ class BatchHandler:
         stats_workers : int | None
             max number of workers to use for computing stats across data
             handlers.
+        model_mom1 : Sup3rCondMom | None
+            model that predicts the first conditional moments.
+            Useful to prepare data for learning second conditional moment.
         """
-
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
 
@@ -441,6 +443,7 @@ class BatchHandler:
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
+        self.model_mom1 = model_mom1
 
         logger.info(f'Initializing BatchHandler with smoothing={smoothing}. '
                     f'Using stats_workers={self.stats_workers}, '
@@ -1113,6 +1116,37 @@ class SpatialBatchHandler(BatchHandler):
                 training_features=self.training_features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class SpatialBatchHandler_mom2(BatchHandler):
+    """Sup3r spatial batch handling class for second conditional moment"""
+
+    def __next__(self):
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(
+                0, len(self.data_handlers))
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next()[..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            # Remove first moment from high res and square it
+            out = self.model_mom1._tf_generate(batch.low_res).numpy()
+            batch._high_res = (batch.high_res - out)**2
 
             self._i += 1
             return batch
