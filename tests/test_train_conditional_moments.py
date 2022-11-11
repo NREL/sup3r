@@ -123,13 +123,91 @@ def test_train_spatial(log=False, full_shape=(20, 20),
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
+def test_out_spatial(plot=False, full_shape=(20, 20),
+                     sample_shape=(10, 10, 1),
+                     batch_size=4, n_batches=4,
+                     s_enhance=2, model_dir=None):
+    """Test basic spatial model outputing."""
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            val_split=0,
+                            max_workers=1)
+
+    batch_handler = SpatialBatchHandler([handler],
+                                        batch_size=batch_size,
+                                        s_enhance=s_enhance,
+                                        n_batches=n_batches)
+
+    # Load Model
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    model_unloaded = Sup3r_cond_mom(fp_gen, learning_rate=5e-5)
+    if model_dir is None:
+        model = model_unloaded
+    else:
+        model = model_unloaded.load(model_dir)
+
+    # Check sizes
+    for batch in batch_handler:
+        assert batch.high_res.shape == (batch_size, sample_shape[0],
+                                        sample_shape[1], 2)
+        assert batch.low_res.shape == (batch_size,
+                                       sample_shape[0] // s_enhance,
+                                       sample_shape[1] // s_enhance, 2)
+        out = model._tf_generate(batch.low_res)
+        assert out.shape == (batch_size, sample_shape[0], sample_shape[1], 2)
+        break
+    if plot:
+        import matplotlib.pyplot as plt
+        from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    makeMovie)
+        figureFolder = 'Figures'
+        os.makedirs(figureFolder, exist_ok=True)
+        movieFolder = os.path.join(figureFolder, 'Movie')
+        os.makedirs(movieFolder, exist_ok=True)
+        n_snap = 0
+        for p, batch in enumerate(batch_handler):
+            out = model._tf_generate(batch.low_res).numpy()
+            for i in range(batch.high_res.shape[0]):
+                lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                hr = (batch.high_res[i, :, :, 0] * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                gen = (out[i, :, :, 0] * batch_handler.stds[0]
+                       + batch_handler.means[0])
+                fig = plot_multi_contour(
+                    [lr, hr, gen],
+                    [0, batch.high_res.shape[1]],
+                    [0, batch.high_res.shape[2]],
+                    ['U [m/s]', 'U [m/s]', 'U [m/s]'],
+                    ['LR', 'HR', r'$\mathbb{E}$(HR|LR)'],
+                    ['x [m]', 'x [m]', 'x [m]'],
+                    ['y [m]', 'y [m]', 'y [m]'],
+                    [np.amin(lr), np.amin(hr), np.amin(hr)],
+                    [np.amax(lr), np.amax(hr), np.amax(hr)],
+                )
+                fig.savefig(os.path.join(movieFolder,
+                                         "im_{}.png".format(n_snap)),
+                            dpi=100, bbox_inches='tight')
+                plt.close(fig)
+                n_snap += 1
+            if p > 4:
+                break
+        makeMovie(n_snap, movieFolder, os.path.join(figureFolder, 'mom1.gif'),
+                  fps=6)
+
+
 if __name__ == "__main__":
     # test_train_st(n_epoch=4, log=True, full_shape=(20, 20),
     #               batch_size=4, n_batches=20,
     #               out_dir_root='st_model')
-    test_train_spatial(n_epoch=4, log=True, full_shape=(20, 20),
-                       sample_shape=(10, 10, 1),
-                       batch_size=12, n_batches=40,
-                       out_dir_root='s_model')
-    # test_train_spatial(log=True, full_shape=(20, 20),
-    #                    sample_shape=(10, 10, 1), n_epoch=4)
+    # test_train_spatial(n_epoch=10, log=True, full_shape=(20, 20),
+    #                    sample_shape=(10, 10, 1),
+    #                    batch_size=16, n_batches=100,
+    #                    out_dir_root='s_model')
+
+    test_out_spatial(plot=True, full_shape=(20, 20),
+                     sample_shape=(10, 10, 1),
+                     batch_size=4, n_batches=4,
+                     s_enhance=2, model_dir='s_model_save/spatial_cond_mom')
