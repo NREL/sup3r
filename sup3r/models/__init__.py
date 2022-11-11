@@ -8,7 +8,7 @@ from .multi_step import (MultiStepGan, SpatialThenTemporalGan,
                          MultiStepSurfaceMetGan, SolarMultiStepGan)
 from .surface import SurfaceSpatialMetModel
 from .linear import LinearInterp
-from .conditional_moments import Sup3r_cond_mom
+from .conditional_moments import Sup3rCondMom
 
 SPATIAL_FIRST_MODELS = (SpatialThenTemporalGan,
                         MultiStepSurfaceMetGan,

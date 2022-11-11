@@ -21,7 +21,7 @@ import sup3r.utilities.loss_metrics
 logger = logging.getLogger(__name__)
 
 
-class Sup3r_cond_mom(AbstractSup3rGan):
+class Sup3rCondMom(AbstractSup3rGan):
     """Basic Sup3r conditional moments model."""
 
     def __init__(self, gen_layers,
