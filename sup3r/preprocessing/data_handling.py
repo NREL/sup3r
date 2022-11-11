@@ -93,7 +93,8 @@ class InputMixIn:
         self._target = None
         self._grid_shape = None
 
-    def worker_attrs(self):
+    @property
+    def _worker_attrs(self):
         """Get all worker args defined in init"""
         return ['ti_workers']
 
@@ -125,7 +126,7 @@ class InputMixIn:
 
     def cap_worker_args(self, max_workers):
         """Cap all workers args by max_workers"""
-        for v in self.worker_attrs():
+        for v in self._worker_attrs:
             capped_val = self.get_capped_workers(getattr(self, v), max_workers)
             setattr(self, v, capped_val)
 
@@ -649,7 +650,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
-    def worker_attrs(self):
+    @property
+    def _worker_attrs(self):
         """Get all worker args defined in init"""
         return ['_ti_workers', '_norm_workers', '_compute_workers',
                 '_extract_workers', '_load_workers']

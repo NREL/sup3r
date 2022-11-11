@@ -737,7 +737,8 @@ class ForwardPassStrategy(InputMixIn):
 
         self.preflight()
 
-    def worker_attrs(self):
+    @property
+    def _worker_attrs(self):
         """Get all worker args defined in init. Used to determine which
         attributes need to be capped by max_workers value"""
         return ['ti_workers', 'compute_workers', 'pass_workers',
