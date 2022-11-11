@@ -707,6 +707,9 @@ class ForwardPassStrategy(InputMixIn):
         self.ti_workers = self._input_handler_kwargs.get('ti_workers', None)
         self._cache_pattern = self._input_handler_kwargs.get('cache_pattern',
                                                              None)
+        self._worker_attrs = ['ti_orkers', 'compute_workers', 'pass_workers',
+                              'load_workers', 'output_workers',
+                              'extract_workers']
         self.cap_worker_args(max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -736,13 +739,6 @@ class ForwardPassStrategy(InputMixIn):
                                             self.temporal_pad)
 
         self.preflight()
-
-    @property
-    def _worker_attrs(self):
-        """Get all worker args defined in init. Used to determine which
-        attributes need to be capped by max_workers value"""
-        return ['ti_workers', 'compute_workers', 'pass_workers',
-                'load_workers', 'output_workers', 'extract_workers']
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""
