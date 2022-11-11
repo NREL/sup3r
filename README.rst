@@ -2,8 +2,10 @@
 TO DO
 #################
 
-- [ ] See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
-- [ ] Add `wind_condition_moments.py` to handle topography
+- Check output of first moment model for spatial training only
+- Utilities to make make the second moment dataset
+- See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
+- Add `wind_condition_moments.py` to handle topography
 
 #################
 Welcome to SUP3R!
