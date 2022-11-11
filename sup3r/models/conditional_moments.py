@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
-import copy
 import os
 import time
 import json
@@ -179,8 +178,8 @@ class Sup3r_cond_mom(AbstractSup3rGan):
 
     @classmethod
     def load(cls, model_dir, verbose=True):
-        """Load the model with its sub-networks from a previously saved-to output
-        directory.
+        """Load the model with its sub-networks from a previously saved-to
+        output directory.
 
         Parameters
         ----------
@@ -203,7 +202,6 @@ class Sup3r_cond_mom(AbstractSup3rGan):
 
         fp_gen = os.path.join(model_dir, 'model_gen.pkl')
         params = cls.load_saved_params(model_dir, verbose=verbose)
-
         return cls(fp_gen, **params)
 
     @staticmethod
@@ -240,8 +238,8 @@ class Sup3r_cond_mom(AbstractSup3rGan):
         if 'version_record' in params:
             version_record = params.pop('version_record')
             if verbose:
-                logger.info('Loading model from disk that was created with the '
-                            'following package versions: \n{}'
+                logger.info('Loading model from disk that was created '
+                            'with the following package versions: \n{}'
                             .format(pprint.pformat(version_record, indent=2)))
 
         return params
@@ -649,7 +647,6 @@ class Sup3r_cond_mom(AbstractSup3rGan):
         config_optm_g = self.get_optimizer_config(self.optimizer)
 
         model_params = {'name': self.name,
-                        'loss': self.loss_name,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
                         'means': means,
@@ -882,7 +879,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
         optimizer : tf.keras.optimizers.Optimizer
-            Optimizer class to use to update weights. 
+            Optimizer class to use to update weights.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -1020,8 +1017,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
 
             b_loss_details = self.run_gradient_descent(
                 batch.low_res, batch.high_res, self.generator_weights,
-                optimizer=self.optimizer,
-                train_gen=True, train_disc=False)
+                optimizer=self.optimizer)
 
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
@@ -1040,8 +1036,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
               out_dir='./condMom_{epoch}',
               early_stop_on=None,
               early_stop_threshold=0.005,
-              early_stop_n_epoch=5,
-              adaptive_update_bounds=(0.9, 0.99)):
+              early_stop_n_epoch=5):
         """Train the model on real low res data and real high res data
 
         Parameters
@@ -1058,7 +1053,8 @@ class Sup3r_cond_mom(AbstractSup3rGan):
             already exist.
         early_stop_on : str | None
             If not None, this should be a column in the training history to
-            evaluate for early stopping (e.g. validation_loss_gen). If this value in this history decreases by
+            evaluate for early stopping (e.g. validation_loss_gen).
+            If this value in this history decreases by
             an absolute fractional relative difference of less than 0.01 for
             more than 5 epochs in a row, the training will stop early.
         early_stop_threshold : float
@@ -1071,12 +1067,6 @@ class Sup3r_cond_mom(AbstractSup3rGan):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
-        adaptive_update_bounds : tuple
-            Tuple specifying allowed range for loss_details[comparison_key]. If
-            history[comparison_key] < threshold_range[0] then the weight will
-            be increased by (1 + update_frac). If history[comparison_key] >
-            threshold_range[1] then the weight will be decreased by 1 / (1 +
-            update_frac).
         """
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
@@ -1111,7 +1101,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
                 loss_details["train_loss_gen"])
 
             if all(loss in loss_details for loss
-                   in ('val_loss_gen')):
+                   in ['val_loss_gen']):
                 msg += 'gen val loss: {:.2e} '.format(
                     loss_details["val_loss_gen"])
 
