@@ -707,7 +707,7 @@ class ForwardPassStrategy(InputMixIn):
         self.ti_workers = self._input_handler_kwargs.get('ti_workers', None)
         self._cache_pattern = self._input_handler_kwargs.get('cache_pattern',
                                                              None)
-        self._worker_attrs = ['ti_orkers', 'compute_workers', 'pass_workers',
+        self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
                               'load_workers', 'output_workers',
                               'extract_workers']
         self.cap_worker_args(max_workers)
