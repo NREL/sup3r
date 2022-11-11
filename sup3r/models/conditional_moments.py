@@ -1087,7 +1087,7 @@ class Sup3r_cond_mom(AbstractSup3rGan):
             epochs += self._history.index.values[-1] + 1
 
         t0 = time.time()
-        logger.info('Training model'
+        logger.info('Training model '
                     'for {} epochs starting at epoch {}'
                     .format(n_epoch, epochs[0]))
 
