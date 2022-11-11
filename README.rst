@@ -1,8 +1,16 @@
+.. |ss| raw:: html
+
+   <strike>
+
+.. |se| raw:: html
+
+   </strike>
 #################
 TO DO
 #################
-- ~~Check output of first moment model for spatial training only~~
-- ~~Utilities to make make the second moment dataset~~
+
+- |ss| Check output of first moment model for spatial training only |se|
+- |ss| Utilities to make make the second moment dataset |se|
 
 - Train network with increasing complexity
 - Add utilities to plot losses
