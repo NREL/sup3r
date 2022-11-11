@@ -1,13 +1,16 @@
 #################
 TO DO
 #################
+- ~~Check output of first moment model for spatial training only~~
+- ~~Utilities to make make the second moment dataset~~
 
+- Train network with increasing complexity
+- Add utilities to plot losses
 - Make an option to train with subfilter field or full field
-- Check output of first moment model for spatial training only
-- Utilities to make make the second moment dataset
+
 - See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
 - Add `wind_condition_moments.py` to handle topography
-- Add utilities to plot losses
+
 
 #################
 Welcome to SUP3R!
