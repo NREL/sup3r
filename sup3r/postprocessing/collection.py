@@ -688,6 +688,7 @@ class Collector:
         logger.info('Collecting {} files to {}'.format(len(collector.flist),
                                                        out_file))
         if overwrite and os.path.exists(out_file):
+            logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
         for _, dset in enumerate(features):
