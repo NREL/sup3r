@@ -1854,11 +1854,12 @@ class ForwardPass:
             logger.debug(f'Running forward passes on node {node_index} in '
                          'parallel with pass_workers='
                          f'{strategy.pass_workers}.')
-            with SpawnProcessPool(max_workers=strategy.pass_workers) as exe:
+            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
                 futures = {}
                 now = dt.now()
                 for i, load_future in enumerate(as_completed(load_futures)):
                     fwp = load_future.result()
+                    mem = psutil.virtual_memory()
                     logger.info('Finished data extraction on chunk_index='
                                 f'{load_futures[load_future]} in '
                                 f'{dt.now() - now}. {i + 1} of '
