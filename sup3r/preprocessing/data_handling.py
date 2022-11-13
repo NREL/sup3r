@@ -2292,7 +2292,7 @@ class DataHandlerH5(DataHandler):
         raise ValueError(msg)
 
     @classmethod
-    def get_time_index(cls, file_paths, max_workers=None):
+    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
         """Get time index from data files
 
         Parameters

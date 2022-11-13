@@ -555,7 +555,6 @@ class ForwardPassStrategy(InputMixIn):
                  output_workers=None,
                  exo_kwargs=None,
                  pass_workers=1,
-                 init_workers=1,
                  bias_correct_method=None,
                  bias_correct_kwargs=None,
                  max_nodes=None):
@@ -630,13 +629,9 @@ class ForwardPassStrategy(InputMixIn):
         pass_workers : int | None
             max number of workers to use for performing forward passes on a
             single node. If 1 then all forward passes on chunks distributed to
-            a single node will be run in serial.
-        init_workers : int | None
-            max number of workers to use for initializing ForwardPass objects
-            prior to performing forward passes. This is used when data
-            extraction/initialization and forward passes are performed
-            asynchronously. If 1 then all ForwardPass objects will be
-            initialized in serial prior to forward passes.
+            a single node will be run in serial. pass_workers=2 is the minimum
+            number of workers required to run the ForwardPass initialization
+            and ForwardPass.run_chunk() methods concurrently.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -668,7 +663,6 @@ class ForwardPassStrategy(InputMixIn):
         self.max_workers = max_workers
         self.output_workers = output_workers
         self.pass_workers = pass_workers
-        self.init_workers = init_workers
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
         self._input_handler_class = None
@@ -714,7 +708,7 @@ class ForwardPassStrategy(InputMixIn):
                                                              None)
         self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
                               'load_workers', 'output_workers',
-                              'init_workers', 'extract_workers']
+                              'extract_workers']
         self.cap_worker_args(max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -774,7 +768,6 @@ class ForwardPassStrategy(InputMixIn):
         logger.info(f'Using max_workers={self.max_workers}, '
                     f'extract_workers={self.extract_workers}, '
                     f'compute_workers={self.compute_workers}, '
-                    f'init_workers={self.init_workers}, '
                     f'pass_workers={self.pass_workers}, '
                     f'load_workers={self.load_workers}, '
                     f'output_workers={self.output_workers}, '
@@ -847,7 +840,7 @@ class ForwardPassStrategy(InputMixIn):
         """Get target and grid_shape for largest possible domain"""
         return self.input_handler_class.get_full_domain(file_paths)
 
-    def get_time_index(self, file_paths, max_workers=None):
+    def get_time_index(self, file_paths, max_workers=None, **kwargs):
         """Get time index for source data
 
         Parameters
@@ -861,7 +854,8 @@ class ForwardPassStrategy(InputMixIn):
             Array of time indices for source data
         """
         return self.input_handler_class.get_time_index(file_paths,
-                                                       max_workers=max_workers)
+                                                       max_workers=max_workers,
+                                                       **kwargs)
 
     @property
     def file_ids(self):
@@ -1073,7 +1067,6 @@ class ForwardPass:
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
         self.pass_workers = strategy.pass_workers
-        self.init_workers = strategy.init_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
 
@@ -1641,6 +1634,8 @@ class ForwardPass:
         run_method = 'run'
         if config.get('async', False):
             run_method = 'async_run'
+        if config.get('async_alt', False):
+            run_method = 'async_run_alt'
 
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
@@ -1745,8 +1740,7 @@ class ForwardPass:
         try:
             fwp = cls.incremental_check_load(strategy, chunk_index=chunk_index,
                                              node_index=node_index)
-            if fwp is not None:
-                fwp.run_chunk()
+            cls._run_fwp_or_future(fwp)
         except Exception as e:
             msg = (f'Sup3r ForwardPass for node_index={node_index} and '
                    f'chunk_index={chunk_index} failed!')
@@ -1754,125 +1748,23 @@ class ForwardPass:
             raise RuntimeError(msg) from e
 
     @classmethod
-    def load(cls, strategy, node_index):
-        """This routine launches the data extraction/loading for all
-        spatiotemporal chunks for the given node index.
+    def _run_fwp_or_future(cls, fwp):
+        """Check if fwp is ForwardPass object or future and start forward
+        pass
 
         Parameters
         ----------
-        strategy : ForwardPassStrategy
-            ForwardPassStrategy instance with information on data chunks to run
-            forward passes on.
-        node_index : int
-            Index of node on which the forward passes for spatiotemporal chunks
-            will be run.
-
-        Returns
-        -------
-        futures : dict
-            Dictionary of futures corresponding to the launched data
-            extraction/loading jobs for each spatiotemporal chunk. These
-            futures are used to launch forward passes when the corresponding
-            data extraction is complete, asynchronously.
+        fwp : ForwardPass | future | None
+            Either a ForwardPass object, a concurrent future, or None. This
+            comes from either a direct ForwardPass initialization or a
+            ThreadPoolExecutor.submit() call.
         """
-        logger.debug(f'Running data extraction on node {node_index} in '
-                     f'parallel with init_workers={strategy.init_workers}.')
-        with ThreadPoolExecutor(max_workers=strategy.init_workers) as exe:
-            futures = {}
-            now = dt.now()
-            for chunk_index in strategy.node_chunks[node_index]:
-                future = exe.submit(cls.incremental_check_load,
-                                    strategy=strategy,
-                                    node_index=node_index,
-                                    chunk_index=chunk_index)
-                futures[future] = chunk_index
-
-            logger.info(f'Started {len(futures)} data extractions '
-                        f'in {dt.now() - now}.')
-        return futures
-
-    @classmethod
-    def async_run(cls, strategy, node_index):
-        """This routine runs forward passes on all spatiotemporal chunks for
-        the given node index.
-
-        Parameters
-        ----------
-        strategy : ForwardPassStrategy
-            ForwardPassStrategy instance with information on data chunks to run
-            forward passes on.
-        node_index : int
-            Index of node on which the forward passes for spatiotemporal chunks
-            will be run.
-        """
-        start = dt.now()
-        load_futures = cls.load(strategy, node_index)
-        if strategy.pass_workers == 1:
-            logger.debug(f'Running forward passes on node {node_index} in '
-                         'serial.')
-            for i, load_future in enumerate(as_completed(load_futures)):
-                now = dt.now()
-                mem = psutil.virtual_memory()
-                fwp = load_future.result()
-                logger.info('Finished data extraction on chunk_index='
-                            f'{load_futures[load_future]} in '
-                            f'{dt.now() - now}. {i + 1} of '
-                            f'{len(strategy.node_chunks[node_index])} '
-                            'complete. Current memory usage is '
-                            f'{mem.used / 1e9:.3f} GB out of '
-                            f'{mem.total / 1e9:.3f} GB total.')
-                if fwp is not None:
-                    fwp.run_chunk()
-                logger.info('Finished forward pass on chunk_index='
-                            f'{load_futures[load_future]} in '
-                            f'{dt.now() - now}. {i + 1} of '
-                            f'{len(strategy.node_chunks[node_index])} '
-                            'complete. Current memory usage is '
-                            f'{mem.used / 1e9:.3f} GB out of '
-                            f'{mem.total / 1e9:.3f} GB total.')
-
-        else:
-            logger.debug(f'Running forward passes on node {node_index} in '
-                         'parallel with pass_workers='
-                         f'{strategy.pass_workers}.')
-            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for i, load_future in enumerate(as_completed(load_futures)):
-                    fwp = load_future.result()
-                    mem = psutil.virtual_memory()
-                    logger.info('Finished data extraction on chunk_index='
-                                f'{load_futures[load_future]} in '
-                                f'{dt.now() - now}. {i + 1} of '
-                                f'{len(strategy.node_chunks[node_index])} '
-                                'complete. Current memory usage is '
-                                f'{mem.used / 1e9:.3f} GB out of '
-                                f'{mem.total / 1e9:.3f} GB total.')
-                    if fwp is not None:
-                        future = exe.submit(fwp.run_chunk)
-                        futures[future] = load_futures[load_future]
-
-                logger.info(f'Started {len(futures)} forward passes '
-                            f'in {dt.now() - now}.')
-
-                for i, future in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                        mem = psutil.virtual_memory()
-                        logger.info('Finished forward pass on chunk_index='
-                                    f'{futures[future]}. {i + 1} of '
-                                    f'{len(futures)} complete. '
-                                    'Current memory usage is '
-                                    f'{mem.used / 1e9:.3f} GB out of '
-                                    f'{mem.total / 1e9:.3f} GB total.')
-                    except Exception as e:
-                        msg = ('Error running forward pass on chunk_index='
-                               f'{futures[future]}.')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-        logger.info('Finished asynchronous forward passes on '
-                    f'{len(strategy.node_chunks[node_index])} chunks in '
-                    f'{dt.now() - start}')
+        if isinstance(fwp, ForwardPass):
+            fwp.run_chunk()
+        elif fwp is not None:
+            fwp = fwp.result()
+            if fwp is not None:
+                fwp.run_chunk()
 
     @classmethod
     def run(cls, strategy, node_index):
@@ -1894,8 +1786,10 @@ class ForwardPass:
                          'serial.')
             for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
                 now = dt.now()
-                cls.incremental_check_run(strategy, node_index=node_index,
-                                          chunk_index=chunk_index)
+                fwp = cls.incremental_check_load(strategy=strategy,
+                                                 node_index=node_index,
+                                                 chunk_index=chunk_index)
+                cls._run_fwp_or_future(fwp)
                 mem = psutil.virtual_memory()
                 logger.info('Finished forward pass on chunk_index='
                             f'{chunk_index} in {dt.now() - now}. {i + 1} of '
@@ -1903,42 +1797,53 @@ class ForwardPass:
                             'complete. Current memory usage is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB total.')
+            logger.info('Finished forward passes on '
+                        f'{len(strategy.node_chunks[node_index])} chunks in '
+                        f'{dt.now() - start}')
 
         else:
-            logger.debug(f'Running forward passes on node {node_index} in '
-                         'parallel with pass_workers='
-                         f'{strategy.pass_workers}.')
-            with SpawnProcessPool(max_workers=strategy.pass_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for chunk_index in strategy.node_chunks[node_index]:
-                    future = exe.submit(cls.incremental_check_run,
-                                        strategy=strategy,
-                                        node_index=node_index,
-                                        chunk_index=chunk_index)
-                    futures[future] = chunk_index
+            logger.info('Running asynchronous forward passes on node '
+                        f'{node_index} in parallel with pass_workers='
+                        f'{strategy.pass_workers}.')
 
-                logger.info(f'Started {len(futures)} forward passes '
+            load_futures = {}
+            fwp_futures = {}
+            with ThreadPoolExecutor(max_workers=strategy.pass_workers) as exe:
+                now = dt.now()
+                for i, chunk_index in enumerate(
+                        strategy.node_chunks[node_index]):
+                    load_future = exe.submit(cls.incremental_check_load,
+                                             strategy=strategy,
+                                             node_index=node_index,
+                                             chunk_index=chunk_index)
+                    load_futures[load_future] = chunk_index
+                    fwp_future = exe.submit(cls._run_fwp_or_future,
+                                            load_future)
+                    fwp_futures[fwp_future] = chunk_index
+
+                logger.info(f'Started {len(load_futures)} data extractions '
+                            f'in {dt.now() - now}.')
+                logger.info(f'Started {len(fwp_futures)} forward passes '
                             f'in {dt.now() - now}.')
 
-                for i, future in enumerate(as_completed(futures)):
+                for i, future in enumerate(as_completed(fwp_futures)):
                     try:
                         future.result()
                         mem = psutil.virtual_memory()
-                        logger.info('Finished forward pass on chunk_index='
-                                    f'{futures[future]}. {i + 1} of '
-                                    f'{len(futures)} complete. '
-                                    'Current memory usage is '
-                                    f'{mem.used / 1e9:.3f} GB out of '
-                                    f'{mem.total / 1e9:.3f} GB total.')
+                        logger.debug('Finished forward pass on chunk_index='
+                                     f'{fwp_futures[future]}. {i + 1} of '
+                                     f'{len(fwp_futures)} complete. '
+                                     'Current memory usage is '
+                                     f'{mem.used / 1e9:.3f} GB out of '
+                                     f'{mem.total / 1e9:.3f} GB total.')
                     except Exception as e:
                         msg = ('Error running forward pass on chunk_index='
-                               f'{futures[future]}.')
+                               f'{fwp_futures[future]}.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-        logger.info('Finished forward passes on '
-                    f'{len(strategy.node_chunks[node_index])} chunks in '
-                    f'{dt.now() - start}')
+            logger.info('Finished asynchronous forward passes on '
+                        f'{len(strategy.node_chunks[node_index])} chunks in '
+                        f'{dt.now() - start}')
 
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
