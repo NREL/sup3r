@@ -738,7 +738,28 @@ class ForwardPassStrategy(InputMixIn):
 
         self.preflight()
 
-    def is_finished(self, chunk_index):
+    def node_finished(self, node_index):
+        """Check if all out files for a given node have been saved
+
+        Parameters
+        ----------
+        node_index : int
+            Index of node to check for completed forward passes
+
+        Returns
+        -------
+        bool
+            Whether all forward passes for the given node have finished
+        """
+        node_files = [self.out_files[i] for i in self.node_chunks[node_index]]
+        return all(os.path.exists(out_file) for out_file in node_files)
+
+    @property
+    def all_finished(self):
+        """Check if all out files have been saved"""
+        return all(os.path.exists(out_file) for out_file in self.out_files)
+
+    def chunk_finished(self, chunk_index):
         """Check if forward pass for given chunk_index has already been run.
 
         Parameters
@@ -747,6 +768,11 @@ class ForwardPassStrategy(InputMixIn):
             Index of the chunk to check for a finished forward pass. Considered
             finished if there is already an output file and incremental is
             False.
+
+        Returns
+        -------
+        bool
+            Whether the forward pass for the given chunk has finished
         """
         out_file = self.out_files[chunk_index]
         if os.path.exists(out_file) and self.incremental:
@@ -1630,17 +1656,11 @@ class ForwardPass:
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        run_method = 'run'
-        if config.get('async', False):
-            run_method = 'async_run'
-        if config.get('async_alt', False):
-            run_method = 'async_run_alt'
-
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
                f"strategy = {fwps_init_str};\n"
-               f"{cls.__name__}.{run_method}(strategy, {node_index});\n"
+               f"{cls.__name__}.run(strategy, {node_index});\n"
                "t_elap = time.time() - t0;\n")
 
         job_name = config.get('job_name', None)
@@ -1655,7 +1675,9 @@ class ForwardPass:
                                                .replace("null", "None")
                                                .replace("false", "False")
                                                .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'status = "successful" if strategy.node_finished('
+            cmd += f'{node_index}) else "failed";'
+            cmd += 'job_attrs.update({"job_status": status});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f'Status.make_job_file({status_file_arg_str})'
 
@@ -1687,7 +1709,7 @@ class ForwardPass:
     @property
     def finished(self):
         """Check if forward pass has already been run."""
-        return self.strategy.is_finished(self.chunk_index)
+        return self.strategy.chunk_finished(self.chunk_index)
 
     @classmethod
     def incremental_check_load(cls, strategy, node_index, chunk_index):
@@ -1714,7 +1736,7 @@ class ForwardPass:
             returns an initialized forward pass object, otherwise returns None
         """
         fwp = None
-        if not strategy.is_finished(chunk_index):
+        if not strategy.chunk_finished(chunk_index):
             fwp = cls(strategy, chunk_index=chunk_index, node_index=node_index)
         return fwp
 
@@ -1779,6 +1801,10 @@ class ForwardPass:
             Index of node on which the forward passes for spatiotemporal chunks
             will be run.
         """
+        if strategy.node_finished(node_index) and strategy.incremental:
+            logger.info(f'All jobs for node_index={node_index} already done.')
+            return
+
         start = dt.now()
         if strategy.pass_workers == 1:
             logger.debug(f'Running forward passes on node {node_index} in '
