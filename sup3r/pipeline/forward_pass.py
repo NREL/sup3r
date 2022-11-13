@@ -15,7 +15,6 @@ import psutil
 from inspect import signature
 
 from rex.utilities.fun_utils import get_fun_call_str
-from rex.utilities.execution import SpawnProcessPool
 
 import sup3r.models
 import sup3r.bias.bias_transforms
