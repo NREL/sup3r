@@ -11,6 +11,7 @@ TO DO
 
 #. |ss| Check output of first moment model for spatial training only |se|
 #. |ss| Utilities to make make the second moment dataset |se|
+    #. Validation loss calculation needs fixing
 #. |ss| Make the training movies |se| 
 #. |ss| Add utilities to plot losses and timing |se|
 #. |ss| Clean the testing suite |se|
