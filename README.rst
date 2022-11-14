@@ -9,16 +9,22 @@
 TO DO
 #################
 
-- |ss| Check output of first moment model for spatial training only |se|
-- |ss| Utilities to make make the second moment dataset |se|
+#. |ss| Check output of first moment model for spatial training only |se|
+#. |ss| Utilities to make make the second moment dataset |se|
+#. Make the training movies
+#. Add utilities to plot losses and timing
+#. Clean the testing suite
+#. Make an option to train with subfilter field or full field
+    #. Include in testing suite
+#. Make options to add arbitrary fields as input
+    #. Add `wind_condition_moments.py` to handle topography
+    #. Include in testing suite
+#. Timing of batch handler and data handler
+#. Train network with increasing complexity
 
-- Train network with increasing complexity
-- Add utilities to plot losses
-- Make an option to train with subfilter field or full field
 
 - See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
-- Add `wind_condition_moments.py` to handle topography
-
+- Test adding tf function on the run gradient descent
 
 #################
 Welcome to SUP3R!
