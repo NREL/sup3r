@@ -15,6 +15,7 @@ TO DO
 #. |ss| Add utilities to plot losses and timing |se|
 #. |ss| Clean the testing suite |se|
 #. Make an option to train with subfilter field or full field
+    #. |ss| Add upsampling functions |se|
     #. Include in testing suite
 #. Make options to add arbitrary fields as input
     #. Add `wind_condition_moments.py` to handle topography
