@@ -153,9 +153,15 @@ class Sup3rGan(AbstractSup3rGan):
             self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
+            elif ('meta' in model
+                  and f'config_{name}' in model['meta']
+                  and 'hidden_layers' in model['meta'][f'config_{name}']):
+                model = model['meta'][f'config_{name}']['hidden_layers']
             else:
                 msg = ('Could not load model from json config, need '
-                       '"hidden_layers" key at top level but only found: {}'
+                       '"hidden_layers" key or '
+                       f'"meta/config_{name}/hidden_layers" '
+                       ' at top level but only found: {}'
                        .format(model.keys()))
                 logger.error(msg)
                 raise KeyError(msg)
