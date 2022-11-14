@@ -11,13 +11,14 @@ TO DO
 
 #. |ss| Check output of first moment model for spatial training only |se|
 #. |ss| Utilities to make make the second moment dataset |se|
-    #. Validation loss calculation needs fixing
+    #. |ss| Validation loss calculation needs fixing |se|
 #. |ss| Make the training movies |se| 
 #. |ss| Add utilities to plot losses and timing |se|
 #. |ss| Clean the testing suite |se|
 #. Make an option to train with subfilter field or full field
     #. |ss| Add upsampling functions |se|
-    #. Include in testing suite
+    #. |ss| Include testing suite for mom1 |se|
+    #. Include testing suite for mom2
 #. Make options to add arbitrary fields as input
     #. Add `wind_condition_moments.py` to handle topography
     #. Include in testing suite
