@@ -1446,6 +1446,7 @@ class FeatureHandler:
             return data
 
         for t, _ in enumerate(time_chunks):
+            data[t] = data.get(t, {})
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(
