@@ -21,7 +21,10 @@ TO DO
     #. Include in testing suite
 #. Timing of batch handler and data handler
 #. Train network with increasing complexity
-
+#. Spatio temporal
+    #. Add training test for non subfilter training
+    #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
+    
 
 - See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
 - Test adding tf function on the run gradient descent
