@@ -1741,34 +1741,6 @@ class ForwardPass:
         return fwp
 
     @classmethod
-    def incremental_check_run(cls, strategy, node_index, chunk_index):
-        """Run forward pass on chunk with incremental check
-
-        Parameters
-        ----------
-        strategy : ForwardPassStrategy
-            ForwardPassStrategy instance with information on data chunks to run
-            forward passes on.
-        node_index : int
-            Index of node on which the forward pass for the given chunk will
-            be run.
-        chunk_index : int
-            Index to select chunk specific variables. This index selects the
-            corresponding file set, cropped_file_slice, padded_file_slice,
-            and padded/overlapping/cropped spatial slice for a spatiotemporal
-            chunk
-        """
-        try:
-            fwp = cls.incremental_check_load(strategy, chunk_index=chunk_index,
-                                             node_index=node_index)
-            cls._run_fwp_or_future(fwp)
-        except Exception as e:
-            msg = (f'Sup3r ForwardPass for node_index={node_index} and '
-                   f'chunk_index={chunk_index} failed!')
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-    @classmethod
     def _run_fwp_or_future(cls, fwp):
         """Check if fwp is ForwardPass object or future and start forward
         pass
