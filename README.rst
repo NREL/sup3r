@@ -11,9 +11,9 @@ TO DO
 
 #. |ss| Check output of first moment model for spatial training only |se|
 #. |ss| Utilities to make make the second moment dataset |se|
-#. Make the training movies
+#. |ss| Make the training movies |se| 
 #. Add utilities to plot losses and timing
-#. Clean the testing suite
+#. |ss| Clean the testing suite |se|
 #. Make an option to train with subfilter field or full field
     #. Include in testing suite
 #. Make options to add arbitrary fields as input
