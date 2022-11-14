@@ -11,6 +11,7 @@ import glob
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import interpolation
 from fnmatch import fnmatch
 import os
 import re
@@ -18,7 +19,6 @@ from warnings import warn
 import psutil
 import pandas as pd
 from packaging import version
-
 
 np.random.seed(42)
 
@@ -582,6 +582,39 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     return coarse_data
 
 
+def temporal_upsampling(data, t_enhance=4):
+    """"Upsample data according to t_enhance resolution
+
+    Parameters
+    ----------
+    data : np.ndarray
+        5D array with dimensions
+        (observations, spatial_1, spatial_2, temporal, features)
+    t_enhance : int
+        factor by which to upsample temporal dimension
+
+    Returns
+    -------
+    upsampled_data : np.ndarray
+        5D array with same dimensions as data with new upsampled resolution
+    """
+
+    if t_enhance is not None and len(data.shape) == 5:
+        enhancement = [1, 1, 1, t_enhance, 1]
+        upsampled_data = interpolation.zoom(data,
+                                            enhancement,
+                                            order=0)
+    elif len(data.shape) != 5:
+        msg = ('Data must be 5D to do temporal upsampling, but '
+               f'received: {data.shape}')
+        logger.error(msg)
+        raise ValueError(msg)
+    else:
+        upsampled_data = data
+
+    return upsampled_data
+
+
 def daily_temporal_coarsening(data, temporal_axis=3):
     """Temporal coarsening for daily average climate change data.
 
@@ -734,6 +767,70 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
             raise ValueError(msg)
 
     return data
+
+
+def spatial_upsampling(data, s_enhance=2, obs_axis=True):
+    """"Simple upsampling according to s_enhance resolution
+
+    Parameters
+    ----------
+    data : np.ndarray
+        5D | 4D | 3D array with dimensions:
+        (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
+        (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
+        (spatial_1, spatial_2, temporal, features) (obs_axis=False)
+        (spatial_1, spatial_2, temporal_or_features) (obs_axis=False)
+    s_enhance : int
+        factor by which to upsample spatial dimensions
+    obs_axis : bool
+        Flag for if axis=0 is the observation axis. If True (default)
+        spatial axis=(1, 2) (zero-indexed), if False spatial axis=(0, 1)
+
+    Returns
+    -------
+    data : np.ndarray
+        3D | 4D | 5D array with same dimensions as data with new upsampled
+        resolution
+    """
+
+    if len(data.shape) < 3:
+        msg = ('Data must be 3D, 4D, or 5D to do spatial upsampling, but '
+               f'received: {data.shape}')
+        logger.error(msg)
+        raise ValueError(msg)
+
+    if s_enhance is not None and s_enhance > 1:
+
+        if obs_axis and len(data.shape) == 5:
+            enhancement = [1, s_enhance, s_enhance, 1, 1]
+            data_up = interpolation.zoom(data,
+                                         enhancement,
+                                         order=0)
+
+        elif obs_axis and len(data.shape) == 4:
+            enhancement = [1, s_enhance, s_enhance, 1]
+            data_up = interpolation.zoom(data,
+                                         enhancement,
+                                         order=0)
+
+        elif not obs_axis and len(data.shape) == 4:
+            enhancement = [s_enhance, s_enhance, 1, 1]
+            data_up = interpolation.zoom(data,
+                                         enhancement,
+                                         order=0)
+
+        elif not obs_axis and len(data.shape) == 3:
+            enhancement = [s_enhance, s_enhance, 1]
+            data_up = interpolation.zoom(data,
+                                         enhancement,
+                                         order=0)
+        else:
+            msg = ('Data must be 3D, 4D, or 5D to do spatial upsampling, but '
+                   f'received: {data.shape}')
+            logger.error(msg)
+            raise ValueError(msg)
+
+    return data_up
 
 
 def lat_lon_coarsening(lat_lon, s_enhance=2):
