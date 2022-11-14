@@ -16,6 +16,7 @@ from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler,
+                                                SpatialBatchHandler_sf,
                                                 SpatialBatchHandler_mom2)
 
 
@@ -59,7 +60,8 @@ def test_train_st_mom1(log=False, full_shape=(20, 20),
 def test_train_spatial_mom1(log=False, full_shape=(20, 20),
                             sample_shape=(10, 10, 1), n_epoch=4,
                             batch_size=4, n_batches=4,
-                            out_dir_root=None):
+                            out_dir_root=None,
+                            subfilter=False):
     """Test basic spatial model training."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -76,8 +78,16 @@ def test_train_spatial_mom1(log=False, full_shape=(20, 20),
                             val_split=0.005,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler([handler], batch_size=batch_size,
-                                        s_enhance=2, n_batches=n_batches)
+    if subfilter:
+        batch_handler = SpatialBatchHandler_sf([handler],
+                                               batch_size=batch_size,
+                                               s_enhance=2,
+                                               n_batches=n_batches)
+    else:
+        batch_handler = SpatialBatchHandler([handler],
+                                            batch_size=batch_size,
+                                            s_enhance=2,
+                                            n_batches=n_batches)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -163,14 +173,24 @@ if __name__ == "__main__":
     # test_train_st_mom1(n_epoch=4, log=True, full_shape=(20, 20),
     #               batch_size=4, n_batches=20,
     #               out_dir_root='st_model')
+
     # test_train_spatial_mom1(n_epoch=100, log=True, full_shape=(20, 20),
     #                    sample_shape=(10, 10, 1),
     #                    batch_size=16, n_batches=500,
-    #                    out_dir_root='s_mom1')
+    #                    out_dir_root='s_mom1',
+    #                    subfilter=False)
 
     # test_train_spatial_mom2(n_epoch=100, log=True, full_shape=(20, 20),
     #                         sample_shape=(10, 10, 1),
     #                         batch_size=16, n_batches=500,
     #                         out_dir_root='s_mom2',
     #                         model_dir='s_mom1/spatial_cond_mom')
-    pass
+
+    test_train_spatial_mom1(n_epoch=100, log=True,
+                            full_shape=(20, 20),
+                            sample_shape=(10, 10, 1),
+                            batch_size=16, n_batches=500,
+                            out_dir_root='s_mom1_sf',
+                            subfilter=True)
+
+    # pass
