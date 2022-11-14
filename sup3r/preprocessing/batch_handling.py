@@ -19,6 +19,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_box_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
+                                       spatial_upsampling,
                                        smooth_data,
                                        nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
@@ -170,7 +171,8 @@ class ValidationData:
                  temporal_coarsening_method='subsample',
                  output_features_ind=None,
                  output_features=None,
-                 smoothing=None, smoothing_ignore=None):
+                 smoothing=None, smoothing_ignore=None,
+                 model_mom1=None):
         """
         Parameters
         ----------
@@ -203,6 +205,9 @@ class ValidationData:
         smoothing_ignore : list | None
             List of features to ignore for the smoothing filter. None will
             smooth all features if smoothing kwarg is not None
+        model_mom1 : Sup3rCondMom | None
+            model that predicts the first conditional moments.
+            Useful to prepare data for learning second conditional moment.
         """
 
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -223,6 +228,7 @@ class ValidationData:
         self.output_features = output_features
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
+        self.model_mom1 = model_mom1
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -468,7 +474,8 @@ class BatchHandler:
             output_features_ind=self.output_features_ind,
             output_features=self.output_features,
             smoothing=self.smoothing,
-            smoothing_ignore=self.smoothing_ignore)
+            smoothing_ignore=self.smoothing_ignore,
+            model_mom1=self.model_mom1)
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
@@ -1123,8 +1130,64 @@ class SpatialBatchHandler(BatchHandler):
             raise StopIteration
 
 
+class ValidationData_mom2(ValidationData):
+    """Iterator for subfilter validation data"""
+
+    def __next__(self):
+        """Get validation data batch
+
+        Returns
+        -------
+        batch : Batch
+            validation data batch with low and high res data each with
+            n_observations = batch_size
+        """
+        if self._remaining_observations > 0:
+            if self._remaining_observations > self.batch_size:
+                high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            else:
+                high_res = np.zeros((self._remaining_observations,
+                                     self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            for i in range(high_res.shape[0]):
+                val_index = self.val_indices[self._i + i]
+                high_res[i, ...] = self.handlers[
+                    val_index['handler_index']].val_data[
+                    val_index['tuple_index']]
+                self._remaining_observations -= 1
+
+            if self.sample_shape[2] == 1:
+                high_res = high_res[..., 0, :]
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
+                output_features=self.output_features)
+
+            # Remove first moment from high res and square it
+            out = self.model_mom1._tf_generate(batch.low_res).numpy()
+            batch._high_res = (batch.high_res - out)**2
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
 class SpatialBatchHandler_mom2(BatchHandler):
     """Sup3r spatial batch handling class for second conditional moment"""
+
+    VAL_CLASS = ValidationData_mom2
 
     def __next__(self):
         if self._i < self.n_batches:
@@ -1255,6 +1318,95 @@ class ValidationDataSpatialDC(ValidationDataDC):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features)
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class ValidationData_sf(ValidationData):
+    """Iterator for subfilter validation data"""
+
+    def __next__(self):
+        """Get validation data batch
+
+        Returns
+        -------
+        batch : Batch
+            validation data batch with low and high res data each with
+            n_observations = batch_size
+        """
+        if self._remaining_observations > 0:
+            if self._remaining_observations > self.batch_size:
+                high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            else:
+                high_res = np.zeros((self._remaining_observations,
+                                     self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            for i in range(high_res.shape[0]):
+                val_index = self.val_indices[self._i + i]
+                high_res[i, ...] = self.handlers[
+                    val_index['handler_index']].val_data[
+                    val_index['tuple_index']]
+                self._remaining_observations -= 1
+
+            if self.sample_shape[2] == 1:
+                high_res = high_res[..., 0, :]
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
+                output_features=self.output_features)
+
+            # Remove low_res from high_res info
+            upsampled_low_res = spatial_upsampling(batch.low_res,
+                                                   s_enhance=self.s_enhance)
+            batch._high_res -= upsampled_low_res
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class SpatialBatchHandler_sf(BatchHandler):
+    """Sup3r spatial batch handling class for subfilter fields"""
+
+    VAL_CLASS = ValidationData_sf
+
+    def __next__(self):
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(
+                0, len(self.data_handlers))
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next()[..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            # Remove low_res from high_res info
+            upsampled_low_res = spatial_upsampling(batch.low_res,
+                                                   s_enhance=self.s_enhance)
+            batch._high_res -= upsampled_low_res
+
             self._i += 1
             return batch
         else:
