@@ -164,17 +164,22 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
                             sample_shape=(10, 10, 1), n_epoch=4,
                             batch_size=4, n_batches=4,
                             out_dir_root=None,
-                            model_dir=None):
+                            model_mom1_dir=None):
     """Test basic spatial model training for second conditional moment"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    # Load Mom 1 Model
+    if model_mom1_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+        model_mom1 = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
+        model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
     Sup3rCondMom.seed()
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
-    model_mom1 = Sup3rCondMom(fp_gen, learning_rate=5e-5)
-    model_mom1_loaded = model_mom1.load(model_dir)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -185,7 +190,7 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
 
     batch_handler = SpatialBatchHandler_mom2([handler], batch_size=batch_size,
                                              s_enhance=2, n_batches=n_batches,
-                                             model_mom1=model_mom1_loaded)
+                                             model_mom1=model_mom1)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
