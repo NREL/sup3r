@@ -39,15 +39,16 @@ logger = logging.getLogger(__name__)
 class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
-    def __init__(self, coarse_shape, time_index, temporal_slice, chunk_shape,
+    def __init__(self, coarse_shape, time_steps, temporal_slice, chunk_shape,
                  s_enhancements, t_enhancements, spatial_pad, temporal_pad):
         """
         Parameters
         ----------
         coarse_shape : tuple
             Shape of full domain for low res data
-        time_index : pd.Datetimeindex
-            Time index for full temporal domain of low res data
+        time_steps : int
+            Number of time steps for full temporal domain of low res data. This
+            is used to construct a dummy_time_index from np.arange(time_steps)
         temporal_slice : slice
             Slice to use to extract range from time_index
         chunk_shape : tuple
@@ -87,11 +88,12 @@ class ForwardPassSlicer:
             the first non-enhanced spatial input resolution.
         """
         self.grid_shape = coarse_shape
+        self.time_steps = time_steps
         self.s_enhancements = s_enhancements
         self.t_enhancements = t_enhancements
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
-        self.raw_time_index = time_index
+        self.dummy_time_index = np.arange(time_steps)
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
@@ -145,7 +147,7 @@ class ForwardPassSlicer:
         t_lr_pad_slices : list
             List of low-res padded time index slices. e.g. If fwp_chunk_size[2]
             is 5 the size of these slices will be 15, with exceptions at the
-            start and end of the raw_time_index.
+            start and end of the full time index.
         """
         return self.t_lr_slices, self.t_lr_pad_slices
 
@@ -207,7 +209,7 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices, len(self.raw_time_index), 1,
+                self.t_lr_slices, self.time_steps, 1,
                 self.temporal_pad, self.temporal_slice.step)
         return self._t_lr_pad_slices
 
@@ -387,10 +389,10 @@ class ForwardPassSlicer:
     @property
     def t_lr_slices(self):
         """Low resolution temporal slices"""
-        n_tsteps = len(self.raw_time_index[self.temporal_slice])
+        n_tsteps = len(self.dummy_time_index[self.temporal_slice])
         n_chunks = n_tsteps / self.chunk_shape[2]
         n_chunks = int(np.ceil(n_chunks))
-        ti_slices = np.arange(len(self.raw_time_index))[self.temporal_slice]
+        ti_slices = self.dummy_time_index[self.temporal_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
         ti_slices = [slice(c[0], c[-1] + 1, self.temporal_slice.step)
                      for c in ti_slices]
@@ -555,7 +557,8 @@ class ForwardPassStrategy(InputMixIn):
                  pass_workers=1,
                  bias_correct_method=None,
                  bias_correct_kwargs=None,
-                 max_nodes=None):
+                 max_nodes=None,
+                 single_ts_files=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -593,47 +596,10 @@ class ForwardPassStrategy(InputMixIn):
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
             chunks in the temporal dimension will not be padded.
-        temporal_slice : slice | tuple | list
-            Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then temporal_slice = slice(None) will
-            select all 25 time steps. This can also be a tuple / list with
-            length 3 that will be interpreted as slice(*temporal_slice)
         model_class : str
             Name of the sup3r model class for the GAN model to load. The
             default is the basic spatial / spatiotemporal Sup3rGan model. This
             will be loaded from sup3r.models
-        target : tuple
-            (lat, lon) lower left corner of raster. You should provide
-            target+shape or raster_file, or if all three are None the full
-            source domain will be used.
-        shape : tuple
-            (rows, cols) grid size. You should provide target+shape or
-            raster_file, or if all three are None the full source domain will
-            be used.
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. You should
-            provide target+shape or raster_file, or if all three are None the
-            full source domain will be used.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size
-            of the full time index for best performance.
-        cache_pattern : str | None
-            Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl Each feature will be saved to a file with
-            the feature name replaced in cache_pattern. If not None
-            feature arrays will be saved here and not stored in self.data until
-            load_cached_data is called. The cache_pattern can also include
-            {shape}, {target}, {times} which will help ensure unique cache
-            files for complex problems.
-        overwrite_cache : bool
-            Whether to overwrite cache files storing the computed/extracted
-            feature data
-        overwrite_ti_cache : bool
-            Whether to overwrite time index cache files
         out_pattern : str
             Output file pattern. Must be of form <path>/<name>_{file_id}.<ext>.
             e.g. /tmp/sup3r_job_{file_id}.h5
@@ -646,40 +612,25 @@ class ForwardPassStrategy(InputMixIn):
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
         input_handler_kwargs : dict | None
-            Optional kwargs for initializing the input_handler class. For
-            example, this could be {'hr_spatial_coarsen': 2} if you wanted to
-            artificially coarsen the input data for testing.
+            Any kwargs for initializing the input_handler class
+            :class:`sup3r.preprocessing.data_handling.DataHandler`.
         incremental : bool
             Allow the forward pass iteration to skip spatiotemporal chunks that
             already have an output file (True, default) or iterate through all
             chunks and overwrite any pre-existing outputs (False).
         max_workers : int | None
             Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, and load_workers.
-            If max_workers == 1 then all processes will be serialized. If None
-            extract_workers, compute_workers, load_workers, output_workers will
-            use their own provided values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
+            extract_workers, compute_workers, output_workers, load_workers,
+            ti_workers, pass_workers. If max_workers == 1 then all processes
+            will be serialized. If None extract_workers, compute_workers,
+            load_workers, output_workers, etc will use their own provided
+            values.
         output_workers : int | None
             max number of workers to use for writing forward pass output.
         pass_workers : int | None
             max number of workers to use for performing forward passes on a
             single node. If 1 then all forward passes on chunks distributed to
             a single node will be run in serial.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -700,8 +651,11 @@ class ForwardPassStrategy(InputMixIn):
         max_nodes : int | None
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
+        single_ts_files : bool | None
+            Whether input files are single time steps or not. If they are this
+            enables some reduced computation. If None then this will be
+            determined from file_paths directly.
         """
-        self._i = 0
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
@@ -714,19 +668,22 @@ class ForwardPassStrategy(InputMixIn):
         self.pass_workers = pass_workers
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
-        self._single_time_step_files = None
+        self._single_time_step_files = single_ts_files
         self._input_handler_class = None
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
         self._input_handler_kwargs = input_handler_kwargs or {}
         self._time_index = None
         self._raw_time_index = None
+        self._raw_tsteps = None
         self._out_files = None
         self._file_ids = None
         self._time_index_file = None
         self._node_chunks = None
         self._hr_lat_lon = None
-        self.incremental = incremental
+        self._lr_lat_lon = None
+        self._init_handler = None
+        self._handle_features = None
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = bias_correct_kwargs or {}
 
@@ -750,6 +707,9 @@ class ForwardPassStrategy(InputMixIn):
         self.ti_workers = self._input_handler_kwargs.get('ti_workers', None)
         self._cache_pattern = self._input_handler_kwargs.get('cache_pattern',
                                                              None)
+        self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
+                              'load_workers', 'output_workers',
+                              'extract_workers']
         self.cap_worker_args(max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -770,8 +730,7 @@ class ForwardPassStrategy(InputMixIn):
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
 
-        self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
-                                            self.raw_time_index,
+        self.fwp_slicer = ForwardPassSlicer(self.grid_shape, self.raw_tsteps,
                                             self.temporal_slice,
                                             self.fwp_chunk_shape,
                                             self.s_enhancements,
@@ -779,8 +738,13 @@ class ForwardPassStrategy(InputMixIn):
                                             self.spatial_pad,
                                             self.temporal_pad)
 
-        logger.info('Initializing ForwardPassStrategy for '
-                    f'{self.input_file_info}. Using n_nodes={self.nodes} with '
+        self.preflight()
+
+    def preflight(self):
+        """Prelight path name formatting and sanity checks"""
+
+        logger.info('Initializing ForwardPassStrategy. '
+                    f'Using n_nodes={self.nodes} with '
                     f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
@@ -793,38 +757,15 @@ class ForwardPassStrategy(InputMixIn):
                     f'output_workers={self.output_workers}, '
                     f'ti_workers={self.ti_workers}')
 
-        self.preflight()
-
-    @property
-    def worker_attrs(self):
-        """Get all worker args defined in init"""
-        return ['ti_workers', 'compute_workers', 'pass_workers',
-                'load_workers', 'output_workers', 'extract_workers']
-
-    def preflight(self):
-        """Prelight path name formatting and sanity checks"""
-        if self.cache_pattern is not None:
-            if '{temporal_chunk_index}' not in self.cache_pattern:
-                self.cache_pattern = self.cache_pattern.replace(
-                    '.pkl', '_{temporal_chunk_index}.pkl')
-            if '{spatial_chunk_index}' not in self.cache_pattern:
-                self.cache_pattern = self.cache_pattern.replace(
-                    '.pkl', '_{spatial_chunk_index}.pkl')
-        if self.raster_file is not None:
-            if '{spatial_chunk_index}' not in self.raster_file:
-                self.raster_file = self.raster_file.replace(
-                    '.txt', '_{spatial_chunk_index}.txt')
-
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
 
         msg = ('Using a padded chunk size '
                f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
-               'larger than the full temporal domain '
-               f'({len(self.raw_time_index)}). Should just run without '
-               'temporal chunking. ')
+               f'larger than the full temporal domain ({self.raw_tsteps}). '
+               'Should just run without temporal chunking. ')
         if (self.fwp_chunk_shape[2] + 2 * self.temporal_pad
-                >= len(self.raw_time_index)):
+                >= self.raw_tsteps):
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -836,28 +777,62 @@ class ForwardPassStrategy(InputMixIn):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
-        # pylint: disable=E1102
-        logger.info('Getting lat/lon for entire forward pass domain.')
-        out = self.input_handler_class(self.file_paths[0], [],
-                                       target=self.target,
-                                       shape=self.grid_shape, ti_workers=1)
-        self.lr_lat_lon = out.lat_lon
-        self.invert_lat = out.invert_lat
-        self.single_time_step_files = self.is_single_ts_files()
-        if self.single_time_step_files:
-            self.handle_features = out.handle_features
-        else:
-            hf = self.input_handler_class.get_handle_features(self.file_paths)
-            self.handle_features = hf
+    # pylint: disable=E1102
+    @property
+    def init_handler(self):
+        """Get initial input handler used for extracting handler features and
+        low res grid"""
+        if self._init_handler is None:
+            out = self.input_handler_class(self.file_paths[0], [],
+                                           target=self.target,
+                                           shape=self.grid_shape, ti_workers=1)
+            self._init_handler = out
+        return self._init_handler
+
+    @property
+    def lr_lat_lon(self):
+        """Get low resolution lat lons for input entire grid"""
+        if self._lr_lat_lon is None:
+            logger.info('Getting low-resolution grid for full input domain.')
+            self._lr_lat_lon = self.init_handler.lat_lon
+        return self._lr_lat_lon
+
+    @property
+    def handle_features(self):
+        """Get available handle features"""
+        if self._handle_features is None:
+            if self.is_single_ts_files():
+                self._handle_features = self.init_handler.handle_features
+            else:
+                hf = self.input_handler_class.get_handle_features(
+                    self.file_paths)
+                self._handle_features = hf
+        return self._handle_features
 
     @property
     def hr_lat_lon(self):
         """Get high resolution lat lons"""
         if self._hr_lat_lon is None:
+            logger.info('Getting high-resolution grid for full output domain.')
             lr_lat_lon = self.lr_lat_lon.copy()
             self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
                                                          self.gids.shape)
         return self._hr_lat_lon
+
+    @property
+    def raw_tsteps(self):
+        """Get number of time steps for all input files"""
+        if self._raw_tsteps is None:
+            if self.single_time_step_files:
+                self._raw_tsteps = len(self.file_paths)
+            else:
+                self._raw_tsteps = len(self.raw_time_index)
+        return self._raw_tsteps
+
+    @property
+    def single_time_step_files(self):
+        """Get whether files are single time steps or not"""
+        return self.is_single_ts_files()
 
     def get_full_domain(self, file_paths):
         """Get target and grid_shape for largest possible domain"""
@@ -1103,7 +1078,6 @@ class ForwardPass:
         self.pass_workers = strategy.pass_workers
         self.output_workers = strategy.output_workers
         self.exo_kwargs = strategy.exo_kwargs
-        self.single_time_step_files = strategy.single_time_step_files
 
         self.exogenous_handler = None
         self.exogenous_data = None
@@ -1143,9 +1117,11 @@ class ForwardPass:
             compute_workers=strategy.compute_workers,
             load_workers=strategy.load_workers,
             ti_workers=strategy.ti_workers,
-            handle_features=self.strategy.handle_features,
+            handle_features=strategy.handle_features,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
+
+        logger.info(f'Getting input data for chunk_index={chunk_index}.')
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
         self.data_handler.load_cached_data()
         self.input_data = self.data_handler.data
@@ -1156,6 +1132,11 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+
+    @property
+    def single_time_step_files(self):
+        """Get whether input files are single time step or not"""
+        return self.strategy.single_time_step_files
 
     @property
     def s_enhance(self):
@@ -1296,13 +1277,19 @@ class ForwardPass:
         """Get shape for the current padded spatiotemporal chunk"""
         return (self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
                 self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
-                len(self.strategy.raw_time_index[self.ti_pad_slice]))
+                self.ti_pad_slice.stop - self.ti_pad_slice.start)
 
     @property
     def cache_pattern(self):
         """Get cache pattern for the current chunk"""
         cache_pattern = self.strategy.cache_pattern
         if cache_pattern is not None:
+            if '{temporal_chunk_index}' not in cache_pattern:
+                cache_pattern = cache_pattern.replace(
+                    '.pkl', '_{temporal_chunk_index}.pkl')
+            if '{spatial_chunk_index}' not in cache_pattern:
+                cache_pattern = cache_pattern.replace(
+                    '.pkl', '_{spatial_chunk_index}.pkl')
             cache_pattern = cache_pattern.replace(
                 '{temporal_chunk_index}', str(self.temporal_chunk_index))
             cache_pattern = cache_pattern.replace(
@@ -1314,6 +1301,9 @@ class ForwardPass:
         """Get raster file for the current spatial chunk"""
         raster_file = self.strategy.raster_file
         if raster_file is not None:
+            if '{spatial_chunk_index}' not in raster_file:
+                raster_file = raster_file.replace(
+                    '.txt', '_{spatial_chunk_index}.txt')
             raster_file = raster_file.replace(
                 '{spatial_chunk_index}', str(self.spatial_chunk_index))
         return raster_file
@@ -1330,12 +1320,11 @@ class ForwardPass:
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         """
         ti_start = self.ti_slice.start or 0
-        ti_stop = self.ti_slice.stop or len(self.strategy.raw_time_index)
+        ti_stop = self.ti_slice.stop or self.strategy.raw_tsteps
         pad_t_start = int(np.maximum(0, (self.strategy.temporal_pad
                                          - ti_start)))
         pad_t_end = int(np.maximum(0, (self.strategy.temporal_pad
-                                       + ti_stop
-                                       - len(self.strategy.raw_time_index))))
+                                       + ti_stop - self.strategy.raw_tsteps)))
 
         s1_start = self.lr_slice[0].start or 0
         s1_stop = self.lr_slice[0].stop or self.strategy.grid_shape[0]
@@ -1730,7 +1719,8 @@ class ForwardPass:
                             f'file_paths={fwp.file_paths}')
                 fwp.run_chunk()
             except Exception as e:
-                msg = ('Sup3r ForwardPass chunk failed!')
+                msg = (f'Sup3r ForwardPass for chunk_index={chunk_index} '
+                       'failed!')
                 logger.exception(msg)
                 raise RuntimeError(msg) from e
 
@@ -1791,7 +1781,7 @@ class ForwardPass:
                                     f'{mem.used / 1e9:.3f} GB out of '
                                     f'{mem.total / 1e9:.3f} GB total.')
                     except Exception as e:
-                        msg = ('Error running forward pass on chunk '
+                        msg = ('Error running forward pass on chunk_index='
                                f'{futures[future]}.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
@@ -1802,9 +1792,9 @@ class ForwardPass:
     def run_chunk(self):
         """This routine runs a forward pass on single spatiotemporal chunk.
         """
-        msg = (f'Starting forward pass on data shape {self.chunk_shape} with '
-               f'spatial_pad of {self.strategy.spatial_pad} and temporal_pad '
-               f'of {self.strategy.temporal_pad}.')
+        msg = (f'Starting forward pass on chunk_shape={self.chunk_shape} with '
+               f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
+               f'{self.strategy.temporal_pad}.')
         logger.info(msg)
 
         out_data = self._run_single_fwd_pass()
