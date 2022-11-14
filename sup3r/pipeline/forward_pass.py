@@ -28,7 +28,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_input_handler_class)
 from sup3r.utilities import ModuleName
 
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import as_completed, ThreadPoolExecutor, Future
 
 np.random.seed(42)
 
@@ -1747,17 +1747,16 @@ class ForwardPass:
 
         Parameters
         ----------
-        fwp : ForwardPass | future | None
+        fwp : ForwardPass | concurrent.futures.Future | None
             Either a ForwardPass object, a concurrent future, or None. This
             comes from either a direct ForwardPass initialization or a
             ThreadPoolExecutor.submit() call.
         """
+        if isinstance(fwp, Future):
+            fwp = fwp.result()
+
         if isinstance(fwp, ForwardPass):
             fwp.run_chunk()
-        elif fwp is not None:
-            fwp = fwp.result()
-            if fwp is not None:
-                fwp.run_chunk()
 
     @classmethod
     def run(cls, strategy, node_index):
