@@ -10,9 +10,9 @@ from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
-                                                SpatialBatchHandler_sf,
-                                                SpatialBatchHandler_mom2,
-                                                SpatialBatchHandler_mom2_sf)
+                                                SpatialBatchHandlerMom1SF,
+                                                SpatialBatchHandlerMom2,
+                                                SpatialBatchHandlerMom2SF)
 from sup3r.utilities.utilities import (spatial_upsampling)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -49,6 +49,8 @@ def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
     for batch in batch_handler:
         assert batch.high_res.shape == (batch_size, sample_shape[0],
                                         sample_shape[1], 2)
+        assert batch.output.shape == (batch_size, sample_shape[0],
+                                      sample_shape[1], 2)
         assert batch.low_res.shape == (batch_size,
                                        sample_shape[0] // s_enhance,
                                        sample_shape[1] // s_enhance, 2)
@@ -67,17 +69,17 @@ def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
         n_snap = 0
         for p, batch in enumerate(batch_handler):
             out = model._tf_generate(batch.low_res).numpy()
-            for i in range(batch.high_res.shape[0]):
+            for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                hr = (batch.high_res[i, :, :, 0] * batch_handler.stds[0]
+                hr = (batch.output[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
                 gen = (out[i, :, :, 0] * batch_handler.stds[0]
                        + batch_handler.means[0])
                 fig = plot_multi_contour(
                     [lr, hr, gen],
-                    [0, batch.high_res.shape[1]],
-                    [0, batch.high_res.shape[2]],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
                     ['U [m/s]', 'U [m/s]', 'U [m/s]'],
                     ['LR', 'HR', mom_name],
                     ['x [m]', 'x [m]', 'x [m]'],
@@ -108,10 +110,10 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                             val_split=0,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler_sf([handler],
-                                           batch_size=batch_size,
-                                           s_enhance=s_enhance,
-                                           n_batches=n_batches)
+    batch_handler = SpatialBatchHandlerMom1SF([handler],
+                                              batch_size=batch_size,
+                                              s_enhance=s_enhance,
+                                              n_batches=n_batches)
 
     # Load Model
     if model_dir is None:
@@ -134,16 +136,16 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
         n_snap = 0
         for p, batch in enumerate(batch_handler):
             out = model._tf_generate(batch.low_res).numpy()
-            for i in range(batch.high_res.shape[0]):
+            for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
                 up_lr = spatial_upsampling(batch.low_res,
                                            s_enhance=s_enhance)
-                hr = ((batch.high_res[i, :, :, 0]
+                hr = ((batch.output[i, :, :, 0]
                        + up_lr[i, :, :, 0])
                       * batch_handler.stds[0]
                       + batch_handler.means[0])
-                sf = (batch.high_res[i, :, :, 0]
+                sf = (batch.output[i, :, :, 0]
                       * batch_handler.stds[0])
                 sf_pred = (out[i, :, :, 0]
                            * batch_handler.stds[0])
@@ -153,8 +155,8 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                            + batch_handler.means[0])
                 fig = plot_multi_contour(
                     [lr, hr, hr_pred, sf, sf_pred],
-                    [0, batch.high_res.shape[1]],
-                    [0, batch.high_res.shape[2]],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
                     ['U [m/s]', 'U [m/s]', 'U [m/s]',
                      'U [m/s]', 'U [m/s]'],
                     ['LR', 'HR', mom_name, 'SF', mom_name2],
@@ -200,11 +202,11 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
-    batch_handler = SpatialBatchHandler_mom2([handler],
-                                             batch_size=batch_size,
-                                             s_enhance=s_enhance,
-                                             n_batches=n_batches,
-                                             model_mom1=model_mom1)
+    batch_handler = SpatialBatchHandlerMom2([handler],
+                                            batch_size=batch_size,
+                                            s_enhance=s_enhance,
+                                            n_batches=n_batches,
+                                            model_mom1=model_mom1)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -218,6 +220,8 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
     for batch in batch_handler:
         assert batch.high_res.shape == (batch_size, sample_shape[0],
                                         sample_shape[1], 2)
+        assert batch.output.shape == (batch_size, sample_shape[0],
+                                      sample_shape[1], 2)
         assert batch.low_res.shape == (batch_size,
                                        sample_shape[0] // s_enhance,
                                        sample_shape[1] // s_enhance, 2)
@@ -237,23 +241,21 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
         n_snap = 0
         for p, batch in enumerate(batch_handler):
             out = model._tf_generate(batch.low_res).numpy()
-            out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
-            for i in range(batch.high_res.shape[0]):
+            # out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
+            for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                hr = ((np.sqrt(batch.high_res[i, :, :, 0])
-                       + out_mom1[i, :, :, 0])
-                      * batch_handler.stds[0]
+                hr = (batch.high_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                hr_to_mean = np.sqrt(batch.high_res[i, :, :, 0]
+                hr_to_mean = np.sqrt(batch.output[i, :, :, 0]
                                      * batch_handler.stds[0]**2)
                 sigma = np.sqrt(np.clip(out[i, :, :, 0]
                                 * batch_handler.stds[0]**2,
                                 a_min=0, a_max=None))
                 fig = plot_multi_contour(
                     [lr, hr, hr_to_mean, sigma],
-                    [0, batch.high_res.shape[1]],
-                    [0, batch.high_res.shape[2]],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
                     ['U [m/s]', 'U [m/s]', 'U [m/s]', 'U [m/s]'],
                     ['LR', 'HR', hr_name, mom_name],
                     ['x [m]', 'x [m]', 'x [m]', 'x [m]'],
@@ -295,11 +297,11 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
-    batch_handler = SpatialBatchHandler_mom2_sf([handler],
-                                                batch_size=batch_size,
-                                                s_enhance=s_enhance,
-                                                n_batches=n_batches,
-                                                model_mom1=model_mom1)
+    batch_handler = SpatialBatchHandlerMom2SF([handler],
+                                              batch_size=batch_size,
+                                              s_enhance=s_enhance,
+                                              n_batches=n_batches,
+                                              model_mom1=model_mom1)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -324,14 +326,12 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
             out = np.clip(model._tf_generate(batch.low_res).numpy(),
                           a_min=0, a_max=None)
             out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
-            for i in range(batch.high_res.shape[0]):
+            for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
                 up_lr = spatial_upsampling(batch.low_res,
                                            s_enhance=s_enhance)
-                hr = ((np.sqrt(batch.high_res[i, :, :, 0])
-                       + out_mom1[i, :, :, 0]
-                       + up_lr[i, :, :, 0])
+                hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
                       + batch_handler.means[0])
                 sf = (hr
@@ -345,8 +345,8 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
                                 * batch_handler.stds[0]**2)
                 fig = plot_multi_contour(
                     [lr, hr, sf, sf_to_mean, sigma],
-                    [0, batch.high_res.shape[1]],
-                    [0, batch.high_res.shape[2]],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
                     ['U [m/s]', 'U [m/s]', 'U [m/s]',
                      'U [m/s]', 'U [m/s]'],
                     ['LR', 'HR', 'SF', mom_name1, mom_name2],
@@ -446,22 +446,22 @@ def test_out_loss(plot=False, model_dirs=None,
 
 if __name__ == "__main__":
 
-    # test_out_loss(plot=True, model_dirs=['s_mom1/spatial_cond_mom'],
-    #               figureDir='mom1_loss')
+    test_out_loss(plot=True, model_dirs=['s_mom1/spatial_cond_mom'],
+                  figureDir='mom1_loss')
 
-    # test_out_loss(plot=True, model_dirs=['s_mom2/spatial_cond_mom'],
-    #               figureDir='mom2_loss')
+    test_out_loss(plot=True, model_dirs=['s_mom2/spatial_cond_mom'],
+                  figureDir='mom2_loss')
 
-    # test_out_loss(plot=True, model_dirs=['s_mom1_sf/spatial_cond_mom'],
-    #               figureDir='mom1_sf_loss')
+    test_out_loss(plot=True, model_dirs=['s_mom1_sf/spatial_cond_mom'],
+                  figureDir='mom1_sf_loss')
 
-    # test_out_loss(plot=True, model_dirs=['s_mom2_sf/spatial_cond_mom'],
-    #               figureDir='mom2_sf_loss')
+    test_out_loss(plot=True, model_dirs=['s_mom2_sf/spatial_cond_mom'],
+                  figureDir='mom2_sf_loss')
 
-    # test_out_spatial_mom1(plot=True, full_shape=(20, 20),
-    #                       sample_shape=(10, 10, 1),
-    #                       batch_size=4, n_batches=4,
-    #                       s_enhance=2, model_dir='s_mom1/spatial_cond_mom')
+    test_out_spatial_mom1(plot=True, full_shape=(20, 20),
+                          sample_shape=(10, 10, 1),
+                          batch_size=4, n_batches=4,
+                          s_enhance=2, model_dir='s_mom1/spatial_cond_mom')
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
@@ -469,15 +469,15 @@ if __name__ == "__main__":
                           s_enhance=2, model_dir='s_mom2/spatial_cond_mom',
                           model_mom1_dir='s_mom1/spatial_cond_mom')
 
-    # test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
-    #                          sample_shape=(10, 10, 1),
-    #                          batch_size=4, n_batches=4,
-    #                          s_enhance=2,
-    #                          model_dir='s_mom1_sf/spatial_cond_mom')
+    test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
+                             sample_shape=(10, 10, 1),
+                             batch_size=4, n_batches=4,
+                             s_enhance=2,
+                             model_dir='s_mom1_sf/spatial_cond_mom')
 
-    # test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
-    #                          sample_shape=(10, 10, 1),
-    #                          batch_size=4, n_batches=4,
-    #                          s_enhance=2,
-    #                          model_mom1_dir='s_mom1_sf/spatial_cond_mom',
-    #                          model_dir='s_mom2_sf/spatial_cond_mom')
+    test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
+                             sample_shape=(10, 10, 1),
+                             batch_size=4, n_batches=4,
+                             s_enhance=2,
+                             model_mom1_dir='s_mom1_sf/spatial_cond_mom',
+                             model_dir='s_mom2_sf/spatial_cond_mom')
