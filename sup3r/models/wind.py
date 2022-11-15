@@ -326,7 +326,7 @@ class WindGan(Sup3rGan):
             high_res_gen = self._tf_generate(val_batch.low_res,
                                              val_batch.high_res[..., -1:])
             _, v_loss_details = self.calc_loss(
-                val_batch.high_res, high_res_gen,
+                val_batch.output, high_res_gen,
                 weight_gen_advers=weight_gen_advers,
                 train_gen=False, train_disc=False)
 
