@@ -85,6 +85,7 @@ class InputMixIn:
         self.lat_lon = None
         self._ti_workers = None
         self._raw_time_index = None
+        self._raw_tsteps = None
         self._time_index = None
         self._time_index_file = None
         self._temporal_slice = None
@@ -92,7 +93,30 @@ class InputMixIn:
         self._cache_pattern = None
         self._target = None
         self._grid_shape = None
+        self._single_ts_files = None
         self._worker_attrs = ['ti_workers']
+        self.ti_kwargs = {}
+
+    @property
+    def raw_tsteps(self):
+        """Get number of time steps for all input files"""
+        if self._raw_tsteps is None:
+            if self.single_ts_files:
+                self._raw_tsteps = len(self.file_paths)
+            else:
+                self._raw_tsteps = len(self.raw_time_index)
+        return self._raw_tsteps
+
+    @property
+    def single_ts_files(self):
+        """Check if there is a file for each time step, in which case we can
+        send a subset of files to the data handler according to ti_pad_slice"""
+        if self._single_ts_files is None:
+            t_steps = self.get_time_index(self.file_paths[:1], max_workers=1)
+            check = (len(self._file_paths) == len(self.raw_time_index)
+                     and t_steps is not None and len(t_steps) == 1)
+            self._single_ts_files = check
+        return self._single_ts_files
 
     @staticmethod
     def get_capped_workers(max_workers_cap, max_workers):
@@ -133,7 +157,7 @@ class InputMixIn:
         are not specified"""
 
     @abstractmethod
-    def get_time_index(self, file_paths, max_workers=None):
+    def get_time_index(self, file_paths, max_workers=None, **kwargs):
         """Get raw time index for source data"""
 
     @property
@@ -285,7 +309,7 @@ class InputMixIn:
             if check:
                 self._target = tuple(self.lat_lon[-1, 0, :])
             else:
-                self._target, self._grid_shape = self.full_domain
+                self._target, _ = self.full_domain
         return self._target
 
     @target.setter
@@ -307,7 +331,7 @@ class InputMixIn:
         if check:
             self._grid_shape = get_raster_shape(self.raster_index)
         elif self._grid_shape is None:
-            self._target, self._grid_shape = self.full_domain
+            _, self._grid_shape = self.full_domain
         return self._grid_shape
 
     @grid_shape.setter
@@ -354,10 +378,11 @@ class InputMixIn:
             else:
                 now = dt.now()
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
-                             'input files. Using ti_workers='
-                             f'{self.ti_workers}')
+                             f'input files. Using ti_workers={self.ti_workers}'
+                             f' and ti_kwargs={self.ti_kwargs}')
                 self._raw_time_index = self.get_time_index(
-                    self.file_paths, max_workers=self.ti_workers)
+                    self.file_paths, max_workers=self.ti_workers,
+                    **self.ti_kwargs)
 
                 if self.time_index_file is not None:
                     logger.debug('Saved raw_time_index to '
@@ -373,6 +398,13 @@ class InputMixIn:
                 self._raw_time_index -= pd.Timedelta(12, 'h')
             elif self._raw_time_index is None:
                 self._raw_time_index = [None, None]
+
+        if self._single_ts_files:
+            msg = ('Conflicting number of time steps '
+                   f'({len(self._raw_time_index)}) and files '
+                   f'({self.raw_tsteps})')
+            check = len(self._raw_time_index) == self.raw_tsteps
+            assert check, msg
         return self._raw_time_index
 
     @property
@@ -450,7 +482,8 @@ class DataHandler(FeatureHandler, InputMixIn):
                  overwrite_cache=False, overwrite_ti_cache=False,
                  load_cached=False, train_only_features=None, max_workers=None,
                  extract_workers=None, compute_workers=None, load_workers=None,
-                 norm_workers=None, ti_workers=None, handle_features=None):
+                 norm_workers=None, ti_workers=None, handle_features=None,
+                 single_ts_files=None, ti_kwargs=None):
         """
         Parameters
         ----------
@@ -551,6 +584,14 @@ class DataHandler(FeatureHandler, InputMixIn):
             parallel and then concatenated to get the full time index. If input
             files do not all have time indices or if there are few input files
             this should be set to one.
+        single_ts_files : bool | None
+            Whether input files are single time steps or not. If they are this
+            enables some reduced computation. If None then this will be
+            determined from file_paths directly.
+        ti_kwargs : dict | None
+            kwargs passed to source handler for time index extraction. e.g.
+            This could be {'parallel': True} which then gets passed to
+            xr.open_mfdataset(file, **ti_kwargs) when computing the time_index
         """
 
         msg = 'No files provided to DataHandler. Aborting.'
@@ -576,6 +617,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.target = target
         self.grid_shape = shape
         self.max_workers = max_workers
+        self.ti_kwargs = ti_kwargs or {}
+        self._single_ts_files = single_ts_files
         self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
@@ -587,6 +630,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._time_chunk_size = time_chunk_size
         self._cache_files = None
         self._raw_time_index = None
+        self._raw_tsteps = None
         self._time_index = None
         self._time_index_file = None
         self._lat_lon = None
@@ -1712,7 +1756,7 @@ class DataHandlerNC(DataHandler):
                                  concat_dim='Time', **kwargs)
 
     @classmethod
-    def get_file_times(cls, file_paths):
+    def get_file_times(cls, file_paths, **kwargs):
         """Get time index from data files
 
         Parameters
@@ -1725,7 +1769,7 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        with cls.source_handler(file_paths) as handle:
+        with cls.source_handler(file_paths, **kwargs) as handle:
             if hasattr(handle, 'Times'):
                 time_index = np_to_pd_times(handle.Times.values)
             elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
@@ -1744,7 +1788,7 @@ class DataHandlerNC(DataHandler):
         return time_index
 
     @classmethod
-    def get_time_index(cls, file_paths, max_workers=None):
+    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
         """Get time index from data files
 
         Parameters
@@ -1762,13 +1806,13 @@ class DataHandlerNC(DataHandler):
         max_workers = (len(file_paths) if max_workers is None
                        else np.min((max_workers, len(file_paths))))
         if max_workers == 1:
-            return cls.get_file_times(file_paths)
+            return cls.get_file_times(file_paths, **kwargs)
         ti = {}
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i, f in enumerate(file_paths):
-                future = exe.submit(cls.get_file_times, [f])
+                future = exe.submit(cls.get_file_times, [f], **kwargs)
                 futures[future] = {'idx': i, 'file': f}
 
             logger.info(f'Started building time index from {len(file_paths)} '
@@ -1818,7 +1862,7 @@ class DataHandlerNC(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), **kwargs):
         """Extract single feature from data source
 
         Parameters
@@ -1843,7 +1887,7 @@ class DataHandlerNC(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
         logger.info(f'Extracting {feature}')
-        with cls.source_handler(file_paths) as handle:
+        with cls.source_handler(file_paths, **kwargs) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
             interp_pressure = f_info.pressure
@@ -2248,7 +2292,7 @@ class DataHandlerH5(DataHandler):
         raise ValueError(msg)
 
     @classmethod
-    def get_time_index(cls, file_paths, max_workers=None):
+    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
         """Get time index from data files
 
         Parameters

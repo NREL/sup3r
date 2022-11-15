@@ -292,6 +292,8 @@ class TopoExtractNC(TopoExtract):
         """
 
         super().__init__(*args, **kwargs)
+        logger.info('Getting topography for full domain from '
+                    f'{self._topo_source}')
         self.source_handler = DataHandlerNC(self._topo_source,
                                             features=['topography'],
                                             ti_workers=self.ti_workers,
