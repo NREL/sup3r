@@ -412,6 +412,8 @@ class Collector:
         if (target_final_meta_file is not None
                 and os.path.exists(target_final_meta_file)):
             target_final_meta = pd.read_csv(target_final_meta_file)
+            if 'gid' in target_final_meta.columns:
+                target_final_meta = target_final_meta.drop('gid', axis=1)
             mask = cls.get_coordinate_indices(target_final_meta, meta,
                                               threshold=threshold)
             masked_meta = meta.iloc[mask]

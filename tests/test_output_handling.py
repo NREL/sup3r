@@ -198,7 +198,7 @@ def test_h5_collect_mask(log=False):
                           max_workers=1, join_times=False)
         with ResourceX(fp_out_mask) as fh:
             mask_meta = pd.read_csv(mask_file, dtype=np.float32)
-            assert np.array_equal(mask_meta['gid'], fh.meta['gid'])
+            assert np.array_equal(mask_meta['gid'], fh.meta.index.values)
             assert np.array_equal(mask_meta['longitude'], fh.meta['longitude'])
             assert np.array_equal(mask_meta['latitude'], fh.meta['latitude'])
 
