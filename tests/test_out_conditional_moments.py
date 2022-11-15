@@ -141,18 +141,17 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                       + batch_handler.means[0])
                 up_lr = spatial_upsampling(batch.low_res,
                                            s_enhance=s_enhance)
-                hr = ((batch.output[i, :, :, 0]
-                       + up_lr[i, :, :, 0])
+                hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
                       + batch_handler.means[0])
                 sf = (batch.output[i, :, :, 0]
                       * batch_handler.stds[0])
                 sf_pred = (out[i, :, :, 0]
                            * batch_handler.stds[0])
-                hr_pred = ((out[i, :, :, 0]
-                           + up_lr[i, :, :, 0])
+                hr_pred = (up_lr[i, :, :, 0]
                            * batch_handler.stds[0]
-                           + batch_handler.means[0])
+                           + batch_handler.means[0]
+                           + sf_pred)
                 fig = plot_multi_contour(
                     [lr, hr, hr_pred, sf, sf_pred],
                     [0, batch.output.shape[1]],
@@ -237,10 +236,11 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
         movieFolder = os.path.join(figureFolder, 'Movie')
         os.makedirs(movieFolder, exist_ok=True)
         mom_name = r'$\sigma$(HR|LR)'
-        hr_name = r'HR - $\mathbb{E}$(HR|LR)'
+        hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = model._tf_generate(batch.low_res).numpy()
+            out = np.clip(model._tf_generate(batch.low_res).numpy(),
+                          a_min=0, a_max=None)
             # out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
@@ -249,9 +249,8 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
                       + batch_handler.means[0])
                 hr_to_mean = np.sqrt(batch.output[i, :, :, 0]
                                      * batch_handler.stds[0]**2)
-                sigma = np.sqrt(np.clip(out[i, :, :, 0]
-                                * batch_handler.stds[0]**2,
-                                a_min=0, a_max=None))
+                sigma = np.sqrt(out[i, :, :, 0]
+                                * batch_handler.stds[0]**2)
                 fig = plot_multi_contour(
                     [lr, hr, hr_to_mean, sigma],
                     [0, batch.output.shape[1]],
@@ -319,13 +318,12 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
         os.makedirs(movieFolder, exist_ok=True)
-        mom_name1 = r'SF - $\mathbb{E}$(SF|LR)'
+        mom_name1 = r'|SF - $\mathbb{E}$(SF|LR)|'
         mom_name2 = r'$\sigma$(SF|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
             out = np.clip(model._tf_generate(batch.low_res).numpy(),
                           a_min=0, a_max=None)
-            out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -338,9 +336,8 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
                       - up_lr[i, :, :, 0]
                       * batch_handler.stds[0]
                       - batch_handler.means[0])
-                sf_to_mean = (sf
-                              - out_mom1[i, :, :, 0]
-                              * batch_handler.stds[0])
+                sf_to_mean = np.sqrt(batch.output[i, :, :, 0]
+                                     * batch_handler.stds[0]**2)
                 sigma = np.sqrt(out[i, :, :, 0]
                                 * batch_handler.stds[0]**2)
                 fig = plot_multi_contour(
