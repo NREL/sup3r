@@ -45,7 +45,8 @@ def test_topography():
                                    val_split=0.0,
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice,
-                                   max_workers=1)
+                                   max_workers=1, single_ts_files=True,
+                                   ti_kwargs={'parallel': True})
         ri = data_handler.raster_index
         with xr.open_mfdataset(input_files, concat_dim='Time',
                                combine='nested') as res:

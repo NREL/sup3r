@@ -173,20 +173,30 @@ class Collector:
         return row_slice, col_loc
 
     @classmethod
-    def get_coordinate_indices(cls, target_meta, full_meta):
-        """Get coordindate indices in meta data for given targets"""
+    def get_coordinate_indices(cls, target_meta, full_meta, threshold=1e-4):
+        """Get coordindate indices in meta data for given targets
+
+        Parameters
+        ----------
+        target_meta : pd.DataFrame
+            Dataframe of coordinates to find within the full meta
+        full_meta : pd.DataFrame
+            Dataframe of full set of coordinates for unfiltered dataset
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
+        """
         ll2 = np.vstack((full_meta.latitude.values,
                          full_meta.longitude.values)).T
         tree = KDTree(ll2)
 
         targets = np.vstack((target_meta.latitude.values,
                              target_meta.longitude.values)).T
-        _, indices = tree.query(targets, distance_upper_bound=0.001)
-        indices = list(set(indices[indices < len(full_meta)]))
+        _, indices = tree.query(targets, distance_upper_bound=threshold)
+        indices = indices[indices < len(full_meta)]
         return indices
 
     def get_data(self, file_path, feature, time_index, meta, scale_factor,
-                 dtype):
+                 dtype, threshold=1e-4):
         """Retreive a data array from a chunked file.
 
         Parameters
@@ -206,6 +216,8 @@ class Collector:
             float32.
         dtype : np.dtype
             Final dtype to return data as
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
 
         Returns
         -------
@@ -228,7 +240,8 @@ class Collector:
                 logger.error(e)
                 raise KeyError(e)
 
-            mask = self.get_coordinate_indices(meta, f_meta)
+            mask = self.get_coordinate_indices(meta, f_meta,
+                                               threshold=threshold)
             f_meta = f_meta.iloc[mask]
             f_data = f[feature][:, mask]
 
@@ -317,7 +330,7 @@ class Collector:
     @classmethod
     def _get_collection_attrs(cls, file_paths, feature, sort=True,
                               sort_key=None, max_workers=None,
-                              target_final_meta_file=None):
+                              target_final_meta_file=None, threshold=1e-4):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -341,6 +354,8 @@ class Collector:
             Path to target final meta containing coordinates to keep from the
             full list of coordinates present in the collected meta for the full
             file list.
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
 
         Returns
         -------
@@ -397,10 +412,12 @@ class Collector:
         if (target_final_meta_file is not None
                 and os.path.exists(target_final_meta_file)):
             target_final_meta = pd.read_csv(target_final_meta_file)
-            mask = cls.get_coordinate_indices(target_final_meta, meta)
+            mask = cls.get_coordinate_indices(target_final_meta, meta,
+                                              threshold=threshold)
             masked_meta = meta.iloc[mask]
             logger.info(f'Masked meta coordinates: {len(masked_meta)}')
-            mask = cls.get_coordinate_indices(masked_meta, target_final_meta)
+            mask = cls.get_coordinate_indices(masked_meta, target_final_meta,
+                                              threshold=threshold)
             target_final_meta = target_final_meta.iloc[mask]
             logger.info(f'Target meta coordinates: {len(target_final_meta)}')
         else:
@@ -625,7 +642,7 @@ class Collector:
     def collect(cls, file_paths, out_file, features, max_workers=None,
                 log_level=None, log_file=None, write_status=False,
                 job_name=None, join_times=False, target_final_meta_file=None,
-                n_writes=None, overwrite=True):
+                n_writes=None, overwrite=True, threshold=1e-4):
         """Collect data files from a dir to one output file.
 
         Assumes the file list is chunked in time (row chunked).
@@ -672,6 +689,8 @@ class Collector:
             or equal to the number of temporal chunks.
         overwrite : bool
             Whether to overwrite existing output file
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
         """
         t0 = time.time()
 
@@ -701,7 +720,8 @@ class Collector:
 
             out = collector._get_collection_attrs(
                 collector.flist, dset, max_workers=max_workers,
-                target_final_meta_file=target_final_meta_file)
+                target_final_meta_file=target_final_meta_file,
+                threshold=threshold)
             time_index, target_final_meta, target_masked_meta = out[:3]
             shape, _, global_attrs = out[3:]
 
@@ -722,7 +742,8 @@ class Collector:
                     time_index, target_final_meta, masked_meta, shape, _, _ = \
                         collector._get_collection_attrs(
                             flist, dset,
-                            target_final_meta_file=target_final_meta_file)
+                            target_final_meta_file=target_final_meta_file,
+                            threshold=threshold)
                     collector._collect_flist(dset, masked_meta, time_index,
                                              shape, flist, out_file,
                                              target_masked_meta,
