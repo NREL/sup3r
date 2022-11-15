@@ -29,7 +29,7 @@ TO DO
     #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
     
 
-- See if we can make `conditional_moments.py` inherit from base model to avoid redundancy
+- |ss| See if we can make `conditional_moments.py` inherit from base model to avoid redundancy |se|
 - Test adding tf function on the run gradient descent
 
 #################
