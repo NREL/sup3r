@@ -24,6 +24,8 @@ TO DO
     #. Include in testing suite
 #. Timing of batch handler and data handler
 #. Train network with increasing complexity
+    #. |ss| Include number of parameter in loss plotting |se|
+    #. Show training results
 #. Spatio temporal
     #. Add training test for non subfilter training
     #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
