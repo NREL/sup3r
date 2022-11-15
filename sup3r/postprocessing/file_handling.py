@@ -611,6 +611,12 @@ class OutputHandlerH5(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
+        msg = (f'Output data shape ({data.shape}) and lat_lon shape '
+               f'({lat_lon.shape}) conflict.')
+        assert data.shape[:2] == lat_lon.shape[:-1], msg
+        msg = (f'Output data shape ({data.shape}) and times shape '
+               f'({len(times)}) conflict.')
+        assert data.shape[-2] == len(times), msg
         data, features = cls._transform_output(data.copy(), features, lat_lon,
                                                max_workers)
         gids = (gids if gids is not None
