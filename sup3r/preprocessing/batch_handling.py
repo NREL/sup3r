@@ -1217,6 +1217,99 @@ class SpatialBatchHandler_mom2(BatchHandler):
             raise StopIteration
 
 
+class ValidationData_mom2_sf(ValidationData):
+    """Iterator for subfilter validation data for second moment"""
+
+    def __next__(self):
+        """Get validation data batch
+
+        Returns
+        -------
+        batch : Batch
+            validation data batch with low and high res data each with
+            n_observations = batch_size
+        """
+        if self._remaining_observations > 0:
+            if self._remaining_observations > self.batch_size:
+                high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            else:
+                high_res = np.zeros((self._remaining_observations,
+                                     self.sample_shape[0],
+                                     self.sample_shape[1],
+                                     self.sample_shape[2],
+                                     self.handlers[0].shape[-1]),
+                                    dtype=np.float32)
+            for i in range(high_res.shape[0]):
+                val_index = self.val_indices[self._i + i]
+                high_res[i, ...] = self.handlers[
+                    val_index['handler_index']].val_data[
+                    val_index['tuple_index']]
+                self._remaining_observations -= 1
+
+            if self.sample_shape[2] == 1:
+                high_res = high_res[..., 0, :]
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
+                output_features=self.output_features)
+
+            # Remove first moment and lr from hr and square it
+            out = self.model_mom1._tf_generate(batch.low_res).numpy()
+            upsampled_low_res = spatial_upsampling(batch.low_res,
+                                                   s_enhance=self.s_enhance)
+            batch._high_res -= upsampled_low_res
+            batch._high_res = (batch._high_res - out)**2
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class SpatialBatchHandler_mom2_sf(BatchHandler):
+    """Sup3r spatial batch handling class for second conditional moment"""
+
+    VAL_CLASS = ValidationData_mom2_sf
+
+    def __next__(self):
+        if self._i < self.n_batches:
+            handler_index = np.random.randint(
+                0, len(self.data_handlers))
+            handler = self.data_handlers[handler_index]
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next()[..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            # Remove first moment and lr from hr and square it
+            out = self.model_mom1._tf_generate(batch.low_res).numpy()
+            upsampled_low_res = spatial_upsampling(batch.low_res,
+                                                   s_enhance=self.s_enhance)
+            batch._high_res -= upsampled_low_res
+            batch._high_res = (batch._high_res - out)**2
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
 class ValidationDataDC(ValidationData):
     """Iterator for data-centric validation data"""
 
