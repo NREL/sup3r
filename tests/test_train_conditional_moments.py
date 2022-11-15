@@ -183,8 +183,8 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
     Sup3rCondMom.seed()
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=5e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -200,12 +200,12 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
         out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
-        model.save(out_dir)
+        model_mom2.save(out_dir)
 
 
 def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
@@ -226,8 +226,8 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
     Sup3rCondMom.seed()
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=5e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -245,12 +245,12 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
-                    checkpoint_int=2,
-                    out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
         out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
-        model.save(out_dir)
+        model_mom2.save(out_dir)
 
 
 if __name__ == "__main__":
