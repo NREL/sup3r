@@ -20,7 +20,7 @@ class Sup3rCondMom(Sup3rGan):
     """Basic Sup3r conditional moments model."""
 
     def __init__(self, gen_layers,
-                 optimizer=None, learning_rate=1e-4,
+                 optimizer=None, learning_rate=1e-4, num_par=None,
                  history=None, meta=None, means=None, stdevs=None, name=None):
         """
         Parameters
@@ -57,7 +57,7 @@ class Sup3rCondMom(Sup3rGan):
         self._version_record = VERSION_RECORD
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
-
+        self._num_par = num_par if num_par is not None else 0
         self.loss_name = 'MeanSquaredError'
         self.loss_fun = self.get_loss_fun(self.loss_name)
 
@@ -157,7 +157,12 @@ class Sup3rCondMom(Sup3rGan):
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
 
+        num_par = int(np.sum(
+                      [np.prod(v.get_shape().as_list())
+                       for v in self.weights]))
+
         model_params = {'name': self.name,
+                        'num_par': num_par,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
                         'means': means,
