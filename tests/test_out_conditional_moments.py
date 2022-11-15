@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
 import os
-# import json
+import json
 import numpy as np
 from pandas import read_csv
 
@@ -369,23 +369,36 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
 
 
 def test_out_loss(plot=False, model_dirs=None,
-                  history_files=None, model_names=None,
+                  model_names=None,
                   figureDir=None):
     """Loss convergence plotting of multiple models"""
     # Load history
     if model_dirs is not None:
         history_files = [os.path.join(path, 'history.csv')
                          for path in model_dirs]
-    elif history_files is not None:
-        pass
+        param_files = [os.path.join(path, 'model_params.json')
+                       for path in model_dirs]
     else:
         print("No history file provided")
         return
 
     # Get model names
     if model_names is None:
-        model_names = ["model_" + str(i)
-                       for i in range(len(history_files))]
+        model_names_tmp = ["model_" + str(i)
+                           for i in range(len(history_files))]
+    else:
+        model_names_tmp = model_names
+
+    def get_num_params(param_file):
+        with open(param_file, 'r') as f:
+            model_params = json.load(f)
+        return model_params['num_par']
+
+    num_params = [get_num_params(param) for param in param_files]
+
+    model_names = [name + " (%.3f M par)" % (num_par / 1e6)
+                   for name, num_par
+                   in zip(model_names_tmp, num_params)]
 
     # Read csv
     histories = [read_csv(file) for file in history_files]
