@@ -322,8 +322,7 @@ def plot_multi_contour(
                             _pick_first_or_none(vminList),
                             _pick_first_or_none(vmaxList))
     else:
-        for i_dat in range(len(listData)):
-            data = listData[i_dat]
+        for i_dat, data in enumerate(listData):
             if vminList is None:
                 vmin = np.nanmin(data)
             else:
