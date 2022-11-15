@@ -16,9 +16,9 @@ from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler,
-                                                SpatialBatchHandler_sf,
-                                                SpatialBatchHandler_mom2,
-                                                SpatialBatchHandler_mom2_sf)
+                                                SpatialBatchHandlerMom1SF,
+                                                SpatialBatchHandlerMom2,
+                                                SpatialBatchHandlerMom2SF)
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -148,10 +148,10 @@ def test_train_spatial_mom1_sf(log=False, full_shape=(20, 20),
                             val_split=0.005,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler_sf([handler],
-                                           batch_size=batch_size,
-                                           s_enhance=2,
-                                           n_batches=n_batches)
+    batch_handler = SpatialBatchHandlerMom1SF([handler],
+                                              batch_size=batch_size,
+                                              s_enhance=2,
+                                              n_batches=n_batches)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -193,9 +193,9 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
                             val_split=0.005,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler_mom2([handler], batch_size=batch_size,
-                                             s_enhance=2, n_batches=n_batches,
-                                             model_mom1=model_mom1)
+    batch_handler = SpatialBatchHandlerMom2([handler], batch_size=batch_size,
+                                            s_enhance=2, n_batches=n_batches,
+                                            model_mom1=model_mom1)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -236,11 +236,11 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
                             val_split=0.005,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler_mom2_sf([handler],
-                                                batch_size=batch_size,
-                                                s_enhance=2,
-                                                n_batches=n_batches,
-                                                model_mom1=model_mom1)
+    batch_handler = SpatialBatchHandlerMom2SF([handler],
+                                              batch_size=batch_size,
+                                              s_enhance=2,
+                                              n_batches=n_batches,
+                                              model_mom1=model_mom1)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -255,8 +255,8 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
 
 if __name__ == "__main__":
     # test_train_st_mom1(n_epoch=4, log=True, full_shape=(20, 20),
-    #               batch_size=4, n_batches=20,
-    #               out_dir_root='st_model')
+    #                    batch_size=4, n_batches=4,
+    #                    out_dir_root='st_model')
 
     test_train_spatial_mom1(n_epoch=4, log=True, full_shape=(20, 20),
                             sample_shape=(10, 10, 1),
