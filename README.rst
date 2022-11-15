@@ -19,6 +19,9 @@ TO DO
     #. |ss| Add upsampling functions |se|
     #. |ss| Include testing suite for mom1 |se|
     #. Include testing suite for mom2
+#. Spatio temporal
+    #. Add training test for non subfilter training
+    #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
 #. Make options to add arbitrary fields as input
     #. Add `wind_condition_moments.py` to handle topography
     #. Include in testing suite
@@ -26,9 +29,6 @@ TO DO
 #. Train network with increasing complexity
     #. |ss| Include number of parameter in loss plotting |se|
     #. Show training results
-#. Spatio temporal
-    #. Add training test for non subfilter training
-    #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
     
 
 - |ss| See if we can make `conditional_moments.py` inherit from base model to avoid redundancy |se|
