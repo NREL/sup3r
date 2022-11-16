@@ -717,20 +717,20 @@ class BatchHandler:
         return np.nanmean(
             self.data_handlers[handler_idx].data[..., feature_idx])
 
-    def get_handler_stdev(self, feature_idx, handler_idx, mean):
-        """Get feature stdev for a given handler
+    def get_handler_variance(self, feature_idx, handler_idx, mean):
+        """Get feature variance for a given handler
 
         Parameters
         ----------
         feature_idx : int
-            Index of feature to get stdev for
+            Index of feature to get variance for
         handler_idx : int
-            Index of data handler to get stdev for
+            Index of data handler to get variance for
 
         Returns
         -------
         float
-            Feature stdev
+            Feature variance
         """
         istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
         return np.nanmean(istd**2)
@@ -802,14 +802,14 @@ class BatchHandler:
         logger.debug(f'Calculating stdev for {feature}')
         if max_workers == 1:
             for didx, _ in enumerate(self.data_handlers):
-                self.stds[idx] += self.get_handler_stdev(idx, didx,
-                                                         self.means[idx])
+                self.stds[idx] += self.get_handler_variance(idx, didx,
+                                                            self.means[idx])
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 now = dt.now()
                 for didx, _ in enumerate(self.data_handlers):
-                    future = exe.submit(self.get_handler_stdev, idx, didx,
+                    future = exe.submit(self.get_handler_variance, idx, didx,
                                         self.means[idx])
                     futures[future] = didx
 
