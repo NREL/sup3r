@@ -231,6 +231,11 @@ class Sup3rCondMom(Sup3rGan):
 
         loss = self.calc_loss_cond_mom_content(output_true, output_gen)
 
+        # print("min max out = %g / %g " %
+        #       (np.amin(output_gen), np.amax(output_gen)))
+        # print("min max true = %g / %g " %
+        #       (np.amin(output_true), np.amax(output_true)))
+
         loss_details = {'loss_gen': loss,
                         'loss_gen_content': loss,
                         }
