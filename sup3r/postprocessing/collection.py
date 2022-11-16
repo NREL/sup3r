@@ -328,7 +328,7 @@ class Collector:
         return meta, time_index
 
     @classmethod
-    def _get_collection_attrs(cls, file_paths, feature, sort=True,
+    def _get_collection_attrs(cls, file_paths, sort=True,
                               sort_key=None, max_workers=None,
                               target_final_meta_file=None, threshold=1e-4):
         """Get important dataset attributes from a file list to be collected.
@@ -340,8 +340,6 @@ class Collector:
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
             or a single string with unix-style /search/patt*ern.h5.
-        feature : str
-            Dataset name to collect.
         sort : bool
             flag to sort flist to determine meta data order.
         sort_key : None | fun
@@ -370,8 +368,6 @@ class Collector:
             collected masked against target_final_meta
         shape : tuple
             Output (collected) dataset shape
-        dtype : str
-            Dataset output (collected on disk) dataset data type.
         global_attrs : dict
             Global attributes from the first file in file_paths (it's assumed
             that all the files in file_paths have the same global file
@@ -428,11 +424,9 @@ class Collector:
         shape = (len(time_index), len(target_final_meta))
 
         with RexOutputs(file_paths[0], mode='r') as fin:
-            dtype = fin.get_dset_properties(feature)[1]
             global_attrs = fin.global_attrs
 
-        return (time_index, target_final_meta, masked_meta, shape, dtype,
-                global_attrs)
+        return time_index, target_final_meta, masked_meta, shape, global_attrs
 
     @staticmethod
     def _init_collected_h5(out_file, time_index, meta, global_attrs):
@@ -712,6 +706,13 @@ class Collector:
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
+        out = collector._get_collection_attrs(
+            collector.flist, max_workers=max_workers,
+            target_final_meta_file=target_final_meta_file,
+            threshold=threshold)
+        time_index, target_final_meta, target_masked_meta = out[:3]
+        shape, global_attrs = out[3:]
+
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
@@ -719,13 +720,6 @@ class Collector:
                                                           n_writes=n_writes)
             else:
                 flist_chunks = [collector.flist]
-
-            out = collector._get_collection_attrs(
-                collector.flist, dset, max_workers=max_workers,
-                target_final_meta_file=target_final_meta_file,
-                threshold=threshold)
-            time_index, target_final_meta, target_masked_meta = out[:3]
-            shape, _, global_attrs = out[3:]
 
             if not os.path.exists(out_file):
                 collector._init_collected_h5(out_file, time_index,
@@ -741,9 +735,9 @@ class Collector:
                 for j, flist in enumerate(flist_chunks):
                     logger.info('Collecting file list chunk {} out of {} '
                                 .format(j + 1, len(flist_chunks)))
-                    time_index, target_final_meta, masked_meta, shape, _, _ = \
+                    time_index, target_final_meta, masked_meta, shape, _ = \
                         collector._get_collection_attrs(
-                            flist, dset,
+                            flist,
                             target_final_meta_file=target_final_meta_file,
                             threshold=threshold)
                     collector._collect_flist(dset, masked_meta, time_index,
