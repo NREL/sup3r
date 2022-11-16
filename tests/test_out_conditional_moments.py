@@ -216,18 +216,6 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
         fp_gen = os.path.join(model_dir, 'model_params.json')
         model = Sup3rCondMom(fp_gen).load(model_dir)
 
-    # Check sizes
-    for batch in batch_handler:
-        assert batch.high_res.shape == (batch_size, sample_shape[0],
-                                        sample_shape[1], 2)
-        assert batch.output.shape == (batch_size, sample_shape[0],
-                                      sample_shape[1], 2)
-        assert batch.low_res.shape == (batch_size,
-                                       sample_shape[0] // s_enhance,
-                                       sample_shape[1] // s_enhance, 2)
-        out = model._tf_generate(batch.low_res)
-        assert out.shape == (batch_size, sample_shape[0], sample_shape[1], 2)
-        break
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
