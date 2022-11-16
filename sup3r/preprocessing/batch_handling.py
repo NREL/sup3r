@@ -20,6 +20,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        spatial_upsampling,
+                                       temporal_upsampling,
                                        smooth_data,
                                        nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
@@ -103,7 +104,9 @@ class Batch:
 
     # pylint: disable=W0613
     @staticmethod
-    def make_output(low_res, high_res, s_enhance=None, model_mom1=None):
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None):
         """Make custom batch output
 
         Parameters
@@ -118,6 +121,8 @@ class Batch:
             (batch_size, spatial_1, spatial_2, temporal, features)
         s_enhance : int | None
             Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
         """
@@ -191,7 +196,9 @@ class Batch:
         low_res = smooth_data(low_res, training_features, smoothing_ignore,
                               smoothing)
         high_res = cls.reduce_features(high_res, output_features_ind)
-        output = cls.make_output(low_res, high_res, s_enhance, model_mom1)
+        output = cls.make_output(low_res, high_res,
+                                 s_enhance, t_enhance,
+                                 model_mom1)
         batch = cls(low_res, high_res, output)
 
         return batch
@@ -202,7 +209,9 @@ class BatchMom2(Batch):
     when learning second moment"""
 
     @staticmethod
-    def make_output(low_res, high_res, s_enhance=None, model_mom1=None):
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None):
         """Make custom batch output
 
         Parameters
@@ -217,6 +226,8 @@ class BatchMom2(Batch):
             (batch_size, spatial_1, spatial_2, temporal, features)
         s_enhance : int | None
             Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
         """
@@ -230,7 +241,9 @@ class BatchMom2SF(Batch):
     when learning second moment of subfilter vel"""
 
     @staticmethod
-    def make_output(low_res, high_res, s_enhance=None, model_mom1=None):
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None):
         """Make custom batch output
 
         Parameters
@@ -245,6 +258,8 @@ class BatchMom2SF(Batch):
             (batch_size, spatial_1, spatial_2, temporal, features)
         s_enhance : int | None
             Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
         """
@@ -252,6 +267,8 @@ class BatchMom2SF(Batch):
         out = model_mom1._tf_generate(low_res).numpy()
         upsampled_lr = spatial_upsampling(low_res,
                                           s_enhance=s_enhance)
+        upsampled_lr = temporal_upsampling(upsampled_lr,
+                                           t_enhance=t_enhance)
         return (high_res - upsampled_lr - out)**2
 
 
@@ -260,7 +277,9 @@ class BatchMom1SF(Batch):
     when learning first moment of subfilter vel"""
 
     @staticmethod
-    def make_output(low_res, high_res, s_enhance=None, model_mom1=None):
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None):
         """Make custom batch output
 
         Parameters
@@ -275,12 +294,16 @@ class BatchMom1SF(Batch):
             (batch_size, spatial_1, spatial_2, temporal, features)
         s_enhance : int | None
             Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
         """
         # Remove first moment from high res and square it
         upsampled_lr = spatial_upsampling(low_res,
                                           s_enhance=s_enhance)
+        upsampled_lr = temporal_upsampling(upsampled_lr,
+                                           t_enhance=t_enhance)
         return high_res - upsampled_lr
 
 
@@ -1116,6 +1139,7 @@ class BatchHandlerCC(BatchHandler):
                                                          mode='nearest')
         output = self.BATCH_CLASS.make_output(low_res, high_res,
                                               self.s_enhance,
+                                              self.t_enhance,
                                               self.model_mom1)
         batch = self.BATCH_CLASS(low_res, high_res, output)
 
@@ -1229,6 +1253,7 @@ class SpatialBatchHandlerCC(BatchHandler):
 
         output = self.BATCH_CLASS.make_output(low_res, high_res,
                                               self.s_enhance,
+                                              self.t_enhance,
                                               self.model_mom1)
         batch = self.BATCH_CLASS(low_res, high_res, output)
 
@@ -1270,6 +1295,13 @@ class ValidationDataMom2(ValidationData):
     BATCH_CLASS = BatchMom2
 
 
+class BatchHandlerMom2(BatchHandler):
+    """Sup3r batch handling class for
+    second conditional moment"""
+    VAL_CLASS = ValidationDataMom2
+    BATCH_CLASS = BatchMom2
+
+
 class SpatialBatchHandlerMom2(SpatialBatchHandler):
     """Sup3r spatial batch handling class for
     second conditional moment"""
@@ -1283,6 +1315,13 @@ class ValidationDataMom2SF(ValidationData):
     BATCH_CLASS = BatchMom2SF
 
 
+class BatchHandlerMom2SF(BatchHandler):
+    """Sup3r batch handling class for
+    second conditional moment of subfilter velocity"""
+    VAL_CLASS = ValidationDataMom2SF
+    BATCH_CLASS = BatchMom2SF
+
+
 class SpatialBatchHandlerMom2SF(SpatialBatchHandler):
     """Sup3r spatial batch handling class for
     second conditional moment of subfilter velocity"""
@@ -1293,6 +1332,13 @@ class SpatialBatchHandlerMom2SF(SpatialBatchHandler):
 class ValidationDataMom1SF(ValidationData):
     """Iterator for validation data for
     first conditional moment of subfilter velocity"""
+    BATCH_CLASS = BatchMom1SF
+
+
+class BatchHandlerMom1SF(BatchHandler):
+    """Sup3r batch handling class for
+    first conditional moment of subfilter velocity"""
+    VAL_CLASS = ValidationDataMom1SF
     BATCH_CLASS = BatchMom1SF
 
 
