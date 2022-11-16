@@ -15,10 +15,10 @@ TO DO
 #. |ss| Make the training movies |se| 
 #. |ss| Add utilities to plot losses and timing |se|
 #. |ss| Clean the testing suite |se|
-#. Make an option to train with subfilter field or full field
+#. |ss| Make an option to train with subfilter field or full field |se|
     #. |ss| Add upsampling functions |se|
     #. |ss| Include testing suite for mom1 |se|
-    #. Include testing suite for mom2
+    #. |ss| Include testing suite for mom2 |se|
 #. Spatio temporal
     #. Add training test for non subfilter training
     #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
