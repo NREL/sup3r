@@ -19,9 +19,9 @@ TO DO
     #. |ss| Add upsampling functions |se|
     #. |ss| Include testing suite for mom1 |se|
     #. |ss| Include testing suite for mom2 |se|
-#. Spatio temporal
-    #. Add training test for non subfilter training
-    #. Add training test for subfilter training (make sure subfilter contruction in time is appropriate)
+#. |ss| Spatio temporal |se|
+    #. |ss| Add training test for non subfilter training |se|
+    #. |ss| Add training test for subfilter training (make sure subfilter contruction in time is appropriate) |se|
 #. Make options to add arbitrary fields as input
     #. Add `wind_condition_moments.py` to handle topography
     #. Include in testing suite
