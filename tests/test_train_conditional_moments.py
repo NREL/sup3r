@@ -37,7 +37,7 @@ def test_train_st_mom1(log=False, full_shape=(20, 20),
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
 
     Sup3rCondMom.seed()
-    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
+    model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -69,7 +69,7 @@ def test_train_spatial_mom1(log=False, full_shape=(20, 20),
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
 
     Sup3rCondMom.seed()
-    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
+    model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -100,7 +100,7 @@ def test_train_spatial_mom1(log=False, full_shape=(20, 20),
         assert 'model_gen.pkl' in os.listdir(out_dir_root + '/test_3')
 
         # make an un-trained dummy model
-        dummy = Sup3rCondMom(fp_gen, learning_rate=2e-5)
+        dummy = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
         # test save/load functionality
         out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
@@ -139,7 +139,7 @@ def test_train_spatial_mom1_sf(log=False, full_shape=(20, 20),
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
 
     Sup3rCondMom.seed()
-    model = Sup3rCondMom(fp_gen, learning_rate=5e-5)
+    model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -184,7 +184,7 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
 
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
-    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=5e-5)
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
@@ -227,7 +227,7 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
 
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
-    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=5e-5)
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
