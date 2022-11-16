@@ -139,8 +139,9 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                up_lr = spatial_upsampling(batch.low_res,
+                up_lr = spatial_upsampling(batch.low_res[i, :, :, 0],
                                            s_enhance=s_enhance)
+                up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -148,7 +149,7 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                       * batch_handler.stds[0])
                 sf_pred = (out[i, :, :, 0]
                            * batch_handler.stds[0])
-                hr_pred = (up_lr[i, :, :, 0]
+                hr_pred = (up_lr
                            * batch_handler.stds[0]
                            + batch_handler.means[0]
                            + sf_pred)
@@ -327,13 +328,14 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                up_lr = spatial_upsampling(batch.low_res,
+                up_lr = spatial_upsampling(batch.low_res[i, :, :, 0],
                                            s_enhance=s_enhance)
+                up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
                       + batch_handler.means[0])
                 sf = (hr
-                      - up_lr[i, :, :, 0]
+                      - up_lr
                       * batch_handler.stds[0]
                       - batch_handler.means[0])
                 sf_to_mean = np.sqrt(batch.output[i, :, :, 0]
