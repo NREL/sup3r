@@ -209,7 +209,7 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -304,7 +304,7 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
