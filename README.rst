@@ -22,11 +22,14 @@ TO DO
 #. |ss| Spatio temporal |se|
     #. |ss| Add training test for non subfilter training |se|
     #. |ss| Add training test for subfilter training (make sure subfilter contruction in time is appropriate) |se|
-#. Make options to add arbitrary fields as input
+#. |ss| Make options to add arbitrary fields as input |se|
     #. |ss| Make sure we can add the other train only feature |se|
     #. |ss| Include in testing suite |se|
-    #. Add `wind_condition_moments.py` to handle topography
-    #. Include in testing suite
+    #. |ss| Add `wind_condition_moments.py` to handle topography |se|
+    #. |ss| Include in testing suite |se|
+#. Nomenclature upsampling enhance
+#. See of Sup3rCondMom can instead inherit from abstract Gan class
+#. Add option to crop output
 #. Train network with increasing complexity
     #. |ss| Include number of parameter in loss plotting |se|
     #. Show training results
