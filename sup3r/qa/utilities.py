@@ -216,7 +216,7 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
 
 
 def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
-                  percentile=99.9, interpolate=False):
+                  percentile=99.9, interpolate=False, period=None):
     """Returns the gradient distribution for the given variable.
 
     Parameters
@@ -244,6 +244,10 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
         Whether to interpolate over histogram counts. e.g. if a bin has
         count = 0 and surrounding bins have count > 0 the bin with count = 0
         will have an interpolated value.
+    period : float | None
+        If variable is periodic this gives that period. e.g. If the variable
+        is winddirection the period is 360 degrees and we need to account for
+        0 and 360 being close.
 
     Returns
     -------
@@ -255,6 +259,8 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
         Normalization factor
     """
     diffs = np.diff(var, axis=1).flatten()
+    if period is not None:
+        diffs = (diffs + period) % period
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
@@ -265,7 +271,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
 
 
 def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
-                   scale=1, percentile=99.9, interpolate=False):
+                   scale=1, percentile=99.9, interpolate=False, period=None):
     """Returns the ramp rate distribution for the given variable.
 
     Parameters
@@ -296,6 +302,10 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
         Whether to interpolate over histogram counts. e.g. if a bin has
         count = 0 and surrounding bins have count > 0 the bin with count = 0
         will have an interpolated value.
+    period : float | None
+        If variable is periodic this gives that period. e.g. If the variable
+        is winddirection the period is 360 degrees and we need to account for
+        0 and 360 being close.
 
     Returns
     -------
@@ -311,6 +321,8 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
            f'only has {var.shape[-1]} time steps')
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
+    if period is not None:
+        diffs = (diffs + period) % period
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
