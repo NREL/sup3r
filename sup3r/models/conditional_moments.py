@@ -285,7 +285,7 @@ class Sup3rCondMom(Sup3rGan):
             Namespace of the breakdown of loss components
         """
 
-        loss_details = {'n_obs': 0, 'train_loss_disc': 0}
+        loss_details = {'n_obs': 0}
 
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
