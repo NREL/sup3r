@@ -260,7 +260,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
     """
     diffs = np.diff(var, axis=1).flatten()
     if period is not None:
-        diffs = (diffs + period) % period
+        diffs = (diffs + period / 2) % period - period / 2
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
@@ -322,7 +322,7 @@ def ramp_rate_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     assert t_steps < var.shape[-1], msg
     diffs = (var[..., t_steps:] - var[..., :-t_steps]).flatten()
     if period is not None:
-        diffs = (diffs + period) % period
+        diffs = (diffs + period / 2) % period - period / 2
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
