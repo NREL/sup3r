@@ -23,9 +23,10 @@ TO DO
     #. |ss| Add training test for non subfilter training |se|
     #. |ss| Add training test for subfilter training (make sure subfilter contruction in time is appropriate) |se|
 #. Make options to add arbitrary fields as input
+    #. |ss| Make sure we can add the other train only feature |se|
+    #. |ss| Include in testing suite |se|
     #. Add `wind_condition_moments.py` to handle topography
     #. Include in testing suite
-#. Timing of batch handler and data handler
 #. Train network with increasing complexity
     #. |ss| Include number of parameter in loss plotting |se|
     #. Show training results
@@ -33,6 +34,7 @@ TO DO
 
 - |ss| See if we can make `conditional_moments.py` inherit from base model to avoid redundancy |se|
 - Test adding tf function on the run gradient descent
+- Timing of batch handler and data handler
 
 #################
 Welcome to SUP3R!
