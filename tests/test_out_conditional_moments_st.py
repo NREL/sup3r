@@ -82,7 +82,9 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
         mom_name = r'$\mathbb{E}$(HR|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = model._tf_generate(batch.low_res).numpy()
+            out = model.generate(batch.low_res,
+                                 norm_in=False,
+                                 un_norm_out=False)
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -160,7 +162,9 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
         mom_name2 = r'$\mathbb{E}$(SF|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = model._tf_generate(batch.low_res).numpy()
+            out = model.generate(batch.low_res,
+                                 norm_in=False,
+                                 un_norm_out=False)
             for i in range(batch.output.shape[0]):
 
                 b_lr = batch.low_res[i, :, :, :, 0]
@@ -277,7 +281,9 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
         hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = np.clip(model._tf_generate(batch.low_res).numpy(),
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
                           a_min=0, a_max=None)
             for i in range(batch.output.shape[0]):
 
@@ -377,7 +383,9 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
         mom_name2 = r'$\sigma$(SF|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = np.clip(model._tf_generate(batch.low_res).numpy(),
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
                           a_min=0, a_max=None)
             for i in range(batch.output.shape[0]):
                 b_lr = batch.low_res[i, :, :, :, 0]
