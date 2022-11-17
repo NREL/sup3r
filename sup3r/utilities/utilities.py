@@ -599,7 +599,9 @@ def temporal_upsampling(data, t_enhance=4):
         5D array with same dimensions as data with new upsampled resolution
     """
 
-    if t_enhance is not None and len(data.shape) == 5:
+    if t_enhance in [None, 1]:
+        upsampled_data = data
+    elif t_enhance not in [None, 1] and len(data.shape) == 5:
         enhancement = [1, 1, 1, t_enhance, 1]
         upsampled_data = interpolation.zoom(data,
                                             enhancement,
@@ -609,8 +611,6 @@ def temporal_upsampling(data, t_enhance=4):
                f'received: {data.shape}')
         logger.error(msg)
         raise ValueError(msg)
-    else:
-        upsampled_data = data
 
     return upsampled_data
 
