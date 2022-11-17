@@ -106,7 +106,7 @@ class Batch:
     @staticmethod
     def make_output(low_res, high_res,
                     s_enhance=None, t_enhance=None,
-                    model_mom1=None):
+                    model_mom1=None, output_features_ind=None):
         """Make custom batch output
 
         Parameters
@@ -125,6 +125,9 @@ class Batch:
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
         """
         return high_res
 
@@ -198,7 +201,7 @@ class Batch:
         high_res = cls.reduce_features(high_res, output_features_ind)
         output = cls.make_output(low_res, high_res,
                                  s_enhance, t_enhance,
-                                 model_mom1)
+                                 model_mom1, output_features_ind)
         batch = cls(low_res, high_res, output)
 
         return batch
@@ -211,7 +214,7 @@ class BatchMom2(Batch):
     @staticmethod
     def make_output(low_res, high_res,
                     s_enhance=None, t_enhance=None,
-                    model_mom1=None):
+                    model_mom1=None, output_features_ind=None):
         """Make custom batch output
 
         Parameters
@@ -230,6 +233,9 @@ class BatchMom2(Batch):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
         """
         # Remove first moment from high res and square it
         out = model_mom1._tf_generate(low_res).numpy()
@@ -243,7 +249,7 @@ class BatchMom2SF(Batch):
     @staticmethod
     def make_output(low_res, high_res,
                     s_enhance=None, t_enhance=None,
-                    model_mom1=None):
+                    model_mom1=None, output_features_ind=None):
         """Make custom batch output
 
         Parameters
@@ -262,6 +268,9 @@ class BatchMom2SF(Batch):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
         """
         # Remove first moment from high res and square it
         out = model_mom1._tf_generate(low_res).numpy()
@@ -269,6 +278,7 @@ class BatchMom2SF(Batch):
                                           s_enhance=s_enhance)
         upsampled_lr = temporal_upsampling(upsampled_lr,
                                            t_enhance=t_enhance)
+        upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
         return (high_res - upsampled_lr - out)**2
 
 
@@ -279,7 +289,7 @@ class BatchMom1SF(Batch):
     @staticmethod
     def make_output(low_res, high_res,
                     s_enhance=None, t_enhance=None,
-                    model_mom1=None):
+                    model_mom1=None, output_features_ind=None):
         """Make custom batch output
 
         Parameters
@@ -298,12 +308,16 @@ class BatchMom1SF(Batch):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
         """
         # Remove first moment from high res and square it
         upsampled_lr = spatial_upsampling(low_res,
                                           s_enhance=s_enhance)
         upsampled_lr = temporal_upsampling(upsampled_lr,
                                            t_enhance=t_enhance)
+        upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
         return high_res - upsampled_lr
 
 
@@ -1140,7 +1154,8 @@ class BatchHandlerCC(BatchHandler):
         output = self.BATCH_CLASS.make_output(low_res, high_res,
                                               self.s_enhance,
                                               self.t_enhance,
-                                              self.model_mom1)
+                                              self.model_mom1,
+                                              self.output_features_ind)
         batch = self.BATCH_CLASS(low_res, high_res, output)
 
         self._i += 1
@@ -1254,7 +1269,8 @@ class SpatialBatchHandlerCC(BatchHandler):
         output = self.BATCH_CLASS.make_output(low_res, high_res,
                                               self.s_enhance,
                                               self.t_enhance,
-                                              self.model_mom1)
+                                              self.model_mom1,
+                                              self.output_features_ind)
         batch = self.BATCH_CLASS(low_res, high_res, output)
 
         self._i += 1
