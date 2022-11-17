@@ -23,6 +23,7 @@ from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
+TRAIN_FEATURES = ['BVF2_200m']
 
 
 def test_train_spatial_mom1(log=False, full_shape=(20, 20),
@@ -39,7 +40,7 @@ def test_train_spatial_mom1(log=False, full_shape=(20, 20),
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=['BVF2_200m'],
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -110,7 +111,7 @@ def test_train_spatial_mom1_sf(log=False, full_shape=(20, 20),
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=['BVF2_200m'],
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -156,7 +157,7 @@ def test_train_spatial_mom2(log=False, full_shape=(20, 20),
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=['BVF2_200m'],
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -200,7 +201,7 @@ def test_train_spatial_mom2_sf(log=False, full_shape=(20, 20),
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=['BVF2_200m'],
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
