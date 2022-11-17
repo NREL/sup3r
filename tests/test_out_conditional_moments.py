@@ -68,7 +68,9 @@ def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
         mom_name = r'$\mathbb{E}$(HR|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = model._tf_generate(batch.low_res).numpy()
+            out = model.generate(batch.low_res,
+                                 norm_in=False,
+                                 un_norm_out=False)
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -135,11 +137,16 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
         mom_name2 = r'$\mathbb{E}$(SF|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = model._tf_generate(batch.low_res).numpy()
+            out = model.generate(batch.low_res,
+                                 norm_in=False,
+                                 un_norm_out=False)
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                up_lr = spatial_upsampling(batch.low_res[i, :, :, 0],
+                blr_aug_shape = (1,) + lr.shape + (1,)
+                blr_aug = np.reshape(batch.low_res[i, :, :, 0],
+                                     blr_aug_shape)
+                up_lr = spatial_upsampling(blr_aug,
                                            s_enhance=s_enhance)
                 up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
@@ -228,9 +235,10 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
         hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = np.clip(model._tf_generate(batch.low_res).numpy(),
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
                           a_min=0, a_max=None)
-            # out_mom1 = model_mom1._tf_generate(batch.low_res).numpy()
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -311,12 +319,17 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
         mom_name2 = r'$\sigma$(SF|LR)'
         n_snap = 0
         for p, batch in enumerate(batch_handler):
-            out = np.clip(model._tf_generate(batch.low_res).numpy(),
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
                           a_min=0, a_max=None)
             for i in range(batch.output.shape[0]):
                 lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
-                up_lr = spatial_upsampling(batch.low_res[i, :, :, 0],
+                blr_aug_shape = (1,) + lr.shape + (1,)
+                blr_aug = np.reshape(batch.low_res[i, :, :, 0],
+                                     blr_aug_shape)
+                up_lr = spatial_upsampling(blr_aug,
                                            s_enhance=s_enhance)
                 up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
@@ -460,24 +473,24 @@ if __name__ == "__main__":
 
     test_out_spatial_mom1(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=4,
+                          batch_size=4, n_batches=2,
                           s_enhance=2, model_dir='s_mom1/spatial_cond_mom')
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=4,
+                          batch_size=4, n_batches=2,
                           s_enhance=2, model_dir='s_mom2/spatial_cond_mom',
                           model_mom1_dir='s_mom1/spatial_cond_mom')
 
     test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=4,
+                             batch_size=4, n_batches=2,
                              s_enhance=2,
                              model_dir='s_mom1_sf/spatial_cond_mom')
 
     test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=4,
+                             batch_size=4, n_batches=2,
                              s_enhance=2,
                              model_mom1_dir='s_mom1_sf/spatial_cond_mom',
                              model_dir='s_mom2_sf/spatial_cond_mom')
