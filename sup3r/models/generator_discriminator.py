@@ -3,20 +3,16 @@
 import copy
 import os
 import time
-import json
 import logging
 import numpy as np
 import pprint
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
-from rex.utilities.utilities import safe_json_load
-from phygnn import CustomNetwork
 from warnings import warn
 
 from sup3r.models.generator import Sup3rGen
 from sup3r.utilities import VERSION_RECORD
-import sup3r.utilities.loss_metrics
 
 
 logger = logging.getLogger(__name__)
