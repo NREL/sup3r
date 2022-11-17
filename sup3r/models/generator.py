@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
-import copy
 import os
 import time
 import json
@@ -25,8 +24,8 @@ logger = logging.getLogger(__name__)
 class Sup3rGen(AbstractSup3rGan):
     """Basic sup3r generator model."""
 
-    def __init__(self, gen_layers,
-                 optimizer=None, learning_rate=1e-4, num_par=None,
+    def __init__(self, gen_layers, loss='MeanSquaredError',
+                 optimizer=None, learning_rate=1e-4,
                  history=None, meta=None, means=None, stdevs=None, name=None):
         """
         Parameters
@@ -36,6 +35,10 @@ class Sup3rGen(AbstractSup3rGan):
             generative super resolving model. Can also be a str filepath to a
             .json config file containing the input layers argument or a .pkl
             for a saved pre-trained model.
+        loss : str
+            Loss function class name from sup3r.utilities.loss_metrics
+            (prioritized) or tensorflow.keras.losses. Defaults to
+            tf.keras.losses.MeanSquaredError.
         optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
@@ -59,13 +62,12 @@ class Sup3rGen(AbstractSup3rGan):
         name : str | None
             Optional name for the model.
         """
- 
+
         self._version_record = VERSION_RECORD
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
-        self._num_par = num_par if num_par is not None else 0
-        self.loss_name = 'MeanSquaredError'
-        self.loss_fun = self.get_loss_fun(self.loss_name)
+        self.loss_name = loss
+        self.loss_fun = self.get_loss_fun(loss)
 
         self._history = history
         if isinstance(self._history, str):
@@ -80,7 +82,6 @@ class Sup3rGen(AbstractSup3rGan):
         self._stdevs = (stdevs if stdevs is None
                         else np.array(stdevs).astype(np.float32))
 
-      
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
         """Initialize keras optimizer object.
@@ -246,7 +247,8 @@ class Sup3rGen(AbstractSup3rGan):
         if 'version_record' in params:
             version_record = params.pop('version_record')
             if verbose:
-                logger.info('Loading model from disk that was created with the '
+                logger.info('Loading model from disk '
+                            'that was created with the '
                             'following package versions: \n{}'
                             .format(pprint.pformat(version_record, indent=2)))
 
@@ -656,12 +658,7 @@ class Sup3rGen(AbstractSup3rGan):
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
 
-        num_par = int(np.sum(
-                      [np.prod(v.get_shape().as_list())
-                       for v in self.weights]))
-
         model_params = {'name': self.name,
-                        'num_par': num_par,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
                         'means': means,
@@ -1052,7 +1049,7 @@ class Sup3rGen(AbstractSup3rGan):
 
     def train(self, batch_handler, n_epoch,
               checkpoint_int=None,
-              out_dir='./condMom_{epoch}',
+              out_dir='./gen_{epoch}',
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5):
@@ -1137,4 +1134,3 @@ class Sup3rGen(AbstractSup3rGan):
 
             if stop:
                 break
-
