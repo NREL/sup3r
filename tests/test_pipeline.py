@@ -9,7 +9,7 @@ import glob
 from rex import ResourceX
 
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
-from sup3r.models.base import Sup3rGan
+from sup3r.models.generator_discriminator import Sup3rGan
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
