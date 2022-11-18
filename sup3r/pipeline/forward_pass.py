@@ -664,6 +664,7 @@ class ForwardPassStrategy(InputMixIn):
         self.pass_workers = pass_workers
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
+        self._failed_chunks = False
         self._input_handler_class = None
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
@@ -737,25 +738,18 @@ class ForwardPassStrategy(InputMixIn):
                                             self.spatial_pad,
                                             self.temporal_pad)
 
-        msg = ('The average memory of a forward pass output chunk is '
-               f'{self.output_chunk_mem / 1e9:.2f} GB. Exceeding 1.5 GB could'
-               ' result in constant model output.')
-        if self.output_chunk_mem / 1e9 > 1.5:
-            logger.warning(msg)
-            warnings.warn(msg)
-
         self.preflight()
 
     @property
-    def output_chunk_mem(self):
-        """Get average memory of forward pass output chunk. This is used to
-        check if memory exceeds limit where model can return constant output.
-        Returns memory in bytes, assuming output has float32 type."""
-        n_elements = (self.fwp_chunk_shape[0] + 2 * self.spatial_pad)
-        n_elements *= (self.fwp_chunk_shape[1] + 2 * self.spatial_pad)
-        n_elements *= (self.fwp_chunk_shape[2] + 2 * self.temporal_pad)
-        n_elements *= len(self.output_features)
-        return 4 * n_elements
+    def failed_chunks(self):
+        """Check whether any forward passes have generated constant output."""
+        return self._failed_chunks
+
+    @failed_chunks.setter
+    def failed_chunks(self, failed):
+        """Set failed_chunks value. Will be set to True by a ForwardPass object
+        if there is a failed chunk"""
+        self._failed_chunks = failed
 
     def node_finished(self, node_index):
         """Check if all out files for a given node have been saved
@@ -1725,6 +1719,22 @@ class ForwardPass:
             exo_data=exo_data)
         return out_data
 
+    def _constant_output_check(self, out_data):
+        """Check if forward pass output is constant. This can happen when the
+        chunk going through the forward pass is too big.
+
+        Parameters
+        ----------
+        out_data : ndarray
+            Forward pass output corresponding to the given chunk index
+        """
+        for i, f in enumerate(self.output_features):
+            msg = (f'All spatiotemporal values are the same for {f} output!')
+            if np.all(out_data[0, 0, 0, i] == out_data[..., i]):
+                self.strategy.failed_chunks = True
+                logger.error(msg)
+                raise MemoryError(msg)
+
     @property
     def finished(self):
         """Check if forward pass has already been run."""
@@ -1755,7 +1765,9 @@ class ForwardPass:
             returns an initialized forward pass object, otherwise returns None
         """
         fwp = None
-        if not strategy.chunk_finished(chunk_index):
+        check = (not strategy.chunk_finished(chunk_index)
+                 and not strategy.failed_chunks)
+        if check:
             fwp = cls(strategy, chunk_index=chunk_index, node_index=node_index)
         return fwp
 
@@ -1871,6 +1883,7 @@ class ForwardPass:
         logger.info(msg)
 
         out_data = self._run_single_fwd_pass()
+        self._constant_output_check(out_data)
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
