@@ -5,12 +5,12 @@ import logging
 import os
 import json
 from sup3r.utilities.utilities import st_interp
-from sup3r.models.abstract import AbstractSup3rGan
+from sup3r.models.abstract import AbstractInterface
 
 logger = logging.getLogger(__name__)
 
 
-class LinearInterp(AbstractSup3rGan):
+class LinearInterp(AbstractInterface):
     """Simple model to do linear interpolation on the spatial and temporal axes
     """
 

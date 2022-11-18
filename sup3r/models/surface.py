@@ -7,13 +7,13 @@ from PIL import Image
 from sklearn import linear_model
 from warnings import warn
 
-from sup3r.models.abstract import AbstractSup3rGan
+from sup3r.models.abstract import AbstractInterface
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
-class SurfaceSpatialMetModel(AbstractSup3rGan):
+class SurfaceSpatialMetModel(AbstractInterface):
     """Model to spatially downscale daily-average near-surface temperature,
     relative humidity, and pressure
 
