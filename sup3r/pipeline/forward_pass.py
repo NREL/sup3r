@@ -741,7 +741,7 @@ class ForwardPassStrategy(InputMixIn):
                f'{self.output_chunk_mem / 1e9:.2f} GB. Exceeding 1.5 GB could'
                ' result in constant model output.')
         if self.output_chunk_mem / 1e9 > 1.5:
-            logger.warn(msg)
+            logger.warning(msg)
             warnings.warn(msg)
 
         self.preflight()
