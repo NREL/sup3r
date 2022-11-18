@@ -292,23 +292,6 @@ class AbstractSingleModel(ABC):
 
         return out()
 
-    @property
-    @abstractmethod
-    def meta(self):
-        """Get meta data dictionary that defines how the model was created"""
-
-    @property
-    def training_features(self):
-        """Get the list of input feature names that the generative model was
-        trained on."""
-        return self.meta.get('training_features', None)
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the generative model
-        outputs and that the discriminator predicts on."""
-        return self.meta.get('output_features', None)
-
     @staticmethod
     def get_optimizer_config(optimizer):
         """Get a config that defines the current model optimizer
