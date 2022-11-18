@@ -8,14 +8,14 @@ from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
 # pylint: disable=cyclic-import
 import sup3r.models
-from sup3r.models.abstract import AbstractSup3rGan
+from sup3r.models.abstract import AbstractInterface
 from sup3r.models.base import Sup3rGan
 
 
 logger = logging.getLogger(__name__)
 
 
-class MultiStepGan(AbstractSup3rGan):
+class MultiStepGan(AbstractInterface):
     """Multi-Step GAN, which is really just an abstraction layer on top of one
     or more Sup3rGan models that will perform their forward passes in
     serial."""

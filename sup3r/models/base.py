@@ -13,14 +13,14 @@ from warnings import warn
 from rex.utilities.utilities import safe_json_load
 from phygnn import CustomNetwork
 
-from sup3r.models.abstract import AbstractSup3rGan, AbstractSup3rGanTraining
+from sup3r.models.abstract import AbstractInterface, AbstractSingleModel
 from sup3r.utilities import VERSION_RECORD
 
 
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGan(AbstractSup3rGan, AbstractSup3rGanTraining):
+class Sup3rGan(AbstractInterface, AbstractSingleModel):
     """Basic sup3r GAN model."""
 
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',

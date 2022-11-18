@@ -18,7 +18,7 @@ from warnings import warn
 logger = logging.getLogger(__name__)
 
 
-class AbstractSup3rGan(ABC):
+class AbstractInterface(ABC):
     """
     Abstract class to define the required interface for Sup3r model subclasses
 
@@ -185,7 +185,7 @@ class AbstractSup3rGan(ABC):
             json.dump(params, f, sort_keys=True, indent=2)
 
 
-class AbstractSup3rGanTraining(ABC):
+class AbstractSingleModel(ABC):
     """
     Abstract class to define the required training interface
     for Sup3r model subclasses
