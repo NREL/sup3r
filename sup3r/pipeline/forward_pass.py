@@ -727,6 +727,7 @@ class ForwardPassStrategy(InputMixIn):
         self.t_enhancements = [model.t_enhance for model in models]
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
+        self.output_features = model.output_features
 
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape, self.raw_tsteps,
                                             self.temporal_slice,
@@ -736,7 +737,25 @@ class ForwardPassStrategy(InputMixIn):
                                             self.spatial_pad,
                                             self.temporal_pad)
 
+        msg = ('The average memory of a forward pass output chunk is '
+               f'{self.output_chunk_mem / 1e9:.2f} GB. Exceeding 1.5 GB could'
+               ' result in constant model output.')
+        if self.output_chunk_mem / 1e9 > 1.5:
+            logger.warn(msg)
+            warnings.warn(msg)
+
         self.preflight()
+
+    @property
+    def output_chunk_mem(self):
+        """Get average memory of forward pass output chunk. This is used to
+        check if memory exceeds limit where model can return constant output.
+        Returns memory in bytes, assuming output has float32 type."""
+        n_elements = (self.fwp_chunk_shape[0] + 2 * self.spatial_pad)
+        n_elements *= (self.fwp_chunk_shape[1] + 2 * self.spatial_pad)
+        n_elements *= (self.fwp_chunk_shape[2] + 2 * self.temporal_pad)
+        n_elements *= len(self.output_features)
+        return 4 * n_elements
 
     def node_finished(self, node_index):
         """Check if all out files for a given node have been saved
