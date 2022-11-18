@@ -1845,12 +1845,12 @@ class ForwardPass:
                     try:
                         future.result()
                         mem = psutil.virtual_memory()
-                        logger.debug('Finished forward pass on chunk_index='
-                                     f'{fwp_futures[future]}. {i + 1} of '
-                                     f'{len(fwp_futures)} complete. '
-                                     'Current memory usage is '
-                                     f'{mem.used / 1e9:.3f} GB out of '
-                                     f'{mem.total / 1e9:.3f} GB total.')
+                        logger.info('Finished forward pass on chunk_index='
+                                    f'{fwp_futures[future]}. {i + 1} of '
+                                    f'{len(fwp_futures)} complete. '
+                                    'Current memory usage is '
+                                    f'{mem.used / 1e9:.3f} GB out of '
+                                    f'{mem.total / 1e9:.3f} GB total.')
                     except Exception as e:
                         msg = ('Error running forward pass on chunk_index='
                                f'{fwp_futures[future]}.')

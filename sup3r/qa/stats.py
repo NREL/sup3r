@@ -544,6 +544,10 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Value to scale ramp rate by. Typically the temporal resolution, so
             that temporal derivatives can be compared across different
             resolutions
+        period : float | None
+            If variable is periodic this gives that period. e.g. If the
+            variable is winddirection the period is 360 degrees and we need to
+            account for 0 and 360 being close.
 
         Returns
         -------
