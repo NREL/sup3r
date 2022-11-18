@@ -6,6 +6,7 @@ import logging
 import numpy as np
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
+# pylint: disable=cyclic-import
 import sup3r.models
 from sup3r.models.abstract import AbstractSup3rGan
 from sup3r.models.base import Sup3rGan
