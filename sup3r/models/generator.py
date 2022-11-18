@@ -972,11 +972,6 @@ class Sup3rGen(AbstractSup3rGan):
 
         loss = self.calc_loss_gen_content(output_true, output_gen)
 
-        # print("min max out = %g / %g " %
-        #       (np.amin(output_gen), np.amax(output_gen)))
-        # print("min max true = %g / %g " %
-        #       (np.amin(output_true), np.amax(output_true)))
-
         loss_details = {'loss_gen': loss,
                         'loss_gen_content': loss,
                         }
@@ -1003,7 +998,7 @@ class Sup3rGen(AbstractSup3rGan):
         for val_batch in batch_handler.val_data:
             output_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
-                val_batch.output, output_gen)
+                val_batch.high_res, output_gen)
 
             loss_details = self.update_loss_details(loss_details,
                                                     v_loss_details,
@@ -1032,7 +1027,7 @@ class Sup3rGen(AbstractSup3rGan):
             b_loss_details = {}
 
             b_loss_details = self.run_gradient_descent(
-                batch.low_res, batch.output, self.generator_weights,
+                batch.low_res, batch.high_res, self.generator_weights,
                 optimizer=self.optimizer)
 
             loss_details = self.update_loss_details(loss_details,

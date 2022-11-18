@@ -3,7 +3,7 @@
 import logging
 import tensorflow as tf
 
-from sup3r.models.generator_discriminator import Sup3rGan
+from sup3r.models.base import Sup3rGan
 
 
 logger = logging.getLogger(__name__)

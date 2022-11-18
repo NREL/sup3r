@@ -6,7 +6,7 @@ import logging
 import tensorflow as tf
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
-from sup3r.models.generator_discriminator import Sup3rGan
+from sup3r.models.base import Sup3rGan
 
 
 logger = logging.getLogger(__name__)

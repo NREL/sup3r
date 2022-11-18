@@ -14,7 +14,7 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.models.generator_discriminator import Sup3rGan
+from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest_utils import (make_fake_nc_files,
                                           make_fake_h5_chunks)
 

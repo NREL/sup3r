@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sup3r Model Software"""
 from .generator import Sup3rGen
-from .generator_discriminator import Sup3rGan
+from .base import Sup3rGan
 from .wind import WindGan
 from .solar_cc import SolarCC
 from .data_centric import Sup3rGanDC

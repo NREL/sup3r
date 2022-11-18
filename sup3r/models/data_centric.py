@@ -5,7 +5,7 @@ import numpy as np
 import logging
 import json
 
-from sup3r.models.generator_discriminator import Sup3rGan
+from sup3r.models.base import Sup3rGan
 from sup3r.utilities.utilities import round_array
 
 logger = logging.getLogger(__name__)
