@@ -664,6 +664,7 @@ class ForwardPassStrategy(InputMixIn):
         self.pass_workers = pass_workers
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
+        self._failed_chunks = False
         self._input_handler_class = None
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
@@ -727,6 +728,7 @@ class ForwardPassStrategy(InputMixIn):
         self.t_enhancements = [model.t_enhance for model in models]
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
+        self.output_features = model.output_features
 
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape, self.raw_tsteps,
                                             self.temporal_slice,
@@ -737,6 +739,17 @@ class ForwardPassStrategy(InputMixIn):
                                             self.temporal_pad)
 
         self.preflight()
+
+    @property
+    def failed_chunks(self):
+        """Check whether any forward passes have generated constant output."""
+        return self._failed_chunks
+
+    @failed_chunks.setter
+    def failed_chunks(self, failed):
+        """Set failed_chunks value. Will be set to True by a ForwardPass object
+        if there is a failed chunk"""
+        self._failed_chunks = failed
 
     def node_finished(self, node_index):
         """Check if all out files for a given node have been saved
@@ -1706,6 +1719,22 @@ class ForwardPass:
             exo_data=exo_data)
         return out_data
 
+    def _constant_output_check(self, out_data):
+        """Check if forward pass output is constant. This can happen when the
+        chunk going through the forward pass is too big.
+
+        Parameters
+        ----------
+        out_data : ndarray
+            Forward pass output corresponding to the given chunk index
+        """
+        for i, f in enumerate(self.output_features):
+            msg = (f'All spatiotemporal values are the same for {f} output!')
+            if np.all(out_data[0, 0, 0, i] == out_data[..., i]):
+                self.strategy.failed_chunks = True
+                logger.error(msg)
+                raise MemoryError(msg)
+
     @property
     def finished(self):
         """Check if forward pass has already been run."""
@@ -1736,7 +1765,15 @@ class ForwardPass:
             returns an initialized forward pass object, otherwise returns None
         """
         fwp = None
-        if not strategy.chunk_finished(chunk_index):
+        check = (not strategy.chunk_finished(chunk_index)
+                 and not strategy.failed_chunks)
+
+        if strategy.failed_chunks:
+            msg = 'A forward pass has failed. Aborting all jobs.'
+            logger.error(msg)
+            raise MemoryError(msg)
+
+        if check:
             fwp = cls(strategy, chunk_index=chunk_index, node_index=node_index)
         return fwp
 
@@ -1826,12 +1863,12 @@ class ForwardPass:
                     try:
                         future.result()
                         mem = psutil.virtual_memory()
-                        logger.debug('Finished forward pass on chunk_index='
-                                     f'{fwp_futures[future]}. {i + 1} of '
-                                     f'{len(fwp_futures)} complete. '
-                                     'Current memory usage is '
-                                     f'{mem.used / 1e9:.3f} GB out of '
-                                     f'{mem.total / 1e9:.3f} GB total.')
+                        logger.info('Finished forward pass on chunk_index='
+                                    f'{fwp_futures[future]}. {i + 1} of '
+                                    f'{len(fwp_futures)} complete. '
+                                    'Current memory usage is '
+                                    f'{mem.used / 1e9:.3f} GB out of '
+                                    f'{mem.total / 1e9:.3f} GB total.')
                     except Exception as e:
                         msg = ('Error running forward pass on chunk_index='
                                f'{fwp_futures[future]}.')
@@ -1845,13 +1882,14 @@ class ForwardPass:
         """This routine runs a forward pass on single spatiotemporal chunk.
         """
         msg = (f'Running forward pass for chunk_index={self.chunk_index}, '
-               f'node_index={self.node_index}, file_paths={self.file_paths}.'
+               f'node_index={self.node_index}, file_paths={self.file_paths}. '
                f'Starting forward pass on chunk_shape={self.chunk_shape} with '
                f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
                f'{self.strategy.temporal_pad}.')
         logger.info(msg)
 
         out_data = self._run_single_fwd_pass()
+        self._constant_output_check(out_data)
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')

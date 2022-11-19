@@ -389,7 +389,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                 self.save_cache(var_itp, file_name)
         return var_itp
 
-    def get_stats(self, var, interp=False):
+    def get_stats(self, var, interp=False, period=None):
         """Get stats for wind fields
 
         Parameters
@@ -426,17 +426,18 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             logger.info('Computing gradient pdf.')
             stats_dict['gradient'] = gradient_dist(
                 var, diff_max=self.gradient_max, scale=scale,
-                bins=self.n_bins, interpolate=self.interp_dists)
+                bins=self.n_bins, interpolate=self.interp_dists, period=period)
 
         if 'mean_gradient' in self.include_stats:
             logger.info('Computing mean gradient pdf.')
             stats_dict['mean_gradient'] = gradient_dist(
                 np.mean(var, axis=-1), diff_max=self.gradient_max,
-                scale=scale, bins=self.n_bins, interpolate=self.interp_dists)
+                scale=scale, bins=self.n_bins, interpolate=self.interp_dists,
+                period=period)
 
         scale = (self.temporal_res if not interp
                  else self.temporal_res / self.t_enhance)
-        out = self.get_ramp_rate_stats(var, scale=scale)
+        out = self.get_ramp_rate_stats(var, scale=scale, period=period)
         stats_dict.update(out)
         return stats_dict
 
@@ -485,15 +486,19 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Dictionary of stats for spatiotemporally interpolated fields
         """
         source_stats = {}
+        period = None
+        if 'direction' in feature:
+            period = 360
+
         if self.source_data is not None:
             out = self.get_feature_data(feature)
-            source_stats = self.get_stats(out)
+            source_stats = self.get_stats(out, period=period)
 
         interp = {}
         if self.get_interp:
             logger.info(f'Getting interpolated baseline stats for {feature}')
             itp = self.interpolate_data(feature, out)
-            interp = self.get_stats(itp, interp=True)
+            interp = self.get_stats(itp, interp=True, period=period)
         return source_stats, interp
 
     def run(self):
@@ -528,7 +533,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
 
         return stats
 
-    def get_ramp_rate_stats(self, var, scale=1):
+    def get_ramp_rate_stats(self, var, scale=1, period=None):
         """Compute statistics for ramp rates
 
         Parameters
@@ -539,6 +544,10 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Value to scale ramp rate by. Typically the temporal resolution, so
             that temporal derivatives can be compared across different
             resolutions
+        period : float | None
+            If variable is periodic this gives that period. e.g. If the
+            variable is winddirection the period is 360 degrees and we need to
+            account for 0 and 360 being close.
 
         Returns
         -------
@@ -551,14 +560,14 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             logger.info('Computing ramp rate pdf.')
             out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
                                  t_steps=1, scale=scale, bins=self.n_bins,
-                                 interpolate=self.interp_dists)
+                                 interpolate=self.interp_dists, period=period)
             stats_dict['ramp_rate'] = out
         if 'mean_ramp_rate' in self.include_stats:
             logger.info('Computing mean ramp rate pdf.')
             out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
                                  diff_max=self.ramp_rate_max, t_steps=1,
                                  scale=scale, bins=self.n_bins,
-                                 interpolate=self.interp_dists)
+                                 interpolate=self.interp_dists, period=period)
             stats_dict['mean_ramp_rate'] = out
         return stats_dict
 
