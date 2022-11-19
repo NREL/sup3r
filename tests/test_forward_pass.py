@@ -1080,24 +1080,24 @@ def test_fwp_wind_hi_res_topo_plus_linear():
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv2DTranspose", "filters": 64, "kernel_size": 3,
-                  "strides": 1, "activation": "relu"},
+                  "strides": 1},
                  {"class": "Cropping2D", "cropping": 4},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv2DTranspose", "filters": 64,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping2D", "cropping": 4},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv2DTranspose", "filters": 64,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping2D", "cropping": 4},
                  {"class": "SpatialExpansion", "spatial_mult": 2},
-                 {"class": "Activation", "activation": "relu"},
+                 {"alpha": 0.2, "class": "LeakyReLU"},
 
                  {"class": "Sup3rConcat"},
 
@@ -1105,7 +1105,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv2DTranspose", "filters": 2,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping2D", "cropping": 4}]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
