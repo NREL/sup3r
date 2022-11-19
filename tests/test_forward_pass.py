@@ -832,24 +832,25 @@ def test_slicing_pad(log=False):
             assert np.allclose(forward_pass.input_data, padded_truth)
 
 
-def test_fwp_single_step_wind_hi_res_topo():
+def test_fwp_single_step_wind_hi_res_topo(plot=False):
     """Test the forward pass with a single spatiotemporal WindGan model
-    requiring high-resolution topograph input from the exogenous_data
+    requiring high-resolution topography input from the exogenous_data
     feature."""
     Sup3rGan.seed()
     gen_model = [{"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv3D", "filters": 64, "kernel_size": 3,
-                  "strides": 1, "activation": "relu"},
+                  "strides": 1},
                  {"class": "Cropping3D", "cropping": 2},
-                 {"class": "SpatioTemporalExpansion", "temporal_mult": 2},
+                 {"class": "SpatioTemporalExpansion", "temporal_mult": 2,
+                  "temporal_method": "nearest"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv3D", "filters": 64,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping3D", "cropping": 2},
                  {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
 
@@ -857,9 +858,9 @@ def test_fwp_single_step_wind_hi_res_topo():
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv3D", "filters": 64,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping3D", "cropping": 2},
-                 {"class": "Activation", "activation": "relu"},
+                 {"alpha": 0.2, "class": "LeakyReLU"},
 
                  {"class": "Sup3rConcat"},
 
@@ -867,7 +868,7 @@ def test_fwp_single_step_wind_hi_res_topo():
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
                   "mode": "REFLECT"},
                  {"class": "Conv3D", "filters": 2,
-                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                  "kernel_size": 3, "strides": 1},
                  {"class": "Cropping3D", "cropping": 2}]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -876,8 +877,8 @@ def test_fwp_single_step_wind_hi_res_topo():
     model.meta['output_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 2
-    _ = model.generate(np.ones((4, 10, 10, 6, 3)),
-                       exogenous_data=(None, np.ones((4, 20, 20, 6, 1))))
+    _ = model.generate(np.random.rand(4, 10, 10, 6, 3),
+                       exogenous_data=(None, np.random.rand(4, 20, 20, 6, 1)))
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -920,14 +921,27 @@ def test_fwp_single_step_wind_hi_res_topo():
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='WindGan',
-            fwp_chunk_shape=(4, 4, 8),
-            spatial_pad=1, temporal_pad=1,
+            fwp_chunk_shape=(8, 8, 8),
+            spatial_pad=4, temporal_pad=4,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             max_workers=1,
             exo_kwargs=exo_kwargs,
             max_nodes=1)
         forward_pass = ForwardPass(handler)
+
+        if plot:
+            for ifeature, feature in enumerate(forward_pass.output_features):
+                fig = plt.figure(figsize=(15, 5))
+                ax1 = fig.add_subplot(111)
+                vmin = np.min(forward_pass.input_data[..., ifeature])
+                vmax = np.max(forward_pass.input_data[..., ifeature])
+                nc = ax1.imshow(forward_pass.input_data[..., 0, ifeature],
+                                vmin=vmin, vmax=vmax)
+                fig.colorbar(nc, ax=ax1, shrink=0.6, label=f'{feature}')
+                plt.savefig(f'./input_{feature}.png')
+                plt.close()
+
         forward_pass.run(handler, node_index=0)
 
         for fp in handler.out_files:

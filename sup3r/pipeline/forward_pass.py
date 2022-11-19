@@ -1767,6 +1767,12 @@ class ForwardPass:
         fwp = None
         check = (not strategy.chunk_finished(chunk_index)
                  and not strategy.failed_chunks)
+
+        if strategy.failed_chunks:
+            msg = 'A forward pass has failed. Aborting all jobs.'
+            logger.error(msg)
+            raise MemoryError(msg)
+
         if check:
             fwp = cls(strategy, chunk_index=chunk_index, node_index=node_index)
         return fwp
@@ -1876,7 +1882,7 @@ class ForwardPass:
         """This routine runs a forward pass on single spatiotemporal chunk.
         """
         msg = (f'Running forward pass for chunk_index={self.chunk_index}, '
-               f'node_index={self.node_index}, file_paths={self.file_paths}.'
+               f'node_index={self.node_index}, file_paths={self.file_paths}. '
                f'Starting forward pass on chunk_shape={self.chunk_shape} with '
                f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
                f'{self.strategy.temporal_pad}.')
