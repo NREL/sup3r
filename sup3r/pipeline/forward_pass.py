@@ -720,7 +720,7 @@ class ForwardPassStrategy(InputMixIn):
         self.load_workers = self._input_handler_kwargs.get('load_workers',
                                                            None)
         self.ti_workers = self._input_handler_kwargs.get('ti_workers', None)
-        self.ti_kwargs = self._input_handler_kwargs.get('ti_kwargs', {})
+        self.res_kwargs = self._input_handler_kwargs.get('res_kwargs', {})
         self._cache_pattern = self._input_handler_kwargs.get('cache_pattern',
                                                              None)
         self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
@@ -1168,7 +1168,7 @@ class ForwardPass:
             load_workers=strategy.load_workers,
             ti_workers=strategy.ti_workers,
             handle_features=strategy.handle_features,
-            ti_kwargs=strategy.ti_kwargs,
+            res_kwargs=strategy.res_kwargs,
             single_ts_files=strategy.single_ts_files,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
