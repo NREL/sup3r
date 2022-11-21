@@ -1752,6 +1752,30 @@ class DataHandler(FeatureHandler, InputMixIn):
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
+    CHUNKS = {'XTIME': 100, 'XLAT': 100, 'XLON': 100}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
+    def __init__(self, *args, xr_chunks=None, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same ordered required arguments as DataHandler parent class.
+        xr_chunks : int | "auto" | tuple | dict | None
+            kwarg that goes to xr.DataArray.chunk(chunks=xr_chunks). Chunk
+            sizes that approximately match the data volume being extracted
+            typically results in the most efficient IO. If not provided, this
+            defaults to the class CHUNKS attribute.
+        **kwargs : list
+            Same optional keyword arguments as DataHandler parent class.
+        """
+        if xr_chunks is not None:
+            self.CHUNKS = xr_chunks
+
+        super().__init__(*args, **kwargs)
+
     @property
     def extract_workers(self):
         """Get upper bound for extract workers based on memory limits. Used to
@@ -1785,7 +1809,8 @@ class DataHandlerNC(DataHandler):
         data : xarray.Dataset
         """
         return xr.open_mfdataset(file_paths, combine='nested',
-                                 concat_dim='Time', **kwargs)
+                                 concat_dim='Time', chunks=cls.CHUNKS,
+                                 **kwargs)
 
     @classmethod
     def get_file_times(cls, file_paths, **kwargs):
@@ -2118,6 +2143,11 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
+    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
     def __init__(self, *args, nsrdb_source_fp=None, nsrdb_agg=1,
                  nsrdb_smoothing=0, **kwargs):
         """
@@ -2193,7 +2223,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, **kwargs)
+        return xr.open_mfdataset(file_paths, chunks=cls.CHUNKS, **kwargs)
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
