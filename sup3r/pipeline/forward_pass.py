@@ -107,6 +107,7 @@ class ForwardPassSlicer:
         self._s_lr_pad_slices = None
         self._s_lr_crop_slices = None
         self._t_lr_pad_slices = None
+        self._t_lr_crop_slices = None
         self._s_hr_slices = None
         self._s_hr_crop_slices = None
         self._t_hr_crop_slices = None
@@ -211,6 +212,22 @@ class ForwardPassSlicer:
                 self.t_lr_slices, self.time_steps, 1,
                 self.temporal_pad, self.temporal_slice.step)
         return self._t_lr_pad_slices
+
+    @property
+    def t_lr_crop_slices(self):
+        """Get low res temporal cropped slices for cropping time index of
+        padded input data.
+
+        Returns
+        -------
+        _t_lr_crop_slices : list
+            List of low res temporal slices for cropping padded input data
+        """
+        if self._t_lr_crop_slices is None:
+            self._t_lr_crop_slices = self.get_cropped_slices(
+                self.t_lr_slices, self.t_lr_pad_slices, 1)
+
+        return self._t_lr_crop_slices
 
     @property
     def t_hr_crop_slices(self):
@@ -1081,6 +1098,10 @@ class ForwardPass:
         self.chunk_index = chunk_index
         self.node_index = node_index
 
+        msg = (f'Requested forward pass on chunk_index={chunk_index} > '
+               f'n_chunks={strategy.chunks}')
+        assert chunk_index <= strategy.chunks, msg
+
         logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
                     f'(temporal_chunk={self.temporal_chunk_index}, '
                     f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
@@ -1148,6 +1169,7 @@ class ForwardPass:
             ti_workers=strategy.ti_workers,
             handle_features=strategy.handle_features,
             ti_kwargs=strategy.ti_kwargs,
+            single_ts_files=strategy.single_ts_files,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
 
@@ -1179,14 +1201,22 @@ class ForwardPass:
         return self.strategy.t_enhance
 
     @property
-    def hr_lat_lon(self):
-        """Get high resolution lat lon for current chunk"""
-        return self.strategy.hr_lat_lon[self.hr_slice[0], self.hr_slice[1]]
+    def ti_crop_slice(self):
+        """Get low-resolution time index crop slice to crop input data time
+        index before getting high-resolution time index"""
+        return self.strategy.fwp_slicer.t_lr_crop_slices[
+            self.temporal_chunk_index]
 
     @property
     def lr_times(self):
-        """Get low resolution times for the current chunk"""
-        return self.strategy.raw_time_index[self.ti_slice]
+        """Get low-resolution cropped time index to use for getting
+        high-resolution time index"""
+        return self.data_handler.time_index[self.ti_crop_slice]
+
+    @property
+    def hr_lat_lon(self):
+        """Get high resolution lat lon for current chunk"""
+        return self.strategy.hr_lat_lon[self.hr_slice[0], self.hr_slice[1]]
 
     @property
     def hr_times(self):
