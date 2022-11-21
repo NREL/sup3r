@@ -1,3 +1,5 @@
+#!/bin/bash
+
 python test_train_conditional_moments.py
 python test_train_conditional_moments_st.py
 python test_train_conditional_moments_feat.py

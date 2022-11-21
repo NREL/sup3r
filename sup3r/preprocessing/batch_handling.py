@@ -19,8 +19,8 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        weighted_box_sampler,
                                        spatial_coarsening,
                                        temporal_coarsening,
-                                       spatial_upsampling,
-                                       temporal_upsampling,
+                                       spatial_simple_enhancing,
+                                       temporal_simple_enhancing,
                                        smooth_data,
                                        nsrdb_reduce_daily_data,
                                        uniform_box_sampler,
@@ -274,10 +274,10 @@ class BatchMom2SF(Batch):
         """
         # Remove first moment from high res and square it
         out = model_mom1._tf_generate(low_res).numpy()
-        upsampled_lr = spatial_upsampling(low_res,
-                                          s_enhance=s_enhance)
-        upsampled_lr = temporal_upsampling(upsampled_lr,
-                                           t_enhance=t_enhance)
+        upsampled_lr = spatial_simple_enhancing(low_res,
+                                                s_enhance=s_enhance)
+        upsampled_lr = temporal_simple_enhancing(upsampled_lr,
+                                                 t_enhance=t_enhance)
         upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
         return (high_res - upsampled_lr - out)**2
 
@@ -313,10 +313,10 @@ class BatchMom1SF(Batch):
             output, without any feature indices used only for training.
         """
         # Remove first moment from high res and square it
-        upsampled_lr = spatial_upsampling(low_res,
-                                          s_enhance=s_enhance)
-        upsampled_lr = temporal_upsampling(upsampled_lr,
-                                           t_enhance=t_enhance)
+        upsampled_lr = spatial_simple_enhancing(low_res,
+                                                s_enhance=s_enhance)
+        upsampled_lr = temporal_simple_enhancing(upsampled_lr,
+                                                 t_enhance=t_enhance)
         upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
         return high_res - upsampled_lr
 

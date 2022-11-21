@@ -13,19 +13,26 @@ from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
                                                 SpatialBatchHandlerMom1SF,
                                                 SpatialBatchHandlerMom2,
                                                 SpatialBatchHandlerMom2SF)
-from sup3r.utilities.utilities import (spatial_upsampling)
+from sup3r.utilities.utilities import (spatial_simple_enhancing)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
+TRAIN_FEATURES = None
+n_feat_in = len(FEATURES)
+n_feat_out = len(FEATURES)
 
 
 def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=4, n_batches=4,
-                          s_enhance=2, model_dir=None):
+                          s_enhance=2, model_dir=None,
+                          FEATURES=None,
+                          TRAIN_FEATURES=None,
+                          n_feat_in=n_feat_in, n_feat_out=n_feat_out):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -48,14 +55,15 @@ def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
     # Check sizes
     for batch in batch_handler:
         assert batch.high_res.shape == (batch_size, sample_shape[0],
-                                        sample_shape[1], 2)
+                                        sample_shape[1], n_feat_out)
         assert batch.output.shape == (batch_size, sample_shape[0],
-                                      sample_shape[1], 2)
+                                      sample_shape[1], n_feat_out)
         assert batch.low_res.shape == (batch_size,
                                        sample_shape[0] // s_enhance,
-                                       sample_shape[1] // s_enhance, 2)
+                                       sample_shape[1] // s_enhance, n_feat_in)
         out = model._tf_generate(batch.low_res)
-        assert out.shape == (batch_size, sample_shape[0], sample_shape[1], 2)
+        assert out.shape == (batch_size, sample_shape[0], sample_shape[1],
+                             n_feat_out)
         break
     if plot:
         import matplotlib.pyplot as plt
@@ -103,9 +111,12 @@ def test_out_spatial_mom1(plot=False, full_shape=(20, 20),
 def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
                              batch_size=4, n_batches=4,
-                             s_enhance=2, model_dir=None):
+                             s_enhance=2, model_dir=None,
+                             FEATURES=None,
+                             TRAIN_FEATURES=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -146,8 +157,8 @@ def test_out_spatial_mom1_sf(plot=False, full_shape=(20, 20),
                 blr_aug_shape = (1,) + lr.shape + (1,)
                 blr_aug = np.reshape(batch.low_res[i, :, :, 0],
                                      blr_aug_shape)
-                up_lr = spatial_upsampling(blr_aug,
-                                           s_enhance=s_enhance)
+                up_lr = spatial_simple_enhancing(blr_aug,
+                                                 s_enhance=s_enhance)
                 up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
@@ -192,9 +203,12 @@ def test_out_spatial_mom2(plot=False, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=4, n_batches=4,
                           s_enhance=2, model_dir=None,
-                          model_mom1_dir=None):
+                          model_mom1_dir=None,
+                          FEATURES=None,
+                          TRAIN_FEATURES=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -276,9 +290,12 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
                              batch_size=4, n_batches=4,
                              s_enhance=2, model_dir=None,
-                             model_mom1_dir=None):
+                             model_mom1_dir=None,
+                             FEATURES=None,
+                             TRAIN_FEATURES=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -329,8 +346,8 @@ def test_out_spatial_mom2_sf(plot=False, full_shape=(20, 20),
                 blr_aug_shape = (1,) + lr.shape + (1,)
                 blr_aug = np.reshape(batch.low_res[i, :, :, 0],
                                      blr_aug_shape)
-                up_lr = spatial_upsampling(blr_aug,
-                                           s_enhance=s_enhance)
+                up_lr = spatial_simple_enhancing(blr_aug,
+                                                 s_enhance=s_enhance)
                 up_lr = up_lr[0, :, :, 0]
                 hr = (batch.high_res[i, :, :, 0]
                       * batch_handler.stds[0]
@@ -474,23 +491,32 @@ if __name__ == "__main__":
     test_out_spatial_mom1(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=4, n_batches=2,
-                          s_enhance=2, model_dir='s_mom1/spatial_cond_mom')
+                          s_enhance=2, model_dir='s_mom1/spatial_cond_mom',
+                          FEATURES=FEATURES,
+                          n_feat_in=n_feat_in, n_feat_out=n_feat_out,
+                          TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=4, n_batches=2,
                           s_enhance=2, model_dir='s_mom2/spatial_cond_mom',
-                          model_mom1_dir='s_mom1/spatial_cond_mom')
+                          FEATURES=FEATURES,
+                          model_mom1_dir='s_mom1/spatial_cond_mom',
+                          TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
                              batch_size=4, n_batches=2,
                              s_enhance=2,
-                             model_dir='s_mom1_sf/spatial_cond_mom')
+                             FEATURES=FEATURES,
+                             model_dir='s_mom1_sf/spatial_cond_mom',
+                             TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
                              batch_size=4, n_batches=2,
                              s_enhance=2,
+                             FEATURES=FEATURES,
                              model_mom1_dir='s_mom1_sf/spatial_cond_mom',
-                             model_dir='s_mom2_sf/spatial_cond_mom')
+                             model_dir='s_mom2_sf/spatial_cond_mom',
+                             TRAIN_FEATURES=TRAIN_FEATURES)

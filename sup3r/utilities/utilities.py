@@ -583,7 +583,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     return coarse_data
 
 
-def temporal_upsampling(data, t_enhance=4):
+def temporal_simple_enhancing(data, t_enhance=4):
     """"Upsample data according to t_enhance resolution
 
     Parameters
@@ -608,7 +608,7 @@ def temporal_upsampling(data, t_enhance=4):
                                             enhancement,
                                             order=0)
     elif len(data.shape) != 5:
-        msg = ('Data must be 5D to do temporal upsampling, but '
+        msg = ('Data must be 5D to do temporal enhancing, but '
                f'received: {data.shape}')
         logger.error(msg)
         raise ValueError(msg)
@@ -770,8 +770,8 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
     return data
 
 
-def spatial_upsampling(data, s_enhance=2, obs_axis=True):
-    """"Simple upsampling according to s_enhance resolution
+def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
+    """"Simple enhancing according to s_enhance resolution
 
     Parameters
     ----------
@@ -795,7 +795,7 @@ def spatial_upsampling(data, s_enhance=2, obs_axis=True):
     """
 
     if len(data.shape) < 3:
-        msg = ('Data must be 3D, 4D, or 5D to do spatial upsampling, but '
+        msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
                f'received: {data.shape}')
         logger.error(msg)
         raise ValueError(msg)
@@ -826,7 +826,7 @@ def spatial_upsampling(data, s_enhance=2, obs_axis=True):
                                          enhancement,
                                          order=0)
         else:
-            msg = ('Data must be 3D, 4D, or 5D to do spatial upsampling, but '
+            msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
                    f'received: {data.shape}')
             logger.error(msg)
             raise ValueError(msg)
