@@ -11,8 +11,8 @@ from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 BatchHandlerMom1SF,
                                                 BatchHandlerMom2,
                                                 BatchHandlerMom2SF)
-from sup3r.utilities.utilities import (spatial_upsampling,
-                                       temporal_upsampling)
+from sup3r.utilities.utilities import (spatial_simple_enhancing,
+                                       temporal_simple_enhancing)
 from test_out_conditional_moments import test_out_loss
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -89,8 +89,8 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                 lr = (batch.low_res[i, :, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
                 aug_lr = np.reshape(lr, (1,) + lr.shape + (1,))
-                tup_lr = temporal_upsampling(aug_lr,
-                                             t_enhance=t_enhance)
+                tup_lr = temporal_simple_enhancing(aug_lr,
+                                                   t_enhance=t_enhance)
                 tup_lr = tup_lr[0, :, :, :, 0]
                 hr = (batch.output[i, :, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
@@ -170,15 +170,15 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                 b_lr = batch.low_res[i, :, :, :, 0]
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
-                tup_lr = temporal_upsampling(b_lr_aug,
-                                             t_enhance=t_enhance)
+                tup_lr = temporal_simple_enhancing(b_lr_aug,
+                                                   t_enhance=t_enhance)
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
-                up_lr_tmp = spatial_upsampling(b_lr_aug,
-                                               s_enhance=s_enhance)
-                up_lr = temporal_upsampling(up_lr_tmp,
-                                            t_enhance=t_enhance)
+                up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
+                                                     s_enhance=s_enhance)
+                up_lr = temporal_simple_enhancing(up_lr_tmp,
+                                                  t_enhance=t_enhance)
                 up_lr = up_lr[0, :, :, :, 0]
 
                 hr = (batch.high_res[i, :, :, :, 0]
@@ -290,8 +290,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                 b_lr = batch.low_res[i, :, :, :, 0]
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
-                tup_lr = temporal_upsampling(b_lr_aug,
-                                             t_enhance=t_enhance)
+                tup_lr = temporal_simple_enhancing(b_lr_aug,
+                                                   t_enhance=t_enhance)
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
@@ -391,16 +391,16 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                 b_lr = batch.low_res[i, :, :, :, 0]
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
-                tup_lr = temporal_upsampling(b_lr_aug,
-                                             t_enhance=t_enhance)
+                tup_lr = temporal_simple_enhancing(b_lr_aug,
+                                                   t_enhance=t_enhance)
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
 
-                up_lr_tmp = spatial_upsampling(b_lr_aug,
-                                               s_enhance=s_enhance)
-                up_lr = temporal_upsampling(up_lr_tmp,
-                                            t_enhance=t_enhance)
+                up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
+                                                     s_enhance=s_enhance)
+                up_lr = temporal_simple_enhancing(up_lr_tmp,
+                                                  t_enhance=t_enhance)
                 up_lr = up_lr[0, :, :, :, 0]
 
                 hr = (batch.high_res[i, :, :, :, 0]

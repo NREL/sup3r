@@ -27,8 +27,8 @@ TO DO
     #. |ss| Include in testing suite |se|
     #. |ss| Add `wind_condition_moments.py` to handle topography |se|
     #. |ss| Include in testing suite |se|
-#. Nomenclature upsampling enhance
-#. See of Sup3rCondMom can instead inherit from abstract Gan class
+#. |ss| Nomenclature upsampling enhance |se|
+#. |ss| See of Sup3rCondMom can instead inherit from abstract Gan class |se|
 #. Add option to crop output
 #. Train network with increasing complexity
     #. |ss| Include number of parameter in loss plotting |se|
