@@ -1326,7 +1326,7 @@ class FeatureHandler:
                                         file_paths=file_paths,
                                         raster_index=raster_index,
                                         feature=f,
-                                        time_slice=t_slice
+                                        time_slice=t_slice,
                                         **kwargs)
                     meta = {'feature': f, 'chunk': t}
                     futures[future] = meta
