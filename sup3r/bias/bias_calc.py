@@ -485,6 +485,42 @@ class LinearCorrection(DataRetrievalBase):
                                         bias_feature, base_dset)
         return out
 
+    def fill_extend(self, out, smooth_extend):
+        """Fill data extending beyond the base meta data extent by doing a
+        nearest neighbor gap fill.
+
+        Parameters
+        ----------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
+        smooth_extend : float
+            Option to smooth the scalar/adder data outside of the spatial
+            domain set by the threshold input. This alleviates the weird seams
+            far from the domain of interest. This value is the standard
+            deviation for the gaussian_filter kernel
+
+        Returns
+        -------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
+        """
+        for key, arr in out.items():
+            nan_mask = np.isnan(arr[..., 0])
+            for idt in range(self.NT):
+                arr[..., idt] = nn_fill_array(arr[..., idt])
+                if smooth_extend > 0:
+                    arr_smooth = gaussian_filter(arr[..., idt],
+                                                 smooth_extend,
+                                                 mode='nearest')
+                    out[key][nan_mask, idt] = arr_smooth[nan_mask]
+        return out
+
     def write_outputs(self, fp_out, out):
         """Write outputs to an .h5 file.
 
@@ -629,15 +665,7 @@ class LinearCorrection(DataRetrievalBase):
         logger.info('Finished calculating bias correction factors.')
 
         if fill_extend:
-            for key, arr in out.items():
-                nan_mask = np.isnan(arr[..., 0])
-                for idt in range(self.NT):
-                    arr[..., idt] = nn_fill_array(arr[..., idt])
-                    if smooth_extend > 0:
-                        arr_smooth = gaussian_filter(arr[..., idt],
-                                                     smooth_extend,
-                                                     mode='nearest')
-                        out[key][nan_mask, idt] = arr_smooth[nan_mask]
+            out = self.fill_extend(out)
 
         self.write_outputs(fp_out, out)
 
