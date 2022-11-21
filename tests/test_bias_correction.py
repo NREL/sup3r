@@ -47,8 +47,9 @@ def test_linear_bc():
     true_scalar = base_data.std() / bias_data.std()
     true_adder = base_data.mean() - bias_data.mean() * true_scalar
 
-    scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=False,
-                             max_workers=1)
+    out = calc.run(knn=1, threshold=0.6, fill_extend=False, max_workers=1)
+    scalar = out['rsds_scalar']
+    adder = out['rsds_adder']
 
     assert len(scalar.shape) == 3
     assert len(adder.shape) == 3
@@ -67,8 +68,9 @@ def test_linear_bc():
     assert np.isnan(adder[nan_mask]).all()
 
     # make sure the NN fill works for out-of-bounds pixels
-    scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
-                             max_workers=1)
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1)
+    scalar = out['rsds_scalar']
+    adder = out['rsds_adder']
 
     iloc = np.where(calc.bias_gid_raster == bias_gid)
     assert np.allclose(true_scalar, scalar[iloc])
@@ -78,17 +80,20 @@ def test_linear_bc():
     assert not np.isnan(adder[nan_mask]).any()
 
     # make sure smoothing affects the out-of-bounds pixels but not the in-bound
-    smooth_scalar, smooth_adder = calc.run(knn=1, threshold=0.6,
-                                           fill_extend=True, smooth_extend=2,
-                                           max_workers=1)
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_extend=2,
+                   max_workers=1)
+    smooth_scalar = out['rsds_scalar']
+    smooth_adder = out['rsds_adder']
     assert np.allclose(smooth_scalar[~nan_mask], scalar[~nan_mask])
     assert np.allclose(smooth_adder[~nan_mask], adder[~nan_mask])
     assert not np.allclose(smooth_scalar[nan_mask], scalar[nan_mask])
     assert not np.allclose(smooth_adder[nan_mask], adder[nan_mask])
 
     # parallel test
-    par_scalar, par_adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
-                                     smooth_extend=2, max_workers=2)
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_extend=2,
+                   max_workers=2)
+    par_scalar = out['rsds_scalar']
+    par_adder = out['rsds_adder']
     assert np.allclose(smooth_scalar, par_scalar)
     assert np.allclose(smooth_adder, par_adder)
 
@@ -118,8 +123,9 @@ def test_monthly_linear_bc():
     true_scalar = base_data.std() / bias_data.std()
     true_adder = base_data.mean() - bias_data.mean() * true_scalar
 
-    scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
-                             max_workers=1)
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1)
+    scalar = out['rsds_scalar']
+    adder = out['rsds_adder']
 
     assert len(scalar.shape) == 3
     assert len(adder.shape) == 3
@@ -142,15 +148,19 @@ def test_linear_transform():
                             TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'bc.h5')
-        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=False,
-                                 max_workers=1, fp_out=fp_out)
+        out = calc.run(knn=1, threshold=0.6, fill_extend=False, max_workers=1,
+                       fp_out=fp_out)
+        scalar = out['rsds_scalar']
+        adder = out['rsds_adder']
         test_data = np.ones_like(scalar)
         with pytest.warns():
             out = local_linear_bc(test_data, 'rsds', fp_out,
                                   lr_padded_slice=None, out_range=None)
 
-        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
-                                 max_workers=1, fp_out=fp_out)
+        out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1,
+                       fp_out=fp_out)
+        scalar = out['rsds_scalar']
+        adder = out['rsds_adder']
         test_data = np.ones_like(scalar)
         out = local_linear_bc(test_data, 'rsds', fp_out,
                               lr_padded_slice=None, out_range=None)
@@ -185,8 +195,10 @@ def test_montly_linear_transform():
                                     daily_reduction='avg')
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'bc.h5')
-        scalar, adder = calc.run(knn=1, threshold=0.6, fill_extend=True,
-                                 max_workers=1, fp_out=fp_out)
+        out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1,
+                       fp_out=fp_out)
+        scalar = out['rsds_scalar']
+        adder = out['rsds_adder']
         test_data = np.ones((scalar.shape[0], scalar.shape[1], len(base_ti)))
         with pytest.warns():
             out = monthly_local_linear_bc(test_data, 'rsds', fp_out,

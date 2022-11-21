@@ -590,7 +590,7 @@ class LinearCorrection(DataRetrievalBase):
                                                   self.base_handler,
                                                   daily_reduction,
                                                   self.bias_ti, self.decimals)
-                    for key, arr in single_out:
+                    for key, arr in single_out.items():
                         out[key][raster_loc] = arr
 
                 logger.info('Completed bias calculations for {} out of {} '
@@ -620,7 +620,7 @@ class LinearCorrection(DataRetrievalBase):
                 for i, future in enumerate(as_completed(futures)):
                     raster_loc = futures[future]
                     single_out = future.result()
-                    for key, arr in single_out:
+                    for key, arr in single_out.items():
                         out[key][raster_loc] = arr
 
                     logger.info('Completed bias calculations for {} out of {} '
@@ -683,7 +683,7 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                  base_data[base_mask],
                                                  bias_feature,
                                                  base_dset)
-                for k, v in mout:
+                for k, v in mout.items():
                     out[k][month - 1] = v
 
         return out
