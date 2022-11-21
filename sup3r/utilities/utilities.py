@@ -780,7 +780,6 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
     """
     Unstagger WRF variable values. Some variables use a staggered grid with
     values associated with grid cell edges. We want to center these values.
-
     Parameters
     ----------
     data : xarray
@@ -791,37 +790,28 @@ def unstagger_var(data, var, raster_index, time_slice=slice(None)):
         List of slices for raster index of spatial domain
     time_slice : slice
         slice of time to extract
-
     Returns
     -------
     ndarray
         Unstaggered array of variable values.
     """
 
-    # Import Variable values from nc database instance
-    idx = (time_slice, slice(None), slice(None), slice(None))
-    array_in = np.array(data[var][idx], dtype=np.float32)
+    idx = [time_slice, slice(None), raster_index[0], raster_index[1]]
 
-    if all('stag' not in d for d in data[var].dims):
-        array_in = array_in[(slice(None), slice(None),) + tuple(raster_index)]
-    else:
-        for i, d in enumerate(data[var].dims):
-            if 'stag' in d:
-                if 'south_north' in d:
-                    idx = (slice(None), slice(None),
-                           slice(raster_index[0].start,
-                                 raster_index[0].stop + 1),
-                           raster_index[1])
-                    array_in = array_in[idx]
-                elif 'west_east' in d:
-                    idx = (slice(None), slice(None), raster_index[0],
-                           slice(raster_index[1].start,
-                                 raster_index[1].stop + 1))
-                    array_in = array_in[idx]
-                else:
-                    idx = (slice(None), slice(None),) + tuple(raster_index)
-                    array_in = array_in[idx]
-                array_in = np.apply_along_axis(forward_average, i, array_in)
+    if not any('stag' in d for d in data[var].dims):
+        return np.array(data[var][tuple(idx)], dtype=np.float32)
+
+    if 'stag' in data[var].dims[2]:
+        idx[2] = slice(idx[2].start, idx[2].stop + 1)
+    if 'stag' in data[var].dims[3]:
+        idx[3] = slice(idx[3].start, idx[3].stop + 1)
+
+    array_in = np.array(data[var][tuple(idx)], dtype=np.float32)
+
+    for i, d in enumerate(data[var].dims):
+        if 'stag' in d:
+            array_in = np.apply_along_axis(forward_average, i, array_in)
+
     return array_in
 
 

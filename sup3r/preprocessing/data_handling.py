@@ -1749,7 +1749,10 @@ class DataHandlerNC(DataHandler):
         file_paths : str | list
             paths to data files
         kwargs : dict
-            Dictionary of keyword args passed to xarray.open_mfdataset()
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1766,6 +1769,11 @@ class DataHandlerNC(DataHandler):
         ----------
         file_paths : list
             path to data file
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1800,6 +1808,11 @@ class DataHandlerNC(DataHandler):
             path to data file
         max_workers : int | None
             Max number of workers to use for parallel time index building
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1878,10 +1891,11 @@ class DataHandlerNC(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -2143,6 +2157,11 @@ class DataHandlerNCforCC(DataHandlerNC):
         ----------
         file_paths : str | list
             paths to data files
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------

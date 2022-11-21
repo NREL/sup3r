@@ -1269,6 +1269,11 @@ class FeatureHandler:
             dimension
         input_features : list
             list of input feature strings
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1308,6 +1313,11 @@ class FeatureHandler:
         max_workers : int | None
             Number of max workers to use for extraction.  If equal to 1 then
             method is run in serial
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
