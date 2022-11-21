@@ -989,15 +989,18 @@ def interp_to_level(var_array, lev_array, levels):
     shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
     out_array = np.zeros(shape, dtype=np.float32).T
 
-    for i in range(array_shape[0]):
+    # iterate through time indices
+    for idt in range(array_shape[0]):
         shape = (array_shape[-3], np.product(array_shape[-2:]))
-        h_tmp = lev_array[i].reshape(shape).T
-        var_tmp = var_array[i].reshape(shape).T
+        h_tmp = lev_array[idt].reshape(shape).T
+        var_tmp = var_array[idt].reshape(shape).T
+        not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
 
-    # Interpolate each column of height and var to specified levels
-        out_array[:, i, :] = np.array([np.interp(levels, h, var)
-                                       for h, var in zip(h_tmp, var_tmp)],
-                                      dtype=np.float32)
+        # Interp each vertical column of height and var to requested levels
+        zip_iter = zip(h_tmp, var_tmp, not_nan)
+        out_array[:, idt, :] = np.array([np.interp(levels, h[mask], var[mask])
+                                         for h, var, mask in zip_iter],
+                                        dtype=np.float32)
 
     # Reshape out_array
     if isinstance(levels, (float, np.float32, int)):
