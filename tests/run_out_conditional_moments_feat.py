@@ -20,10 +20,6 @@ n_feat_out = len(FEATURES) - len(TRAIN_FEATURES)
 
 if __name__ == "__main__":
 
-    # TRAIN_FEATURES = ['BVF2_200m']
-    # n_feat_in = len(FEATURES)
-    # n_feat_out = len(FEATURES) - len(TRAIN_FEATURES)
-
     test_out_loss(plot=True, model_dirs=['s_mom1_feat/spatial_cond_mom'],
                   figureDir='feat_mom1_loss')
 
@@ -42,7 +38,6 @@ if __name__ == "__main__":
                           s_enhance=2,
                           FEATURES=FEATURES,
                           model_dir='s_mom1_feat/spatial_cond_mom',
-                          n_feat_in=n_feat_in, n_feat_out=n_feat_out,
                           TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),

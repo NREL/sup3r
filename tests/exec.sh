@@ -1,10 +1,10 @@
 #!/bin/bash
 
 python test_train_conditional_moments.py
-python test_train_conditional_moments_pad.py
-python test_train_conditional_moments_st.py
-python test_train_conditional_moments_feat.py
+python run_train_conditional_moments_pad.py
+python run_train_conditional_moments_st.py
+python run_train_conditional_moments_feat.py
 python test_train_wind_conditional_moments.py
 python test_out_conditional_moments.py
-python test_out_conditional_moments_st.py
-python test_out_conditional_moments_feat.py
+python run_out_conditional_moments_st.py
+python run_out_conditional_moments_feat.py
