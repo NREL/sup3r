@@ -1748,7 +1748,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             slices for NETCDF
         """
 
-    def lin_bc(self, bc_files):
+    def lin_bc(self, bc_files, threshold=0.1):
         """Bias correct the data in this DataHandler using linear bias
         correction factors from files output by MonthlyLinearCorrection or
         LinearCorrection from sup3r.bias.bias_calc
@@ -1762,6 +1762,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             {feature} is one of the features contained by this DataHandler and
             the data is a 3D array of shape (lat, lon, time) where time is
             length 1 for annual correction or 12 for monthly correction.
+        threshold : float
+            Nearest neighbor euclidian distance threshold. If the DataHandler
+            coordinates are more than this value away from the bias correction
+            lat/lon, an error is raised.
         """
 
         if isinstance(bc_files, str):
@@ -1773,18 +1777,33 @@ class DataHandler(FeatureHandler, InputMixIn):
             dset_adder = f'{feature}_adder'
             for fp in bc_files:
                 with Resource(fp) as res:
-                    lat = res['latitude']
-                    msg = (f'Bias correction shape {lat.shape} does not match '
-                           f'data handler shape {self.shape}')
-                    assert lat.shape[0] == self.shape[0], msg
-                    assert lat.shape[1] == self.shape[1], msg
+                    lat = np.expand_dims(res['latitude'], axis=-1)
+                    lon = np.expand_dims(res['longitude'], axis=-1)
+                    lat_lon_bc = np.dstack((lat, lon))
+                    lat_lon_0 = self.lat_lon[:1, :1]
+                    diff = lat_lon_bc - lat_lon_0
+                    diff = np.hypot(diff[..., 0], diff[..., 1])
+                    idy, idx = np.where(diff == diff.min())
+                    slice_y = slice(idy[0], idy[0] + self.shape[0])
+                    slice_x = slice(idx[0], idx[0] + self.shape[1])
+
+                    if diff.min() > threshold:
+                        msg = ('The DataHandler top left coordinate of {} '
+                               'appears to be {} away from the nearest '
+                               'bias correction coordinate of {} from {}. '
+                               'Cannot apply bias correction.'
+                               .format(lat_lon_0, diff.min(),
+                                       lat_lon_bc[idy, idx],
+                                       os.path.basename(fp)))
+                        logger.error(msg)
+                        raise RuntimeError(msg)
 
                     check = (dset_scalar in res.dsets
                              and dset_adder in res.dsets
                              and feature not in completed)
                     if check:
-                        scalar = res[dset_scalar]
-                        adder = res[dset_adder]
+                        scalar = res[dset_scalar, slice_y, slice_x]
+                        adder = res[dset_adder, slice_y, slice_x]
 
                         if scalar.shape[-1] == 1:
                             scalar = np.repeat(scalar, self.shape[2], axis=2)
