@@ -776,12 +776,37 @@ def forward_average(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def unstagger_extract_var(data, var, raster_index, time_slice=slice(None)):
+def extract_var(data, var, raster_index, time_slice=slice(None)):
+    """Extract WRF variable values. This is meant to extract values from
+    fields without staggered dimensions
+
+    Parameters
+    ----------
+    data : xarray
+        netcdf data object
+    var : str
+        Name of variable to be extracted
+    raster_index : list
+        List of slices for raster index of spatial domain
+    time_slice : slice
+        slice of time to extract
+
+    Returns
+    -------
+    ndarray
+        Extracted array of variable values.
     """
-    Unstagger WRF variable values. Some variables use a staggered grid with
+
+    idx = [time_slice, slice(None), raster_index[0], raster_index[1]]
+
+    assert not any('stag' in d for d in data[var].dims)
+
+    return np.array(data[var][tuple(idx)], dtype=np.float32)
+
+
+def unstagger_var(data, var, raster_index, time_slice=slice(None)):
+    """Unstagger WRF variable values. Some variables use a staggered grid with
     values associated with grid cell edges. We want to center these values.
-    If there are no staggered dimensions the data volume specified by
-    raster_index and time_slice will be extracted and returned.
 
     Parameters
     ----------
@@ -793,6 +818,7 @@ def unstagger_extract_var(data, var, raster_index, time_slice=slice(None)):
         List of slices for raster index of spatial domain
     time_slice : slice
         slice of time to extract
+
     Returns
     -------
     ndarray
@@ -800,9 +826,7 @@ def unstagger_extract_var(data, var, raster_index, time_slice=slice(None)):
     """
 
     idx = [time_slice, slice(None), raster_index[0], raster_index[1]]
-
-    if not any('stag' in d for d in data[var].dims):
-        return np.array(data[var][tuple(idx)], dtype=np.float32)
+    assert any('stag' in d for d in data[var].dims)
 
     if 'stag' in data[var].dims[2]:
         idx[2] = slice(idx[2].start, idx[2].stop + 1)
@@ -836,11 +860,11 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         (temporal, vertical_level, spatial_1, spatial_2)
         4D array of heights above ground. In meters.
     """
-    # Base-state Geopotential(m^2/s^2)
     if all(field in data for field in ('PHB', 'PH', 'HGT')):
-        gp = unstagger_extract_var(data, 'PHB', raster_index, time_slice)
+        # Base-state Geopotential(m^2/s^2)
+        gp = unstagger_var(data, 'PHB', raster_index, time_slice)
         # Perturbation Geopotential (m^2/s^2)
-        gp += unstagger_extract_var(data, 'PH', raster_index, time_slice)
+        gp += unstagger_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
         if gp.shape != hgt.shape:
@@ -1012,8 +1036,10 @@ def interp_var_to_height(data, var, raster_index, heights,
         arr = np.repeat(arr, hgt.shape[0], axis=0)
         arr = np.repeat(arr, hgt.shape[2], axis=2)
         arr = np.repeat(arr, hgt.shape[3], axis=3)
+    elif all('stag' not in d for d in data[var].dims):
+        arr = extract_var(data, var, raster_index, time_slice)
     else:
-        arr = unstagger_extract_var(data, var, raster_index, time_slice)
+        arr = unstagger_var(data, var, raster_index, time_slice)
     return interp_to_level(arr, hgt, heights)[0]
 
 
@@ -1044,11 +1070,15 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
     if len(data[var].dims) == 5:
         raster_index = [0] + raster_index
-    return interp_to_level(
-        unstagger_extract_var(data, var, raster_index,
-                              time_slice)[:, ::-1, ...],
-        calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
-        pressures)[0]
+
+    if all('stag' not in d for d in data[var].dims):
+        arr = extract_var(data, var, raster_index, time_slice)
+    else:
+        arr = unstagger_var(data, var, raster_index, time_slice)
+
+    p_levels = calc_pressure(data, var, raster_index, time_slice)
+
+    return interp_to_level(arr[:, ::-1], p_levels[:, ::-1], pressures)[0]
 
 
 def potential_temperature(T, P):

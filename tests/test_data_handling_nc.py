@@ -85,7 +85,7 @@ def test_height_interpolation():
         tmp = xr.open_mfdataset(input_files, concat_dim='Time',
                                 combine='nested')
 
-        U_tmp = utilities.unstagger_extract_var(tmp, 'U', raster_index)
+        U_tmp = utilities.unstagger_var(tmp, 'U', raster_index)
         h_array = utilities.calc_height(tmp, raster_index)
         if handler.invert_lat:
             data = data[::-1]
