@@ -518,7 +518,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         stats_dict = {}
         for stat_type in self.include_stats:
 
-            if 'spectra' in stat_type:
+            if 'spectrum' in stat_type:
                 out = self._compute_spectra_type(var, stat_type, interp=interp)
             else:
                 out = self._compute_dist_type(var, stat_type, interp=interp,
