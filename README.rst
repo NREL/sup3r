@@ -29,7 +29,7 @@ TO DO
     #. |ss| Include in testing suite |se|
 #. |ss| Nomenclature upsampling enhance |se|
 #. |ss| See of Sup3rCondMom can instead inherit from abstract Gan class |se|
-#. Add option to crop output
+#. |ss| Add option to crop output |se|
 #. Train network with increasing complexity
     #. |ss| Include number of parameter in loss plotting |se|
     #. Show training results
