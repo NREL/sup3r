@@ -789,7 +789,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
     Returns
     -------
-    data : np.ndarray
+    enhanced_data : np.ndarray
         3D | 4D | 5D array with same dimensions as data with new enhanced
         resolution
     """
@@ -804,34 +804,38 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
         if obs_axis and len(data.shape) == 5:
             enhancement = [1, s_enhance, s_enhance, 1, 1]
-            data_up = interpolation.zoom(data,
-                                         enhancement,
-                                         order=0)
+            enhanced_data = interpolation.zoom(data,
+                                               enhancement,
+                                               order=0)
 
         elif obs_axis and len(data.shape) == 4:
             enhancement = [1, s_enhance, s_enhance, 1]
-            data_up = interpolation.zoom(data,
-                                         enhancement,
-                                         order=0)
+            enhanced_data = interpolation.zoom(data,
+                                               enhancement,
+                                               order=0)
 
         elif not obs_axis and len(data.shape) == 4:
             enhancement = [s_enhance, s_enhance, 1, 1]
-            data_up = interpolation.zoom(data,
-                                         enhancement,
-                                         order=0)
+            enhanced_data = interpolation.zoom(data,
+                                               enhancement,
+                                               order=0)
 
         elif not obs_axis and len(data.shape) == 3:
             enhancement = [s_enhance, s_enhance, 1]
-            data_up = interpolation.zoom(data,
-                                         enhancement,
-                                         order=0)
+            enhanced_data = interpolation.zoom(data,
+                                               enhancement,
+                                               order=0)
         else:
             msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
                    f'received: {data.shape}')
             logger.error(msg)
             raise ValueError(msg)
 
-    return data_up
+    else:
+
+        enhanced_data = data
+
+    return enhanced_data
 
 
 def lat_lon_coarsening(lat_lon, s_enhance=2):
