@@ -92,8 +92,10 @@ def test_train_st_mom1(log=False, full_shape=(20, 20),
                 tf.assert_equal(out_og, out_dummy)
 
             # make sure the trained model has less loss than dummy
-            loss_og = model.calc_loss(batch.high_res, out_og)[0]
-            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
+            loss_og = model.calc_loss(batch.output, out_og,
+                                      batch.mask)[0]
+            loss_dummy = dummy.calc_loss(batch.output, out_dummy,
+                                         batch.mask)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
 
 

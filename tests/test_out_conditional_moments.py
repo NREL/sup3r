@@ -490,7 +490,7 @@ if __name__ == "__main__":
 
     test_out_spatial_mom1(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=2,
+                          batch_size=2, n_batches=2,
                           s_enhance=2, model_dir='s_mom1/spatial_cond_mom',
                           FEATURES=FEATURES,
                           n_feat_in=n_feat_in, n_feat_out=n_feat_out,
@@ -498,7 +498,7 @@ if __name__ == "__main__":
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=2,
+                          batch_size=2, n_batches=2,
                           s_enhance=2, model_dir='s_mom2/spatial_cond_mom',
                           FEATURES=FEATURES,
                           model_mom1_dir='s_mom1/spatial_cond_mom',
@@ -506,7 +506,7 @@ if __name__ == "__main__":
 
     test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=2,
+                             batch_size=2, n_batches=2,
                              s_enhance=2,
                              FEATURES=FEATURES,
                              model_dir='s_mom1_sf/spatial_cond_mom',
@@ -514,7 +514,7 @@ if __name__ == "__main__":
 
     test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=2,
+                             batch_size=2, n_batches=2,
                              s_enhance=2,
                              FEATURES=FEATURES,
                              model_mom1_dir='s_mom1_sf/spatial_cond_mom',
