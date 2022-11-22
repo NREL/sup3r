@@ -591,28 +591,28 @@ def temporal_simple_enhancing(data, t_enhance=4):
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
-        factor by which to upsample temporal dimension
+        factor by which to enhance temporal dimension
 
     Returns
     -------
-    upsampled_data : np.ndarray
-        5D array with same dimensions as data with new upsampled resolution
+    enhanced_data : np.ndarray
+        5D array with same dimensions as data with new enhanced resolution
     """
 
     if t_enhance in [None, 1]:
-        upsampled_data = data
+        enhanced_data = data
     elif t_enhance not in [None, 1] and len(data.shape) == 5:
         enhancement = [1, 1, 1, t_enhance, 1]
-        upsampled_data = interpolation.zoom(data,
-                                            enhancement,
-                                            order=0)
+        enhanced_data = interpolation.zoom(data,
+                                           enhancement,
+                                           order=0)
     elif len(data.shape) != 5:
         msg = ('Data must be 5D to do temporal enhancing, but '
                f'received: {data.shape}')
         logger.error(msg)
         raise ValueError(msg)
 
-    return upsampled_data
+    return enhanced_data
 
 
 def daily_temporal_coarsening(data, temporal_axis=3):
@@ -781,7 +781,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
         (spatial_1, spatial_2, temporal, features) (obs_axis=False)
         (spatial_1, spatial_2, temporal_or_features) (obs_axis=False)
     s_enhance : int
-        factor by which to upsample spatial dimensions
+        factor by which to enhance spatial dimensions
     obs_axis : bool
         Flag for if axis=0 is the observation axis. If True (default)
         spatial axis=(1, 2) (zero-indexed), if False spatial axis=(0, 1)
@@ -789,7 +789,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
     Returns
     -------
     data : np.ndarray
-        3D | 4D | 5D array with same dimensions as data with new upsampled
+        3D | 4D | 5D array with same dimensions as data with new enhanced
         resolution
     """
 
