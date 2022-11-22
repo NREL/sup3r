@@ -1748,6 +1748,66 @@ class DataHandler(FeatureHandler, InputMixIn):
             slices for NETCDF
         """
 
+    def lin_bc(self, bc_files):
+        """Bias correct the data in this DataHandler using linear bias
+        correction factors from files output by MonthlyLinearCorrection or
+        LinearCorrection from sup3r.bias.bias_calc
+
+        Parameters
+        ----------
+        bc_files : list | tuple | str
+            One or more filepaths to .h5 files output by
+            MonthlyLinearCorrection or LinearCorrection. These should contain
+            datasets named "{feature}_scalar" and "{feature}_adder" where
+            {feature} is one of the features contained by this DataHandler and
+            the data is a 3D array of shape (lat, lon, time) where time is
+            length 1 for annual correction or 12 for monthly correction.
+        """
+
+        if isinstance(bc_files, str):
+            bc_files = [bc_files]
+
+        completed = []
+        for idf, feature in enumerate(self.features):
+            dset_scalar = f'{feature}_scalar'
+            dset_adder = f'{feature}_adder'
+            for fp in bc_files:
+                with Resource(fp) as res:
+                    lat = res['latitude']
+                    msg = (f'Bias correction shape {lat.shape} does not match '
+                           f'data handler shape {self.shape}')
+                    assert lat.shape[0] == self.shape[0], msg
+                    assert lat.shape[1] == self.shape[1], msg
+
+                    check = (dset_scalar in res.dsets
+                             and dset_adder in res.dsets
+                             and feature not in completed)
+                    if check:
+                        scalar = res[dset_scalar]
+                        adder = res[dset_adder]
+
+                        if scalar.shape[-1] == 1:
+                            scalar = np.repeat(scalar, self.shape[2], axis=2)
+                            adder = np.repeat(adder, self.shape[2], axis=2)
+                        elif scalar.shape[-1] == 12:
+                            idm = self.time_index.month.values - 1
+                            scalar = scalar[..., idm]
+                            adder = adder[..., idm]
+                        else:
+                            msg = ('Can only accept bias correction factors '
+                                   'with last dim equal to 1 or 12 but '
+                                   'received bias correction factors with '
+                                   'shape {}'.format(scalar.shape))
+                            logger.error(msg)
+                            raise RuntimeError(msg)
+
+                        logger.info('Bias correcting "{}" with linear '
+                                    'correction from "{}"'
+                                    .format(feature, os.path.basename(fp)))
+                        self.data[..., idf] *= scalar
+                        self.data[..., idf] += adder
+                        completed.append(feature)
+
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
