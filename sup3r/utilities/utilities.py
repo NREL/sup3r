@@ -862,9 +862,17 @@ def calc_height(data, raster_index, time_slice=slice(None)):
     """
     if all(field in data for field in ('PHB', 'PH', 'HGT')):
         # Base-state Geopotential(m^2/s^2)
-        gp = unstagger_var(data, 'PHB', raster_index, time_slice)
+        if any('stag' in d for d in data['PHB'].dims):
+            gp = unstagger_var(data, 'PHB', raster_index, time_slice)
+        else:
+            gp = extract_var(data, 'PHB', raster_index, time_slice)
+
         # Perturbation Geopotential (m^2/s^2)
-        gp += unstagger_var(data, 'PH', raster_index, time_slice)
+        if any('stag' in d for d in data['PH'].dims):
+            gp += unstagger_var(data, 'PH', raster_index, time_slice)
+        else:
+            gp += extract_var(data, 'PH', raster_index, time_slice)
+
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
         if gp.shape != hgt.shape:

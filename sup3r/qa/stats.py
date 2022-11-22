@@ -409,6 +409,9 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                             f'{mem.total / 1e9:.3f} GB total.')
             var_itp = np.concatenate(chunks, axis=-1)
 
+            if 'direction' in feature:
+                var_itp = (var_itp + 360) % 360
+
             if file_name is not None:
                 self.save_cache(var_itp, file_name)
         return var_itp
