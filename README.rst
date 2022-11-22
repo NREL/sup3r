@@ -36,7 +36,7 @@ TO DO
     
 
 - |ss| See if we can make `conditional_moments.py` inherit from base model to avoid redundancy |se|
-- Make the tests more compact for conditional moments (use the pytest arguments)
+- |ss| Make the tests more compact for conditional moments (use the pytest arguments) |se|
 - Test adding tf function on the run gradient descent
 - Timing of batch handler and data handler
 
