@@ -235,14 +235,15 @@ def test_stats(log=True):
 
         qa_fp = os.path.join(td, 'stats.pkl')
         features = ['U_100m', 'V_100m', 'vorticity_100m']
-        include_stats = ['direct', 'ramp_rate', 'gradient', 'avg_spectrum_k']
+        include_stats = ['direct', 'time_derivative', 'gradient',
+                         'avg_spectrum_k']
         kwargs = dict(features=features, shape=(4, 4),
                       target=(19.4, -123.4),
                       s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
                       synth_t_slice=TEMPORAL_SLICE,
                       qa_fp=qa_fp, include_stats=include_stats,
                       max_workers=1, n_bins=10, get_interp=True,
-                      max_values={'ramp_rate': 10}, max_delta=2)
+                      max_values={'time_derivative': 10}, max_delta=2)
         with Sup3rStatsMulti(lr_file_paths=input_files,
                              synth_file_paths=strategy.out_files[0],
                              **kwargs) as qa:

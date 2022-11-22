@@ -95,7 +95,7 @@ class InputMixIn:
         self._grid_shape = None
         self._single_ts_files = None
         self._worker_attrs = ['ti_workers']
-        self.ti_kwargs = {}
+        self.res_kwargs = {}
 
     @property
     def raw_tsteps(self):
@@ -379,10 +379,10 @@ class InputMixIn:
                 now = dt.now()
                 logger.debug(f'Getting time index for {len(self.file_paths)} '
                              f'input files. Using ti_workers={self.ti_workers}'
-                             f' and ti_kwargs={self.ti_kwargs}')
+                             f' and res_kwargs={self.res_kwargs}')
                 self._raw_time_index = self.get_time_index(
                     self.file_paths, max_workers=self.ti_workers,
-                    **self.ti_kwargs)
+                    **self.res_kwargs)
 
                 if self.time_index_file is not None:
                     logger.debug('Saved raw_time_index to '
@@ -483,7 +483,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  load_cached=False, train_only_features=None, max_workers=None,
                  extract_workers=None, compute_workers=None, load_workers=None,
                  norm_workers=None, ti_workers=None, handle_features=None,
-                 single_ts_files=None, ti_kwargs=None):
+                 single_ts_files=None, res_kwargs=None):
         """
         Parameters
         ----------
@@ -588,10 +588,11 @@ class DataHandler(FeatureHandler, InputMixIn):
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
             determined from file_paths directly.
-        ti_kwargs : dict | None
-            kwargs passed to source handler for time index extraction. e.g.
-            This could be {'parallel': True} which then gets passed to
-            xr.open_mfdataset(file, **ti_kwargs) when computing the time_index
+        res_kwargs : dict | None
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
 
         msg = 'No files provided to DataHandler. Aborting.'
@@ -617,7 +618,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.target = target
         self.grid_shape = shape
         self.max_workers = max_workers
-        self.ti_kwargs = ti_kwargs or {}
+        self.res_kwargs = res_kwargs or {}
         self._single_ts_files = single_ts_files
         self._invert_lat = None
         self._cache_pattern = cache_pattern
@@ -1580,14 +1581,16 @@ class DataHandler(FeatureHandler, InputMixIn):
                 self._raw_data = self.serial_extract(self.file_paths,
                                                      self.raster_index,
                                                      self.time_chunks,
-                                                     self.extract_features)
+                                                     self.extract_features,
+                                                     **self.res_kwargs)
 
             else:
                 self._raw_data = self.parallel_extract(self.file_paths,
                                                        self.raster_index,
                                                        self.time_chunks,
                                                        self.extract_features,
-                                                       self.extract_workers)
+                                                       self.extract_workers,
+                                                       **self.res_kwargs)
 
             logger.info(f'Finished extracting {self.extract_features} for '
                         f'{self.input_file_info}')
@@ -1746,7 +1749,10 @@ class DataHandlerNC(DataHandler):
         file_paths : str | list
             paths to data files
         kwargs : dict
-            Dictionary of keyword args passed to xarray.open_mfdataset()
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1763,6 +1769,11 @@ class DataHandlerNC(DataHandler):
         ----------
         file_paths : list
             path to data file
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1797,6 +1808,11 @@ class DataHandlerNC(DataHandler):
             path to data file
         max_workers : int | None
             Max number of workers to use for parallel time index building
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1875,10 +1891,11 @@ class DataHandlerNC(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1886,7 +1903,7 @@ class DataHandlerNC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-        logger.info(f'Extracting {feature}')
+        logger.info(f'Extracting {feature} with kwargs={kwargs}.')
         with cls.source_handler(file_paths, **kwargs) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
@@ -2140,6 +2157,11 @@ class DataHandlerNCforCC(DataHandlerNC):
         ----------
         file_paths : str | list
             paths to data files
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -2335,7 +2357,7 @@ class DataHandlerH5(DataHandler):
 
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), **kwargs):
         """Extract single feature from data source
 
         Parameters
@@ -2355,8 +2377,8 @@ class DataHandlerH5(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-        logger.info(f'Extracting {feature}')
-        with cls.source_handler(file_paths) as handle:
+        logger.info(f'Extracting {feature} with kwargs={kwargs}')
+        with cls.source_handler(file_paths, **kwargs) as handle:
             try:
                 fdata = handle[(feature, time_slice,)
                                + tuple([raster_index.flatten()])]

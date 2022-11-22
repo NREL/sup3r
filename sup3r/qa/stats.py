@@ -6,16 +6,18 @@ import numpy as np
 import os
 import pickle
 import logging
+import psutil
 from abc import ABC, abstractmethod
 from scipy.ndimage.filters import gaussian_filter
 from rex.utilities.fun_utils import get_fun_call_str
+
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        temporal_coarsening,
                                        spatial_coarsening,
                                        st_interp, vorticity_calc)
-from sup3r.qa.utilities import (ramp_rate_dist, direct_dist,
+from sup3r.qa.utilities import (time_derivative_dist, direct_dist,
                                 gradient_dist, wavenumber_spectrum,
                                 frequency_spectrum)
 from sup3r.preprocessing.feature_handling import Feature
@@ -26,6 +28,15 @@ logger = logging.getLogger(__name__)
 
 class Sup3rStatsBase(ABC):
     """Base stats class"""
+
+    # Acceptable statistics to request
+    _DIRECT = 'direct'
+    _DY_DX = 'gradient'
+    _DY_DT = 'time_derivative'
+    _FFT_F = 'spectrum_f'
+    _FFT_K = 'spectrum_k'
+    _FLUCT_FFT_F = 'fluctuation_spectrum_f'
+    _FLUCT_FFT_K = 'fluctuation_spectrum_k'
 
     def __init__(self):
         """Base stats class"""
@@ -163,7 +174,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                  overwrite_stats=True, get_interp=False,
                  include_stats=None, max_values=None, smoothing=None,
                  spatial_res=None, temporal_res=None, n_bins=40, qa_fp=None,
-                 interp_dists=True):
+                 interp_dists=True, time_chunk_size=100):
         """
         Parameters
         ----------
@@ -196,13 +207,13 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
-            List of stats to include in output. e.g. ['ramp_rate',
+            List of stats to include in output. e.g. ['time_derivative',
             'gradient', 'vorticity', 'avg_spectrum_k', 'avg_spectrum_f',
             'direct']. 'direct' means direct distribution, as opposed to a
-            distribution of the gradient or ramp rate.
+            distribution of the gradient or time derivative.
         max_values : dict | None
             Dictionary of max values to keep for stats. e.g.
-            {'ramp_rate': 10, 'gradient': 14, 'vorticity': 7}
+            {'time_derivative': 10, 'gradient': 14, 'vorticity': 7}
         smoothing : float | None
             Value passed to gaussian filter used for smoothing source data
         spatial_res : float | None
@@ -219,6 +230,11 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             File path for saving statistics. Only .pkl supported.
         interp_dists : bool
             Whether to interpolate distributions over bins with count=0.
+        time_chunk_size : int
+            Size of temporal chunks to interpolate. e.g. If time_chunk_size=10
+            then the temporal axis of low_res will be split into chunks with 10
+            time steps, each chunk interpolated, and then the interpolated
+            chunks will be concatenated.
         """
 
         msg = 'Preparing to compute statistics.'
@@ -229,13 +245,11 @@ class Sup3rStatsCompute(Sup3rStatsBase):
 
         self.max_values = max_values or {}
         self.n_bins = n_bins
-        self.direct_max = self.max_values.get('direct', None)
-        self.ramp_rate_max = self.max_values.get('ramp_rate', None)
-        self.gradient_max = self.max_values.get('gradient', None)
-        self.include_stats = include_stats or ['direct', 'ramp_rate',
-                                               'gradient', 'avg_spectrum_k',
-                                               'avg_spectrum_f',
-                                               'mean_ramp_rate']
+        self.direct_max = self.max_values.get(self._DIRECT, None)
+        self.time_derivative_max = self.max_values.get(self._DY_DT, None)
+        self.gradient_max = self.max_values.get(self._DY_DX, None)
+        self.include_stats = include_stats or [self._DIRECT, self._DY_DX,
+                                               self._DY_DT, self._FFT_K]
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self._features = compute_features
@@ -252,6 +266,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         self.source_data = input_data
         self.qa_fp = qa_fp
         self.interp_dists = interp_dists
+        self.time_chunk_size = time_chunk_size
 
     @property
     def k_range(self):
@@ -281,58 +296,53 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         """
         return self._features
 
-    def get_spectra_stats(self, var, interp=False):
-        """Compute spectra based statistics
+    def _compute_spectra_type(self, var, stat_type, interp=False):
+        """Select the appropriate method and parameters for the given stat_type
+        and compute that spectrum
 
         Parameters
         ----------
         var: ndarray
-            Longitudinal velocity component
+            Variable for which to compute given spectrum type.
             (lat, lon, temporal)
+        stat_type: str
+            Spectrum type to compute. e.g. avg_fluctuation_spectrum_k will
+            compute the wavenumber spectrum of the difference between the var
+            and mean var.
         interp : bool
             Whether or not this is interpolated data. If True then this means
             that the spatial_res and temporal_res is different than the input
-            data and needs to be scaled to get accurate wavenumber and
-            frequency ranges.
+            data and needs to be scaled to get accurate wavenumber/frequency
+            ranges.
 
         Returns
         -------
-        stats : dict
-            Dictionary of spectra stats for wind fields
+        ndarray
+            wavenumber/frequency values
+        ndarray
+            amplitudes corresponding to the wavenumber/frequency values
         """
+        tmp = var.copy()
+        if self._FFT_K in stat_type:
+            method = wavenumber_spectrum
+            x_range = [self.k_range[0], self.k_range[1]]
+            if interp:
+                x_range[1] = x_range[1] * self.s_enhance
+            if stat_type == self._FLUCT_FFT_K:
+                tmp = self.get_fluctuation(tmp)
+            tmp = np.mean(tmp[..., :-1], axis=-1)
+        elif self._FFT_F in stat_type:
+            method = frequency_spectrum
+            x_range = [self.f_range[0], self.f_range[1]]
+            if interp:
+                x_range[1] = x_range[1] * self.t_enhance
+            if stat_type == self._FLUCT_FFT_F:
+                tmp = tmp - np.mean(tmp)
+        else:
+            return None
 
-        k_range = [self.k_range[0], self.k_range[1]]
-        f_range = [self.f_range[0], self.f_range[1]]
-        if interp:
-            k_range[1] = k_range[1] * self.s_enhance
-            f_range[1] = f_range[1] * self.t_enhance
-
-        stats_dict = {}
-        if 'avg_fluctuation_spectrum_k' in self.include_stats:
-            logger.info('Computing time averaged fluctuation wavenumber '
-                        f'spectrum. Using k_range={k_range}.')
-            dvar = self.get_fluctuation(var)
-            stats_dict['avg_fluctuation_spectrum_k'] = wavenumber_spectrum(
-                np.mean(dvar[..., :-1], axis=-1), k_range=k_range)
-
-        if 'avg_spectrum_k' in self.include_stats:
-            logger.info('Computing time averaged wavenumber spectrum. Using '
-                        f'k_range={k_range}.')
-            stats_dict['avg_spectrum_k'] = wavenumber_spectrum(
-                np.mean(var[..., :-1], axis=-1), k_range=k_range)
-
-        if 'avg_fluctuation_spectrum_f' in self.include_stats:
-            logger.info('Computing spatially averaged fluctuation frequency '
-                        f'spectrum. Using f_range={f_range}.')
-            stats_dict['avg_fluctuation_spectrum_f'] = frequency_spectrum(
-                var - np.mean(var), f_range=f_range)
-        if 'avg_spectrum_f' in self.include_stats:
-            logger.info('Computing spatially averaged frequency spectrum. '
-                        f'Using f_range={f_range}.')
-            stats_dict['avg_spectrum_f'] = frequency_spectrum(
-                var, f_range=f_range)
-
-        return stats_dict
+        kwargs = dict(var=tmp, x_range=x_range)
+        return method(**kwargs)
 
     @staticmethod
     def get_fluctuation(var):
@@ -371,7 +381,6 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Array of interpolated data
             (spatial_1, spatial_2, temporal)
         """
-
         shape = f'{low_res.shape[0]}x{low_res.shape[1]}x{low_res.shape[2]}'
         file_name = None
         if self.cache_pattern is not None:
@@ -384,10 +393,80 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                 or self.overwrite_cache):
             logger.info(f'Interpolating low res {feature}.')
 
-            var_itp = st_interp(low_res, self.s_enhance, self.t_enhance)
+            chunks = []
+            slices = np.arange(low_res.shape[-1])
+            n_chunks = low_res.shape[-1] // self.time_chunk_size + 1
+            slices = np.array_split(slices, n_chunks)
+            slices = [slice(s[0], s[-1] + 1) for s in slices]
+
+            for i, s in enumerate(slices):
+                chunks.append(st_interp(low_res[..., s], self.s_enhance,
+                                        self.t_enhance))
+                mem = psutil.virtual_memory()
+                logger.info(f'Finished interpolating {i+1} / {len(slices)} '
+                            'chunks. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
+            var_itp = np.concatenate(chunks, axis=-1)
+
             if file_name is not None:
                 self.save_cache(var_itp, file_name)
         return var_itp
+
+    def _compute_dist_type(self, var, stat_type, interp=False, period=None):
+        """Select the appropriate method and parameters for the given stat_type
+        and compute that distribution
+
+        Parameters
+        ----------
+        var: ndarray
+            Variable for which to compute distribution.
+            (lat, lon, temporal)
+        stat_type: str
+            Distribution type to compute. e.g. mean_gradient will compute the
+            gradient distribution of the temporal mean of var
+        interp : bool
+            Whether or not this is interpolated data. If True then this means
+            that the spatial_res and temporal_res is different than the input
+            data and needs to be scaled to get accurate derivatives.
+        period : float | None
+            If variable is periodic this gives that period. e.g. If the
+            variable is winddirection the period is 360 degrees and we need to
+            account for 0 and 360 being close.
+
+        Returns
+        -------
+        ndarray
+            Distribution values at bin centers
+        ndarray
+            Distribution value counts
+        float
+            Normalization factor
+        """
+        tmp = var.copy()
+        if 'mean' in stat_type:
+            tmp = (np.mean(tmp, axis=-1) if 'time' not in stat_type
+                   else np.mean(tmp, axis=(0, 1)))
+        if self._DIRECT in stat_type:
+            max_val = self.direct_max
+            method = direct_dist
+            scale = 1
+        elif self._DY_DX in stat_type:
+            max_val = self.gradient_max
+            method = gradient_dist
+            scale = (self.spatial_res if not interp
+                     else self.spatial_res / self.s_enhance)
+        elif self._DY_DT in stat_type:
+            max_val = self.time_derivative_max
+            method = time_derivative_dist
+            scale = (self.temporal_res if not interp
+                     else self.temporal_res / self.t_enhance)
+        else:
+            return None
+
+        kwargs = dict(var=tmp, diff_max=max_val, bins=self.n_bins, scale=scale,
+                      interpolate=self.interp_dists, period=period)
+        return method(**kwargs)
 
     def get_stats(self, var, interp=False, period=None):
         """Get stats for wind fields
@@ -400,45 +479,38 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Whether or not this is interpolated data. If True then this means
             that the spatial_res and temporal_res is different than the input
             data and needs to be scaled to get accurate derivatives.
+        period : float | None
+            If variable is periodic this gives that period. e.g. If the
+            variable is winddirection the period is 360 degrees and we need to
+            account for 0 and 360 being close.
 
         Returns
         -------
         stats : dict
             Dictionary of stats for wind fields
         """
-        stats_dict = self.get_spectra_stats(var, interp=interp)
+        stats_dict = {}
+        for stat_type in self.include_stats:
+            out = self._compute_spectra_type(var, stat_type, interp=interp)
 
-        if 'direct' in self.include_stats:
-            logger.info('Computing direct pdf.')
-            stats_dict['direct'] = direct_dist(
-                var, diff_max=self.direct_max, bins=self.n_bins,
-                interpolate=self.interp_dists)
+            if out is not None:
+                mem = psutil.virtual_memory()
+                logger.info(f'Computed {stat_type}. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
+                stats_dict[stat_type] = out
 
-        if 'mean_direct' in self.include_stats:
-            logger.info('Computing mean direct pdf.')
-            stats_dict['mean_direct'] = direct_dist(
-                np.mean(var, axis=-1), diff_max=self.direct_max,
-                bins=self.n_bins, interpolate=self.interp_dists)
+        for stat_type in self.include_stats:
+            out = self._compute_dist_type(var, stat_type, interp=interp,
+                                          period=period)
 
-        scale = (self.spatial_res if not interp
-                 else self.spatial_res / self.s_enhance)
-        if 'gradient' in self.include_stats:
-            logger.info('Computing gradient pdf.')
-            stats_dict['gradient'] = gradient_dist(
-                var, diff_max=self.gradient_max, scale=scale,
-                bins=self.n_bins, interpolate=self.interp_dists, period=period)
+            if out is not None:
+                mem = psutil.virtual_memory()
+                logger.info(f'Computed {stat_type}. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
+                stats_dict[stat_type] = out
 
-        if 'mean_gradient' in self.include_stats:
-            logger.info('Computing mean gradient pdf.')
-            stats_dict['mean_gradient'] = gradient_dist(
-                np.mean(var, axis=-1), diff_max=self.gradient_max,
-                scale=scale, bins=self.n_bins, interpolate=self.interp_dists,
-                period=period)
-
-        scale = (self.temporal_res if not interp
-                 else self.temporal_res / self.t_enhance)
-        out = self.get_ramp_rate_stats(var, scale=scale, period=period)
-        stats_dict.update(out)
         return stats_dict
 
     def get_feature_data(self, feature):
@@ -510,7 +582,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         stats : dict
             Dictionary of statistics, where keys are source/interp appended
             with the feature name. Values are dictionaries of statistics, such
-            as gradient, avg_spectrum, ramp_rate, etc
+            as gradient, avg_spectrum, time_derivative, etc
         """
 
         source_stats = {}
@@ -518,6 +590,10 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         for _, feature in enumerate(self.features):
             logger.info(f'Running Sup3rStats for {feature}')
             source, interp = self.get_feature_stats(feature)
+
+            mem = psutil.virtual_memory()
+            logger.info(f'Current memory usage is {mem.used / 1e9:.3f} '
+                        f'GB out of {mem.total / 1e9:.3f} GB total.')
 
             if self.source_data is not None:
                 source_stats[feature] = source
@@ -532,44 +608,6 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         logger.info('Finished Sup3rStats run method.')
 
         return stats
-
-    def get_ramp_rate_stats(self, var, scale=1, period=None):
-        """Compute statistics for ramp rates
-
-        Parameters
-        ----------
-        var: ndarray
-            (lat, lon, temporal)
-        scale : float
-            Value to scale ramp rate by. Typically the temporal resolution, so
-            that temporal derivatives can be compared across different
-            resolutions
-        period : float | None
-            If variable is periodic this gives that period. e.g. If the
-            variable is winddirection the period is 360 degrees and we need to
-            account for 0 and 360 being close.
-
-        Returns
-        -------
-        stats : dict
-            Dictionary of ramp rate stats for pressure or temperature fields
-        """
-
-        stats_dict = {}
-        if 'ramp_rate' in self.include_stats:
-            logger.info('Computing ramp rate pdf.')
-            out = ramp_rate_dist(var, diff_max=self.ramp_rate_max,
-                                 t_steps=1, scale=scale, bins=self.n_bins,
-                                 interpolate=self.interp_dists, period=period)
-            stats_dict['ramp_rate'] = out
-        if 'mean_ramp_rate' in self.include_stats:
-            logger.info('Computing mean ramp rate pdf.')
-            out = ramp_rate_dist(np.mean(var, axis=(0, 1)),
-                                 diff_max=self.ramp_rate_max, t_steps=1,
-                                 scale=scale, bins=self.n_bins,
-                                 interpolate=self.interp_dists, period=period)
-            stats_dict['mean_ramp_rate'] = out
-        return stats_dict
 
 
 class Sup3rStatsSingle(Sup3rStatsCompute):
@@ -666,13 +704,13 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
-            List of stats to include in output. e.g. ['ramp_rate',
+            List of stats to include in output. e.g. ['time_derivative',
             'gradient', 'vorticity', 'avg_spectrum_k', 'avg_spectrum_f',
             'direct']. 'direct' means direct distribution, as opposed to a
-            distribution of the gradient or ramp rate.
+            distribution of the gradient or time derivative.
         max_values : dict | None
             Dictionary of max values to keep for stats. e.g.
-            {'ramp_rate': 10, 'gradient': 14, 'vorticity': 7}
+            {'time_derivative': 10, 'gradient': 14, 'vorticity': 7}
         smoothing : float | None
             Value passed to gaussian filter used for smoothing source data
         spatial_res : float | None
@@ -1061,13 +1099,13 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
-            List of stats to include in output. e.g. ['ramp_rate',
+            List of stats to include in output. e.g. ['time_derivative',
             'gradient', 'vorticity', 'avg_spectrum_k', 'avg_spectrum_f',
             'direct']. 'direct' means direct distribution, as opposed to a
-            distribution of the gradient or ramp rate.
+            distribution of the gradient or time derivative.
         max_values : dict | None
             Dictionary of max values to keep for stats. e.g.
-            {'ramp_rate': 10, 'gradient': 14, 'vorticity': 7}
+            {'time_derivative': 10, 'gradient': 14, 'vorticity': 7}
         smoothing : float | None
             Value passed to gaussian filter used for smoothing source data
         spatial_res : float | None
@@ -1223,7 +1261,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
         stats : dict
             Dictionary of statistics, where keys are lr/hr/interp appended with
             the feature name. Values are dictionaries of statistics, such as
-            gradient, avg_spectrum, ramp_rate, etc
+            gradient, avg_spectrum, time_derivative, etc
         """
 
         stats = {}

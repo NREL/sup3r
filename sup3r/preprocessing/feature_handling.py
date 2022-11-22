@@ -1255,7 +1255,7 @@ class FeatureHandler:
 
     @classmethod
     def serial_extract(cls, file_paths, raster_index, time_chunks,
-                       input_features):
+                       input_features, **kwargs):
         """Extract features in series
 
         Parameters
@@ -1269,6 +1269,11 @@ class FeatureHandler:
             dimension
         input_features : list
             list of input feature strings
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1282,7 +1287,7 @@ class FeatureHandler:
         for t, t_slice in enumerate(time_chunks):
             for f in input_features:
                 data[t][f] = cls.extract_feature(file_paths, raster_index, f,
-                                                 t_slice)
+                                                 t_slice, **kwargs)
             interval = int(np.ceil(len(time_chunks) / 10))
             if interval > 0 and t % interval == 0:
                 logger.debug(f'{t+1} out of {len(time_chunks)} feature '
@@ -1291,7 +1296,7 @@ class FeatureHandler:
 
     @classmethod
     def parallel_extract(cls, file_paths, raster_index, time_chunks,
-                         input_features, max_workers=None):
+                         input_features, max_workers=None, **kwargs):
         """Extract features using parallel subprocesses
 
         Parameters
@@ -1308,6 +1313,11 @@ class FeatureHandler:
         max_workers : int | None
             Number of max workers to use for extraction.  If equal to 1 then
             method is run in serial
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1326,7 +1336,8 @@ class FeatureHandler:
                                         file_paths=file_paths,
                                         raster_index=raster_index,
                                         feature=f,
-                                        time_slice=t_slice)
+                                        time_slice=t_slice,
+                                        **kwargs)
                     meta = {'feature': f, 'chunk': t}
                     futures[future] = meta
 
@@ -1750,7 +1761,7 @@ class FeatureHandler:
     @classmethod
     @abstractmethod
     def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None)):
+                        time_slice=slice(None), **kwargs):
         """Extract single feature from data source
 
         Parameters

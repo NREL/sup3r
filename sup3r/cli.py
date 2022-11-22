@@ -359,8 +359,8 @@ def windstats(ctx, verbose):
     """Sup3r WindStats module following forward pass and collection.
 
     The sup3r WindStats module computes various statistics on wind fields of at
-    given hub heights. These statistics include energy spectra, ramp rate pdfs,
-    velocity gradient pdfs, and vorticity pdfs.
+    given hub heights. These statistics include energy spectra, time derivative
+    pdfs, velocity gradient pdfs, and vorticity pdfs.
     You can call the WindStats module via the sup3r-pipeline CLI, or call it
     directly with either of these equivelant commands::
 
@@ -380,7 +380,8 @@ def windstats(ctx, verbose):
             "s_enhance": 2,
             "t_enhance": 12,
             "heights": [100, 160],
-            "include_stats": ["ws_ramp_rate", "velocity_grad", "tke_avg_k"]
+            "include_stats": ["ws_time_derivative", "velocity_grad",
+                              "tke_avg_k"]
             "get_interp": True,
             "log_file": "./logs/windstats.log",
             "execution_control": {"option": "local"},
