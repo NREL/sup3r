@@ -11,6 +11,7 @@ import glob
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage.filters import gaussian_filter
+from scipy.interpolate import interp1d
 from fnmatch import fnmatch
 import os
 import re
@@ -962,8 +963,17 @@ def interp_to_level(var_array, lev_array, levels):
         logger.error(msg)
         raise RuntimeError(msg)
 
+    nans = np.isnan(lev_array)
     bad_min = min(levels) < lev_array[:, 0, :, :]
     bad_max = max(levels) > lev_array[:, -1, :, :]
+
+    if nans.any():
+        msg = ('Approximately {:.2f}% of the vertical level '
+               'array is NaN. Data will be interpolated or extrapolated '
+               'past these NaN values.'
+               .format(100 * nans.sum() / nans.size))
+        logger.warning(msg)
+        warn(msg)
 
     if bad_min.any():
         msg = ('Approximately {:.2f}% of the lowest vertical levels '
@@ -998,9 +1008,9 @@ def interp_to_level(var_array, lev_array, levels):
 
         # Interp each vertical column of height and var to requested levels
         zip_iter = zip(h_tmp, var_tmp, not_nan)
-        out_array[:, idt, :] = np.array([np.interp(levels, h[mask], var[mask])
-                                         for h, var, mask in zip_iter],
-                                        dtype=np.float32)
+        out_array[:, idt, :] = np.array(
+            [interp1d(h[mask], var[mask], fill_value='extrapolate')(levels)
+             for h, var, mask in zip_iter], dtype=np.float32)
 
     # Reshape out_array
     if isinstance(levels, (float, np.float32, int)):
