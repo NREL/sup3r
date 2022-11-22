@@ -776,10 +776,13 @@ def forward_average(array_in):
     return (array_in[:-1] + array_in[1:]) * 0.5
 
 
-def unstagger_var(data, var, raster_index, time_slice=slice(None)):
+def unstagger_extract_var(data, var, raster_index, time_slice=slice(None)):
     """
     Unstagger WRF variable values. Some variables use a staggered grid with
     values associated with grid cell edges. We want to center these values.
+    If there are no staggered dimensions the data volume specified by
+    raster_index and time_slice will be extracted and returned.
+
     Parameters
     ----------
     data : xarray
@@ -835,9 +838,9 @@ def calc_height(data, raster_index, time_slice=slice(None)):
     """
     # Base-state Geopotential(m^2/s^2)
     if all(field in data for field in ('PHB', 'PH', 'HGT')):
-        gp = unstagger_var(data, 'PHB', raster_index, time_slice)
+        gp = unstagger_extract_var(data, 'PHB', raster_index, time_slice)
         # Perturbation Geopotential (m^2/s^2)
-        gp += unstagger_var(data, 'PH', raster_index, time_slice)
+        gp += unstagger_extract_var(data, 'PH', raster_index, time_slice)
         # Terrain Height (m)
         hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
         if gp.shape != hgt.shape:
@@ -1010,7 +1013,7 @@ def interp_var_to_height(data, var, raster_index, heights,
         arr = np.repeat(arr, hgt.shape[2], axis=2)
         arr = np.repeat(arr, hgt.shape[3], axis=3)
     else:
-        arr = unstagger_var(data, var, raster_index, time_slice)
+        arr = unstagger_extract_var(data, var, raster_index, time_slice)
     return interp_to_level(arr, hgt, heights)[0]
 
 
@@ -1042,7 +1045,8 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     if len(data[var].dims) == 5:
         raster_index = [0] + raster_index
     return interp_to_level(
-        unstagger_var(data, var, raster_index, time_slice)[:, ::-1, ...],
+        unstagger_extract_var(data, var, raster_index,
+                              time_slice)[:, ::-1, ...],
         calc_pressure(data, var, raster_index, time_slice)[:, ::-1, ...],
         pressures)[0]
 
