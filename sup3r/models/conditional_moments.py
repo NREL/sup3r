@@ -503,7 +503,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         """
         return self.generator_weights
 
-    def run_gradient_descent(self, low_res, output_true, training_weights,
+    def run_gradient_descent(self, low_res, output_true, mask,
+                             training_weights,
                              optimizer=None, **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, output_true)
         and adjust NN weights
@@ -516,6 +517,10 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             (n_observations, spatial_1, spatial_2, temporal, features)
         output_true : np.ndarray
             Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        mask : np.ndarray
+            Mask of high-resolution data in a 4D or 5D array:
             (n_observations, spatial_1, spatial_2, features)
             (n_observations, spatial_1, spatial_2, temporal, features)
         training_weights : list
@@ -533,12 +538,11 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(training_weights)
 
             output_gen = self._tf_generate(low_res)
-            loss_out = self.calc_loss(output_true, output_gen,
+            loss_out = self.calc_loss(output_true, output_gen, mask,
                                       **calc_loss_kwargs)
             loss, loss_details = loss_out
 
@@ -552,7 +556,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         return loss_details
 
     @tf.function
-    def calc_loss_cond_mom(self, output_true, output_gen):
+    def calc_loss_cond_mom(self, output_true, output_gen, mask):
         """Calculate the loss of the moment predictor
 
         Parameters
@@ -561,6 +565,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             True realization output
         output_gen : tf.Tensor
             Predicted realization output
+        mask : tf.Tensor
+            Mask to apply
 
         Returns
         -------
@@ -569,11 +575,12 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             moment predictor
         """
 
-        loss_gen_content = self.loss_fun(output_true, output_gen)
+        loss_gen_content = self.loss_fun(output_true * mask,
+                                         output_gen * mask)
 
         return loss_gen_content
 
-    def calc_loss(self, output_true, output_gen):
+    def calc_loss(self, output_true, output_gen, mask):
         """Calculate the total moment predictor loss
 
         Parameters
@@ -582,6 +589,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             True realization output
         output_gen : tf.Tensor
             Predicted realization output
+        mask : tf.Tensor
+            Mask to apply
 
         Returns
         -------
@@ -601,7 +610,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        loss = self.calc_loss_cond_mom(output_true, output_gen)
+        loss = self.calc_loss_cond_mom(output_true, output_gen, mask)
 
         # print("min max out = %g / %g " %
         #       (np.amin(output_gen), np.amax(output_gen)))
@@ -632,7 +641,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         for val_batch in batch_handler.val_data:
             output_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
-                val_batch.output, output_gen)
+                val_batch.output, output_gen, val_batch.mask)
 
             loss_details = self.update_loss_details(loss_details,
                                                     v_loss_details,
@@ -659,9 +668,9 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
-
             b_loss_details = self.run_gradient_descent(
-                batch.low_res, batch.output, self.generator_weights,
+                batch.low_res, batch.output, batch.mask,
+                self.generator_weights,
                 optimizer=self.optimizer)
 
             loss_details = self.update_loss_details(loss_details,

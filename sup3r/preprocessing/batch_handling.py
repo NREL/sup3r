@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 class Batch:
     """Batch of low_res, high_res and output data"""
 
-    def __init__(self, low_res, high_res, output):
-        """Stores low and high res data
+    def __init__(self, low_res, high_res, output, mask):
+        """Stores low, high res, output and mask data
 
         Parameters
         ----------
@@ -53,10 +53,15 @@ class Batch:
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
+        mask : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         """
         self._low_res = low_res
         self._high_res = high_res
         self._output = output
+        self._mask = mask
 
     def __len__(self):
         """Get the number of observations in this batch."""
@@ -81,6 +86,11 @@ class Batch:
     def output(self):
         """Get the output for the batch."""
         return self._output
+
+    @property
+    def mask(self):
+        """Get the mask for the batch."""
+        return self._mask
 
     @staticmethod
     def reduce_features(high_res, output_features_ind=None):
@@ -131,6 +141,42 @@ class Batch:
         """
         return high_res
 
+    # pylint: disable=E1130
+    @staticmethod
+    def make_mask(high_res, s_padding=None, t_padding=None):
+        """Make mask for output
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_padding : int | None
+            Spatial padding size. If None or 0, no padding is applied.
+            None by default
+        t_padding : int | None
+            Temporal padding size. If None or 0, no padding is applied.
+            None by default
+        model_mom1 : Sup3rCondMom | None
+            Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        mask = np.zeros(high_res.shape, dtype=np.float32)
+        s_min = s_padding if s_padding is not None else 0
+        t_min = t_padding if t_padding is not None else 0
+        s_max = -s_padding if s_min > 0 else None
+        t_max = -t_padding if t_min > 0 else None
+
+        if len(high_res.shape) == 4:
+            mask[:, s_min:s_max, s_min:s_max, :] = 1.0
+        elif len(high_res.shape) == 5:
+            mask[:, s_min:s_max, s_min:s_max, t_min:t_max, :] = 1.0
+
+        return mask
+
     # pylint: disable=W0613
     @classmethod
     def get_coarse_batch(cls, high_res,
@@ -141,7 +187,9 @@ class Batch:
                          training_features=None,
                          smoothing=None,
                          smoothing_ignore=None,
-                         model_mom1=None):
+                         model_mom1=None,
+                         s_padding=None,
+                         t_padding=None):
         """Coarsen high res data and return Batch with high res and
         low res data
 
@@ -178,6 +226,12 @@ class Batch:
             smooth all features if smoothing kwarg is not None
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
+        s_padding : int | None
+            Width of spatial padding to predict only middle part. If None,
+            no padding is used
+        t_padding : int | None
+            Width of temporal padding to predict only middle part. If None,
+            no padding is used
 
         Returns
         -------
@@ -202,7 +256,9 @@ class Batch:
         output = cls.make_output(low_res, high_res,
                                  s_enhance, t_enhance,
                                  model_mom1, output_features_ind)
-        batch = cls(low_res, high_res, output)
+        mask = cls.make_mask(high_res,
+                             s_padding, t_padding)
+        batch = cls(low_res, high_res, output, mask)
 
         return batch
 
@@ -274,12 +330,12 @@ class BatchMom2SF(Batch):
         """
         # Remove first moment from high res and square it
         out = model_mom1._tf_generate(low_res).numpy()
-        upsampled_lr = spatial_simple_enhancing(low_res,
-                                                s_enhance=s_enhance)
-        upsampled_lr = temporal_simple_enhancing(upsampled_lr,
-                                                 t_enhance=t_enhance)
-        upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
-        return (high_res - upsampled_lr - out)**2
+        enhanced_lr = spatial_simple_enhancing(low_res,
+                                               s_enhance=s_enhance)
+        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
+                                                t_enhance=t_enhance)
+        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        return (high_res - enhanced_lr - out)**2
 
 
 class BatchMom1SF(Batch):
@@ -313,12 +369,12 @@ class BatchMom1SF(Batch):
             output, without any feature indices used only for training.
         """
         # Remove first moment from high res and square it
-        upsampled_lr = spatial_simple_enhancing(low_res,
-                                                s_enhance=s_enhance)
-        upsampled_lr = temporal_simple_enhancing(upsampled_lr,
-                                                 t_enhance=t_enhance)
-        upsampled_lr = Batch.reduce_features(upsampled_lr, output_features_ind)
-        return high_res - upsampled_lr
+        enhanced_lr = spatial_simple_enhancing(low_res,
+                                               s_enhance=s_enhance)
+        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
+                                                t_enhance=t_enhance)
+        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        return high_res - enhanced_lr
 
 
 class ValidationData:
@@ -332,7 +388,8 @@ class ValidationData:
                  output_features_ind=None,
                  output_features=None,
                  smoothing=None, smoothing_ignore=None,
-                 model_mom1=None):
+                 model_mom1=None,
+                 s_padding=None, t_padding=None):
         """
         Parameters
         ----------
@@ -368,6 +425,12 @@ class ValidationData:
         model_mom1 : Sup3rCondMom | None
             model that predicts the first conditional moments.
             Useful to prepare data for learning second conditional moment.
+        s_padding : int | None
+            Width of spatial padding to predict only middle part. If None,
+            no padding is used
+        t_padding : int | None
+            Width of temporal padding to predict only middle part. If None,
+            no padding is used
         """
 
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -381,6 +444,8 @@ class ValidationData:
             len(self.val_indices) / (batch_size))
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        self.s_padding = s_padding
+        self.t_padding = t_padding
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
@@ -492,7 +557,9 @@ class ValidationData:
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
             self._i += 1
             return batch
         else:
@@ -512,7 +579,8 @@ class BatchHandler:
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, overwrite_stats=False, smoothing=None,
                  smoothing_ignore=None, stats_workers=None, norm_workers=None,
-                 load_workers=None, max_workers=None, model_mom1=None):
+                 load_workers=None, max_workers=None, model_mom1=None,
+                 s_padding=None, t_padding=None):
         """
         Parameters
         ----------
@@ -577,6 +645,12 @@ class BatchHandler:
         model_mom1 : Sup3rCondMom | None
             model that predicts the first conditional moments.
             Useful to prepare data for learning second conditional moment.
+        s_padding : int | None
+            Width of spatial padding to predict only middle part. If None,
+            no padding is used
+        t_padding : int | None
+            Width of temporal padding to predict only middle part. If None,
+            no padding is used
         """
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
@@ -594,6 +668,8 @@ class BatchHandler:
         self._val_data = None
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        self.s_padding = s_padding
+        self.t_padding = t_padding
         self.sample_shape = handler_shapes[0]
         self.means = means
         self.stds = stds
@@ -637,7 +713,9 @@ class BatchHandler:
             output_features=self.output_features,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore,
-            model_mom1=self.model_mom1)
+            model_mom1=self.model_mom1,
+            s_padding=self.s_padding,
+            t_padding=self.t_padding)
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
@@ -1062,7 +1140,9 @@ class BatchHandler:
                 training_features=self.training_features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
 
             self._i += 1
             return batch
@@ -1156,7 +1236,9 @@ class BatchHandlerCC(BatchHandler):
                                               self.t_enhance,
                                               self.model_mom1,
                                               self.output_features_ind)
-        batch = self.BATCH_CLASS(low_res, high_res, output)
+        mask = self.BATCH_CLASS.make_mask(high_res,
+                                          self.s_padding, self.t_padding)
+        batch = self.BATCH_CLASS(low_res, high_res, output, mask)
 
         self._i += 1
         return batch
@@ -1271,7 +1353,9 @@ class SpatialBatchHandlerCC(BatchHandler):
                                               self.t_enhance,
                                               self.model_mom1,
                                               self.output_features_ind)
-        batch = self.BATCH_CLASS(low_res, high_res, output)
+        mask = self.BATCH_CLASS.make_mask(high_res,
+                                          self.s_padding, self.t_padding)
+        batch = self.BATCH_CLASS(low_res, high_res, output, mask)
 
         self._i += 1
         return batch
@@ -1297,7 +1381,9 @@ class SpatialBatchHandler(BatchHandler):
                 training_features=self.training_features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
 
             self._i += 1
             return batch
@@ -1434,7 +1520,9 @@ class ValidationDataDC(ValidationData):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
             self._i += 1
             return batch
         else:
@@ -1467,7 +1555,9 @@ class ValidationDataSpatialDC(ValidationDataDC):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 output_features=self.output_features,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
             self._i += 1
             return batch
         else:
@@ -1543,7 +1633,9 @@ class BatchHandlerDC(BatchHandler):
                 training_features=self.training_features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
 
             self._i += 1
             return batch
@@ -1628,7 +1720,9 @@ class BatchHandlerSpatialDC(BatchHandler):
                 training_features=self.training_features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1)
+                model_mom1=self.model_mom1,
+                s_padding=self.s_padding,
+                t_padding=self.t_padding)
 
             self._i += 1
             return batch
