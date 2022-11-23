@@ -715,7 +715,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                    f'and sample_shape={self.sample_shape}. Use a smaller '
                    'sample_shape and/or larger val_split.')
             check = any(val_size < samp_size for val_size, samp_size
-                            in zip(self.val_data.shape, self.sample_shape))
+                        in zip(self.val_data.shape, self.sample_shape))
             if check:
                 logger.warning(msg)
                 warnings.warn(msg)
