@@ -926,19 +926,8 @@ class ForwardPassStrategy(InputMixIn):
             self._file_ids = []
             for i in range(self.fwp_slicer.n_temporal_chunks):
                 for j in range(self.fwp_slicer.n_spatial_chunks):
-                    check = (self.out_pattern is not None
-                             and '{times}' in self.out_pattern)
-                    if check:
-                        ti = self.raw_time_index[self.ti_slices[i]]
-                        start = str(ti[0]).strip('+').strip('-').strip(':')
-                        start = ''.join(start.split(' '))
-                        end = str(ti[-1]).strip('+').strip('-').strip(':')
-                        end = ''.join(end.split(' '))
-                        file_id = f'{start}-{end}_{str(j).zfill(6)}'
-                        self._file_ids.append(file_id)
-                    else:
-                        file_id = f'{str(i).zfill(6)}_{str(j).zfill(6)}'
-                        self._file_ids.append(file_id)
+                    file_id = f'{str(i).zfill(6)}_{str(j).zfill(6)}'
+                    self._file_ids.append(file_id)
         return self._file_ids
 
     @property
