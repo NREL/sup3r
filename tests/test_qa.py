@@ -254,8 +254,7 @@ def test_stats(log=True):
                 names = ['low_res', 'interp', 'synth']
                 assert all(name in qa_out for name in names)
                 for key in qa_out:
-                    assert all(feature in qa_out[key]
-                               for feature in features)
+                    assert all(feature in qa_out[key] for feature in features)
                     for feature in features:
                         assert all(metric in qa_out[key][feature]
                                    for metric in include_stats)

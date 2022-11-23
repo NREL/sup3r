@@ -670,29 +670,55 @@ class DataHandler(FeatureHandler, InputMixIn):
             if overwrite:
                 logger.info(f'{self.cache_files} exists but overwrite_cache '
                             'is set to True. Proceeding with extraction.')
-            bad_shape = (sample_shape[0] > self.grid_shape[0]
-                         and sample_shape[1] > self.grid_shape[1])
-            if bad_shape:
-                logger.debug(f'spatial_sample_shape {sample_shape[:2]} is '
-                             f'larger than the raster size {self.grid_shape}')
 
-            if any(self.features):
-                self.data = self.run_all_data_init()
-                nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
-                if nan_perc > 0:
-                    msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
-                    logger.warning(msg)
-                    warnings.warn(msg)
+            self._raster_size_check()
+            self._run_data_init_if_needed()
 
             if cache_pattern is not None:
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
 
-            if self.data is not None and self.val_split > 0.0:
-                self.data, self.val_data = self.split_data()
+            self._val_split_check()
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
+
+    def _run_data_init_if_needed(self):
+        """Check if any features need to be extracted and proceed with data
+        extraction"""
+        if any(self.features):
+            self.data = self.run_all_data_init()
+            nan_perc = (100 * np.isnan(self.data).sum() / self.data.size)
+            if nan_perc > 0:
+                msg = ('Data has {:.2f}% NaN values!'.format(nan_perc))
+                logger.warning(msg)
+                warnings.warn(msg)
+
+    def _raster_size_check(self):
+        """Check if the sample_shape is larger than the requested raster
+        size"""
+        bad_shape = (self.sample_shape[0] > self.grid_shape[0]
+                     and self.sample_shape[1] > self.grid_shape[1])
+        if bad_shape:
+            msg = (f'spatial_sample_shape {self.sample_shape[:2]} is '
+                   f'larger than the raster size {self.grid_shape}')
+            logger.warning(msg)
+            warnings.warn(msg)
+
+    def _val_split_check(self):
+        """Check if val_split > 0 and split data into validation and training.
+        Make sure validation data is larger than sample_shape"""
+
+        if self.data is not None and self.val_split > 0.0:
+            self.data, self.val_data = self.split_data()
+            msg = (f'Validation data has shape={self.val_data.shape} '
+                   f'and sample_shape={self.sample_shape}. Use a smaller '
+                   'sample_shape and/or larger val_split.')
+            check = any(val_size < samp_size for val_size, samp_size
+                        in zip(self.val_data.shape, self.sample_shape))
+            if check:
+                logger.warning(msg)
+                warnings.warn(msg)
 
     @classmethod
     @abstractmethod

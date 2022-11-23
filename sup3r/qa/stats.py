@@ -361,8 +361,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             (spatial_1, spatial_2, temporal)
         """
         avg = np.mean(var, axis=-1)
-        return var - np.repeat(np.expand_dims(avg, axis=-1),
-                               var.shape[-1], axis=-1)
+        return var - np.repeat(np.expand_dims(avg, axis=-1), var.shape[-1],
+                               axis=-1)
 
     def interpolate_data(self, feature, low_res):
         """Get interpolated low res field
@@ -381,16 +381,8 @@ class Sup3rStatsCompute(Sup3rStatsBase):
             Array of interpolated data
             (spatial_1, spatial_2, temporal)
         """
-        shape = f'{low_res.shape[0]}x{low_res.shape[1]}x{low_res.shape[2]}'
-        file_name = None
-        if self.cache_pattern is not None:
-            file_name = self.cache_pattern.replace('{shape}', f'{shape}')
-            file_name = file_name.replace('{feature}',
-                                          f'{feature.lower()}_interp')
-        if file_name is not None and os.path.exists(file_name):
-            var_itp = self.load_cache(file_name)
-        if (file_name is None or not os.path.exists(file_name)
-                or self.overwrite_cache):
+        var_itp, file_name = self.check_return_cache(feature, low_res.shape)
+        if var_itp is None:
             logger.info(f'Interpolating low res {feature}.')
 
             chunks = []
@@ -409,9 +401,43 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                             f'{mem.total / 1e9:.3f} GB total.')
             var_itp = np.concatenate(chunks, axis=-1)
 
+            if 'direction' in feature:
+                var_itp = (var_itp + 360) % 360
+
             if file_name is not None:
                 self.save_cache(var_itp, file_name)
         return var_itp
+
+    def check_return_cache(self, feature, shape):
+        """Check if interpolated data is cached and return data if it is.
+        Returns cache file name if cache_pattern is not None
+
+        Parameters
+        ----------
+        feature : str
+            Name of interpolated feature to check for cache
+        shape : tuple
+            Shape of low resolution data. Used to define cache file_name.
+
+        Returns
+        -------
+        var_itp : ndarray | None
+            Array of interpolated data if data exists. Otherwise returns None
+        file_name : str
+            Name of cache file for interpolated data. If cache_pattern is None
+            this returns None
+        """
+
+        var_itp = None
+        file_name = None
+        shape_str = f'{shape[0]}x{shape[1]}x{shape[2]}'
+        if self.cache_pattern is not None:
+            file_name = self.cache_pattern.replace('{shape}', f'{shape_str}')
+            file_name = file_name.replace('{feature}',
+                                          f'{feature.lower()}_interp')
+        if file_name is not None and os.path.exists(file_name):
+            var_itp = self.load_cache(file_name)
+        return var_itp, file_name
 
     def _compute_dist_type(self, var, stat_type, interp=False, period=None):
         """Select the appropriate method and parameters for the given stat_type
@@ -491,19 +517,12 @@ class Sup3rStatsCompute(Sup3rStatsBase):
         """
         stats_dict = {}
         for stat_type in self.include_stats:
-            out = self._compute_spectra_type(var, stat_type, interp=interp)
 
-            if out is not None:
-                mem = psutil.virtual_memory()
-                logger.info(f'Computed {stat_type}. Current memory usage is '
-                            f'{mem.used / 1e9:.3f} GB out of '
-                            f'{mem.total / 1e9:.3f} GB total.')
-                stats_dict[stat_type] = out
-
-        for stat_type in self.include_stats:
-            out = self._compute_dist_type(var, stat_type, interp=interp,
-                                          period=period)
-
+            if 'spectrum' in stat_type:
+                out = self._compute_spectra_type(var, stat_type, interp=interp)
+            else:
+                out = self._compute_dist_type(var, stat_type, interp=interp,
+                                              period=period)
             if out is not None:
                 mem = psutil.virtual_memory()
                 logger.info(f'Computed {stat_type}. Current memory usage is '
