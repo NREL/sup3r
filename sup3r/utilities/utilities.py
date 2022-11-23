@@ -999,6 +999,15 @@ def interp_to_level(var_array, lev_array, levels):
     shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
     out_array = np.zeros(shape, dtype=np.float32).T
 
+    # if multiple vertical levels have identical heights at the desired
+    # interpolation level, interpolation to that value will fail because linear
+    # slope will be NaN. This is most common if you have multiple pressure
+    # levels at zero height at the surface in the case that the data didnt
+    # provide underground data.
+    for level in levels:
+        mask = (lev_array == level)
+        lev_array[mask] += np.random.uniform(-1e-5, 0, size=mask.sum())
+
     # iterate through time indices
     for idt in range(array_shape[0]):
         shape = (array_shape[-3], np.product(array_shape[-2:]))
@@ -1087,7 +1096,6 @@ def interp_var_to_pressure(data, var, raster_index, pressures,
     out_array : ndarray
         Array of interpolated values.
     """
-
     logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
     if len(data[var].dims) == 5:
         raster_index = [0] + raster_index
