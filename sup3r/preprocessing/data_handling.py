@@ -1887,9 +1887,10 @@ class DataHandlerNC(DataHandler):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, combine='nested',
-                                 concat_dim='Time', chunks=cls.CHUNKS,
-                                 **kwargs)
+        default_kws = {'combine': 'nested', 'concat_dim': 'Time',
+                       'chunks': cls.CHUNKS}
+        kwargs.update(default_kws)
+        return xr.open_mfdataset(file_paths, **kwargs)
 
     @classmethod
     def get_file_times(cls, file_paths, **kwargs):
@@ -2302,7 +2303,9 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, chunks=cls.CHUNKS, **kwargs)
+        default_kws = {'chunks': cls.CHUNKS}
+        kwargs.update(default_kws)
+        return xr.open_mfdataset(file_paths, **kwargs)
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
