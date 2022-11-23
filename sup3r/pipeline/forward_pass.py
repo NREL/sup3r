@@ -1932,7 +1932,7 @@ class ForwardPass:
             mem = psutil.virtual_memory()
             msg = ('Finished forward pass on chunk_index='
                    f'{fwp_futures[future]["chunk_index"]} in '
-                   f'{dt.now() - fwp_futures[future]["start_time"]}.'
+                   f'{dt.now() - fwp_futures[future]["start_time"]}. '
                    f'{future_index + 1} of {len(fwp_futures)} complete. '
                    f'Current memory usage is {mem.used / 1e9:.3f} GB '
                    f'out of {mem.total / 1e9:.3f} GB total.')
