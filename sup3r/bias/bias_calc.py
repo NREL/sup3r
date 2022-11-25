@@ -665,7 +665,7 @@ class LinearCorrection(DataRetrievalBase):
         logger.info('Finished calculating bias correction factors.')
 
         if fill_extend:
-            out = self.fill_extend(out)
+            out = self.fill_extend(out, smooth_extend)
 
         self.write_outputs(fp_out, out)
 
