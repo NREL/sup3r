@@ -1831,8 +1831,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
-    CHUNKS = {'XTIME': 100, 'XLAT': 100, 'XLON': 100,
-              'south_north': 150, 'west_east': 150, 'Time': 50}
+    CHUNKS = {'XTIME': 100, 'XLAT': 150, 'XLON': 150,
+              'south_north': 150, 'west_east': 150, 'Time': 100}
     """CHUNKS sets the chunk sizes to extract from the data in each dimension.
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
