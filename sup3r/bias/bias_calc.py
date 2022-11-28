@@ -59,6 +59,9 @@ class DataRetrievalBase:
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
             sup3r.preprocessing.data_handling library.
+        bias_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the bias_handler
+            class
         decimals : int | None
             Option to round bias and base data to this number of
             decimals, this gets passed to np.around(). If decimals
@@ -423,7 +426,7 @@ class LinearCorrection(DataRetrievalBase):
     NT = 1
 
     @staticmethod
-    def get_linear_correction(bias_data, base_data):
+    def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
         """Get the linear correction factors based on 1D bias and base datasets
 
         Parameters
@@ -432,15 +435,20 @@ class LinearCorrection(DataRetrievalBase):
             1D array of biased data observations.
         base_data : np.ndarray
             1D array of base data observations.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset
+        base_dset : str
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be U_100m or V_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
 
         Returns
         -------
-        scalar : float
-            Factor to adjust the biased data before comparing distributions:
-            bias_data * scalar + adder
-        adder : float
-            Factor to adjust the biased data before comparing distributions:
-            bias_data * scalar + adder
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder
         """
 
         bias_std = bias_data.std()
@@ -449,12 +457,22 @@ class LinearCorrection(DataRetrievalBase):
 
         scalar = base_data.std() / bias_std
         adder = base_data.mean() - bias_data.mean() * scalar
-        return scalar, adder
+
+        out = {f'bias_{bias_feature}_mean': bias_data.mean(),
+               f'bias_{bias_feature}_std': bias_std,
+               f'base_{base_dset}_mean': base_data.mean(),
+               f'base_{base_dset}_std': base_data.std(),
+               f'{bias_feature}_scalar': scalar,
+               f'{bias_feature}_adder': adder,
+               }
+
+        return out
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, daily_reduction, bias_ti, decimals):
+    def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
+                    base_gid, base_handler, daily_reduction, bias_ti,
+                    decimals):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -463,23 +481,58 @@ class LinearCorrection(DataRetrievalBase):
                                          daily_reduction=daily_reduction,
                                          decimals=decimals)
 
-        scalar, adder = cls.get_linear_correction(bias_data, base_data)
+        out = cls.get_linear_correction(bias_data, base_data,
+                                        bias_feature, base_dset)
+        return out
 
-        return scalar, adder
+    def fill_extend(self, out, smooth_extend):
+        """Fill data extending beyond the base meta data extent by doing a
+        nearest neighbor gap fill.
 
-    def write_outputs(self, fp_out, scalar, adder):
+        Parameters
+        ----------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
+        smooth_extend : float
+            Option to smooth the scalar/adder data outside of the spatial
+            domain set by the threshold input. This alleviates the weird seams
+            far from the domain of interest. This value is the standard
+            deviation for the gaussian_filter kernel
+
+        Returns
+        -------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
+        """
+        for key, arr in out.items():
+            nan_mask = np.isnan(arr[..., 0])
+            for idt in range(self.NT):
+                arr[..., idt] = nn_fill_array(arr[..., idt])
+                if smooth_extend > 0:
+                    arr_smooth = gaussian_filter(arr[..., idt],
+                                                 smooth_extend,
+                                                 mode='nearest')
+                    out[key][nan_mask, idt] = arr_smooth[nan_mask]
+        return out
+
+    def write_outputs(self, fp_out, out):
         """Write outputs to an .h5 file.
 
         Parameters
         ----------
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
-        scalar : np.ndarray
-            3D array of scalar factors corresponding to the bias raster data
-            shape (lat, lon, time)
-        adder : np.ndarray
-            3D array of adder factors corresponding to the bias raster data
-            shape (lat, lon, time)
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
         """
 
         if fp_out is not None:
@@ -492,8 +545,8 @@ class LinearCorrection(DataRetrievalBase):
                 lon = self.bias_dh.lat_lon[..., 1]
                 f.create_dataset('latitude', data=lat)
                 f.create_dataset('longitude', data=lon)
-                f.create_dataset(f'{self.bias_feature}_scalar', data=scalar)
-                f.create_dataset(f'{self.bias_feature}_adder', data=adder)
+                for dset, data in out.items():
+                    f.create_dataset(dset, data=data)
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
@@ -536,22 +589,27 @@ class LinearCorrection(DataRetrievalBase):
 
         Returns
         -------
-        scalar : np.ndarray
-            3D array of scalar factors corresponding to the bias raster data
-            shape (lat, lon, time)
-        adder : np.ndarray
-            3D array of adder factors corresponding to the bias raster data
-            shape (lat, lon, time)
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder. Each value is of shape
+            (lat, lon, time).
         """
         logger.debug('Starting linear correction calculation...')
 
-        scalar = np.full(self.bias_gid_raster.shape + (self.NT,),
-                         np.nan, np.float32)
-        adder = np.full(self.bias_gid_raster.shape + (self.NT,),
-                        np.nan, np.float32)
+        keys = [f'{self.bias_feature}_scalar',
+                f'{self.bias_feature}_adder',
+                f'bias_{self.bias_feature}_mean',
+                f'bias_{self.bias_feature}_std',
+                f'base_{self.base_dset}_mean',
+                f'base_{self.base_dset}_std',
+                ]
+        out = {k: np.full(self.bias_gid_raster.shape + (self.NT,),
+                          np.nan, np.float32)
+               for k in keys}
 
         logger.info('Initialized scalar / adder with shape: {}'
-                    .format(scalar.shape))
+                    .format(self.bias_gid_raster.shape))
 
         if max_workers == 1:
             logger.debug('Running serial calculation.')
@@ -562,12 +620,14 @@ class LinearCorrection(DataRetrievalBase):
 
                 if np.mean(dist) < threshold:
                     bias_data = self.get_bias_data(bias_gid)
-                    out = self._run_single(bias_data, self.base_fps,
-                                           self.base_dset, base_gid,
-                                           self.base_handler, daily_reduction,
-                                           self.bias_ti, self.decimals)
-                    scalar[raster_loc] = out[0]
-                    adder[raster_loc] = out[1]
+                    single_out = self._run_single(bias_data, self.base_fps,
+                                                  self.bias_feature,
+                                                  self.base_dset, base_gid,
+                                                  self.base_handler,
+                                                  daily_reduction,
+                                                  self.bias_ti, self.decimals)
+                    for key, arr in single_out.items():
+                        out[key][raster_loc] = arr
 
                 logger.info('Completed bias calculations for {} out of {} '
                             'sites'.format(i + 1, len(self.bias_meta)))
@@ -586,44 +646,30 @@ class LinearCorrection(DataRetrievalBase):
                         bias_data = self.get_bias_data(bias_gid)
 
                         future = exe.submit(self._run_single, bias_data,
-                                            self.base_fps, self.base_dset,
-                                            base_gid, self.base_handler,
-                                            daily_reduction, self.bias_ti,
-                                            self.decimals)
+                                            self.base_fps, self.bias_feature,
+                                            self.base_dset, base_gid,
+                                            self.base_handler, daily_reduction,
+                                            self.bias_ti, self.decimals)
                         futures[future] = raster_loc
 
                 logger.debug('Finished launching futures.')
                 for i, future in enumerate(as_completed(futures)):
                     raster_loc = futures[future]
-                    scalar[raster_loc] = future.result()[0]
-                    adder[raster_loc] = future.result()[1]
+                    single_out = future.result()
+                    for key, arr in single_out.items():
+                        out[key][raster_loc] = arr
 
                     logger.info('Completed bias calculations for {} out of {} '
                                 'sites'.format(i + 1, len(futures)))
 
-        logger.info('Finished calculating bias corrections. '
-                    'Mean scalar: {:.3f} mean adder: {:.3f}'
-                    .format(np.nanmean(scalar), np.nanmean(adder)))
-
-        nan_mask = np.isnan(scalar[..., 0])
+        logger.info('Finished calculating bias correction factors.')
 
         if fill_extend:
-            for idt in range(self.NT):
-                scalar[..., idt] = nn_fill_array(scalar[..., idt])
-                adder[..., idt] = nn_fill_array(adder[..., idt])
-                if smooth_extend > 0:
-                    scalar_smooth = gaussian_filter(scalar[..., idt],
-                                                    smooth_extend,
-                                                    mode='nearest')
-                    adder_smooth = gaussian_filter(adder[..., idt],
-                                                   smooth_extend,
-                                                   mode='nearest')
-                    scalar[nan_mask, idt] = scalar_smooth[nan_mask]
-                    adder[nan_mask, idt] = adder_smooth[nan_mask]
+            out = self.fill_extend(out, smooth_extend)
 
-        self.write_outputs(fp_out, scalar, adder)
+        self.write_outputs(fp_out, out)
 
-        return scalar, adder
+        return out
 
 
 class MonthlyLinearCorrection(LinearCorrection):
@@ -636,8 +682,9 @@ class MonthlyLinearCorrection(LinearCorrection):
     NT = 12
 
     @classmethod
-    def _run_single(cls, bias_data, base_fps, base_dset, base_gid,
-                    base_handler, daily_reduction, bias_ti, decimals):
+    def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
+                    base_gid, base_handler, daily_reduction, bias_ti,
+                    decimals):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -646,18 +693,25 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                daily_reduction=daily_reduction,
                                                decimals=decimals)
 
-        scalar = np.full(cls.NT, np.nan, dtype=np.float32)
-        adder = np.full(cls.NT, np.nan, dtype=np.float32)
+        base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
+        out = {f'bias_{bias_feature}_mean': base_arr.copy(),
+               f'bias_{bias_feature}_std': base_arr.copy(),
+               f'base_{base_dset}_mean': base_arr.copy(),
+               f'base_{base_dset}_std': base_arr.copy(),
+               f'{bias_feature}_scalar': base_arr.copy(),
+               f'{bias_feature}_adder': base_arr.copy(),
+               }
 
         for month in range(1, 13):
             bias_mask = bias_ti.month == month
             base_mask = base_ti.month == month
 
             if any(bias_mask) and any(base_mask):
-                ms, ma = cls.get_linear_correction(bias_data[bias_mask],
-                                                   base_data[base_mask])
+                mout = cls.get_linear_correction(bias_data[bias_mask],
+                                                 base_data[base_mask],
+                                                 bias_feature,
+                                                 base_dset)
+                for k, v in mout.items():
+                    out[k][month - 1] = v
 
-                scalar[month - 1] = ms
-                adder[month - 1] = ma
-
-        return scalar, adder
+        return out

@@ -1748,9 +1748,113 @@ class DataHandler(FeatureHandler, InputMixIn):
             slices for NETCDF
         """
 
+    def lin_bc(self, bc_files, threshold=0.1):
+        """Bias correct the data in this DataHandler using linear bias
+        correction factors from files output by MonthlyLinearCorrection or
+        LinearCorrection from sup3r.bias.bias_calc
+
+        Parameters
+        ----------
+        bc_files : list | tuple | str
+            One or more filepaths to .h5 files output by
+            MonthlyLinearCorrection or LinearCorrection. These should contain
+            datasets named "{feature}_scalar" and "{feature}_adder" where
+            {feature} is one of the features contained by this DataHandler and
+            the data is a 3D array of shape (lat, lon, time) where time is
+            length 1 for annual correction or 12 for monthly correction.
+        threshold : float
+            Nearest neighbor euclidian distance threshold. If the DataHandler
+            coordinates are more than this value away from the bias correction
+            lat/lon, an error is raised.
+        """
+
+        if isinstance(bc_files, str):
+            bc_files = [bc_files]
+
+        completed = []
+        for idf, feature in enumerate(self.features):
+            dset_scalar = f'{feature}_scalar'
+            dset_adder = f'{feature}_adder'
+            for fp in bc_files:
+                with Resource(fp) as res:
+                    lat = np.expand_dims(res['latitude'], axis=-1)
+                    lon = np.expand_dims(res['longitude'], axis=-1)
+                    lat_lon_bc = np.dstack((lat, lon))
+                    lat_lon_0 = self.lat_lon[:1, :1]
+                    diff = lat_lon_bc - lat_lon_0
+                    diff = np.hypot(diff[..., 0], diff[..., 1])
+                    idy, idx = np.where(diff == diff.min())
+                    slice_y = slice(idy[0], idy[0] + self.shape[0])
+                    slice_x = slice(idx[0], idx[0] + self.shape[1])
+
+                    if diff.min() > threshold:
+                        msg = ('The DataHandler top left coordinate of {} '
+                               'appears to be {} away from the nearest '
+                               'bias correction coordinate of {} from {}. '
+                               'Cannot apply bias correction.'
+                               .format(lat_lon_0, diff.min(),
+                                       lat_lon_bc[idy, idx],
+                                       os.path.basename(fp)))
+                        logger.error(msg)
+                        raise RuntimeError(msg)
+
+                    check = (dset_scalar in res.dsets
+                             and dset_adder in res.dsets
+                             and feature not in completed)
+                    if check:
+                        scalar = res[dset_scalar, slice_y, slice_x]
+                        adder = res[dset_adder, slice_y, slice_x]
+
+                        if scalar.shape[-1] == 1:
+                            scalar = np.repeat(scalar, self.shape[2], axis=2)
+                            adder = np.repeat(adder, self.shape[2], axis=2)
+                        elif scalar.shape[-1] == 12:
+                            idm = self.time_index.month.values - 1
+                            scalar = scalar[..., idm]
+                            adder = adder[..., idm]
+                        else:
+                            msg = ('Can only accept bias correction factors '
+                                   'with last dim equal to 1 or 12 but '
+                                   'received bias correction factors with '
+                                   'shape {}'.format(scalar.shape))
+                            logger.error(msg)
+                            raise RuntimeError(msg)
+
+                        logger.info('Bias correcting "{}" with linear '
+                                    'correction from "{}"'
+                                    .format(feature, os.path.basename(fp)))
+                        self.data[..., idf] *= scalar
+                        self.data[..., idf] += adder
+                        completed.append(feature)
+
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
+
+    CHUNKS = {'XTIME': 100, 'XLAT': 150, 'XLON': 150,
+              'south_north': 150, 'west_east': 150, 'Time': 100}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
+    def __init__(self, *args, xr_chunks=None, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same ordered required arguments as DataHandler parent class.
+        xr_chunks : int | "auto" | tuple | dict | None
+            kwarg that goes to xr.DataArray.chunk(chunks=xr_chunks). Chunk
+            sizes that approximately match the data volume being extracted
+            typically results in the most efficient IO. If not provided, this
+            defaults to the class CHUNKS attribute.
+        **kwargs : list
+            Same optional keyword arguments as DataHandler parent class.
+        """
+        if xr_chunks is not None:
+            self.CHUNKS = xr_chunks
+
+        super().__init__(*args, **kwargs)
 
     @property
     def extract_workers(self):
@@ -1784,8 +1888,10 @@ class DataHandlerNC(DataHandler):
         -------
         data : xarray.Dataset
         """
-        return xr.open_mfdataset(file_paths, combine='nested',
-                                 concat_dim='Time', **kwargs)
+        default_kws = {'combine': 'nested', 'concat_dim': 'Time',
+                       'chunks': cls.CHUNKS}
+        kwargs.update(default_kws)
+        return xr.open_mfdataset(file_paths, **kwargs)
 
     @classmethod
     def get_file_times(cls, file_paths, **kwargs):
@@ -2118,6 +2224,11 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
+    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
     def __init__(self, *args, nsrdb_source_fp=None, nsrdb_agg=1,
                  nsrdb_smoothing=0, **kwargs):
         """
@@ -2193,6 +2304,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         -------
         data : xarray.Dataset
         """
+        default_kws = {'chunks': cls.CHUNKS}
+        kwargs.update(default_kws)
         return xr.open_mfdataset(file_paths, **kwargs)
 
     def run_data_extraction(self):
