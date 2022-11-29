@@ -553,18 +553,19 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
 
             with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
-                for i, device_name in enumerate(self.gpu_list):
+                for i in range(len(self.gpu_list)):
                     futures.append(exe.submit(self.get_single_grad,
                                               lr_chunks[i],
                                               hr_true_chunks[i],
                                               training_weights,
-                                              device_name=device_name,
+                                              device_name=f'/gpu:{i}',
                                               **calc_loss_kwargs))
             gradients = []
             for future in futures:
                 grad, loss_details = future.result()
                 gradients.append(zip(grad, training_weights))
-            gradients = optimizer.aggregate_gradients(gradients)
+#            gradients = optimizer.aggregate_gradients(gradients)
+            gradients = zip(grad, training_weights)
 
         optimizer.apply_gradients(gradients)
 
