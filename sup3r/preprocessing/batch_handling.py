@@ -298,6 +298,39 @@ class BatchMom2(Batch):
         return (high_res - out)**2
 
 
+class BatchMom2Sep(Batch):
+    """Batch of low_res, high_res and output data
+    when learning second moment separate from first moment"""
+
+    @staticmethod
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None, output_features_ind=None):
+        """Make custom batch output
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int | None
+            Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
+        model_mom1 : Sup3rCondMom | None
+            Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        return high_res**2
+
+
 class BatchMom2SF(Batch):
     """Batch of low_res, high_res and output data
     when learning second moment of subfilter vel"""
@@ -336,6 +369,46 @@ class BatchMom2SF(Batch):
                                                 t_enhance=t_enhance)
         enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
         return (high_res - enhanced_lr - out)**2
+
+
+class BatchMom2SepSF(Batch):
+    """Batch of low_res, high_res and output data
+    when learning second moment of subfilter vel
+    separate from first moment"""
+
+    @staticmethod
+    def make_output(low_res, high_res,
+                    s_enhance=None, t_enhance=None,
+                    model_mom1=None, output_features_ind=None):
+        """Make custom batch output
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int | None
+            Spatial enhancement factor
+        t_enhance : int | None
+            Temporal enhancement factor
+        model_mom1 : Sup3rCondMom | None
+            Model used to modify the make the batch output
+        output_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        """
+        # Remove first moment from high res and square it
+        enhanced_lr = spatial_simple_enhancing(low_res,
+                                               s_enhance=s_enhance)
+        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
+                                                t_enhance=t_enhance)
+        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        return (high_res - enhanced_lr)**2
 
 
 class BatchMom1SF(Batch):
@@ -1397,11 +1470,26 @@ class ValidationDataMom2(ValidationData):
     BATCH_CLASS = BatchMom2
 
 
+class ValidationDataMom2Sep(ValidationData):
+    """Iterator for subfilter validation data for
+    second conditional moment separate from first
+    moment"""
+    BATCH_CLASS = BatchMom2Sep
+
+
 class BatchHandlerMom2(BatchHandler):
     """Sup3r batch handling class for
     second conditional moment"""
     VAL_CLASS = ValidationDataMom2
     BATCH_CLASS = BatchMom2
+
+
+class BatchHandlerMom2Sep(BatchHandler):
+    """Sup3r batch handling class for
+    second conditional moment separate from first
+    moment"""
+    VAL_CLASS = ValidationDataMom2Sep
+    BATCH_CLASS = BatchMom2Sep
 
 
 class SpatialBatchHandlerMom2(SpatialBatchHandler):
@@ -1411,10 +1499,25 @@ class SpatialBatchHandlerMom2(SpatialBatchHandler):
     BATCH_CLASS = BatchMom2
 
 
+class SpatialBatchHandlerMom2Sep(SpatialBatchHandler):
+    """Sup3r spatial batch handling class for
+    second conditional moment separate from first
+    moment"""
+    VAL_CLASS = ValidationDataMom2Sep
+    BATCH_CLASS = BatchMom2Sep
+
+
 class ValidationDataMom2SF(ValidationData):
     """Iterator for validation data for
     second conditional moment of subfilter velocity"""
     BATCH_CLASS = BatchMom2SF
+
+
+class ValidationDataMom2SepSF(ValidationData):
+    """Iterator for validation data for
+    second conditional moment of subfilter velocity
+    separate from first moment"""
+    BATCH_CLASS = BatchMom2SepSF
 
 
 class BatchHandlerMom2SF(BatchHandler):
@@ -1424,11 +1527,27 @@ class BatchHandlerMom2SF(BatchHandler):
     BATCH_CLASS = BatchMom2SF
 
 
+class BatchHandlerMom2SepSF(BatchHandler):
+    """Sup3r batch handling class for
+    second conditional moment of subfilter velocity
+    separate from first moment"""
+    VAL_CLASS = ValidationDataMom2SepSF
+    BATCH_CLASS = BatchMom2SepSF
+
+
 class SpatialBatchHandlerMom2SF(SpatialBatchHandler):
     """Sup3r spatial batch handling class for
     second conditional moment of subfilter velocity"""
     VAL_CLASS = ValidationDataMom2SF
     BATCH_CLASS = BatchMom2SF
+
+
+class SpatialBatchHandlerMom2SepSF(SpatialBatchHandler):
+    """Sup3r spatial batch handling class for
+    second conditional moment of subfilter velocity
+    separate from first moment"""
+    VAL_CLASS = ValidationDataMom2SepSF
+    BATCH_CLASS = BatchMom2SepSF
 
 
 class ValidationDataMom1SF(ValidationData):

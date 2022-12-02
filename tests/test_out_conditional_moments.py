@@ -13,11 +13,15 @@ from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
                                                 SpatialBatchHandlerMom1SF,
                                                 SpatialBatchHandlerMom2,
+                                                SpatialBatchHandlerMom2Sep,
                                                 SpatialBatchHandlerMom2SF,
+                                                SpatialBatchHandlerMom2SepSF,
                                                 BatchHandler,
                                                 BatchHandlerMom1SF,
                                                 BatchHandlerMom2,
-                                                BatchHandlerMom2SF)
+                                                BatchHandlerMom2Sep,
+                                                BatchHandlerMom2SF,
+                                                BatchHandlerMom2SepSF)
 from sup3r.utilities.utilities import (spatial_simple_enhancing,
                                        temporal_simple_enhancing)
 
@@ -411,6 +415,225 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
                 break
         makeMovie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'mom2_sf.gif'),
+                  fps=6)
+
+
+@pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
+                         [(['U_100m', 'V_100m'],
+                           None),
+                          (['U_100m', 'V_100m', 'BVF2_200m'],
+                           ['BVF2_200m'])])
+def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
+                              plot=False, full_shape=(20, 20),
+                              sample_shape=(10, 10, 1),
+                              batch_size=4, n_batches=4,
+                              s_enhance=2, model_dir=None,
+                              model_mom1_dir=None):
+    """Test basic spatial model outputing for second conditional,
+    moment separate from the first moment"""
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            val_split=0,
+                            max_workers=1)
+
+    # Load Mom 1 Model
+    if model_mom1_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+        model_mom1 = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
+        model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
+
+    batch_handler = SpatialBatchHandlerMom2Sep([handler],
+                                               batch_size=batch_size,
+                                               s_enhance=s_enhance,
+                                               n_batches=n_batches,
+                                               model_mom1=model_mom1)
+
+    # Load Mom2 Model
+    if model_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        model = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_dir, 'model_params.json')
+        model = Sup3rCondMom(fp_gen).load(model_dir)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    makeMovie)
+        figureFolder = 'Figures'
+        os.makedirs(figureFolder, exist_ok=True)
+        movieFolder = os.path.join(figureFolder, 'Movie')
+        os.makedirs(movieFolder, exist_ok=True)
+        mom_name = r'$\sigma$(HR|LR)'
+        hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
+        n_snap = 0
+        for p, batch in enumerate(batch_handler):
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
+                          a_min=0, a_max=None)
+            out_mom1 = model_mom1.generate(batch.low_res,
+                                           norm_in=False,
+                                           un_norm_out=False)
+            for i in range(batch.output.shape[0]):
+                lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                hr = (batch.high_res[i, :, :, 0] * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                hr_pred = (out_mom1[i, :, :, 0] * batch_handler.stds[0]
+                           + batch_handler.means[0])
+                hr_to_mean = np.abs(hr - hr_pred)
+                hr2_pred = (out[i, :, :, 0] * batch_handler.stds[0]**2
+                            + (2 * batch_handler.means[0]
+                               * batch_handler.stds[0]
+                               * hr_pred)
+                            - batch_handler.means[0]**2)
+                hr2_pred = np.clip(hr2_pred,
+                                   a_min=0,
+                                   a_max=None)
+                sigma_pred = np.sqrt(np.clip(hr2_pred - hr_pred**2,
+                                             a_min=0,
+                                             a_max=None))
+                fig = plot_multi_contour(
+                    [lr, hr, hr_to_mean, sigma_pred],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
+                    ['U [m/s]', 'U [m/s]', 'U [m/s]', 'U [m/s]'],
+                    ['LR', 'HR', hr_name, mom_name],
+                    ['x [m]', 'x [m]', 'x [m]', 'x [m]'],
+                    ['y [m]', 'y [m]', 'y [m]', 'y [m]'],
+                    [np.amin(lr), np.amin(hr),
+                     np.amin(hr_to_mean), np.amin(sigma_pred)],
+                    [np.amax(lr), np.amax(hr),
+                     np.amax(hr_to_mean), np.amax(sigma_pred)],
+                )
+                fig.savefig(os.path.join(movieFolder,
+                                         "im_{}.png".format(n_snap)),
+                            dpi=100, bbox_inches='tight')
+                plt.close(fig)
+                n_snap += 1
+            if p > 4:
+                break
+        makeMovie(n_snap, movieFolder, os.path.join(figureFolder,
+                                                    'mom2_sep.gif'),
+                  fps=6)
+
+
+@pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
+                         [(['U_100m', 'V_100m'],
+                           None),
+                          (['U_100m', 'V_100m', 'BVF2_200m'],
+                           ['BVF2_200m'])])
+def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
+                                 plot=False, full_shape=(20, 20),
+                                 sample_shape=(10, 10, 1),
+                                 batch_size=4, n_batches=4,
+                                 s_enhance=2, model_dir=None,
+                                 model_mom1_dir=None):
+    """Test basic spatial model outputing."""
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            val_split=0,
+                            max_workers=1)
+
+    # Load Mom 1 Model
+    if model_mom1_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+        model_mom1 = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
+        model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
+
+    batch_handler = SpatialBatchHandlerMom2SepSF([handler],
+                                                 batch_size=batch_size,
+                                                 s_enhance=s_enhance,
+                                                 n_batches=n_batches,
+                                                 model_mom1=model_mom1)
+
+    # Load Mom2 Model
+    if model_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        model = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_dir, 'model_params.json')
+        model = Sup3rCondMom(fp_gen).load(model_dir)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    makeMovie)
+        figureFolder = 'Figures'
+        os.makedirs(figureFolder, exist_ok=True)
+        movieFolder = os.path.join(figureFolder, 'Movie')
+        os.makedirs(movieFolder, exist_ok=True)
+        mom_name1 = r'|SF - $\mathbb{E}$(SF|LR)|'
+        mom_name2 = r'$\sigma$(SF|LR)'
+        n_snap = 0
+        for p, batch in enumerate(batch_handler):
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
+                          a_min=0, a_max=None)
+            out_mom1 = model_mom1.generate(batch.low_res,
+                                           norm_in=False,
+                                           un_norm_out=False)
+            for i in range(batch.output.shape[0]):
+                lr = (batch.low_res[i, :, :, 0] * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                blr_aug_shape = (1,) + lr.shape + (1,)
+                blr_aug = np.reshape(batch.low_res[i, :, :, 0],
+                                     blr_aug_shape)
+                up_lr = spatial_simple_enhancing(blr_aug,
+                                                 s_enhance=s_enhance)
+                up_lr = up_lr[0, :, :, 0]
+                hr = (batch.high_res[i, :, :, 0]
+                      * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                sf = (hr
+                      - up_lr
+                      * batch_handler.stds[0]
+                      - batch_handler.means[0])
+                sf2_pred = (out[i, :, :, 0]
+                            * batch_handler.stds[0]**2)
+                sf_pred = (out_mom1[i, :, :, 0]
+                           * batch_handler.stds[0])
+                sf_to_mean = np.abs(sf - sf_pred)
+                sigma_pred = np.sqrt(np.clip(sf2_pred - sf_pred**2,
+                                             a_min=0,
+                                             a_max=None))
+                fig = plot_multi_contour(
+                    [lr, hr, sf, sf_to_mean, sigma_pred],
+                    [0, batch.output.shape[1]],
+                    [0, batch.output.shape[2]],
+                    ['U [m/s]', 'U [m/s]', 'U [m/s]',
+                     'U [m/s]', 'U [m/s]'],
+                    ['LR', 'HR', 'SF', mom_name1, mom_name2],
+                    ['x [m]', 'x [m]', 'x [m]', 'x [m]', 'x [m]'],
+                    ['y [m]', 'y [m]', 'y [m]', 'y [m]', 'y [m]'],
+                    [np.amin(lr), np.amin(hr),
+                     np.amin(sf), np.amin(sf_to_mean),
+                     np.amin(sigma_pred)],
+                    [np.amax(lr), np.amax(hr),
+                     np.amax(sf), np.amax(sf_to_mean),
+                     np.amax(sigma_pred)],
+                )
+                fig.savefig(os.path.join(movieFolder,
+                                         "im_{}.png".format(n_snap)),
+                            dpi=100, bbox_inches='tight')
+                plt.close(fig)
+                n_snap += 1
+            if p > 4:
+                break
+        makeMovie(n_snap, movieFolder,
+                  os.path.join(figureFolder, 'mom2_sep_sf.gif'),
                   fps=6)
 
 
@@ -925,6 +1148,245 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                   fps=6)
 
 
+def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
+                         sample_shape=(12, 12, 24),
+                         batch_size=4, n_batches=4,
+                         s_enhance=3, t_enhance=4,
+                         model_dir=None,
+                         model_mom1_dir=None):
+    """Test basic spatiotemporal model outputing
+    for second conditional moment."""
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0,
+                            max_workers=1)
+
+    # Load Mom 1 Model
+    if model_mom1_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR,
+                              'spatiotemporal',
+                              'gen_3x_4x_2f_simple.json')
+        model_mom1 = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
+        model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
+
+    batch_handler = BatchHandlerMom2Sep([handler],
+                                        batch_size=batch_size,
+                                        s_enhance=s_enhance,
+                                        t_enhance=t_enhance,
+                                        n_batches=n_batches)
+
+    # Load Mom2 Model
+    if model_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR,
+                              'spatiotemporal',
+                              'gen_3x_4x_2f_simple.json')
+        model = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_dir, 'model_params.json')
+        model = Sup3rCondMom(fp_gen).load(model_dir)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    makeMovie)
+        figureFolder = 'Figures'
+        os.makedirs(figureFolder, exist_ok=True)
+        movieFolder = os.path.join(figureFolder, 'Movie')
+        os.makedirs(movieFolder, exist_ok=True)
+        mom_name = r'$\sigma$(HR|LR)'
+        hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
+        n_snap = 0
+        for p, batch in enumerate(batch_handler):
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
+                          a_min=0, a_max=None)
+            out_mom1 = model_mom1.generate(batch.low_res,
+                                           norm_in=False,
+                                           un_norm_out=False)
+            for i in range(batch.output.shape[0]):
+
+                b_lr = batch.low_res[i, :, :, :, 0]
+                b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
+
+                tup_lr = temporal_simple_enhancing(b_lr_aug,
+                                                   t_enhance=t_enhance)
+                tup_lr = (tup_lr[0, :, :, :, 0]
+                          * batch_handler.stds[0]
+                          + batch_handler.means[0])
+                hr = (batch.high_res[i, :, :, :, 0]
+                      * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                hr_pred = (out_mom1[i, :, :, :, 0] * batch_handler.stds[0]
+                           + batch_handler.means[0])
+                hr_to_mean = np.abs(hr - hr_pred)
+                hr2_pred = (out[i, :, :, :, 0] * batch_handler.stds[0]**2
+                            + (2 * batch_handler.means[0]
+                               * batch_handler.stds[0]
+                               * hr_pred)
+                            - batch_handler.means[0]**2)
+                hr2_pred = np.clip(hr2_pred,
+                                   a_min=0,
+                                   a_max=None)
+                sigma_pred = np.sqrt(np.clip(hr2_pred - hr_pred**2,
+                                             a_min=0,
+                                             a_max=None))
+                for j in range(batch.output.shape[3]):
+                    fig = plot_multi_contour(
+                        [tup_lr[:, :, j], hr[:, :, j],
+                         hr_to_mean[:, :, j], sigma_pred[:, :, j]],
+                        [0, batch.output.shape[1]],
+                        [0, batch.output.shape[2]],
+                        ['U [m/s]', 'U [m/s]', 'U [m/s]', 'U [m/s]'],
+                        ['LR', 'HR', hr_name, mom_name],
+                        ['x [m]', 'x [m]', 'x [m]', 'x [m]'],
+                        ['y [m]', 'y [m]', 'y [m]', 'y [m]'],
+                        [np.amin(tup_lr), np.amin(hr),
+                         np.amin(hr_to_mean), np.amin(sigma_pred)],
+                        [np.amax(tup_lr), np.amax(hr),
+                         np.amax(hr_to_mean), np.amax(sigma_pred)],
+                    )
+                    fig.savefig(os.path.join(movieFolder,
+                                             "im_{}.png".format(n_snap)),
+                                dpi=100, bbox_inches='tight')
+                    plt.close(fig)
+                    n_snap += 1
+            if p > 4:
+                break
+        makeMovie(n_snap, movieFolder,
+                  os.path.join(figureFolder, 'st_mom2_sep.gif'),
+                  fps=6)
+
+
+def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
+                            sample_shape=(12, 12, 24),
+                            batch_size=4, n_batches=4,
+                            s_enhance=3, t_enhance=4,
+                            model_dir=None,
+                            model_mom1_dir=None):
+    """Test basic spatiotemporal model outputing for second conditional moment
+    of subfilter velocity."""
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0,
+                            max_workers=1)
+
+    # Load Mom 1 Model
+    if model_mom1_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR,
+                              'spatiotemporal',
+                              'gen_3x_4x_2f_simple.json')
+        model_mom1 = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
+        model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
+
+    batch_handler = BatchHandlerMom2SepSF([handler],
+                                          batch_size=batch_size,
+                                          s_enhance=s_enhance,
+                                          t_enhance=t_enhance,
+                                          n_batches=n_batches)
+
+    # Load Mom2 Model
+    if model_dir is None:
+        fp_gen = os.path.join(CONFIG_DIR,
+                              'spatiotemporal',
+                              'gen_3x_4x_2f_simple_mom2.json')
+        model = Sup3rCondMom(fp_gen)
+    else:
+        fp_gen = os.path.join(model_dir, 'model_params.json')
+        model = Sup3rCondMom(fp_gen).load(model_dir)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    makeMovie)
+        figureFolder = 'Figures'
+        os.makedirs(figureFolder, exist_ok=True)
+        movieFolder = os.path.join(figureFolder, 'Movie')
+        os.makedirs(movieFolder, exist_ok=True)
+        mom_name1 = r'|SF - $\mathbb{E}$(SF|LR)|'
+        mom_name2 = r'$\sigma$(SF|LR)'
+        n_snap = 0
+        for p, batch in enumerate(batch_handler):
+            out = np.clip(model.generate(batch.low_res,
+                                         norm_in=False,
+                                         un_norm_out=False),
+                          a_min=0, a_max=None)
+            out_mom1 = model_mom1.generate(batch.low_res,
+                                           norm_in=False,
+                                           un_norm_out=False)
+            for i in range(batch.output.shape[0]):
+
+                b_lr = batch.low_res[i, :, :, :, 0]
+                b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
+
+                tup_lr = temporal_simple_enhancing(b_lr_aug,
+                                                   t_enhance=t_enhance)
+                tup_lr = (tup_lr[0, :, :, :, 0]
+                          * batch_handler.stds[0]
+                          + batch_handler.means[0])
+
+                up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
+                                                     s_enhance=s_enhance)
+                up_lr = temporal_simple_enhancing(up_lr_tmp,
+                                                  t_enhance=t_enhance)
+                up_lr = up_lr[0, :, :, :, 0]
+
+                hr = (batch.high_res[i, :, :, :, 0]
+                      * batch_handler.stds[0]
+                      + batch_handler.means[0])
+                sf = (hr
+                      - up_lr
+                      * batch_handler.stds[0]
+                      - batch_handler.means[0])
+
+                sf2_pred = (out[i, :, :, :, 0]
+                            * batch_handler.stds[0]**2)
+                sf_pred = (out_mom1[i, :, :, :, 0]
+                           * batch_handler.stds[0])
+                sf_to_mean = np.abs(sf - sf_pred)
+
+                sigma_pred = np.sqrt(np.clip(sf2_pred - sf_pred**2,
+                                             a_min=0,
+                                             a_max=None))
+                for j in range(batch.output.shape[3]):
+                    fig = plot_multi_contour(
+                        [tup_lr[:, :, j], hr[:, :, j],
+                         sf[:, :, j], sf_to_mean[:, :, j],
+                         sigma_pred[:, :, j]],
+                        [0, batch.output.shape[1]],
+                        [0, batch.output.shape[2]],
+                        ['U [m/s]', 'U [m/s]', 'U [m/s]',
+                         'U [m/s]', 'U [m/s]'],
+                        ['LR', 'HR', 'SF', mom_name1, mom_name2],
+                        ['x [m]', 'x [m]', 'x [m]', 'x [m]', 'x [m]'],
+                        ['y [m]', 'y [m]', 'y [m]', 'y [m]', 'y [m]'],
+                        [np.amin(tup_lr), np.amin(hr),
+                         np.amin(sf), np.amin(sf_to_mean),
+                         np.amin(sigma_pred)],
+                        [np.amax(tup_lr), np.amax(hr),
+                         np.amax(sf), np.amax(sf_to_mean),
+                         np.amax(sigma_pred)],
+                    )
+                    fig.savefig(os.path.join(movieFolder,
+                                             "im_{}.png".format(n_snap)),
+                                dpi=100, bbox_inches='tight')
+                    plt.close(fig)
+                    n_snap += 1
+            if p > 4:
+                break
+        makeMovie(n_snap, movieFolder,
+                  os.path.join(figureFolder, 'st_mom2_sep_sf.gif'),
+                  fps=6)
+
+
 if __name__ == "__main__":
 
     test_out_loss(plot=True, model_dirs=['s_mom1/spatial_cond_mom'],
@@ -954,6 +1416,15 @@ if __name__ == "__main__":
                           model_mom1_dir='s_mom1/spatial_cond_mom',
                           TRAIN_FEATURES=TRAIN_FEATURES)
 
+    test_out_spatial_mom2_sep(plot=True, full_shape=(20, 20),
+                              sample_shape=(10, 10, 1),
+                              batch_size=2, n_batches=2,
+                              s_enhance=2,
+                              model_dir='s_mom2_sep/spatial_cond_mom',
+                              FEATURES=FEATURES,
+                              model_mom1_dir='s_mom1/spatial_cond_mom',
+                              TRAIN_FEATURES=TRAIN_FEATURES)
+
     test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
                              sample_shape=(10, 10, 1),
                              batch_size=2, n_batches=2,
@@ -970,3 +1441,12 @@ if __name__ == "__main__":
                              model_mom1_dir='s_mom1_sf/spatial_cond_mom',
                              model_dir='s_mom2_sf/spatial_cond_mom',
                              TRAIN_FEATURES=TRAIN_FEATURES)
+
+    test_out_spatial_mom2_sep_sf(plot=True, full_shape=(20, 20),
+                                 sample_shape=(10, 10, 1),
+                                 batch_size=2, n_batches=2,
+                                 s_enhance=2,
+                                 FEATURES=FEATURES,
+                                 model_mom1_dir='s_mom1_sf/spatial_cond_mom',
+                                 model_dir='s_mom2_sep_sf/spatial_cond_mom',
+                                 TRAIN_FEATURES=TRAIN_FEATURES)
