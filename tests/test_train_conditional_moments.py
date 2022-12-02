@@ -17,11 +17,15 @@ from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
                                                 SpatialBatchHandlerMom1SF,
                                                 SpatialBatchHandlerMom2,
+                                                SpatialBatchHandlerMom2Sep,
                                                 SpatialBatchHandlerMom2SF,
+                                                SpatialBatchHandlerMom2SepSF,
                                                 BatchHandler,
                                                 BatchHandlerMom1SF,
                                                 BatchHandlerMom2,
-                                                BatchHandlerMom2SF)
+                                                BatchHandlerMom2Sep,
+                                                BatchHandlerMom2SF,
+                                                BatchHandlerMom2SepSF)
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -291,6 +295,110 @@ def test_train_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
         model_mom2.save(out_dir)
 
 
+@pytest.mark.parametrize('FEATURES, TRAIN_FEATURES,'
+                         + 's_padding, t_padding',
+                         [(['U_100m', 'V_100m'],
+                           None,
+                           None, None),
+                          (['U_100m', 'V_100m', 'BVF2_200m'],
+                           ['BVF2_200m'],
+                           None, None),
+                          (['U_100m', 'V_100m'],
+                           None,
+                           1, 1)])
+def test_train_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
+                                s_padding, t_padding,
+                                log=False, full_shape=(20, 20),
+                                sample_shape=(10, 10, 1), n_epoch=2,
+                                batch_size=8, n_batches=5,
+                                out_dir_root=None):
+    """Test basic spatial model training for second conditional moment
+    separate from first moment"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    Sup3rCondMom.seed()
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            val_split=0.005,
+                            max_workers=1)
+
+    batch_handler = SpatialBatchHandlerMom2Sep([handler],
+                                               batch_size=batch_size,
+                                               s_enhance=2,
+                                               n_batches=n_batches,
+                                               s_padding=s_padding,
+                                               t_padding=t_padding)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        # test save/load functionality
+        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        model_mom2.save(out_dir)
+
+
+@pytest.mark.parametrize('FEATURES, TRAIN_FEATURES,'
+                         + 's_padding, t_padding',
+                         [(['U_100m', 'V_100m'],
+                           None,
+                           None, None),
+                          (['U_100m', 'V_100m', 'BVF2_200m'],
+                           ['BVF2_200m'],
+                           None, None),
+                          (['U_100m', 'V_100m'],
+                           None,
+                           1, 1)])
+def test_train_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
+                                   s_padding, t_padding,
+                                   log=False, full_shape=(20, 20),
+                                   sample_shape=(10, 10, 1), n_epoch=2,
+                                   batch_size=8, n_batches=5,
+                                   out_dir_root=None):
+    """Test basic spatial model training for second conditional moment
+    of subfilter velocity separate from first moment"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    Sup3rCondMom.seed()
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            train_only_features=TRAIN_FEATURES,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 10),
+                            val_split=0.005,
+                            max_workers=1)
+
+    batch_handler = SpatialBatchHandlerMom2SepSF([handler],
+                                                 batch_size=batch_size,
+                                                 s_enhance=2,
+                                                 n_batches=n_batches,
+                                                 s_padding=s_padding,
+                                                 t_padding=t_padding)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        # test save/load functionality
+        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        model_mom2.save(out_dir)
+
+
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom1(FEATURES,
@@ -479,6 +587,90 @@ def test_train_st_mom2_sf(FEATURES,
         model_mom2.save(out_dir)
 
 
+@pytest.mark.parametrize('FEATURES',
+                         (['U_100m', 'V_100m'],))
+def test_train_st_mom2_sep(FEATURES,
+                           log=False, full_shape=(20, 20),
+                           sample_shape=(12, 12, 24), n_epoch=4,
+                           batch_size=4, n_batches=4,
+                           out_dir_root=None):
+    """Test basic spatiotemporal model training
+    for second conditional moment separate from
+    first moment"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    Sup3rCondMom.seed()
+    fp_gen_mom2 = os.path.join(CONFIG_DIR,
+                               'spatiotemporal',
+                               'gen_3x_4x_2f_simple_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            max_workers=1)
+
+    batch_handler = BatchHandlerMom2Sep([handler],
+                                        batch_size=batch_size,
+                                        s_enhance=3,
+                                        t_enhance=4,
+                                        n_batches=n_batches)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        # test save/load functionality
+        out_dir = os.path.join(out_dir_root, 'st_cond_mom')
+        model_mom2.save(out_dir)
+
+
+@pytest.mark.parametrize('FEATURES',
+                         (['U_100m', 'V_100m'],))
+def test_train_st_mom2_sep_sf(FEATURES,
+                              log=False, full_shape=(20, 20),
+                              sample_shape=(12, 12, 24), n_epoch=4,
+                              batch_size=4, n_batches=4,
+                              out_dir_root=None):
+    """Test basic spatial model training for second conditional moment
+    of subfilter velocity separate from first moment"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    Sup3rCondMom.seed()
+    fp_gen_mom2 = os.path.join(CONFIG_DIR,
+                               'spatiotemporal',
+                               'gen_3x_4x_2f_simple_mom2.json')
+    model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
+
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.005,
+                            max_workers=1)
+
+    batch_handler = BatchHandlerMom2SepSF([handler],
+                                          batch_size=batch_size,
+                                          s_enhance=3, t_enhance=4,
+                                          n_batches=n_batches)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom2.train(batch_handler, n_epoch=n_epoch,
+                         checkpoint_int=2,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+        # test save/load functionality
+        out_dir = os.path.join(out_dir_root, 'st_cond_mom')
+        model_mom2.save(out_dir)
+
+
 if __name__ == "__main__":
     test_train_spatial_mom1(n_epoch=2, log=True, full_shape=(20, 20),
                             sample_shape=(10, 10, 1),
@@ -498,6 +690,15 @@ if __name__ == "__main__":
                             TRAIN_FEATURES=TRAIN_FEATURES,
                             s_padding=None,
                             t_padding=None)
+
+    test_train_spatial_mom2_sep(n_epoch=2, log=True, full_shape=(20, 20),
+                                sample_shape=(10, 10, 1),
+                                batch_size=8, n_batches=5,
+                                out_dir_root='s_mom2_sep',
+                                FEATURES=FEATURES,
+                                TRAIN_FEATURES=TRAIN_FEATURES,
+                                s_padding=None,
+                                t_padding=None)
 
     test_train_spatial_mom1_sf(n_epoch=2, log=True,
                                full_shape=(20, 20),
@@ -519,5 +720,15 @@ if __name__ == "__main__":
                                TRAIN_FEATURES=TRAIN_FEATURES,
                                s_padding=None,
                                t_padding=None)
+
+    test_train_spatial_mom2_sep_sf(n_epoch=2, log=True,
+                                   full_shape=(20, 20),
+                                   sample_shape=(10, 10, 1),
+                                   batch_size=8, n_batches=5,
+                                   out_dir_root='s_mom2_sep_sf',
+                                   FEATURES=FEATURES,
+                                   TRAIN_FEATURES=TRAIN_FEATURES,
+                                   s_padding=None,
+                                   t_padding=None)
 
     # pass
