@@ -5,8 +5,10 @@ import os
 from sup3r import TEST_DATA_DIR
 from test_train_conditional_moments import (test_train_spatial_mom1,
                                             test_train_spatial_mom2,
+                                            test_train_spatial_mom2_sep,
                                             test_train_spatial_mom1_sf,
-                                            test_train_spatial_mom2_sf)
+                                            test_train_spatial_mom2_sf,
+                                            test_train_spatial_mom2_sep_sf)
 
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -35,6 +37,15 @@ if __name__ == "__main__":
                             s_padding=None,
                             t_padding=None)
 
+    test_train_spatial_mom2_sep(n_epoch=2, log=True, full_shape=(20, 20),
+                                sample_shape=(10, 10, 1),
+                                batch_size=8, n_batches=5,
+                                out_dir_root='s_mom2_sep_feat',
+                                FEATURES=FEATURES,
+                                TRAIN_FEATURES=TRAIN_FEATURES,
+                                s_padding=None,
+                                t_padding=None)
+
     test_train_spatial_mom1_sf(n_epoch=2, log=True,
                                full_shape=(20, 20),
                                sample_shape=(10, 10, 1),
@@ -56,4 +67,14 @@ if __name__ == "__main__":
                                TRAIN_FEATURES=TRAIN_FEATURES,
                                s_padding=None,
                                t_padding=None)
+
+    test_train_spatial_mom2_sep_sf(n_epoch=2, log=True,
+                                   full_shape=(20, 20),
+                                   sample_shape=(10, 10, 1),
+                                   batch_size=8, n_batches=5,
+                                   out_dir_root='s_mom2_sep_sf_feat',
+                                   FEATURES=FEATURES,
+                                   TRAIN_FEATURES=TRAIN_FEATURES,
+                                   s_padding=None,
+                                   t_padding=None)
     # pass

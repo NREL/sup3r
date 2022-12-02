@@ -6,8 +6,10 @@ from sup3r import TEST_DATA_DIR
 from test_out_conditional_moments import (test_out_loss,
                                           test_out_st_mom1,
                                           test_out_st_mom2,
+                                          test_out_st_mom2_sep,
                                           test_out_st_mom1_sf,
-                                          test_out_st_mom2_sf)
+                                          test_out_st_mom2_sf,
+                                          test_out_st_mom2_sep_sf)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -41,6 +43,13 @@ if __name__ == "__main__":
                      model_dir='st_mom2/st_cond_mom',
                      model_mom1_dir='st_mom1/st_cond_mom')
 
+    test_out_st_mom2_sep(plot=True, full_shape=(20, 20),
+                         sample_shape=(12, 12, 24),
+                         batch_size=1, n_batches=1,
+                         s_enhance=3, t_enhance=4,
+                         model_dir='st_mom2_sep/st_cond_mom',
+                         model_mom1_dir='st_mom1/st_cond_mom')
+
     test_out_st_mom1_sf(plot=True, full_shape=(20, 20),
                         sample_shape=(12, 12, 24),
                         batch_size=1, n_batches=1,
@@ -53,3 +62,10 @@ if __name__ == "__main__":
                         s_enhance=3, t_enhance=4,
                         model_mom1_dir='st_mom1_sf/st_cond_mom',
                         model_dir='st_mom2_sf/st_cond_mom')
+
+    test_out_st_mom2_sep_sf(plot=True, full_shape=(20, 20),
+                            sample_shape=(12, 12, 24),
+                            batch_size=1, n_batches=1,
+                            s_enhance=3, t_enhance=4,
+                            model_mom1_dir='st_mom1_sf/st_cond_mom',
+                            model_dir='st_mom2_sep_sf/st_cond_mom')
