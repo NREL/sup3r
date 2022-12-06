@@ -30,7 +30,7 @@ if __name__ == "__main__":
                             sample_shape=(10, 10, 1),
                             batch_size=8, n_batches=5,
                             out_dir_root='s_mom2_pad',
-                            model_mom1_dir='s_mom1_pad/spatial_cond_mom',
+                            model_mom1_dir='s_mom1_pad/s_cond_mom',
                             FEATURES=FEATURES,
                             TRAIN_FEATURES=TRAIN_FEATURES,
                             s_padding=1, t_padding=1)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
                                sample_shape=(10, 10, 1),
                                batch_size=8, n_batches=5,
                                out_dir_root='s_mom2_sf_pad',
-                               model_mom1_dir='s_mom1_sf_pad/spatial_cond_mom',
+                               model_mom1_dir='s_mom1_sf_pad/s_cond_mom',
                                FEATURES=FEATURES,
                                TRAIN_FEATURES=TRAIN_FEATURES,
                                s_padding=1, t_padding=1)

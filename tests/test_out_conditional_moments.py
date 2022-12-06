@@ -1389,40 +1389,40 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
 
 if __name__ == "__main__":
 
-    test_out_loss(plot=True, model_dirs=['s_mom1/spatial_cond_mom'],
+    test_out_loss(plot=True, model_dirs=['s_mom1/s_cond_mom'],
                   figureDir='mom1_loss')
 
-    test_out_loss(plot=True, model_dirs=['s_mom2/spatial_cond_mom'],
+    test_out_loss(plot=True, model_dirs=['s_mom2/s_cond_mom'],
                   figureDir='mom2_loss')
 
-    test_out_loss(plot=True, model_dirs=['s_mom1_sf/spatial_cond_mom'],
+    test_out_loss(plot=True, model_dirs=['s_mom1_sf/s_cond_mom'],
                   figureDir='mom1_sf_loss')
 
-    test_out_loss(plot=True, model_dirs=['s_mom2_sf/spatial_cond_mom'],
+    test_out_loss(plot=True, model_dirs=['s_mom2_sf/s_cond_mom'],
                   figureDir='mom2_sf_loss')
 
     test_out_spatial_mom1(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=2, n_batches=2,
-                          s_enhance=2, model_dir='s_mom1/spatial_cond_mom',
+                          s_enhance=2, model_dir='s_mom1/s_cond_mom',
                           FEATURES=FEATURES,
                           TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),
                           batch_size=2, n_batches=2,
-                          s_enhance=2, model_dir='s_mom2/spatial_cond_mom',
+                          s_enhance=2, model_dir='s_mom2/s_cond_mom',
                           FEATURES=FEATURES,
-                          model_mom1_dir='s_mom1/spatial_cond_mom',
+                          model_mom1_dir='s_mom1/s_cond_mom',
                           TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2_sep(plot=True, full_shape=(20, 20),
                               sample_shape=(10, 10, 1),
                               batch_size=2, n_batches=2,
                               s_enhance=2,
-                              model_dir='s_mom2_sep/spatial_cond_mom',
+                              model_dir='s_mom2_sep/s_cond_mom',
                               FEATURES=FEATURES,
-                              model_mom1_dir='s_mom1/spatial_cond_mom',
+                              model_mom1_dir='s_mom1/s_cond_mom',
                               TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom1_sf(plot=True, full_shape=(20, 20),
@@ -1430,7 +1430,7 @@ if __name__ == "__main__":
                              batch_size=2, n_batches=2,
                              s_enhance=2,
                              FEATURES=FEATURES,
-                             model_dir='s_mom1_sf/spatial_cond_mom',
+                             model_dir='s_mom1_sf/s_cond_mom',
                              TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2_sf(plot=True, full_shape=(20, 20),
@@ -1438,8 +1438,8 @@ if __name__ == "__main__":
                              batch_size=2, n_batches=2,
                              s_enhance=2,
                              FEATURES=FEATURES,
-                             model_mom1_dir='s_mom1_sf/spatial_cond_mom',
-                             model_dir='s_mom2_sf/spatial_cond_mom',
+                             model_mom1_dir='s_mom1_sf/s_cond_mom',
+                             model_dir='s_mom2_sf/s_cond_mom',
                              TRAIN_FEATURES=TRAIN_FEATURES)
 
     test_out_spatial_mom2_sep_sf(plot=True, full_shape=(20, 20),
@@ -1447,6 +1447,6 @@ if __name__ == "__main__":
                                  batch_size=2, n_batches=2,
                                  s_enhance=2,
                                  FEATURES=FEATURES,
-                                 model_mom1_dir='s_mom1_sf/spatial_cond_mom',
-                                 model_dir='s_mom2_sep_sf/spatial_cond_mom',
+                                 model_mom1_dir='s_mom1_sf/s_cond_mom',
+                                 model_dir='s_mom2_sep_sf/s_cond_mom',
                                  TRAIN_FEATURES=TRAIN_FEATURES)

@@ -95,7 +95,7 @@ def test_train_spatial_mom1(FEATURES, TRAIN_FEATURES,
         dummy = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model.save(out_dir)
         loaded = model.load(out_dir)
 
@@ -171,7 +171,7 @@ def test_train_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model.save(out_dir)
 
 
@@ -230,7 +230,7 @@ def test_train_spatial_mom2(FEATURES, TRAIN_FEATURES,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model_mom2.save(out_dir)
 
 
@@ -291,7 +291,7 @@ def test_train_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model_mom2.save(out_dir)
 
 
@@ -343,7 +343,7 @@ def test_train_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model_mom2.save(out_dir)
 
 
@@ -395,7 +395,7 @@ def test_train_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
-        out_dir = os.path.join(out_dir_root, 'spatial_cond_mom')
+        out_dir = os.path.join(out_dir_root, 's_cond_mom')
         model_mom2.save(out_dir)
 
 
@@ -685,7 +685,7 @@ if __name__ == "__main__":
                             sample_shape=(10, 10, 1),
                             batch_size=8, n_batches=5,
                             out_dir_root='s_mom2',
-                            model_mom1_dir='s_mom1/spatial_cond_mom',
+                            model_mom1_dir='s_mom1/s_cond_mom',
                             FEATURES=FEATURES,
                             TRAIN_FEATURES=TRAIN_FEATURES,
                             s_padding=None,
@@ -715,7 +715,7 @@ if __name__ == "__main__":
                                sample_shape=(10, 10, 1),
                                batch_size=8, n_batches=5,
                                out_dir_root='s_mom2_sf',
-                               model_mom1_dir='s_mom1_sf/spatial_cond_mom',
+                               model_mom1_dir='s_mom1_sf/s_cond_mom',
                                FEATURES=FEATURES,
                                TRAIN_FEATURES=TRAIN_FEATURES,
                                s_padding=None,
