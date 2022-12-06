@@ -1395,11 +1395,17 @@ if __name__ == "__main__":
     test_out_loss(plot=True, model_dirs=['s_mom2/s_cond_mom'],
                   figureDir='mom2_loss')
 
+    test_out_loss(plot=True, model_dirs=['s_mom2_sep/s_cond_mom'],
+                  figureDir='mom2_sep_loss')
+
     test_out_loss(plot=True, model_dirs=['s_mom1_sf/s_cond_mom'],
                   figureDir='mom1_sf_loss')
 
     test_out_loss(plot=True, model_dirs=['s_mom2_sf/s_cond_mom'],
                   figureDir='mom2_sf_loss')
+
+    test_out_loss(plot=True, model_dirs=['s_mom2_sep_sf/s_cond_mom'],
+                  figureDir='mom2_sep_sf_loss')
 
     test_out_spatial_mom1(plot=True, full_shape=(20, 20),
                           sample_shape=(10, 10, 1),

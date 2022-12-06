@@ -24,11 +24,17 @@ if __name__ == "__main__":
     test_out_loss(plot=True, model_dirs=['st_mom2/st_cond_mom'],
                   figureDir='st_mom2_loss')
 
+    test_out_loss(plot=True, model_dirs=['st_mom2_sep/st_cond_mom'],
+                  figureDir='st_mom2_sep_loss')
+
     test_out_loss(plot=True, model_dirs=['st_mom1_sf/st_cond_mom'],
                   figureDir='st_mom1_sf_loss')
 
     test_out_loss(plot=True, model_dirs=['st_mom2_sf/st_cond_mom'],
                   figureDir='st_mom2_sf_loss')
+
+    test_out_loss(plot=True, model_dirs=['st_mom2_sep_sf/st_cond_mom'],
+                  figureDir='st_mom2_sep_sf_loss')
 
     test_out_st_mom1(plot=True, full_shape=(20, 20),
                      sample_shape=(12, 12, 24),
