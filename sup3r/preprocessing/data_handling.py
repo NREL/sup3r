@@ -535,7 +535,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             raster index from target+shape or loading the raster index from
             file
         shuffle_time : bool
-            Whether to shuffle time indices before valiidation split
+            Whether to shuffle time indices before validation split
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
