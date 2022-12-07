@@ -570,15 +570,15 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         Returns
         -------
-        loss_gen_s : tf.Tensor
+        loss : tf.Tensor
             0D tensor generator model loss for the MSE loss of the
             moment predictor
         """
 
-        loss_gen_content = self.loss_fun(output_true * mask,
-                                         output_gen * mask)
+        loss = self.loss_fun(output_true * mask,
+                             output_gen * mask)
 
-        return loss_gen_content
+        return loss
 
     def calc_loss(self, output_true, output_gen, mask):
         """Calculate the total moment predictor loss
