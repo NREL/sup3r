@@ -293,7 +293,7 @@ class BatchMom2(Batch):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        # Remove first moment from high res and square it
+        # Remove first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
         return (high_res - out)**2
 
@@ -361,7 +361,7 @@ class BatchMom2SF(Batch):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        # Remove first moment from high res and square it
+        # Remove LR and first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
         enhanced_lr = spatial_simple_enhancing(low_res,
                                                s_enhance=s_enhance)
@@ -402,7 +402,7 @@ class BatchMom2SepSF(Batch):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        # Remove first moment from high res and square it
+        # Remove LR from HR and square it
         enhanced_lr = spatial_simple_enhancing(low_res,
                                                s_enhance=s_enhance)
         enhanced_lr = temporal_simple_enhancing(enhanced_lr,
@@ -441,7 +441,7 @@ class BatchMom1SF(Batch):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        # Remove first moment from high res and square it
+        # Remove LR from HR
         enhanced_lr = spatial_simple_enhancing(low_res,
                                                s_enhance=s_enhance)
         enhanced_lr = temporal_simple_enhancing(enhanced_lr,
