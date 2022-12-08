@@ -1035,15 +1035,15 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                   fps=6)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy, color='k', linewidth=3)
         prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_int_sig.png'))
         plt.close(fig)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy / np.mean(sigma_xy),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
@@ -1171,15 +1171,15 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                   fps=6)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy, color='k', linewidth=3)
         prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sf_int_sig.png'))
         plt.close(fig)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy / np.mean(sigma_xy),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
@@ -1304,15 +1304,15 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                   fps=6)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy, color='k', linewidth=3)
         prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_int_sig.png'))
         plt.close(fig)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy / np.mean(sigma_xy),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
@@ -1449,15 +1449,15 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                   fps=6)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy, color='k', linewidth=3)
         prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_sf_int_sig.png'))
         plt.close(fig)
 
         fig = plt.figure()
-        for i in range(len(integratedSigma)):
-            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+        for sigma_xy in integratedSigma:
+            plt.plot(sigma_xy / np.mean(sigma_xy),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
