@@ -192,6 +192,7 @@ def plot_single_contour(
     yAxisName=None,
     vmin=None,
     vmax=None,
+    suptitle=None
 ):
     """Plot single contour
 
@@ -215,7 +216,8 @@ def plot_single_contour(
         min val of the contour, by default None
     vmax : float, optional
         max val of the contour, by default None
-
+    suptitle : str, optional
+        global title of the subplots
     """
     fig, axs = plt.subplots(1, 1, figsize=(3, 4))
     if vmin is None:
@@ -255,6 +257,9 @@ def plot_single_contour(
         lab.set_weight("bold")
         lab.set_family("serif")
         lab.set_fontsize(12)
+    if suptitle is not None:
+        plt.suptitle(suptitle, fontsize=12, fontweight='bold')
+        plt.subplots_adjust(top=0.85)
     return fig
 
 
@@ -288,6 +293,7 @@ def plot_multi_contour(
     listYAxisName=None,
     vminList=None,
     vmaxList=None,
+    suptitle=None
 ):
     """Plot multiple contours
 
@@ -311,7 +317,8 @@ def plot_multi_contour(
         list of individual min val of contour, by default None
     vmaxList : list, optional
         list of individual max val of contour, by default None
-
+    suptitle : str, optional
+        global title of the subplots
     """
     fig, axs = plt.subplots(1, len(listData), figsize=(len(listData) * 3, 4))
     if len(listData) == 1:
@@ -320,7 +327,8 @@ def plot_multi_contour(
                             _pick_first_or_none(listXAxisName),
                             _pick_first_or_none(listYAxisName),
                             _pick_first_or_none(vminList),
-                            _pick_first_or_none(vmaxList))
+                            _pick_first_or_none(vmaxList),
+                            suptitle)
     else:
         for i_dat, data in enumerate(listData):
             if vminList is None:
@@ -369,5 +377,8 @@ def plot_multi_contour(
                 lab.set_weight("bold")
                 lab.set_family("serif")
                 lab.set_fontsize(12)
+        if suptitle is not None:
+            plt.suptitle(suptitle, fontsize=12, fontweight='bold')
+            plt.subplots_adjust(top=0.85)
 
     return fig
