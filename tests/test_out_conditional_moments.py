@@ -974,6 +974,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    prettyLabels,
                                                     makeMovie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
@@ -982,6 +983,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
         mom_name = r'$\sigma$(HR|LR)'
         hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
         n_snap = 0
+        integratedSigma = []
         for p, batch in enumerate(batch_handler):
             out = np.clip(model.generate(batch.low_res,
                                          norm_in=False,
@@ -1004,6 +1006,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                                      * batch_handler.stds[0]**2)
                 sigma = np.sqrt(out[i, :, :, :, 0]
                                 * batch_handler.stds[0]**2)
+                integratedSigma.append(np.mean(sigma, axis=(0, 1)))
+
                 for j in range(batch.output.shape[3]):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
@@ -1029,6 +1033,23 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
         makeMovie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2.gif'),
                   fps=6)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_int_sig.png'))
+        plt.close(fig)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+                     color='k', linewidth=3)
+        ylabel = r'$\langle \sigma \rangle_{x,y}$'
+        ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
+        prettyLabels('t', ylabel, 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_int_sig_resc.png'))
+        plt.close(fig)
 
 
 def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
@@ -1076,6 +1097,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    prettyLabels,
                                                     makeMovie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
@@ -1084,6 +1106,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
         mom_name1 = r'|SF - $\mathbb{E}$(SF|LR)|'
         mom_name2 = r'$\sigma$(SF|LR)'
         n_snap = 0
+        integratedSigma = []
         for p, batch in enumerate(batch_handler):
             out = np.clip(model.generate(batch.low_res,
                                          norm_in=False,
@@ -1116,6 +1139,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                                      * batch_handler.stds[0]**2)
                 sigma = np.sqrt(out[i, :, :, :, 0]
                                 * batch_handler.stds[0]**2)
+                integratedSigma.append(np.mean(sigma, axis=(0, 1)))
                 for j in range(batch.output.shape[3]):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
@@ -1145,6 +1169,23 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
         makeMovie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sf.gif'),
                   fps=6)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_sf_int_sig.png'))
+        plt.close(fig)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+                     color='k', linewidth=3)
+        ylabel = r'$\langle \sigma \rangle_{x,y}$'
+        ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
+        prettyLabels('t', ylabel, 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_sf_int_sig_resc.png'))
+        plt.close(fig)
 
 
 def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
@@ -1191,6 +1232,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    prettyLabels,
                                                     makeMovie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
@@ -1199,6 +1241,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
         mom_name = r'$\sigma$(HR|LR)'
         hr_name = r'|HR - $\mathbb{E}$(HR|LR)|'
         n_snap = 0
+        integratedSigma = []
         for p, batch in enumerate(batch_handler):
             out = np.clip(model.generate(batch.low_res,
                                          norm_in=False,
@@ -1233,6 +1276,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                 sigma_pred = np.sqrt(np.clip(hr2_pred - hr_pred**2,
                                              a_min=0,
                                              a_max=None))
+                integratedSigma.append(np.mean(sigma_pred, axis=(0, 1)))
                 for j in range(batch.output.shape[3]):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
@@ -1258,6 +1302,23 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
         makeMovie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sep.gif'),
                   fps=6)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_int_sig.png'))
+        plt.close(fig)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+                     color='k', linewidth=3)
+        ylabel = r'$\langle \sigma \rangle_{x,y}$'
+        ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
+        prettyLabels('t', ylabel, 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_int_sig_resc.png'))
+        plt.close(fig)
 
 
 def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
@@ -1304,6 +1365,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
+                                                    prettyLabels,
                                                     makeMovie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
@@ -1312,6 +1374,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
         mom_name1 = r'|SF - $\mathbb{E}$(SF|LR)|'
         mom_name2 = r'$\sigma$(SF|LR)'
         n_snap = 0
+        integratedSigma = []
         for p, batch in enumerate(batch_handler):
             out = np.clip(model.generate(batch.low_res,
                                          norm_in=False,
@@ -1354,6 +1417,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                 sigma_pred = np.sqrt(np.clip(sf2_pred - sf_pred**2,
                                              a_min=0,
                                              a_max=None))
+                integratedSigma.append(np.mean(sigma_pred, axis=(0, 1)))
                 for j in range(batch.output.shape[3]):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
@@ -1383,6 +1447,24 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
         makeMovie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sep_sf.gif'),
                   fps=6)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i], color='k', linewidth=3)
+        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_sf_int_sig.png'))
+        plt.close(fig)
+
+        fig = plt.figure()
+        for i in range(len(integratedSigma)):
+            plt.plot(integratedSigma[i] / np.mean(integratedSigma[i]),
+                     color='k', linewidth=3)
+        ylabel = r'$\langle \sigma \rangle_{x,y}$'
+        ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
+        prettyLabels('t', ylabel, 14)
+        plt.savefig(os.path.join(figureFolder,
+                                 'st_mom2_sep_sf_int_sig_resc.png'))
+        plt.close(fig)
 
 
 if __name__ == "__main__":
