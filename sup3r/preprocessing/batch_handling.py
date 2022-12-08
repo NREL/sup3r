@@ -1464,6 +1464,12 @@ class SpatialBatchHandler(BatchHandler):
             raise StopIteration
 
 
+class ValidationDataMom1SF(ValidationData):
+    """Iterator for validation data for
+    first conditional moment of subfilter velocity"""
+    BATCH_CLASS = BatchMom1SF
+
+
 class ValidationDataMom2(ValidationData):
     """Iterator for subfilter validation data for
     second conditional moment"""
@@ -1475,6 +1481,33 @@ class ValidationDataMom2Sep(ValidationData):
     second conditional moment separate from first
     moment"""
     BATCH_CLASS = BatchMom2Sep
+
+
+class ValidationDataMom2SF(ValidationData):
+    """Iterator for validation data for
+    second conditional moment of subfilter velocity"""
+    BATCH_CLASS = BatchMom2SF
+
+
+class ValidationDataMom2SepSF(ValidationData):
+    """Iterator for validation data for
+    second conditional moment of subfilter velocity
+    separate from first moment"""
+    BATCH_CLASS = BatchMom2SepSF
+
+
+class BatchHandlerMom1SF(BatchHandler):
+    """Sup3r batch handling class for
+    first conditional moment of subfilter velocity"""
+    VAL_CLASS = ValidationDataMom1SF
+    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
+
+
+class SpatialBatchHandlerMom1SF(SpatialBatchHandler):
+    """Sup3r spatial batch handling class for
+    first conditional moment of subfilter velocity"""
+    VAL_CLASS = ValidationDataMom1SF
+    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
 class BatchHandlerMom2(BatchHandler):
@@ -1507,19 +1540,6 @@ class SpatialBatchHandlerMom2Sep(SpatialBatchHandler):
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
-class ValidationDataMom2SF(ValidationData):
-    """Iterator for validation data for
-    second conditional moment of subfilter velocity"""
-    BATCH_CLASS = BatchMom2SF
-
-
-class ValidationDataMom2SepSF(ValidationData):
-    """Iterator for validation data for
-    second conditional moment of subfilter velocity
-    separate from first moment"""
-    BATCH_CLASS = BatchMom2SepSF
-
-
 class BatchHandlerMom2SF(BatchHandler):
     """Sup3r batch handling class for
     second conditional moment of subfilter velocity"""
@@ -1547,26 +1567,6 @@ class SpatialBatchHandlerMom2SepSF(SpatialBatchHandler):
     second conditional moment of subfilter velocity
     separate from first moment"""
     VAL_CLASS = ValidationDataMom2SepSF
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class ValidationDataMom1SF(ValidationData):
-    """Iterator for validation data for
-    first conditional moment of subfilter velocity"""
-    BATCH_CLASS = BatchMom1SF
-
-
-class BatchHandlerMom1SF(BatchHandler):
-    """Sup3r batch handling class for
-    first conditional moment of subfilter velocity"""
-    VAL_CLASS = ValidationDataMom1SF
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class SpatialBatchHandlerMom1SF(SpatialBatchHandler):
-    """Sup3r spatial batch handling class for
-    first conditional moment of subfilter velocity"""
-    VAL_CLASS = ValidationDataMom1SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
