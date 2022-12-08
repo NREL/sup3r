@@ -705,7 +705,7 @@ def test_out_loss(plot=False, model_dirs=None,
         plt.plot(datas[0][:, epoch_id], datas[0][:, train_loss_id],
                  color='k', linewidth=3, label='train')
         plt.plot(datas[0][:, epoch_id], datas[0][:, test_loss_id],
-                 '--', color='k', linewidth=3, label='test')
+                 '--', color='k', linewidth=1, label='test')
         # model labels
         for idata, data in enumerate(datas):
             plt.plot(data[:, epoch_id], data[:, train_loss_id],
