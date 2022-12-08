@@ -490,7 +490,6 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
                 hr_to_mean = np.abs(hr - hr_pred)
                 hr2_pred = (out[i, :, :, 0] * batch_handler.stds[0]**2
                             + (2 * batch_handler.means[0]
-                               * batch_handler.stds[0]
                                * hr_pred)
                             - batch_handler.means[0]**2)
                 hr2_pred = np.clip(hr2_pred,
@@ -1226,7 +1225,6 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                 hr_to_mean = np.abs(hr - hr_pred)
                 hr2_pred = (out[i, :, :, :, 0] * batch_handler.stds[0]**2
                             + (2 * batch_handler.means[0]
-                               * batch_handler.stds[0]
                                * hr_pred)
                             - batch_handler.means[0]**2)
                 hr2_pred = np.clip(hr2_pred,
