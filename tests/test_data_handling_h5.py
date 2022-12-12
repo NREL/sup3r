@@ -325,7 +325,7 @@ def test_spatiotemporal_normalization():
 def test_data_extraction():
     """Test data extraction class"""
     handler = DataHandler(input_file, features, target=target, shape=shape,
-                          max_delta=20, max_workers=1)
+                          max_delta=20)
     assert handler.data.shape == (shape[0], shape[1], handler.data.shape[2],
                                   len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -396,15 +396,13 @@ def test_validation_batching():
 def test_temporal_coarsening(method, t_enhance):
     """Test temporal coarsening of batches"""
 
-    max_workers = 1
     data_handlers = []
     for input_file in input_files:
         data_handler = DataHandler(input_file, features, target,
                                    shape=shape, max_delta=max_delta,
                                    val_split=val_split,
                                    sample_shape=sample_shape,
-                                   temporal_slice=temporal_slice,
-                                   max_workers=max_workers)
+                                   temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
                                  n_batches=n_batches,
