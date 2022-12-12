@@ -109,11 +109,3 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False, out_dir_root=None,
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == x.shape[3] - 1
-
-
-if __name__ == "__main__":
-    custom_layer = 'Sup3rConcat'
-    # custom_layer = 'Sup3rAdder'
-    test_wind_non_cc_hi_res_topo(custom_layer, log=True,
-                                 n_epoch=1, n_batches=10, batch_size=8,
-                                 out_dir_root='top_mom1')
