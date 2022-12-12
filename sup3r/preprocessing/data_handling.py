@@ -2159,7 +2159,7 @@ class DataHandlerNC(DataHandler):
         max_lon = np.max(lat_lon[..., 1])
         logger.debug('Calculating raster index from WRF file '
                      f'for shape {grid_shape} and target {target}')
-        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon} , '
+        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon}, '
                      f'{max_lat}/{max_lon}')
         msg = (f'target {target} out of bounds with min lat/lon '
                f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
