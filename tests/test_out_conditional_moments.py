@@ -257,7 +257,7 @@ def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -348,7 +348,7 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -455,7 +455,7 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -559,7 +559,7 @@ def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
 
     # Load Mom2 Model
     if model_dir is None:
-        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+        fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -746,7 +746,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -846,7 +846,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -948,7 +948,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -965,7 +965,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -1071,7 +1071,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -1088,7 +1088,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple_mom2.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -1207,7 +1207,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -1223,7 +1223,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')
@@ -1340,7 +1340,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -1356,7 +1356,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
     if model_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple_mom2.json')
+                              'gen_3x_4x_2f.json')
         model = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_dir, 'model_params.json')

@@ -206,7 +206,7 @@ def test_train_spatial_mom2(FEATURES, TRAIN_FEATURES,
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
     Sup3rCondMom.seed()
-    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -265,7 +265,7 @@ def test_train_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
     Sup3rCondMom.seed()
-    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -318,7 +318,7 @@ def test_train_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
         init_logger('sup3r', log_level='DEBUG')
 
     Sup3rCondMom.seed()
-    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -370,7 +370,7 @@ def test_train_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
         init_logger('sup3r', log_level='DEBUG')
 
     Sup3rCondMom.seed()
-    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f_mom2.json')
+    fp_gen_mom2 = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -413,7 +413,7 @@ def test_train_st_mom1(FEATURES,
 
     fp_gen = os.path.join(CONFIG_DIR,
                           'spatiotemporal',
-                          'gen_3x_4x_2f_simple.json')
+                          'gen_3x_4x_2f.json')
 
     Sup3rCondMom.seed()
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
@@ -455,7 +455,7 @@ def test_train_st_mom1_sf(FEATURES,
 
     fp_gen = os.path.join(CONFIG_DIR,
                           'spatiotemporal',
-                          'gen_3x_4x_2f_simple.json')
+                          'gen_3x_4x_2f.json')
 
     Sup3rCondMom.seed()
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
@@ -500,7 +500,7 @@ def test_train_st_mom2(FEATURES,
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple_mom2.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -509,7 +509,7 @@ def test_train_st_mom2(FEATURES,
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR,
                                'spatiotemporal',
-                               'gen_3x_4x_2f_simple_mom2.json')
+                               'gen_3x_4x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -552,7 +552,7 @@ def test_train_st_mom2_sf(FEATURES,
     if model_mom1_dir is None:
         fp_gen = os.path.join(CONFIG_DIR,
                               'spatiotemporal',
-                              'gen_3x_4x_2f_simple_mom2.json')
+                              'gen_3x_4x_2f.json')
         model_mom1 = Sup3rCondMom(fp_gen)
     else:
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
@@ -561,7 +561,7 @@ def test_train_st_mom2_sf(FEATURES,
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR,
                                'spatiotemporal',
-                               'gen_3x_4x_2f_simple_mom2.json')
+                               'gen_3x_4x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -603,7 +603,7 @@ def test_train_st_mom2_sep(FEATURES,
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR,
                                'spatiotemporal',
-                               'gen_3x_4x_2f_simple_mom2.json')
+                               'gen_3x_4x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -645,7 +645,7 @@ def test_train_st_mom2_sep_sf(FEATURES,
     Sup3rCondMom.seed()
     fp_gen_mom2 = os.path.join(CONFIG_DIR,
                                'spatiotemporal',
-                               'gen_3x_4x_2f_simple_mom2.json')
+                               'gen_3x_4x_2f.json')
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
