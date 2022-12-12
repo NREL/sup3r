@@ -404,6 +404,7 @@ def test_temporal_coarsening(method, t_enhance):
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
+    max_workers = 1
     batch_handler = BatchHandler(data_handlers, batch_size=batch_size,
                                  n_batches=n_batches,
                                  s_enhance=s_enhance,
