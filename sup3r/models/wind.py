@@ -26,6 +26,39 @@ class WindGan(Sup3rGan, AbstractWindInterface):
           the forward pass.
     """
 
+    def init_weights(self, lr_shape, hr_shape, device=None):
+        """Initialize the generator and discriminator weights with device
+        placement.
+
+        Parameters
+        ----------
+        lr_shape : tuple
+            Shape of one batch of low res input data for sup3r resolution. Note
+            that the batch size (axis=0) must be included, but the actual batch
+            size doesnt really matter.
+        hr_shape : tuple
+            Shape of one batch of high res input data for sup3r resolution.
+            Note that the batch size (axis=0) must be included, but the actual
+            batch size doesnt really matter.
+        device : str | None
+            Option to place model weights on a device. If None,
+            self.default_device will be used.
+        """
+
+        if device is None:
+            device = self.default_device
+
+        logger.info('Initializing model weights on device "{}"'.format(device))
+        low_res = np.random.uniform(0, 1, lr_shape).astype(np.float32)
+        hi_res = np.random.uniform(0, 1, hr_shape).astype(np.float32)
+
+        hr_topo_shape = hr_shape[:-1] + (1,)
+        hr_topo = np.random.uniform(0, 1, hr_topo_shape).astype(np.float32)
+
+        with tf.device(device):
+            _ = self._tf_generate(low_res, hr_topo)
+            _ = self._tf_discriminate(hi_res)
+
     def set_model_params(self, **kwargs):
         """Set parameters used for training the model
 

@@ -33,6 +33,32 @@ class SolarCC(Sup3rGan):
     DAYLIGHT_HOURS = 8
     STRIDE_LEN = 4
 
+    def init_weights(self, lr_shape, hr_shape, device=None):
+        """Initialize the generator and discriminator weights with device
+        placement.
+
+        Parameters
+        ----------
+        lr_shape : tuple
+            Shape of one batch of low res input data for sup3r resolution. Note
+            that the batch size (axis=0) must be included, but the actual batch
+            size doesnt really matter.
+        hr_shape : tuple
+            Shape of one batch of high res input data for sup3r resolution.
+            Note that the batch size (axis=0) must be included, but the actual
+            batch size doesnt really matter.
+        device : str | None
+            Option to place model weights on a device. If None,
+            self.default_device will be used.
+        """
+
+        # The high resolution data passed to the discriminator should only have
+        # daylight hours in the temporal axis=3
+        if hr_shape[3] != self.DAYLIGHT_HOURS:
+            hr_shape = hr_shape[0:3] + (self.DAYLIGHT_HOURS,) + hr_shape[-1:]
+
+        super().init_weights(lr_shape, hr_shape, device=device)
+
     @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
                   train_gen=True, train_disc=False):
