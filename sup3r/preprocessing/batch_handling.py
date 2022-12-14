@@ -84,7 +84,12 @@ class Batch:
 
     @property
     def output(self):
-        """Get the output for the batch."""
+        """Get the output for the batch.
+           Output predicted by the neural net can be different
+           than the high_res when doing moment estimation.
+           For ex: output may be (high_res)**2
+           We distinguish output from high_res since it may not be 
+           possible to recover high_res from output."""
         return self._output
 
     @property
