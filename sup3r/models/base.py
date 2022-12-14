@@ -415,6 +415,39 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         """
         return self.generator_weights + self.discriminator_weights
 
+    def init_weights(self, lr_shape, hr_shape, device=None):
+        """Initialize the generator and discriminator weights with device
+        placement.
+
+        Parameters
+        ----------
+        lr_shape : tuple
+            Shape of one batch of low res input data for sup3r resolution. Note
+            that the batch size (axis=0) must be included, but the actual batch
+            size doesnt really matter.
+        hr_shape : tuple
+            Shape of one batch of high res input data for sup3r resolution.
+            Note that the batch size (axis=0) must be included, but the actual
+            batch size doesnt really matter.
+        device : str | None
+            Option to place model weights on a device. If None and a single GPU
+            exists, weights will be placed on that GPU. If None and multiple
+            GPUs exist, weights will be placed on the CPU (this was tested as
+            most efficient given the custom multi-gpu strategy developed in
+            self.run_gradient_descent())
+        """
+
+        if device is None and len(self.gpu_list) == 1:
+            device = '/gpu:0'
+        elif device is None and len(self.gpu_list) > 1:
+            device = '/cpu:0'
+
+        low_res = np.random.uniform(0, 1, lr_shape).astype(np.float32)
+        hi_res = np.random.uniform(0, 1, hr_shape).astype(np.float32)
+        with tf.device(device):
+            _ = self._tf_generate(low_res)
+            _ = self._tf_discriminate(hi_res)
+
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
                                    update_bounds=(0.5, 0.95),
