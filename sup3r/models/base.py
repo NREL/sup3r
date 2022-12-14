@@ -25,7 +25,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
-                 history=None, meta=None, means=None, stdevs=None, name=None):
+                 history=None, meta=None, means=None, stdevs=None,
+                 default_device=None, name=None):
         """
         Parameters
         ----------
@@ -71,6 +72,12 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Set of stdev values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
             normalization scheme between transfer learning domains.
+        default_device : str | None
+            Option for default device placement of model weights. If None and a
+            single GPU exists, that GPU will be the default device. If None and
+            multiple GPUs exist, the CPU will be the default device (this was
+            tested as most efficient given the custom multi-gpu strategy
+            developed in self.run_gradient_descent())
         name : str | None
             Optional name for the GAN.
         """
@@ -101,6 +108,12 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
                         else np.array(stdevs).astype(np.float32))
 
         self.gpu_list = tf.config.list_physical_devices('GPU')
+
+        self.default_device = default_device
+        if self.default_device is None and len(self.gpu_list) == 1:
+            self.default_device = '/gpu:0'
+        elif self.default_device is None and len(self.gpu_list) > 1:
+            self.default_device = '/cpu:0'
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -430,17 +443,12 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Note that the batch size (axis=0) must be included, but the actual
             batch size doesnt really matter.
         device : str | None
-            Option to place model weights on a device. If None and a single GPU
-            exists, weights will be placed on that GPU. If None and multiple
-            GPUs exist, weights will be placed on the CPU (this was tested as
-            most efficient given the custom multi-gpu strategy developed in
-            self.run_gradient_descent())
+            Option to place model weights on a device. If None,
+            self.default_device will be used.
         """
 
-        if device is None and len(self.gpu_list) == 1:
-            device = '/gpu:0'
-        elif device is None and len(self.gpu_list) > 1:
-            device = '/cpu:0'
+        if device is None:
+            device = self.default_device
 
         low_res = np.random.uniform(0, 1, lr_shape).astype(np.float32)
         hi_res = np.random.uniform(0, 1, hr_shape).astype(np.float32)

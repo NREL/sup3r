@@ -232,7 +232,8 @@ class AbstractSingleModel(ABC):
                 raise KeyError(msg)
 
         elif isinstance(model, str) and model.endswith('.pkl'):
-            model = CustomNetwork.load(model)
+            with tf.device(self.default_device):
+                model = CustomNetwork.load(model)
 
         if isinstance(model, list):
             model = CustomNetwork(hidden_layers=model, name=name)
