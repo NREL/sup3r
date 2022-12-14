@@ -49,7 +49,7 @@ def test_train_spatial_mom1(FEATURES, TRAIN_FEATURES,
                             s_padding, t_padding,
                             log=False, full_shape=(20, 20),
                             sample_shape=(10, 10, 1), n_epoch=2,
-                            batch_size=8, n_batches=5,
+                            batch_size=4, n_batches=2,
                             out_dir_root=None):
     """Test basic spatial model training."""
     if log:
@@ -137,7 +137,7 @@ def test_train_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
                                s_padding, t_padding,
                                log=False, full_shape=(20, 20),
                                sample_shape=(10, 10, 1), n_epoch=2,
-                               batch_size=8, n_batches=5,
+                               batch_size=4, n_batches=2,
                                out_dir_root=None):
     """Test basic spatial model training."""
     if log:
@@ -190,7 +190,7 @@ def test_train_spatial_mom2(FEATURES, TRAIN_FEATURES,
                             s_padding, t_padding,
                             log=False, full_shape=(20, 20),
                             sample_shape=(10, 10, 1), n_epoch=2,
-                            batch_size=8, n_batches=5,
+                            batch_size=4, n_batches=2,
                             out_dir_root=None,
                             model_mom1_dir=None):
     """Test basic spatial model training for second conditional moment"""
@@ -249,7 +249,7 @@ def test_train_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
                                s_padding, t_padding,
                                log=False, full_shape=(20, 20),
                                sample_shape=(10, 10, 1), n_epoch=2,
-                               batch_size=8, n_batches=5,
+                               batch_size=4, n_batches=2,
                                out_dir_root=None,
                                model_mom1_dir=None):
     """Test basic spatial model training for second conditional moment"""
@@ -310,7 +310,7 @@ def test_train_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
                                 s_padding, t_padding,
                                 log=False, full_shape=(20, 20),
                                 sample_shape=(10, 10, 1), n_epoch=2,
-                                batch_size=8, n_batches=5,
+                                batch_size=4, n_batches=2,
                                 out_dir_root=None):
     """Test basic spatial model training for second conditional moment
     separate from first moment"""
@@ -362,7 +362,7 @@ def test_train_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                                    s_padding, t_padding,
                                    log=False, full_shape=(20, 20),
                                    sample_shape=(10, 10, 1), n_epoch=2,
-                                   batch_size=8, n_batches=5,
+                                   batch_size=4, n_batches=2,
                                    out_dir_root=None):
     """Test basic spatial model training for second conditional moment
     of subfilter velocity separate from first moment"""
@@ -403,8 +403,8 @@ def test_train_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom1(FEATURES,
                        log=False, full_shape=(20, 20),
-                       sample_shape=(12, 12, 24), n_epoch=4,
-                       batch_size=4, n_batches=4,
+                       sample_shape=(12, 12, 24), n_epoch=2,
+                       batch_size=2, n_batches=2,
                        out_dir_root=None):
     """Test basic spatiotemporal model training
     for first conditional moment."""
@@ -445,8 +445,8 @@ def test_train_st_mom1(FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom1_sf(FEATURES,
                           log=False, full_shape=(20, 20),
-                          sample_shape=(12, 12, 24), n_epoch=4,
-                          batch_size=4, n_batches=4,
+                          sample_shape=(12, 12, 24), n_epoch=2,
+                          batch_size=2, n_batches=2,
                           out_dir_root=None):
     """Test basic spatiotemporal model training for first conditional moment
     of the subfilter velocity."""
@@ -487,8 +487,8 @@ def test_train_st_mom1_sf(FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2(FEATURES,
                        log=False, full_shape=(20, 20),
-                       sample_shape=(12, 12, 24), n_epoch=4,
-                       batch_size=4, n_batches=4,
+                       sample_shape=(12, 12, 24), n_epoch=2,
+                       batch_size=2, n_batches=2,
                        out_dir_root=None,
                        model_mom1_dir=None):
     """Test basic spatiotemporal model training
@@ -539,8 +539,8 @@ def test_train_st_mom2(FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sf(FEATURES,
                           log=False, full_shape=(20, 20),
-                          sample_shape=(12, 12, 24), n_epoch=4,
-                          batch_size=4, n_batches=4,
+                          sample_shape=(12, 12, 24), n_epoch=2,
+                          batch_size=2, n_batches=2,
                           out_dir_root=None,
                           model_mom1_dir=None):
     """Test basic spatial model training for second conditional moment
@@ -591,8 +591,8 @@ def test_train_st_mom2_sf(FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sep(FEATURES,
                            log=False, full_shape=(20, 20),
-                           sample_shape=(12, 12, 24), n_epoch=4,
-                           batch_size=4, n_batches=4,
+                           sample_shape=(12, 12, 24), n_epoch=2,
+                           batch_size=2, n_batches=2,
                            out_dir_root=None):
     """Test basic spatiotemporal model training
     for second conditional moment separate from
@@ -634,8 +634,8 @@ def test_train_st_mom2_sep(FEATURES,
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sep_sf(FEATURES,
                               log=False, full_shape=(20, 20),
-                              sample_shape=(12, 12, 24), n_epoch=4,
-                              batch_size=4, n_batches=4,
+                              sample_shape=(12, 12, 24), n_epoch=2,
+                              batch_size=2, n_batches=2,
                               out_dir_root=None):
     """Test basic spatial model training for second conditional moment
     of subfilter velocity separate from first moment"""
