@@ -39,6 +39,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         learning_rate : float, optional
             Optimizer learning rate. Not used if optimizer input arg is a
             pre-initialized object or if optimizer input arg is a config dict.
+        num_par : int | None
+            Number of trainable parameters in the model
         history : pd.DataFrame | str | None
             Model training history with "epoch" index, str pointing to a saved
             history csv file with "epoch" as first column, or None for clean
