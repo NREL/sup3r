@@ -88,7 +88,7 @@ class Batch:
            Output predicted by the neural net can be different
            than the high_res when doing moment estimation.
            For ex: output may be (high_res)**2
-           We distinguish output from high_res since it may not be 
+           We distinguish output from high_res since it may not be
            possible to recover high_res from output."""
         return self._output
 
@@ -149,7 +149,22 @@ class Batch:
     # pylint: disable=E1130
     @staticmethod
     def make_mask(high_res, s_padding=None, t_padding=None):
-        """Make mask for output
+        """Make mask for output.
+        The mask is used to ensure consistency when training conditional
+        moments.
+        Consider the case of learning E(HR|LR) where HR is the high_res and
+        LR is the low_res.
+        In theory, the conditional moment estimation works if
+        the full LR is passed as input and predicts the full HR.
+        In practice, only the LR data that overlaps and surrounds the HR data
+        is useful, ie E(HR|LR) = E(HR|LR_nei) where LR_nei is the LR data
+        that surrounds the HR data. Physically, this is equivalent to saying
+        that data far away from a region of interest does not matter.
+        This allows learning the conditional moments on spatial and
+        temporal chunks only if one restricts the high_res output as being
+        overlapped and surrounded by the input low_res.
+        The role of the mask is to ensure that the input low_res always
+        surrounds the output high_res.
 
         Parameters
         ----------
