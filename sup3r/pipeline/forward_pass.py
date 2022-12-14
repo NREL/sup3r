@@ -688,6 +688,7 @@ class ForwardPassStrategy(InputMixIn):
         self._input_handler_kwargs = input_handler_kwargs or {}
         self._time_index = None
         self._raw_time_index = None
+        self._raw_lat_lon = None
         self._raw_tsteps = None
         self._out_files = None
         self._file_ids = None

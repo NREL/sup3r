@@ -93,6 +93,7 @@ class InputMixIn:
         self._cache_pattern = None
         self._target = None
         self._grid_shape = None
+        self._raw_lat_lon = None
         self._single_ts_files = None
         self._worker_attrs = ['ti_workers']
         self.res_kwargs = {}
@@ -286,7 +287,10 @@ class InputMixIn:
                  or not os.path.exists(self.raster_file))
         check = check and (self._target is None or self._grid_shape is None)
         if check:
-            new_target, new_shape = self.get_full_domain(self.file_paths[0:1])
+            out = self.get_full_domain(self.file_paths[0:1])
+            new_target, new_shape, raw_lat_lon = out
+            if self._target is None and self._grid_shape is None:
+                self._raw_lat_lon = self._raw_lat_lon or raw_lat_lon
             self._target = self._target or new_target
             self._grid_shape = self._grid_shape or new_shape
             logger.info('Target + shape not specified. Getting full domain '
@@ -639,6 +643,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         self._time_index = None
         self._time_index_file = None
         self._lat_lon = None
+        self._raw_lat_lon = None
         self._raster_index = raster_index
         self._handle_features = handle_features
         self._extract_features = None
@@ -758,9 +763,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         to enforce a descending latitude ordering so that the lower left corner
         of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
         if self._invert_lat is None:
-            lat_lon = self.get_lat_lon(self.file_paths[:1],
-                                       self.raster_index,
-                                       invert_lat=False)
+            lat_lon = self.raw_lat_lon
             self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
         return self._invert_lat
 
@@ -875,18 +878,34 @@ class DataHandler(FeatureHandler, InputMixIn):
         return self._cache_files
 
     @property
+    def raw_lat_lon(self):
+        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension, without any lat inversion
+
+        Returns
+        -------
+        ndarray
+        """
+        if self._raw_lat_lon is None:
+            self._raw_lat_lon = self.get_lat_lon(self.file_paths,
+                                                 self.raster_index,
+                                                 invert_lat=False)
+        return self._raw_lat_lon
+
+    @property
     def lat_lon(self):
         """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
-        array with same ordering in last dimension
+        array with same ordering in last dimension. This ensures that the
+        lower left hand corner of the domain is given by lat_lon[-1, 0]
 
         Returns
         -------
         ndarray
         """
         if self._lat_lon is None:
-            self._lat_lon = self.get_lat_lon(self.file_paths,
-                                             self.raster_index,
-                                             invert_lat=self.invert_lat)
+            self._lat_lon = self.raw_lat_lon
+            if self.invert_lat:
+                self._lat_lon = self._lat_lon[::-1]
         return self._lat_lon
 
     @lat_lon.setter
@@ -2093,15 +2112,16 @@ class DataHandlerNC(DataHandler):
             (lat, lon) for lower left corner
         shape : tuple
             (n_rows, n_cols) grid size
+        lat_lon : ndarray
+            Raw lat/lon array for entire domain
         """
-        lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)],
-                                  slice(None))
+        lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)])
         if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
             target = tuple(lat_lon[0, 0, :])
         else:
             target = tuple(lat_lon[-1, 0, :])
         shape = lat_lon.shape[:-1]
-        return target, shape
+        return target, shape, lat_lon
 
     @staticmethod
     def get_closest_lat_lon(lat_lon, target):
