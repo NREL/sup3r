@@ -423,12 +423,9 @@ class BatchMom2SepSF(Batch):
             output, without any feature indices used only for training.
         """
         # Remove LR from HR and square it
-        enhanced_lr = spatial_simple_enhancing(low_res,
-                                               s_enhance=s_enhance)
-        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
-                                                t_enhance=t_enhance)
-        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
-        return (high_res - enhanced_lr)**2
+        return BatchMom1SF.make_output(low_res, high_res,
+                                       s_enhance, t_enhance,
+                                       model_mom1, output_features_ind)**2
 
 
 class BatchMom1SF(Batch):
