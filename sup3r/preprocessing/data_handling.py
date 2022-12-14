@@ -492,7 +492,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             of netcdf files with identical grid. The string can be a unix-style
             file path which will be passed through glob.glob
         features : list
-            list of features to extract
+            list of features to extract from the provided data
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -584,6 +584,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             parallel and then concatenated to get the full time index. If input
             files do not all have time indices or if there are few input files
             this should be set to one.
+        handle_features : list | None
+            Optional list of features which are available in the provided data.
+            Providing this eliminates the need for an initial search of
+            available features prior to data extraction.
         single_ts_files : bool | None
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
