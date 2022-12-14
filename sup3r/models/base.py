@@ -455,6 +455,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         else:
             return 1
 
+    @tf.function()
     def get_single_grad(self, low_res, hi_res_true, training_weights,
                         device_name=None, **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
@@ -474,7 +475,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
         device_name : None | str
-            Optional tensorflow device name for GPU placement
+            Optional tensorflow device name for GPU placement. Note that if a
+            GPU is available, variables will be placed on that GPU even if
+            device_name=None.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -540,7 +543,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         if optimizer is None:
             optimizer = self.optimizer
 
-        if not multi_gpu or not any(self.gpu_list):
+        if not multi_gpu or len(self.gpu_list) == 1:
             grad, loss_details = self.get_single_grad(low_res, hi_res_true,
                                                       training_weights,
                                                       **calc_loss_kwargs)
@@ -684,6 +687,15 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+
+        if hi_res_gen.shape != hi_res_true.shape:
+            msg = ('The tensor shapes of the synthetic output {} and '
+                   'true high res {} did not have matching shape! '
+                   'Check the spatiotemporal enhancement multipliers in your '
+                   'your model config and data handlers.'
+                   .format(hi_res_gen.shape, hi_res_true.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
