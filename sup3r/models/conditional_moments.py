@@ -614,11 +614,6 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         loss = self.calc_loss_cond_mom(output_true, output_gen, mask)
 
-        # print("min max out = %g / %g " %
-        #       (np.amin(output_gen), np.amax(output_gen)))
-        # print("min max true = %g / %g " %
-        #       (np.amin(output_true), np.amax(output_true)))
-
         loss_details = {'loss_gen': loss}
 
         return loss, loss_details
