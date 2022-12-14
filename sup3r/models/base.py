@@ -488,9 +488,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Namespace of the breakdown of loss components
         """
 
-        logger.debug('Starting gradient descent on "{}" with {} observations'
-                     .format(device_name, len(low_res)))
-
         with tf.device(device_name):
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(training_weights)
@@ -505,7 +502,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         return grad, loss_details
 
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             optimizer=None, **calc_loss_kwargs):
+                             optimizer=None, multi_gpu=False,
+                             **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and update weights
 
@@ -526,6 +524,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Optimizer class to use to update weights. This can be different if
             you're training just the generator or one of the discriminator
             models. Defaults to the generator optimizer.
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -535,20 +536,21 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Namespace of the breakdown of loss components
         """
 
+        t0 = time.time()
         if optimizer is None:
             optimizer = self.optimizer
 
-        if not any(self.gpu_list):
+        if not multi_gpu or not any(self.gpu_list):
             grad, loss_details = self.get_single_grad(low_res, hi_res_true,
                                                       training_weights,
                                                       **calc_loss_kwargs)
-            gradients = zip(grad, training_weights)
+            optimizer.apply_gradients(zip(grad, training_weights))
+            t1 = time.time()
+            logger.debug(f'Finished single gradient descent steps on '
+                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
 
         else:
             futures = []
-            logger.debug('Starting gradient descent on {} GPUs.'
-                         .format(len(self.gpu_list)))
-
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
 
@@ -560,14 +562,13 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
                                               training_weights,
                                               device_name=f'/gpu:{i}',
                                               **calc_loss_kwargs))
-            gradients = []
-            for future in futures:
+            for i, future in enumerate(futures):
                 grad, loss_details = future.result()
-                gradients.append(zip(grad, training_weights))
-#            gradients = optimizer.aggregate_gradients(gradients)
-            gradients = zip(grad, training_weights)
+                optimizer.apply_gradients(zip(grad, training_weights))
 
-        optimizer.apply_gradients(gradients)
+            t1 = time.time()
+            logger.debug(f'Finished {len(futures)} gradient descent steps on '
+                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
 
         return loss_details
 
@@ -683,15 +684,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        if hi_res_gen.shape != hi_res_true.shape:
-            msg = ('The tensor shapes of the synthetic output {} and '
-                   'true high res {} did not have matching shape! '
-                   'Check the spatiotemporal enhancement multipliers in your '
-                   'your model config and data handlers.'
-                   .format(hi_res_gen.shape, hi_res_true.shape))
-            logger.error(msg)
-            raise RuntimeError(msg)
 
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
