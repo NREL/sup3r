@@ -12,7 +12,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def prettyLabels(xlabel, ylabel, fontsize=14, title=None):
+def pretty_labels(xlabel, ylabel, fontsize=14, title=None):
     """Make pretty labels for plots
 
     Parameters
@@ -62,7 +62,7 @@ def prettyLabels(xlabel, ylabel, fontsize=14, title=None):
     plt.tight_layout()
 
 
-def axprettyLabels(ax, xlabel, ylabel, fontsize=14, title=None):
+def ax_pretty_labels(ax, xlabel, ylabel, fontsize=14, title=None):
     """Make pretty labels for ax plots
 
     Parameters
@@ -113,7 +113,7 @@ def axprettyLabels(ax, xlabel, ylabel, fontsize=14, title=None):
     plt.tight_layout()
 
 
-def plotLegend(fontsize=16):
+def plot_legend(fontsize=16):
     """Make pretty legend
 
     Parameters
@@ -134,7 +134,7 @@ def plotLegend(fontsize=16):
     leg.get_frame().set_edgecolor("k")
 
 
-def axplotLegend(ax, fontsize=16):
+def ax_plot_legend(ax, fontsize=16):
     """Make pretty legend for ax plots,
 
     Parameters
@@ -157,7 +157,7 @@ def axplotLegend(ax, fontsize=16):
     leg.get_frame().set_edgecolor("k")
 
 
-def makeMovie(ntime, movieDir, movieName, fps=24):
+def make_movie(ntime, movieDir, movieName, fps=24):
     """Make movie from png
 
     Parameters
@@ -244,7 +244,7 @@ def plot_single_contour(
         family="times new roman", weight="bold", size=14
     )
     text.set_font_properties(font)
-    axprettyLabels(
+    ax_pretty_Labels(
         axs,
         xAxisName,
         yAxisName,
@@ -295,7 +295,7 @@ def plot_multi_contour(
     vmaxList=None,
     suptitle=None
 ):
-    """Plot multiple contours
+    """Plot multiple contours as subplots
 
     Parameters
     ----------
@@ -361,7 +361,7 @@ def plot_multi_contour(
             text.set_font_properties(font)
             if i_dat > 0:
                 listYAxisName[i_dat] = ""
-            axprettyLabels(
+            ax_pretty_labels(
                 axs[i_dat],
                 listXAxisName[i_dat],
                 listYAxisName[i_dat],

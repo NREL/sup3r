@@ -86,7 +86,7 @@ def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -122,7 +122,7 @@ def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder, os.path.join(figureFolder, 'mom1.gif'),
+        make_movie(n_snap, movieFolder, os.path.join(figureFolder, 'mom1.gif'),
                   fps=6)
 
 
@@ -161,7 +161,7 @@ def test_out_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -216,7 +216,7 @@ def test_out_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'mom1_sf.gif'),
                   fps=6)
 
@@ -266,7 +266,7 @@ def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -308,7 +308,7 @@ def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder, os.path.join(figureFolder, 'mom2.gif'),
+        make_movie(n_snap, movieFolder, os.path.join(figureFolder, 'mom2.gif'),
                   fps=6)
 
 
@@ -357,7 +357,7 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -413,7 +413,7 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'mom2_sf.gif'),
                   fps=6)
 
@@ -464,7 +464,7 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -518,7 +518,7 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder, os.path.join(figureFolder,
+        make_movie(n_snap, movieFolder, os.path.join(figureFolder,
                                                     'mom2_sep.gif'),
                   fps=6)
 
@@ -568,7 +568,7 @@ def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -631,7 +631,7 @@ def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                 n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'mom2_sep_sf.gif'),
                   fps=6)
 
@@ -673,8 +673,8 @@ def test_out_loss(plot=False, model_dirs=None,
     if plot:
         import matplotlib.pyplot as plt
         import matplotlib.pylab as pl
-        from sup3r.utilities.plot_utilities import (prettyLabels,
-                                                    plotLegend)
+        from sup3r.utilities.plot_utilities import (pretty_labels,
+                                                    plot_legend)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         if figureDir is None:
@@ -696,7 +696,7 @@ def test_out_loss(plot=False, model_dirs=None,
                      prepend=0),
                      color=colors[idata], linewidth=3,
                      label=model_names[idata])
-        prettyLabels('Epoch', 'Wall clock [s]', 14)
+        pretty_labels('Epoch', 'Wall clock [s]', 14)
         plt.savefig(os.path.join(figureLossFolder, 'timing.png'))
         plt.close()
 
@@ -713,8 +713,8 @@ def test_out_loss(plot=False, model_dirs=None,
                      label=model_names[idata])
             plt.plot(data[:, epoch_id], data[:, test_loss_id],
                      '--', color=colors[idata], linewidth=3)
-        prettyLabels('Epoch', 'Loss', 14)
-        plotLegend()
+        pretty_labels('Epoch', 'Loss', 14)
+        plot_legend()
         plt.savefig(os.path.join(figureLossFolder, 'loss_lin.png'))
         ax = plt.gca()
         ax.set_yscale('log')
@@ -776,7 +776,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -817,7 +817,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom1.gif'),
                   fps=6)
 
@@ -855,7 +855,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    makeMovie)
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -924,7 +924,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom1_sf.gif'),
                   fps=6)
 
@@ -974,8 +974,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    prettyLabels,
-                                                    makeMovie)
+                                                    pretty_labels,
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1030,14 +1030,14 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2.gif'),
                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
             plt.plot(sigma_xy, color='k', linewidth=3)
-        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        pretty_labels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_int_sig.png'))
         plt.close(fig)
 
@@ -1047,7 +1047,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
-        prettyLabels('t', ylabel, 14)
+        pretty_labels('t', ylabel, 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_int_sig_resc.png'))
         plt.close(fig)
 
@@ -1097,8 +1097,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    prettyLabels,
-                                                    makeMovie)
+                                                    pretty_labels,
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1166,14 +1166,14 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sf.gif'),
                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
             plt.plot(sigma_xy, color='k', linewidth=3)
-        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        pretty_labels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sf_int_sig.png'))
         plt.close(fig)
 
@@ -1183,7 +1183,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
-        prettyLabels('t', ylabel, 14)
+        pretty_labels('t', ylabel, 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sf_int_sig_resc.png'))
         plt.close(fig)
 
@@ -1232,8 +1232,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    prettyLabels,
-                                                    makeMovie)
+                                                    pretty_labels,
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1299,14 +1299,14 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sep.gif'),
                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
             plt.plot(sigma_xy, color='k', linewidth=3)
-        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        pretty_labels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_int_sig.png'))
         plt.close(fig)
 
@@ -1316,7 +1316,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
-        prettyLabels('t', ylabel, 14)
+        pretty_labels('t', ylabel, 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_int_sig_resc.png'))
         plt.close(fig)
 
@@ -1365,8 +1365,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
     if plot:
         import matplotlib.pyplot as plt
         from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    prettyLabels,
-                                                    makeMovie)
+                                                    pretty_labels,
+                                                    make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1444,14 +1444,14 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                     n_snap += 1
             if p > 4:
                 break
-        makeMovie(n_snap, movieFolder,
+        make_movie(n_snap, movieFolder,
                   os.path.join(figureFolder, 'st_mom2_sep_sf.gif'),
                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
             plt.plot(sigma_xy, color='k', linewidth=3)
-        prettyLabels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
+        pretty_labels('t', r'$\langle \sigma \rangle_{x,y}$ [m/s]', 14)
         plt.savefig(os.path.join(figureFolder, 'st_mom2_sep_sf_int_sig.png'))
         plt.close(fig)
 
@@ -1461,7 +1461,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                      color='k', linewidth=3)
         ylabel = r'$\langle \sigma \rangle_{x,y}$'
         ylabel += r'$\langle \sigma \rangle_{x,y,t}$'
-        prettyLabels('t', ylabel, 14)
+        pretty_labels('t', ylabel, 14)
         plt.savefig(os.path.join(figureFolder,
                                  'st_mom2_sep_sf_int_sig_resc.png'))
         plt.close(fig)
