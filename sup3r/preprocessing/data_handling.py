@@ -1189,9 +1189,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
-        for i in range(self.shape[-1]):
-            self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
-            self.data[..., i] = self.data[..., i] * stds[i] + means[i]
+        self.val_data = (self.val_data * stds) + means
+        self.data = (self.data * stds) + means
 
     def normalize(self, means, stds):
         """Normalize all data features

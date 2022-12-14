@@ -286,9 +286,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         if norm_in and self._means is not None:
             hi_res = hi_res if isinstance(hi_res, tf.Tensor) else hi_res.copy()
-            for i, (m, s) in enumerate(zip(self._means, self._stdevs)):
-                islice = tuple([slice(None)] * (len(hi_res.shape) - 1) + [i])
-                hi_res[islice] = (hi_res[islice] - m) / s
+            hi_res = (hi_res - self._means) / self._stdevs
 
         out = self.discriminator.layers[0](hi_res)
         for i, layer in enumerate(self.discriminator.layers[1:]):
