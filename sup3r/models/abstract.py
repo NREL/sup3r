@@ -7,6 +7,7 @@ import time
 import json
 from abc import ABC, abstractmethod
 from phygnn import CustomNetwork
+from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from sup3r.utilities import VERSION_RECORD
 import sup3r.utilities.loss_metrics
 import tensorflow as tf
@@ -187,21 +188,12 @@ class AbstractInterface(ABC):
             json.dump(params, f, sort_keys=True, indent=2)
 
 
+# pylint: disable=E1101,W0201,E0203
 class AbstractSingleModel(ABC):
     """
     Abstract class to define the required training interface
     for Sup3r model subclasses
     """
-
-    def __init__(self):
-        self._meta = None
-        self.training_features = None
-        self.output_features = None
-        self._optimizer = None
-        self._history = None
-        self._gen = None
-        self._means = None
-        self._stdevs = None
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
@@ -752,3 +744,203 @@ class AbstractSingleModel(ABC):
                 self._history.at[epoch, k] = v
 
         return stop
+
+
+# pylint: disable=E1101,W0201,E0203
+class AbstractWindInterface(ABC):
+    """
+    Abstract class to define the required training interface
+    for Sup3r wind model subclasses
+    """
+    # pylint: disable=E0211
+    def set_model_params_wind(**kwargs):
+        """Set parameters used for training the model
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments including 'training_features', 'output_features',
+            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+        """
+        output_features = kwargs['output_features']
+        msg = ('Last output feature from the data handler must be topography '
+               'to train the WindCC model, but received output features: {}'
+               .format(output_features))
+        assert output_features[-1] == 'topography', msg
+        output_features.remove('topography')
+        kwargs['output_features'] = output_features
+
+    def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
+        """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
+        and normalize (if requested).
+
+        Parameters
+        ----------
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        hi_res_topo : np.ndarray
+            This should be a 4D array for spatial enhancement model or 5D array
+            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
+            (temporal), features) corresponding to the high-resolution
+            spatial_1 and spatial_2. This data will be input to the custom
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input. For this function,
+            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
+            that this input gets normalized if norm_in=True.
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1. This also normalizes
+            hi_res_topo.
+
+        Returns
+        -------
+        hi_res_topo : np.ndarray
+            Same as input but reshaped to match hi_res (if necessary) and
+            normalized (if requested)
+        """
+        if hi_res_topo is None:
+            return hi_res_topo
+
+        if norm_in and self._means is not None:
+            idf = self.training_features.index('topography')
+            hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
+                           / self._stdevs[idf])
+
+        if len(hi_res_topo.shape) > 2:
+            slicer = [0] * len(hi_res_topo.shape)
+            slicer[1] = slice(None)
+            slicer[2] = slice(None)
+            hi_res_topo = hi_res_topo[tuple(slicer)]
+
+        if len(hi_res.shape) == 4:
+            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
+        elif len(hi_res.shape) == 5:
+            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
+
+        if len(hi_res_topo.shape) != len(hi_res.shape):
+            msg = ('hi_res and hi_res_topo arrays are not of the same rank: '
+                   '{} and {}'.format(hi_res.shape, hi_res_topo.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return hi_res_topo
+
+    def generate_wind(self, low_res, norm_in=True, un_norm_out=True,
+                      exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1. This also normalizes
+            hi_res_topo.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+        exogenous_data : ndarray | list | None
+            Exogenous data for topography inputs. The first entry in this list
+            (or only entry) is a low-resolution topography array that can be
+            concatenated to the low_res input array. The second entry is
+            high-resolution topography (either 2D or 4D/5D depending on if
+            spatial or spatiotemporal super res).
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        low_res_topo = None
+        hi_res_topo = None
+        if isinstance(exogenous_data, np.ndarray):
+            low_res_topo = exogenous_data
+        elif isinstance(exogenous_data, (list, tuple)):
+            low_res_topo = exogenous_data[0]
+            if len(exogenous_data) > 1:
+                hi_res_topo = exogenous_data[1]
+
+        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
+        low_res = (low_res if exo_check
+                   else np.concatenate((low_res, low_res_topo), axis=-1))
+
+        if norm_in and self._means is not None:
+            low_res = self.norm_input(low_res)
+
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                        and hi_res_topo is not None):
+                    hi_res_topo = self._reshape_norm_topo(hi_res, hi_res_topo,
+                                                          norm_in=norm_in)
+                    hi_res = layer(hi_res, hi_res_topo)
+                else:
+                    hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        hi_res = hi_res.numpy()
+
+        if un_norm_out and self._means is not None:
+            hi_res = self.un_norm_output(hi_res)
+
+        return hi_res
+
+    @tf.function
+    def _tf_generate_wind(self, low_res, hi_res_topo):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data. The generator should always
+            received normalized data with mean=0 stdev=1.
+        hi_res_topo : np.ndarray
+            This should be a 4D array for spatial enhancement model or 5D array
+            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
+            (temporal), features) corresponding to the high-resolution
+            spatial_1 and spatial_2. This data will be input to the custom
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input.
+
+        Returns
+        -------
+        hi_res : tf.Tensor
+            Synthetically generated high-resolution data
+        """
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                        and hi_res_topo is not None):
+                    hi_res = layer(hi_res, hi_res_topo)
+                else:
+                    hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        return hi_res
