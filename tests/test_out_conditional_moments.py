@@ -37,11 +37,11 @@ TRAIN_FEATURES = None
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
-                          plot=False, full_shape=(20, 20),
-                          sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=4,
-                          s_enhance=2, model_dir=None):
+def test_out_s_mom1(FEATURES, TRAIN_FEATURES,
+                    plot=False, full_shape=(20, 20),
+                    sample_shape=(10, 10, 1),
+                    batch_size=4, n_batches=4,
+                    s_enhance=2, model_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             train_only_features=TRAIN_FEATURES,
@@ -132,11 +132,11 @@ def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
-                             plot=False, full_shape=(20, 20),
-                             sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=4,
-                             s_enhance=2, model_dir=None):
+def test_out_s_mom1_sf(FEATURES, TRAIN_FEATURES,
+                       plot=False, full_shape=(20, 20),
+                       sample_shape=(10, 10, 1),
+                       batch_size=4, n_batches=4,
+                       s_enhance=2, model_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             train_only_features=TRAIN_FEATURES,
@@ -227,12 +227,12 @@ def test_out_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
-                          plot=False, full_shape=(20, 20),
-                          sample_shape=(10, 10, 1),
-                          batch_size=4, n_batches=4,
-                          s_enhance=2, model_dir=None,
-                          model_mom1_dir=None):
+def test_out_s_mom2(FEATURES, TRAIN_FEATURES,
+                    plot=False, full_shape=(20, 20),
+                    sample_shape=(10, 10, 1),
+                    batch_size=4, n_batches=4,
+                    s_enhance=2, model_dir=None,
+                    model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             train_only_features=TRAIN_FEATURES,
@@ -318,12 +318,12 @@ def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
-                             plot=False, full_shape=(20, 20),
-                             sample_shape=(10, 10, 1),
-                             batch_size=4, n_batches=4,
-                             s_enhance=2, model_dir=None,
-                             model_mom1_dir=None):
+def test_out_s_mom2_sf(FEATURES, TRAIN_FEATURES,
+                       plot=False, full_shape=(20, 20),
+                       sample_shape=(10, 10, 1),
+                       batch_size=4, n_batches=4,
+                       s_enhance=2, model_dir=None,
+                       model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             train_only_features=TRAIN_FEATURES,
@@ -424,12 +424,12 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
-                              plot=False, full_shape=(20, 20),
-                              sample_shape=(10, 10, 1),
-                              batch_size=4, n_batches=4,
-                              s_enhance=2, model_dir=None,
-                              model_mom1_dir=None):
+def test_out_s_mom2_sep(FEATURES, TRAIN_FEATURES,
+                        plot=False, full_shape=(20, 20),
+                        sample_shape=(10, 10, 1),
+                        batch_size=4, n_batches=4,
+                        s_enhance=2, model_dir=None,
+                        model_mom1_dir=None):
     """Test basic spatial model outputing for second conditional,
     moment separate from the first moment"""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
@@ -529,12 +529,12 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
                            None),
                           (['U_100m', 'V_100m', 'BVF2_200m'],
                            ['BVF2_200m'])])
-def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
-                                 plot=False, full_shape=(20, 20),
-                                 sample_shape=(10, 10, 1),
-                                 batch_size=4, n_batches=4,
-                                 s_enhance=2, model_dir=None,
-                                 model_mom1_dir=None):
+def test_out_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
+                           plot=False, full_shape=(20, 20),
+                           sample_shape=(10, 10, 1),
+                           batch_size=4, n_batches=4,
+                           s_enhance=2, model_dir=None,
+                           model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             train_only_features=TRAIN_FEATURES,
