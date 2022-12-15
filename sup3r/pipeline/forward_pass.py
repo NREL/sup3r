@@ -669,6 +669,8 @@ class ForwardPassStrategy(InputMixIn):
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
         """
+        InputMixIn.__init__(self)
+
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
@@ -686,13 +688,8 @@ class ForwardPassStrategy(InputMixIn):
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
         self._input_handler_kwargs = input_handler_kwargs or {}
-        self._time_index = None
-        self._raw_time_index = None
-        self._raw_lat_lon = None
-        self._raw_tsteps = None
         self._out_files = None
         self._file_ids = None
-        self._time_index_file = None
         self._node_chunks = None
         self._hr_lat_lon = None
         self._lr_lat_lon = None
