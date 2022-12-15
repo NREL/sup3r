@@ -337,9 +337,9 @@ class BatchMom2Sep(BatchMom1):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        return BatchMom1.make_output(low_res, high_res,
-                                     s_enhance, t_enhance,
-                                     model_mom1, output_features_ind)**2
+        return super().make_output(low_res, high_res,
+                                   s_enhance, t_enhance,
+                                   model_mom1, output_features_ind)**2
 
 
 class BatchMom2SF(BatchMom1):
@@ -382,7 +382,7 @@ class BatchMom2SF(BatchMom1):
         return (high_res - enhanced_lr - out)**2
 
 
-class BatchMom2SepSF(BatchMom1):
+class BatchMom2SepSF(BatchMom1SF):
     """Batch of low_res, high_res and output data
     when learning second moment of subfilter vel
     separate from first moment"""
@@ -414,9 +414,9 @@ class BatchMom2SepSF(BatchMom1):
             output, without any feature indices used only for training.
         """
         # Remove LR from HR and square it
-        return BatchMom1SF.make_output(low_res, high_res,
-                                       s_enhance, t_enhance,
-                                       model_mom1, output_features_ind)**2
+        return super().make_output(low_res, high_res,
+                                   s_enhance, t_enhance,
+                                   model_mom1, output_features_ind)**2
 
 
 class ValidationDataMom1(ValidationData):
