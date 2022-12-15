@@ -10,18 +10,19 @@ from sup3r import TEST_DATA_DIR
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
-from sup3r.preprocessing.batch_handling import (SpatialBatchHandler,
-                                                SpatialBatchHandlerMom1SF,
-                                                SpatialBatchHandlerMom2,
-                                                SpatialBatchHandlerMom2Sep,
-                                                SpatialBatchHandlerMom2SF,
-                                                SpatialBatchHandlerMom2SepSF,
-                                                BatchHandler,
-                                                BatchHandlerMom1SF,
-                                                BatchHandlerMom2,
-                                                BatchHandlerMom2Sep,
-                                                BatchHandlerMom2SF,
-                                                BatchHandlerMom2SepSF)
+from sup3r.preprocessing.conditional_moment_batch_handling import (
+    SpatialBatchHandlerMom1,
+    SpatialBatchHandlerMom1SF,
+    SpatialBatchHandlerMom2,
+    SpatialBatchHandlerMom2Sep,
+    SpatialBatchHandlerMom2SF,
+    SpatialBatchHandlerMom2SepSF,
+    BatchHandlerMom1,
+    BatchHandlerMom1SF,
+    BatchHandlerMom2,
+    BatchHandlerMom2Sep,
+    BatchHandlerMom2SF,
+    BatchHandlerMom2SepSF)
 from sup3r.utilities.utilities import (spatial_simple_enhancing,
                                        temporal_simple_enhancing)
 
@@ -50,10 +51,10 @@ def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
                             val_split=0,
                             max_workers=1)
 
-    batch_handler = SpatialBatchHandler([handler],
-                                        batch_size=batch_size,
-                                        s_enhance=s_enhance,
-                                        n_batches=n_batches)
+    batch_handler = SpatialBatchHandlerMom1([handler],
+                                            batch_size=batch_size,
+                                            s_enhance=s_enhance,
+                                            n_batches=n_batches)
 
     # Load Model
     if model_dir is None:
@@ -123,7 +124,7 @@ def test_out_spatial_mom1(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder, os.path.join(figureFolder, 'mom1.gif'),
-                  fps=6)
+                   fps=6)
 
 
 @pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
@@ -217,8 +218,8 @@ def test_out_spatial_mom1_sf(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'mom1_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'mom1_sf.gif'),
+                   fps=6)
 
 
 @pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
@@ -309,7 +310,7 @@ def test_out_spatial_mom2(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder, os.path.join(figureFolder, 'mom2.gif'),
-                  fps=6)
+                   fps=6)
 
 
 @pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
@@ -414,8 +415,8 @@ def test_out_spatial_mom2_sf(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'mom2_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'mom2_sf.gif'),
+                   fps=6)
 
 
 @pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
@@ -519,8 +520,8 @@ def test_out_spatial_mom2_sep(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder, os.path.join(figureFolder,
-                                                    'mom2_sep.gif'),
-                  fps=6)
+                                                     'mom2_sep.gif'),
+                   fps=6)
 
 
 @pytest.mark.parametrize('FEATURES, TRAIN_FEATURES',
@@ -632,8 +633,8 @@ def test_out_spatial_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'mom2_sep_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'mom2_sep_sf.gif'),
+                   fps=6)
 
 
 def test_out_loss(plot=False, model_dirs=None,
@@ -736,11 +737,11 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                             val_split=0,
                             max_workers=1)
 
-    batch_handler = BatchHandler([handler],
-                                 batch_size=batch_size,
-                                 s_enhance=s_enhance,
-                                 t_enhance=t_enhance,
-                                 n_batches=n_batches)
+    batch_handler = BatchHandlerMom1([handler],
+                                     batch_size=batch_size,
+                                     s_enhance=s_enhance,
+                                     t_enhance=t_enhance,
+                                     n_batches=n_batches)
 
     # Load Model
     if model_dir is None:
@@ -818,8 +819,8 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom1.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom1.gif'),
+                   fps=6)
 
 
 def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
@@ -925,8 +926,8 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom1_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom1_sf.gif'),
+                   fps=6)
 
 
 def test_out_st_mom2(plot=False, full_shape=(20, 20),
@@ -1031,8 +1032,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom2.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom2.gif'),
+                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
@@ -1167,8 +1168,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom2_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom2_sf.gif'),
+                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
@@ -1300,8 +1301,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom2_sep.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom2_sep.gif'),
+                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:
@@ -1445,8 +1446,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
             if p > 4:
                 break
         make_movie(n_snap, movieFolder,
-                  os.path.join(figureFolder, 'st_mom2_sep_sf.gif'),
-                  fps=6)
+                   os.path.join(figureFolder, 'st_mom2_sep_sf.gif'),
+                   fps=6)
 
         fig = plt.figure()
         for sigma_xy in integratedSigma:

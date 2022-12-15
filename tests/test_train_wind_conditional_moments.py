@@ -11,7 +11,8 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.models import WindCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
-from sup3r.preprocessing.batch_handling import SpatialBatchHandler
+from sup3r.preprocessing.conditional_moment_batch_handling import (
+    SpatialBatchHandlerMom1)
 
 
 SHAPE = (20, 20)
@@ -47,10 +48,10 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False, out_dir_root=None,
                             max_workers=1,
                             train_only_features=tuple())
 
-    batcher = SpatialBatchHandler([handler],
-                                  batch_size=batch_size,
-                                  n_batches=n_batches,
-                                  s_enhance=2)
+    batcher = SpatialBatchHandlerMom1([handler],
+                                      batch_size=batch_size,
+                                      n_batches=n_batches,
+                                      s_enhance=2)
 
     gen_model = [{"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
