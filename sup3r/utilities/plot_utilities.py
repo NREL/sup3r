@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """Utilities module for plotting data
-
-@author: malihass
 """
 
 import imageio
@@ -244,7 +242,7 @@ def plot_single_contour(
         family="times new roman", weight="bold", size=14
     )
     text.set_font_properties(font)
-    ax_pretty_Labels(
+    ax_pretty_labels(
         axs,
         xAxisName,
         yAxisName,

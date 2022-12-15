@@ -337,7 +337,9 @@ class BatchMom2Sep(BatchMom1):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        return high_res**2
+        return BatchMom1.make_output(low_res, high_res,
+                                     s_enhance, t_enhance,
+                                     model_mom1, output_features_ind)**2
 
 
 class BatchMom2SF(BatchMom1):
