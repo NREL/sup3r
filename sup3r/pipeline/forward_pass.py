@@ -893,6 +893,11 @@ class ForwardPassStrategy(InputMixIn):
         """Get target and grid_shape for largest possible domain"""
         return self.input_handler_class.get_full_domain(file_paths)
 
+    def get_lat_lon(self, file_paths, raster_index, invert_lat=False):
+        """Get lat/lon grid for requested target and shape"""
+        return self.input_handler_class.get_lat_lon(file_paths, raster_index,
+                                                    invert_lat=invert_lat)
+
     def get_time_index(self, file_paths, max_workers=None, **kwargs):
         """Get time index for source data
 
