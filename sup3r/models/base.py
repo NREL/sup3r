@@ -670,7 +670,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         for val_batch in batch_handler.val_data:
             output_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
-                val_batch.output, output_gen,
+                val_batch.high_res, output_gen,
                 weight_gen_advers=weight_gen_advers,
                 train_gen=False, train_disc=False)
 
@@ -726,7 +726,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
                 b_loss_details = self.run_gradient_descent(
-                    batch.low_res, batch.output, self.generator_weights,
+                    batch.low_res, batch.high_res, self.generator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer,
                     train_gen=True, train_disc=False)
@@ -734,7 +734,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             if only_disc or (train_disc and not disc_too_good):
                 trained_disc = True
                 b_loss_details = self.run_gradient_descent(
-                    batch.low_res, batch.output, self.discriminator_weights,
+                    batch.low_res, batch.high_res, self.discriminator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer_disc,
                     train_gen=False, train_disc=True)
