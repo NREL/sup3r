@@ -848,7 +848,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            if not any(self.generator_weights):
+            if not self.generator_weights:
                 self.init_weights(batch.low_res.shape, batch.high_res.shape)
 
             if only_gen or (train_gen and not gen_too_good):
