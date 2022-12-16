@@ -666,25 +666,19 @@ class DataHandler(FeatureHandler, InputMixIn):
             provided values.
 
             `extract_workers` is the max number of workers to use for
-            extracting features from source data. If None it will be
-            estimated based on memory limits. If 1 processes will be
-            serialized.
-
+            extracting features from source data. If None it will be estimated
+            based on memory limits. If 1 processes will be serialized.
             `compute_workers` is the max number of workers to use for computing
-            derived features from raw features in source data.
-
-            `load_workers` is the max number of workers to use for loading
-            cached feature data.
-
-            `norm_workers` is the max number of workers to use for normalizing
-            feature data.
-
-            `ti_workers` is the max number of workers to use to get full time
-            index. Useful when there are many input files each with a single
-            time step. If this is greater than one, time indices for input
-            files will be extracted in parallel and then concatenated to get
-            the full time index. If input files do not all have time indices or
-            if there are few input files this should be set to one.
+            derived features from raw features in source data. `load_workers`
+            is the max number of workers to use for loading cached feature
+            data. `norm_workers` is the max number of workers to use for
+            normalizing feature data. `ti_workers` is the max number of
+            workers to use to get full time index. Useful when there are many
+            input files each with a single time step. If this is greater than
+            one, time indices for input files will be extracted in parallel
+            and then concatenated to get the full time index. If input files
+            do not all have time indices or if there are few input files this
+            should be set to one.
         res_kwargs : dict | None
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,

@@ -360,8 +360,7 @@ class BatchHandler:
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample', stdevs_file=None,
                  means_file=None, overwrite_stats=False, smoothing=None,
-                 smoothing_ignore=None, stats_workers=None, norm_workers=None,
-                 load_workers=None, max_workers=None):
+                 smoothing_ignore=None, worker_kwargs=None):
         """
         Parameters
         ----------
@@ -410,23 +409,29 @@ class BatchHandler:
         smoothing_ignore : list | None
             List of features to ignore for the smoothing filter. None will
             smooth all features if smoothing kwarg is not None
-        max_workers : int | None
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            norm_workers, stats_workers, and load_workers. Each argument needs
+            to be an integer or None.
+
             Providing a value for max workers will be used to set the value of
-            norm_workers, stats_workers, and load_workers.
-            If max_workers == 1 then all processes will be serialized. If None
-            stats_workers, load_workers, and norm_workers will use their own
-            provided values.
-        load_workers : int | None
-            max number of workers to use for loading data handlers.
-        norm_workers : int | None
-            max number of workers to use for normalizing data handlers.
-        stats_workers : int | None
-            max number of workers to use for computing stats across data
-            handlers.
+            all other worker arguments. If max_workers == 1 then all processes
+            will be serialized. If None then other workers arguments will use
+            their own provided values.
+
+            `load_workers` is the max number of workers to use for loading
+            data handlers. `norm_workers` is the max number of workers to use
+            for normalizing data handlers. `stats_workers` is the max number
+            of workers to use for computing stats across data handlers.
         """
 
+        worker_kwargs = worker_kwargs or {}
+        max_workers = worker_kwargs.get('max_workers', None)
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
+        self._stats_workers = worker_kwargs.get('stats_workers', stats_workers)
+        self._norm_workers = worker_kwargs.get('norm_workers', norm_workers)
+        self._load_workers = worker_kwargs.get('load_workers', load_workers)
 
         msg = ('All data handlers must have the same sample_shape')
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
@@ -454,9 +459,6 @@ class BatchHandler:
         self.smoothing_ignore = smoothing_ignore or []
         self.smoothed_features = [f for f in self.training_features
                                   if f not in self.smoothing_ignore]
-        self._stats_workers = stats_workers
-        self._norm_workers = norm_workers
-        self._load_workers = load_workers
 
         logger.info(f'Initializing BatchHandler with smoothing={smoothing}. '
                     f'Using stats_workers={self.stats_workers}, '

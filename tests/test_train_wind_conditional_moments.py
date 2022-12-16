@@ -45,7 +45,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False, out_dir_root=None,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.1,
                             sample_shape=(20, 20),
-                            max_workers=1,
+                            worker_kwargs=dict(max_workers=1),
                             train_only_features=tuple())
 
     batcher = SpatialBatchHandlerMom1([handler],

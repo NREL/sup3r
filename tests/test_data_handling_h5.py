@@ -244,8 +244,7 @@ def test_stats_caching():
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
                                      stdevs_file=stdevs_file,
-                                     means_file=means_file,
-                                     max_workers=None)
+                                     means_file=means_file)
         assert os.path.exists(means_file)
         assert os.path.exists(stdevs_file)
 
@@ -282,8 +281,7 @@ def test_normalization():
         data_handlers.append(data_handler)
     batch_handler = SpatialBatchHandler(data_handlers, batch_size=batch_size,
                                         n_batches=n_batches,
-                                        s_enhance=s_enhance,
-                                        max_workers=None)
+                                        s_enhance=s_enhance)
     stacked_data = np.concatenate(
         [d.data for d in batch_handler.data_handlers], axis=2)
 
@@ -410,7 +408,7 @@ def test_temporal_coarsening(method, t_enhance):
                                  s_enhance=s_enhance,
                                  t_enhance=t_enhance,
                                  temporal_coarsening_method=method,
-                                 max_workers=max_workers)
+                                 worker_kwargs=dict(max_workers=max_workers))
     assert batch_handler.load_workers == max_workers
     assert batch_handler.norm_workers == max_workers
     assert batch_handler.stats_workers == max_workers
@@ -664,7 +662,7 @@ def test_no_val_data():
         data_handler = DataHandler(input_file, features, target,
                                    shape=shape, max_delta=max_delta,
                                    val_split=0,
-                                   max_workers=1,
+                                   worker_kwargs=dict(max_workers=1),
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
@@ -688,7 +686,7 @@ def test_smoothing():
         data_handler = DataHandler(input_file, features, target,
                                    shape=shape, max_delta=max_delta,
                                    val_split=0,
-                                   max_workers=1,
+                                   worker_kwargs=dict(max_workers=1),
                                    sample_shape=sample_shape,
                                    temporal_slice=temporal_slice)
         data_handlers.append(data_handler)
