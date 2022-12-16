@@ -266,6 +266,29 @@ class AbstractSingleModel(ABC):
         """
         return self._stdevs
 
+    @property
+    def output_stdevs(self):
+        """Get the data normalization standard deviation values for only the
+        output features
+        Returns
+        -------
+        np.ndarray
+        """
+        indices = [self.training_features.index(f)
+                   for f in self.output_features]
+        return self._stdevs[indices]
+
+    @property
+    def output_means(self):
+        """Get the data normalization mean values for only the output features
+        Returns
+        -------
+        np.ndarray
+        """
+        indices = [self.training_features.index(f)
+                   for f in self.output_features]
+        return self._means[indices]
+
     def set_norm_stats(self, new_means, new_stdevs):
         """Set the normalization statistics associated with a data batch
         handler to model attributes.
@@ -321,17 +344,15 @@ class AbstractSingleModel(ABC):
             if isinstance(low_res, tf.Tensor):
                 low_res = low_res.numpy()
 
-            low_res = low_res.copy()
-            for idf in range(low_res.shape[-1]):
-                low_res[..., idf] -= self._means[idf]
+            if any(self._stdevs == 0):
+                stdevs = np.where(self._stdevs == 0, 1, self._stdevs)
+                msg = ('Some standard deviations are zero.')
+                logger.warning(msg)
+                warn(msg)
+            else:
+                stdevs = self._stdevs
 
-                if self._stdevs[idf] != 0:
-                    low_res[..., idf] /= self._stdevs[idf]
-                else:
-                    msg = ('Standard deviation is zero for '
-                           f'{self.training_features[idf]}')
-                    logger.warning(msg)
-                    warn(msg)
+            low_res = (low_res.copy() - self._means) / stdevs
 
         return low_res
 
@@ -352,12 +373,7 @@ class AbstractSingleModel(ABC):
             if isinstance(output, tf.Tensor):
                 output = output.numpy()
 
-            for idf in range(output.shape[-1]):
-                feature_name = self.output_features[idf]
-                i = self.training_features.index(feature_name)
-                mean = self._means[i]
-                stdev = self._stdevs[i]
-                output[..., idf] = (output[..., idf] * stdev) + mean
+            output = (output * self.output_stdevs) + self.output_means
 
         return output
 
