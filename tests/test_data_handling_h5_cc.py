@@ -44,7 +44,7 @@ def test_solar_handler(plot=False):
                                    time_roll=-7,
                                    val_split=0.0,
                                    sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(worker_kwargs=dict(max_workers=1)))
+                                   worker_kwargs=dict(worker_kwargs=1))
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data is None
