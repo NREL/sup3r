@@ -41,11 +41,7 @@ class Sup3rQa:
                  cache_pattern=None,
                  overwrite_cache=False,
                  input_handler=None,
-                 max_workers=None,
-                 extract_workers=None,
-                 compute_workers=None,
-                 load_workers=None,
-                 ti_workers=None):
+                 worker_kwargs=None):
         """
         Parameters
         ----------
@@ -136,35 +132,31 @@ class Sup3rQa:
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        max_workers : int | None
-            Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, and
-            load_workers.  If max_workers == 1 then all processes will be
-            serialized. If None extract_workers, compute_workers, load_workers,
-            output_workers will use their own provided
-            values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            extract_workers, compute_workers, load_workers, and ti_workers.
+            Each argument needs to be an integer or None.
+
+            The value of `max workers` will set the value of all other worker
+            args. If max_workers == 1 then all processes will be serialized. If
+            max_workers == None then other worker args will use their own
+            provided values.
+
+            `extract_workers` is the max number of workers to use for
+            extracting features from source data. If None it will be estimated
+            based on memory limits. If 1 processes will be serialized.
+            `compute_workers` is the max number of workers to use for computing
+            derived features from raw features in source data. `load_workers`
+            is the max number of workers to use for loading cached feature
+            data. `ti_workers` is the max number of workers to use to get full
+            time index. Useful when there are many input files each with a
+            single time step. If this is greater than one, time indices for
+            input files will be extracted in parallel and then concatenated to
+            get the full time index. If input files do not all have time
+            indices or if there are few input files this should be set to one.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
-
-        if max_workers is not None:
-            extract_workers = compute_workers = load_workers = max_workers
-            ti_workers = max_workers
 
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -190,11 +182,7 @@ class Sup3rQa:
                                            time_chunk_size=time_chunk_size,
                                            overwrite_cache=overwrite_cache,
                                            val_split=0.0,
-                                           max_workers=max_workers,
-                                           extract_workers=extract_workers,
-                                           compute_workers=compute_workers,
-                                           ti_workers=ti_workers,
-                                           load_workers=load_workers)
+                                           worker_kwargs=worker_kwargs)
 
     def __enter__(self):
         return self

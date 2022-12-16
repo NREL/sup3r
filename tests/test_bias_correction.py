@@ -333,7 +333,7 @@ def test_qa_integration():
                  'temporal_coarsening_method': 'average',
                  'features': features,
                  'input_handler': 'DataHandlerNCforCC',
-                 'max_workers': 1,
+                 'worker_kwargs': {'max_workers': 1},
                  }
 
         bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
@@ -350,7 +350,7 @@ def test_qa_integration():
                     'input_handler': 'DataHandlerNCforCC',
                     'bias_correct_method': 'local_linear_bc',
                     'bias_correct_kwargs': bias_correct_kwargs,
-                    'max_workers': 1,
+                    'worker_kwargs': {'max_workers': 1},
                     }
 
         for idf, feature in enumerate(features):

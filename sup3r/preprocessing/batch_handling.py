@@ -427,6 +427,7 @@ class BatchHandler:
 
         worker_kwargs = worker_kwargs or {}
         max_workers = worker_kwargs.get('max_workers', None)
+        norm_workers = stats_workers = load_workers = None
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
         self._stats_workers = worker_kwargs.get('stats_workers', stats_workers)
