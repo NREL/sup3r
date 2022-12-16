@@ -7,7 +7,6 @@ import logging
 import numpy as np
 import pprint
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor
 import tensorflow as tf
 from tensorflow.keras import optimizers
 from warnings import warn
@@ -81,15 +80,14 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         name : str | None
             Optional name for the GAN.
         """
+        super().__init__()
 
-        self.gpu_list = tf.config.list_physical_devices('GPU')
         self.default_device = default_device
         if self.default_device is None and len(self.gpu_list) == 1:
             self.default_device = '/gpu:0'
         elif self.default_device is None and len(self.gpu_list) > 1:
             self.default_device = '/cpu:0'
 
-        self._version_record = VERSION_RECORD
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
@@ -495,130 +493,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             return 1 / (1 + update_frac)
         else:
             return 1
-
-    @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
-        do not update weights, just return gradient details.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        device_name : None | str
-            Optional tensorflow device name for GPU placement. Note that if a
-            GPU is available, variables will be placed on that GPU even if
-            device_name=None.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        grad : list
-            a list or nested structure of Tensors (or IndexedSlices, or None,
-            or CompositeTensor) representing the gradients for the
-            training_weights
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        with tf.device(device_name):
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(training_weights)
-
-                hi_res_gen = self._tf_generate(low_res)
-                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                          **calc_loss_kwargs)
-                loss, loss_details = loss_out
-
-                grad = tape.gradient(loss, training_weights)
-
-        return grad, loss_details
-
-    def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             optimizer=None, multi_gpu=False,
-                             **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true)
-        and update weights
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        optimizer : tf.keras.optimizers.Optimizer
-            Optimizer class to use to update weights. This can be different if
-            you're training just the generator or one of the discriminator
-            models. Defaults to the generator optimizer.
-        multi_gpu : bool
-            Flag to break up the batch for parallel gradient descent
-            calculations on multiple gpus. If True and multiple GPUs are
-            present, each batch from the batch_handler will be divided up
-            between the GPUs and the resulting gradient from each GPU will
-            constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        t0 = time.time()
-        if optimizer is None:
-            optimizer = self.optimizer
-
-        if not multi_gpu or len(self.gpu_list) == 1:
-            grad, loss_details = self.get_single_grad(low_res, hi_res_true,
-                                                      training_weights,
-                                                      **calc_loss_kwargs)
-            optimizer.apply_gradients(zip(grad, training_weights))
-            t1 = time.time()
-            logger.debug(f'Finished single gradient descent steps on '
-                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
-
-        else:
-            futures = []
-            lr_chunks = np.array_split(low_res, len(self.gpu_list))
-            hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
-
-            with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
-                for i in range(len(self.gpu_list)):
-                    futures.append(exe.submit(self.get_single_grad,
-                                              lr_chunks[i],
-                                              hr_true_chunks[i],
-                                              training_weights,
-                                              device_name=f'/gpu:{i}',
-                                              **calc_loss_kwargs))
-            for i, future in enumerate(futures):
-                grad, loss_details = future.result()
-                optimizer.apply_gradients(zip(grad, training_weights))
-
-            t1 = time.time()
-            logger.debug(f'Finished {len(futures)} gradient descent steps on '
-                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
-
-        return loss_details
 
     @tf.function
     def calc_loss_gen_content(self, hi_res_true, hi_res_gen):
