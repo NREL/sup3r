@@ -286,6 +286,29 @@ class ValidationData:
         """
         return int(self.max)
 
+    def batch_next(self, high_res):
+        """Assemble the next batch
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        batch : Batch
+        """
+        return self.BATCH_CLASS.get_coarse_batch(
+            high_res, self.s_enhance,
+            t_enhance=self.t_enhance,
+            temporal_coarsening_method=self.temporal_coarsening_method,
+            output_features_ind=self.output_features_ind,
+            smoothing=self.smoothing,
+            smoothing_ignore=self.smoothing_ignore,
+            output_features=self.output_features)
+
     def __next__(self):
         """Get validation data batch
 
@@ -318,14 +341,7 @@ class ValidationData:
 
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
-            batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance,
-                t_enhance=self.t_enhance,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
-                smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                output_features=self.output_features)
+            batch = self.batch_next(high_res)
             self._i += 1
             return batch
         else:

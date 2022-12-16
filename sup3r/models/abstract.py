@@ -3,9 +3,11 @@
 Abstract class to define the required interface for Sup3r model subclasses
 """
 import os
+import time
 import json
 from abc import ABC, abstractmethod
 from phygnn import CustomNetwork
+from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from sup3r.utilities import VERSION_RECORD
 import sup3r.utilities.loss_metrics
 import tensorflow as tf
@@ -14,6 +16,7 @@ import numpy as np
 import logging
 import pprint
 from warnings import warn
+from rex.utilities.utilities import safe_json_load
 
 logger = logging.getLogger(__name__)
 
@@ -185,11 +188,241 @@ class AbstractInterface(ABC):
             json.dump(params, f, sort_keys=True, indent=2)
 
 
+# pylint: disable=E1101,W0201,E0203
 class AbstractSingleModel(ABC):
     """
     Abstract class to define the required training interface
     for Sup3r model subclasses
     """
+
+    def load_network(self, model, name):
+        """Load a CustomNetwork object from hidden layers config, .json file
+        config, or .pkl file saved pre-trained model.
+
+        Parameters
+        ----------
+        model : str | dict
+            Model hidden layers config, a .json with "hidden_layers" key, or a
+            .pkl for a saved pre-trained model.
+        name : str
+            Name of the model to be loaded
+
+        Returns
+        -------
+        model : phygnn.CustomNetwork
+            CustomNetwork object initialized from the model input.
+        """
+
+        if isinstance(model, str) and model.endswith('.json'):
+            model = safe_json_load(model)
+            self._meta[f'config_{name}'] = model
+            if 'hidden_layers' in model:
+                model = model['hidden_layers']
+            elif ('meta' in model
+                  and f'config_{name}' in model['meta']
+                  and 'hidden_layers' in model['meta'][f'config_{name}']):
+                model = model['meta'][f'config_{name}']['hidden_layers']
+            else:
+                msg = ('Could not load model from json config, need '
+                       '"hidden_layers" key or '
+                       f'"meta/config_{name}/hidden_layers" '
+                       ' at top level but only found: {}'
+                       .format(model.keys()))
+                logger.error(msg)
+                raise KeyError(msg)
+
+        elif isinstance(model, str) and model.endswith('.pkl'):
+            model = CustomNetwork.load(model)
+
+        if isinstance(model, list):
+            model = CustomNetwork(hidden_layers=model, name=name)
+
+        if not isinstance(model, CustomNetwork):
+            msg = ('Something went wrong. Tried to load a custom network '
+                   'but ended up with a model of type "{}"'
+                   .format(type(model)))
+            logger.error(msg)
+            raise TypeError(msg)
+
+        return model
+
+    @property
+    def means(self):
+        """Get the data normalization mean values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._means
+
+    @property
+    def stdevs(self):
+        """Get the data normalization standard deviation values.
+
+        Returns
+        -------
+        np.ndarray
+        """
+        return self._stdevs
+
+    def set_norm_stats(self, new_means, new_stdevs):
+        """Set the normalization statistics associated with a data batch
+        handler to model attributes.
+
+        Parameters
+        ----------
+        new_means : list | tuple | np.ndarray
+            1D iterable of mean values with same length as number of features.
+        new_stdevs : list | tuple | np.ndarray
+            1D iterable of stdev values with same length as number of features.
+        """
+
+        if self._means is not None:
+            logger.info('Setting new normalization statistics...')
+            logger.info("Model's previous data mean values: {}"
+                        .format(self._means))
+            logger.info("Model's previous data stdev values: {}"
+                        .format(self._stdevs))
+
+        self._means = new_means
+        self._stdevs = new_stdevs
+
+        if not isinstance(self._means, np.ndarray):
+            self._means = np.array(self._means)
+        if not isinstance(self._stdevs, np.ndarray):
+            self._stdevs = np.array(self._stdevs)
+
+        logger.info('Set data normalization mean values: {}'
+                    .format(self._means))
+        logger.info('Set data normalization stdev values: {}'
+                    .format(self._stdevs))
+
+    def norm_input(self, low_res):
+        """Normalize low resolution data being input to the generator.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Un-normalized low-resolution input data in physical units, usually
+            a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        low_res : np.ndarray
+            Normalized low-resolution input data, usually a 4D or 5D array of
+            shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        if self._means is not None:
+            if isinstance(low_res, tf.Tensor):
+                low_res = low_res.numpy()
+
+            low_res = low_res.copy()
+            for idf in range(low_res.shape[-1]):
+                low_res[..., idf] -= self._means[idf]
+
+                if self._stdevs[idf] != 0:
+                    low_res[..., idf] /= self._stdevs[idf]
+                else:
+                    msg = ('Standard deviation is zero for '
+                           f'{self.training_features[idf]}')
+                    logger.warning(msg)
+                    warn(msg)
+
+        return low_res
+
+    def un_norm_output(self, output):
+        """Un-normalize synthetically generated output data to physical units
+
+        Parameters
+        ----------
+        output : tf.Tensor | np.ndarray
+            Synthetically generated high-resolution data
+
+        Returns
+        -------
+        output : np.ndarray
+            Synthetically generated high-resolution data
+        """
+        if self._means is not None:
+            if isinstance(output, tf.Tensor):
+                output = output.numpy()
+
+            for idf in range(output.shape[-1]):
+                feature_name = self.output_features[idf]
+                i = self.training_features.index(feature_name)
+                mean = self._means[i]
+                stdev = self._stdevs[i]
+                output[..., idf] = (output[..., idf] * stdev) + mean
+
+        return output
+
+    @property
+    def optimizer(self):
+        """Get the tensorflow optimizer to perform gradient descent
+        calculations for the generative network. This is functionally identical
+        to optimizer_disc is no special optimizer model or learning rate was
+        specified for the disc.
+
+        Returns
+        -------
+        tf.keras.optimizers.Optimizer
+        """
+        return self._optimizer
+
+    @property
+    def history(self):
+        """
+        Model training history DataFrame (None if not yet trained)
+
+        Returns
+        -------
+        pandas.DataFrame | None
+        """
+        return self._history
+
+    @property
+    def generator(self):
+        """Get the generative model.
+
+        Returns
+        -------
+        phygnn.base.CustomNetwork
+        """
+        return self._gen
+
+    @property
+    def generator_weights(self):
+        """Get a list of layer weights and bias terms for the generator model.
+
+        Returns
+        -------
+        list
+        """
+        return self.generator.weights
+
+    def _needs_lr_exo(self, low_res):
+        """Determine whether or not the sup3r model needs low-res exogenous
+        data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        needs_lr_exo : bool
+            True if the model requires low-resolution exogenous data.
+        """
+
+        return low_res.shape[-1] < len(self.training_features)
 
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
@@ -424,3 +657,290 @@ class AbstractSingleModel(ABC):
                             .format(column, threshold, diffs[-n_epoch:]))
 
         return stop
+
+    @abstractmethod
+    def save(self, low_res):
+        """Save the model with its sub-networks to a directory.
+
+        Parameters
+        ----------
+        out_dir : str
+            Directory to save model files. This directory will be created
+            if it does not already exist.
+        """
+
+    def finish_epoch(self, epoch, epochs, t0, loss_details,
+                     checkpoint_int, out_dir,
+                     early_stop_on, early_stop_threshold,
+                     early_stop_n_epoch, extras=None):
+        """Perform finishing checks after an epoch is done training
+
+        Parameters
+        ----------
+        epoch : int
+            Epoch number that is finishing
+        epochs : list
+            List of epochs being iterated through
+        t0 : float
+            Starting time of training.
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        checkpoint_int : int | None
+            Epoch interval at which to save checkpoint models.
+        out_dir : str
+            Directory to save checkpoint models. Should have {epoch} in
+            the directory name. This directory will be created if it does not
+            already exist.
+        early_stop_on : str | None
+            If not None, this should be a column in the training history to
+            evaluate for early stopping (e.g. validation_loss_gen,
+            validation_loss_disc). If this value in this history decreases by
+            an absolute fractional relative difference of less than 0.01 for
+            more than 5 epochs in a row, the training will stop early.
+        early_stop_threshold : float
+            The absolute relative fractional difference in validation loss
+            between subsequent epochs below which an early termination is
+            warranted. E.g. if val losses were 0.1 and 0.0998 the relative
+            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be
+            less than the default thresold of 0.01 and would satisfy the
+            condition for early termination.
+        early_stop_n_epoch : int
+            The number of consecutive epochs that satisfy the threshold that
+            warrants an early stop.
+        extras : dict | None
+            Extra kwargs/parameters to save in the epoch history.
+
+        Returns
+        -------
+        stop : bool
+            Flag to early stop training.
+        """
+
+        self.log_loss_details(loss_details)
+
+        self._history.at[epoch, 'elapsed_time'] = time.time() - t0
+        for key, value in loss_details.items():
+            if key != 'n_obs':
+                self._history.at[epoch, key] = value
+
+        last_epoch = epoch == epochs[-1]
+        chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
+        if last_epoch or chp:
+            msg = ('Model output dir for checkpoint models should have '
+                   f'{"{epoch}"} but did not: {out_dir}')
+            assert '{epoch}' in out_dir, msg
+            self.save(out_dir.format(epoch=epoch))
+
+        stop = False
+        if early_stop_on is not None and early_stop_on in self._history:
+            stop = self.early_stop(self._history, early_stop_on,
+                                   threshold=early_stop_threshold,
+                                   n_epoch=early_stop_n_epoch)
+            if stop:
+                self.save(out_dir.format(epoch=epoch))
+
+        if extras is not None:
+            for k, v in extras.items():
+                self._history.at[epoch, k] = v
+
+        return stop
+
+
+# pylint: disable=E1101,W0201,E0203
+class AbstractWindInterface(ABC):
+    """
+    Abstract class to define the required training interface
+    for Sup3r wind model subclasses
+    """
+    # pylint: disable=E0211
+    def set_model_params_wind(**kwargs):
+        """Set parameters used for training the model
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments including 'training_features', 'output_features',
+            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+        """
+        output_features = kwargs['output_features']
+        msg = ('Last output feature from the data handler must be topography '
+               'to train the WindCC model, but received output features: {}'
+               .format(output_features))
+        assert output_features[-1] == 'topography', msg
+        output_features.remove('topography')
+        kwargs['output_features'] = output_features
+
+    def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
+        """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
+        and normalize (if requested).
+
+        Parameters
+        ----------
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        hi_res_topo : np.ndarray
+            This should be a 4D array for spatial enhancement model or 5D array
+            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
+            (temporal), features) corresponding to the high-resolution
+            spatial_1 and spatial_2. This data will be input to the custom
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input. For this function,
+            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
+            that this input gets normalized if norm_in=True.
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1. This also normalizes
+            hi_res_topo.
+
+        Returns
+        -------
+        hi_res_topo : np.ndarray
+            Same as input but reshaped to match hi_res (if necessary) and
+            normalized (if requested)
+        """
+        if hi_res_topo is None:
+            return hi_res_topo
+
+        if norm_in and self._means is not None:
+            idf = self.training_features.index('topography')
+            hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
+                           / self._stdevs[idf])
+
+        if len(hi_res_topo.shape) > 2:
+            slicer = [0] * len(hi_res_topo.shape)
+            slicer[1] = slice(None)
+            slicer[2] = slice(None)
+            hi_res_topo = hi_res_topo[tuple(slicer)]
+
+        if len(hi_res.shape) == 4:
+            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
+        elif len(hi_res.shape) == 5:
+            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
+            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
+
+        if len(hi_res_topo.shape) != len(hi_res.shape):
+            msg = ('hi_res and hi_res_topo arrays are not of the same rank: '
+                   '{} and {}'.format(hi_res.shape, hi_res_topo.shape))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return hi_res_topo
+
+    def generate_wind(self, low_res, norm_in=True, un_norm_out=True,
+                      exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        norm_in : bool
+            Flag to normalize low_res input data if the self._means,
+            self._stdevs attributes are available. The generator should always
+            received normalized data with mean=0 stdev=1. This also normalizes
+            hi_res_topo.
+        un_norm_out : bool
+           Flag to un-normalize synthetically generated output data to physical
+           units
+        exogenous_data : ndarray | list | None
+            Exogenous data for topography inputs. The first entry in this list
+            (or only entry) is a low-resolution topography array that can be
+            concatenated to the low_res input array. The second entry is
+            high-resolution topography (either 2D or 4D/5D depending on if
+            spatial or spatiotemporal super res).
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        low_res_topo = None
+        hi_res_topo = None
+        if isinstance(exogenous_data, np.ndarray):
+            low_res_topo = exogenous_data
+        elif isinstance(exogenous_data, (list, tuple)):
+            low_res_topo = exogenous_data[0]
+            if len(exogenous_data) > 1:
+                hi_res_topo = exogenous_data[1]
+
+        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
+        low_res = (low_res if exo_check
+                   else np.concatenate((low_res, low_res_topo), axis=-1))
+
+        if norm_in and self._means is not None:
+            low_res = self.norm_input(low_res)
+
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                        and hi_res_topo is not None):
+                    hi_res_topo = self._reshape_norm_topo(hi_res, hi_res_topo,
+                                                          norm_in=norm_in)
+                    hi_res = layer(hi_res, hi_res_topo)
+                else:
+                    hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        hi_res = hi_res.numpy()
+
+        if un_norm_out and self._means is not None:
+            hi_res = self.un_norm_output(hi_res)
+
+        return hi_res
+
+    @tf.function
+    def _tf_generate_wind(self, low_res, hi_res_topo):
+        """Use the generator model to generate high res data from los res input
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data. The generator should always
+            received normalized data with mean=0 stdev=1.
+        hi_res_topo : np.ndarray
+            This should be a 4D array for spatial enhancement model or 5D array
+            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
+            (temporal), features) corresponding to the high-resolution
+            spatial_1 and spatial_2. This data will be input to the custom
+            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
+            network. This differs from the exogenous_data input in that
+            exogenous_data always matches the low-res input.
+
+        Returns
+        -------
+        hi_res : tf.Tensor
+            Synthetically generated high-resolution data
+        """
+        hi_res = self.generator.layers[0](low_res)
+        for i, layer in enumerate(self.generator.layers[1:]):
+            try:
+                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                        and hi_res_topo is not None):
+                    hi_res = layer(hi_res, hi_res_topo)
+                else:
+                    hi_res = layer(hi_res)
+            except Exception as e:
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
+                       .format(i + 1, layer, hi_res.shape))
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+        return hi_res
