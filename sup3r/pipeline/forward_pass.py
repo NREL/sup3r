@@ -669,7 +669,16 @@ class ForwardPassStrategy(InputMixIn):
             Maximum number of nodes to distribute spatiotemporal chunks across.
             If None then a node will be used for each temporal chunk.
         """
-        InputMixIn.__init__(self)
+        self._input_handler_kwargs = input_handler_kwargs or {}
+        target = self._input_handler_kwargs.get('target', None)
+        grid_shape = self._input_handler_kwargs.get('shape', None)
+        raster_file = self._input_handler_kwargs.get('raster_file', None)
+        raster_index = self._input_handler_kwargs.get('raster_index', None)
+        temporal_slice = self._input_handler_kwargs.get('temporal_slice',
+                                                        slice(None, None, 1))
+        InputMixIn.__init__(self, target=target, shape=grid_shape,
+                            raster_file=raster_file, raster_index=raster_index,
+                            temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
@@ -687,7 +696,6 @@ class ForwardPassStrategy(InputMixIn):
         self._input_handler_class = None
         self._input_handler_name = input_handler
         self._max_nodes = max_nodes
-        self._input_handler_kwargs = input_handler_kwargs or {}
         self._out_files = None
         self._file_ids = None
         self._node_chunks = None
@@ -700,27 +708,20 @@ class ForwardPassStrategy(InputMixIn):
 
         self._single_ts_files = self._input_handler_kwargs.get(
             'single_ts_files', None)
-        self._target = self._input_handler_kwargs.get('target', None)
-        self._grid_shape = self._input_handler_kwargs.get('shape', None)
-        self.raster_file = self._input_handler_kwargs.get('raster_file', None)
-        self.temporal_slice = self._input_handler_kwargs.get('temporal_slice',
-                                                             slice(None))
         self.time_chunk_size = self._input_handler_kwargs.get(
             'time_chunk_size', None)
         self.overwrite_cache = self._input_handler_kwargs.get(
             'overwrite_cache', False)
         self.overwrite_ti_cache = self._input_handler_kwargs.get(
             'overwrite_ti_cache', False)
-        self.extract_workers = self._input_handler_kwargs.get(
-            'extract_workers', None)
-        self.compute_workers = self._input_handler_kwargs.get(
-            'compute_workers', None)
-        self.load_workers = self._input_handler_kwargs.get('load_workers',
-                                                           None)
-        self.ti_workers = self._input_handler_kwargs.get('ti_workers', None)
+        worker_kwargs = self._input_handler_kwargs.get('worker_kwargs', {})
+        self.load_workers = worker_kwargs.get('load_workers', None)
+        self.ti_workers = worker_kwargs.get('ti_workers', None)
+        self.extract_workers = worker_kwargs.get('extract_workers', None)
+        self.compute_workers = worker_kwargs.get('compute_workers', None)
         self.res_kwargs = self._input_handler_kwargs.get('res_kwargs', {})
-        self._cache_pattern = self._input_handler_kwargs.get('cache_pattern',
-                                                             None)
+        self.cache_pattern = self._input_handler_kwargs.get('cache_pattern',
+                                                            None)
         self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
                               'load_workers', 'output_workers',
                               'extract_workers']
@@ -745,7 +746,8 @@ class ForwardPassStrategy(InputMixIn):
         self.t_enhance = np.product(self.t_enhancements)
         self.output_features = model.output_features
 
-        self.fwp_slicer = ForwardPassSlicer(self.grid_shape, self.raw_tsteps,
+        self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
+                                            self.raw_tsteps,
                                             self.temporal_slice,
                                             self.fwp_chunk_shape,
                                             self.s_enhancements,
@@ -855,7 +857,7 @@ class ForwardPassStrategy(InputMixIn):
             out = self.input_handler_class(self.file_paths[0], [],
                                            target=self.target,
                                            shape=self.grid_shape,
-                                           ti_workers=1)
+                                           worker_kwargs=dict(ti_workers=1))
             self._init_handler = out
         return self._init_handler
 
@@ -869,7 +871,7 @@ class ForwardPassStrategy(InputMixIn):
 
     @property
     def handle_features(self):
-        """Get available handle features"""
+        """Get list of features available in the source data"""
         if self._handle_features is None:
             if self.single_ts_files:
                 self._handle_features = self.init_handler.handle_features
@@ -1143,27 +1145,7 @@ class ForwardPass:
         elif strategy.output_type == 'h5':
             self.output_handler_class = OutputHandlerH5
 
-        input_handler_kwargs = copy.deepcopy(strategy._input_handler_kwargs)
-        fwp_input_handler_kwargs = dict(
-            file_paths=self.file_paths,
-            features=self.features,
-            target=self.target,
-            shape=self.shape,
-            temporal_slice=self.temporal_pad_slice,
-            raster_file=self.raster_file,
-            cache_pattern=self.cache_pattern,
-            time_chunk_size=self.strategy.time_chunk_size,
-            overwrite_cache=self.strategy.overwrite_cache,
-            max_workers=self.max_workers,
-            extract_workers=strategy.extract_workers,
-            compute_workers=strategy.compute_workers,
-            load_workers=strategy.load_workers,
-            ti_workers=strategy.ti_workers,
-            handle_features=strategy.handle_features,
-            res_kwargs=strategy.res_kwargs,
-            single_ts_files=strategy.single_ts_files,
-            val_split=0.0)
-        input_handler_kwargs.update(fwp_input_handler_kwargs)
+        input_handler_kwargs = self.update_input_handler_kwargs(strategy)
 
         logger.info(f'Getting input data for chunk_index={chunk_index}.')
         self.data_handler = self.input_handler_class(**input_handler_kwargs)
@@ -1176,6 +1158,45 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+
+    def update_input_handler_kwargs(self, strategy):
+        """Update the kwargs for the input handler for the current forward pass
+        chunk
+
+        Parameters
+        ----------
+        strategy : ForwardPassStrategy
+            ForwardPassStrategy instance with information on data chunks to run
+            forward passes on.
+
+        Returns
+        -------
+        dict
+            Updated dictionary of input handler arguments to pass to the
+            data handler for the current forward pass chunk
+        """
+        input_handler_kwargs = copy.deepcopy(strategy._input_handler_kwargs)
+        fwp_input_handler_kwargs = dict(
+            file_paths=self.file_paths,
+            features=self.features,
+            target=self.target,
+            shape=self.shape,
+            temporal_slice=self.temporal_pad_slice,
+            raster_file=self.raster_file,
+            cache_pattern=self.cache_pattern,
+            time_chunk_size=self.strategy.time_chunk_size,
+            overwrite_cache=self.strategy.overwrite_cache,
+            worker_kwargs=dict(max_workers=self.max_workers,
+                               extract_workers=strategy.extract_workers,
+                               compute_workers=strategy.compute_workers,
+                               load_workers=strategy.load_workers,
+                               ti_workers=strategy.ti_workers),
+            handle_features=strategy.handle_features,
+            res_kwargs=strategy.res_kwargs,
+            single_ts_files=strategy.single_ts_files,
+            val_split=0.0)
+        input_handler_kwargs.update(fwp_input_handler_kwargs)
+        return input_handler_kwargs
 
     @property
     def single_ts_files(self):
