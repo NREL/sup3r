@@ -368,6 +368,7 @@ class DataRetrievalBase:
 
         out = []
         out_ti = []
+        base_cs_ghi = None
         for fp in base_fps:
             with base_handler(fp) as res:
                 base_ti = res.time_index
@@ -384,6 +385,10 @@ class DataRetrievalBase:
                     else:
                         base_data = -base_ws * np.cos(np.radians(base_wd))
 
+                elif base_dset == 'clearsky_ratio':
+                    base_data = res['ghi', :, base_gid]
+                    base_cs_ghi = res['clearsky_ghi', :, base_gid]
+
                 else:
                     base_data = res[base_dset, :, base_gid]
 
@@ -394,7 +399,13 @@ class DataRetrievalBase:
                     slices = [np.where(base_ti.date == date)
                               for date in sorted(set(base_ti.date))]
                     base_ti = np.array(sorted(set(base_ti.date)))
-                    if daily_reduction.lower() == 'avg':
+
+                    if (base_dset == 'clearsky_ratio'
+                            and daily_reduction.lower() == 'avg'):
+                        base_data = np.array([base_data[s0].sum()
+                                              / base_cs_ghi[s0].sum()
+                                              for s0 in slices])
+                    elif daily_reduction.lower() == 'avg':
                         base_data = np.array([base_data[s0].mean()
                                               for s0 in slices])
                     elif daily_reduction.lower() == 'max':
