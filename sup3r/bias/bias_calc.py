@@ -378,9 +378,10 @@ class DataRetrievalBase:
                     base_data = cls._reduce_base_data(base_ti, base_data,
                                                       base_cs_ghi, base_dset,
                                                       daily_reduction)
+                    base_ti = np.array(sorted(set(base_ti.date)))
 
             out.append(base_data)
-            out_ti.append(np.array(sorted(set(base_ti.date))))
+            out_ti.append(base_ti)
 
         out = np.hstack(out)
 
