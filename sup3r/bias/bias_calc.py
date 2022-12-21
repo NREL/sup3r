@@ -276,7 +276,7 @@ class DataRetrievalBase:
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-            and possibly daily-averaged as well.
+            and possibly daily-averaged or min/max'd as well.
         bias_data : np.ndarray
             1D array of temporal data at the requested gid.
         base_dist : np.ndarray
@@ -327,8 +327,8 @@ class DataRetrievalBase:
 
         return bias_data
 
-    @staticmethod
-    def get_base_data(base_fps, base_dset, base_gid, base_handler,
+    @classmethod
+    def get_base_data(cls, base_fps, base_dset, base_gid, base_handler,
                       daily_reduction='avg', decimals=None):
         """Get data from the baseline data source, possibly for many high-res
         base gids corresponding to a single coarse low-res bias gid.
@@ -360,7 +360,7 @@ class DataRetrievalBase:
         -------
         out : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-            and possibly daily-averaged as well.
+            and possibly daily-averaged or min/max'd as well.
         out_ti : pd.DatetimeIndex
             DatetimeIndex object of datetimes corresponding to the
             output data.
@@ -372,37 +372,13 @@ class DataRetrievalBase:
             with base_handler(fp) as res:
                 base_ti = res.time_index
 
-                if base_dset.startswith(('U_', 'V_')):
-                    dset_ws = base_dset.replace('U_', 'windspeed_')
-                    dset_ws = dset_ws.replace('V_', 'windspeed_')
-                    dset_wd = dset_ws.replace('speed', 'direction')
-                    base_ws = res[dset_ws, :, base_gid]
-                    base_wd = res[dset_wd, :, base_gid]
-
-                    if base_dset.startswith('U_'):
-                        base_data = -base_ws * np.sin(np.radians(base_wd))
-                    else:
-                        base_data = -base_ws * np.cos(np.radians(base_wd))
-
-                else:
-                    base_data = res[base_dset, :, base_gid]
-
-                if len(base_data.shape) == 2:
-                    base_data = base_data.mean(axis=1)
-
+                base_data, base_cs_ghi = cls._read_base_data(res, base_dset,
+                                                             base_gid)
                 if daily_reduction is not None:
-                    slices = [np.where(base_ti.date == date)
-                              for date in sorted(set(base_ti.date))]
+                    base_data = cls._reduce_base_data(base_ti, base_data,
+                                                      base_cs_ghi, base_dset,
+                                                      daily_reduction)
                     base_ti = np.array(sorted(set(base_ti.date)))
-                    if daily_reduction.lower() == 'avg':
-                        base_data = np.array([base_data[s0].mean()
-                                              for s0 in slices])
-                    elif daily_reduction.lower() == 'max':
-                        base_data = np.array([base_data[s0].max()
-                                              for s0 in slices])
-                    elif daily_reduction.lower() == 'min':
-                        base_data = np.array([base_data[s0].min()
-                                              for s0 in slices])
 
             out.append(base_data)
             out_ti.append(base_ti)
@@ -413,6 +389,109 @@ class DataRetrievalBase:
             out = np.around(out, decimals=decimals)
 
         return out, pd.DatetimeIndex(np.hstack(out_ti))
+
+    @staticmethod
+    def _read_base_data(res, base_dset, base_gid):
+        """Read baseline data from the resource handler with extra logic for
+        special datasets (e.g. u/v wind components or clearsky_ratio)
+
+        Parameters
+        ----------
+        res : rex.Resource
+            rex Resource handler that is an open file handler of the base
+            file(s)
+        base_dset : str
+            A single dataset from the base_fps to retrieve.
+        base_gid : int | np.ndarray
+            One or more spatial gids to retrieve from base_fps. The data will
+            be spatially averaged across all of these sites.
+
+        Returns
+        -------
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+        base_cs_ghi : np.ndarray | None
+            If base_dset == "clearsky_ratio", the base_data array is GHI and
+            this base_cs_ghi is clearsky GHI. Otherwise this is None
+        """
+
+        base_cs_ghi = None
+
+        if base_dset.startswith(('U_', 'V_')):
+            dset_ws = base_dset.replace('U_', 'windspeed_')
+            dset_ws = dset_ws.replace('V_', 'windspeed_')
+            dset_wd = dset_ws.replace('speed', 'direction')
+            base_ws = res[dset_ws, :, base_gid]
+            base_wd = res[dset_wd, :, base_gid]
+
+            if base_dset.startswith('U_'):
+                base_data = -base_ws * np.sin(np.radians(base_wd))
+            else:
+                base_data = -base_ws * np.cos(np.radians(base_wd))
+
+        elif base_dset == 'clearsky_ratio':
+            base_data = res['ghi', :, base_gid]
+            base_cs_ghi = res['clearsky_ghi', :, base_gid]
+
+        else:
+            base_data = res[base_dset, :, base_gid]
+
+        if len(base_data.shape) == 2:
+            base_data = base_data.mean(axis=1)
+            if base_cs_ghi is not None:
+                base_cs_ghi = base_cs_ghi.mean(axis=1)
+
+        return base_data, base_cs_ghi
+
+    @staticmethod
+    def _reduce_base_data(base_ti, base_data, base_cs_ghi, base_dset,
+                          daily_reduction):
+        """Reduce the base timeseries data using some sort of daily reduction
+        function.
+
+        Parameters
+        ----------
+        base_ti : pd.DatetimeIndex
+            Time index associated with base_data
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+        base_cs_ghi : np.ndarray | None
+            If base_dset == "clearsky_ratio", the base_data array is GHI and
+            this base_cs_ghi is clearsky GHI. Otherwise this is None
+        base_dset : str
+            A single dataset from the base_fps to retrieve.
+        daily_reduction : str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), or "min" (daily min)
+
+        Returns
+        -------
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+            and possibly daily-averaged or min/max'd as well.
+        """
+
+        if daily_reduction is None:
+            return base_data
+
+        slices = [np.where(base_ti.date == date)
+                  for date in sorted(set(base_ti.date))]
+
+        if base_dset == 'clearsky_ratio' and daily_reduction.lower() == 'avg':
+            base_data = np.array([base_data[s0].sum() / base_cs_ghi[s0].sum()
+                                  for s0 in slices])
+
+        elif daily_reduction.lower() == 'avg':
+            base_data = np.array([base_data[s0].mean() for s0 in slices])
+
+        elif daily_reduction.lower() == 'max':
+            base_data = np.array([base_data[s0].max() for s0 in slices])
+
+        elif daily_reduction.lower() == 'min':
+            base_data = np.array([base_data[s0].min() for s0 in slices])
+
+        return base_data
 
 
 class LinearCorrection(DataRetrievalBase):

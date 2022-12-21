@@ -223,6 +223,28 @@ def test_montly_linear_transform():
             assert np.allclose(truth, out[..., i])
 
 
+def test_clearsky_ratio():
+    """Test that bias correction of daily clearsky ratio instead of raw ghi
+    works."""
+    bias_handler_kwargs = {'nsrdb_source_fp': FP_NSRDB, 'nsrdb_agg': 4,
+                           'temporal_slice': [0, 30, 1]}
+    calc = LinearCorrection(FP_NSRDB, FP_CC,
+                            'clearsky_ratio', 'clearsky_ratio',
+                            TARGET, SHAPE,
+                            bias_handler_kwargs=bias_handler_kwargs,
+                            bias_handler='DataHandlerNCforCC')
+    out = calc.run(knn=1, threshold=100, fill_extend=False, max_workers=1)
+
+    assert not np.isnan(out['clearsky_ratio_scalar']).any()
+    assert not np.isnan(out['clearsky_ratio_adder']).any()
+
+    assert (out['base_clearsky_ratio_mean'] > 0.3).all()
+    assert (out['base_clearsky_ratio_mean'] < 1.0).all()
+
+    assert (out['bias_clearsky_ratio_mean'] > 0.3).all()
+    assert (out['bias_clearsky_ratio_mean'] < 1.0).all()
+
+
 def test_fwp_integration():
     """Test the integration of the bias correction method into the forward pass
     framework"""

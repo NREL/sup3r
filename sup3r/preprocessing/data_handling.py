@@ -2371,9 +2371,11 @@ class DataHandlerNCforCC(DataHandlerNC):
         ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode[0])
         t_start = self.temporal_slice.start or 0
-        t_end = self.temporal_slice.stop or len(self.raw_time_index)
-        t_slice = slice(int(t_start * 24 * (1 / time_freq)),
-                        int(t_end * 24 * (1 / time_freq)))
+        t_end_target = self.temporal_slice.stop or len(self.raw_time_index)
+        t_start = int(t_start * 24 * (1 / time_freq))
+        t_end = int(t_end_target * 24 * (1 / time_freq))
+        t_end = np.minimum(t_end, len(ti_nsrdb))
+        t_slice = slice(t_start, t_end)
 
         # pylint: disable=E1136
         lat = self.lat_lon[:, :, 0].flatten()
@@ -2413,6 +2415,11 @@ class DataHandlerNCforCC(DataHandlerNC):
             cs_ghi[..., iday] = gaussian_filter(cs_ghi[..., iday],
                                                 self._nsrdb_smoothing,
                                                 mode='nearest')
+
+        if cs_ghi.shape[-1] < t_end_target:
+            n = int(np.ceil(t_end_target / cs_ghi.shape[-1]))
+            cs_ghi = np.repeat(cs_ghi, n, axis=2)
+            cs_ghi = cs_ghi[..., :t_end_target]
 
         logger.info('Reshaped clearsky_ghi data to final shape {} to '
                     'correspond with CC daily average data over source '
