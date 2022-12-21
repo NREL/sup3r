@@ -13,8 +13,6 @@ from sup3r.cli.base import BaseCLI
 
 logger = logging.getLogger(__name__)
 
-qa_cli = BaseCLI(ModuleName.QA, Sup3rQa)
-
 
 @click.group()
 @click.version_option(version=__version__)
@@ -36,7 +34,7 @@ def main(ctx, verbose):
 @click.pass_context
 def from_config(ctx, config_file, verbose):
     """Run the sup3r QA module from a config file."""
-    qa_cli.from_config(ctx, config_file, verbose)
+    BaseCLI.from_config(ModuleName.QA, Sup3rQa, ctx, config_file, verbose)
 
 
 if __name__ == '__main__':

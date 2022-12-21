@@ -15,31 +15,36 @@ from rex.utilities.loggers import init_mult
 
 from sup3r.version import __version__
 from sup3r.pipeline.config import BaseConfig
+from sup3r.utilities import ModuleName
 
 
 logger = logging.getLogger(__name__)
 
 
 class BaseCLI:
-    """Base CLI class which can be used to construct CLI for sup3r modules"""
+    """Base CLI class used to create CLI for modules in ModuleName"""
 
-    def __init__(self, module_name, module_class):
-        """
+    @classmethod
+    def from_config(cls, module_name, module_class, ctx, config_file, verbose):
+        """Run sup3r module from a config file.
+
+
         Parameters
         ----------
         module_name : str
             Module name string from :class:`sup3r.utilities.ModuleName`.
         module_class : Object
-            Class object to use for getting node command. For example, this can
-            be sup3r.qa.qa.Sup3rQa, which will then be used to call
-            Sup3rQa.get_node_cmd(config).
+            Class object used to call get_node_cmd(config).
+            e.g. Sup3rQa.get_node_cmd(config)
+        ctx : click.pass_context
+            Click context object where ctx.obj is a dictionary
+        config_file : str
+            Path to config file provided all needed inputs to module_class
+        verbose : bool
+            Whether to run in verbose mode.
         """
-        self.module_name = module_name
-        self.module_class = module_class
-        self.underscore_name = module_name.replace('-', '_')
+        cls.check_module_name(module_name)
 
-    def from_config(self, ctx, config_file, verbose):
-        """Run sup3r module from a config file."""
         ctx.ensure_object(dict)
         ctx.obj['VERBOSE'] = verbose
         status_dir = os.path.dirname(os.path.abspath(config_file))
@@ -50,7 +55,7 @@ class BaseCLI:
         config_verbose = (config_verbose == 'DEBUG')
         verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-        init_mult(f'sup3r_{self.underscore_name}',
+        init_mult(f'sup3r_{module_name.replace("-", "_")}',
                   os.path.join(status_dir, 'logs/'),
                   modules=[__name__, 'sup3r'], verbose=verbose)
 
@@ -68,7 +73,7 @@ class BaseCLI:
         logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
         logger.debug('Hardware run option: "{}"'.format(hardware_option))
 
-        name = f'sup3r_{self.underscore_name}'
+        name = f'sup3r_{module_name.replace("-", "_")}'
         name += '_{}'.format(os.path.basename(status_dir))
         job_name = config.get('job_name', None)
         if job_name is not None:
@@ -77,22 +82,33 @@ class BaseCLI:
         config['job_name'] = name
         config['status_dir'] = status_dir
 
-        cmd = self.module_class.get_node_cmd(config)
+        cmd = module_class.get_node_cmd(config)
 
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in ('eagle', 'slurm'):
-            self.kickoff_slurm_job(ctx, cmd, **exec_kwargs)
+            cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
         else:
-            self.kickoff_local_job(ctx, cmd)
+            cls.kickoff_local_job(module_name, ctx, cmd)
 
-    def kickoff_slurm_job(self, ctx, cmd, alloc='sup3r', memory=None,
-                          walltime=4, feature=None, stdout_path='./stdout/'):
+    @classmethod
+    def check_module_name(cls, module_name):
+        """Make sure module_name is a valid member of the ModuleName class"""
+        msg = ('Module name must be in ModuleName class. Received '
+               f'{module_name}.')
+        assert module_name in ModuleName, msg
+
+    @classmethod
+    def kickoff_slurm_job(cls, module_name, ctx, cmd, alloc='sup3r',
+                          memory=None, walltime=4, feature=None,
+                          stdout_path='./stdout/'):
         """Run sup3r module on HPC via SLURM job submission.
 
         Parameters
         ----------
+        module_name : str
+            Module name string from :class:`sup3r.utilities.ModuleName`.
         ctx : click.pass_context
             Click context object where ctx.obj is a dictionary
         cmd : str
@@ -110,6 +126,7 @@ class BaseCLI:
         stdout_path : str
             Path to print .stdout and .stderr files.
         """
+        cls.check_module_name(module_name)
 
         name = ctx.obj['NAME']
         out_dir = ctx.obj['OUT_DIR']
@@ -119,12 +136,12 @@ class BaseCLI:
             ctx.obj['SLURM_MANAGER'] = slurm_manager
 
         status = Status.retrieve_job_status(out_dir,
-                                            module=self.module_name,
+                                            module=module_name,
                                             job_name=name,
                                             hardware='slurm',
                                             subprocess_manager=slurm_manager)
 
-        msg = f'sup3r {self.module_name} CLI failed to submit jobs!'
+        msg = f'sup3r {module_name} CLI failed to submit jobs!'
         if status == 'successful':
             msg = (f'Job "{name}" is successful in status json found in '
                    f'"{out_dir}", not re-running.')
@@ -132,7 +149,7 @@ class BaseCLI:
             msg = (f'Job "{name}" was found with status "{status}", not '
                    'resubmitting')
         else:
-            logger.info(f'Running sup3r {self.module_name} on SLURM with node '
+            logger.info(f'Running sup3r {module_name} on SLURM with node '
                         f'name "{name}".')
             out = slurm_manager.sbatch(cmd,
                                        alloc=alloc,
@@ -142,36 +159,40 @@ class BaseCLI:
                                        name=name,
                                        stdout_path=stdout_path)[0]
             if out:
-                msg = (f'Kicked off sup3r {self.module_name} job "{name}" '
+                msg = (f'Kicked off sup3r {module_name} job "{name}" '
                        f'(SLURM jobid #{out}).')
 
             # add job to sup3r status file.
-            Status.add_job(out_dir, module=self.module_name,
+            Status.add_job(out_dir, module=module_name,
                            job_name=name, replace=True,
                            job_attrs={'job_id': out, 'hardware': 'slurm'})
 
         click.echo(msg)
         logger.info(msg)
 
-    def kickoff_local_job(self, ctx, cmd):
+    @classmethod
+    def kickoff_local_job(cls, module_name, ctx, cmd):
         """Run sup3r module locally.
 
         Parameters
         ----------
+        module_name : str
+            Module name string from :class:`sup3r.utilities.ModuleName`.
         ctx : click.pass_context
             Click context object where ctx.obj is a dictionary
         cmd : str
             Command to be submitted in shell script. Example:
                 'python -m sup3r.cli <module_name> -c <config_file>'
         """
+        cls.check_module_name(module_name)
 
         name = ctx.obj['NAME']
         out_dir = ctx.obj['OUT_DIR']
         subprocess_manager = SubprocessManager
         status = Status.retrieve_job_status(out_dir,
-                                            module=self.module_name,
+                                            module=module_name,
                                             job_name=name)
-        msg = f'sup3r {self.module_name} CLI failed to submit jobs!'
+        msg = f'sup3r {module_name} CLI failed to submit jobs!'
         if status == 'successful':
             msg = (f'Job "{name}" is successful in status json found in '
                    f'"{out_dir}", not re-running.')
@@ -179,12 +200,12 @@ class BaseCLI:
             msg = (f'Job "{name}" was found with status "{status}", not '
                    'resubmitting')
         else:
-            logger.info(f'Running sup3r {self.module_name} locally with job '
+            logger.info(f'Running sup3r {module_name} locally with job '
                         f'name "{name}".')
-            Status.add_job(out_dir, module=self.module_name, job_name=name,
+            Status.add_job(out_dir, module=module_name, job_name=name,
                            replace=True)
             subprocess_manager.submit(cmd)
-            msg = (f'Completed sup3r {self.module_name} job "{name}".')
+            msg = (f'Completed sup3r {module_name} job "{name}".')
 
         click.echo(msg)
         logger.info(msg)

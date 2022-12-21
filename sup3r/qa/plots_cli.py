@@ -12,8 +12,6 @@ from sup3r.cli.base import BaseCLI
 
 logger = logging.getLogger(__name__)
 
-plots_cli = BaseCLI(ModuleName.VISUAL_QA, Sup3rVisualQa)
-
 
 @click.group()
 @click.version_option(version=__version__)
@@ -35,7 +33,8 @@ def main(ctx, verbose):
 @click.pass_context
 def from_config(ctx, config_file, verbose):
     """Run the sup3r visual QA module from a config file."""
-    plots_cli.from_config(ctx, config_file, verbose)
+    BaseCLI.from_config(ModuleName.VISUAL_QA, Sup3rVisualQa, ctx, config_file,
+                        verbose)
 
 
 if __name__ == '__main__':
