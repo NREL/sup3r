@@ -638,11 +638,10 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                  raster_file=None, time_chunk_size=None,
                  cache_pattern=None, overwrite_cache=False,
                  overwrite_stats=False, source_handler=None,
-                 max_workers=None, extract_workers=None,
-                 compute_workers=None, load_workers=None, ti_workers=None,
-                 get_interp=False, include_stats=None, max_values=None,
-                 smoothing=None, coarsen=False, spatial_res=None,
-                 temporal_res=None, n_bins=40, max_delta=10, qa_fp=None):
+                 worker_kwargs=None, get_interp=False, include_stats=None,
+                 max_values=None, smoothing=None, coarsen=False,
+                 spatial_res=None, temporal_res=None, n_bins=40,
+                 max_delta=10, qa_fp=None):
         """
         Parameters
         ----------
@@ -698,28 +697,30 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        max_workers : int | None
-            Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, and
-            load_workers.  If max_workers == 1 then all processes will be
-            serialized. If None extract_workers, compute_workers, load_workers,
-            output_workers will use their own provided
-            values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            extract_workers, compute_workers, load_workers, norm_workers,
+            and ti_workers. Each argument needs to be an integer or None.
+
+            The value of `max workers` will set the value of all other worker
+            args. If max_workers == 1 then all processes will be serialized. If
+            max_workers == None then other worker args will use their own
+            provided values.
+
+            `extract_workers` is the max number of workers to use for
+            extracting features from source data. If None it will be estimated
+            based on memory limits. If 1 processes will be serialized.
+            `compute_workers` is the max number of workers to use for computing
+            derived features from raw features in source data. `load_workers`
+            is the max number of workers to use for loading cached feature
+            data. `norm_workers` is the max number of workers to use for
+            normalizing feature data. `ti_workers` is the max number of
+            workers to use to get full time index. Useful when there are many
+            input files each with a single time step. If this is greater than
+            one, time indices for input files will be extracted in parallel
+            and then concatenated to get the full time index. If input files
+            do not all have time indices or if there are few input files this
+            should be set to one.
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
@@ -755,9 +756,16 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         logger.info('Initializing Sup3rStatsSingle and retrieving source data'
                     f' for features={features}.')
 
+        worker_kwargs = worker_kwargs or {}
+        max_workers = worker_kwargs.get('max_workers', None)
+        extract_workers = compute_workers = load_workers = ti_workers = None
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
             ti_workers = max_workers
+        extract_workers = worker_kwargs.get('extract_workers', extract_workers)
+        compute_workers = worker_kwargs.get('compute_workers', compute_workers)
+        load_workers = worker_kwargs.get('load_workers', load_workers)
+        ti_workers = worker_kwargs.get('ti_workers', ti_workers)
 
         self.ti_workers = ti_workers
         self.s_enhance = s_enhance
@@ -788,11 +796,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                                      cache_pattern=cache_pattern,
                                      time_chunk_size=time_chunk_size,
                                      overwrite_cache=overwrite_cache,
-                                     max_workers=max_workers,
-                                     extract_workers=extract_workers,
-                                     compute_workers=compute_workers,
-                                     load_workers=load_workers,
-                                     ti_workers=ti_workers,
+                                     worker_kwargs=worker_kwargs,
                                      max_delta=max_delta)
         self.source_data = self.get_source_data(source_file_paths,
                                                 source_handler_kwargs)
@@ -1009,12 +1013,10 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                  raster_file=None, qa_fp=None, time_chunk_size=None,
                  cache_pattern=None, overwrite_cache=False,
                  overwrite_synth_cache=False, overwrite_stats=False,
-                 source_handler=None, output_handler=None, max_workers=None,
-                 extract_workers=None, compute_workers=None, load_workers=None,
-                 ti_workers=None, get_interp=False, include_stats=None,
-                 max_values=None, smoothing=None, spatial_res=None,
-                 temporal_res=None, n_bins=40, max_delta=10,
-                 save_fig_data=False):
+                 source_handler=None, output_handler=None, worker_kwargs=None,
+                 get_interp=False, include_stats=None, max_values=None,
+                 smoothing=None, spatial_res=None, temporal_res=None,
+                 n_bins=40, max_delta=10, save_fig_data=False):
         """
         Parameters
         ----------
@@ -1093,28 +1095,30 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             data handler class to use for output data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        max_workers : int | None
-            Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, and
-            load_workers.  If max_workers == 1 then all processes will be
-            serialized. If None extract_workers, compute_workers, load_workers,
-            output_workers will use their own provided
-            values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            extract_workers, compute_workers, load_workers, norm_workers,
+            and ti_workers. Each argument needs to be an integer or None.
+
+            The value of `max workers` will set the value of all other worker
+            args. If max_workers == 1 then all processes will be serialized. If
+            max_workers == None then other worker args will use their own
+            provided values.
+
+            `extract_workers` is the max number of workers to use for
+            extracting features from source data. If None it will be estimated
+            based on memory limits. If 1 processes will be serialized.
+            `compute_workers` is the max number of workers to use for computing
+            derived features from raw features in source data. `load_workers`
+            is the max number of workers to use for loading cached feature
+            data. `norm_workers` is the max number of workers to use for
+            normalizing feature data. `ti_workers` is the max number of
+            workers to use to get full time index. Useful when there are many
+            input files each with a single time step. If this is greater than
+            one, time indices for input files will be extracted in parallel
+            and then concatenated to get the full time index. If input files
+            do not all have time indices or if there are few input files this
+            should be set to one.
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
@@ -1162,9 +1166,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                       overwrite_cache=overwrite_cache,
                       overwrite_stats=overwrite_stats,
                       source_handler=source_handler,
-                      max_workers=max_workers, extract_workers=extract_workers,
-                      compute_workers=compute_workers,
-                      load_workers=load_workers, ti_workers=ti_workers,
+                      worker_kwargs=worker_kwargs,
                       get_interp=get_interp, include_stats=include_stats,
                       max_values=max_values, smoothing=None,
                       spatial_res=spatial_res, temporal_res=temporal_res,
