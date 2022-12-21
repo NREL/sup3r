@@ -567,10 +567,8 @@ class ForwardPassStrategy(InputMixIn):
                  input_handler=None,
                  input_handler_kwargs=None,
                  incremental=True,
-                 max_workers=None,
-                 output_workers=None,
+                 worker_kwargs=None,
                  exo_kwargs=None,
-                 pass_workers=1,
                  bias_correct_method=None,
                  bias_correct_kwargs=None,
                  max_nodes=None):
@@ -633,21 +631,23 @@ class ForwardPassStrategy(InputMixIn):
             Allow the forward pass iteration to skip spatiotemporal chunks that
             already have an output file (True, default) or iterate through all
             chunks and overwrite any pre-existing outputs (False).
-        max_workers : int | None
-            Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, output_workers, load_workers,
-            ti_workers, pass_workers. If max_workers == 1 then all processes
-            will be serialized. If None extract_workers, compute_workers,
-            load_workers, output_workers, etc will use their own provided
-            values.
-        output_workers : int | None
-            max number of workers to use for writing forward pass output.
-        pass_workers : int | None
-            max number of workers to use for performing forward passes on a
-            single node. If 1 then all forward passes on chunks distributed to
-            a single node will be run in serial. pass_workers=2 is the minimum
-            number of workers required to run the ForwardPass initialization
-            and ForwardPass.run_chunk() methods concurrently.
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            pass_workers, and output_workers. Each argument needs to be an
+            integer or None.
+
+            The value of `max workers` will set the value of all other worker
+            args. If max_workers == 1 then all processes will be serialized. If
+            max_workers == None then other worker args will use their own
+            provided values.
+
+            `output_workers` is the max number of workers to use for writing
+            forward pass output. `pass_workers` is the max number of workers to
+            use for performing forward passes on a single node. If 1 then all
+            forward passes on chunks distributed to a single node will be run
+            in serial. pass_workers=2 is the minimum number of workers required
+            to run the ForwardPass initialization and ForwardPass.run_chunk()
+            methods concurrently.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -687,11 +687,11 @@ class ForwardPassStrategy(InputMixIn):
         self.temporal_pad = temporal_pad
         self.model_class = model_class
         self.out_pattern = out_pattern
-        self.max_workers = max_workers
-        self.output_workers = output_workers
-        self.pass_workers = pass_workers
+        self.worker_kwargs = worker_kwargs or {}
         self.exo_kwargs = exo_kwargs or {}
         self.incremental = incremental
+        self.bias_correct_method = bias_correct_method
+        self.bias_correct_kwargs = bias_correct_kwargs or {}
         self._failed_chunks = False
         self._input_handler_class = None
         self._input_handler_name = input_handler
@@ -703,29 +703,16 @@ class ForwardPassStrategy(InputMixIn):
         self._lr_lat_lon = None
         self._init_handler = None
         self._handle_features = None
-        self.bias_correct_method = bias_correct_method
-        self.bias_correct_kwargs = bias_correct_kwargs or {}
 
         self._single_ts_files = self._input_handler_kwargs.get(
             'single_ts_files', None)
-        self.time_chunk_size = self._input_handler_kwargs.get(
-            'time_chunk_size', None)
-        self.overwrite_cache = self._input_handler_kwargs.get(
-            'overwrite_cache', False)
-        self.overwrite_ti_cache = self._input_handler_kwargs.get(
-            'overwrite_ti_cache', False)
-        worker_kwargs = self._input_handler_kwargs.get('worker_kwargs', {})
-        self.load_workers = worker_kwargs.get('load_workers', None)
-        self.ti_workers = worker_kwargs.get('ti_workers', None)
-        self.extract_workers = worker_kwargs.get('extract_workers', None)
-        self.compute_workers = worker_kwargs.get('compute_workers', None)
-        self.res_kwargs = self._input_handler_kwargs.get('res_kwargs', {})
         self.cache_pattern = self._input_handler_kwargs.get('cache_pattern',
                                                             None)
-        self._worker_attrs = ['ti_workers', 'compute_workers', 'pass_workers',
-                              'load_workers', 'output_workers',
-                              'extract_workers']
-        self.cap_worker_args(max_workers)
+        self.max_workers = self.worker_kwargs.get('max_workers', None)
+        self.output_workers = self.worker_kwargs.get('output_workers', None)
+        self.pass_workers = self.worker_kwargs.get('pass_workers', None)
+        self._worker_attrs = ['pass_workers', 'output_workers']
+        self.cap_worker_args(self.max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
         if isinstance(self.model_kwargs, str):
@@ -821,12 +808,8 @@ class ForwardPassStrategy(InputMixIn):
                     f'and n_total_chunks={self.chunks}. '
                     f'{self.chunks / self.nodes} chunks per node on average.')
         logger.info(f'Using max_workers={self.max_workers}, '
-                    f'extract_workers={self.extract_workers}, '
-                    f'compute_workers={self.compute_workers}, '
                     f'pass_workers={self.pass_workers}, '
-                    f'load_workers={self.load_workers}, '
-                    f'output_workers={self.output_workers}, '
-                    f'ti_workers={self.ti_workers}')
+                    f'output_workers={self.output_workers}')
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
@@ -1184,16 +1167,8 @@ class ForwardPass:
             temporal_slice=self.temporal_pad_slice,
             raster_file=self.raster_file,
             cache_pattern=self.cache_pattern,
-            time_chunk_size=self.strategy.time_chunk_size,
-            overwrite_cache=self.strategy.overwrite_cache,
-            worker_kwargs=dict(max_workers=self.max_workers,
-                               extract_workers=strategy.extract_workers,
-                               compute_workers=strategy.compute_workers,
-                               load_workers=strategy.load_workers,
-                               ti_workers=strategy.ti_workers),
+            single_ts_files=self.single_ts_files,
             handle_features=strategy.handle_features,
-            res_kwargs=strategy.res_kwargs,
-            single_ts_files=strategy.single_ts_files,
             val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs
