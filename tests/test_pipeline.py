@@ -49,9 +49,10 @@ def test_fwp_pipeline():
         input_handler_kwargs = dict(target=target, shape=shape,
                                     overwrite_cache=True,
                                     time_chunk_size=10,
+                                    worker_kwargs=dict(max_workers=1),
                                     temporal_slice=[t_slice.start,
                                                     t_slice.stop])
-        config = {'max_workers': 1,
+        config = {'worker_kwargs': {'max_workers': 1},
                   'file_paths': input_files,
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,

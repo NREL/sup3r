@@ -38,7 +38,7 @@ def test_solar_cc_model(log=False):
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(20, 20, 72),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=16, n_batches=2,
                              s_enhance=2, sub_daily_shape=9)
@@ -93,7 +93,7 @@ def test_solar_cc_model_spatial(log=False):
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
                                     s_enhance=2)
@@ -133,7 +133,7 @@ def test_solar_custom_loss(sub_daily_shape=24, log=False):
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(5, 5, 72),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=1,
                              s_enhance=1, sub_daily_shape=sub_daily_shape)

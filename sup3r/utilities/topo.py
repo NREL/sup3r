@@ -106,12 +106,10 @@ class TopoExtract(ABC):
                 logger.error(msg)
                 raise KeyError(msg)
 
-        self.input_handler = input_handler(file_paths, [],
-                                           target=target,
-                                           shape=shape,
-                                           raster_file=raster_file,
-                                           max_delta=max_delta,
-                                           ti_workers=ti_workers)
+        self.input_handler = input_handler(
+            file_paths, [], target=target, shape=shape,
+            raster_file=raster_file, max_delta=max_delta,
+            worker_kwargs=dict(ti_workers=ti_workers))
 
     @property
     @abstractmethod
@@ -294,10 +292,9 @@ class TopoExtractNC(TopoExtract):
         super().__init__(*args, **kwargs)
         logger.info('Getting topography for full domain from '
                     f'{self._topo_source}')
-        self.source_handler = DataHandlerNC(self._topo_source,
-                                            features=['topography'],
-                                            ti_workers=self.ti_workers,
-                                            val_split=0.0)
+        self.source_handler = DataHandlerNC(
+            self._topo_source, features=['topography'],
+            worker_kwargs=dict(ti_workers=self.ti_workers), val_split=0.0)
 
     @property
     def source_elevation(self):

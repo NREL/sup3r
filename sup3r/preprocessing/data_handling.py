@@ -75,24 +75,54 @@ logger = logging.getLogger(__name__)
 
 
 class InputMixIn:
-    """MixIn class for input handling methods and properties"""
+    """MixIn class with properties and methods for handling the spatiotemporal
+    data domain to extract from source data."""
 
-    def __init__(self):
-        self.raster_file = None
-        self.raster_index = None
+    def __init__(self, target, shape, raster_file=None, raster_index=None,
+                 temporal_slice=slice(None, None, 1)):
+        """Provide properties of the spatiotemporal data domain
+
+        Parameters
+        ----------
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
+        raster_index : list
+            List of tuples or slices. Used as an alternative to computing the
+            raster index from target+shape or loading the raster index from
+            file
+        temporal_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
+        """
+        self.raster_file = raster_file
+        self.target = target
+        self.grid_shape = shape
+        self.raster_index = raster_index
+        self.temporal_slice = temporal_slice
+        self.lat_lon = None
         self.overwrite_ti_cache = False
         self.max_workers = None
-        self.lat_lon = None
         self._ti_workers = None
         self._raw_time_index = None
         self._raw_tsteps = None
         self._time_index = None
         self._time_index_file = None
-        self._temporal_slice = None
         self._file_paths = None
         self._cache_pattern = None
-        self._target = None
-        self._grid_shape = None
+        self._invert_lat = None
+        self._raw_lat_lon = None
+        self._full_raw_lat_lon = None
         self._single_ts_files = None
         self._worker_attrs = ['ti_workers']
         self.res_kwargs = {}
@@ -112,6 +142,7 @@ class InputMixIn:
         """Check if there is a file for each time step, in which case we can
         send a subset of files to the data handler according to ti_pad_slice"""
         if self._single_ts_files is None:
+            logger.debug('Checking if input files are single timestep.')
             t_steps = self.get_time_index(self.file_paths[:1], max_workers=1)
             check = (len(self._file_paths) == len(self.raw_time_index)
                      and t_steps is not None and len(t_steps) == 1)
@@ -153,8 +184,12 @@ class InputMixIn:
     @classmethod
     @abstractmethod
     def get_full_domain(cls, file_paths):
-        """Get target and shape for largest domain possible when target + shape
-        are not specified"""
+        """Get full lat/lon grid for when target + shape are not specified"""
+
+    @classmethod
+    @abstractmethod
+    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
+        """Get lat/lon grid for requested target and shape"""
 
     @abstractmethod
     def get_time_index(self, file_paths, max_workers=None, **kwargs):
@@ -204,6 +239,9 @@ class InputMixIn:
                    'be <= 3')
             assert check, msg
             self._temporal_slice = slice(*temporal_slice)
+        if self._temporal_slice.step is None:
+            self._temporal_slice = slice(self._temporal_slice.start,
+                                         self._temporal_slice.stop, 1)
         if self._temporal_slice.start is None:
             self._temporal_slice = slice(0, self._temporal_slice.stop,
                                          self._temporal_slice.step)
@@ -271,28 +309,77 @@ class InputMixIn:
         self._cache_pattern = cache_pattern
 
     @property
-    def full_domain(self):
-        """Get target and shape for full domain if not specified and raster
-        file is None or does not exist
+    def need_full_domain(self):
+        """Check whether we need to get the full lat/lon grid to determine
+        target and shape values"""
+        check = (self.raster_file is None
+                 or not os.path.exists(self.raster_file))
+        or_check = (self._target is None or self._grid_shape is None)
+        logger.info('Target + shape not specified. Getting full domain for '
+                    f'{self.file_paths[0]}.')
+        return check and or_check
+
+    @property
+    def full_raw_lat_lon(self):
+        """Get the full lat/lon grid without doing any latitude inversion"""
+        if self._full_raw_lat_lon is None:
+            if self.need_full_domain:
+                self._full_raw_lat_lon = self.get_full_domain(
+                    self.file_paths[:1])
+        return self._full_raw_lat_lon
+
+    @property
+    def raw_lat_lon(self):
+        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension. This returns the gid
+        without any lat inversion.
 
         Returns
         -------
-        _target: tuple
-            (lat, lon) lower left corner of raster.
-        _grid_shape: tuple
-            (rows, cols) grid size.
+        ndarray
         """
-        check = (self.raster_file is None
-                 or not os.path.exists(self.raster_file))
-        check = check and (self._target is None or self._grid_shape is None)
-        if check:
-            new_target, new_shape = self.get_full_domain(self.file_paths[0:1])
-            self._target = self._target or new_target
-            self._grid_shape = self._grid_shape or new_shape
-            logger.info('Target + shape not specified. Getting full domain '
-                        f'with target={self._target} and '
-                        f'shape={self._grid_shape}')
-        return self._target, self._grid_shape
+        if self.full_raw_lat_lon is not None:
+            check = (self.raster_file is not None
+                     and os.path.exists(self.raster_file))
+            self._raw_lat_lon = (self.full_raw_lat_lon if not check
+                                 else self.full_raw_lat_lon[self.raster_index])
+
+        if self._raw_lat_lon is None:
+            self._raw_lat_lon = self.get_lat_lon(self.file_paths[0:1],
+                                                 self.raster_index,
+                                                 invert_lat=False)
+        return self._raw_lat_lon
+
+    @property
+    def lat_lon(self):
+        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension. This ensures that the
+        lower left hand corner of the domain is given by lat_lon[-1, 0]
+
+        Returns
+        -------
+        ndarray
+        """
+        if self._lat_lon is None:
+            self._lat_lon = self.raw_lat_lon
+            if self.invert_lat:
+                self._lat_lon = self._lat_lon[::-1]
+        return self._lat_lon
+
+    @lat_lon.setter
+    def lat_lon(self, lat_lon):
+        """Update lat lon"""
+        self._lat_lon = lat_lon
+
+    @property
+    def invert_lat(self):
+        """Whether to invert the latitude axis during data extraction. This is
+        to enforce a descending latitude ordering so that the lower left corner
+        of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
+        if self._invert_lat is None:
+            lat_lon = self.raw_lat_lon
+            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
+        return self._invert_lat
 
     @property
     def target(self):
@@ -304,12 +391,11 @@ class InputMixIn:
             (lat, lon) lower left corner of raster.
         """
         if self._target is None:
-            check = (self.raster_file is not None
-                     and os.path.exists(self.raster_file))
-            if check:
-                self._target = tuple(self.lat_lon[-1, 0, :])
+            lat_lon = self.lat_lon
+            if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
+                self._target = tuple(lat_lon[0, 0, :])
             else:
-                self._target, _ = self.full_domain
+                self._target = tuple(lat_lon[-1, 0, :])
         return self._target
 
     @target.setter
@@ -326,12 +412,8 @@ class InputMixIn:
         _grid_shape: tuple
             (rows, cols) grid size.
         """
-        check = (self.raster_file is not None
-                 and os.path.exists(self.raster_file))
-        if check:
-            self._grid_shape = get_raster_shape(self.raster_index)
-        elif self._grid_shape is None:
-            _, self._grid_shape = self.full_domain
+        if self._grid_shape is None:
+            self._grid_shape = self.lat_lon.shape[:-1]
         return self._grid_shape
 
     @grid_shape.setter
@@ -376,21 +458,7 @@ class InputMixIn:
                 with open(self.time_index_file, 'rb') as f:
                     self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
             else:
-                now = dt.now()
-                logger.debug(f'Getting time index for {len(self.file_paths)} '
-                             f'input files. Using ti_workers={self.ti_workers}'
-                             f' and res_kwargs={self.res_kwargs}')
-                self._raw_time_index = self.get_time_index(
-                    self.file_paths, max_workers=self.ti_workers,
-                    **self.res_kwargs)
-
-                if self.time_index_file is not None:
-                    logger.debug('Saved raw_time_index to '
-                                 f'{self.time_index_file}')
-                    with open(self.time_index_file, 'wb') as f:
-                        pickle.dump(self._raw_time_index, f)
-                logger.debug(f'Built full time index in {dt.now() - now} '
-                             'seconds.')
+                self._raw_time_index = self._build_and_cache_time_index()
 
             check = (self._raw_time_index is not None
                      and (self._raw_time_index.hour == 12).all())
@@ -400,11 +468,32 @@ class InputMixIn:
                 self._raw_time_index = [None, None]
 
         if self._single_ts_files:
-            msg = ('Conflicting number of time steps '
-                   f'({len(self._raw_time_index)}) and files '
-                   f'({self.raw_tsteps})')
-            check = len(self._raw_time_index) == self.raw_tsteps
-            assert check, msg
+            self.time_index_conflict_check()
+        return self._raw_time_index
+
+    def time_index_conflict_check(self):
+        """Check if the number of input files and the length of the time index
+        is the same"""
+        msg = (f'Number of time steps ({len(self._raw_time_index)}) and files '
+               f'({self.raw_tsteps}) conflict!')
+        check = len(self._raw_time_index) == self.raw_tsteps
+        assert check, msg
+
+    def _build_and_cache_time_index(self):
+        """Build time index and cache if time_index_file is not None"""
+        now = dt.now()
+        logger.debug(f'Getting time index for {len(self.file_paths)} '
+                     f'input files. Using ti_workers={self.ti_workers}'
+                     f' and res_kwargs={self.res_kwargs}')
+        self._raw_time_index = self.get_time_index(self.file_paths,
+                                                   max_workers=self.ti_workers,
+                                                   **self.res_kwargs)
+
+        if self.time_index_file is not None:
+            logger.debug(f'Saved raw_time_index to {self.time_index_file}')
+            with open(self.time_index_file, 'wb') as f:
+                pickle.dump(self._raw_time_index, f)
+        logger.debug(f'Built full time index in {dt.now() - now} seconds.')
         return self._raw_time_index
 
     @property
@@ -475,15 +564,14 @@ class DataHandler(FeatureHandler, InputMixIn):
                            'topography')
 
     def __init__(self, file_paths, features, target=None, shape=None,
-                 max_delta=20, temporal_slice=slice(None),
+                 max_delta=20, temporal_slice=slice(None, None, 1),
                  hr_spatial_coarsen=None, time_roll=0, val_split=0.05,
                  sample_shape=(10, 10, 1), raster_file=None, raster_index=None,
                  shuffle_time=False, time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_ti_cache=False,
-                 load_cached=False, train_only_features=None, max_workers=None,
-                 extract_workers=None, compute_workers=None, load_workers=None,
-                 norm_workers=None, ti_workers=None, handle_features=None,
-                 single_ts_files=None, res_kwargs=None):
+                 load_cached=False, train_only_features=None,
+                 handle_features=None, single_ts_files=None,
+                 worker_kwargs=None, res_kwargs=None):
         """
         Parameters
         ----------
@@ -492,7 +580,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             of netcdf files with identical grid. The string can be a unix-style
             file path which will be passed through glob.glob
         features : list
-            list of features to extract
+            list of features to extract from the provided data
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -560,40 +648,48 @@ class DataHandler(FeatureHandler, InputMixIn):
             List of feature names or patt*erns that should only be included in
             the training set and not the output. If None (default), this will
             default to the class TRAIN_ONLY_FEATURES attribute.
-        max_workers : int | None
-            Providing a value for max workers will be used to set the value of
-            extract_workers, compute_workers, load_workers, norm_workers, and
-            ti_workers.  If max_workers == 1 then all processes will be
-            serialized. If None extract_workers, compute_workers, load_workers,
-            and norm_workers will use their own provided values.
-        extract_workers : int | None
-            max number of workers to use for extracting features from source
-            data. If None max workers will be estimated based on memory limits.
-            If 1 processes will be serialized.
-        compute_workers : int | None
-            max number of workers to use for computing derived features from
-            raw features in source data.
-        load_workers : int | None
-            max number of workers to use for loading cached feature data.
-        norm_workers : int | None
-            max number of workers to use for normalizing feature data.
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
+        handle_features : list | None
+            Optional list of features which are available in the provided data.
+            Providing this eliminates the need for an initial search of
+            available features prior to data extraction.
         single_ts_files : bool | None
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
             determined from file_paths directly.
+        worker_kwargs : dict | None
+            Dictionary of worker values. Can include max_workers,
+            extract_workers, compute_workers, load_workers, norm_workers,
+            and ti_workers. Each argument needs to be an integer or None.
+
+            The value of `max workers` will set the value of all other worker
+            args. If max_workers == 1 then all processes will be serialized. If
+            max_workers == None then other worker args will use their own
+            provided values.
+
+            `extract_workers` is the max number of workers to use for
+            extracting features from source data. If None it will be estimated
+            based on memory limits. If 1 processes will be serialized.
+            `compute_workers` is the max number of workers to use for computing
+            derived features from raw features in source data. `load_workers`
+            is the max number of workers to use for loading cached feature
+            data. `norm_workers` is the max number of workers to use for
+            normalizing feature data. `ti_workers` is the max number of
+            workers to use to get full time index. Useful when there are many
+            input files each with a single time step. If this is greater than
+            one, time indices for input files will be extracted in parallel
+            and then concatenated to get the full time index. If input files
+            do not all have time indices or if there are few input files this
+            should be set to one.
         res_kwargs : dict | None
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,
                       'chunks': {'south_north': 120, 'west_east': 120}}
             which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
+        InputMixIn.__init__(self, target=target, shape=shape,
+                            raster_file=raster_file,
+                            raster_index=raster_index,
+                            temporal_slice=temporal_slice)
 
         msg = 'No files provided to DataHandler. Aborting.'
         assert file_paths is not None and bool(file_paths), msg
@@ -602,10 +698,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.features = features
         self.val_time_index = None
         self.max_delta = max_delta
-        self.raster_file = raster_file
         self.val_split = val_split
         self.sample_shape = sample_shape
-        self.temporal_slice = temporal_slice
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.shuffle_time = shuffle_time
@@ -615,33 +709,25 @@ class DataHandler(FeatureHandler, InputMixIn):
         self.load_cached = load_cached
         self.data = None
         self.val_data = None
-        self.target = target
-        self.grid_shape = shape
-        self.max_workers = max_workers
         self.res_kwargs = res_kwargs or {}
         self._single_ts_files = single_ts_files
-        self._invert_lat = None
         self._cache_pattern = cache_pattern
         self._train_only_features = train_only_features
-        self._ti_workers = ti_workers
-        self._extract_workers = extract_workers
-        self._norm_workers = norm_workers
-        self._load_workers = load_workers
-        self._compute_workers = compute_workers
         self._time_chunk_size = time_chunk_size
-        self._cache_files = None
-        self._raw_time_index = None
-        self._raw_tsteps = None
-        self._time_index = None
-        self._time_index_file = None
-        self._lat_lon = None
-        self._raster_index = raster_index
         self._handle_features = handle_features
+        self._cache_files = None
         self._extract_features = None
         self._noncached_features = None
         self._raw_features = None
         self._raw_data = {}
         self._time_chunks = None
+        worker_kwargs = worker_kwargs or {}
+        self.max_workers = worker_kwargs.get('max_workers', None)
+        self._ti_workers = worker_kwargs.get('ti_workers', None)
+        self._extract_workers = worker_kwargs.get('extract_workers', None)
+        self._norm_workers = worker_kwargs.get('norm_workers', None)
+        self._load_workers = worker_kwargs.get('load_workers', None)
+        self._compute_workers = worker_kwargs.get('compute_workers', None)
         self._worker_attrs = ['_ti_workers', '_norm_workers',
                               '_compute_workers', '_extract_workers',
                               '_load_workers']
@@ -747,18 +833,6 @@ class DataHandler(FeatureHandler, InputMixIn):
         with self.source_handler(self.file_paths) as handle:
             desc = handle.attrs
         return desc
-
-    @property
-    def invert_lat(self):
-        """Whether to invert the latitude axis during data extraction. This is
-        to enforce a descending latitude ordering so that the lower left corner
-        of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
-        if self._invert_lat is None:
-            lat_lon = self.get_lat_lon(self.file_paths[:1],
-                                       self.raster_index,
-                                       invert_lat=False)
-            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
-        return self._invert_lat
 
     @property
     def train_only_features(self):
@@ -869,26 +943,6 @@ class DataHandler(FeatureHandler, InputMixIn):
         if self._cache_files is None:
             self._cache_files = self.get_cache_file_names(self.cache_pattern)
         return self._cache_files
-
-    @property
-    def lat_lon(self):
-        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
-        array with same ordering in last dimension
-
-        Returns
-        -------
-        ndarray
-        """
-        if self._lat_lon is None:
-            self._lat_lon = self.get_lat_lon(self.file_paths,
-                                             self.raster_index,
-                                             invert_lat=self.invert_lat)
-        return self._lat_lon
-
-    @lat_lon.setter
-    def lat_lon(self, lat_lon):
-        """Update lat lon"""
-        self._lat_lon = lat_lon
 
     @property
     def raster_index(self):
@@ -1060,7 +1114,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
-        """Store lat lon for future output
+        """Get lat/lon grid for requested target and shape
 
         Parameters
         ----------
@@ -1185,9 +1239,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
-        for i in range(self.shape[-1]):
-            self.val_data[..., i] = self.val_data[..., i] * stds[i] + means[i]
-            self.data[..., i] = self.data[..., i] * stds[i] + means[i]
+        self.val_data = (self.val_data * stds) + means
+        self.data = (self.data * stds) + means
 
     def normalize(self, means, stds):
         """Normalize all data features
@@ -2011,7 +2064,11 @@ class DataHandlerNC(DataHandler):
     @classmethod
     def extract_feature(cls, file_paths, raster_index, feature,
                         time_slice=slice(None), **kwargs):
-        """Extract single feature from data source
+        """Extract single feature from data source. The requested feature
+        can match exactly to one found in the source data or can have a
+        matching prefix with a suffix specifying the height or pressure level
+        to interpolate to. e.g. feature=U_100m -> interpolate exact match U to
+        100 meters.
 
         Parameters
         ----------
@@ -2035,24 +2092,17 @@ class DataHandlerNC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-        logger.info(f'Extracting {feature} with kwargs={kwargs}.')
+        logger.debug(f'Extracting {feature} with time_slice={time_slice}, '
+                     f'raster_index={raster_index}, kwargs={kwargs}.')
         with cls.source_handler(file_paths, **kwargs) as handle:
             f_info = Feature(feature, handle)
             interp_height = f_info.height
             interp_pressure = f_info.pressure
             basename = f_info.basename
-            # Sometimes xarray returns fields with (Times, time, lats, lons)
-            # with a single entry in the 'time' dimension
+
             if feature in handle:
-                if len(handle[feature].dims) == 4:
-                    idx = tuple([time_slice] + [0] + raster_index)
-                elif len(handle[feature].dims) == 3:
-                    idx = tuple([time_slice] + raster_index)
-                else:
-                    idx = tuple(raster_index)
-                fdata = np.array(handle[feature][idx], dtype=np.float32)
-                if len(fdata.shape) == 2:
-                    fdata = np.expand_dims(fdata, axis=0)
+                fdata = cls.direct_extract(handle, feature, raster_index,
+                                           time_slice)
 
             elif basename in handle:
                 if interp_height is not None:
@@ -2075,6 +2125,40 @@ class DataHandlerNC(DataHandler):
         return fdata.astype(np.float32)
 
     @classmethod
+    def direct_extract(cls, handle, feature, raster_index, time_slice):
+        """Extract requested feature directly from source data, rather than
+        interpolating to a requested height or pressure level
+
+        Parameters
+        ----------
+        data : xarray
+            netcdf data object
+        feature : str
+            Name of feature to extract directly from source handler
+        raster_index : list
+            List of slices for raster index of spatial domain
+        time_slice : slice
+            slice of time to extract
+
+        Returns
+        -------
+        fdata : ndarray
+            Data array for requested feature
+        """
+        # Sometimes xarray returns fields with (Times, time, lats, lons)
+        # with a single entry in the 'time' dimension so we include this [0]
+        if len(handle[feature].dims) == 4:
+            idx = tuple([time_slice] + [0] + raster_index)
+        elif len(handle[feature].dims) == 3:
+            idx = tuple([time_slice] + raster_index)
+        else:
+            idx = tuple(raster_index)
+        fdata = np.array(handle[feature][idx], dtype=np.float32)
+        if len(fdata.shape) == 2:
+            fdata = np.expand_dims(fdata, axis=0)
+        return fdata
+
+    @classmethod
     def get_full_domain(cls, file_paths):
         """Get full shape and min available lat lon. To simplify processing
         of full domain without needing to specify target and shape.
@@ -2088,17 +2172,10 @@ class DataHandlerNC(DataHandler):
         -------
         target : tuple
             (lat, lon) for lower left corner
-        shape : tuple
-            (n_rows, n_cols) grid size
+        lat_lon : ndarray
+            Raw lat/lon array for entire domain
         """
-        lat_lon = cls.get_lat_lon(file_paths, [slice(None), slice(None)],
-                                  slice(None))
-        if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
-            target = tuple(lat_lon[0, 0, :])
-        else:
-            target = tuple(lat_lon[-1, 0, :])
-        shape = lat_lon.shape[:-1]
-        return target, shape
+        return cls.get_lat_lon(file_paths, [slice(None), slice(None)])
 
     @staticmethod
     def get_closest_lat_lon(lat_lon, target):
@@ -2150,9 +2227,41 @@ class DataHandlerNC(DataHandler):
         list
             List of slices corresponding to extracted data region
         """
-        lat_lon = cls.get_lat_lon(file_paths[:1],
-                                  [slice(None), slice(None)],
+        lat_lon = cls.get_lat_lon(file_paths[:1], [slice(None), slice(None)],
                                   invert_lat=False)
+        cls._check_grid_extent(target, grid_shape, lat_lon)
+
+        row, col = cls.get_closest_lat_lon(lat_lon, target)
+
+        closest = tuple(lat_lon[row, col])
+        logger.debug(f'Found closest coordinate {closest} to target={target}')
+        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
+            msg = 'Closest coordinate to target is more than 1 degree away'
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        raster_index = [slice(row, row + grid_shape[0]),
+                        slice(col, col + grid_shape[1])]
+
+        cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
+        return raster_index
+
+    @classmethod
+    def _check_grid_extent(cls, target, grid_shape, lat_lon):
+        """Make sure the requested target coordinate lies within the available
+        lat/lon grid.
+
+        Parameters
+        ----------
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+        lat_lon : ndarray
+            Array of lat/lon coordinates for entire available grid. Used to
+            check whether computed raster only includes coordinates within this
+            grid.
+        """
         min_lat = np.min(lat_lon[..., 0])
         min_lon = np.min(lat_lon[..., 1])
         max_lat = np.max(lat_lon[..., 0])
@@ -2166,17 +2275,24 @@ class DataHandlerNC(DataHandler):
         assert (min_lat <= target[0] <= max_lat
                 and min_lon <= target[1] <= max_lon), msg
 
-        row, col = cls.get_closest_lat_lon(lat_lon, target)
-        closest = tuple(lat_lon[row, col])
-        logger.debug(f'Found closest coordinate {closest} to target={target}')
-        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
-            msg = 'Closest coordinate to target is more than 1 degree away'
-            logger.warning(msg)
-            warnings.warn(msg)
+    @classmethod
+    def _validate_raster_shape(cls, target, grid_shape, lat_lon, raster_index):
+        """Make sure the computed raster_index only includes coordinates within
+        the available grid
 
-        raster_index = [slice(row, row + grid_shape[0]),
-                        slice(col, col + grid_shape[1])]
-
+        Parameters
+        ----------
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+        lat_lon : ndarray
+            Array of lat/lon coordinates for entire available grid. Used to
+            check whether computed raster only includes coordinates within this
+            grid.
+        raster_index : list
+            List of slices selecting region from entire available grid.
+        """
         if (raster_index[0].stop > lat_lon.shape[0]
            or raster_index[1].stop > lat_lon.shape[1]):
             msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
@@ -2184,7 +2300,6 @@ class DataHandlerNC(DataHandler):
                    f'{lat_lon.shape[:-1]} with lower left corner '
                    f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}).')
             raise ValueError(msg)
-        return raster_index
 
     def get_raster_index(self):
         """Get raster index for file data. Here we assume the list of paths in

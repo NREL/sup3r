@@ -67,7 +67,7 @@ def test_train_s_mom1(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom1([handler],
                                             batch_size=batch_size,
@@ -155,7 +155,7 @@ def test_train_s_mom1_sf(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom1SF([handler],
                                               batch_size=batch_size,
@@ -216,7 +216,7 @@ def test_train_s_mom2(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom2([handler], batch_size=batch_size,
                                             s_enhance=2, n_batches=n_batches,
@@ -275,7 +275,7 @@ def test_train_s_mom2_sf(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom2SF([handler],
                                               batch_size=batch_size,
@@ -328,7 +328,7 @@ def test_train_s_mom2_sep(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom2Sep([handler],
                                                batch_size=batch_size,
@@ -380,7 +380,7 @@ def test_train_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = SpatialBatchHandlerMom2SepSF([handler],
                                                  batch_size=batch_size,
@@ -424,7 +424,7 @@ def test_train_st_mom1(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom1([handler], batch_size=batch_size,
                                      s_enhance=3, t_enhance=4,
@@ -466,7 +466,7 @@ def test_train_st_mom1_sf(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom1SF([handler], batch_size=batch_size,
                                        s_enhance=3, t_enhance=4,
@@ -518,7 +518,7 @@ def test_train_st_mom2(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2([handler], batch_size=batch_size,
                                      s_enhance=3, t_enhance=4,
@@ -570,7 +570,7 @@ def test_train_st_mom2_sf(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2SF([handler], batch_size=batch_size,
                                        s_enhance=3, t_enhance=4,
@@ -612,7 +612,7 @@ def test_train_st_mom2_sep(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2Sep([handler],
                                         batch_size=batch_size,
@@ -654,7 +654,7 @@ def test_train_st_mom2_sep_sf(FEATURES,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
-                            max_workers=1)
+                            worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2SepSF([handler],
                                           batch_size=batch_size,

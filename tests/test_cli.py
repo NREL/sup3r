@@ -63,23 +63,23 @@ def test_pipeline_fwp_collect(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log.log')
-        fwp_config = {'ti_workers': 1,
-                      'file_paths': input_files,
-                      'target': (19.3, -123.5),
-                      'model_kwargs': {'model_dir': out_dir},
-                      'out_pattern': out_files,
-                      'cache_pattern': cache_pattern,
-                      'log_pattern': log_prefix,
-                      'shape': shape,
-                      'fwp_chunk_shape': fwp_chunk_shape,
-                      'time_chunk_size': 10,
-                      'max_workers': 1,
-                      'pass_workers': 1,
-                      'spatial_pad': 5,
-                      'temporal_pad': 5,
-                      'overwrite_cache': True,
-                      'execution_control': {
-                          "option": "local"}}
+        fwp_config = {'input_handler_kwargs': {
+            'worker_kwargs': {'max_workers': 1},
+            'target': (19.3, -123.5),
+            'shape': shape,
+            'overwrite_cache': True,
+            'time_chunk_size': 10,
+            'cache_pattern': cache_pattern},
+            'file_paths': input_files,
+            'model_kwargs': {'model_dir': out_dir},
+            'out_pattern': out_files,
+            'log_pattern': log_prefix,
+            'fwp_chunk_shape': fwp_chunk_shape,
+            'worker_kwargs': {'max_workers': 1},
+            'spatial_pad': 5,
+            'temporal_pad': 5,
+            'execution_control': {
+                "option": "local"}}
 
         features = ['windspeed_100m', 'winddirection_100m']
         out_files = os.path.join(td, 'out_*.h5')
@@ -147,7 +147,7 @@ def test_data_collection_cli(runner):
          t_slices_hr, _, s_slices_hr, _, low_res_times) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
-        config = {'ti_workers': 1,
+        config = {'worker_kwargs': {'max_workers': 1},
                   'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
@@ -234,8 +234,7 @@ def test_fwd_pass_cli(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
-        config = {'ti_workers': 1,
-                  'file_paths': input_files,
+        config = {'file_paths': input_files,
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
                   'log_pattern': log_prefix,
@@ -243,9 +242,10 @@ def test_fwd_pass_cli(runner):
                                            'cache_pattern': cache_pattern,
                                            'shape': shape,
                                            'overwrite_cache': False,
-                                           'time_chunk_size': 10},
+                                           'time_chunk_size': 10,
+                                           'worker_kwargs': {'ti_workers': 1}},
                   'fwp_chunk_shape': fwp_chunk_shape,
-                  'max_workers': 1,
+                  'worker_kwargs': {'max_workers': 1},
                   'spatial_pad': 5,
                   'temporal_pad': 5,
                   'execution_control': {

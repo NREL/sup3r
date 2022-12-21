@@ -293,9 +293,10 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice),
+                                      temporal_slice=temporal_slice,
+                                      worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             input_handler='DataHandlerNCforCC')
         bc_strat = ForwardPassStrategy(
             input_files,
@@ -303,9 +304,10 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice),
+                                      temporal_slice=temporal_slice,
+                                      worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             input_handler='DataHandlerNCforCC',
             bias_correct_method='local_linear_bc',
             bias_correct_kwargs=bias_correct_kwargs)
@@ -355,7 +357,7 @@ def test_qa_integration():
                  'temporal_coarsening_method': 'average',
                  'features': features,
                  'input_handler': 'DataHandlerNCforCC',
-                 'max_workers': 1,
+                 'worker_kwargs': {'max_workers': 1},
                  }
 
         bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
@@ -372,7 +374,7 @@ def test_qa_integration():
                     'input_handler': 'DataHandlerNCforCC',
                     'bias_correct_method': 'local_linear_bc',
                     'bias_correct_kwargs': bias_correct_kwargs,
-                    'max_workers': 1,
+                    'worker_kwargs': {'max_workers': 1},
                     }
 
         for idf, feature in enumerate(features):

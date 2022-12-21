@@ -44,7 +44,7 @@ def test_solar_handler(plot=False):
                                    time_roll=-7,
                                    val_split=0.0,
                                    sample_shape=(20, 20, 24),
-                                   max_workers=1)
+                                   worker_kwargs=dict(worker_kwargs=1))
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data is None
@@ -120,7 +120,7 @@ def test_solar_handler_w_wind():
                                        time_roll=-7,
                                        val_split=0.1,
                                        sample_shape=(20, 20, 24),
-                                       max_workers=1)
+                                       worker_kwargs=dict(max_workers=1))
 
         assert handler.data.shape[2] % 24 == 0
         assert handler.val_data is None
@@ -152,7 +152,7 @@ def test_solar_batching(plot=False):
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=8)
@@ -184,7 +184,7 @@ def test_solar_batching(plot=False):
                                        time_roll=-7,
                                        val_split=0.1,
                                        sample_shape=(20, 20, 24),
-                                       max_workers=1)
+                                       worker_kwargs=dict(max_workers=1))
         batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                                  s_enhance=1, sub_daily_shape=8)
         for p, batch in enumerate(batcher):
@@ -231,7 +231,7 @@ def test_solar_batching_spatial(plot=False):
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
                                     s_enhance=2)
@@ -274,7 +274,7 @@ def test_solar_batch_nan_stats():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     true_means = [np.nanmean(handler.data[..., 0])]
     true_stdevs = [np.nanstd(handler.data[..., 0])]
@@ -302,7 +302,7 @@ def test_solar_batch_nan_stats():
                                     time_roll=-7,
                                     val_split=0.1,
                                     sample_shape=(20, 20, 24),
-                                    max_workers=1)
+                                    worker_kwargs=dict(max_workers=1))
 
     handler2 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                     target=TARGET_S, shape=SHAPE,
@@ -310,7 +310,7 @@ def test_solar_batch_nan_stats():
                                     time_roll=-7,
                                     val_split=0.1,
                                     sample_shape=(20, 20, 24),
-                                    max_workers=1)
+                                    worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler1, handler2], batch_size=1,
                              n_batches=10, s_enhance=1, sub_daily_shape=9)
@@ -327,7 +327,7 @@ def test_solar_val_data():
                                    temporal_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(20, 20, 24),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=2, sub_daily_shape=8)
@@ -351,7 +351,7 @@ def test_solar_ancillary_vars():
                                    time_roll=-7,
                                    val_split=0.001,
                                    sample_shape=(20, 20, 24),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     assert handler.data.shape[-1] == 4
 
@@ -388,7 +388,7 @@ def test_nsrdb_sub_daily_sampler():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 24),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
     ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
     ti = ti[0:handler.data.shape[2]]
 
@@ -419,7 +419,7 @@ def test_solar_multi_day_coarse_data():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=4, n_batches=10,
                              s_enhance=4, sub_daily_shape=9)
@@ -440,7 +440,7 @@ def test_solar_multi_day_coarse_data():
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20, 72),
-                                   max_workers=1)
+                                   worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=4, n_batches=10,
                              s_enhance=4, sub_daily_shape=9)
@@ -462,7 +462,7 @@ def test_wind_handler():
                                   time_roll=-7,
                                   val_split=0.0,
                                   sample_shape=(20, 20, 24),
-                                  max_workers=1)
+                                  worker_kwargs=dict(max_workers=1))
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data is None
@@ -485,7 +485,7 @@ def test_wind_batching():
                                   time_roll=-7,
                                   val_split=0.0,
                                   sample_shape=(20, 20, 72),
-                                  max_workers=1)
+                                  worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=None)
@@ -513,7 +513,7 @@ def test_wind_batching_spatial(plot=False):
                                   time_roll=-7,
                                   val_split=0.1,
                                   sample_shape=(20, 20),
-                                  max_workers=1)
+                                  worker_kwargs=dict(max_workers=1))
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
                                     s_enhance=5)
@@ -562,7 +562,7 @@ def test_surf_min_max_vars():
                                   time_roll=-7,
                                   val_split=0.0,
                                   sample_shape=(20, 20, 72),
-                                  max_workers=1)
+                                  worker_kwargs=dict(max_workers=1))
 
     # all of the source hi-res hourly temperature data should be the same
     assert np.allclose(handler.data[..., 0], handler.data[..., 2])

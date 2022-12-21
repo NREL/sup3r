@@ -136,12 +136,13 @@ class OutputHandler:
         data : ndarray
             Array of feature data with physical limits enforced
         """
-        for i, f in enumerate(features):
-            attrs = H5_ATTRS[Feature.get_basename(f)]
-            max = attrs.get('max', np.inf)
-            min = attrs.get('min', -np.inf)
-            data[..., i] = np.maximum(data[..., i], min)
-            data[..., i] = np.minimum(data[..., i], max)
+        maxes = [H5_ATTRS[Feature.get_basename(f)].get('max', np.inf)
+                 for f in features]
+        mins = [H5_ATTRS[Feature.get_basename(f)].get('min', -np.inf)
+                for f in features]
+        data = np.maximum(data, mins)
+        data = np.minimum(data, maxes)
+
         return data
 
     @staticmethod
