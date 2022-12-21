@@ -153,7 +153,6 @@ class BaseCLI:
         click.echo(msg)
         logger.info(msg)
 
-
     def kickoff_local_job(self, ctx, cmd):
         """Run sup3r module locally.
 
