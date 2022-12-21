@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """Module to plot feature output from forward passes for visual inspection"""
-from rex import MultiFileResourceX
-from rex.utilities.fun_utils import get_fun_call_str
-
-from sup3r.utilities import ModuleName
-
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
 import glob
 import json
+
+from rex import MultiFileResourceX
+from rex.utilities.fun_utils import get_fun_call_str
+
+from sup3r.utilities import ModuleName
+
 
 logger = logging.getLogger(__name__)
 
