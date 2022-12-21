@@ -246,7 +246,7 @@ def test_fwd_pass_cli(runner):
                                            'time_chunk_size': 10,
                                            'worker_kwargs': {'ti_workers': 1}},
                   'fwp_chunk_shape': fwp_chunk_shape,
-                  'max_workers': 1,
+                  'worker_kwargs': {'max_workers': 1},
                   'spatial_pad': 5,
                   'temporal_pad': 5,
                   'execution_control': {
