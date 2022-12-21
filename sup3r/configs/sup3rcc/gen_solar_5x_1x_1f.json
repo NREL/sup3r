@@ -1,0 +1,38 @@
+{
+  "hidden_layers": [
+      {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+      {"class": "Conv2D", "filters": 64, "kernel_size": 3, "strides": 1},
+      {"class": "Cropping2D", "cropping": 2},
+      {"alpha": 0.2, "class": "LeakyReLU"},
+
+      {"class": "SkipConnection", "name": "big_skip"},
+
+      {"n": 16, "repeat": [
+          {"class": "SkipConnection", "name": "small_skip"},
+          {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+          {"class": "Conv2D", "filters": 64, "kernel_size": 3, "strides": 1},
+          {"class": "Cropping2D", "cropping": 2},
+          {"alpha": 0.2, "class": "LeakyReLU"},
+          {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+          {"class": "Conv2D", "filters": 64, "kernel_size": 3, "strides": 1},
+          {"class": "Cropping2D", "cropping": 2},
+          {"class": "SkipConnection", "name": "small_skip"}
+        ]
+      },
+
+      {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+      {"class": "Conv2D", "filters": 64, "kernel_size": 3, "strides": 1},
+      {"class": "Cropping2D", "cropping": 2},
+      {"class": "SkipConnection", "name": "big_skip"},
+
+      {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+      {"class": "Conv2D", "filters": 1600, "kernel_size": 3, "strides": 1},
+      {"class": "Cropping2D", "cropping": 2},
+      {"class": "SpatialExpansion", "spatial_mult": 5},
+      {"alpha": 0.2, "class": "LeakyReLU"},
+
+      {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
+      {"class": "Conv2D", "filters": 1, "kernel_size": 3, "strides": 1},
+      {"class": "Cropping2D", "cropping": 2}
+    ]
+}
