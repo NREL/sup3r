@@ -633,8 +633,8 @@ class ForwardPassStrategy(InputMixIn):
             chunks and overwrite any pre-existing outputs (False).
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
-            pass_workers, and output_workers. Each argument needs to be an
-            integer or None.
+            pass_workers, output_workers, and ti_workers. Each argument needs
+            to be an integer or None.
 
             The value of `max workers` will set the value of all other worker
             args. If max_workers == 1 then all processes will be serialized. If
@@ -647,7 +647,9 @@ class ForwardPassStrategy(InputMixIn):
             forward passes on chunks distributed to a single node will be run
             in serial. pass_workers=2 is the minimum number of workers required
             to run the ForwardPass initialization and ForwardPass.run_chunk()
-            methods concurrently.
+            methods concurrently. `ti_workers` is the max number of workers
+            used to get the full time index. Doing this is parallel can be
+            helpful when there are a large number of input files.
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
@@ -711,7 +713,8 @@ class ForwardPassStrategy(InputMixIn):
         self.max_workers = self.worker_kwargs.get('max_workers', None)
         self.output_workers = self.worker_kwargs.get('output_workers', None)
         self.pass_workers = self.worker_kwargs.get('pass_workers', None)
-        self._worker_attrs = ['pass_workers', 'output_workers']
+        self.ti_workers = self.worker_kwargs.get('ti_workers', None)
+        self._worker_attrs = ['pass_workers', 'output_workers', 'ti_workers']
         self.cap_worker_args(self.max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -884,7 +887,8 @@ class ForwardPassStrategy(InputMixIn):
                                                     invert_lat=invert_lat)
 
     def get_time_index(self, file_paths, max_workers=None, **kwargs):
-        """Get time index for source data
+        """Get time index for source data using DataHandler.get_time_index
+        method
 
         Parameters
         ----------

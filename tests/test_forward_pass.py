@@ -33,8 +33,10 @@ s_enhance = 3
 t_enhance = 4
 
 
-def test_fwp_nc_cc():
+def test_fwp_nc_cc(log=False):
     """Test forward pass handler output for netcdf write with cc data."""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -61,10 +63,12 @@ def test_fwp_nc_cc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         max_workers = 1
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            cache_pattern=cache_pattern,
+            overwrite_cache=True,
+            worker_kwargs=dict(max_workers=max_workers))
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
@@ -113,10 +117,12 @@ def test_fwp_nc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
 
         max_workers = 1
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
@@ -168,10 +174,12 @@ def test_fwp_temporal_slice():
         temporal_slice = slice(5, 17, 3)
         raw_time_index = np.arange(20)
         n_tsteps = len(raw_time_index[temporal_slice])
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
@@ -226,10 +234,12 @@ def test_fwp_handler():
 
         max_workers = 1
         cache_pattern = os.path.join(td, 'cache')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
@@ -278,13 +288,13 @@ def test_fwp_chunking(log=False, plot=False):
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_shape,
+            worker_kwargs=dict(max_workers=1),
             spatial_pad=spatial_pad, temporal_pad=temporal_pad,
             input_handler_kwargs=dict(target=target, shape=shape,
                                       temporal_slice=temporal_slice,
                                       cache_pattern=cache_pattern,
                                       overwrite_cache=True,
-                                      worker_kwargs=dict(ti_workers=1,
-                                                         max_workers=1)))
+                                      worker_kwargs=dict(max_workers=1)))
         data_chunked = np.zeros((shape[0] * s_enhance, shape[1] * s_enhance,
                                  len(input_files) * t_enhance,
                                  len(model.output_features)))
@@ -359,10 +369,12 @@ def test_fwp_nochunking():
         model.save(out_dir)
 
         cache_pattern = os.path.join(td, 'cache')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
@@ -450,9 +462,11 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
                         'temporal_model_dirs': st_out_dir}
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
@@ -554,9 +568,11 @@ def test_fwp_multi_step_model_topo_noskip():
                         'temporal_model_dirs': st_out_dir}
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
@@ -636,9 +652,11 @@ def test_fwp_multi_step_model():
         model_kwargs = {'spatial_model_dirs': s_out_dir,
                         'temporal_model_dirs': st_out_dir}
 
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            overwrite_cache=True)
         handler = ForwardPassStrategy(
             input_files, model_kwargs=model_kwargs,
             model_class='SpatialThenTemporalGan',
@@ -711,10 +729,14 @@ def test_slicing_no_pad(log=False):
         handler = DataHandlerNC(input_files, features,
                                 target=target, shape=shape,
                                 sample_shape=(1, 1, 1),
-                                val_split=0.0, max_workers=1)
+                                val_split=0.0,
+                                worker_kwargs=dict(max_workers=1))
 
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            overwrite_cache=True)
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
@@ -769,8 +791,11 @@ def test_slicing_pad(log=False):
                                 val_split=0.0,
                                 worker_kwargs=dict(max_workers=1))
 
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            overwrite_cache=True)
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
@@ -901,9 +926,11 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
 
         model_kwargs = {'model_dir': st_out_dir}
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            overwrite_cache=True)
 
         # should get an error on a bad tensorflow concatenation
         with pytest.raises(RuntimeError):
@@ -1036,9 +1063,11 @@ def test_fwp_multi_step_wind_hi_res_topo():
         model_kwargs = {'spatial_model_dirs': [s1_out_dir, s2_out_dir],
                         'temporal_model_dirs': st_out_dir}
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            overwrite_cache=True)
 
         # should get an error on a bad tensorflow concatenation
         with pytest.raises(RuntimeError):
@@ -1144,9 +1173,11 @@ def test_fwp_wind_hi_res_topo_plus_linear():
         model_kwargs = {'spatial_model_dirs': s_out_dir,
                         'temporal_model_dirs': t_out_dir}
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        input_handler_kwargs = dict(target=target, shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    overwrite_cache=True)
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+            overwrite_cache=True)
 
         exo_kwargs['s_enhancements'] = [1, 2]
         handler = ForwardPassStrategy(

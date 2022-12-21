@@ -142,6 +142,7 @@ class InputMixIn:
         """Check if there is a file for each time step, in which case we can
         send a subset of files to the data handler according to ti_pad_slice"""
         if self._single_ts_files is None:
+            logger.debug('Checking if input files are single timestep.')
             t_steps = self.get_time_index(self.file_paths[:1], max_workers=1)
             check = (len(self._file_paths) == len(self.raw_time_index)
                      and t_steps is not None and len(t_steps) == 1)
