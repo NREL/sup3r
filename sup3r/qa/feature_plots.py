@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import logging
 import glob
 import json
+from datetime import datetime as dt
 
 from rex import MultiFileResourceX
 from rex.utilities.fun_utils import get_fun_call_str
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sup3r.utilities import ModuleName
 
@@ -19,7 +21,7 @@ class Sup3rVisualQa:
     """Module to plot features for visual qa"""
 
     def __init__(self, file_paths, out_pattern, features, time_step=10,
-                 **kwargs):
+                 workers=None, **kwargs):
         """
         Parameters
         ----------
@@ -38,6 +40,9 @@ class Sup3rVisualQa:
             List of features to plot from the h5 files provided.
         time_step : int
             Number of timesteps to average over for a single plot figure.
+        workers : int | None
+            Max number of workers to use for plotting. If workers=1 then all
+            plots will be created in serial.
         **kwargs : dict
             Dictionary of kwargs passed to matplotlib.pyplot.scatter().
         """
@@ -47,6 +52,7 @@ class Sup3rVisualQa:
         self.time_step = time_step
         self.file_paths = (file_paths if isinstance(file_paths, list)
                            else glob.glob(file_paths))
+        self.workers = workers
         self.kwargs = kwargs
 
     def run(self):
@@ -61,13 +67,65 @@ class Sup3rVisualQa:
             time_slices = np.array_split(np.arange(len(time_index)), n_files)
             time_slices = [slice(s[0], s[-1] + 1) for s in time_slices]
 
+            if self.workers == 1:
+                self._serial_figure_plots(res, time_index, time_slices)
+            else:
+                self._parallel_figure_plots(res, time_index, time_slices)
+
+    def _serial_figure_plots(self, res, time_index, time_slices):
+        """Plot figures in parallel with max_workers=self.workers
+
+        Parameters
+        ----------
+        res : MultiFileResourceX
+            Resource handler for the provided h5 files
+        time_index : pd.DateTimeIndex
+            The time index for the provided h5 files
+        time_slices : list
+             List of slices specifying all the time ranges to average and plot
+        """
+        for feature in self.features:
+            for i, t_slice in enumerate(time_slices):
+                out_file = self.out_pattern.format(feature=feature,
+                                                   index=i)
+                self.plot_figure(res, time_index, feature, t_slice,
+                                 out_file)
+
+    def _parallel_figure_plots(self, res, time_index, time_slices):
+        """Plot figures in parallel with max_workers=self.workers
+
+        Parameters
+        ----------
+        res : MultiFileResourceX
+            Resource handler for the provided h5 files
+        time_index : pd.DateTimeIndex
+            The time index for the provided h5 files
+        time_slices : list
+             List of slices specifying all the time ranges to average and plot
+        """
+        futures = {}
+        now = dt.now()
+        n_files = len(time_slices) * len(self.features)
+        with ThreadPoolExecutor(max_workers=self.workers) as exe:
             for feature in self.features:
                 for i, t_slice in enumerate(time_slices):
                     out_file = self.out_pattern.format(feature=feature,
                                                        index=i)
-                    self.plot_figure(res, time_index, feature, t_slice,
-                                     out_file)
-                    logger.info(f'Saved figure {out_file}')
+                    future = exe.submit(self.plot_figure, res, time_index,
+                                        feature, t_slice, out_file)
+                    futures[future] = out_file
+
+            logger.info(f'Started plotting {n_files} files '
+                        f'in {dt.now() - now}.')
+
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    future.result()
+                except Exception as e:
+                    msg = (f'Error making plot {futures[future]}.')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+                logger.debug(f'{i+1} out of {n_files} plots created.')
 
     def plot_figure(self, res, time_index, feature, t_slice, out_file):
         """Plot temporal average for the given feature and with the time range
@@ -86,15 +144,19 @@ class Sup3rVisualQa:
         out_file : str
             Name of the output plot file
         """
+        start_time = time_index[t_slice.start]
+        stop_time = time_index[t_slice.stop - 1]
+        logger.info(f'Plotting time average for {feature} from '
+                    f'{start_time} to {stop_time}.')
         fig = plt.figure()
-        title = f'{feature}: {time_index[t_slice.start]}'
-        title += f' - {time_index[t_slice.stop]}'
+        title = f'{feature}: {start_time} - {stop_time}'
         plt.suptitle(title)
         plt.scatter(res.meta.longitude, res.meta.latitude,
                     c=np.mean(res[feature][t_slice], axis=0), **self.kwargs)
         plt.colorbar()
         fig.savefig(out_file)
         plt.close()
+        logger.info(f'Saved figure {out_file}')
 
     @classmethod
     def get_node_cmd(cls, config):

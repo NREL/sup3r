@@ -14,6 +14,7 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
+from sup3r.qa.plots_cli import from_config as plots_main
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest_utils import (make_fake_nc_files,
                                           make_fake_h5_chunks)
@@ -397,3 +398,41 @@ def test_pipeline_fwp_qa(runner):
         qa_status = list(qa_status.values())[0]
         assert qa_status['job_status'] == 'successful'
         assert qa_status['time'] > 0
+
+
+def test_visual_qa(runner):
+    """Make sure visual qa module creates the right number of plots"""
+
+    time_step = 500
+    plot_features = ['windspeed_100m', 'winddirection_100m']
+    with ResourceX(FP_WTK) as res:
+        time_index = res.time_index
+
+    n_files = len(time_index[::time_step]) * len(plot_features)
+
+    with tempfile.TemporaryDirectory() as td:
+        log_file = os.path.join(td, 'visual_qa.log')
+        out_pattern = os.path.join(td, 'plot_{feature}_{index}.png')
+
+        config = {'file_paths': FP_WTK,
+                  'features': plot_features,
+                  'out_pattern': out_pattern,
+                  'time_step': time_step,
+                  'log_file': log_file,
+                  'workers': 1}
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(plots_main, ['-c', config_path, '-v'])
+
+        if result.exit_code != 0:
+            import traceback
+            msg = ('Failed with error {}'
+                   .format(traceback.print_exception(*result.exc_info)))
+            raise RuntimeError(msg)
+
+        n_out_files = len(glob.glob(out_pattern.format(feature='*',
+                                                       index='*')))
+        assert n_out_files == n_files
