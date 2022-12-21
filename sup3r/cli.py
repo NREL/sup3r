@@ -479,18 +479,18 @@ def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
     config below, four sup3r pipelines will be created where arg1 and arg2 are
     set to [0, "a"], [0, "b"], [1, "a"], [1, "b"] in config_fwp.json::
 
-    {
-        "pipeline_config": "./config_pipeline.json",
-        "sets": [
-          {
-            "args": {
-              "arg1": [0, 1],
-              "arg2": ["a", "b"],
-            },
-            "files": ["./config_fwp.json"],
-            "set_tag": "set1"
-          }
-    }
+        {
+            "pipeline_config": "./config_pipeline.json",
+            "sets": [
+              {
+                "args": {
+                  "arg1": [0, 1],
+                  "arg2": ["a", "b"],
+                },
+                "files": ["./config_fwp.json"],
+                "set_tag": "set1"
+              }
+        }
 
     Note that you can use multiple "sets" to isolate parameter permutations.
     """
