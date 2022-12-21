@@ -179,7 +179,7 @@ def test_solar_multistep():
 
     features_in_3 = ['clearsky_ratio', 'U_200m', 'V_200m']
     features_out_3 = ['clearsky_ratio']
-    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_8x_1f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     model3 = Sup3rGan(fp_gen, fp_disc)
     _ = model3.generate(np.ones((4, 10, 10, 3, len(features_in_3))))

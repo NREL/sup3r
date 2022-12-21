@@ -41,12 +41,12 @@ def test_solar_cc_model(log=False):
                                    worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=16, n_batches=2,
-                             s_enhance=2, sub_daily_shape=9)
+                             s_enhance=1, sub_daily_shape=24)
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_2x_3x_1f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
@@ -76,9 +76,9 @@ def test_solar_cc_model(log=False):
     x = np.random.uniform(0, 1, (1, 30, 30, 3, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 2
-    assert y.shape[2] == x.shape[2] * 2
-    assert y.shape[3] == x.shape[3] * 3
+    assert y.shape[1] == x.shape[1]
+    assert y.shape[2] == x.shape[2]
+    assert y.shape[3] == x.shape[3] * 8
     assert y.shape[4] == x.shape[4]
 
 
@@ -96,12 +96,12 @@ def test_solar_cc_model_spatial(log=False):
                                    worker_kwargs=dict(max_workers=1))
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
-                                    s_enhance=2)
+                                    s_enhance=5)
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_1f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_5x_1x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
@@ -118,15 +118,15 @@ def test_solar_cc_model_spatial(log=False):
         assert model.meta['output_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
-    x = np.random.uniform(0, 1, (4, 30, 30, 1))
+    x = np.random.uniform(0, 1, (4, 10, 10, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 2
-    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[1] == x.shape[1] * 5
+    assert y.shape[2] == x.shape[2] * 5
     assert y.shape[3] == x.shape[3]
 
 
-def test_solar_custom_loss(sub_daily_shape=24, log=False):
+def test_solar_custom_loss(log=False):
     """Test custom solar loss with only disc and content over daylight hours"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
@@ -136,12 +136,12 @@ def test_solar_custom_loss(sub_daily_shape=24, log=False):
                                    worker_kwargs=dict(max_workers=1))
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=1,
-                             s_enhance=1, sub_daily_shape=sub_daily_shape)
+                             s_enhance=1, sub_daily_shape=24)
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'solar_cc/gen_1x_8x_1f.json')
+    fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
