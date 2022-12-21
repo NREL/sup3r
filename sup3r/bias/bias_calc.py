@@ -276,7 +276,7 @@ class DataRetrievalBase:
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-            and possibly daily-averaged as well.
+            and possibly daily-averaged or min/max'd as well.
         bias_data : np.ndarray
             1D array of temporal data at the requested gid.
         base_dist : np.ndarray
@@ -360,7 +360,7 @@ class DataRetrievalBase:
         -------
         out : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-            and possibly daily-averaged as well.
+            and possibly daily-averaged or min/max'd as well.
         out_ti : pd.DatetimeIndex
             DatetimeIndex object of datetimes corresponding to the
             output data.
@@ -469,7 +469,7 @@ class DataRetrievalBase:
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-            and possibly daily-averaged as well.
+            and possibly daily-averaged or min/max'd as well.
         """
 
         if daily_reduction is None:
