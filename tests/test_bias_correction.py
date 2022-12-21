@@ -271,9 +271,10 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice),
+                                      temporal_slice=temporal_slice,
+                                      worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             input_handler='DataHandlerNCforCC')
         bc_strat = ForwardPassStrategy(
             input_files,
@@ -281,9 +282,10 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice),
+                                      temporal_slice=temporal_slice,
+                                      worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             input_handler='DataHandlerNCforCC',
             bias_correct_method='local_linear_bc',
             bias_correct_kwargs=bias_correct_kwargs)

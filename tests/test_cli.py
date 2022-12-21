@@ -64,7 +64,7 @@ def test_pipeline_fwp_collect(runner):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log.log')
         fwp_config = {'input_handler_kwargs': {
-            'worker_kwargs': {'ti_workers': 1},
+            'worker_kwargs': {'max_workers': 1},
             'target': (19.3, -123.5),
             'shape': shape,
             'overwrite_cache': True,
@@ -148,7 +148,7 @@ def test_data_collection_cli(runner):
          t_slices_hr, _, s_slices_hr, _, low_res_times) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
-        config = {'worker_kwargs': {'ti_workers': 1},
+        config = {'worker_kwargs': {'max_workers': 1},
                   'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
