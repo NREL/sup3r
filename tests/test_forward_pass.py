@@ -387,12 +387,11 @@ def test_fwp_nochunking():
         handlerNC = DataHandlerNC(input_files, FEATURES,
                                   target=target, shape=shape,
                                   temporal_slice=temporal_slice,
-                                  max_workers=1,
                                   cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
                                   val_split=0.0,
-                                  worker_kwargs=dict(ti_workers=1))
+                                  worker_kwargs=dict(max_workers=1))
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
