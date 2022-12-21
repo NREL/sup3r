@@ -91,7 +91,7 @@ def kickoff_local_job(ctx, cmd):
     out_dir = ctx.obj['OUT_DIR']
     subprocess_manager = SubprocessManager
     status = Status.retrieve_job_status(out_dir,
-                                        module=ModuleName.QA,
+                                        module=ModuleName.VISUAL_QA,
                                         job_name=name)
     msg = 'sup3r visual QA CLI failed to submit jobs!'
     if status == 'successful':
@@ -103,7 +103,7 @@ def kickoff_local_job(ctx, cmd):
     else:
         logger.info('Running sup3r visual QA locally with job name "{}".'
                     .format(name))
-        Status.add_job(out_dir, module=ModuleName.QA,
+        Status.add_job(out_dir, module=ModuleName.VISUAL_QA,
                        job_name=name, replace=True)
         subprocess_manager.submit(cmd)
         msg = ('Completed sup3r visual QA job "{}".'.format(name))
@@ -174,7 +174,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
                    .format(name, out))
 
         # add job to sup3r status file.
-        Status.add_job(out_dir, module=ModuleName.QA,
+        Status.add_job(out_dir, module=ModuleName.VISUAL_QA,
                        job_name=name, replace=True,
                        job_attrs={'job_id': out, 'hardware': 'slurm'})
 
