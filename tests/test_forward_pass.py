@@ -70,7 +70,8 @@ def test_fwp_nc_cc():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
-            max_workers=max_workers, input_handler='DataHandlerNCforCC')
+            worker_kwargs=dict(max_workers=max_workers),
+            input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -121,7 +122,7 @@ def test_fwp_nc():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
-            max_workers=max_workers)
+            worker_kwargs=dict(max_workers=max_workers))
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -176,7 +177,7 @@ def test_fwp_temporal_slice():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
-            max_workers=max_workers)
+            worker_kwargs=dict(max_workers=max_workers))
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers
         assert forward_pass.data_handler.compute_workers == max_workers
@@ -234,7 +235,7 @@ def test_fwp_handler():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
-            max_workers=max_workers)
+            worker_kwargs=dict(max_workers=max_workers))
         forward_pass = ForwardPass(handler)
         assert forward_pass.data_handler.compute_workers == max_workers
         assert forward_pass.data_handler.load_workers == max_workers
@@ -281,13 +282,15 @@ def test_fwp_chunking(log=False, plot=False):
             input_handler_kwargs=dict(target=target, shape=shape,
                                       temporal_slice=temporal_slice,
                                       cache_pattern=cache_pattern,
-                                      overwrite_cache=True, ti_workers=1),
-            max_workers=1)
+                                      overwrite_cache=True,
+                                      worker_kwargs=dict(ti_workers=1,
+                                                         max_workers=1)))
         data_chunked = np.zeros((shape[0] * s_enhance, shape[1] * s_enhance,
                                  len(input_files) * t_enhance,
                                  len(model.output_features)))
         handlerNC = DataHandlerNC(input_files, FEATURES, target=target,
-                                  val_split=0.0, shape=shape, ti_workers=1)
+                                  val_split=0.0, shape=shape,
+                                  worker_kwargs=dict(ti_workers=1))
         pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
                      (temporal_pad, temporal_pad), (0, 0))
         hr_crop = (slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
@@ -365,7 +368,7 @@ def test_fwp_nochunking():
             fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
-            max_workers=1)
+            worker_kwargs=dict(max_workers=1))
         forward_pass = ForwardPass(handler)
         data_chunked = forward_pass.run_chunk()
 
@@ -377,7 +380,7 @@ def test_fwp_nochunking():
                                   time_chunk_size=100,
                                   overwrite_cache=True,
                                   val_split=0.0,
-                                  ti_workers=1)
+                                  worker_kwargs=dict(ti_workers=1))
 
         data_nochunk = model.generate(
             np.expand_dims(handlerNC.data, axis=0))[0]
@@ -457,7 +460,7 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
             input_handler_kwargs=input_handler_kwargs,
             spatial_pad=0, temporal_pad=0,
             out_pattern=out_files,
-            max_workers=max_workers,
+            worker_kwargs=dict(max_workers=max_workers),
             exo_kwargs=exo_kwargs,
             max_nodes=1)
 
@@ -561,7 +564,7 @@ def test_fwp_multi_step_model_topo_noskip():
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=max_workers,
+            worker_kwargs=dict(max_workers=max_workers),
             exo_kwargs=exo_kwargs,
             max_nodes=1)
 
@@ -643,7 +646,7 @@ def test_fwp_multi_step_model():
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=max_workers,
+            worker_kwargs=dict(max_workers=max_workers),
             max_nodes=1)
 
         forward_pass = ForwardPass(handler)
@@ -719,7 +722,7 @@ def test_slicing_no_pad(log=False):
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             max_nodes=1)
 
         for ichunk in range(strategy.chunks):
@@ -763,7 +766,8 @@ def test_slicing_pad(log=False):
         handler = DataHandlerNC(input_files, features,
                                 target=target, shape=shape,
                                 sample_shape=(1, 1, 1),
-                                val_split=0.0, max_workers=1)
+                                val_split=0.0,
+                                worker_kwargs=dict(max_workers=1))
 
         input_handler_kwargs = dict(target=target, shape=shape,
                                     overwrite_cache=True)
@@ -774,7 +778,7 @@ def test_slicing_pad(log=False):
             input_handler_kwargs=input_handler_kwargs,
             spatial_pad=2, temporal_pad=2,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             max_nodes=1)
 
         chunk_lookup = strategy.fwp_slicer.chunk_lookup
@@ -911,7 +915,7 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
                 spatial_pad=1, temporal_pad=1,
                 input_handler_kwargs=input_handler_kwargs,
                 out_pattern=out_files,
-                max_workers=1,
+                worker_kwargs=dict(max_workers=1),
                 exo_kwargs=exo_kwargs,
                 max_nodes=1)
             forward_pass = ForwardPass(handler)
@@ -925,7 +929,7 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
             spatial_pad=4, temporal_pad=4,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             exo_kwargs=exo_kwargs,
             max_nodes=1)
         forward_pass = ForwardPass(handler)
@@ -1046,7 +1050,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
                 spatial_pad=1, temporal_pad=1,
                 input_handler_kwargs=input_handler_kwargs,
                 out_pattern=out_files,
-                max_workers=1,
+                worker_kwargs=dict(max_workers=1),
                 exo_kwargs=exo_kwargs,
                 max_nodes=1)
             forward_pass = ForwardPass(handler)
@@ -1060,7 +1064,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             exo_kwargs=exo_kwargs,
             max_nodes=1)
         forward_pass = ForwardPass(handler)
@@ -1152,7 +1156,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             exo_kwargs=exo_kwargs,
             max_nodes=1)
         forward_pass = ForwardPass(handler)

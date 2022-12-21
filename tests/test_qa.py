@@ -57,7 +57,7 @@ def test_qa_nc():
             input_handler_kwargs=dict(target=TARGET, shape=SHAPE,
                                       temporal_slice=TEMPORAL_SLICE),
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             max_nodes=1)
 
         forward_pass = ForwardPass(strategy)
@@ -72,7 +72,7 @@ def test_qa_nc():
                       temporal_slice=TEMPORAL_SLICE,
                       target=TARGET, shape=SHAPE,
                       qa_fp=qa_fp, save_sources=True,
-                      max_workers=1)
+                      worker_kwargs=dict(max_workers=1))
         with Sup3rQa(*args, **kwargs) as qa:
             data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
@@ -140,7 +140,7 @@ def test_qa_h5():
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             max_nodes=1)
 
         forward_pass = ForwardPass(strategy)
@@ -155,7 +155,7 @@ def test_qa_h5():
                       temporal_slice=TEMPORAL_SLICE,
                       target=TARGET, shape=SHAPE,
                       qa_fp=qa_fp, save_sources=True,
-                      max_workers=1)
+                      worker_kwargs=dict(max_workers=1))
         with Sup3rQa(*args, **kwargs) as qa:
             data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
@@ -227,7 +227,7 @@ def test_stats(log=True):
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=dict(temporal_slice=TEMPORAL_SLICE),
             out_pattern=out_files,
-            max_workers=1,
+            worker_kwargs=dict(max_workers=1),
             max_nodes=1)
 
         forward_pass = ForwardPass(strategy)
@@ -242,8 +242,9 @@ def test_stats(log=True):
                       s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
                       synth_t_slice=TEMPORAL_SLICE,
                       qa_fp=qa_fp, include_stats=include_stats,
-                      max_workers=1, n_bins=10, get_interp=True,
-                      max_values={'time_derivative': 10}, max_delta=2)
+                      worker_kwargs=dict(max_workers=1), n_bins=10,
+                      get_interp=True, max_values={'time_derivative': 10},
+                      max_delta=2)
         with Sup3rStatsMulti(lr_file_paths=input_files,
                              synth_file_paths=strategy.out_files[0],
                              **kwargs) as qa:
