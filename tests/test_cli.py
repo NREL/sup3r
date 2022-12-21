@@ -75,8 +75,7 @@ def test_pipeline_fwp_collect(runner):
             'out_pattern': out_files,
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fwp_chunk_shape,
-            'max_workers': 1,
-            'pass_workers': 1,
+            'worker_kwargs': {'max_workers': 1},
             'spatial_pad': 5,
             'temporal_pad': 5,
             'execution_control': {
