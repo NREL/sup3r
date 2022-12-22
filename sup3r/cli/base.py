@@ -43,6 +43,45 @@ class BaseCLI:
         verbose : bool
             Whether to run in verbose mode.
         """
+        config = cls.from_config_preflight(module_name, ctx, config_file,
+                                           verbose)
+
+        exec_kwargs = config.get('execution_control', {})
+        hardware_option = exec_kwargs.pop('option', 'local')
+
+        cmd = module_class.get_node_cmd(config)
+
+        cmd_log = '\n\t'.join(cmd.split('\n'))
+        logger.debug(f'Running command:\n\t{cmd_log}')
+
+        if hardware_option.lower() in ('eagle', 'slurm'):
+            cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
+        else:
+            cls.kickoff_local_job(module_name, ctx, cmd)
+
+    @classmethod
+    def from_config_preflight(cls, module_name, ctx, config_file, verbose):
+        """Parse conifg file prior to running sup3r module.
+
+        Parameters
+        ----------
+        module_name : str
+            Module name string from :class:`sup3r.utilities.ModuleName`.
+        module_class : Object
+            Class object used to call get_node_cmd(config).
+            e.g. Sup3rQa.get_node_cmd(config)
+        ctx : click.pass_context
+            Click context object where ctx.obj is a dictionary
+        config_file : str
+            Path to config file provided all needed inputs to module_class
+        verbose : bool
+            Whether to run in verbose mode.
+
+        Returns
+        -------
+        config : dict
+            Dictionary corresponding to config_file
+        """
         cls.check_module_name(module_name)
 
         ctx.ensure_object(dict)
@@ -82,15 +121,7 @@ class BaseCLI:
         config['job_name'] = name
         config['status_dir'] = status_dir
 
-        cmd = module_class.get_node_cmd(config)
-
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
-
-        if hardware_option.lower() in ('eagle', 'slurm'):
-            cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
-        else:
-            cls.kickoff_local_job(module_name, ctx, cmd)
+        return config
 
     @classmethod
     def check_module_name(cls, module_name):

@@ -4,12 +4,8 @@ sup3r data extraction CLI entry points.
 """
 import click
 import logging
-import os
-
-from rex.utilities.loggers import init_mult
 
 import sup3r
-from sup3r.pipeline.config import BaseConfig
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.cli.base import BaseCLI
@@ -48,34 +44,18 @@ def from_config(ctx, config_file, verbose):
     verbose : bool
         Flag to turn on debug logging. Default is not verbose.
     """
-    ctx.ensure_object(dict)
-    ctx.obj['VERBOSE'] = verbose
-    status_dir = os.path.dirname(os.path.abspath(config_file))
-    ctx.obj['OUT_DIR'] = status_dir
-    config = BaseConfig(config_file)
-    config_verbose = config.get('log_level', 'INFO')
-    config_verbose = (config_verbose == 'DEBUG')
-    config_handler = config.get('handler_class', 'DataHandler')
-    verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
-
-    init_mult('sup3r_data_extract', os.path.join(status_dir, 'logs/'),
-              modules=[__name__, 'sup3r'], verbose=verbose)
+    config = BaseCLI.from_config_preflight(ModuleName.DATA_EXTRACT, ctx,
+                                           config_file, verbose)
 
     exec_kwargs = config.get('execution_control', {})
-    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
     hardware_option = exec_kwargs.pop('option', 'local')
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
-    logger.debug('Hardware run option: "{}"'.format(hardware_option))
+    config_handler = config.get('handler_class', 'DataHandler')
 
     HANDLER_CLASS = getattr(sup3r.preprocessing.data_handling, config_handler)
 
-    name = 'sup3r_extract_{}'.format(os.path.basename(status_dir))
-    ctx.obj['NAME'] = name
-    config['job_name'] = name
-    config['status_dir'] = status_dir
-
     cmd = HANDLER_CLASS.get_node_cmd(config)
-    logger.debug(f'Running command: {cmd}')
+    cmd_log = '\n\t'.join(cmd.split('\n'))
+    logger.debug(f'Running command:\n\t{cmd_log}')
 
     if hardware_option.lower() in ('eagle', 'slurm'):
         kickoff_slurm_job(ctx, cmd, **exec_kwargs)

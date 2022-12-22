@@ -4,12 +4,8 @@ sup3r data collection CLI entry points.
 """
 import click
 import logging
-import os
 import copy
 
-from rex.utilities.loggers import init_mult
-
-from sup3r.pipeline.config import BaseConfig
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.postprocessing.collection import Collector
@@ -40,29 +36,12 @@ def main(ctx, verbose):
 def from_config(ctx, config_file, verbose):
     """Run sup3r data collection from a config file. If dset_split is True this
     each feature will be collected into a separate file."""
-    ctx.ensure_object(dict)
-    ctx.obj['VERBOSE'] = verbose
-    status_dir = os.path.dirname(os.path.abspath(config_file))
-    ctx.obj['OUT_DIR'] = status_dir
-    config = BaseConfig(config_file)
-    config_verbose = config.get('log_level', 'INFO')
-    config_verbose = (config_verbose == 'DEBUG')
-    verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
+    config = BaseCLI.from_config_preflight(ModuleName.DATA_COLLECT, ctx,
+                                           config_file, verbose)
 
-    init_mult('sup3r_data_collect', os.path.join(status_dir, 'logs/'),
-              modules=[__name__, 'sup3r'], verbose=verbose)
-
-    exec_kwargs = config.get('execution_control', {})
-    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
-    hardware_option = exec_kwargs.pop('option', 'local')
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
-    logger.debug('Hardware run option: "{}"'.format(hardware_option))
-
-    basename = config.get('job_name', os.path.basename(status_dir))
-    name = 'sup3r_collect_{}'.format(basename)
-    config['job_name'] = name
-    config['status_dir'] = status_dir
     dset_split = config.get('dset_split', False)
+    exec_kwargs = config.get('execution_control', {})
+    hardware_option = exec_kwargs.pop('option', 'local')
 
     configs = [config]
     if dset_split:

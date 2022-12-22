@@ -8,11 +8,8 @@ import logging
 from inspect import signature
 import os
 
-from rex.utilities.loggers import init_mult
-
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
-from sup3r.pipeline.config import BaseConfig
 from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
 from sup3r.cli.base import BaseCLI
 
@@ -40,20 +37,15 @@ def main(ctx, verbose):
 @click.pass_context
 def from_config(ctx, config_file, verbose):
     """Run sup3r forward pass from a config file."""
-    ctx.ensure_object(dict)
-    ctx.obj['VERBOSE'] = verbose
-    status_dir = os.path.dirname(os.path.abspath(config_file))
-    ctx.obj['OUT_DIR'] = status_dir
-    config = BaseConfig(config_file)
-    config['status_dir'] = status_dir
-    config_verbose = config.get('log_level', 'INFO')
-    config_verbose = (config_verbose == 'DEBUG')
-    verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
-    init_mult('sup3r_fwp', os.path.join(status_dir, 'logs/'),
-              modules=[__name__, 'sup3r'], verbose=verbose)
+    config = BaseCLI.from_config_preflight(ModuleName.FORWARD_PASS, ctx,
+                                           config_file, verbose)
 
     exec_kwargs = config.get('execution_control', {})
+    hardware_option = exec_kwargs.pop('option', 'local')
+    node_index = config.get('node_index', None)
+    basename = config.get('job_name')
+
     log_pattern = config.get('log_pattern', None)
     if log_pattern is not None:
         os.makedirs(os.path.dirname(log_pattern), exist_ok=True)
@@ -62,18 +54,11 @@ def from_config(ctx, config_file, verbose):
         if '{node_index}' not in log_pattern:
             log_pattern = log_pattern.replace('.log', '_{node_index}.log')
 
-    hardware_option = exec_kwargs.pop('option', 'local')
-    exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
-    logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
-    logger.debug('Hardware run option: "{}"'.format(hardware_option))
-
     sig = signature(ForwardPassStrategy)
     strategy_kwargs = {k: v for k, v in config.items()
                        if k in sig.parameters.keys()}
     strategy = ForwardPassStrategy(**strategy_kwargs)
 
-    node_index = config.get('node_index', None)
-    basename = config.get('job_name', os.path.basename(status_dir))
     if node_index is not None:
         if not isinstance(node_index, list):
             nodes = [node_index]
