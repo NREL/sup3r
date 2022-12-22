@@ -1095,7 +1095,9 @@ class DataHandler(FeatureHandler, InputMixIn):
         msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
                'than the number of time steps in the raw data '
                f'({len(self.raw_time_index)}).')
-        assert len(self.raw_time_index) >= self.sample_shape[2], msg
+        if len(self.raw_time_index) >= self.sample_shape[2]:
+            logger.warning(msg)
+            warnings.warn(msg)
 
         msg = (f'The requested time slice {self.temporal_slice} conflicts '
                f'with the number of time steps ({len(self.raw_time_index)}) '
