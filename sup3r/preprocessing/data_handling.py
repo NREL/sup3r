@@ -312,20 +312,22 @@ class InputMixIn:
     def need_full_domain(self):
         """Check whether we need to get the full lat/lon grid to determine
         target and shape values"""
-        check = (self.raster_file is None
-                 or not os.path.exists(self.raster_file))
-        or_check = (self._target is None or self._grid_shape is None)
-        logger.info('Target + shape not specified. Getting full domain for '
-                    f'{self.file_paths[0]}.')
-        return check and or_check
+        no_raster_file = (self.raster_file is None
+                          or not os.path.exists(self.raster_file))
+        no_target_shape = (self._target is None or self._grid_shape is None)
+        need_full = no_raster_file and no_target_shape
+
+        if need_full:
+            logger.info('Target + shape not specified. Getting full domain '
+                        f'for {self.file_paths[0]}.')
+
+        return need_full
 
     @property
     def full_raw_lat_lon(self):
         """Get the full lat/lon grid without doing any latitude inversion"""
-        if self._full_raw_lat_lon is None:
-            if self.need_full_domain:
-                self._full_raw_lat_lon = self.get_full_domain(
-                    self.file_paths[:1])
+        if self._full_raw_lat_lon is None and self.need_full_domain:
+            self._full_raw_lat_lon = self.get_full_domain(self.file_paths[:1])
         return self._full_raw_lat_lon
 
     @property
@@ -338,11 +340,14 @@ class InputMixIn:
         -------
         ndarray
         """
-        if self.full_raw_lat_lon is not None:
-            check = (self.raster_file is not None
-                     and os.path.exists(self.raster_file))
-            self._raw_lat_lon = (self.full_raw_lat_lon if not check
-                                 else self.full_raw_lat_lon[self.raster_index])
+        raster_file_exists = (self.raster_file is not None
+                              and os.path.exists(self.raster_file))
+
+        if self.full_raw_lat_lon is not None and raster_file_exists:
+            self._raw_lat_lon = self.full_raw_lat_lon[self.raster_index]
+
+        elif self.full_raw_lat_lon is not None and not raster_file_exists:
+            self._raw_lat_lon = self.full_raw_lat_lon
 
         if self._raw_lat_lon is None:
             self._raw_lat_lon = self.get_lat_lon(self.file_paths[0:1],
