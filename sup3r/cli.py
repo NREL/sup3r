@@ -11,8 +11,8 @@ from sup3r.solar.solar_cli import from_config as solar_cli
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
 from sup3r.qa.qa_cli import from_config as qa_cli
-from sup3r.qa.plots_cli import from_config as plots_cli
-from sup3r.qa.windstats_cli import from_config as windstats_cli
+from sup3r.qa.visual_qa_cli import from_config as visual_qa_cli
+from sup3r.qa.stats_cli import from_config as stats_cli
 from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.batch.batch_cli import from_config as batch_cli
@@ -400,31 +400,31 @@ def visual_qa(ctx, verbose):
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(plots_cli, config_file=config_file, verbose=verbose)
+    ctx.invoke(visual_qa_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
-def windstats(ctx, verbose):
-    """Sup3r WindStats module following forward pass and collection.
+def stats(ctx, verbose):
+    """Sup3r stats module following forward pass and collection.
 
-    The sup3r WindStats module computes various statistics on wind fields of at
+    The sup3r stats module computes various statistics on wind fields of at
     given hub heights. These statistics include energy spectra, time derivative
     pdfs, velocity gradient pdfs, and vorticity pdfs.
-    You can call the WindStats module via the sup3r-pipeline CLI, or call it
+    You can call the stats module via the sup3r-pipeline CLI, or call it
     directly with either of these equivalent commands::
 
-        $ sup3r -c config_windstats.json windstats
+        $ sup3r -c config_stats.json stats
 
-        $ sup3r-windstats from-config -c config_windstats.json
+        $ sup3r-stats from-config -c config_stats.json
 
-    A sup3r WindStats config.json file can contain any arguments or keyword
-    arguments required to initialize the :class:`sup3r.qa.stats.Sup3rStatsWind`
-    class.  The config also has several optional arguments: ``log_file``,
-    ``log_level``, and ``execution_control``. Here's a small example
-    WindStats config::
+    A sup3r stats config.json file can contain any arguments or keyword
+    arguments required to initialize the
+    :class:`sup3r.qa.stats.Sup3rStatsMulti` class. The config also has several
+    optional arguments: ``log_file``, ``log_level``, and ``execution_control``.
+    Here's a small example stats config::
 
         {
             "source_file_paths": "./source_files*.nc",
@@ -445,7 +445,7 @@ def windstats(ctx, verbose):
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(windstats_cli, config_file=config_file, verbose=verbose)
+    ctx.invoke(stats_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)

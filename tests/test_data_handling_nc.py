@@ -13,7 +13,7 @@ from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
-from sup3r.utilities.pytest_utils import make_fake_nc_files
+from sup3r.utilities.pytest import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']

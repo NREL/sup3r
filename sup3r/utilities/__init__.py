@@ -44,7 +44,7 @@ class ModuleName(str, Enum):
     DATA_COLLECT = 'data-collect'
     QA = 'qa'
     SOLAR = 'solar'
-    WIND_STATS = 'wind-stats'
+    STATS = 'stats'
     BIAS_CALC = 'bias-calc'
     VISUAL_QA = 'visual-qa'
 

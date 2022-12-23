@@ -10,7 +10,7 @@ from rex import ResourceX
 
 from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.models.base import Sup3rGan
-from sup3r.utilities.pytest_utils import make_fake_nc_files
+from sup3r.utilities.pytest import make_fake_nc_files
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')

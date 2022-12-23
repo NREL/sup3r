@@ -148,7 +148,7 @@ class Sup3rStatsBase(ABC):
         if job_name is not None:
             status_dir = config.get('status_dir', None)
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.WIND_STATS}", '
+            status_file_arg_str += f'module="{ModuleName.STATS}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 

@@ -10,7 +10,7 @@ from sup3r import __version__
 from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
-from sup3r.utilities.pytest_utils import make_fake_h5_chunks
+from sup3r.utilities.pytest import make_fake_h5_chunks
 
 from rex import ResourceX, init_logger
 
