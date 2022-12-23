@@ -16,26 +16,22 @@ from sup3r.utilities import utilities
 from sup3r.utilities.pytest_utils import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-target = (19.3, -123.5)
-targets = target
-shape = (8, 8)
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
-batch_size = 8
-sample_shape = (8, 8, 6)
-s_enhance = 2
-max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
-temporal_slice = slice(None, None, 1)
-n_batches = 20
+target = (19.3, -123.5)
+shape = (8, 8)
+sample_shape = (8, 8, 6)
+s_enhance = 2
 t_enhance = 2
-list_chunk_size = 10
-dh_kwargs = dict(target=target, shape=shape, max_delta=max_delta,
+dh_kwargs = dict(target=target,
+                 shape=shape,
+                 max_delta=20,
                  sample_shape=sample_shape,
-                 temporal_slice=temporal_slice,
+                 temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1),
                  single_ts_files=True)
-bh_kwargs = dict(batch_size=batch_size, n_batches=n_batches,
+bh_kwargs = dict(batch_size=8, n_batches=20,
                  s_enhance=s_enhance, t_enhance=t_enhance)
 
 

@@ -16,27 +16,21 @@ from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
 
-input_file = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
                os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5')]
 target = (39.01, -105.15)
-targets = [target]
 shape = (20, 20)
 features = ['U_100m', 'V_100m', 'BVF2_200m']
-batch_size = 8
 sample_shape = (10, 10, 12)
-s_enhance = 5
-max_delta = 20
 val_split = 0.2
 raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_h5.txt')
-temporal_slice = slice(None, None, 3)
-n_batches = 20
 t_enhance = 2
-dh_kwargs = dict(target=target, shape=shape, max_delta=max_delta,
+s_enhance = 5
+dh_kwargs = dict(target=target, shape=shape, max_delta=20,
                  sample_shape=sample_shape,
-                 temporal_slice=temporal_slice,
+                 temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1))
-bh_kwargs = dict(batch_size=batch_size, n_batches=n_batches,
+bh_kwargs = dict(batch_size=8, n_batches=20,
                  s_enhance=s_enhance, t_enhance=t_enhance)
 
 
@@ -83,10 +77,10 @@ def test_topography():
     """Test that topography is batched and extracted correctly"""
 
     features = ['U_100m', 'V_100m', 'topography']
-    data_handler = DataHandler(input_file, features, val_split=val_split,
+    data_handler = DataHandler(input_files[0], features, val_split=val_split,
                                **dh_kwargs)
     ri = data_handler.raster_index
-    with Resource(input_file) as res:
+    with Resource(input_files[0]) as res:
         topo = res.get_meta_arr('elevation')[tuple([ri.flatten()])]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
     topo_idx = data_handler.features.index('topography')
@@ -105,7 +99,7 @@ def test_data_caching():
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_features_h5')
-        handler = DataHandler(input_file, features,
+        handler = DataHandler(input_files[0], features,
                               cache_pattern=cache_pattern,
                               overwrite_cache=True,
                               **dh_kwargs)
@@ -120,7 +114,7 @@ def test_data_caching():
 
         # test cache data but keep in memory
         cache_pattern = os.path.join(td, 'new_1_cache')
-        handler = DataHandler(input_file, features, val_split=0.1,
+        handler = DataHandler(input_files[0], features, val_split=0.1,
                               cache_pattern=cache_pattern,
                               overwrite_cache=True, load_cached=True,
                               **dh_kwargs)
@@ -131,7 +125,7 @@ def test_data_caching():
 
         # test cache data but keep in memory, with no val split
         cache_pattern = os.path.join(td, 'new_2_cache')
-        handler = DataHandler(input_file, features, val_split=0.0,
+        handler = DataHandler(input_files[0], features, val_split=0.0,
                               cache_pattern=cache_pattern,
                               overwrite_cache=False, load_cached=True,
                               **dh_kwargs)
@@ -143,7 +137,7 @@ def test_data_caching():
 def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
-    handler = DataHandler(input_file, features, raster_file=raster_file,
+    handler = DataHandler(input_files[0], features, raster_file=raster_file,
                           **dh_kwargs)
     tmp = handler.run_all_data_init()
     assert tmp.dtype == np.dtype(np.float32)
@@ -154,7 +148,8 @@ def test_feature_handler():
                  'pressure_100m': 'P_bottom',
                  'pressure_200m': 'P_top'}
     for k, v in var_names.items():
-        tmp = handler.extract_feature([input_file], handler.raster_index, k)
+        tmp = handler.extract_feature([input_files[0]],
+                                      handler.raster_index, k)
         assert tmp.dtype == np.dtype(np.float32)
         vars[v] = tmp
 
@@ -184,10 +179,11 @@ def test_raster_index_caching():
     # saving raster file
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        handler = DataHandler(input_file, features, raster_file=raster_file,
-                              **dh_kwargs)
+        handler = DataHandler(input_files[0], features,
+                              raster_file=raster_file, **dh_kwargs)
         # loading raster file
-        handler = DataHandler(input_file, features, raster_file=raster_file)
+        handler = DataHandler(input_files[0], features,
+                              raster_file=raster_file)
         assert np.allclose(handler.target, target, atol=1)
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
@@ -291,7 +287,7 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(input_file, features, **dh_kwargs)
+    handler = DataHandler(input_files[0], features, **dh_kwargs)
     assert handler.data.shape == (shape[0], shape[1], handler.data.shape[2],
                                   len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -300,7 +296,7 @@ def test_data_extraction():
 
 def test_hr_coarsening():
     """Test spatial coarsening of the high res field"""
-    handler = DataHandler(input_file, features, hr_spatial_coarsen=2,
+    handler = DataHandler(input_files[0], features, hr_spatial_coarsen=2,
                           **dh_kwargs)
     assert handler.data.shape == (shape[0] // 2, shape[1] // 2,
                                   handler.data.shape[2], len(features))
@@ -311,7 +307,7 @@ def test_hr_coarsening():
         cache_pattern = os.path.join(td, 'cached_features_h5')
         if os.path.exists(cache_pattern):
             os.system(f'rm {cache_pattern}')
-        handler = DataHandler(input_file, features, hr_spatial_coarsen=2,
+        handler = DataHandler(input_files[0], features, hr_spatial_coarsen=2,
                               cache_pattern=cache_pattern,
                               overwrite_cache=True, **dh_kwargs)
         assert handler.data is None
