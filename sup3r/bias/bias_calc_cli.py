@@ -43,18 +43,17 @@ def from_config(ctx, config_file, verbose):
     hardware_option = exec_kwargs.pop('option', 'local')
     calc_class_name = config['bias_calc_class']
     BiasCalcClass = getattr(sup3r.bias.bias_calc, calc_class_name)
-    status_dir = config['status_dir']
+    basename = config['job_name']
     log_pattern = config.get('log_pattern', None)
 
     jobs = config['jobs']
     for i_node, job in enumerate(jobs):
         node_config = copy.deepcopy(job)
-        node_config['status_dir'] = status_dir
+        node_config['status_dir'] = config['status_dir']
         node_config['log_file'] = (
             log_pattern if log_pattern is None
             else os.path.normpath(log_pattern.format(node_index=i_node)))
-        name = ('sup3r_bias_{}_{}'.format(os.path.basename(status_dir),
-                                          str(i_node).zfill(6)))
+        name = ('sup3r_bias_{}_{}'.format(basename, str(i_node).zfill(6)))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
 

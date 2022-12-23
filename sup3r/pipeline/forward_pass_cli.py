@@ -57,13 +57,13 @@ def from_config(ctx, config_file, verbose):
             nodes = [node_index]
     else:
         nodes = range(strategy.nodes)
-    for i in nodes:
+    for i_node in nodes:
         node_config = copy.deepcopy(config)
-        node_config['node_index'] = i
+        node_config['node_index'] = i_node
         node_config['log_file'] = (
             log_pattern if log_pattern is None
-            else os.path.normpath(log_pattern.format(node_index=i)))
-        name = ('sup3r_fwp_{}_{}'.format(basename, str(i).zfill(6)))
+            else os.path.normpath(log_pattern.format(node_index=i_node)))
+        name = ('sup3r_fwp_{}_{}'.format(basename, str(i_node).zfill(6)))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
         cmd = ForwardPass.get_node_cmd(node_config)
