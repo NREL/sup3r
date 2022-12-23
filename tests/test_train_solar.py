@@ -40,7 +40,7 @@ def test_solar_cc_model(log=False):
                                    sample_shape=(20, 20, 72),
                                    worker_kwargs=dict(max_workers=1))
 
-    batcher = BatchHandlerCC([handler], batch_size=16, n_batches=2,
+    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2,
                              s_enhance=1, sub_daily_shape=24)
 
     if log:
@@ -95,7 +95,7 @@ def test_solar_cc_model_spatial(log=False):
                                    sample_shape=(20, 20),
                                    worker_kwargs=dict(max_workers=1))
 
-    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=5)
 
     if log:

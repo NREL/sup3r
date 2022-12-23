@@ -48,8 +48,8 @@ def test_train_spatial(log=False, full_shape=(20, 20),
                             temporal_slice=slice(None, None, 10),
                             worker_kwargs=dict(max_workers=1), val_split=0.1)
 
-    batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
-                                        n_batches=10)
+    batch_handler = SpatialBatchHandler([handler], batch_size=2, s_enhance=2,
+                                        n_batches=2)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
@@ -112,14 +112,14 @@ def test_train_st_weight_update(n_epoch=2, log=False):
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            sample_shape=(18, 18, 24),
+                            sample_shape=(12, 12, 16),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandler([handler], batch_size=4,
+    batch_handler = BatchHandler([handler], batch_size=2,
                                  s_enhance=3, t_enhance=4,
-                                 n_batches=4)
+                                 n_batches=2)
 
     adaptive_update_bounds = (0.9, 0.99)
     with tempfile.TemporaryDirectory() as td:
@@ -168,13 +168,13 @@ def test_train_spatial_dc(log=False, full_shape=(20, 20),
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
-    batch_size = 4
-    n_batches = 20
+    batch_size = 2
+    n_batches = 2
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))
 
-    batch_handler = BatchHandlerSpatialDC([handler], batch_size=8, s_enhance=2,
-                                          n_batches=10)
+    batch_handler = BatchHandlerSpatialDC([handler], batch_size=batch_size,
+                                          s_enhance=2, n_batches=n_batches)
 
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
@@ -212,13 +212,12 @@ def test_train_st_dc(n_epoch=2, log=False):
                        learning_rate_disc=3e-4, loss='MmdMseLoss')
 
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                                 shape=(20, 20),
-                                 sample_shape=(18, 18, 24),
+                                 shape=(20, 20), sample_shape=(12, 12, 16),
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
-    batch_size = 4
-    n_batches = 20
+    batch_size = 2
+    n_batches = 2
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))
     batch_handler = BatchHandlerDC([handler], batch_size=batch_size,
@@ -260,15 +259,14 @@ def test_train_st(n_epoch=2, log=False):
                      learning_rate_disc=2e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
+                            shape=(20, 20), sample_shape=(12, 12, 16),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandler([handler], batch_size=4,
+    batch_handler = BatchHandler([handler], batch_size=2,
                                  s_enhance=3, t_enhance=4,
-                                 n_batches=4)
+                                 n_batches=2)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
