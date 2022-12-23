@@ -18,7 +18,6 @@ from sup3r.utilities.pytest_utils import make_fake_nc_files
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
 val_split = 0.2
-raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_nc.txt')
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
@@ -116,7 +115,7 @@ def test_spatiotemporal_batch_caching(sample_shape):
         cache_pattern = os.path.join(td, 'cache_')
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = sample_shape
-        data_handler = DataHandler(input_files, features, val_split=val_split,
+        data_handler = DataHandler(input_files, features,
                                    cache_pattern=cache_pattern,
                                    **dh_kwargs_new)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
@@ -130,11 +129,10 @@ def test_spatiotemporal_batch_caching(sample_shape):
                 handler_index = batch_handler.current_handler_index
                 handler = batch_handler.data_handlers[handler_index]
 
-                assert np.array_equal(
-                    batch.high_res[i, :, :, :],
-                    handler.data[spatial_1_slice,
-                                 spatial_2_slice,
-                                 t_slice, :-1])
+                assert np.array_equal(batch.high_res[i, :, :, :],
+                                      handler.data[spatial_1_slice,
+                                                   spatial_2_slice,
+                                                   t_slice, :-1])
 
 
 def test_data_caching():
@@ -227,8 +225,7 @@ def test_normalization_input():
     stds = np.random.rand(len(features))
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler], means=means, stds=stds,
                                      **bh_kwargs)
 
@@ -241,8 +238,7 @@ def test_normalization():
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         stacked_data = np.concatenate(
@@ -262,8 +258,7 @@ def test_spatiotemporal_normalization():
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         stacked_data = np.concatenate(
@@ -295,8 +290,7 @@ def test_validation_batching():
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = (sample_shape[0], sample_shape[1], 1)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_files, features, **dh_kwargs_new)
         batch_handler = SpatialBatchHandler([data_handler], **bh_kwargs)
 
         for batch in batch_handler.val_data:
@@ -322,8 +316,7 @@ def test_temporal_coarsening(method, t_enhance):
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         bh_kwargs_new = bh_kwargs.copy()
         bh_kwargs_new['t_enhance'] = t_enhance
         batch_handler = BatchHandler([data_handler],
@@ -351,8 +344,7 @@ def test_spatiotemporal_validation_batching(method):
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler],
                                      temporal_coarsening_method=method,
                                      **bh_kwargs)
@@ -378,8 +370,7 @@ def test_spatiotemporal_batch_observations(sample_shape):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = sample_shape
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_files, features, **dh_kwargs_new)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         for batch in batch_handler:
@@ -407,8 +398,7 @@ def test_spatiotemporal_batch_indices(sample_shape):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = sample_shape
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_files, features, **dh_kwargs_new)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         all_spatial_tuples = []
@@ -444,8 +434,7 @@ def test_spatiotemporal_batch_handling(plot=False):
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
         for batch in batch_handler:
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -478,8 +467,7 @@ def test_batch_handling(plot=False):
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        data_handler = DataHandler(input_files, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = SpatialBatchHandler([data_handler], **bh_kwargs)
 
         for batch in batch_handler:
@@ -528,8 +516,8 @@ def test_val_data_storage():
 
         n_observations = 0
         for f in input_files:
-            handler = DataHandler(f, features, raster_file=raster_file,
-                                  val_split=val_split, **dh_kwargs)
+            handler = DataHandler(f, features, val_split=val_split,
+                                  **dh_kwargs)
             data = handler.run_all_data_init()
             n_observations += data.shape[2]
 

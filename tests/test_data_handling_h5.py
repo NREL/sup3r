@@ -26,7 +26,7 @@ t_enhance = 2
 s_enhance = 5
 val_split = 0.2
 dh_kwargs = dict(target=target, shape=shape, max_delta=20,
-                 sample_shape=sample_shape, val_split=val_split,
+                 sample_shape=sample_shape,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1))
 bh_kwargs = dict(batch_size=8, n_batches=20,
@@ -567,10 +567,9 @@ def test_val_data_storage():
 def test_no_val_data():
     """Test that the data handler can work with zero validation data."""
     data_handlers = []
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['val_split'] = 0
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, val_split=0,
+                                   **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
     n = 0
@@ -584,10 +583,9 @@ def test_no_val_data():
 def test_smoothing():
     """Check gaussian filtering on low res"""
     data_handlers = []
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['val_split'] = 0
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features[:-1], **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features[:-1], val_split=0,
+                                   **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, smoothing=0.6, **bh_kwargs)
     for batch in batch_handler:
