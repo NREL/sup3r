@@ -4,6 +4,7 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
+from concurrent.futures import as_completed
 import json
 import numpy as np
 import logging
@@ -28,8 +29,6 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
 from sup3r.utilities import ModuleName
-
-from concurrent.futures import as_completed, ThreadPoolExecutor, Future
 
 np.random.seed(42)
 
