@@ -961,8 +961,8 @@ class TasMax(Tas):
 class LatLonNC:
     """Lat Lon feature class with compute method"""
 
-    @classmethod
-    def compute(cls, file_paths, raster_index):
+    @staticmethod
+    def compute(file_paths, raster_index):
         """Get lats and lons
 
         Parameters
@@ -978,30 +978,32 @@ class LatLonNC:
             lat lon array
             (spatial_1, spatial_2, 2)
         """
-        with xr.open_dataset(file_paths[0]) as handle:
-            lat_key = 'XLAT'
-            lon_key = 'XLONG'
-            if lat_key not in handle.variables:
-                lat_key = 'latitude'
-            if lon_key not in handle.variables:
-                lon_key = 'longitude'
-            if len(handle.variables[lat_key].dims) == 3:
-                idx = (0, raster_index[0], raster_index[1])
-            elif len(handle.variables[lat_key].dims) == 4:
-                idx = (0, raster_index[0], raster_index[1], 0)
-            else:
-                idx = (raster_index[0], raster_index[1])
-            lats = handle.variables[lat_key].values[idx]
-            lons = handle.variables[lon_key].values[idx]
-            lat_lon = np.dstack((lats, lons))
+
+        fp = file_paths if isinstance(file_paths, str) else file_paths[0]
+        handle = xr.open_dataset(fp)
+        lat_key = 'XLAT'
+        lon_key = 'XLONG'
+        if lat_key not in handle.variables:
+            lat_key = 'latitude'
+        if lon_key not in handle.variables:
+            lon_key = 'longitude'
+        if len(handle.variables[lat_key].dims) == 3:
+            idx = (0, raster_index[0], raster_index[1])
+        elif len(handle.variables[lat_key].dims) == 4:
+            idx = (0, raster_index[0], raster_index[1], 0)
+        else:
+            idx = (raster_index[0], raster_index[1])
+        lats = handle.variables[lat_key].values[idx]
+        lons = handle.variables[lon_key].values[idx]
+        lat_lon = np.dstack((lats, lons))
         return lat_lon
 
 
 class LatLonNCforCC:
     """Lat Lon feature class with compute method"""
 
-    @classmethod
-    def compute(cls, file_paths, raster_index):
+    @staticmethod
+    def compute(file_paths, raster_index):
         """Get lats and lons
 
         Parameters
@@ -1017,22 +1019,30 @@ class LatLonNCforCC:
             lat lon array
             (spatial_1, spatial_2, 2)
         """
-        with xr.open_dataset(file_paths[0]) as handle:
-            lats = (handle.lat.values if 'time' not
-                    in handle.lat.dims else handle.lat.values[0])
-            lons = (handle.lon.values if 'time' not
-                    in handle.lon.dims else handle.lon.values[0])
-            lons, lats = np.meshgrid(lons, lats)
-            lat_lon = np.dstack((lats[tuple(raster_index)],
-                                 lons[tuple(raster_index)]))
+
+        fp = file_paths if isinstance(file_paths, str) else file_paths[0]
+        handle = xr.open_dataset(fp)
+        lats = handle.lat.values
+        lons = handle.lon.values
+        if handle.lat.dims != ('lat',):
+            lats = lats[handle.lat.dims.index('lat')]
+        if handle.lon.dims != ('lon',):
+            lons = lons[handle.lon.dims.index('lon')]
+
+        assert len(lats.shape) == 1, f'Got bad lats shape: {lats.shape}'
+        assert len(lons.shape) == 1, f'Got bad lons shape: {lons.shape}'
+
+        lons, lats = np.meshgrid(lons, lats)
+        lat_lon = np.dstack((lats[tuple(raster_index)],
+                             lons[tuple(raster_index)]))
         return lat_lon
 
 
 class TopoH5:
     """Topography feature class with compute method"""
 
-    @classmethod
-    def compute(cls, file_paths, raster_index):
+    @staticmethod
+    def compute(file_paths, raster_index):
         """Get topography corresponding to raster
 
         Parameters
@@ -1058,8 +1068,8 @@ class TopoH5:
 class LatLonH5:
     """Lat Lon feature class with compute method"""
 
-    @classmethod
-    def compute(cls, file_paths, raster_index):
+    @staticmethod
+    def compute(file_paths, raster_index):
         """Get lats and lons corresponding to raster for use in
         windspeed/direction -> u/v mapping
 

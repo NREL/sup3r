@@ -824,7 +824,12 @@ class DataHandler(FeatureHandler, InputMixIn):
     @classmethod
     @abstractmethod
     def source_handler(cls, file_paths, **kwargs):
-        """Handler for source data. Can use xarray, ResourceX, etc."""
+        """Handler for source data. Can use xarray, ResourceX, etc.
+
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+        """
 
     @property
     def attrs(self):
@@ -835,8 +840,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         dict
             Dictionary of attributes
         """
-        with self.source_handler(self.file_paths) as handle:
-            desc = handle.attrs
+        handle = self.source_handler(self.file_paths)
+        desc = handle.attrs
         return desc
 
     @property
@@ -977,9 +982,9 @@ class DataHandler(FeatureHandler, InputMixIn):
         """
         handle_features = []
         for f in file_paths:
-            with cls.source_handler([f]) as handle:
-                for r in handle:
-                    handle_features.append(Feature.get_basename(r))
+            handle = cls.source_handler([f])
+            for r in handle:
+                handle_features.append(Feature.get_basename(r))
         return list(set(handle_features))
 
     @property
@@ -1932,6 +1937,10 @@ class DataHandlerNC(DataHandler):
     def source_handler(cls, file_paths, **kwargs):
         """Xarray data handler
 
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+
         Parameters
         ----------
         file_paths : str | list
@@ -1970,21 +1979,22 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        with cls.source_handler(file_paths, **kwargs) as handle:
-            if hasattr(handle, 'Times'):
-                time_index = np_to_pd_times(handle.Times.values)
-            elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-                time_index = handle.indexes['time']
-                if not isinstance(time_index, pd.DatetimeIndex):
-                    time_index = time_index.to_datetimeindex()
-            elif hasattr(handle, 'times'):
-                time_index = np_to_pd_times(handle.times.values)
-            else:
-                msg = (f'Could not get time_index for {file_paths}. '
-                       'Assuming time independence.')
-                time_index = None
-                logger.warning(msg)
-                warnings.warn(msg)
+        handle = cls.source_handler(file_paths, **kwargs)
+
+        if hasattr(handle, 'Times'):
+            time_index = np_to_pd_times(handle.Times.values)
+        elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
+            time_index = handle.indexes['time']
+            if not isinstance(time_index, pd.DatetimeIndex):
+                time_index = time_index.to_datetimeindex()
+        elif hasattr(handle, 'times'):
+            time_index = np_to_pd_times(handle.times.values)
+        else:
+            msg = (f'Could not get time_index for {file_paths}. '
+                   'Assuming time independence.')
+            time_index = None
+            logger.warning(msg)
+            warnings.warn(msg)
 
         return time_index
 
@@ -2099,32 +2109,32 @@ class DataHandlerNC(DataHandler):
         """
         logger.debug(f'Extracting {feature} with time_slice={time_slice}, '
                      f'raster_index={raster_index}, kwargs={kwargs}.')
-        with cls.source_handler(file_paths, **kwargs) as handle:
-            f_info = Feature(feature, handle)
-            interp_height = f_info.height
-            interp_pressure = f_info.pressure
-            basename = f_info.basename
+        handle = cls.source_handler(file_paths, **kwargs)
+        f_info = Feature(feature, handle)
+        interp_height = f_info.height
+        interp_pressure = f_info.pressure
+        basename = f_info.basename
 
-            if feature in handle:
-                fdata = cls.direct_extract(handle, feature, raster_index,
-                                           time_slice)
+        if feature in handle:
+            fdata = cls.direct_extract(handle, feature, raster_index,
+                                       time_slice)
 
-            elif basename in handle:
-                if interp_height is not None:
-                    fdata = interp_var_to_height(handle, basename,
-                                                 raster_index,
-                                                 np.float32(interp_height),
-                                                 time_slice)
-                elif interp_pressure is not None:
-                    fdata = interp_var_to_pressure(handle, basename,
-                                                   raster_index,
-                                                   np.float32(interp_pressure),
-                                                   time_slice)
+        elif basename in handle:
+            if interp_height is not None:
+                fdata = interp_var_to_height(handle, basename,
+                                             raster_index,
+                                             np.float32(interp_height),
+                                             time_slice)
+            elif interp_pressure is not None:
+                fdata = interp_var_to_pressure(handle, basename,
+                                               raster_index,
+                                               np.float32(interp_pressure),
+                                               time_slice)
 
-            else:
-                msg = f'{feature} cannot be extracted from source data.'
-                logger.exception(msg)
-                raise ValueError(msg)
+        else:
+            msg = f'{feature} cannot be extracted from source data.'
+            logger.exception(msg)
+            raise ValueError(msg)
 
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
@@ -2410,6 +2420,10 @@ class DataHandlerNCforCC(DataHandlerNC):
     def source_handler(cls, file_paths, **kwargs):
         """Xarray data handler
 
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+
         Parameters
         ----------
         file_paths : str | list
@@ -2560,6 +2574,10 @@ class DataHandlerH5(DataHandler):
     def source_handler(cls, file_paths):
         """rex data handler
 
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+
         Parameters
         ----------
         file_paths : str | list
@@ -2595,8 +2613,8 @@ class DataHandlerH5(DataHandler):
         time_index : pd.DateTimeIndex
             Time index from h5 source file(s)
         """
-        with cls.source_handler(file_paths) as handle:
-            time_index = handle.time_index
+        handle = cls.source_handler(file_paths)
+        time_index = handle.time_index
         return time_index
 
     @classmethod
@@ -2644,14 +2662,14 @@ class DataHandlerH5(DataHandler):
             (spatial_1, spatial_2, temporal)
         """
         logger.info(f'Extracting {feature} with kwargs={kwargs}')
-        with cls.source_handler(file_paths, **kwargs) as handle:
-            try:
-                fdata = handle[(feature, time_slice,)
-                               + tuple([raster_index.flatten()])]
-            except ValueError as e:
-                msg = f'{feature} cannot be extracted from source data'
-                logger.exception(msg)
-                raise ValueError(msg) from e
+        handle = cls.source_handler(file_paths, **kwargs)
+        try:
+            fdata = handle[(feature, time_slice,)
+                           + tuple([raster_index.flatten()])]
+        except ValueError as e:
+            msg = f'{feature} cannot be extracted from source data'
+            logger.exception(msg)
+            raise ValueError(msg) from e
 
         fdata = fdata.reshape((-1, raster_index.shape[0],
                                raster_index.shape[1]))
@@ -2680,9 +2698,10 @@ class DataHandlerH5(DataHandler):
             logger.debug('Calculating raster index from WTK file '
                          f'for shape {self.grid_shape} and target '
                          f'{self.target}')
-            with self.source_handler(self.file_paths[0]) as handle:
-                raster_index = handle.get_raster_index(
-                    self.target, self.grid_shape, max_delta=self.max_delta)
+            handle = self.source_handler(self.file_paths[0])
+            raster_index = handle.get_raster_index(self.target,
+                                                   self.grid_shape,
+                                                   max_delta=self.max_delta)
             if self.raster_file is not None:
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
