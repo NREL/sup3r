@@ -90,16 +90,27 @@ def forward_pass(ctx, verbose):
 
         {
             "file_paths": "./source_files*.nc",
-            "model_args": "./sup3r_model/",
+            "model_kwargs": {
+                "model_dir": "./sup3r_model/"
+            },
             "out_pattern": "./output/sup3r_out_{file_id}.h5",
             "log_pattern": "./logs/log_{node_index}.log",
             "log_level": "DEBUG",
-            "s_enhance": 25,
-            "t_enhance": 24,
             "fwp_chunk_shape": [5, 5, 3],
             "spatial_pad": 1,
             "temporal_pad": 1,
-            "max_workers": 1,
+            "max_nodes": 1,
+            "worker_kwargs": {
+                "max_workers": null,
+                "output_workers": 1,
+                "pass_workers": 8,
+                "ti_workers": 1
+            },
+            "input_handler_kwargs": {
+                "worker_kwargs": {
+                    "max_workers": 1
+                },
+            },
             "execution_control": {
                 "option": "local"
             },
