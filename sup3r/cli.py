@@ -431,11 +431,10 @@ def stats(ctx, verbose):
             "out_file_path": "./outputs/collected_output_file.h5",
             "s_enhance": 2,
             "t_enhance": 12,
-            "heights": [100, 160],
-            "include_stats": ["ws_time_derivative", "velocity_grad",
-                              "tke_avg_k"]
+            "features": ["windspeed_100m", "winddirection_100m"],
+            "include_stats": ["time_derivative", "gradient", "spectrum_k"]
             "get_interp": True,
-            "log_file": "./logs/windstats.log",
+            "log_file": "./logs/stats.log",
             "execution_control": {"option": "local"},
             "log_level": "DEBUG"
         }

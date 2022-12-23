@@ -45,14 +45,7 @@ def from_config(ctx, config_file, verbose):
     hardware_option = exec_kwargs.pop('option', 'local')
     node_index = config.get('node_index', None)
     basename = config.get('job_name')
-
     log_pattern = config.get('log_pattern', None)
-    if log_pattern is not None:
-        os.makedirs(os.path.dirname(log_pattern), exist_ok=True)
-        if '.log' not in log_pattern:
-            log_pattern += '.log'
-        if '{node_index}' not in log_pattern:
-            log_pattern = log_pattern.replace('.log', '_{node_index}.log')
 
     sig = signature(ForwardPassStrategy)
     strategy_kwargs = {k: v for k, v in config.items()

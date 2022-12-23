@@ -16,6 +16,7 @@ from rex.utilities.loggers import init_mult
 from sup3r.version import __version__
 from sup3r.pipeline.config import BaseConfig
 from sup3r.utilities import ModuleName
+from sup3r.utilities.utilities import correct_path
 
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ class BaseCLI:
         verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
 
         init_mult(f'sup3r_{module_name.replace("-", "_")}',
-                  os.path.join(status_dir, 'logs/'),
+                  correct_path(os.path.join(status_dir, 'logs/')),
                   modules=[__name__, 'sup3r'], verbose=verbose)
 
         exec_kwargs = config.get('execution_control', {})

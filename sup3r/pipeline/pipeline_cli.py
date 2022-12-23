@@ -56,6 +56,7 @@ def valid_config_keys():
 def from_config(ctx, config_file, cancel, monitor, background, verbose):
     """Run sup3r pipeline from a config file."""
     ctx.ensure_object(dict)
+    print(f'**config_file = {config_file}**')
     verbose = any([verbose, ctx.obj.get('VERBOSE', False)])
 
     if cancel:
@@ -78,7 +79,7 @@ def pipeline_monitor_background(config_file, verbose=False):
         Flag to turn on debug logging for the pipeline.
     """
 
-    cmd = ('python -m sup3r.cli -c {} pipeline --monitor'.format(config_file))
+    cmd = (f'python -m sup3r.cli -c {config_file} pipeline --monitor')
     if verbose:
         cmd += ' -v'
 

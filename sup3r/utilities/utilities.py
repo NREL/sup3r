@@ -26,6 +26,12 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def correct_path(path):
+    """If running on windows we need to replace backslashes with double
+    backslashes so paths can be parsed correctly with safe_open_json"""
+    return path.replace('\\', '\\\\')
+
+
 def estimate_max_workers(max_workers, process_mem, n_processes):
     """Estimate max number of workers based on available memory
 

@@ -17,6 +17,7 @@ from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.qa.visual_qa_cli import from_config as plots_main
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest import make_fake_nc_files, make_fake_h5_chunks
+from sup3r.utilities.utilities import correct_path
 
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
@@ -65,10 +66,9 @@ def test_pipeline_fwp_collect(runner):
         log_prefix = os.path.join(td, 'log.log')
         fwp_config = {'input_handler_kwargs': {
             'worker_kwargs': {'max_workers': 1},
-            'target': (19.3, -123.5),
+            'target': [19.3, -123.5],
             'shape': shape,
             'overwrite_cache': True,
-            'time_chunk_size': 10,
             'cache_pattern': cache_pattern},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
@@ -97,8 +97,10 @@ def test_pipeline_fwp_collect(runner):
 
         pipe_config = {"logging": {"log_level": "DEBUG",
                                    "log_file": pipe_flog},
-                       "pipeline": [{"forward-pass": fwp_config_path},
-                                    {"data-collect": dc_config_path}]}
+                       "pipeline": [{"forward-pass":
+                                     correct_path(fwp_config_path)},
+                                    {"data-collect":
+                                     correct_path(dc_config_path)}]}
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)
@@ -107,7 +109,8 @@ def test_pipeline_fwp_collect(runner):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
+        result = runner.invoke(pipe_main, ['-c',
+                                           correct_path(pipe_config_path),
                                            '-v', '--monitor'])
         if result.exit_code != 0:
             import traceback
@@ -159,7 +162,8 @@ def test_data_collection_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(dc_main, ['-c', config_path, '-v'])
+        result = runner.invoke(dc_main, ['-c', correct_path(config_path),
+                                         '-v'])
 
         if result.exit_code != 0:
             import traceback
@@ -255,7 +259,8 @@ def test_fwd_pass_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
+        result = runner.invoke(fwp_main, ['-c', correct_path(config_path),
+                                          '-v'])
 
         if result.exit_code != 0:
             import traceback
@@ -289,7 +294,8 @@ def test_data_extract_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(dh_main, ['-c', config_path, '-v'])
+        result = runner.invoke(dh_main, ['-c', correct_path(config_path),
+                                         '-v'])
 
         if result.exit_code != 0:
             import traceback
@@ -328,7 +334,6 @@ def test_pipeline_fwp_qa(runner):
                       'log_level': 'DEBUG',
                       'input_handler_kwargs': {'target': (19.3, -123.5),
                                                'shape': (8, 8),
-                                               'time_chunk_size': 10,
                                                'overwrite_cache': False},
                       'fwp_chunk_shape': (100, 100, 100),
                       'max_workers': 1,
@@ -356,8 +361,9 @@ def test_pipeline_fwp_qa(runner):
         pipe_flog = os.path.join(td, 'pipeline.log')
         pipe_config = {"logging": {"log_level": "DEBUG",
                                    "log_file": pipe_flog},
-                       "pipeline": [{"forward-pass": fwp_config_path},
-                                    {"qa": qa_config_path}]}
+                       "pipeline": [{"forward-pass":
+                                     correct_path(fwp_config_path)},
+                                    {"qa": correct_path(qa_config_path)}]}
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)
@@ -366,7 +372,8 @@ def test_pipeline_fwp_qa(runner):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
+        result = runner.invoke(pipe_main, ['-c',
+                                           correct_path(pipe_config_path),
                                            '-v', '--monitor'])
         if result.exit_code != 0:
             import traceback
@@ -410,21 +417,20 @@ def test_visual_qa(runner):
     n_files = len(time_index[::time_step]) * len(plot_features)
 
     with tempfile.TemporaryDirectory() as td:
-        log_file = os.path.join(td, 'visual_qa.log')
         out_pattern = os.path.join(td, 'plot_{feature}_{index}.png')
 
         config = {'file_paths': FP_WTK,
                   'features': plot_features,
                   'out_pattern': out_pattern,
                   'time_step': time_step,
-                  'log_file': log_file,
                   'workers': 1}
 
         config_path = os.path.join(td, 'config.json')
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(plots_main, ['-c', config_path, '-v'])
+        result = runner.invoke(plots_main, ['-c', correct_path(config_path),
+                                            '-v'])
 
         if result.exit_code != 0:
             import traceback

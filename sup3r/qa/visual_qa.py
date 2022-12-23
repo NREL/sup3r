@@ -197,7 +197,7 @@ class Sup3rVisualQa:
         import_str = 'import time;\n'
         import_str += 'from reV.pipeline.status import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += 'from sup3r.qa.feature_plots import Sup3rVisualQa;\n'
+        import_str += 'from sup3r.qa.visual_qa import Sup3rVisualQa;\n'
 
         qa_init_str = get_fun_call_str(cls, config)
 
