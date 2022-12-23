@@ -11,6 +11,7 @@ from sup3r.solar.solar_cli import from_config as solar_cli
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
 from sup3r.qa.qa_cli import from_config as qa_cli
+from sup3r.qa.plots_cli import from_config as plots_cli
 from sup3r.qa.windstats_cli import from_config as windstats_cli
 from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
@@ -47,7 +48,7 @@ def main(ctx, config_file, verbose):
 
     Typically, a good place to start is to set up a sup3r job with a pipeline
     config that points to several sup3r modules that you want to run in serial.
-    You would call the sup3r pipeline CLI using either of these equivelant
+    You would call the sup3r pipeline CLI using either of these equivalent
     commands::
 
         $ sup3r -c config_pipeline.json pipeline
@@ -76,7 +77,7 @@ def forward_pass(ctx, verbose):
     module also handles multi-node and multi-core parallelization.
 
     You can call the forward-pass module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivelant commands::
+    directly with either of these equivalent commands::
 
         $ sup3r -c config_fwp.json forward-pass
 
@@ -144,7 +145,7 @@ def solar(ctx, verbose):
     forward-pass but before the data-collect step.
 
     You can call the solar module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivelant commands::
+    directly with either of these equivalent commands::
 
         $ sup3r -c config_solar.json solar
 
@@ -194,7 +195,7 @@ def bias_calc(ctx, verbose):
     typically the first step in a GCM downscaling pipeline.
 
     You can call the bias calc module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivelant commands::
+    directly with either of these equivalent commands::
 
         $ sup3r -c config_bias.json bias-calc
 
@@ -253,7 +254,7 @@ def data_extract(ctx, verbose):
     The sup3r data-extract module is a utility to pre-extract and pre-process
     data from a source file to disk pickle files for faster restarts while
     debugging. You can call the data-extract module via the sup3r-pipeline CLI,
-    or call it directly with either of these equivelant commands::
+    or call it directly with either of these equivalent commands::
 
         $ sup3r -c config_extract.json data-extract
 
@@ -292,7 +293,7 @@ def data_collect(ctx, verbose):
     The sup3r data-collect module can be used to collect time-chunked files
     that were spit out by multi-node forward pass jobs. You can call the
     data-collect module via the sup3r-pipeline CLI, or call it directly with
-    either of these equivelant commands::
+    either of these equivalent commands::
 
         $ sup3r -c config_collect.json data-collect
 
@@ -331,7 +332,7 @@ def qa(ctx, verbose):
     The sup3r QA module can be used to verify how well the high-resolution
     sup3r resolved outputs adhere to the low-resolution source data. You can
     call the QA module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivelant commands::
+    directly with either of these equivalent commands::
 
         $ sup3r -c config_qa.json qa
 
@@ -366,6 +367,46 @@ def qa(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
+def visual_qa(ctx, verbose):
+    """Sup3r visual QA module following forward pass and collection.
+
+    The sup3r visual QA module can be used to perform a visual inspection on
+    the high-resolution sup3r resolved output. You can call the visual QA
+    module via the sup3r-pipeline CLI, or call it directly with either of
+    these equivalent commands::
+
+        $ sup3r -c config_qa.json visual-qa
+
+        $ sup3r-visual-qa from-config -c config_qa.json
+
+    A sup3r visual QA config.json file can contain any arguments or keyword
+    arguments required to initialize the :class:`sup3r.qa.qa.Sup3rVisualQa`
+    class. The config also has several optional arguments: ``log_file``,
+    ``log_level``, and ``execution_control``. Here's a small example
+    visual QA config::
+
+        {
+            "file_paths": "./outputs/collected_output*.h5",
+            "out_pattern": "./outputs/plots/{feature}_{index}.png",
+            "features": ['windspeed_100m', 'winddirection_100m'],
+            "time_step": 100,
+            "spatial_slice": [None, None, 100],
+            "execution_control": {"option": "local"},
+            "log_level": "DEBUG"
+        }
+
+    Note that the ``execution_control`` has the same options as forward-pass
+    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    """
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(plots_cli, config_file=config_file, verbose=verbose)
+
+
+@main.command()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
 def windstats(ctx, verbose):
     """Sup3r WindStats module following forward pass and collection.
 
@@ -373,7 +414,7 @@ def windstats(ctx, verbose):
     given hub heights. These statistics include energy spectra, time derivative
     pdfs, velocity gradient pdfs, and vorticity pdfs.
     You can call the WindStats module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivelant commands::
+    directly with either of these equivalent commands::
 
         $ sup3r -c config_windstats.json windstats
 
@@ -428,7 +469,7 @@ def pipeline(ctx, cancel, monitor, background, verbose):
 
     Typically, a good place to start is to set up a sup3r job with a pipeline
     config that points to several sup3r modules that you want to run in serial.
-    You would call the sup3r pipeline CLI using either of these equivelant
+    You would call the sup3r pipeline CLI using either of these equivalent
     commands::
 
         $ sup3r -c config_pipeline.json pipeline

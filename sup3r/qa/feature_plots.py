@@ -58,7 +58,8 @@ class Sup3rVisualQa:
         self.features = features
         self.out_pattern = out_pattern
         self.time_step = time_step
-        self.spatial_slice = spatial_slice
+        self.spatial_slice = (spatial_slice if isinstance(spatial_slice, slice)
+                              else slice(*spatial_slice))
         self.file_paths = (file_paths if isinstance(file_paths, list)
                            else glob.glob(file_paths))
         self.workers = workers

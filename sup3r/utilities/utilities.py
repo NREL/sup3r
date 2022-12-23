@@ -621,7 +621,7 @@ def daily_temporal_coarsening(data, temporal_axis=3):
 
     This method takes the sum of the data in the temporal dimension and divides
     by 24 (for 24 hours per day). Even if there are only 8-12 daylight obs in
-    the temporal axis, we want to divide by 24 to give the equivelant of a
+    the temporal axis, we want to divide by 24 to give the equivalent of a
     daily average.
 
     Parameters

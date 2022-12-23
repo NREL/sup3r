@@ -2988,7 +2988,7 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
         Note that the H5 clearsky ratio feature requires special logic to match
         the climate change dataset of daily average GHI / daily average CS_GHI.
-        This target climate change dataset is not equivelant to the average of
+        This target climate change dataset is not equivalent to the average of
         instantaneous hourly clearsky ratios
         """
 
