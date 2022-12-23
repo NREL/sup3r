@@ -545,7 +545,8 @@ def test_val_data_storage():
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, **dh_kwargs)
+        data_handler = DataHandler(input_file, features, val_split=val_split,
+                                   **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
 
@@ -558,7 +559,7 @@ def test_val_data_storage():
         val_observations += batch.low_res.shape[0]
     n_observations = 0
     for f in input_files:
-        handler = DataHandler(f, features, **dh_kwargs)
+        handler = DataHandler(f, features, val_split=val_split, **dh_kwargs)
         data = handler.run_all_data_init()
         n_observations += data.shape[2]
     assert val_observations == int(val_split * n_observations)
