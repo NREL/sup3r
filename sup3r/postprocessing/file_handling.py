@@ -370,7 +370,8 @@ class OutputHandler:
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
         cls._write_output(data, features, lat_lon, times, out_file,
-                          meta_data, max_workers, gids)
+                          meta_data=meta_data, max_workers=max_workers,
+                          gids=gids)
 
 
 class OutputHandlerNC(OutputHandler):
@@ -414,7 +415,10 @@ class OutputHandlerNC(OutputHandler):
             data_vars[f] = (['Time', 'south_north', 'east_west'],
                             np.transpose(data[..., i], (2, 0, 1)))
 
-        attrs = {'gan_meta': json.dumps(meta_data)}
+        attrs = {}
+        if meta_data is not None:
+            attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                     for k, v in meta_data.items()}
 
         with xr.Dataset(data_vars=data_vars, coords=coords,
                         attrs=attrs) as ncfile:
@@ -639,6 +643,9 @@ class OutputHandlerH5(OutputHandler):
                 logger.info(f'Added {f} to output file.')
 
             if meta_data is not None:
-                fh.run_attrs = {'gan_meta': json.dumps(meta_data)}
+                attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                         for k, v in meta_data.items()}
+                fh.run_attrs = attrs
+
         os.replace(tmp_file, out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')

@@ -93,10 +93,12 @@ def test_solar_module(plot=False):
                 assert np.allclose(res.meta['longitude'],
                                    meta_base['longitude'])
 
-                assert res.global_attrs['nsrdb_source'] == NSRDB_FP
-                assert res.global_attrs['gan_meta'] == json.dumps(GAN_META)
+                gattrs = res.global_attrs
+                assert gattrs['nsrdb_source'] == NSRDB_FP
+                assert gattrs['t_enhance'] == str(GAN_META['t_enhance'])
+                assert gattrs['s_enhance'] == str(GAN_META['s_enhance'])
                 for k, v in attrs_base.items():
-                    assert res.global_attrs[k] == v
+                    assert gattrs[k] == v
 
         if plot:
             for i, timestamp in enumerate(HIGH_RES_TIMES[t_slice]):

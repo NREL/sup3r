@@ -1102,7 +1102,6 @@ class ForwardPass:
         self.model = model_class.load(**self.model_kwargs, verbose=False)
         self.features = self.model.training_features
         self.output_features = self.model.output_features
-        self.meta_data = self.model.meta
 
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
@@ -1215,6 +1214,21 @@ class ForwardPass:
         """Get high resolution times for the current chunk"""
         return self.output_handler_class.get_times(
             self.lr_times, self.t_enhance * len(self.lr_times))
+
+    @property
+    def meta(self):
+        """Meta data dictionary for the forward pass run (to write to output
+        files)."""
+        meta_data = {'gan_meta': self.model.meta,
+                     'model_kwargs': self.model_kwargs,
+                     'model_class': self.model_class,
+                     'spatial_enhance': int(self.s_enhance),
+                     'temporal_enhance': int(self.t_enhance),
+                     'input_files': self.file_paths,
+                     'input_features': self.features,
+                     'output_features': self.output_features,
+                     }
+        return meta_data
 
     @property
     def gids(self):
@@ -1916,7 +1930,7 @@ class ForwardPass:
             self.output_handler_class._write_output(
                 data=out_data, features=self.model.output_features,
                 lat_lon=self.hr_lat_lon, times=self.hr_times,
-                out_file=self.out_file, meta_data=self.meta_data,
+                out_file=self.out_file, meta_data=self.meta,
                 max_workers=self.output_workers, gids=self.gids)
         else:
             return out_data
