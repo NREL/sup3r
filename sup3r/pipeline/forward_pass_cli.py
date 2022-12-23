@@ -115,7 +115,7 @@ def kickoff_local_job(ctx, cmd):
         Command to be submitted in shell script. Example:
             'python -m sup3r.cli forward_pass -c <config_file>'
     """
-    BaseCLI.kickoff_local_job(ModuleName.DATA_COLLECT, ctx, cmd)
+    BaseCLI.kickoff_local_job(ModuleName.FORWARD_PASS, ctx, cmd)
 
 
 if __name__ == '__main__':
