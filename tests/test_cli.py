@@ -5,8 +5,9 @@ import os
 import tempfile
 import pytest
 import glob
-from rex import ResourceX
 import numpy as np
+from rex import ResourceX
+from rex import init_logger
 
 from click.testing import CliRunner
 
@@ -14,21 +15,16 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.qa.visual_qa_cli import from_config as plots_main
+from sup3r.qa.visual_qa_cli import from_config as vqa_main
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest import make_fake_nc_files, make_fake_h5_chunks
 from sup3r.utilities.utilities import correct_path
-
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-fwp_chunk_shape = (4, 4, 4)
-s_enhance = 3
-t_enhance = 4
-target = (19.3, -123.5)
+fwp_chunk_shape = (4, 4, 6)
 shape = (8, 8)
 
 
@@ -38,8 +34,10 @@ def runner():
     return CliRunner()
 
 
-def test_pipeline_fwp_collect(runner):
+def test_pipeline_fwp_collect(runner, log=True):
     """Test pipeline with forward pass and data collection"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -57,23 +55,17 @@ def test_pipeline_fwp_collect(runner):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
         fp_out = os.path.join(td, 'fwp_combined.h5')
-        fwp_chunk_shape = (4, 4, 6)
         n_nodes = len(input_files) // fwp_chunk_shape[2] + 1
         n_nodes *= shape[0] // fwp_chunk_shape[0]
         n_nodes *= shape[1] // fwp_chunk_shape[1]
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        log_prefix = os.path.join(td, 'log.log')
         fwp_config = {'input_handler_kwargs': {
             'worker_kwargs': {'max_workers': 1},
-            'target': [19.3, -123.5],
-            'shape': shape,
-            'overwrite_cache': True,
-            'cache_pattern': cache_pattern},
+            'target': (19.3, -123.5),
+            'shape': shape},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
-            'log_pattern': log_prefix,
             'fwp_chunk_shape': fwp_chunk_shape,
             'worker_kwargs': {'max_workers': 1},
             'spatial_pad': 1,
@@ -86,18 +78,14 @@ def test_pipeline_fwp_collect(runner):
         dc_config = {'file_paths': out_files,
                      'out_file': fp_out,
                      'features': features,
-                     'log_file': os.path.join(td, 'log.log'),
                      'execution_control': {
                          "option": "local"}}
 
         fwp_config_path = os.path.join(td, 'config_fwp.json')
         dc_config_path = os.path.join(td, 'config_dc.json')
         pipe_config_path = os.path.join(td, 'config_pipe.json')
-        pipe_flog = os.path.join(td, 'pipeline.log')
 
-        pipe_config = {"logging": {"log_level": "DEBUG",
-                                   "log_file": pipe_flog},
-                       "pipeline": [{"forward-pass":
+        pipe_config = {"pipeline": [{"forward-pass":
                                      correct_path(fwp_config_path)},
                                     {"data-collect":
                                      correct_path(dc_config_path)}]}
@@ -109,8 +97,7 @@ def test_pipeline_fwp_collect(runner):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c',
-                                           correct_path(pipe_config_path),
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
                                            '-v', '--monitor'])
         if result.exit_code != 0:
             import traceback
@@ -154,7 +141,6 @@ def test_data_collection_cli(runner):
                   'file_paths': out_files,
                   'out_file': fp_out,
                   'features': features,
-                  'log_file': os.path.join(td, 'log.log'),
                   'execution_control': {
                       "option": "local"}}
 
@@ -162,8 +148,7 @@ def test_data_collection_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(dc_main, ['-c', correct_path(config_path),
-                                         '-v'])
+        result = runner.invoke(dc_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
             import traceback
@@ -212,8 +197,10 @@ def test_data_collection_cli(runner):
             assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
 
 
-def test_fwd_pass_cli(runner):
+def test_fwd_pass_cli(runner, log=True):
     """Test cli call to run forward pass"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -230,18 +217,13 @@ def test_fwd_pass_cli(runner):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-
-        fwp_chunk_shape = (4, 4, 6)
         t_chunks = len(input_files) // fwp_chunk_shape[2] + 1
         n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
         n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
         input_handler_kwargs = {'target': (19.3, -123.5),
-                                'cache_pattern': cache_pattern,
                                 'shape': shape,
-                                'overwrite_cache': False,
                                 'worker_kwargs': {'max_workers': 1}}
         config = {'file_paths': input_files,
                   'model_kwargs': {'model_dir': out_dir},
@@ -281,7 +263,7 @@ def test_data_extract_cli(runner):
         cache_pattern = os.path.join(td, 'cache')
         log_file = os.path.join(td, 'log.log')
         config = {'file_paths': FP_WTK,
-                  'target': TARGET_COORD,
+                  'target': (39.01, -105.15),
                   'features': FEATURES,
                   'shape': (20, 20),
                   'sample_shape': (20, 20, 12),
@@ -294,8 +276,7 @@ def test_data_extract_cli(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(dh_main, ['-c', correct_path(config_path),
-                                         '-v'])
+        result = runner.invoke(dh_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
             import traceback
@@ -372,8 +353,7 @@ def test_pipeline_fwp_qa(runner):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c',
-                                           correct_path(pipe_config_path),
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
                                            '-v', '--monitor'])
         if result.exit_code != 0:
             import traceback
@@ -429,8 +409,7 @@ def test_visual_qa(runner):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(plots_main, ['-c', correct_path(config_path),
-                                            '-v'])
+        result = runner.invoke(vqa_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
             import traceback

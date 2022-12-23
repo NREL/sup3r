@@ -90,16 +90,20 @@ class BaseCLI:
         ctx.obj['OUT_DIR'] = status_dir
         config = BaseConfig(config_file)
         config['status_dir'] = status_dir
+        log_file = config.get('log_file', None)
+        log_pattern = config.get('log_pattern', None)
         config_verbose = config.get('log_level', 'INFO')
         config_verbose = (config_verbose == 'DEBUG')
         verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
+        exec_kwargs = config.get('execution_control', {})
+        hardware_option = exec_kwargs.pop('option', 'local')
+
+        log_dir = log_file or log_pattern
+        log_dir = log_dir if log_dir is None else os.path.dirname(log_dir)
 
         init_mult(f'sup3r_{module_name.replace("-", "_")}',
-                  os.path.join(status_dir, 'logs/'),
-                  modules=[__name__, 'sup3r'], verbose=verbose)
+                  log_dir, modules=[__name__, 'sup3r'], verbose=verbose)
 
-        exec_kwargs = config.get('execution_control', {})
-        log_pattern = config.get('log_pattern', None)
         if log_pattern is not None:
             os.makedirs(os.path.dirname(log_pattern), exist_ok=True)
             if '.log' not in log_pattern:
@@ -107,7 +111,6 @@ class BaseCLI:
             if '{node_index}' not in log_pattern:
                 log_pattern = log_pattern.replace('.log', '_{node_index}.log')
 
-        hardware_option = exec_kwargs.pop('option', 'local')
         exec_kwargs['stdout_path'] = os.path.join(status_dir, 'stdout/')
         logger.debug('Found execution kwargs: {}'.format(exec_kwargs))
         logger.debug('Hardware run option: "{}"'.format(hardware_option))
