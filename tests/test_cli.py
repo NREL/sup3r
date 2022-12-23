@@ -77,8 +77,8 @@ def test_pipeline_fwp_collect(runner):
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fwp_chunk_shape,
             'worker_kwargs': {'max_workers': 1},
-            'spatial_pad': 5,
-            'temporal_pad': 5,
+            'spatial_pad': 1,
+            'temporal_pad': 1,
             'execution_control': {
                 "option": "local"}}
 
@@ -235,20 +235,20 @@ def test_fwd_pass_cli(runner):
         cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         log_prefix = os.path.join(td, 'log.log')
+        input_handler_kwargs = {'target': (19.3, -123.5),
+                                'cache_pattern': cache_pattern,
+                                'shape': shape,
+                                'overwrite_cache': False,
+                                'worker_kwargs': {'max_workers': 1}}
         config = {'file_paths': input_files,
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
                   'log_pattern': log_prefix,
-                  'input_handler_kwargs': {'target': (19.3, -123.5),
-                                           'cache_pattern': cache_pattern,
-                                           'shape': shape,
-                                           'overwrite_cache': False,
-                                           'time_chunk_size': 10,
-                                           'worker_kwargs': {'ti_workers': 1}},
+                  'input_handler_kwargs': input_handler_kwargs,
                   'fwp_chunk_shape': fwp_chunk_shape,
                   'worker_kwargs': {'max_workers': 1},
-                  'spatial_pad': 5,
-                  'temporal_pad': 5,
+                  'spatial_pad': 1,
+                  'temporal_pad': 1,
                   'execution_control': {
                       "option": "local"}}
 
