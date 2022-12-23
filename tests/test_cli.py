@@ -221,10 +221,12 @@ def test_fwd_pass_cli(runner, log=True):
         n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
         n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         out_files = os.path.join(td, 'out_{file_id}.nc')
+        cache_pattern = os.path.join(td, 'cache')
         log_prefix = os.path.join(td, 'log.log')
         input_handler_kwargs = {'target': (19.3, -123.5),
                                 'shape': shape,
-                                'worker_kwargs': {'max_workers': 1}}
+                                'worker_kwargs': {'max_workers': 1},
+                                'cache_pattern': cache_pattern}
         config = {'file_paths': input_files,
                   'model_kwargs': {'model_dir': out_dir},
                   'out_pattern': out_files,
@@ -241,8 +243,7 @@ def test_fwd_pass_cli(runner, log=True):
         with open(config_path, 'w') as fh:
             json.dump(config, fh)
 
-        result = runner.invoke(fwp_main, ['-c', correct_path(config_path),
-                                          '-v'])
+        result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
             import traceback

@@ -44,7 +44,7 @@ def test_solar_handler(plot=False):
                                        target=TARGET_S, shape=SHAPE)
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['val_split'] = 0
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features=FEATURES_S,
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    **dh_kwargs_new)
 
     assert handler.data.shape[2] % 24 == 0
@@ -503,6 +503,7 @@ def test_surf_min_max_vars():
     dh_kwargs_new['target'] = TARGET_SURF
     dh_kwargs_new['sample_shape'] = (20, 20, 72)
     dh_kwargs_new['val_split'] = 0
+    dh_kwargs_new['temporal_slice'] = slice(None, None, 1)
     handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
                                   **dh_kwargs_new)
 
