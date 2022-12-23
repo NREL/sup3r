@@ -22,16 +22,16 @@ target = (39.01, -105.15)
 shape = (20, 20)
 features = ['U_100m', 'V_100m', 'BVF2_200m']
 sample_shape = (10, 10, 12)
-val_split = 0.2
-raster_file = os.path.join(tempfile.gettempdir(), 'tmp_raster_h5.txt')
 t_enhance = 2
 s_enhance = 5
+val_split = 0.2
 dh_kwargs = dict(target=target, shape=shape, max_delta=20,
-                 sample_shape=sample_shape,
+                 sample_shape=sample_shape, val_split=val_split,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1))
 bh_kwargs = dict(batch_size=8, n_batches=20,
-                 s_enhance=s_enhance, t_enhance=t_enhance)
+                 s_enhance=s_enhance, t_enhance=t_enhance,
+                 worker_kwargs=dict(max_workers=1))
 
 
 @pytest.mark.parametrize('sample_shape', [(10, 10, 10), (5, 5, 10),
@@ -52,7 +52,6 @@ def test_spatiotemporal_batch_caching(sample_shape):
         dh_kwargs_new['sample_shape'] = sample_shape
         for input_file, cache_pattern in zip(input_files, cache_patternes):
             data_handler = DataHandler(input_file, features,
-                                       val_split=val_split,
                                        cache_pattern=cache_pattern,
                                        **dh_kwargs_new)
             data_handlers.append(data_handler)
@@ -77,8 +76,7 @@ def test_topography():
     """Test that topography is batched and extracted correctly"""
 
     features = ['U_100m', 'V_100m', 'topography']
-    data_handler = DataHandler(input_files[0], features, val_split=val_split,
-                               **dh_kwargs)
+    data_handler = DataHandler(input_files[0], features, **dh_kwargs)
     ri = data_handler.raster_index
     with Resource(input_files[0]) as res:
         topo = res.get_meta_arr('elevation')[tuple([ri.flatten()])]
@@ -114,7 +112,7 @@ def test_data_caching():
 
         # test cache data but keep in memory
         cache_pattern = os.path.join(td, 'new_1_cache')
-        handler = DataHandler(input_files[0], features, val_split=0.1,
+        handler = DataHandler(input_files[0], features,
                               cache_pattern=cache_pattern,
                               overwrite_cache=True, load_cached=True,
                               **dh_kwargs)
@@ -125,10 +123,13 @@ def test_data_caching():
 
         # test cache data but keep in memory, with no val split
         cache_pattern = os.path.join(td, 'new_2_cache')
-        handler = DataHandler(input_files[0], features, val_split=0.0,
+
+        dh_kwargs_new = dh_kwargs.copy()
+        dh_kwargs_new['val_split'] = 0
+        handler = DataHandler(input_files[0], features,
                               cache_pattern=cache_pattern,
                               overwrite_cache=False, load_cached=True,
-                              **dh_kwargs)
+                              **dh_kwargs_new)
         assert handler.data is not None
         assert handler.val_data is None
         assert handler.data.dtype == np.dtype(np.float32)
@@ -137,8 +138,7 @@ def test_data_caching():
 def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
-    handler = DataHandler(input_files[0], features, raster_file=raster_file,
-                          **dh_kwargs)
+    handler = DataHandler(input_files[0], features, **dh_kwargs)
     tmp = handler.run_all_data_init()
     assert tmp.dtype == np.dtype(np.float32)
 
@@ -197,8 +197,7 @@ def test_normalization_input():
     stds = np.random.rand(len(features))
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, means=means,
                                  stds=stds, **bh_kwargs)
@@ -211,8 +210,7 @@ def test_stats_caching():
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
 
     with tempfile.TemporaryDirectory() as td:
@@ -248,8 +246,7 @@ def test_normalization():
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = SpatialBatchHandler(data_handlers, **bh_kwargs)
     stacked_data = np.concatenate(
@@ -269,8 +266,7 @@ def test_spatiotemporal_normalization():
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
     stacked_data = np.concatenate([d.data for d
@@ -326,8 +322,7 @@ def test_validation_batching():
     for input_file in input_files:
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = (sample_shape[0], sample_shape[1], 1)
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = SpatialBatchHandler([data_handler], **bh_kwargs)
 
@@ -353,15 +348,13 @@ def test_temporal_coarsening(method, t_enhance):
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     max_workers = 1
     bh_kwargs_new = bh_kwargs.copy()
     bh_kwargs_new['t_enhance'] = t_enhance
     batch_handler = BatchHandler(data_handlers,
                                  temporal_coarsening_method=method,
-                                 worker_kwargs=dict(max_workers=max_workers),
                                  **bh_kwargs_new)
     assert batch_handler.load_workers == max_workers
     assert batch_handler.norm_workers == max_workers
@@ -386,8 +379,7 @@ def test_spatiotemporal_validation_batching(method):
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers,
                                  temporal_coarsening_method=method,
@@ -414,8 +406,7 @@ def test_spatiotemporal_batch_observations(sample_shape):
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new["sample_shape"] = sample_shape
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
 
@@ -444,8 +435,7 @@ def test_spatiotemporal_batch_indices(sample_shape):
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new["sample_shape"] = sample_shape
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
 
@@ -484,8 +474,7 @@ def test_spatiotemporal_batch_handling(plot=False):
     for input_file in input_files:
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new["sample_shape"] = sample_shape
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
 
@@ -520,8 +509,7 @@ def test_batch_handling(plot=False):
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = SpatialBatchHandler(data_handlers, **bh_kwargs)
 
@@ -557,8 +545,7 @@ def test_val_data_storage():
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=val_split,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
 
@@ -571,8 +558,7 @@ def test_val_data_storage():
         val_observations += batch.low_res.shape[0]
     n_observations = 0
     for f in input_files:
-        handler = DataHandler(f, features, raster_file=raster_file,
-                              val_split=val_split, **dh_kwargs)
+        handler = DataHandler(f, features, **dh_kwargs)
         data = handler.run_all_data_init()
         n_observations += data.shape[2]
     assert val_observations == int(val_split * n_observations)
@@ -581,9 +567,10 @@ def test_val_data_storage():
 def test_no_val_data():
     """Test that the data handler can work with zero validation data."""
     data_handlers = []
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['val_split'] = 0
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, val_split=0,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, **bh_kwargs)
     n = 0
@@ -597,9 +584,10 @@ def test_no_val_data():
 def test_smoothing():
     """Check gaussian filtering on low res"""
     data_handlers = []
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['val_split'] = 0
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features[:-1], val_split=0,
-                                   **dh_kwargs)
+        data_handler = DataHandler(input_file, features[:-1], **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, smoothing=0.6, **bh_kwargs)
     for batch in batch_handler:

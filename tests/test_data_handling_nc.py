@@ -31,8 +31,8 @@ dh_kwargs = dict(target=target,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1),
                  single_ts_files=True)
-bh_kwargs = dict(batch_size=8, n_batches=20,
-                 s_enhance=s_enhance, t_enhance=t_enhance)
+bh_kwargs = dict(batch_size=8, n_batches=20, s_enhance=s_enhance,
+                 t_enhance=t_enhance, worker_kwargs=dict(max_workers=1))
 
 
 def test_topography():
@@ -303,12 +303,13 @@ def test_validation_batching():
             assert batch.high_res.dtype == np.dtype(np.float32)
             assert batch.low_res.dtype == np.dtype(np.float32)
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
-            assert batch.low_res.shape == \
-                (batch.low_res.shape[0], sample_shape[0] // s_enhance,
-                 sample_shape[1] // s_enhance, len(features))
-            assert batch.high_res.shape == \
-                (batch.high_res.shape[0], sample_shape[0],
-                 sample_shape[1], len(features) - 1)
+            assert batch.low_res.shape == (batch.low_res.shape[0],
+                                           sample_shape[0] // s_enhance,
+                                           sample_shape[1] // s_enhance,
+                                           len(features))
+            assert batch.high_res.shape == (batch.high_res.shape[0],
+                                            sample_shape[0], sample_shape[1],
+                                            len(features) - 1)
 
 
 @pytest.mark.parametrize(
@@ -327,23 +328,18 @@ def test_temporal_coarsening(method, t_enhance):
         bh_kwargs_new['t_enhance'] = t_enhance
         batch_handler = BatchHandler([data_handler],
                                      temporal_coarsening_method=method,
-                                     worker_kwargs=dict(max_workers=1),
                                      **bh_kwargs_new)
 
         for batch in batch_handler:
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
-            assert batch.low_res.shape == \
-                (batch.low_res.shape[0],
-                 sample_shape[0] // s_enhance,
-                 sample_shape[1] // s_enhance,
-                 sample_shape[2] // t_enhance,
-                 len(features))
-            assert batch.high_res.shape == \
-                (batch.high_res.shape[0],
-                 sample_shape[0],
-                 sample_shape[1],
-                 sample_shape[2],
-                 len(features) - 1)
+            assert batch.low_res.shape == (batch.low_res.shape[0],
+                                           sample_shape[0] // s_enhance,
+                                           sample_shape[1] // s_enhance,
+                                           sample_shape[2] // t_enhance,
+                                           len(features))
+            assert batch.high_res.shape == (batch.high_res.shape[0],
+                                            sample_shape[0], sample_shape[1],
+                                            sample_shape[2], len(features) - 1)
 
 
 @pytest.mark.parametrize(
@@ -359,7 +355,6 @@ def test_spatiotemporal_validation_batching(method):
                                    **dh_kwargs)
         batch_handler = BatchHandler([data_handler],
                                      temporal_coarsening_method=method,
-                                     worker_kwargs=dict(max_workers=1),
                                      **bh_kwargs)
 
         for batch in batch_handler.val_data:
@@ -370,10 +365,8 @@ def test_spatiotemporal_validation_batching(method):
                                            sample_shape[2] // t_enhance,
                                            len(features))
             assert batch.high_res.shape == (batch.high_res.shape[0],
-                                            sample_shape[0],
-                                            sample_shape[1],
-                                            sample_shape[2],
-                                            len(features) - 1)
+                                            sample_shape[0], sample_shape[1],
+                                            sample_shape[2], len(features) - 1)
 
 
 @pytest.mark.parametrize('sample_shape',
@@ -387,9 +380,7 @@ def test_spatiotemporal_batch_observations(sample_shape):
         dh_kwargs_new['sample_shape'] = sample_shape
         data_handler = DataHandler(input_files, features, val_split=val_split,
                                    **dh_kwargs_new)
-        batch_handler = BatchHandler([data_handler],
-                                     worker_kwargs=dict(max_workers=1),
-                                     **bh_kwargs)
+        batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         for batch in batch_handler:
             for i, index in enumerate(batch_handler.current_batch_indices):
@@ -418,9 +409,7 @@ def test_spatiotemporal_batch_indices(sample_shape):
         dh_kwargs_new['sample_shape'] = sample_shape
         data_handler = DataHandler(input_files, features, val_split=val_split,
                                    **dh_kwargs_new)
-        batch_handler = BatchHandler([data_handler],
-                                     worker_kwargs=dict(max_workers=1),
-                                     **bh_kwargs)
+        batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         all_spatial_tuples = []
         for _ in batch_handler:
@@ -457,9 +446,7 @@ def test_spatiotemporal_batch_handling(plot=False):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         data_handler = DataHandler(input_files, features, val_split=val_split,
                                    **dh_kwargs)
-        batch_handler = BatchHandler([data_handler],
-                                     worker_kwargs=dict(max_workers=1),
-                                     **bh_kwargs)
+        batch_handler = BatchHandler([data_handler], **bh_kwargs)
         for batch in batch_handler:
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
 
@@ -470,10 +457,8 @@ def test_spatiotemporal_batch_handling(plot=False):
                                            sample_shape[2] // t_enhance,
                                            len(features))
             assert batch.high_res.shape == (batch.high_res.shape[0],
-                                            sample_shape[0],
-                                            sample_shape[1],
-                                            sample_shape[2],
-                                            len(features) - 1)
+                                            sample_shape[0], sample_shape[1],
+                                            sample_shape[2], len(features) - 1)
 
             if plot:
                 for ifeature in range(batch.high_res.shape[-1]):
@@ -495,9 +480,7 @@ def test_batch_handling(plot=False):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         data_handler = DataHandler(input_files, features, val_split=val_split,
                                    **dh_kwargs)
-        batch_handler = SpatialBatchHandler([data_handler],
-                                            worker_kwargs=dict(max_workers=1),
-                                            **bh_kwargs)
+        batch_handler = SpatialBatchHandler([data_handler], **bh_kwargs)
 
         for batch in batch_handler:
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
@@ -510,8 +493,7 @@ def test_batch_handling(plot=False):
                                            sample_shape[1] // s_enhance,
                                            len(features))
             assert batch.high_res.shape == (batch.high_res.shape[0],
-                                            sample_shape[0],
-                                            sample_shape[1],
+                                            sample_shape[0], sample_shape[1],
                                             len(features) - 1)
 
             if plot:
@@ -534,16 +516,14 @@ def test_val_data_storage():
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         data_handler = DataHandler(input_files, features, val_split=val_split,
                                    **dh_kwargs)
-        batch_handler = BatchHandler([data_handler],
-                                     worker_kwargs=dict(max_workers=1),
-                                     **bh_kwargs)
+        batch_handler = BatchHandler([data_handler], **bh_kwargs)
 
         val_observations = 0
         batch_handler.val_data._i = 0
         for batch in batch_handler.val_data:
             assert batch.low_res.shape[0] == batch.high_res.shape[0]
-            assert list(batch.low_res.shape[1:3]) == \
-                [s // s_enhance for s in sample_shape[:2]]
+            assert list(batch.low_res.shape[1:3]) == [s // s_enhance for s
+                                                      in sample_shape[:2]]
             val_observations += batch.low_res.shape[0]
 
         n_observations = 0
