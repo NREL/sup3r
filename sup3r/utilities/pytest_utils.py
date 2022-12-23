@@ -109,7 +109,7 @@ def make_fake_h5_chunks(td):
                 OutputHandlerH5.write_output(
                     data[s1_hr, s2_hr, slice_hr, :], features,
                     low_res_lat_lon[s1_lr, s2_lr], low_res_times[slice_lr],
-                    out_file, model_meta_data, max_workers=1,
+                    out_file, meta_data=model_meta_data, max_workers=1,
                     gids=gids[s1_hr, s2_hr])
 
     out = (out_files, data, ws_true, wd_true, features, t_slices_lr,

@@ -161,7 +161,7 @@ def test_h5_out_and_collect():
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
             assert 'foo' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['foo'])
+            gan_meta = fh.global_attrs['foo']
             assert isinstance(gan_meta, str)
             assert gan_meta == 'bar'
 

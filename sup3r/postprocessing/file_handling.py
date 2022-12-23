@@ -417,8 +417,8 @@ class OutputHandlerNC(OutputHandler):
 
         attrs = {}
         if meta_data is not None:
-            attrs = {k: json.dumps(v) for k, v in meta_data.items()
-                     if not isinstance(v, str)}
+            attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                     for k, v in meta_data.items()}
 
         with xr.Dataset(data_vars=data_vars, coords=coords,
                         attrs=attrs) as ncfile:
@@ -643,8 +643,8 @@ class OutputHandlerH5(OutputHandler):
                 logger.info(f'Added {f} to output file.')
 
             if meta_data is not None:
-                attrs = {k: json.dumps(v) for k, v in meta_data.items()
-                         if not isinstance(v, str)}
+                attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                         for k, v in meta_data.items()}
                 fh.run_attrs = attrs
 
         os.replace(tmp_file, out_file)
