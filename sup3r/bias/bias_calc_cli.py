@@ -10,7 +10,7 @@ import os
 import sup3r.bias.bias_calc
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
-from sup3r.cli.base import BaseCLI
+from sup3r.utilities.cli_utils import BaseCLI
 
 
 logger = logging.getLogger(__name__)
