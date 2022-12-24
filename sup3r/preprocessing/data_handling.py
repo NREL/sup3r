@@ -854,7 +854,8 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def extract_workers(self):
         """Get upper bound for extract workers based on memory limits. Used to
-        extract data from source dataset"""
+        extract data from source dataset. The max number of extract workers
+        is number of time chunks * number of features"""
         proc_mem = 4 * self.grid_mem * len(self.time_index)
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.extract_features)
