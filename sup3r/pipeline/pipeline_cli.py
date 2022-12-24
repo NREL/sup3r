@@ -56,7 +56,6 @@ def valid_config_keys():
 def from_config(ctx, config_file, cancel, monitor, background, verbose):
     """Run sup3r pipeline from a config file."""
     ctx.ensure_object(dict)
-    print(f'**config_file = {config_file}**')
     verbose = any([verbose, ctx.obj.get('VERBOSE', False)])
 
     if cancel:
