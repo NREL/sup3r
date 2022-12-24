@@ -6,6 +6,7 @@ import logging
 import glob
 import json
 from datetime import datetime as dt
+import os
 
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
@@ -66,6 +67,8 @@ class Sup3rVisualQa:
         self.kwargs = kwargs
         self.res_handler = source_handler_class or 'MultiFileResource'
         self.res_handler = getattr(rex, self.res_handler)
+        if not os.path.exists(os.path.dirname(out_pattern)):
+            os.makedirs(os.path.dirname(out_pattern), exist_ok=True)
 
     def run(self):
         """
