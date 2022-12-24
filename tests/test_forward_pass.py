@@ -13,7 +13,7 @@ from sup3r import TEST_DATA_DIR, CONFIG_DIR, __version__
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.pipeline.forward_pass import (ForwardPass, ForwardPassStrategy)
 from sup3r.models import Sup3rGan, WindGan, LinearInterp
-from sup3r.utilities.pytest_utils import make_fake_nc_files
+from sup3r.utilities.pytest import make_fake_nc_files
 
 from rex import ResourceX
 from rex import init_logger

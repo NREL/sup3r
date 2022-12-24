@@ -25,11 +25,11 @@ from sup3r.utilities.loss_metrics import MmdMseLoss
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
+FEATURES = ['U_100m', 'V_100m']
 
 
 def test_train_spatial(log=False, full_shape=(20, 20),
-                       sample_shape=(10, 10, 1), n_epoch=4):
+                       sample_shape=(10, 10, 1), n_epoch=2):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -48,13 +48,13 @@ def test_train_spatial(log=False, full_shape=(20, 20),
                             temporal_slice=slice(None, None, 10),
                             worker_kwargs=dict(max_workers=1), val_split=0.1)
 
-    batch_handler = SpatialBatchHandler([handler], batch_size=8, s_enhance=2,
-                                        n_batches=10)
+    batch_handler = SpatialBatchHandler([handler], batch_size=2, s_enhance=2,
+                                        n_batches=2)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch, weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False, checkpoint_int=2,
+                    train_gen=True, train_disc=False, checkpoint_int=1,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert len(model.history) == n_epoch
@@ -63,9 +63,9 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert np.sum(np.diff(vlossg)) < 0
         assert np.sum(np.diff(tlossg)) < 0
         assert 'test_0' in os.listdir(td)
-        assert 'test_2' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_3')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_3')
+        assert 'test_1' in os.listdir(td)
+        assert 'model_gen.pkl' in os.listdir(td + '/test_1')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_1')
 
         # make an un-trained dummy model
         dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
@@ -97,7 +97,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
-def test_train_st_weight_update(n_epoch=5, log=False):
+def test_train_st_weight_update(n_epoch=2, log=False):
     """Test basic spatiotemporal model training with discriminators and
     adversarial loss updating."""
     if log:
@@ -112,14 +112,14 @@ def test_train_st_weight_update(n_epoch=5, log=False):
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
-                            sample_shape=(18, 18, 24),
+                            sample_shape=(12, 12, 16),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandler([handler], batch_size=4,
+    batch_handler = BatchHandler([handler], batch_size=2,
                                  s_enhance=3, t_enhance=4,
-                                 n_batches=4)
+                                 n_batches=2)
 
     adaptive_update_bounds = (0.9, 0.99)
     with tempfile.TemporaryDirectory() as td:
@@ -149,7 +149,7 @@ def test_train_st_weight_update(n_epoch=5, log=False):
 
 
 def test_train_spatial_dc(log=False, full_shape=(20, 20),
-                          sample_shape=(10, 10, 1), n_epoch=6):
+                          sample_shape=(10, 10, 1), n_epoch=2):
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
     if log:
@@ -168,13 +168,13 @@ def test_train_spatial_dc(log=False, full_shape=(20, 20),
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
-    batch_size = 4
-    n_batches = 20
+    batch_size = 2
+    n_batches = 2
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))
 
-    batch_handler = BatchHandlerSpatialDC([handler], batch_size=8, s_enhance=2,
-                                          n_batches=10)
+    batch_handler = BatchHandlerSpatialDC([handler], batch_size=batch_size,
+                                          s_enhance=2, n_batches=n_batches)
 
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
@@ -212,13 +212,12 @@ def test_train_st_dc(n_epoch=2, log=False):
                        learning_rate_disc=3e-4, loss='MmdMseLoss')
 
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                                 shape=(20, 20),
-                                 sample_shape=(18, 18, 24),
+                                 shape=(20, 20), sample_shape=(12, 12, 16),
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
-    batch_size = 4
-    n_batches = 20
+    batch_size = 2
+    n_batches = 2
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))
     batch_handler = BatchHandlerDC([handler], batch_size=batch_size,
@@ -247,7 +246,7 @@ def test_train_st_dc(n_epoch=2, log=False):
         assert loaded.meta['class'] == 'Sup3rGanDC'
 
 
-def test_train_st(n_epoch=4, log=False):
+def test_train_st(n_epoch=2, log=False):
     """Test basic spatiotemporal model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -260,22 +259,21 @@ def test_train_st(n_epoch=4, log=False):
                      learning_rate_disc=2e-5)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            shape=(20, 20),
-                            sample_shape=(18, 18, 24),
+                            shape=(20, 20), sample_shape=(12, 12, 16),
                             temporal_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandler([handler], batch_size=4,
+    batch_handler = BatchHandler([handler], batch_size=2,
                                  s_enhance=3, t_enhance=4,
-                                 n_batches=4)
+                                 n_batches=2)
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
         model.train(batch_handler, n_epoch=n_epoch,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
-                    checkpoint_int=2,
+                    checkpoint_int=1,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'config_generator' in model.meta
@@ -288,9 +286,9 @@ def test_train_st(n_epoch=4, log=False):
         assert (np.diff(vlossg) < 0).sum() >= (n_epoch / 2)
         assert (np.diff(tlossg) < 0).sum() >= (n_epoch / 2)
         assert 'test_0' in os.listdir(td)
-        assert 'test_2' in os.listdir(td)
-        assert 'model_gen.pkl' in os.listdir(td + '/test_2')
-        assert 'model_disc.pkl' in os.listdir(td + '/test_2')
+        assert 'test_1' in os.listdir(td)
+        assert 'model_gen.pkl' in os.listdir(td + '/test_1')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_1')
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
@@ -337,7 +335,7 @@ def test_train_st(n_epoch=4, log=False):
         assert y_test.shape[1] == test_data.shape[1] * 3
         assert y_test.shape[2] == test_data.shape[2] * 3
         assert y_test.shape[3] == test_data.shape[3] * 4
-        assert y_test.shape[4] == test_data.shape[4] - 1
+        assert y_test.shape[4] == test_data.shape[4]
 
 
 def test_optimizer_update():

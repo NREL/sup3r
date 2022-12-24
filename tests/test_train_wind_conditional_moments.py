@@ -31,7 +31,7 @@ TARGET_COORD = (39.01, -105.15)
 
 @pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
 def test_wind_non_cc_hi_res_topo(custom_layer, log=False, out_dir_root=None,
-                                 n_epoch=1, n_batches=10, batch_size=8):
+                                 n_epoch=1, n_batches=2, batch_size=2):
     """Test a special wind model for non cc with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""

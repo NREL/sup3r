@@ -15,7 +15,7 @@ from pathlib import Path
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
 from sup3r.utilities.utilities import pd_date_range
-from sup3r.utilities.pytest_utils import make_fake_cs_ratio_files
+from sup3r.utilities.pytest import make_fake_cs_ratio_files
 from sup3r.solar.solar_cli import from_config as solar_main
 
 

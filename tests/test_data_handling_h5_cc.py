@@ -29,6 +29,11 @@ TARGET_W = (39.01, -105.15)
 INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
+dh_kwargs = dict(target=TARGET_S, shape=SHAPE,
+                 temporal_slice=slice(None, None, 2),
+                 time_roll=-7, val_split=0.1, sample_shape=(20, 20, 24),
+                 worker_kwargs=dict(worker_kwargs=1))
+
 
 def test_solar_handler(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
@@ -37,14 +42,10 @@ def test_solar_handler(plot=False):
     with pytest.raises(KeyError):
         handler = DataHandlerH5SolarCC(INPUT_FILE_S, ['clearsky_ratio'],
                                        target=TARGET_S, shape=SHAPE)
-
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['val_split'] = 0
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.0,
-                                   sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(worker_kwargs=1))
+                                   **dh_kwargs_new)
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data is None
@@ -114,13 +115,7 @@ def test_solar_handler_w_wind():
                               np.random.uniform(0, 359.9, res.shape),
                               np.float32)
 
-        handler = DataHandlerH5SolarCC(res_fp, features_s,
-                                       target=TARGET_S, shape=SHAPE,
-                                       temporal_slice=slice(None, None, 2),
-                                       time_roll=-7,
-                                       val_split=0.1,
-                                       sample_shape=(20, 20, 24),
-                                       worker_kwargs=dict(max_workers=1))
+        handler = DataHandlerH5SolarCC(res_fp, features_s, **dh_kwargs)
 
         assert handler.data.shape[2] % 24 == 0
         assert handler.val_data is None
@@ -146,13 +141,10 @@ def test_solar_handler_w_wind():
 
 def test_solar_batching(plot=False):
     """Test batching of nsrdb data against hand-calc coarsening"""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['sample_shape'] = (20, 20, 72)
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20, 72),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs_new)
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=8)
@@ -179,12 +171,7 @@ def test_solar_batching(plot=False):
 
     if plot:
         handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                       target=TARGET_S, shape=SHAPE,
-                                       temporal_slice=slice(None, None, 2),
-                                       time_roll=-7,
-                                       val_split=0.1,
-                                       sample_shape=(20, 20, 24),
-                                       worker_kwargs=dict(max_workers=1))
+                                       **dh_kwargs)
         batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                                  s_enhance=1, sub_daily_shape=8)
         for p, batch in enumerate(batcher):
@@ -225,13 +212,10 @@ def test_solar_batching(plot=False):
 
 def test_solar_batching_spatial(plot=False):
     """Test batching of nsrdb data with spatial only enhancement"""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['sample_shape'] = (20, 20)
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs_new)
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
                                     s_enhance=2)
@@ -269,12 +253,7 @@ def test_solar_batch_nan_stats():
     """Test that the batch handler calculates the correct statistics even with
     NaN data present"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs)
 
     true_means = [np.nanmean(handler.data[..., 0])]
     true_stdevs = [np.nanstd(handler.data[..., 0])]
@@ -297,20 +276,10 @@ def test_solar_batch_nan_stats():
         assert np.allclose(new, handler.daily_data[..., f].mean(), atol=1e-4)
 
     handler1 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                    target=TARGET_S, shape=SHAPE,
-                                    temporal_slice=slice(None, None, 2),
-                                    time_roll=-7,
-                                    val_split=0.1,
-                                    sample_shape=(20, 20, 24),
-                                    worker_kwargs=dict(max_workers=1))
+                                    **dh_kwargs)
 
     handler2 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                    target=TARGET_S, shape=SHAPE,
-                                    temporal_slice=slice(None, None, 2),
-                                    time_roll=-7,
-                                    val_split=0.1,
-                                    sample_shape=(20, 20, 24),
-                                    worker_kwargs=dict(max_workers=1))
+                                    **dh_kwargs)
 
     batcher = BatchHandlerCC([handler1, handler2], batch_size=1,
                              n_batches=10, s_enhance=1, sub_daily_shape=9)
@@ -323,11 +292,7 @@ def test_solar_val_data():
     """Validation data is not enabled for solar CC model, test that the batch
     handler does not have validation data."""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs)
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=2, sub_daily_shape=8)
@@ -345,13 +310,10 @@ def test_solar_ancillary_vars():
     windspeed components and air temperature near the surface."""
     features = ['clearsky_ratio', 'U', 'V', 'air_temperature', 'ghi',
                 'clearsky_ghi']
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['val_split'] = 0.001
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.001,
-                                   sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs_new)
 
     assert handler.data.shape[-1] == 4
 
@@ -383,12 +345,7 @@ def test_nsrdb_sub_daily_sampler():
     """Test the nsrdb data sampler which does centered sampling on daylight
     hours."""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20, 24),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs)
     ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
     ti = ti[0:handler.data.shape[2]]
 
@@ -413,13 +370,10 @@ def test_nsrdb_sub_daily_sampler():
 
 def test_solar_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['sample_shape'] = (20, 20, 72)
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20, 72),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs_new)
 
     batcher = BatchHandlerCC([handler], batch_size=4, n_batches=10,
                              s_enhance=4, sub_daily_shape=9)
@@ -435,12 +389,7 @@ def test_solar_multi_day_coarse_data():
     # run another test with u/v on low res side but not high res
     features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features,
-                                   target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20, 72),
-                                   worker_kwargs=dict(max_workers=1))
+                                   **dh_kwargs_new)
 
     batcher = BatchHandlerCC([handler], batch_size=4, n_batches=10,
                              s_enhance=4, sub_daily_shape=9)
@@ -456,13 +405,10 @@ def test_solar_multi_day_coarse_data():
 
 def test_wind_handler():
     """Test the wind climinate change data handler object."""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['target'] = TARGET_W
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  val_split=0.0,
-                                  sample_shape=(20, 20, 24),
-                                  worker_kwargs=dict(max_workers=1))
+                                  **dh_kwargs_new)
 
     assert handler.data.shape[2] % 24 == 0
     assert handler.val_data is None
@@ -479,13 +425,12 @@ def test_wind_handler():
 
 def test_wind_batching():
     """Test the wind climate change data batching object."""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['target'] = TARGET_W
+    dh_kwargs_new['sample_shape'] = (20, 20, 72)
+    dh_kwargs_new['val_split'] = 0
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  val_split=0.0,
-                                  sample_shape=(20, 20, 72),
-                                  worker_kwargs=dict(max_workers=1))
+                                  **dh_kwargs_new)
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=None)
@@ -507,13 +452,11 @@ def test_wind_batching():
 
 def test_wind_batching_spatial(plot=False):
     """Test batching of wind data with spatial only enhancement"""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['target'] = TARGET_W
+    dh_kwargs_new['sample_shape'] = (20, 20)
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  val_split=0.1,
-                                  sample_shape=(20, 20),
-                                  worker_kwargs=dict(max_workers=1))
+                                  **dh_kwargs_new)
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
                                     s_enhance=5)
@@ -556,13 +499,13 @@ def test_surf_min_max_vars():
                      'relativehumidity_min_2m',
                      'relativehumidity_max_2m']
 
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['target'] = TARGET_SURF
+    dh_kwargs_new['sample_shape'] = (20, 20, 72)
+    dh_kwargs_new['val_split'] = 0
+    dh_kwargs_new['temporal_slice'] = slice(None, None, 1)
     handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
-                                  target=TARGET_SURF, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 1),
-                                  time_roll=-7,
-                                  val_split=0.0,
-                                  sample_shape=(20, 20, 72),
-                                  worker_kwargs=dict(max_workers=1))
+                                  **dh_kwargs_new)
 
     # all of the source hi-res hourly temperature data should be the same
     assert np.allclose(handler.data[..., 0], handler.data[..., 2])

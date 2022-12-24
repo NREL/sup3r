@@ -86,8 +86,8 @@ def test_out_s_mom1(FEATURES, TRAIN_FEATURES,
         break
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import (plot_multi_contour,
+                                              make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -161,8 +161,7 @@ def test_out_s_mom1_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -266,8 +265,7 @@ def test_out_s_mom2(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -357,8 +355,7 @@ def test_out_s_mom2_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -464,8 +461,7 @@ def test_out_s_mom2_sep(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -568,8 +564,7 @@ def test_out_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -674,8 +669,7 @@ def test_out_loss(plot=False, model_dirs=None,
     if plot:
         import matplotlib.pyplot as plt
         import matplotlib.pylab as pl
-        from sup3r.utilities.plot_utilities import (pretty_labels,
-                                                    plot_legend)
+        from sup3r.utilities.plotting import pretty_labels, plot_legend
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         if figureDir is None:
@@ -776,8 +770,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
         break
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -855,8 +848,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    make_movie)
+        from sup3r.utilities.plotting import plot_multi_contour, make_movie
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -974,9 +966,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    pretty_labels,
-                                                    make_movie)
+        from sup3r.utilities.plotting import (plot_multi_contour,
+                                              pretty_labels, make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1097,9 +1088,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    pretty_labels,
-                                                    make_movie)
+        from sup3r.utilities.plotting import (plot_multi_contour,
+                                              pretty_labels, make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1232,9 +1222,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    pretty_labels,
-                                                    make_movie)
+        from sup3r.utilities.plotting import (plot_multi_contour,
+                                              pretty_labels, make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1365,9 +1354,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plot_utilities import (plot_multi_contour,
-                                                    pretty_labels,
-                                                    make_movie)
+        from sup3r.utilities.plotting import (plot_multi_contour,
+                                              pretty_labels, make_movie)
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')

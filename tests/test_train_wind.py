@@ -46,7 +46,7 @@ def test_wind_cc_model(log=False):
                                   worker_kwargs=dict(max_workers=1),
                                   train_only_features=tuple())
 
-    batcher = BatchHandlerCC([handler], batch_size=4, n_batches=2,
+    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2,
                              s_enhance=4, sub_daily_shape=None)
 
     if log:
@@ -95,7 +95,7 @@ def test_wind_cc_model_spatial(log=False):
                                   worker_kwargs=dict(max_workers=1),
                                   train_only_features=tuple())
 
-    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
 
     if log:
@@ -144,7 +144,7 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                                   worker_kwargs=dict(max_workers=1),
                                   train_only_features=tuple())
 
-    batcher = SpatialBatchHandlerCC([handler], batch_size=8, n_batches=10,
+    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
 
     if log:
@@ -229,7 +229,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                             worker_kwargs=dict(max_workers=1),
                             train_only_features=tuple())
 
-    batcher = SpatialBatchHandler([handler], batch_size=8, n_batches=10,
+    batcher = SpatialBatchHandler([handler], batch_size=2, n_batches=2,
                                   s_enhance=2)
 
     if log:

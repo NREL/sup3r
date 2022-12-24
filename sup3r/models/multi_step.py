@@ -670,7 +670,7 @@ class SolarMultiStepGan(SpatialThenTemporalBase):
 
         s_enh = [model.s_enhance for model in self.spatial_solar_models.models]
         w_enh = [model.s_enhance for model in self.spatial_wind_models.models]
-        msg = ('Solar and wind spatial enhancements must be equivelant but '
+        msg = ('Solar and wind spatial enhancements must be equivalent but '
                'received models that do spatial enhancements of '
                '{} (solar) and {} (wind)'.format(s_enh, w_enh))
         assert np.product(s_enh) == np.product(w_enh), msg
