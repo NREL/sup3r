@@ -96,7 +96,7 @@ class BaseCLI:
         config_verbose = (config_verbose == 'DEBUG')
         verbose = any([verbose, config_verbose, ctx.obj['VERBOSE']])
         exec_kwargs = config.get('execution_control', {})
-        hardware_option = exec_kwargs.pop('option', 'local')
+        hardware_option = exec_kwargs.get('option', 'local')
 
         log_dir = log_file or log_pattern
         log_dir = log_dir if log_dir is None else os.path.dirname(log_dir)
