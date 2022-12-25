@@ -175,7 +175,7 @@ class Sup3rVisualQa:
         fig = plt.figure()
         title = f'{feature}: {start_time} - {stop_time}'
         plt.suptitle(title)
-        plt.scatter(res.meta.longitude, res.meta.latitude,
+        plt.scatter(res.meta.longitude[s_slice], res.meta.latitude[s_slice],
                     c=np.mean(res[feature, t_slice, s_slice], axis=0),
                     **self.kwargs)
         plt.colorbar()
