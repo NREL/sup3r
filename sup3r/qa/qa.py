@@ -24,12 +24,17 @@ logger = logging.getLogger(__name__)
 
 
 class Sup3rQa:
-    """Class for doing QA on sup3r forward pass outputs."""
+    """Class for doing QA on sup3r forward pass outputs.
+
+    Note that this only works if the sup3r forward pass output can be reshaped
+    into a 2D raster dataset (e.g. no sparsifying of the meta data).
+    """
 
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
                  temporal_coarsening_method,
                  features=None,
                  source_features=None,
+                 output_names=None,
                  temporal_slice=slice(None),
                  target=None,
                  shape=None,
@@ -78,6 +83,9 @@ class Sup3rQa:
             input. For example: (features="ghi", source_features="rsds") or
             (features=["windspeed_100m", "windspeed_200m"],
              source_features=[["U_100m", "V_100m"], ["U_200m", "V_200m"]])
+        output_names : str | list
+            Optional output file dataset names corresponding to the features
+            list input
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
@@ -171,6 +179,9 @@ class Sup3rQa:
         self._source_features = (source_features if
                                  isinstance(source_features, (list, tuple))
                                  else [source_features])
+        self._out_names = (output_names if
+                           isinstance(output_names, (list, tuple))
+                           else [output_names])
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
@@ -285,6 +296,17 @@ class Sup3rQa:
             else:
                 sff.append(f)
         return sff
+
+    @property
+    def output_names(self):
+        """Get a list of output dataset names corresponding to the features
+        list
+        """
+
+        if self._out_names is None or self._out_names == [None]:
+            return self.features
+        else:
+            return self._out_names
 
     @property
     def output_type(self):
@@ -569,8 +591,8 @@ class Sup3rQa:
         """
 
         errors = {}
-        ziter = zip(self.features, self.source_features)
-        for idf, (feature, source_feature) in enumerate(ziter):
+        ziter = zip(self.features, self.source_features, self.output_names)
+        for idf, (feature, source_feature, dset_out) in enumerate(ziter):
             logger.info('Running QA on dataset {} of {} for "{}" '
                         'corresponding to source feature "{}"'
                         .format(idf + 1, len(self.features), feature,
@@ -591,10 +613,10 @@ class Sup3rQa:
             errors[feature] = feature_diff
 
             if self.qa_fp is not None:
-                self.export(self.qa_fp, feature_diff, feature, 'error')
+                self.export(self.qa_fp, feature_diff, dset_out, 'error')
                 if self.save_sources:
-                    self.export(self.qa_fp, data_syn, feature, 'synthetic')
-                    self.export(self.qa_fp, data_true, feature, 'true')
+                    self.export(self.qa_fp, data_syn, dset_out, 'synthetic')
+                    self.export(self.qa_fp, data_true, dset_out, 'true')
 
         logger.info('Finished Sup3rQa run method.')
 
