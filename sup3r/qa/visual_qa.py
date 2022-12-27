@@ -23,7 +23,7 @@ class Sup3rVisualQa:
 
     def __init__(self, file_paths, out_pattern, features, time_step=10,
                  spatial_slice=slice(None), source_handler_class=None,
-                 workers=None, **kwargs):
+                 max_workers=None, overwrite=False, **kwargs):
         """
         Parameters
         ----------
@@ -49,9 +49,11 @@ class Sup3rVisualQa:
         source_handler_class : str | None
             Name of the class to use for h5 input files. If None this defaults
             to MultiFileResource.
-        workers : int | None
+        max_workers : int | None
             Max number of workers to use for plotting. If workers=1 then all
             plots will be created in serial.
+        overwrite : bool
+            Whether to overwrite saved plots.
         **kwargs : dict
             Dictionary of kwargs passed to matplotlib.pyplot.scatter().
         """
@@ -63,12 +65,23 @@ class Sup3rVisualQa:
                               else slice(*spatial_slice))
         self.file_paths = (file_paths if isinstance(file_paths, list)
                            else glob.glob(file_paths))
-        self.workers = workers
+        self.max_workers = max_workers
         self.kwargs = kwargs
         self.res_handler = source_handler_class or 'MultiFileResource'
         self.res_handler = getattr(rex, self.res_handler)
+        self.overwrite = overwrite
         if not os.path.exists(os.path.dirname(out_pattern)):
             os.makedirs(os.path.dirname(out_pattern), exist_ok=True)
+        logger.info('Initializing Sup3rVisualQa with '
+                    f'file_paths={self.file_paths}, '
+                    f'out_pattern={self.out_pattern}, '
+                    f'features={self.features}, '
+                    f'time_step={self.time_step}, '
+                    f'spatial_slice={self.spatial_slice}, '
+                    f'source_handler_class={self.res_handler}, '
+                    f'max_workers={max_workers}, '
+                    f'overwrite={self.overwrite}, '
+                    f'kwargs={kwargs}.')
 
     def run(self):
         """
@@ -82,7 +95,7 @@ class Sup3rVisualQa:
             time_slices = np.array_split(np.arange(len(time_index)), n_files)
             time_slices = [slice(s[0], s[-1] + 1) for s in time_slices]
 
-            if self.workers == 1:
+            if self.max_workers == 1:
                 self._serial_figure_plots(res, time_index, time_slices,
                                           self.spatial_slice)
             else:
@@ -129,11 +142,11 @@ class Sup3rVisualQa:
         futures = {}
         now = dt.now()
         n_files = len(time_slices) * len(self.features)
-        with ThreadPoolExecutor(max_workers=self.workers) as exe:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
             for feature in self.features:
                 for i, t_slice in enumerate(time_slices):
                     out_file = self.out_pattern.format(feature=feature,
-                                                       index=i)
+                                                       index=str(i).zfill(8))
                     future = exe.submit(self.plot_figure, res, time_index,
                                         feature, t_slice, spatial_slice,
                                         out_file)
@@ -171,6 +184,10 @@ class Sup3rVisualQa:
         out_file : str
             Name of the output plot file
         """
+        if not self.overwrite and os.path.exists(out_file):
+            logger.info(f'{out_file} already exists and overwrite='
+                        f'{self.overwrite}. Skipping this plot.')
+            return
         start_time = time_index[t_slice.start]
         stop_time = time_index[t_slice.stop - 1]
         logger.info(f'Plotting time average for {feature} from '
