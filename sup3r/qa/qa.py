@@ -339,8 +339,13 @@ class Sup3rQa:
             method = getattr(sup3r.bias.bias_transforms, method)
             logger.info('Running bias correction with: {}'.format(method))
             feature_kwargs = kwargs[source_feature]
+
             if 'time_index' in signature(method).parameters:
                 feature_kwargs['time_index'] = self.time_index
+            if ('lr_padded_slice' in signature(method).parameters
+                    and 'lr_padded_slice' not in feature_kwargs):
+                feature_kwargs['lr_padded_slice'] = None
+
             logger.debug('Bias correcting source_feature "{}" using '
                          'function: {} with kwargs: {}'
                          .format(source_feature, method, feature_kwargs))
