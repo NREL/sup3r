@@ -29,6 +29,7 @@ class Sup3rQa:
     def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
                  temporal_coarsening_method,
                  features=None,
+                 source_features=None,
                  temporal_slice=slice(None),
                  target=None,
                  shape=None,
@@ -60,20 +61,23 @@ class Sup3rQa:
         t_enhance : int
             Factor by which the Sup3rGan model will enhance temporal dimension
             of low resolution data
-        temporal_coarsening_method : str
-            [subsample, average, total]
+        temporal_coarsening_method : str | list
+            [subsample, average, total, min, max]
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
-            time steps
-        features : list | dict | None
-            Explicit list of features to validate. Can be a list of string
-            feature names, a dictionary mapping the sup3r output feature name
-            to the source_handler feature name (e.g. {'ghi': 'rsds'}), or None
-            for all features found in the out_file_path. The dict can also map
-            the special case of one sup3r output windspeed name to two
-            source_handler windspeed component names so that each windspeed
-            component gets bias corrected separately
-            (e.g. {'windspeed_100m': ['U_100m', 'V_100m']})
+            time steps. This can also be a list of method names corresponding
+            to the list of features.
+        features : str | list | None
+            Explicit list of features to validate. Can be a single feature str,
+            list of string feature names, or None for all features found in the
+            out_file_path.
+        source_features : str | list | None
+            Optional feature names to retrieve from the source dataset if the
+            source feature names are not the same as the sup3r output feature
+            names. This must be of the same type / length as the features
+            input. For example: (features="ghi", source_features="rsds") or
+            (features=["windspeed_100m", "windspeed_200m"],
+             source_features=[["U_100m", "V_100m"], ["U_200m", "V_200m"]])
         temporal_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
             files each with 5 time steps then temporal_slice = slice(None) will
@@ -162,7 +166,11 @@ class Sup3rQa:
         self.t_enhance = t_enhance
         self._t_meth = temporal_coarsening_method
         self._out_fp = out_file_path
-        self._features = features
+        self._features = (features if isinstance(features, (list, tuple))
+                          else [features])
+        self._source_features = (source_features if
+                                 isinstance(source_features, (list, tuple))
+                                 else [source_features])
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
@@ -173,7 +181,7 @@ class Sup3rQa:
         HandlerClass = get_input_handler_class(source_file_paths,
                                                input_handler)
         self.source_handler = HandlerClass(source_file_paths,
-                                           self.source_features,
+                                           self.source_features_flat,
                                            target=target,
                                            shape=shape,
                                            temporal_slice=temporal_slice,
@@ -237,7 +245,7 @@ class Sup3rQa:
         # all lower case
         ignore = ('meta', 'time_index', 'times', 'xlat', 'xlong')
 
-        if self._features is None:
+        if self._features is None or self._features == [None]:
             if self.output_type == 'nc':
                 features = list(self.output_handler.variables.keys())
             elif self.output_type == 'h5':
@@ -247,9 +255,6 @@ class Sup3rQa:
         elif isinstance(self._features, (list, tuple)):
             features = self._features
 
-        elif isinstance(self._features, dict):
-            features = sorted(self._features.keys())
-
         return features
 
     @property
@@ -257,19 +262,29 @@ class Sup3rQa:
         """Get a list of feature names from the source input file, excluding
         meta and time index datasets. This property considers the features
         input mapping if a dictionary was provided, e.g. if
-        features={'ghi': 'rsds'}, this property will return ['rsds']"""
-        if isinstance(self._features, dict):
-            temp = [self._features[f] for f in self.features]
-            source_features = []
-            for feat in temp:
-                if isinstance(feat, (list, tuple)):
-                    source_features += list(feat)
-                else:
-                    source_features.append(feat)
-        else:
-            source_features = self.features
+        (features='ghi' source_features='rsds'),
+        this property will return ['rsds']
+        """
 
-        return source_features
+        if self._source_features is None or self._source_features == [None]:
+            return self.features
+        else:
+            return self._source_features
+
+    @property
+    def source_features_flat(self):
+        """Get a flat list of source feature names, so for example if
+        (features=["windspeed_100m", "windspeed_200m"],
+         source_features=[["U_100m", "V_100m"], ["U_200m", "V_200m"]])
+        then this property will return ["U_100m", "V_100m", "U_200m", "V_200m"]
+        """
+        sff = []
+        for f in self.source_features:
+            if isinstance(f, (list, tuple)):
+                sff += list(f)
+            else:
+                sff.append(f)
+        return sff
 
     @property
     def output_type(self):
@@ -300,7 +315,7 @@ class Sup3rQa:
         elif self.output_type == 'h5':
             return Resource
 
-    def bias_correct_source_data(self, data, feature):
+    def bias_correct_source_data(self, data, source_feature):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
@@ -309,6 +324,8 @@ class Sup3rQa:
         data : np.ndarray
             Any source data to be bias corrected, with the feature channel in
             the last axis.
+        source_feature : str | list
+            The source feature name corresponding to the output feature name
 
         Returns
         -------
@@ -321,26 +338,26 @@ class Sup3rQa:
         if method is not None:
             method = getattr(sup3r.bias.bias_transforms, method)
             logger.info('Running bias correction with: {}'.format(method))
-            feature_kwargs = kwargs[feature]
+            feature_kwargs = kwargs[source_feature]
             if 'time_index' in signature(method).parameters:
                 feature_kwargs['time_index'] = self.time_index
-            logger.debug('Bias correcting feature "{}" using function: {} '
-                         'with kwargs: {}'
-                         .format(feature, method, feature_kwargs))
+            logger.debug('Bias correcting source_feature "{}" using '
+                         'function: {} with kwargs: {}'
+                         .format(source_feature, method, feature_kwargs))
 
             data = method(data, **feature_kwargs)
 
         return data
 
-    def get_source_dset(self, idf, feature):
+    def get_source_dset(self, feature, source_feature):
         """Get source low res input data including optional bias correction
 
         Parameters
         ----------
-        idf : int
-            Feature index in axis=-1 of the source data handler.
         feature : str
             Feature name
+        source_feature : str | list
+            The source feature name corresponding to the output feature name
 
         Returns
         -------
@@ -348,14 +365,8 @@ class Sup3rQa:
             Low-res source input data including optional bias correction
         """
 
-        height = str(Feature.get_height(feature))
-        uv_comps = np.sum([name.startswith(('U_', 'V_'))
-                           for name in self.source_features
-                           if height in name])
-
-        if 'windspeed' in feature and uv_comps >= 2:
-            u_feat = feature.replace('windspeed_', 'U_')
-            v_feat = feature.replace('windspeed_', 'V_')
+        if 'windspeed' in feature and len(source_feature) == 2:
+            u_feat, v_feat = source_feature
             logger.info('For sup3r output feature "{}", retrieving u/v '
                         'components "{}" and "{}"'
                         .format(feature, u_feat, v_feat))
@@ -367,8 +378,10 @@ class Sup3rQa:
             v_true = self.bias_correct_source_data(v_true, v_feat)
             data_true = np.hypot(u_true, v_true)
         else:
+            idf = self.source_handler.features.index(source_feature)
             data_true = self.source_handler.data[..., idf]
-            data_true = self.bias_correct_source_data(data_true, feature)
+            data_true = self.bias_correct_source_data(data_true,
+                                                      source_feature)
 
         return data_true
 
@@ -403,11 +416,15 @@ class Sup3rQa:
 
         return data
 
-    def coarsen_data(self, data):
+    def coarsen_data(self, idf, feature, data):
         """Re-coarsen a high-resolution synthetic output dataset
 
         Parameters
         ----------
+        idf : int
+            Feature index
+        feature : str
+            Feature name
         data : np.ndarray
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
@@ -418,6 +435,12 @@ class Sup3rQa:
             A spatiotemporally coarsened copy of the input dataset, still with
             shape (spatial_1, spatial_2, temporal)
         """
+        t_meth = (self._t_meth if isinstance(self._t_meth, str)
+                  else self._t_meth[idf])
+
+        logger.info(f'Coarsening feature "{feature}" with {self.s_enhance}x '
+                    f'spatial averaging and "{t_meth}" {self.t_enhance}x '
+                    'temporal averaging')
 
         data = spatial_coarsening(data, s_enhance=self.s_enhance,
                                   obs_axis=False)
@@ -426,7 +449,7 @@ class Sup3rQa:
         data = np.expand_dims(data, axis=0)
         data = np.expand_dims(data, axis=4)
         data = temporal_coarsening(data, t_enhance=self.t_enhance,
-                                   method=self._t_meth)
+                                   method=t_meth)
         data = data[0]
         data = data[..., 0]
 
@@ -541,12 +564,15 @@ class Sup3rQa:
         """
 
         errors = {}
-        for idf, feature in enumerate(self.features):
-            logger.info('Running QA on dataset {} of {}: "{}"'
-                        .format(idf + 1, len(self.features), feature))
+        ziter = zip(self.features, self.source_features)
+        for idf, (feature, source_feature) in enumerate(ziter):
+            logger.info('Running QA on dataset {} of {} for "{}" '
+                        'corresponding to source feature "{}"'
+                        .format(idf + 1, len(self.features), feature,
+                                source_feature))
             data_syn = self.get_dset_out(feature)
-            data_syn = self.coarsen_data(data_syn)
-            data_true = self.get_source_dset(idf, feature)
+            data_syn = self.coarsen_data(idf, feature, data_syn)
+            data_true = self.get_source_dset(feature, source_feature)
 
             if data_syn.shape != data_true.shape:
                 msg = ('Sup3rQa failed while trying to inspect the "{}" '
