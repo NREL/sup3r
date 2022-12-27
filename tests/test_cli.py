@@ -404,7 +404,8 @@ def test_visual_qa(runner):
                   'features': plot_features,
                   'out_pattern': out_pattern,
                   'time_step': time_step,
-                  'workers': 1}
+                  'spatial_slice': [0, 100, 10],
+                  'max_workers': 1}
 
         config_path = os.path.join(td, 'config.json')
         with open(config_path, 'w') as fh:
