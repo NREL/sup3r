@@ -117,7 +117,7 @@ class Batch:
             resolution data
         temporal_coarsening_method : str
             Method to use for temporal coarsening. Can be subsample, average,
-            or total
+            min, max, or total
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
@@ -185,7 +185,7 @@ class ValidationData:
             Factor by which to coarsen temporal dimension of the high
             resolution data
         temporal_coarsening_method : str
-            [subsample, average, total]
+            [subsample, average, total, min, max]
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
@@ -390,7 +390,7 @@ class BatchHandler:
             Number of batches in an epoch, this sets the iteration limit for
             this object.
         temporal_coarsening_method : str
-            [subsample, average, total]
+            [subsample, average, total, min, max]
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
