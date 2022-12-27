@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 import logging
 from inspect import signature
+from warnings import warn
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 import sup3r.bias.bias_transforms
@@ -367,6 +368,16 @@ class Sup3rQa:
             if ('lr_padded_slice' in signature(method).parameters
                     and 'lr_padded_slice' not in feature_kwargs):
                 feature_kwargs['lr_padded_slice'] = None
+            if ('temporal_avg' in signature(method).parameters
+                    and 'temporal_avg' not in feature_kwargs):
+                msg = ('The kwarg "temporal_avg" was not provided in the bias '
+                       'correction kwargs but is present in the bias '
+                       'correction function "{}". If this is not set '
+                       'appropriately, especially for monthly bias '
+                       'correction, it could result in QA results that look '
+                       'worse than they actually are.'.format(method))
+                logger.warning(msg)
+                warn(msg)
 
             logger.debug('Bias correcting source_feature "{}" using '
                          'function: {} with kwargs: {}'
