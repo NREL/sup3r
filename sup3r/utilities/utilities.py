@@ -556,7 +556,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     t_enhance : int
         factor by which to coarsen temporal dimension
     method : str
-        accepted options: [subsample, average, total]
+        accepted options: [subsample, average, total, min, max]
         Subsample will take every t_enhance-th time step, average will average
         over t_enhance time steps, total will sum over t_enhance time steps
 
@@ -569,19 +569,42 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     if t_enhance is not None and len(data.shape) == 5:
         if method == 'subsample':
             coarse_data = data[:, :, :, ::t_enhance, :]
-        if method == 'average':
+
+        elif method == 'average':
             coarse_data = np.nansum(
                 data.reshape(
                     (data.shape[0], data.shape[1],
                      data.shape[2], -1, t_enhance,
                      data.shape[4])), axis=4)
             coarse_data /= t_enhance
-        if method == 'total':
+
+        elif method == 'max':
+            coarse_data = np.max(
+                data.reshape(
+                    (data.shape[0], data.shape[1],
+                     data.shape[2], -1, t_enhance,
+                     data.shape[4])), axis=4)
+
+        elif method == 'min':
+            coarse_data = np.min(
+                data.reshape(
+                    (data.shape[0], data.shape[1],
+                     data.shape[2], -1, t_enhance,
+                     data.shape[4])), axis=4)
+
+        elif method == 'total':
             coarse_data = np.nansum(
                 data.reshape(
                     (data.shape[0], data.shape[1],
                      data.shape[2], -1, t_enhance,
                      data.shape[4])), axis=4)
+
+        else:
+            msg = ('Did not recognize temporal_coarsening method "{}", can '
+                   'only accept one of: [subsample, average, total, max, min]'
+                   .format(method))
+            logger.error(msg)
+            raise KeyError(msg)
 
     else:
         coarse_data = data

@@ -76,7 +76,7 @@ def test_qa_nc():
         with Sup3rQa(*args, **kwargs) as qa:
             data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
-            data = qa.coarsen_data(data)
+            data = qa.coarsen_data(0, qa.features[0], data)
 
             assert isinstance(qa.meta, pd.DataFrame)
             assert isinstance(qa.time_index, pd.DatetimeIndex)
@@ -102,7 +102,7 @@ def test_qa_nc():
 
                         fwp_data = fwp_out[dset].values
                         fwp_data = np.transpose(fwp_data, axes=(1, 2, 0))
-                        fwp_data = qa.coarsen_data(fwp_data)
+                        fwp_data = qa.coarsen_data(idf, dset, fwp_data)
                         fwp_data = np.transpose(fwp_data, axes=(2, 0, 1))
                         fwp_data = fwp_data.flatten()
 
@@ -159,7 +159,7 @@ def test_qa_h5():
         with Sup3rQa(*args, **kwargs) as qa:
             data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
-            data = qa.coarsen_data(data)
+            data = qa.coarsen_data(0, qa.features[0], data)
 
             assert isinstance(qa.meta, pd.DataFrame)
             assert isinstance(qa.time_index, pd.DatetimeIndex)
@@ -188,7 +188,7 @@ def test_qa_h5():
                                  qa.source_handler.shape[2] * T_ENHANCE)
                         fwp_data = np.transpose(fwp_out[dset])
                         fwp_data = fwp_data.reshape(shape)
-                        fwp_data = qa.coarsen_data(fwp_data)
+                        fwp_data = qa.coarsen_data(idf, dset, fwp_data)
                         fwp_data = np.transpose(fwp_data, axes=(2, 0, 1))
                         fwp_data = fwp_data.flatten()
 
