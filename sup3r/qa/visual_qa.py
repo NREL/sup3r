@@ -120,7 +120,7 @@ class Sup3rVisualQa:
         for feature in self.features:
             for i, t_slice in enumerate(time_slices):
                 out_file = self.out_pattern.format(feature=feature,
-                                                   index=i)
+                                                   index=str(i).zfill(8))
                 self.plot_figure(res, time_index, feature, t_slice,
                                  spatial_slice, out_file)
 

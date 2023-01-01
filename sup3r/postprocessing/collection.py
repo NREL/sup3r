@@ -620,10 +620,10 @@ class Collector:
             multiple steps.
         """
         flist_chunks = self.group_time_chunks(file_paths)
-        logger.debug(f'Split file list into {len(flist_chunks)} chunks'
-                     ' according to temporal chunk indices')
+        logger.debug(f'Split file list into {len(flist_chunks)} chunks '
+                     'according to temporal chunk indices')
         if n_writes is not None:
-            msg = (f'n_writes ({n_writes}) must be less than or equal'
+            msg = (f'n_writes ({n_writes}) must be less than or equal '
                    'to the number of temporal chunks '
                    f'({len(flist_chunks)}).')
             assert n_writes < len(flist_chunks), msg
