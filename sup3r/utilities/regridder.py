@@ -396,6 +396,7 @@ class RegridOutput(OutputMixIn):
 
             interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
+                idx = futures[future]
                 if interval > 0 and i % interval == 0:
                     mem = psutil.virtual_memory()
                     msg = ('Regrid futures completed: {0} out of '
@@ -405,11 +406,10 @@ class RegridOutput(OutputMixIn):
                                mem.total / 1e9))
                     logger.info(msg)
                 try:
-                    idx = futures[future]
                     future.result()
                 except Exception as e:
                     msg = ('Falied to regrid coordinate with '
-                           'index={}'.format(index=idx))
+                           'index={index}'.format(index=idx))
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
