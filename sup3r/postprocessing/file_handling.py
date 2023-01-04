@@ -13,6 +13,7 @@ import re
 from datetime import datetime as dt
 import json
 import os
+from warnings import warn
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
@@ -114,7 +115,92 @@ class RexOutputs(BaseRexOutputs):
         self.h5.attrs['package'] = 'sup3r'
 
 
-class OutputHandler:
+class OutputMixIn:
+    """MixIn class with methods used by various Output and Collection classes
+    """
+
+    @staticmethod
+    def get_dset_attrs(feature):
+        """Get attrributes for output feature
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to write
+
+        Returns
+        -------
+        attrs : dict
+            Dictionary of attributes for requested dset
+        dtype : str
+            Data type for requested dset. Defaults to float32
+        """
+        feat_base_name = Feature.get_basename(feature)
+        if feat_base_name in H5_ATTRS:
+            attrs = H5_ATTRS[feat_base_name]
+            dtype = attrs.get('dtype', 'float32')
+        else:
+            attrs = {}
+            dtype = 'float32'
+            msg = ('Could not find feature "{}" with base name "{}" in '
+                   'H5_ATTRS global variable. Writing with float32 and no '
+                   'chunking.'.format(feature, feat_base_name))
+            logger.warning(msg)
+            warn(msg)
+
+        return attrs, dtype
+
+    @staticmethod
+    def _init_h5(out_file, time_index, meta, global_attrs):
+        """Initialize the output h5 file to save data to.
+
+        Parameters
+        ----------
+        out_file : str
+            Output file path - must not yet exist.
+        time_index : pd.datetimeindex
+            Full datetime index of final output data.
+        meta : pd.DataFrame
+            Full meta dataframe for the final output data.
+        global_attrs : dict
+            Namespace of file-global attributes for the final output data.
+        """
+
+        with RexOutputs(out_file, mode='w-') as f:
+            logger.info('Initializing output file: {}'
+                        .format(out_file))
+            logger.info('Initializing output file with shape {} '
+                        'and meta data:\n{}'
+                        .format((len(time_index), len(meta)), meta))
+            f.time_index = time_index
+            f.meta = meta
+            f.run_attrs = global_attrs
+
+    @classmethod
+    def _ensure_dset_in_output(cls, out_file, dset, data=None):
+        """Ensure that dset is initialized in out_file and initialize if not.
+
+        Parameters
+        ----------
+        out_file : str
+            Pre-existing H5 file output path
+        dset : str
+            Dataset name
+        data : np.ndarray | None
+            Optional data to write to dataset if initializing.
+        """
+
+        with RexOutputs(out_file, mode='a') as f:
+            if dset not in f.dsets:
+                attrs, dtype = cls.get_dset_attrs(dset)
+                logger.info('Initializing dataset "{}" with shape {} and '
+                            'dtype {}'.format(dset, f.shape, dtype))
+                f._create_dset(dset, f.shape, dtype,
+                               attrs=attrs, data=data,
+                               chunks=attrs.get('chunks', None))
+
+
+class OutputHandler(OutputMixIn):
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
@@ -635,10 +721,10 @@ class OutputHandlerH5(OutputHandler):
             fh.time_index = times
 
             for i, f in enumerate(features):
-                attrs = H5_ATTRS[Feature.get_basename(f)]
+                attrs, dtype = cls.get_dset_attrs(f)
                 flat_data = data[..., i].reshape((-1, len(times)))
                 flat_data = np.transpose(flat_data, (1, 0))
-                fh.add_dataset(tmp_file, f, flat_data, dtype=attrs['dtype'],
+                fh.add_dataset(tmp_file, f, flat_data, dtype=dtype,
                                attrs=attrs, chunks=attrs['chunks'])
                 logger.info(f'Added {f} to output file.')
 

@@ -16,45 +16,13 @@ from rex.utilities.loggers import init_logger
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.pipeline import Status
-from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
-from sup3r.preprocessing.feature_handling import Feature
+from sup3r.postprocessing.file_handling import RexOutputs, OutputMixIn
 from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
 
 
-def get_dset_attrs(feature):
-    """Get attrributes for output feature
-
-    Parameters
-    ----------
-    feature : str
-        Name of feature to write
-
-    Returns
-    -------
-    attrs : dict
-        Dictionary of attributes for requested dset
-    dtype : str
-        Data type for requested dset. Defaults to float32
-    """
-    feat_base_name = Feature.get_basename(feature)
-    if feat_base_name in H5_ATTRS:
-        attrs = H5_ATTRS[feat_base_name]
-        dtype = attrs.get('dtype', 'float32')
-    else:
-        attrs = {}
-        dtype = 'float32'
-        msg = ('Could not find feature "{}" with base name "{}" in H5_ATTRS '
-               'global variable. Writing with float32 and no chunking.'
-               .format(feature, feat_base_name))
-        logger.warning(msg)
-        warn(msg)
-
-    return attrs, dtype
-
-
-class Collector:
+class Collector(OutputMixIn):
     """Sup3r H5 file collection framework"""
 
     def __init__(self, file_paths):
@@ -428,56 +396,6 @@ class Collector:
 
         return time_index, target_final_meta, masked_meta, shape, global_attrs
 
-    @staticmethod
-    def _init_collected_h5(out_file, time_index, meta, global_attrs):
-        """Initialize the output h5 file to save collected data to.
-
-        Parameters
-        ----------
-        out_file : str
-            Output file path - must not yet exist.
-        time_index : pd.datetimeindex
-            Full datetime index of collected data.
-        meta : pd.DataFrame
-            Full meta dataframe collected data.
-        global_attrs : dict
-            Namespace of file-global attributes from one of the files being
-            collected that should be passed through to the final collected
-            file.
-        """
-
-        with RexOutputs(out_file, mode='w-') as f:
-            logger.info('Initializing collection output file: {}'
-                        .format(out_file))
-            logger.info('Initializing collection output file with shape {} '
-                        'and meta data:\n{}'
-                        .format((len(time_index), len(meta)), meta))
-            f.time_index = time_index
-            f.meta = meta
-            f.run_attrs = global_attrs
-
-    @staticmethod
-    def _ensure_dset_in_output(out_file, dset, data=None):
-        """Ensure that dset is initialized in out_file and initialize if not.
-        Parameters
-        ----------
-        out_file : str
-            Pre-existing H5 file output path
-        dset : str
-            Dataset name
-        data : np.ndarray | None
-            Optional data to write to dataset if initializing.
-        """
-
-        with RexOutputs(out_file, mode='a') as f:
-            if dset not in f.dsets:
-                attrs, dtype = get_dset_attrs(dset)
-                logger.info('Initializing dataset "{}" with shape {} and '
-                            'dtype {}'.format(dset, f.shape, dtype))
-                f._create_dset(dset, f.shape, dtype,
-                               attrs=attrs, data=data,
-                               chunks=attrs.get('chunks', None))
-
     def _collect_flist(self, feature, subset_masked_meta, time_index, shape,
                        file_paths, out_file, target_masked_meta,
                        max_workers=None):
@@ -511,7 +429,7 @@ class Collector:
             None uses all available.
         """
         if len(subset_masked_meta) > 0:
-            attrs, final_dtype = get_dset_attrs(feature)
+            attrs, final_dtype = self.get_dset_attrs(feature)
             scale_factor = attrs.get('scale_factor', 1)
 
             logger.debug('Collecting file list of shape {}: {}'
@@ -722,8 +640,8 @@ class Collector:
                 flist_chunks = [collector.flist]
 
             if not os.path.exists(out_file):
-                collector._init_collected_h5(out_file, time_index,
-                                             target_final_meta, global_attrs)
+                collector._init_h5(out_file, time_index, target_final_meta,
+                                   global_attrs)
 
             if len(flist_chunks) == 1:
                 collector._collect_flist(dset, target_masked_meta, time_index,
