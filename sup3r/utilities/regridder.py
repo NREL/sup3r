@@ -6,6 +6,8 @@ import psutil
 from glob import glob
 import pickle
 import os
+import pandas as pd
+from datetime import datetime as dt
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
 from rex import MultiFileResourceX
@@ -22,7 +24,7 @@ class Regridder:
     the new grid"""
 
     def __init__(self, source_meta, target_meta, cache_pattern=None,
-                 leaf_size=3, k=3):
+                 leaf_size=3, k=3, max_workers=None):
         """Get weights and indices used to map from source grid to target grid
 
         Parameters
@@ -39,26 +41,96 @@ class Regridder:
             leaf size for BallTree
         k : int, optional
             number of nearest neighbors to use for interpolation
+        max_workers : int | None
+            Max number of workers to use for getting tree queries for all
+            coordinates in the target_meta
         """
         self.cache_pattern = cache_pattern
+        self.target_meta = target_meta
+        self.distances = None
+        self.indices = None
+        self.k_neighbors = k
         cache_exists_check = (self.index_file is not None
                               and os.path.exists(self.index_file)
                               and self.distance_file is not None
                               and os.path.exists(self.distance_file))
         if cache_exists_check:
-            with open(self.index_file, 'rb') as f:
-                self.indices = pickle.load(f)
-            with open(self.distance_file, 'rb') as f:
-                self.distances = pickle.load(f)
+            self.load_cache()
         else:
             logger.info("Building ball tree for regridding")
             self.tree = BallTree(source_meta[['latitude', 'longitude']],
                                  leaf_size=leaf_size, metric='haversine')
             logger.info("Getting points and distances from ball tree.")
-            out = self.tree.query(target_meta[['latitude', 'longitude']], k=k)
-            self.distances, self.indices = out
-
+            self.get_all_queries(max_workers=max_workers)
             self.cache_ball_tree()
+
+    def get_all_queries(self, max_workers=None):
+        """Query ball tree for all coordinates in the target_meta and store
+        results"""
+
+        if max_workers == 1:
+            logger.info(f'Querying all coordinates in serial')
+            self.serial_queries()
+
+        else:
+            logger.info(f'Querying all coordinates in parallel')
+            self.parallel_queries(max_workers=max_workers)
+
+    def serial_queries(self):
+        """Get indices and distances for all points in target_meta, in serial
+        """
+        out = self.tree.query(self.target_meta[['latitude', 'longitude']],
+                              k=self.k_neighbors)
+        self.distances, self.indices = out
+
+    def parallel_queries(self, max_workers=None):
+        """Get indices and distances for all points in target_meta, in serial
+        """
+        self.distances = np.zeros(len(self.target_meta), np.ndarray)
+        self.indices = np.zeros(len(self.target_meta), np.ndarray)
+
+        futures = {}
+        now = dt.now()
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            for index in range(len(self.target_meta)):
+                future = exe.submit(self.save_query, i=index)
+                futures[future] = index
+
+            logger.info(f'Started all queries in {dt.now() - now()}.')
+
+            interval = int(np.ceil(len(futures) / 10))
+            for i, future in enumerate(as_completed(futures)):
+                idx = futures[future]
+                if interval > 0 and i % interval == 0:
+                    mem = psutil.virtual_memory()
+                    msg = ('Query futures completed: {0} out of '
+                           '{1}. Current memory usage is {2:.3f} '
+                           'GB out of {3:.3f} GB total.'.format(
+                               i + 1, len(futures), mem.used / 1e9,
+                               mem.total / 1e9))
+                    logger.info(msg)
+                try:
+                    future.result()
+                except Exception as e:
+                    msg = ('Falied to query coordinate with '
+                           'index={index}'.format(index=idx))
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+
+    def save_query(self, i):
+        """Save tree query for i-th coordinate to arrays"""
+        out = self.query_tree(i)
+        self.distances[i] = out[0][0]
+        self.indices[i] = out[1][0]
+
+    def load_cache(self):
+        """Load cached indices and distances from ball tree query"""
+        with open(self.index_file, 'rb') as f:
+            self.indices = pickle.load(f)
+        with open(self.distance_file, 'rb') as f:
+            self.distances = pickle.load(f)
+        logger.info(f'Loaded cache files: {self.index_file}, '
+                    f'{self.distance_file}')
 
     def cache_ball_tree(self):
         """Cache indices and distances from ball tree query"""
@@ -67,6 +139,8 @@ class Regridder:
                 pickle.dump(self.indices, f, protocol=4)
             with open(self.distance_file, 'wb') as f:
                 pickle.dump(self.distances, f, protocol=4)
+            logger.info(f'Saved cache files: {self.index_file}, '
+                        f'{self.distance_file}')
 
     @property
     def index_file(self):
@@ -83,6 +157,14 @@ class Regridder:
             return self.cache_pattern.format(array_name='distances')
         else:
             return None
+
+    def get_coordinate(self, i):
+        """Get i-th coordinate in target meta"""
+        return self.target_meta.iloc[i][['latitude', 'longitude']]
+
+    def query_tree(self, i):
+        """Get indices and distances for points around i-th coordinate"""
+        return self.tree.query([self.get_coordinate(i)], k=self.k_neighbors)
 
     @staticmethod
     def interpolate(distances, values):
@@ -239,7 +321,7 @@ class RegridOutput(OutputMixIn):
     """Output regridded data as it is interpolated"""
 
     def __init__(self, source_files, output_pattern, target_meta, heights,
-                 cache_pattern=None, leaf_size=3, k=3):
+                 cache_pattern=None, leaf_size=3, k=3, max_workers=None):
         """
         Parameters
         ----------
@@ -248,8 +330,8 @@ class RegridOutput(OutputMixIn):
         output_pattern : str
             Pattern to use for naming outputs file to store the regridded data.
             This must include a {feature} format key. e.g. ./{feature}.h5
-        target_meta : pd.DataFrame
-            Dataframe of final grid coordinates on which to regrid
+        target_meta : str
+            Path to dataframe of final grid coordinates on which to regrid
         heights : list
             List of wind field heights to regrid. e.g if heights = [100] then
             windspeed_100m and winddirection_100m will be regridded and stored
@@ -260,11 +342,14 @@ class RegridOutput(OutputMixIn):
             leaf size for BallTree
         k : int, optional
             number of nearest neighbors to use for interpolation
+        max_workers : int | None
+            Max number of workers to use for getting tree queries for all
+            coordinates in the target_meta
         """
         self.source_files = (source_files if isinstance(source_files, list)
                              else glob(source_files))
         self.output_pattern = output_pattern
-        self.target_meta = target_meta
+        self.target_meta = pd.read_csv(target_meta)
         self.heights = heights
 
         with MultiFileResourceX(source_files) as res:
@@ -275,7 +360,8 @@ class RegridOutput(OutputMixIn):
 
         self.regridder = WindRegridder(self.source_meta, self.target_meta,
                                        leaf_size=leaf_size, k=k,
-                                       cache_pattern=cache_pattern)
+                                       cache_pattern=cache_pattern,
+                                       max_workers=max_workers)
         for out_file in self.output_files:
             self._init_h5(out_file, self.time_index, self.target_meta,
                           self.global_attrs)
@@ -305,7 +391,7 @@ class RegridOutput(OutputMixIn):
 
     @classmethod
     def regrid(cls, source_files, output_pattern, target_meta, heights,
-               cache_pattern=None, max_workers=None):
+               cache_pattern=None, workers_kwargs=None):
         """
         Parameters
         ----------
@@ -321,14 +407,21 @@ class RegridOutput(OutputMixIn):
             in the output_file.
         cache_pattern : str | None
             File name pattern for ball tree indices and distances
-        max_workers : int | None
-            Max number of workers to use for regridding and output
+        worker_kwargs : dict | None
+            Dictionary of workers args. Optional keys include query_workers
+            (max number of workers to use for querying ball tree for all
+            coordinates in target_meta) and regrid_workers (max number of
+            workers to use for regridding and output)
         """
+        workers_kwargs = workers_kwargs or {}
+        query_workers = workers_kwargs.get('query_workers', None)
+        regrid_workers = workers_kwargs.get('regrid_workers', None)
         regrid_output = cls(source_files=source_files,
                             output_pattern=output_pattern,
                             target_meta=target_meta,
                             cache_pattern=cache_pattern,
-                            heights=heights)
+                            heights=heights,
+                            max_workers=query_workers)
 
         with MultiFileResourceX(regrid_output.source_files) as src_res:
             for height in heights:
@@ -342,7 +435,7 @@ class RegridOutput(OutputMixIn):
                                                    f'winddirection_{height}m',
                                                    data=None)
 
-                        if max_workers == 1:
+                        if regrid_workers == 1:
                             regrid_output._run_serial(
                                 src_res=src_res, ws_res=ws_res, wd_res=wd_res,
                                 height=height)
@@ -350,7 +443,7 @@ class RegridOutput(OutputMixIn):
                         else:
                             regrid_output._run_parallel(
                                 src_res=src_res, ws_res=ws_res, wd_res=wd_res,
-                                height=height, max_workers=max_workers)
+                                height=height, max_workers=regrid_workers)
         logger.info(f'Finished writing output files: {output_files}')
 
     def _run_serial(self, src_res, ws_res, wd_res, height):
@@ -387,12 +480,15 @@ class RegridOutput(OutputMixIn):
             Max number of workers to use for regridding in parallel
         """
         futures = {}
+        now = dt.now()
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for index in range(len(self.target_meta)):
                 future = exe.submit(self.write_coordinate, src_res=src_res,
                                     ws_res=ws_res, wd_res=wd_res,
                                     height=height, index=index)
                 futures[future] = index
+
+            logger.info(f'Started all queries in {dt.now() - now()}.')
 
             interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
