@@ -69,11 +69,11 @@ class Regridder:
         results"""
 
         if max_workers == 1:
-            logger.info(f'Querying all coordinates in serial')
+            logger.info('Querying all coordinates in serial.')
             self.serial_queries()
 
         else:
-            logger.info(f'Querying all coordinates in parallel')
+            logger.info('Querying all coordinates in parallel.')
             self.parallel_queries(max_workers=max_workers)
 
     def serial_queries(self):
