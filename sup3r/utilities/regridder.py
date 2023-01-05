@@ -24,7 +24,7 @@ class Regridder:
     the new grid"""
 
     def __init__(self, source_meta, target_meta, cache_pattern=None,
-                 leaf_size=3, k=3, max_workers=None):
+                 leaf_size=3, k=3, n_chunks=100):
         """Get weights and indices used to map from source grid to target grid
 
         Parameters
@@ -41,15 +41,17 @@ class Regridder:
             leaf size for BallTree
         k : int, optional
             number of nearest neighbors to use for interpolation
-        max_workers : int | None
-            Max number of workers to use for getting tree queries for all
-            coordinates in the target_meta
+        n_chunks : int
+            Number of spatial chunks to use for tree queries. The total number
+            of points in the target_meta will be split into n_chunks and the
+            points in each chunk will be queried at the same time.
         """
         self.cache_pattern = cache_pattern
         self.target_meta = target_meta
-        self.distances = None
-        self.indices = None
         self.k_neighbors = k
+        self.n_chunks = n_chunks
+        self.distances = [None] * len(self.target_meta)
+        self.indices = [None] * len(self.target_meta)
         cache_exists_check = (self.index_file is not None
                               and os.path.exists(self.index_file)
                               and self.distance_file is not None
@@ -57,71 +59,16 @@ class Regridder:
         if cache_exists_check:
             self.load_cache()
         else:
-            logger.info("Building ball tree for regridding")
-            self.tree = BallTree(source_meta[['latitude', 'longitude']],
-                                 leaf_size=leaf_size, metric='haversine')
-            logger.info("Getting points and distances from ball tree.")
-            self.get_all_queries(max_workers=max_workers)
-            self.cache_ball_tree()
+            logger.info("Building ball tree for regridding.")
+            ll2 = source_meta[['latitude', 'longitude']].values
+            ll2 = np.radians(ll2)
+            self.tree = BallTree(ll2, leaf_size=leaf_size, metric='haversine')
 
-    def get_all_queries(self, max_workers=None):
-        """Query ball tree for all coordinates in the target_meta and store
-        results"""
-
-        if max_workers == 1:
-            logger.info('Querying all coordinates in serial.')
-            self.serial_queries()
-
-        else:
-            logger.info('Querying all coordinates in parallel.')
-            self.parallel_queries(max_workers=max_workers)
-
-    def serial_queries(self):
-        """Get indices and distances for all points in target_meta, in serial
-        """
-        out = self.tree.query(self.target_meta[['latitude', 'longitude']],
-                              k=self.k_neighbors)
-        self.distances, self.indices = out
-
-    def parallel_queries(self, max_workers=None):
-        """Get indices and distances for all points in target_meta, in serial
-        """
-        self.distances = np.zeros(len(self.target_meta), np.ndarray)
-        self.indices = np.zeros(len(self.target_meta), np.ndarray)
-
-        futures = {}
-        now = dt.now()
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            for index in range(len(self.target_meta)):
-                future = exe.submit(self.save_query, i=index)
-                futures[future] = index
-
-            logger.info(f'Started all queries in {dt.now() - now()}.')
-
-            interval = int(np.ceil(len(futures) / 10))
-            for i, future in enumerate(as_completed(futures)):
-                idx = futures[future]
-                if interval > 0 and i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    msg = ('Query futures completed: {0} out of '
-                           '{1}. Current memory usage is {2:.3f} '
-                           'GB out of {3:.3f} GB total.'.format(
-                               i + 1, len(futures), mem.used / 1e9,
-                               mem.total / 1e9))
-                    logger.info(msg)
-                try:
-                    future.result()
-                except Exception as e:
-                    msg = ('Falied to query coordinate with '
-                           'index={index}'.format(index=idx))
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
-
-    def save_query(self, i):
-        """Save tree query for i-th coordinate to arrays"""
-        out = self.query_tree(i)
-        self.distances[i] = out[0][0]
-        self.indices[i] = out[1][0]
+    def save_query(self, s_slice):
+        """Save tree query for coordinates specified by given spatial slice"""
+        out = self.query_tree(s_slice)
+        self.distances[s_slice] = out[0]
+        self.indices[s_slice] = out[1]
 
     def load_cache(self):
         """Load cached indices and distances from ball tree query"""
@@ -158,13 +105,45 @@ class Regridder:
         else:
             return None
 
-    def get_coordinate(self, i):
-        """Get i-th coordinate in target meta"""
-        return self.target_meta.iloc[i][['latitude', 'longitude']]
+    def get_spatial_chunk(self, s_slice):
+        """Get list of coordinates in target_meta specified by the given
+        spatial slice
 
-    def query_tree(self, i):
-        """Get indices and distances for points around i-th coordinate"""
-        return self.tree.query([self.get_coordinate(i)], k=self.k_neighbors)
+        Parameters
+        ----------
+        s_slice : slice
+            slice specifying which spatial indices in the target grid should be
+            selected. This selects n_points from the target grid
+
+        Returns
+        -------
+        ndarray
+            Array of n_points in target_meta selected by s_slice.
+        """
+        out = self.target_meta.iloc[s_slice][['latitude', 'longitude']].values
+        return np.radians(out)
+
+    def query_tree(self, s_slice):
+        """Get indices and distances for points specified by the given spatial
+        slice
+
+        Parameters
+        ----------
+        s_slice : slice
+            slice specifying which spatial indices in the target grid should be
+            selected. This selects n_points from the target grid
+
+        Returns
+        -------
+        distances : ndarray
+            Array of distances for neighboring points for each point selected
+            by s_slice. (n_ponts, n_neighbors)
+        indices : ndarray
+            Array of indices for neighboring points for each point selected
+            by s_slice. (n_ponts, n_neighbors)
+        """
+        return self.tree.query(self.get_spatial_chunk(s_slice),
+                               k=self.k_neighbors)
 
     @staticmethod
     def interpolate(distances, values):
@@ -174,29 +153,31 @@ class Regridder:
         Parameters
         ----------
         distances : ndarray
-            Array of distances from interpolation point with shape (n_points)
+            Array of distances from interpolation point with shape
+            (n_points, n_neighbors)
         values : ndarray
             Array of values corresponding to the point distances with shape
-            (temporal, n_points)
+            (temporal, n_points, n_neighbors)
 
         Returns
         -------
         ndarray
-            Time series of values at interpolated point with shape (temporal)
+            Time series of values at interpolated point with shape
+            (temporal, n_points)
         """
-        if any(w == 0 for w in distances):
-            return values[..., np.where(distances == 0)[0][0]]
+        weights = 1 / np.array(distances)
+        norm = np.sum(weights, axis=-1)
+        out = np.einsum('ijk,jk->ij', values, weights) / norm
+        return out
 
-        weights = 1 / distances
-        return np.inner(values, weights) / np.sum(weights)
-
-    def get_source_values(self, index, feature, resource):
+    def get_source_values(self, s_slice, feature, resource):
         """Get values to use for interpolation
 
         Parameters
         ----------
-        index : int
-            Index of the interpolated point in the target grid
+        s_slice : slice
+            slice specifying which spatial indices in the target grid should be
+            used for interpolation. This selects n_points from the target grid
         feature : str
             Name of feature to interpolate
         resource : ResourceX
@@ -206,29 +187,42 @@ class Regridder:
         -------
         ndarray
             Array of values to use for interpolation with shape
-            (temporal, n_points)
+            (temporal, n_points, n_neighbors)
         """
-        src_indices = self.indices[index]
-        return resource[feature, :, src_indices]
+        self.saved_query_check(s_slice)
+        shape = (len(resource.time_index), len(self.indices[s_slice]), -1)
+        out = resource[feature, :, np.array(self.indices[s_slice]).flatten()]
+        out = out.reshape(shape)
+        return out
 
-    def get_interpolated_values(self, index, src_values):
+    def get_interpolated_values(self, s_slice, src_values):
         """Get interpolated values using values from source grid
 
         Parameters
         ----------
-        index : int
-            Index of the interpolated point in the target grid
+        s_slice : slice
+            slice specifying which spatial indices in the target grid should be
+            used for interpolation. This selects n_points from the target grid
         src_values : ndarray
             Array of values from source data to use for interpolation with
-            shape (temporal, n_points)
+            shape (temporal, n_points, n_neighbors)
 
         Returns
         -------
         ndarray
             Array of interpolated time series values with shape (temporal)
         """
-        distances = self.distances[index]
-        return self.interpolate(distances, src_values)
+        self.saved_query_check(s_slice)
+        return self.interpolate(self.distances[s_slice], src_values)
+
+    def saved_query_check(self, s_slice):
+        """Make sure ball tree query has been stored in index and distance
+        arrays"""
+        check_stored_query = (
+            all(idx is not None for idx in self.indices[s_slice])
+            and all(dist is not None for dist in self.distances[s_slice]))
+        if not check_stored_query:
+            self.save_query(s_slice)
 
 
 class WindRegridder(Regridder):
@@ -236,13 +230,13 @@ class WindRegridder(Regridder):
     converting windspeed and winddirection to U and V and inverting after
     interpolation"""
 
-    def get_source_uv(self, index, height, resource):
+    def get_source_uv(self, s_slice, height, resource):
         """Get u/v wind components from windspeed and winddirection
 
         Parameters
         ----------
-        index : int
-            Index of the interpolated point in the target grid
+        s_slice : slice
+            slice specifying target grid indices to use for interpolation
         height : int
             Wind height level
         resource : MultiFileResourceX
@@ -252,14 +246,14 @@ class WindRegridder(Regridder):
         -------
         u: ndarray
             Array of zonal wind values to use for interpolation with shape
-            (temporal, n_points)
+            (temporal, n_points, n_neighbors)
         v: ndarray
             Array of meridional wind values to use for interpolation with shape
-            (temporal, n_points)
+            (temporal, n_points, n_neighbors)
         """
-        ws = self.get_source_values(index, f'windspeed_{height}m',
+        ws = self.get_source_values(s_slice, f'windspeed_{height}m',
                                     resource)
-        wd = self.get_source_values(index, f'winddirection_{height}m',
+        wd = self.get_source_values(s_slice, f'winddirection_{height}m',
                                     resource)
         u = ws * np.sin(np.radians(wd))
         v = ws * np.cos(np.radians(wd))
@@ -272,16 +266,19 @@ class WindRegridder(Regridder):
         Parameters
         ----------
         u: ndarray
-            Array of interpolated zonal wind values with shape (temporal)
+            Array of interpolated zonal wind values with shape
+            (temporal, n_points)
         v: ndarray
-            Array of interpolated meridional wind values with shape (temporal)
+            Array of interpolated meridional wind values with shape
+            (temporal, n_points)
 
         Returns
         -------
         ws: ndarray
-            Array of interpolated windspeed values with shape (temporal)
+            Array of interpolated windspeed values with shape
+            (temporal, n_points)
         wd: ndarray
-            Array of winddirection values with shape (temporal)
+            Array of winddirection values with shape (temporal, n_points)
         """
         ws = np.hypot(u, v)
         wd = np.rad2deg(np.arctan2(u, v))
@@ -289,14 +286,14 @@ class WindRegridder(Regridder):
 
         return ws, wd
 
-    def regrid_coordinate(self, index, height, resource):
+    def regrid_coordinates(self, s_slice, height, resource):
         """Regrid wind fields at given height for the requested coordinate
         index
 
         Parameters
         ----------
-        index : int
-            Index of the interpolated point in the target grid
+        s_slice : slice
+            slice specifying range of indices in the target grid to interpolate
         height : int
             Wind height level
         resource : ResourceX
@@ -305,14 +302,15 @@ class WindRegridder(Regridder):
         Returns
         -------
         ws: ndarray
-            Array of interpolated windspeed values with shape (temporal)
+            Array of interpolated windspeed values with shape
+            (temporal, n_points)
         wd: ndarray
-            Array of winddirection values with shape (temporal)
+            Array of winddirection values with shape (temporal, n_points)
 
         """
-        u, v = self.get_source_uv(index, height, resource)
-        u = self.get_interpolated_values(index, u)
-        v = self.get_interpolated_values(index, v)
+        u, v = self.get_source_uv(s_slice, height, resource)
+        u = self.get_interpolated_values(s_slice, u)
+        v = self.get_interpolated_values(s_slice, v)
         ws, wd = self.invert_uv(u, v)
         return ws, wd
 
@@ -321,7 +319,7 @@ class RegridOutput(OutputMixIn):
     """Output regridded data as it is interpolated"""
 
     def __init__(self, source_files, output_pattern, target_meta, heights,
-                 cache_pattern=None, leaf_size=3, k=3, max_workers=None):
+                 cache_pattern=None, leaf_size=3, k=3, overwrite=False):
         """
         Parameters
         ----------
@@ -342,15 +340,20 @@ class RegridOutput(OutputMixIn):
             leaf size for BallTree
         k : int, optional
             number of nearest neighbors to use for interpolation
-        max_workers : int | None
-            Max number of workers to use for getting tree queries for all
-            coordinates in the target_meta
+        overwrite : bool
+            Whether to overwrite previously saved output files
         """
         self.source_files = (source_files if isinstance(source_files, list)
                              else glob(source_files))
         self.output_pattern = output_pattern
         self.target_meta = pd.read_csv(target_meta)
         self.heights = heights
+        if 'gid' in self.target_meta.columns:
+            self.target_meta = self.target_meta.drop(['gid'], axis=1)
+
+        logger.info('Initializing RegridOutput with '
+                    f'source_files={self.source_files} and '
+                    f'output_pattern={self.output_pattern}.')
 
         with MultiFileResourceX(source_files) as res:
             self.time_index = res.time_index
@@ -360,9 +363,12 @@ class RegridOutput(OutputMixIn):
 
         self.regridder = WindRegridder(self.source_meta, self.target_meta,
                                        leaf_size=leaf_size, k=k,
-                                       cache_pattern=cache_pattern,
-                                       max_workers=max_workers)
+                                       cache_pattern=cache_pattern)
         for out_file in self.output_files:
+            if os.path.exists(out_file) and overwrite:
+                logger.info(f'{out_file} already exists but overwrite=True. '
+                            'Proceeding with overwrite.')
+                os.remove(out_file)
             self._init_h5(out_file, self.time_index, self.target_meta,
                           self.global_attrs)
 
@@ -391,7 +397,8 @@ class RegridOutput(OutputMixIn):
 
     @classmethod
     def regrid(cls, source_files, output_pattern, target_meta, heights,
-               cache_pattern=None, workers_kwargs=None):
+               n_chunks=100, k=3, cache_pattern=None, workers_kwargs=None,
+               overwrite=False):
         """
         Parameters
         ----------
@@ -405,23 +412,29 @@ class RegridOutput(OutputMixIn):
             List of wind field heights to regrid. e.g if heights = [100] then
             windspeed_100m and winddirection_100m will be regridded and stored
             in the output_file.
+        n_chunks : int
+            Number of spatial chunks to use for interpolation. The total number
+            of points in the target_meta will be split into n_chunks and the
+            points in each chunk will be interpolated at the same time.
+        k : int, optional
+            number of nearest neighbors to use for interpolation
         cache_pattern : str | None
             File name pattern for ball tree indices and distances
         worker_kwargs : dict | None
-            Dictionary of workers args. Optional keys include query_workers
-            (max number of workers to use for querying ball tree for all
-            coordinates in target_meta) and regrid_workers (max number of
-            workers to use for regridding and output)
+            Dictionary of workers args. Optional keys include regrid_workers
+            (max number of workers to use for regridding and output)
+        overwrite : bool
+            Whether to overwrite previously saved output files
         """
         workers_kwargs = workers_kwargs or {}
-        query_workers = workers_kwargs.get('query_workers', None)
         regrid_workers = workers_kwargs.get('regrid_workers', None)
         regrid_output = cls(source_files=source_files,
                             output_pattern=output_pattern,
                             target_meta=target_meta,
                             cache_pattern=cache_pattern,
                             heights=heights,
-                            max_workers=query_workers)
+                            overwrite=overwrite,
+                            k=k)
 
         with MultiFileResourceX(regrid_output.source_files) as src_res:
             for height in heights:
@@ -438,15 +451,17 @@ class RegridOutput(OutputMixIn):
                         if regrid_workers == 1:
                             regrid_output._run_serial(
                                 src_res=src_res, ws_res=ws_res, wd_res=wd_res,
-                                height=height)
+                                height=height, n_chunks=n_chunks)
 
                         else:
                             regrid_output._run_parallel(
                                 src_res=src_res, ws_res=ws_res, wd_res=wd_res,
-                                height=height, max_workers=regrid_workers)
+                                height=height, n_chunks=n_chunks,
+                                max_workers=regrid_workers)
+        regrid_output.regridder.cache_ball_tree()
         logger.info(f'Finished writing output files: {output_files}')
 
-    def _run_serial(self, src_res, ws_res, wd_res, height):
+    def _run_serial(self, src_res, ws_res, wd_res, height, n_chunks):
         """Regrid data and write to output file, in serial.
 
         Parameters
@@ -459,11 +474,27 @@ class RegridOutput(OutputMixIn):
             Resource handler for winddirection output data
         height : int
             Wind level height to write to output file
+        n_chunks : int
+            Number of chunks to split target_meta coordinates into to perform
+            interpolation in chunks.
         """
-        for index in range(len(self.target_meta)):
-            self.write_coordinate(src_res, ws_res, wd_res, height, index)
+        logger.info('Regridding all coordinates in serial.')
+        slices = np.arange(len(self.target_meta))
+        slices = np.array_split(slices, min(n_chunks, len(slices)))
+        slices = [slice(s[0], s[-1] + 1) for s in slices]
+        interval = min(10, int(np.ceil(len(slices) / 100)))
+        for i, s_slice in enumerate(slices):
+            self.write_coordinates(src_res, ws_res, wd_res, height, s_slice)
+            if i % interval == 0:
+                mem = psutil.virtual_memory()
+                msg = ('Coordinate chunks regridded: {0} out of {1}. Current '
+                       'memory usage is {2:.3f} GB out of {3:.3f} GB '
+                       'total.'.format(i + 1, len(slices),
+                                       mem.used / 1e9, mem.total / 1e9))
+                logger.info(msg)
 
-    def _run_parallel(self, src_res, ws_res, wd_res, height, max_workers=None):
+    def _run_parallel(self, src_res, ws_res, wd_res, height, n_chunks,
+                      max_workers=None):
         """Regrid data and write to output file, in parallel.
 
         Parameters
@@ -476,40 +507,53 @@ class RegridOutput(OutputMixIn):
             Resource handler for winddirection output data
         height : int
             Wind level height to write to output file
+        n_chunks : int
+            Number of chunks to split target_meta coordinates into to perform
+            interpolation in chunks.
         max_workers : int | None
             Max number of workers to use for regridding in parallel
         """
         futures = {}
         now = dt.now()
+        logger.info('Regridding all coordinates in parallel.')
+        slices = np.arange(len(self.target_meta))
+        slices = np.array_split(slices, min(n_chunks, len(slices)))
+        slices = [slice(s[0], s[-1] + 1) for s in slices]
+        interval = min(10, int(np.ceil(len(slices) / 100)))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            for index in range(len(self.target_meta)):
-                future = exe.submit(self.write_coordinate, src_res=src_res,
+            for i, s_slice in enumerate(slices):
+                future = exe.submit(self.write_coordinates, src_res=src_res,
                                     ws_res=ws_res, wd_res=wd_res,
-                                    height=height, index=index)
-                futures[future] = index
+                                    height=height, s_slice=s_slice)
+                futures[future] = i
+                if i % interval == 0:
+                    mem = psutil.virtual_memory()
+                    msg = ('Regrid futures submitted: {0} out of {1}. Current '
+                           'memory usage is {2:.3f} GB out of {3:.3f} GB '
+                           'total.'.format(i + 1, len(slices),
+                                           mem.used / 1e9, mem.total / 1e9))
+                    logger.info(msg)
 
-            logger.info(f'Started all queries in {dt.now() - now()}.')
+            logger.info(f'Started all queries in {dt.now() - now}.')
 
-            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
-                if interval > 0 and i % interval == 0:
+                if i % interval == 0:
                     mem = psutil.virtual_memory()
-                    msg = ('Regrid futures completed: {0} out of '
-                           '{1}. Current memory usage is {2:.3f} '
-                           'GB out of {3:.3f} GB total.'.format(
-                               i + 1, len(futures), mem.used / 1e9,
-                               mem.total / 1e9))
+                    msg = ('Regrid futures completed: {0} out of {1}. Current '
+                           'memory usage is {2:.3f} GB out of {3:.3f} GB '
+                           'total.'.format(i + 1, len(futures), mem.used / 1e9,
+                                           mem.total / 1e9))
                     logger.info(msg)
                 try:
                     future.result()
                 except Exception as e:
-                    msg = ('Falied to regrid coordinate with '
+                    msg = ('Falied to regrid coordinate chunks with '
                            'index={index}'.format(index=idx))
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
-    def write_coordinate(self, src_res, ws_res, wd_res, height, index):
+    def write_coordinates(self, src_res, ws_res, wd_res, height, s_slice):
         """Write regridded coordinate data to the output file
 
         Parameters
@@ -522,9 +566,10 @@ class RegridOutput(OutputMixIn):
             Resource handler for winddirection output data
         height : int
             Wind level height to write to output file
-        index : int
-            Index of coordinate to regrid and write to output file
+        s_slice : s_slice
+            slice specifying indices of coordinates to regrid and write to
+            output file
         """
-        out = self.regridder.regrid_coordinate(index, height, src_res)
-        ws_res[f'windspeed_{height}m', :, index] = out[0]
-        wd_res[f'winddirection_{height}m', :, index] = out[1]
+        out = self.regridder.regrid_coordinates(s_slice, height, src_res)
+        ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
+        wd_res[f'winddirection_{height}m', :, s_slice] = out[1]

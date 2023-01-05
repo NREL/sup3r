@@ -1749,7 +1749,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 f_index = self.features.index(f)
                 self.data_fill(t, ts, f_index, f)
             interval = int(np.ceil(len(shifted_time_chunks) / 10))
-            if interval > 0 and t % interval == 0:
+            if t % interval == 0:
                 logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
                             'chunks to final data array')
             self._raw_data.pop(t)
@@ -1796,7 +1796,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                                'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    if interval > 0 and i % interval == 0:
+                    if i % interval == 0:
                         logger.debug(f'Added {i+1} out of {len(futures)} '
                                      'chunks to final data array')
         logger.info('Finished building data array')

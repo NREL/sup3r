@@ -277,7 +277,7 @@ class Collector(OutputMixIn):
 
             interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
-                if interval > 0 and i % interval == 0:
+                if i % interval == 0:
                     mem = psutil.virtual_memory()
                     logger.info('Meta collection futures completed: '
                                 '{0} out of {1}. '

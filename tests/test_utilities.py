@@ -4,6 +4,10 @@ import numpy as np
 from scipy.interpolate import interp1d
 import pytest
 import matplotlib.pyplot as plt
+import os
+import tempfile
+
+from rex import Resource
 
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.utilities import (get_chunk_slices,
@@ -14,6 +18,41 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        spatial_coarsening,
                                        transform_rotate_wind,
                                        st_interp)
+from sup3r.utilities.regridder import RegridOutput
+from sup3r import TEST_DATA_DIR
+
+
+FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
+
+
+def test_regridding():
+    """Make sure regridding reproduces original data when meta is the same"""
+    with tempfile.TemporaryDirectory() as td:
+        meta_path = os.path.join(td, 'test_meta.csv')
+        output_pattern = os.path.join(td, 'regrid_test_{feature}.h5')
+        with Resource(FP_WTK) as res:
+            res.meta.to_csv(meta_path, index=False)
+
+            RegridOutput.regrid(source_files=[FP_WTK],
+                                output_pattern=output_pattern,
+                                target_meta=meta_path,
+                                heights=[100],
+                                workers_kwargs={'regrid_workers': 1},
+                                overwrite=True, n_chunks=10)
+            ws_file = os.path.join(td, 'regrid_test_windspeed_100m.h5')
+            wd_file = os.path.join(td, 'regrid_test_winddirection_100m.h5')
+            with Resource(ws_file) as ws_res:
+                with Resource(wd_file) as wd_res:
+                    u = ws_res['windspeed_100m']
+                    u *= np.sin(np.radians(wd_res['winddirection_100m']))
+                    v = ws_res['windspeed_100m']
+                    v *= np.cos(np.radians(wd_res['winddirection_100m']))
+                    u_src = res['windspeed_100m']
+                    u_src *= np.sin(np.radians(res['winddirection_100m']))
+                    v_src = res['windspeed_100m']
+                    v_src *= np.cos(np.radians(res['winddirection_100m']))
+                    assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
+                    assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
 
 
 def test_get_chunk_slices():
