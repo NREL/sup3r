@@ -319,11 +319,11 @@ class SpatialThenTemporalBase(MultiStepGan):
         if isinstance(self.spatial_models, MultiStepGan):
             spatial_models = self.spatial_models.meta
         else:
-            spatial_models = list(self.spatial_models.meta)
+            spatial_models = [self.spatial_models.meta]
         if isinstance(self.temporal_models, MultiStepGan):
             temporal_models = self.temporal_models.meta
         else:
-            temporal_models = list(self.temporal_models.meta)
+            temporal_models = [self.temporal_models.meta]
         return (*spatial_models, *temporal_models)
 
     @property
