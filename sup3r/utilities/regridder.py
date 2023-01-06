@@ -10,7 +10,7 @@ import pandas as pd
 from datetime import datetime as dt
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
-from rex import MultiFileResourceX
+from rex import MultiFileResource
 
 from sup3r.postprocessing.file_handling import RexOutputs, OutputMixIn
 
@@ -24,7 +24,7 @@ class TreeBuilder:
     """
 
     def __init__(self, source_meta, target_meta, cache_pattern=None,
-                 leaf_size=3, k_neighbors=3, n_chunks=100, max_workers=None):
+                 leaf_size=4, k_neighbors=4, n_chunks=100, max_workers=None):
         """Get weights and indices used to map from source grid to target grid
 
         Parameters
@@ -70,7 +70,7 @@ class TreeBuilder:
 
     @classmethod
     def run(cls, source_meta, target_meta, cache_pattern=None,
-            leaf_size=3, k_neighbors=3, n_chunks=100, max_workers=None):
+            leaf_size=4, k_neighbors=4, n_chunks=100, max_workers=None):
         """Query tree for every point in target_meta to get full set of indices
         and distances for the neighboring points in the source_meta.
 
@@ -149,36 +149,33 @@ class TreeBuilder:
         slices = np.arange(len(self.target_meta))
         slices = np.array_split(slices, min(self.n_chunks, len(slices)))
         slices = [slice(s[0], s[-1] + 1) for s in slices]
-        interval = min(10, int(np.ceil(len(slices) / 100)))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for i, s_slice in enumerate(slices):
                 future = exe.submit(self.save_query, s_slice=s_slice)
                 futures[future] = i
-                if i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    msg = ('Query futures submitted: {0} out of {1}. Current '
-                           'memory usage is {2:.3f} GB out of {3:.3f} GB '
-                           'total.'.format(i + 1, len(slices),
-                                           mem.used / 1e9, mem.total / 1e9))
-                    logger.info(msg)
+                mem = psutil.virtual_memory()
+                msg = ('Query futures submitted: {0} out of {1}. Current '
+                       'memory usage is {2:.3f} GB out of {3:.3f} GB '
+                       'total.'.format(i + 1, len(slices), mem.used / 1e9,
+                                       mem.total / 1e9))
+                logger.info(msg)
 
             logger.info(f'Submitted all query futures in {dt.now() - now}.')
 
-            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
-                if interval > 0 and i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    msg = ('Query futures completed: {0} out of '
-                           '{1}. Current memory usage is {2:.3f} '
-                           'GB out of {3:.3f} GB total.'.format(
-                               i + 1, len(futures), mem.used / 1e9,
-                               mem.total / 1e9))
-                    logger.info(msg)
+                mem = psutil.virtual_memory()
+                msg = ('Query futures completed: {0} out of '
+                       '{1}. Current memory usage is {2:.3f} '
+                       'GB out of {3:.3f} GB total.'.format(i + 1,
+                                                            len(futures),
+                                                            mem.used / 1e9,
+                                                            mem.total / 1e9))
+                logger.info(msg)
                 try:
                     future.result()
                 except Exception as e:
-                    msg = ('Falied to query coordinate chunk with '
+                    msg = ('Failed to query coordinate chunk with '
                            'index={index}'.format(index=idx))
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
@@ -271,15 +268,16 @@ class Regridder(TreeBuilder):
     the new grid"""
 
     @staticmethod
-    def interpolate(distances, values):
+    def interpolate(distance_chunk, values):
         """Interpolate to a new coordinate based on distances from that
         coordinate and the values of the points at those distances
 
         Parameters
         ----------
-        distances : ndarray
-            Array of distances from interpolation point with shape
-            (n_points, k_neighbors)
+        distance_chunk : ndarray
+            Chunk of the full array of distances where distances[i] gives the
+            list of distances to the source coordinates to be used for
+            interpolation for the i-th coordinate in the target data.
         values : ndarray
             Array of values corresponding to the point distances with shape
             (temporal, n_points, k_neighbors)
@@ -290,23 +288,25 @@ class Regridder(TreeBuilder):
             Time series of values at interpolated point with shape
             (temporal, n_points)
         """
-        weights = 1 / np.array(distances)
+        weights = 1 / np.array(distance_chunk)
         norm = np.sum(weights, axis=-1)
         out = np.einsum('ijk,jk->ij', values, weights) / norm
         return out
 
-    def get_source_values(self, s_slice, feature, resource):
+    @classmethod
+    def get_source_values(cls, index_chunk, feature, source_files):
         """Get values to use for interpolation
 
         Parameters
         ----------
-        s_slice : slice
-            slice specifying which spatial indices in the target grid should be
-            used for interpolation. This selects n_points from the target grid
+        index_chunk : ndarray
+            Chunk of the full array of indices where indices[i] gives the
+            list of coordinate indices in the source data to be used for
+            interpolation for the i-th coordinate in the target data.
         feature : str
             Name of feature to interpolate
-        resource : ResourceX
-            ResourceX data handler for source data
+        source_files : list
+            List of paths to source files
 
         Returns
         -------
@@ -314,38 +314,13 @@ class Regridder(TreeBuilder):
             Array of values to use for interpolation with shape
             (temporal, n_points, k_neighbors)
         """
-        shape = (len(resource.time_index), len(self.indices[s_slice]), -1)
-        out = resource[feature, :, np.array(self.indices[s_slice]).flatten()]
-        out = out.reshape(shape)
+        with MultiFileResource(source_files) as res:
+            shape = (len(res.time_index), len(index_chunk),
+                     len(index_chunk[0]))
+            tmp = np.array(index_chunk).flatten()
+            out = res[feature, :, tmp]
+            out = out.reshape(shape)
         return out
-
-    def get_interpolated_values(self, s_slice, src_values):
-        """Get interpolated values using values from source grid
-
-        Parameters
-        ----------
-        s_slice : slice
-            slice specifying which spatial indices in the target grid should be
-            used for interpolation. This selects n_points from the target grid
-        src_values : ndarray
-            Array of values from source data to use for interpolation with
-            shape (temporal, n_points, k_neighbors)
-
-        Returns
-        -------
-        ndarray
-            Array of interpolated time series values with shape (temporal)
-        """
-        return self.interpolate(self.distances[s_slice], src_values)
-
-    def saved_query_check(self, s_slice):
-        """Make sure ball tree query has been stored in index and distance
-        arrays"""
-        check_stored_query = (
-            all(idx is not None for idx in self.indices[s_slice])
-            and all(dist is not None for dist in self.distances[s_slice]))
-        if not check_stored_query:
-            self.save_query(s_slice)
 
 
 class WindRegridder(Regridder):
@@ -353,17 +328,20 @@ class WindRegridder(Regridder):
     converting windspeed and winddirection to U and V and inverting after
     interpolation"""
 
-    def get_source_uv(self, s_slice, height, resource):
+    @classmethod
+    def get_source_uv(cls, index_chunk, height, source_files):
         """Get u/v wind components from windspeed and winddirection
 
         Parameters
         ----------
-        s_slice : slice
-            slice specifying target grid indices to use for interpolation
+        index_chunk : ndarray
+            Chunk of the full array of indices where indices[i] gives the
+            list of coordinate indices in the source data to be used for
+            interpolation for the i-th coordinate in the target data.
         height : int
             Wind height level
-        resource : MultiFileResourceX
-            Resource handler for source data
+        source_files : list
+            List of paths to source files
 
         Returns
         -------
@@ -374,16 +352,17 @@ class WindRegridder(Regridder):
             Array of meridional wind values to use for interpolation with shape
             (temporal, n_points, k_neighbors)
         """
-        ws = self.get_source_values(s_slice, f'windspeed_{height}m',
-                                    resource)
-        wd = self.get_source_values(s_slice, f'winddirection_{height}m',
-                                    resource)
+        ws = cls.get_source_values(index_chunk, f'windspeed_{height}m',
+                                   source_files)
+        wd = cls.get_source_values(index_chunk, f'winddirection_{height}m',
+                                   source_files)
         u = ws * np.sin(np.radians(wd))
         v = ws * np.cos(np.radians(wd))
 
         return u, v
 
-    def invert_uv(self, u, v):
+    @classmethod
+    def invert_uv(cls, u, v):
         """Get u/v wind components from windspeed and winddirection
 
         Parameters
@@ -409,18 +388,26 @@ class WindRegridder(Regridder):
 
         return ws, wd
 
-    def regrid_coordinates(self, s_slice, height, resource):
+    @classmethod
+    def regrid_coordinates(cls, index_chunk, distance_chunk, height,
+                           source_files):
         """Regrid wind fields at given height for the requested coordinate
         index
 
         Parameters
         ----------
-        s_slice : slice
-            slice specifying range of indices in the target grid to interpolate
+        index_chunk : ndarray
+            Chunk of the full array of indices where indices[i] gives the
+            list of coordinate indices in the source data to be used for
+            interpolation for the i-th coordinate in the target data.
+        distance_chunk : ndarray
+            Chunk of the full array of distances where distances[i] gives the
+            list of distances to the source coordinates to be used for
+            interpolation for the i-th coordinate in the target data.
         height : int
             Wind height level
-        resource : ResourceX
-            ResourceX data handler for source data
+        source_files : list
+            List of paths to source files
 
         Returns
         -------
@@ -431,18 +418,21 @@ class WindRegridder(Regridder):
             Array of winddirection values with shape (temporal, n_points)
 
         """
-        u, v = self.get_source_uv(s_slice, height, resource)
-        u = self.get_interpolated_values(s_slice, u)
-        v = self.get_interpolated_values(s_slice, v)
-        ws, wd = self.invert_uv(u, v)
+        u, v = cls.get_source_uv(index_chunk, height, source_files)
+        u = cls.interpolate(distance_chunk, u)
+        v = cls.interpolate(distance_chunk, v)
+        ws, wd = cls.invert_uv(u, v)
         return ws, wd
 
 
 class RegridOutput(OutputMixIn):
-    """Output regridded data as it is interpolated"""
+    """Output regridded data as it is interpolated. Takes source data from
+    windspeed and winddirection h5 files and uses this data to interpolate onto
+    a new target grid. The interpolated data is then written to new files, with
+    one file for each field (e.g. windspeed_100m)."""
 
     def __init__(self, source_files, output_pattern, target_meta, heights,
-                 cache_pattern=None, leaf_size=40, k_neighbors=3,
+                 cache_pattern=None, leaf_size=4, k_neighbors=4,
                  overwrite=False, n_chunks=100, worker_kwargs=None):
         """
         Parameters
@@ -479,6 +469,7 @@ class RegridOutput(OutputMixIn):
         self.query_workers = worker_kwargs.get('query_workers', None)
         self.source_files = (source_files if isinstance(source_files, list)
                              else glob(source_files))
+        self.n_chunks = n_chunks
         self.output_pattern = output_pattern
         self.target_meta = pd.read_csv(target_meta)
         self.heights = heights
@@ -486,10 +477,13 @@ class RegridOutput(OutputMixIn):
             self.target_meta = self.target_meta.drop(['gid'], axis=1)
 
         logger.info('Initializing RegridOutput with '
-                    f'source_files={self.source_files} and '
-                    f'output_pattern={self.output_pattern}.')
+                    f'source_files={self.source_files}, '
+                    f'output_pattern={self.output_pattern}, '
+                    f'target_meta={target_meta}, '
+                    f'k_neighbors={k_neighbors}, and '
+                    f'n_chunks={n_chunks}.')
 
-        with MultiFileResourceX(source_files) as res:
+        with MultiFileResource(source_files) as res:
             self.time_index = res.time_index
             self.source_meta = res.meta
             self.attrs = res.attrs
@@ -501,6 +495,7 @@ class RegridOutput(OutputMixIn):
                                        cache_pattern=cache_pattern,
                                        n_chunks=n_chunks,
                                        max_workers=self.query_workers)
+
         for out_file in self.output_files:
             if os.path.exists(out_file) and overwrite:
                 logger.info(f'{out_file} already exists but overwrite=True. '
@@ -508,6 +503,29 @@ class RegridOutput(OutputMixIn):
                 os.remove(out_file)
             self._init_h5(out_file, self.time_index, self.target_meta,
                           self.global_attrs)
+
+    @property
+    def spatial_slices(self):
+        """Get the list of slices which select index and distance chunks"""
+        slices = np.arange(len(self.regridder.indices))
+        slices = np.array_split(slices, min(self.n_chunks, len(slices)))
+        return [slice(s[0], s[-1] + 1) for s in slices]
+
+    @property
+    def index_chunks(self):
+        """Get list of index chunks to use for chunking data extraction and
+        interpolation. indices[i] is the set of indices for the i-th coordinate
+        in the target grid which select the neighboring points in the source
+        grid"""
+        return [self.regridder.indices[s] for s in self.spatial_slices]
+
+    @property
+    def distance_chunks(self):
+        """Get list of distance chunks to use for chunking data extraction and
+        interpolation. distances[i] is the set of distances from the i-th
+        coordinate in the target grid to the neighboring points in the source
+        grid"""
+        return [self.regridder.distances[s] for s in self.spatial_slices]
 
     @property
     def output_files(self):
@@ -534,7 +552,7 @@ class RegridOutput(OutputMixIn):
 
     @classmethod
     def run(cls, source_files, output_pattern, target_meta, heights,
-            n_chunks=100, k_neighbors=3, cache_pattern=None,
+            n_chunks=100, k_neighbors=4, cache_pattern=None,
             worker_kwargs=None, overwrite=False):
         """
         Parameters
@@ -581,14 +599,14 @@ class RegridOutput(OutputMixIn):
             cls._ensure_dset_in_output(output_files[1],
                                        f'winddirection_{height}m',
                                        data=None)
-            regrid_output.regrid(source_files=source_files,
-                                 ws_file=output_files[0],
-                                 wd_file=output_files[1],
-                                 height=height,
-                                 n_chunks=n_chunks)
+
+        regrid_output.regrid(source_files=source_files,
+                             ws_file=output_files[0],
+                             wd_file=output_files[1],
+                             heights=heights)
         logger.info(f'Finished writing output files: {output_files}')
 
-    def regrid(self, source_files, ws_file, wd_file, height, n_chunks):
+    def regrid(self, source_files, ws_file, wd_file, heights):
         """Regrid data and write to output file.
 
         Parameters
@@ -599,28 +617,23 @@ class RegridOutput(OutputMixIn):
             Path to windspeed output file for given height
         wd_file : str
             Path to winddirection output file for given height
-        height : int
-            Wind level height to write to output file
-        n_chunks : int
-            Number of chunks to split target_meta coordinates into to perform
-            interpolation in chunks.
+        heights : list
+            Wind level heights to write to output files
         """
         if self.regrid_workers == 1:
             self._run_serial(source_files=source_files,
                              ws_file=ws_file,
                              wd_file=wd_file,
-                             height=height,
-                             n_chunks=n_chunks)
+                             heights=heights)
 
         else:
             self._run_parallel(source_files=source_files,
                                ws_file=ws_file,
                                wd_file=wd_file,
-                               height=height,
-                               n_chunks=n_chunks,
+                               heights=heights,
                                max_workers=self.regrid_workers)
 
-    def _run_serial(self, source_files, ws_file, wd_file, height, n_chunks):
+    def _run_serial(self, source_files, ws_file, wd_file, heights):
         """Regrid data and write to output file, in serial.
 
         Parameters
@@ -631,31 +644,31 @@ class RegridOutput(OutputMixIn):
             Path to windspeed output file for given height
         wd_file : str
             Path to winddirection output file for given height
-        height : int
-            Wind level height to write to output file
-        n_chunks : int
-            Number of chunks to split target_meta coordinates into to perform
-            interpolation in chunks.
+        heights : list
+            Wind level heights to write to output files
         """
         logger.info('Regridding all coordinates in serial.')
-        slices = np.arange(len(self.target_meta))
-        slices = np.array_split(slices, min(n_chunks, len(slices)))
-        slices = [slice(s[0], s[-1] + 1) for s in slices]
-        interval = min(10, int(np.ceil(len(slices) / 100)))
-        for i, s_slice in enumerate(slices):
-            self.write_coordinates(source_files=source_files,
-                                   ws_file=ws_file, wd_file=wd_file,
-                                   height=height, s_slice=s_slice)
+        chunk_iter = zip(self.index_chunks, self.distance_chunks,
+                         self.spatial_slices)
+        n_procs = len(heights) * len(self.spatial_slices)
+        count = 0
+        for height in heights:
+            for idxs, dists, s_slice in chunk_iter:
+                self.write_coordinates(source_files=source_files,
+                                       index_chunk=idxs,
+                                       distance_chunk=dists,
+                                       ws_file=ws_file, wd_file=wd_file,
+                                       height=height, s_slice=s_slice)
 
-            if i % interval == 0:
                 mem = psutil.virtual_memory()
-                msg = ('Coordinate chunks regridded: {0} out of {1}. Current '
-                       'memory usage is {2:.3f} GB out of {3:.3f} GB '
-                       'total.'.format(i + 1, len(slices),
-                                       mem.used / 1e9, mem.total / 1e9))
+                msg = ('Coordinate chunks regridded: {0} out of {1}. '
+                       'Current memory usage is {2:.3f} GB out of {3:.3f} '
+                       'GB total.'.format(count + 1, n_procs, mem.used / 1e9,
+                                          mem.total / 1e9))
                 logger.info(msg)
+                count += 1
 
-    def _run_parallel(self, source_files, ws_file, wd_file, height, n_chunks,
+    def _run_parallel(self, source_files, ws_file, wd_file, heights,
                       max_workers=None):
         """Regrid data and write to output file, in parallel.
 
@@ -667,45 +680,46 @@ class RegridOutput(OutputMixIn):
             Path to windspeed output file for given height
         wd_file : str
             Path to winddirection output file for given height
-        height : int
-            Wind level height to write to output file
-        n_chunks : int
-            Number of chunks to split target_meta coordinates into to perform
-            interpolation in chunks.
+        heights : list
+            Wind level heights to write to output files
         max_workers : int | None
             Max number of workers to use for regridding in parallel
         """
         futures = {}
         now = dt.now()
         logger.info('Regridding all coordinates in parallel.')
-        slices = np.arange(len(self.target_meta))
-        slices = np.array_split(slices, min(n_chunks, len(slices)))
-        slices = [slice(s[0], s[-1] + 1) for s in slices]
-        interval = min(10, int(np.ceil(len(slices) / 100)))
+        chunk_iter = zip(self.index_chunks, self.distance_chunks,
+                         self.spatial_slices)
+        n_procs = len(heights) * len(self.spatial_slices)
+        count = 0
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            for i, s_slice in enumerate(slices):
-                future = exe.submit(self.write_coordinates,
-                                    source_files=source_files,
-                                    ws_file=ws_file, wd_file=wd_file,
-                                    height=height, s_slice=s_slice)
-                futures[future] = i
-                if i % interval == 0:
+            for height in heights:
+                for idxs, dists, s_slice in chunk_iter:
+                    future = exe.submit(self.write_coordinates,
+                                        source_files=source_files,
+                                        index_chunk=idxs,
+                                        distance_chunk=dists,
+                                        ws_file=ws_file, wd_file=wd_file,
+                                        height=height, s_slice=s_slice)
+                    futures[future] = count
                     mem = psutil.virtual_memory()
-                    msg = ('Regrid futures submitted: {0} out of {1}. Current '
-                           'memory usage is {2:.3f} GB out of {3:.3f} GB '
-                           'total.'.format(i + 1, len(slices),
-                                           mem.used / 1e9, mem.total / 1e9))
+                    msg = ('Regrid futures submitted: {0} out of {1}. '
+                           'Current memory usage is {2:.3f} GB out of '
+                           '{3:.3f} GB total.'.format(count + 1, n_procs,
+                                                      mem.used / 1e9,
+                                                      mem.total / 1e9))
                     logger.info(msg)
+                    count += 1
 
             logger.info(f'Submitted all regrid futures in {dt.now() - now}.')
 
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
                 mem = psutil.virtual_memory()
-                msg = ('Regrid futures completed: {0} out of {1}. Current '
-                       'memory usage is {2:.3f} GB out of {3:.3f} GB '
-                       'total.'.format(i + 1, len(futures), mem.used / 1e9,
-                                       mem.total / 1e9))
+                msg = ('Regrid futures completed: {0} out of {1}, in {2}. '
+                       'Current memory usage is {3:.3f} GB out of {4:.3f} GB '
+                       'total.'.format(i + 1, len(futures), dt.now() - now,
+                                       mem.used / 1e9, mem.total / 1e9))
                 logger.info(msg)
 
                 try:
@@ -716,14 +730,22 @@ class RegridOutput(OutputMixIn):
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
-    def write_coordinates(self, source_files, ws_file, wd_file, height,
-                          s_slice):
+    def write_coordinates(self, source_files, index_chunk, distance_chunk,
+                          ws_file, wd_file, height, s_slice):
         """Write regridded coordinate data to the output file
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
+        index_chunk : ndarray
+            Chunk of the full array of indices where indices[i] gives the
+            list of coordinate indices in the source data to be used for
+            interpolation for the i-th coordinate in the target data.
+        distance_chunk : ndarray
+            Chunk of the full array of distances where distances[i] gives the
+            list of distances to the source coordinates to be used for
+            interpolation for the i-th coordinate in the target data.
         ws_file : str
             Path to windspeed output file for given height
         wd_file : str
@@ -734,10 +756,10 @@ class RegridOutput(OutputMixIn):
             slice specifying indices of coordinates to regrid and write to
             output file
         """
-        with MultiFileResourceX(source_files) as src_res:
-            with RexOutputs(ws_file, 'a') as ws_res:
-                with RexOutputs(wd_file, 'a') as wd_res:
-                    out = self.regridder.regrid_coordinates(s_slice, height,
-                                                            src_res)
-                    ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
-                    wd_res[f'winddirection_{height}m', :, s_slice] = out[1]
+        with RexOutputs(ws_file, 'a') as ws_res:
+            with RexOutputs(wd_file, 'a') as wd_res:
+                out = self.regridder.regrid_coordinates(
+                    index_chunk=index_chunk, distance_chunk=distance_chunk,
+                    height=height, source_files=source_files)
+                ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
+                wd_res[f'winddirection_{height}m', :, s_slice] = out[1]
