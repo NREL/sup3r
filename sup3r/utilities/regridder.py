@@ -127,11 +127,11 @@ class TreeBuilder:
         results"""
 
         if max_workers == 1:
-            logger.info(f'Querying all coordinates in serial')
+            logger.info('Querying all coordinates in serial.')
             self._serial_queries()
 
         else:
-            logger.info(f'Querying all coordinates in parallel')
+            logger.info('Querying all coordinates in parallel.')
             self._parallel_queries(max_workers=max_workers)
 
     def _serial_queries(self):
@@ -573,33 +573,32 @@ class RegridOutput(OutputMixIn):
                             worker_kwargs=worker_kwargs,
                             k_neighbors=k_neighbors)
 
-        with MultiFileResourceX(regrid_output.source_files) as src_res:
-            for height in heights:
-                output_files = regrid_output.get_height_output_files(height)
-                with RexOutputs(output_files[0], 'a') as ws_res:
-                    with RexOutputs(output_files[1], 'a') as wd_res:
-                        cls._ensure_dset_in_output(output_files[0],
-                                                   f'windspeed_{height}m',
-                                                   data=None)
-                        cls._ensure_dset_in_output(output_files[1],
-                                                   f'winddirection_{height}m',
-                                                   data=None)
-                        regrid_output.regrid(src_res=src_res, ws_res=ws_res,
-                                             wd_res=wd_res, height=height,
-                                             n_chunks=n_chunks)
+        for height in heights:
+            output_files = regrid_output.get_height_output_files(height)
+            cls._ensure_dset_in_output(output_files[0],
+                                       f'windspeed_{height}m',
+                                       data=None)
+            cls._ensure_dset_in_output(output_files[1],
+                                       f'winddirection_{height}m',
+                                       data=None)
+            regrid_output.regrid(source_files=source_files,
+                                 ws_file=output_files[0],
+                                 wd_file=output_files[1],
+                                 height=height,
+                                 n_chunks=n_chunks)
         logger.info(f'Finished writing output files: {output_files}')
 
-    def regrid(self, src_res, ws_res, wd_res, height, n_chunks):
+    def regrid(self, source_files, ws_file, wd_file, height, n_chunks):
         """Regrid data and write to output file.
 
         Parameters
         ----------
-        src_res : RexOutputs
-            Resource handler for source data
-        ws_res : RexOutputs
-            Resource handler for windspeed output data
-        wd_res : RexOutputs
-            Resource handler for winddirection output data
+        source_files : list
+            List of paths to source files
+        ws_file : str
+            Path to windspeed output file for given height
+        wd_file : str
+            Path to winddirection output file for given height
         height : int
             Wind level height to write to output file
         n_chunks : int
@@ -607,25 +606,31 @@ class RegridOutput(OutputMixIn):
             interpolation in chunks.
         """
         if self.regrid_workers == 1:
-            self._run_serial(src_res=src_res, ws_res=ws_res, wd_res=wd_res,
-                             height=height, n_chunks=n_chunks)
+            self._run_serial(source_files=source_files,
+                             ws_file=ws_file,
+                             wd_file=wd_file,
+                             height=height,
+                             n_chunks=n_chunks)
 
         else:
-            self._run_parallel(src_res=src_res, ws_res=ws_res, wd_res=wd_res,
-                               height=height, n_chunks=n_chunks,
+            self._run_parallel(source_files=source_files,
+                               ws_file=ws_file,
+                               wd_file=wd_file,
+                               height=height,
+                               n_chunks=n_chunks,
                                max_workers=self.regrid_workers)
 
-    def _run_serial(self, src_res, ws_res, wd_res, height, n_chunks):
+    def _run_serial(self, source_files, ws_file, wd_file, height, n_chunks):
         """Regrid data and write to output file, in serial.
 
         Parameters
         ----------
-        src_res : RexOutputs
-            Resource handler for source data
-        ws_res : RexOutputs
-            Resource handler for windspeed output data
-        wd_res : RexOutputs
-            Resource handler for winddirection output data
+        source_files : list
+            List of paths to source files
+        ws_file : str
+            Path to windspeed output file for given height
+        wd_file : str
+            Path to winddirection output file for given height
         height : int
             Wind level height to write to output file
         n_chunks : int
@@ -638,7 +643,10 @@ class RegridOutput(OutputMixIn):
         slices = [slice(s[0], s[-1] + 1) for s in slices]
         interval = min(10, int(np.ceil(len(slices) / 100)))
         for i, s_slice in enumerate(slices):
-            self.write_coordinates(src_res, ws_res, wd_res, height, s_slice)
+            self.write_coordinates(source_files=source_files,
+                                   ws_file=ws_file, wd_file=wd_file,
+                                   height=height, s_slice=s_slice)
+
             if i % interval == 0:
                 mem = psutil.virtual_memory()
                 msg = ('Coordinate chunks regridded: {0} out of {1}. Current '
@@ -647,18 +655,18 @@ class RegridOutput(OutputMixIn):
                                        mem.used / 1e9, mem.total / 1e9))
                 logger.info(msg)
 
-    def _run_parallel(self, src_res, ws_res, wd_res, height, n_chunks,
+    def _run_parallel(self, source_files, ws_file, wd_file, height, n_chunks,
                       max_workers=None):
         """Regrid data and write to output file, in parallel.
 
         Parameters
         ----------
-        src_res : RexOutputs
-            Resource handler for source data
-        ws_res : RexOutputs
-            Resource handler for windspeed output data
-        wd_res : RexOutputs
-            Resource handler for winddirection output data
+        source_files : list
+            List of paths to source files
+        ws_file : str
+            Path to windspeed output file for given height
+        wd_file : str
+            Path to winddirection output file for given height
         height : int
             Wind level height to write to output file
         n_chunks : int
@@ -676,8 +684,9 @@ class RegridOutput(OutputMixIn):
         interval = min(10, int(np.ceil(len(slices) / 100)))
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for i, s_slice in enumerate(slices):
-                future = exe.submit(self.write_coordinates, src_res=src_res,
-                                    ws_res=ws_res, wd_res=wd_res,
+                future = exe.submit(self.write_coordinates,
+                                    source_files=source_files,
+                                    ws_file=ws_file, wd_file=wd_file,
                                     height=height, s_slice=s_slice)
                 futures[future] = i
                 if i % interval == 0:
@@ -707,23 +716,28 @@ class RegridOutput(OutputMixIn):
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
-    def write_coordinates(self, src_res, ws_res, wd_res, height, s_slice):
+    def write_coordinates(self, source_files, ws_file, wd_file, height,
+                          s_slice):
         """Write regridded coordinate data to the output file
 
         Parameters
         ----------
-        src_res : MultiFileResourceX
-            Resource handler for source data
-        ws_res : RexOutputs
-            Resource handler for windspeed output data
-        wd_res : RexOutputs
-            Resource handler for winddirection output data
+        source_files : list
+            List of paths to source files
+        ws_file : str
+            Path to windspeed output file for given height
+        wd_file : str
+            Path to winddirection output file for given height
         height : int
             Wind level height to write to output file
         s_slice : s_slice
             slice specifying indices of coordinates to regrid and write to
             output file
         """
-        out = self.regridder.regrid_coordinates(s_slice, height, src_res)
-        ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
-        wd_res[f'winddirection_{height}m', :, s_slice] = out[1]
+        with MultiFileResourceX(source_files) as src_res:
+            with RexOutputs(ws_file, 'a') as ws_res:
+                with RexOutputs(wd_file, 'a') as wd_res:
+                    out = self.regridder.regrid_coordinates(s_slice, height,
+                                                            src_res)
+                    ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
+                    wd_res[f'winddirection_{height}m', :, s_slice] = out[1]
