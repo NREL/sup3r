@@ -137,9 +137,7 @@ class TreeBuilder:
     def _serial_queries(self):
         """Get indices and distances for all points in target_meta, in serial
         """
-        out = self.tree.query(self.target_meta[['latitude', 'longitude']],
-                              k=self.k_neighbors)
-        self.distances, self.indices = out
+        self.save_query(slice(None))
 
     def _parallel_queries(self, max_workers=None):
         """Get indices and distances for all points in target_meta, in serial
@@ -552,7 +550,7 @@ class RegridOutput(OutputMixIn):
 
     @classmethod
     def run(cls, source_files, output_pattern, target_meta, heights,
-            n_chunks=100, k_neighbors=4, cache_pattern=None,
+            n_chunks=100, k_neighbors=4, leaf_size=4, cache_pattern=None,
             worker_kwargs=None, overwrite=False):
         """
         Parameters
@@ -573,6 +571,8 @@ class RegridOutput(OutputMixIn):
             points in each chunk will be interpolated at the same time.
         k_neighbors : int, optional
             number of nearest neighbors to use for interpolation
+        leaf_size : int, optional
+            leaf size for BallTree
         cache_pattern : str | None
             File name pattern for ball tree indices and distances
         worker_kwargs : dict | None
@@ -589,7 +589,8 @@ class RegridOutput(OutputMixIn):
                             overwrite=overwrite,
                             n_chunks=n_chunks,
                             worker_kwargs=worker_kwargs,
-                            k_neighbors=k_neighbors)
+                            k_neighbors=k_neighbors,
+                            leaf_size=leaf_size)
 
         for height in heights:
             output_files = regrid_output.get_height_output_files(height)

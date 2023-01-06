@@ -36,7 +36,7 @@ def test_regridding():
             RegridOutput.run(source_files=[FP_WTK],
                              output_pattern=output_pattern,
                              target_meta=meta_path,
-                             heights=[100], k_neighbors=3,
+                             heights=[100], k_neighbors=4,
                              worker_kwargs={'regrid_workers': 1,
                                             'query_workers': 1},
                              overwrite=True, n_chunks=10)
@@ -44,6 +44,8 @@ def test_regridding():
             wd_file = os.path.join(td, 'regrid_test_winddirection_100m.h5')
             with Resource(ws_file) as ws_res:
                 with Resource(wd_file) as wd_res:
+                    assert all(res.meta == ws_res.meta)
+                    assert all(res.meta == wd_res.meta)
                     u = ws_res['windspeed_100m']
                     u *= np.sin(np.radians(wd_res['winddirection_100m']))
                     v = ws_res['windspeed_100m']
@@ -52,6 +54,9 @@ def test_regridding():
                     u_src *= np.sin(np.radians(res['winddirection_100m']))
                     v_src = res['windspeed_100m']
                     v_src *= np.cos(np.radians(res['winddirection_100m']))
+                    assert np.allclose(ws_res['windspeed_100m'],
+                                       res['windspeed_100m'], rtol=0.01,
+                                       atol=0.1)
                     assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
                     assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
 
