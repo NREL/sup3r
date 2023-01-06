@@ -33,12 +33,13 @@ def test_regridding():
         with Resource(FP_WTK) as res:
             res.meta.to_csv(meta_path, index=False)
 
-            RegridOutput.regrid(source_files=[FP_WTK],
-                                output_pattern=output_pattern,
-                                target_meta=meta_path,
-                                heights=[100],
-                                workers_kwargs={'regrid_workers': 1},
-                                overwrite=True, n_chunks=10)
+            RegridOutput.run(source_files=[FP_WTK],
+                             output_pattern=output_pattern,
+                             target_meta=meta_path,
+                             heights=[100], k_neighbors=3,
+                             worker_kwargs={'regrid_workers': 1,
+                                            'query_workers': 1},
+                             overwrite=True, n_chunks=10)
             ws_file = os.path.join(td, 'regrid_test_windspeed_100m.h5')
             wd_file = os.path.join(td, 'regrid_test_winddirection_100m.h5')
             with Resource(ws_file) as ws_res:
