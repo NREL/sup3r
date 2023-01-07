@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """sup3r QA module."""
 import os
-import json
 import pandas as pd
 import numpy as np
 import xarray as xr

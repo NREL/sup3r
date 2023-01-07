@@ -7,7 +7,6 @@ from glob import glob
 import pickle
 import os
 import pandas as pd
-import json
 from datetime import datetime as dt
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
@@ -617,8 +616,7 @@ class RegridOutput(OutputMixIn):
             run regridding.
         """
 
-        import_str = ('from sup3r.postprocessing.collection '
-                      'import Collector;\n'
+        import_str = ('from sup3r.utilities.regridder import RegridOutput;\n'
                       'from rex import init_logger;\n'
                       'import time;\n'
                       'from reV.pipeline.status import Status;\n')

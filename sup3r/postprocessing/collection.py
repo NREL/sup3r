@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """H5 file collection."""
 from concurrent.futures import as_completed, ThreadPoolExecutor
-import json
 import logging
 import numpy as np
 import os

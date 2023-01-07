@@ -6,7 +6,6 @@ Sup3r preprocessing module.
 
 from abc import abstractmethod
 import copy
-import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr

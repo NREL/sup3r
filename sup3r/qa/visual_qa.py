@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 import glob
-import json
 from datetime import datetime as dt
 import os
 
