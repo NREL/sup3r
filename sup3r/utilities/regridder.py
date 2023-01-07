@@ -555,6 +555,13 @@ class RegridOutput(OutputMixIn):
         ----------
         height : int
             Wind level height. e.g. 100 for 100 meter level.
+
+        Returns
+        -------
+        ws_file : str
+            Path to windspeed output file for given height
+        wd_file : str
+            Path to winddirection output file for given height
         """
         index = self.heights.index(height)
         return self.output_files[2 * index: 2 * (index + 1)]
@@ -617,50 +624,35 @@ class RegridOutput(OutputMixIn):
                                        f'winddirection_{height}m',
                                        data=None)
 
-        regrid_output.regrid(source_files=source_files,
-                             ws_file=output_files[0],
-                             wd_file=output_files[1],
-                             heights=heights)
-        logger.info(f'Finished writing output files: {output_files}')
+        regrid_output.regrid(source_files=source_files, heights=heights)
+        for height in heights:
+            output_files = regrid_output.get_height_output_files(height)
+            logger.info(f'Finished writing output files: {output_files}')
 
-    def regrid(self, source_files, ws_file, wd_file, heights):
+    def regrid(self, source_files, heights):
         """Regrid data and write to output file.
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
-        ws_file : str
-            Path to windspeed output file for given height
-        wd_file : str
-            Path to winddirection output file for given height
         heights : list
             Wind level heights to write to output files
         """
         if self.regrid_workers == 1:
-            self._run_serial(source_files=source_files,
-                             ws_file=ws_file,
-                             wd_file=wd_file,
-                             heights=heights)
+            self._run_serial(source_files=source_files, heights=heights)
 
         else:
-            self._run_parallel(source_files=source_files,
-                               ws_file=ws_file,
-                               wd_file=wd_file,
-                               heights=heights,
+            self._run_parallel(source_files=source_files, heights=heights,
                                max_workers=self.regrid_workers)
 
-    def _run_serial(self, source_files, ws_file, wd_file, heights):
+    def _run_serial(self, source_files, heights):
         """Regrid data and write to output file, in serial.
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
-        ws_file : str
-            Path to windspeed output file for given height
-        wd_file : str
-            Path to winddirection output file for given height
         heights : list
             Wind level heights to write to output files
         """
@@ -670,6 +662,7 @@ class RegridOutput(OutputMixIn):
         n_procs = len(heights) * len(self.spatial_slices)
         count = 0
         for height in heights:
+            ws_file, wd_file = self.get_height_output_files(height)
             for idxs, dists, s_slice in chunk_iter:
                 self.write_coordinates(source_files=source_files,
                                        index_chunk=idxs,
@@ -685,18 +678,13 @@ class RegridOutput(OutputMixIn):
                 logger.info(msg)
                 count += 1
 
-    def _run_parallel(self, source_files, ws_file, wd_file, heights,
-                      max_workers=None):
+    def _run_parallel(self, source_files, heights, max_workers=None):
         """Regrid data and write to output file, in parallel.
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
-        ws_file : str
-            Path to windspeed output file for given height
-        wd_file : str
-            Path to winddirection output file for given height
         heights : list
             Wind level heights to write to output files
         max_workers : int | None
@@ -711,6 +699,7 @@ class RegridOutput(OutputMixIn):
         count = 0
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for height in heights:
+                ws_file, wd_file = self.get_height_output_files(height)
                 for idxs, dists, s_slice in chunk_iter:
                     future = exe.submit(self.write_coordinates,
                                         source_files=source_files,
