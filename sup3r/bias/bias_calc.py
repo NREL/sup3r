@@ -16,6 +16,7 @@ import rex
 from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.utilities import ModuleName, VERSION_RECORD
 from sup3r.utilities.utilities import nn_fill_array
+from sup3r.utilities.cli import BaseCLI
 import sup3r.preprocessing.data_handling
 
 
@@ -191,23 +192,8 @@ class DataRetrievalBase:
                f"{fun_str};\n"
                "t_elap = time.time() - t0;\n")
 
-        job_name = config.get('job_name', None)
-        status_dir = config.get('status_dir', None)
-        if job_name is not None and status_dir is not None:
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.BIAS_CALC}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str});\n'
-
-        cmd += "\'"
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.BIAS_CALC, cmd)
+        cmd += (";\'\n")
 
         return cmd.replace('\\', '/')
 

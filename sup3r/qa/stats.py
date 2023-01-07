@@ -12,6 +12,7 @@ from scipy.ndimage.filters import gaussian_filter
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (get_input_handler_class,
                                        get_source_type,
                                        temporal_coarsening,
@@ -144,22 +145,7 @@ class Sup3rStatsBase(ABC):
                "qa.run();\n"
                "t_elap = time.time() - t0;\n")
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.STATS}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.STATS, cmd)
         cmd += (";\'\n")
 
         return cmd.replace('\\', '/')

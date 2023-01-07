@@ -47,6 +47,7 @@ class ModuleName(str, Enum):
     STATS = 'stats'
     BIAS_CALC = 'bias-calc'
     VISUAL_QA = 'visual-qa'
+    REGRID = 'regrid'
 
     @classmethod
     def all_names(cls):

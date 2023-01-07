@@ -199,6 +199,45 @@ class OutputMixIn:
                                attrs=attrs, data=data,
                                chunks=attrs.get('chunks', None))
 
+    @classmethod
+    def write_data(cls, out_file, dsets, time_index, data_list, meta,
+                   global_attrs=None):
+        """Write list of datasets to out_file.
+
+        Parameters
+        ----------
+        out_file : str
+            Pre-existing H5 file output path
+        dsets : list
+            list of datasets to write to out_file
+        data_list : list
+            List of np.ndarray objects to write to out_file
+        meta : pd.DataFrame
+            Full meta dataframe for the final output data.
+        global_attrs : dict
+            Namespace of file-global attributes for the final output data.
+        """
+        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        with RexOutputs(tmp_file, 'w') as fh:
+            fh.meta = meta
+            fh.time_index = time_index
+
+            for dset, data in zip(dsets, data_list):
+                attrs, dtype = cls.get_dset_attrs(dset)
+                fh.add_dataset(tmp_file, dset, data, dtype=dtype,
+                               attrs=attrs, chunks=attrs['chunks'])
+                logger.info(f'Added {dset} to output file {out_file}.')
+
+            if global_attrs is not None:
+                attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                         for k, v in global_attrs.items()}
+                fh.run_attrs = attrs
+
+        os.replace(tmp_file, out_file)
+        msg = ('Saved output of size '
+               f'{(len(data_list),) + data_list[0].shape} to: {out_file}')
+        logger.info(msg)
+
 
 class OutputHandler(OutputMixIn):
     """Class to handle forward pass output. This includes transforming features
@@ -715,23 +754,9 @@ class OutputHandlerH5(OutputHandler):
         meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
-        tmp_file = out_file.replace('.h5', '.h5.tmp')
-        with RexOutputs(tmp_file, 'w') as fh:
-            fh.meta = meta
-            fh.time_index = times
-
-            for i, f in enumerate(features):
-                attrs, dtype = cls.get_dset_attrs(f)
-                flat_data = data[..., i].reshape((-1, len(times)))
-                flat_data = np.transpose(flat_data, (1, 0))
-                fh.add_dataset(tmp_file, f, flat_data, dtype=dtype,
-                               attrs=attrs, chunks=attrs['chunks'])
-                logger.info(f'Added {f} to output file.')
-
-            if meta_data is not None:
-                attrs = {k: v if isinstance(v, str) else json.dumps(v)
-                         for k, v in meta_data.items()}
-                fh.run_attrs = attrs
-
-        os.replace(tmp_file, out_file)
-        logger.info(f'Saved output of size {data.shape} to: {out_file}')
+        data_list = []
+        for i, f in enumerate(features):
+            flat_data = data[..., i].reshape((-1, len(times)))
+            flat_data = np.transpose(flat_data, (1, 0))
+            data_list.append(flat_data)
+        cls.write_data(out_file, features, times, data_list, meta, meta_data)

@@ -19,6 +19,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        transform_rotate_wind,
                                        st_interp)
 from sup3r.utilities.regridder import RegridOutput
+from sup3r.postprocessing.collection import Collector
 from sup3r import TEST_DATA_DIR
 
 
@@ -29,37 +30,42 @@ def test_regridding():
     """Make sure regridding reproduces original data when meta is the same"""
     with tempfile.TemporaryDirectory() as td:
         meta_path = os.path.join(td, 'test_meta.csv')
-        output_pattern = os.path.join(td, '{feature}.h5')
+        output_pattern = os.path.join(td, '{chunk_index}.h5')
+        collect_file = os.path.join(td, 'regrid_collect.h5')
         heights = [80, 100]
         with Resource(FP_WTK) as res:
-            res.meta.to_csv(meta_path, index=False)
+            target_meta = res.meta.copy()
+            target_meta['gid'] = np.arange(len(target_meta))
+            target_meta.to_csv(meta_path, index=False)
 
-            RegridOutput.run(source_files=[FP_WTK],
-                             output_pattern=output_pattern,
-                             target_meta=meta_path,
-                             heights=heights, k_neighbors=4,
-                             worker_kwargs={'regrid_workers': 1,
-                                            'query_workers': 1},
-                             overwrite=True, n_chunks=10)
-            for height in heights:
-                ws_name = f'windspeed_{height}m'
-                wd_name = f'winddirection_{height}m'
-                ws_src = res[ws_name]
-                wd_src = res[wd_name]
-                ws_file = os.path.join(td, f'{ws_name}.h5')
-                wd_file = os.path.join(td, f'{wd_name}.h5')
-                with Resource(ws_file) as ws_res:
-                    with Resource(wd_file) as wd_res:
-                        assert all(res.meta == ws_res.meta)
-                        assert all(res.meta == wd_res.meta)
-                        ws = ws_res[ws_name]
-                        wd = wd_res[wd_name]
-                        u = ws * np.sin(np.radians(wd))
-                        v = ws * np.cos(np.radians(wd))
-                        u_src = ws_src * np.sin(np.radians(wd_src))
-                        v_src = ws_src * np.cos(np.radians(wd_src))
-                        assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
-                        assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
+            regrid_output = RegridOutput(source_files=[FP_WTK],
+                                         output_pattern=output_pattern,
+                                         target_meta=meta_path,
+                                         heights=heights, k_neighbors=4,
+                                         worker_kwargs={'regrid_workers': 1,
+                                                        'query_workers': 1},
+                                         incremental=True, n_chunks=10)
+            regrid_output._run()
+
+            Collector.collect(regrid_output.output_files,
+                              collect_file,
+                              regrid_output.output_features,
+                              target_final_meta_file=meta_path)
+            with Resource(collect_file) as out_res:
+                for height in heights:
+                    ws_name = f'windspeed_{height}m'
+                    wd_name = f'winddirection_{height}m'
+                    ws_src = res[ws_name]
+                    wd_src = res[wd_name]
+                    assert all(res.meta == out_res.meta)
+                    ws = out_res[ws_name]
+                    wd = out_res[wd_name]
+                    u = ws * np.sin(np.radians(wd))
+                    v = ws * np.cos(np.radians(wd))
+                    u_src = ws_src * np.sin(np.radians(wd_src))
+                    v_src = ws_src * np.cos(np.radians(wd_src))
+                    assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
+                    assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
 
 
 def test_get_chunk_slices():

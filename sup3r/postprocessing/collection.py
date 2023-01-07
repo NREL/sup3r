@@ -18,6 +18,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.pipeline import Status
 from sup3r.postprocessing.file_handling import RexOutputs, OutputMixIn
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
@@ -72,21 +73,7 @@ class Collector(OutputMixIn):
                "t_elap = time.time() - t0;\n"
                )
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.DATA_COLLECT}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f"Status.make_job_file({status_file_arg_str})"
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_COLLECT, cmd)
 
         cmd += (";\'\n")
 

@@ -29,6 +29,7 @@ from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 np.random.seed(42)
 
@@ -1712,24 +1713,7 @@ class ForwardPass:
                f"{cls.__name__}.run(strategy, {node_index});\n"
                "t_elap = time.time() - t0;\n")
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.FORWARD_PASS}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'status = "successful" if strategy.node_finished('
-            cmd += f'{node_index}) else "failed";'
-            cmd += 'job_attrs.update({"job_status": status});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.FORWARD_PASS, cmd)
         cmd += (";\'\n")
 
         return cmd.replace('\\', '/')
