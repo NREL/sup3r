@@ -483,6 +483,7 @@ class RegridOutput(OutputMixIn):
         logger.info('Initializing RegridOutput with '
                     f'source_files={self.source_files}, '
                     f'output_pattern={self.output_pattern}, '
+                    f'heights={self.heights}, '
                     f'target_meta={target_meta}, '
                     f'spatial_slice={target_range}, '
                     f'k_neighbors={k_neighbors}, and '
@@ -616,12 +617,10 @@ class RegridOutput(OutputMixIn):
                             target_range=target_range)
 
         for height in heights:
-            output_files = regrid_output.get_height_output_files(height)
-            cls._ensure_dset_in_output(output_files[0],
-                                       f'windspeed_{height}m',
+            ws_file, wd_file = regrid_output.get_height_output_files(height)
+            cls._ensure_dset_in_output(ws_file, f'windspeed_{height}m',
                                        data=None)
-            cls._ensure_dset_in_output(output_files[1],
-                                       f'winddirection_{height}m',
+            cls._ensure_dset_in_output(wd_file, f'winddirection_{height}m',
                                        data=None)
 
         regrid_output.regrid(source_files=source_files, heights=heights)
@@ -662,12 +661,12 @@ class RegridOutput(OutputMixIn):
         n_procs = len(heights) * len(self.spatial_slices)
         count = 0
         for height in heights:
-            ws_file, wd_file = self.get_height_output_files(height)
+            chunk_iter = zip(self.index_chunks, self.distance_chunks,
+                             self.spatial_slices)
             for idxs, dists, s_slice in chunk_iter:
                 self.write_coordinates(source_files=source_files,
                                        index_chunk=idxs,
                                        distance_chunk=dists,
-                                       ws_file=ws_file, wd_file=wd_file,
                                        height=height, s_slice=s_slice)
 
                 mem = psutil.virtual_memory()
@@ -693,19 +692,17 @@ class RegridOutput(OutputMixIn):
         futures = {}
         now = dt.now()
         logger.info('Regridding all coordinates in parallel.')
-        chunk_iter = zip(self.index_chunks, self.distance_chunks,
-                         self.spatial_slices)
         n_procs = len(heights) * len(self.spatial_slices)
         count = 0
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for height in heights:
-                ws_file, wd_file = self.get_height_output_files(height)
+                chunk_iter = zip(self.index_chunks, self.distance_chunks,
+                                 self.spatial_slices)
                 for idxs, dists, s_slice in chunk_iter:
                     future = exe.submit(self.write_coordinates,
                                         source_files=source_files,
                                         index_chunk=idxs,
                                         distance_chunk=dists,
-                                        ws_file=ws_file, wd_file=wd_file,
                                         height=height, s_slice=s_slice)
                     futures[future] = count
                     mem = psutil.virtual_memory()
@@ -737,7 +734,7 @@ class RegridOutput(OutputMixIn):
                     raise RuntimeError(msg) from e
 
     def write_coordinates(self, source_files, index_chunk, distance_chunk,
-                          ws_file, wd_file, height, s_slice):
+                          height, s_slice):
         """Write regridded coordinate data to the output file
 
         Parameters
@@ -752,16 +749,13 @@ class RegridOutput(OutputMixIn):
             Chunk of the full array of distances where distances[i] gives the
             list of distances to the source coordinates to be used for
             interpolation for the i-th coordinate in the target data.
-        ws_file : str
-            Path to windspeed output file for given height
-        wd_file : str
-            Path to winddirection output file for given height
         height : int
             Wind level height to write to output file
         s_slice : s_slice
             slice specifying indices of coordinates to regrid and write to
             output file
         """
+        ws_file, wd_file = self.get_height_output_files(height)
         ws, wd = self.regridder.regrid_coordinates(
             index_chunk=index_chunk, distance_chunk=distance_chunk,
             height=height, source_files=source_files)

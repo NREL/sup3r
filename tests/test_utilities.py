@@ -29,36 +29,37 @@ def test_regridding():
     """Make sure regridding reproduces original data when meta is the same"""
     with tempfile.TemporaryDirectory() as td:
         meta_path = os.path.join(td, 'test_meta.csv')
-        output_pattern = os.path.join(td, 'regrid_test_{feature}.h5')
+        output_pattern = os.path.join(td, '{feature}.h5')
+        heights = [80, 100]
         with Resource(FP_WTK) as res:
             res.meta.to_csv(meta_path, index=False)
 
             RegridOutput.run(source_files=[FP_WTK],
                              output_pattern=output_pattern,
                              target_meta=meta_path,
-                             heights=[100], k_neighbors=4,
+                             heights=heights, k_neighbors=4,
                              worker_kwargs={'regrid_workers': 1,
                                             'query_workers': 1},
                              overwrite=True, n_chunks=10)
-            ws_file = os.path.join(td, 'regrid_test_windspeed_100m.h5')
-            wd_file = os.path.join(td, 'regrid_test_winddirection_100m.h5')
-            with Resource(ws_file) as ws_res:
-                with Resource(wd_file) as wd_res:
-                    assert all(res.meta == ws_res.meta)
-                    assert all(res.meta == wd_res.meta)
-                    u = ws_res['windspeed_100m']
-                    u *= np.sin(np.radians(wd_res['winddirection_100m']))
-                    v = ws_res['windspeed_100m']
-                    v *= np.cos(np.radians(wd_res['winddirection_100m']))
-                    u_src = res['windspeed_100m']
-                    u_src *= np.sin(np.radians(res['winddirection_100m']))
-                    v_src = res['windspeed_100m']
-                    v_src *= np.cos(np.radians(res['winddirection_100m']))
-                    assert np.allclose(ws_res['windspeed_100m'],
-                                       res['windspeed_100m'], rtol=0.01,
-                                       atol=0.1)
-                    assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
-                    assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
+            for height in heights:
+                ws_name = f'windspeed_{height}m'
+                wd_name = f'winddirection_{height}m'
+                ws_src = res[ws_name]
+                wd_src = res[wd_name]
+                ws_file = os.path.join(td, f'{ws_name}.h5')
+                wd_file = os.path.join(td, f'{wd_name}.h5')
+                with Resource(ws_file) as ws_res:
+                    with Resource(wd_file) as wd_res:
+                        assert all(res.meta == ws_res.meta)
+                        assert all(res.meta == wd_res.meta)
+                        ws = ws_res[ws_name]
+                        wd = wd_res[wd_name]
+                        u = ws * np.sin(np.radians(wd))
+                        v = ws * np.cos(np.radians(wd))
+                        u_src = ws_src * np.sin(np.radians(wd_src))
+                        v_src = ws_src * np.cos(np.radians(wd_src))
+                        assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
+                        assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
 
 
 def test_get_chunk_slices():
