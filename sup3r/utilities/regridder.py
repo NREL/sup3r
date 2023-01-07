@@ -480,19 +480,9 @@ class RegridOutput(OutputMixIn):
         if 'gid' in self.target_meta.columns:
             self.target_meta = self.target_meta.drop(['gid'], axis=1)
 
-        logger.info('Initializing RegridOutput with '
-                    f'source_files={self.source_files}, '
-                    f'output_pattern={self.output_pattern}, '
-                    f'heights={self.heights}, '
-                    f'target_meta={target_meta}, '
-                    f'spatial_slice={target_range}, '
-                    f'k_neighbors={k_neighbors}, and '
-                    f'n_chunks={n_chunks}.')
-
         with MultiFileResource(source_files) as res:
             self.time_index = res.time_index
             self.source_meta = res.meta
-            self.attrs = res.attrs
             self.global_attrs = res.global_attrs
 
         self.regridder = WindRegridder(self.source_meta, self.target_meta,
@@ -502,7 +492,22 @@ class RegridOutput(OutputMixIn):
                                        n_chunks=n_chunks,
                                        max_workers=self.query_workers)
 
-        for out_file in self.output_files:
+        logger.info('Initializing RegridOutput with '
+                    f'source_files={self.source_files}, '
+                    f'output_pattern={self.output_pattern}, '
+                    f'heights={self.heights}, '
+                    f'target_meta={target_meta}, '
+                    f'spatial_slice={target_range}, '
+                    f'k_neighbors={k_neighbors}, and '
+                    f'n_chunks={n_chunks}.')
+        logger.info(f'Max memory usage: {self.max_memory:.3f} GB.')
+
+        self.init_output_files(overwrite=overwrite)
+
+    def init_output_files(self, overwrite):
+        """Initialize the output files with checks for overwrite or previously
+        existing files"""
+        for out_dset, out_file in zip(self.output_features, self.output_files):
             if os.path.exists(out_file) and overwrite:
                 logger.info(f'{out_file} already exists but overwrite=True. '
                             'Proceeding with overwrite.')
@@ -510,6 +515,7 @@ class RegridOutput(OutputMixIn):
             if not os.path.exists(out_file):
                 self._init_h5(out_file, self.time_index, self.target_meta,
                               self.global_attrs)
+                self._ensure_dset_in_output(out_file, out_dset, data=None)
             else:
                 logger.info(f'{out_file} exists but overwrite=False. '
                             'Proceeding to append new data to existing file.')
@@ -520,6 +526,18 @@ class RegridOutput(OutputMixIn):
         slices = np.arange(len(self.regridder.indices))[self.target_range]
         slices = np.array_split(slices, min(self.n_chunks, len(slices)))
         return [slice(s[0], s[-1] + 1) for s in slices]
+
+    @property
+    def n_processes(self):
+        """Total number of processes: len(heights) * n_chunks"""
+        return len(self.heights) * len(self.spatial_slices)
+
+    @property
+    def max_memory(self):
+        """Check max memory usage (in GB)"""
+        chunk_mem = 8 * len(self.time_index) * len(self.index_chunks[0])
+        chunk_mem *= len(self.index_chunks[0][0])
+        return self.regrid_workers * chunk_mem / 1e9
 
     @property
     def index_chunks(self):
@@ -541,11 +559,17 @@ class RegridOutput(OutputMixIn):
     def output_files(self):
         """Get list of output files"""
         out = []
+        for feature in self.output_features:
+            out.append(self.output_pattern.format(feature=feature))
+        return out
+
+    @property
+    def output_features(self):
+        """Get list of dsets to write to output files"""
+        out = []
         for height in self.heights:
-            out.append(self.output_pattern.format(
-                feature=f'windspeed_{height}m'))
-            out.append(self.output_pattern.format(
-                feature=f'winddirection_{height}m'))
+            out.append(f'windspeed_{height}m')
+            out.append(f'winddirection_{height}m')
         return out
 
     def get_height_output_files(self, height):
@@ -616,34 +640,15 @@ class RegridOutput(OutputMixIn):
                             leaf_size=leaf_size,
                             target_range=target_range)
 
-        for height in heights:
-            ws_file, wd_file = regrid_output.get_height_output_files(height)
-            cls._ensure_dset_in_output(ws_file, f'windspeed_{height}m',
-                                       data=None)
-            cls._ensure_dset_in_output(wd_file, f'winddirection_{height}m',
-                                       data=None)
-
-        regrid_output.regrid(source_files=source_files, heights=heights)
-        for height in heights:
-            output_files = regrid_output.get_height_output_files(height)
-            logger.info(f'Finished writing output files: {output_files}')
-
-    def regrid(self, source_files, heights):
-        """Regrid data and write to output file.
-
-        Parameters
-        ----------
-        source_files : list
-            List of paths to source files
-        heights : list
-            Wind level heights to write to output files
-        """
-        if self.regrid_workers == 1:
-            self._run_serial(source_files=source_files, heights=heights)
-
+        if regrid_output.regrid_workers == 1:
+            regrid_output._run_serial(source_files=source_files,
+                                      heights=heights)
         else:
-            self._run_parallel(source_files=source_files, heights=heights,
-                               max_workers=self.regrid_workers)
+            regrid_output._run_parallel(
+                source_files=source_files, heights=heights,
+                max_workers=regrid_output.regrid_workers)
+
+        logger.info(f'Finished writing {regrid_output.output_files}')
 
     def _run_serial(self, source_files, heights):
         """Regrid data and write to output file, in serial.
@@ -658,7 +663,6 @@ class RegridOutput(OutputMixIn):
         logger.info('Regridding all coordinates in serial.')
         chunk_iter = zip(self.index_chunks, self.distance_chunks,
                          self.spatial_slices)
-        n_procs = len(heights) * len(self.spatial_slices)
         count = 0
         for height in heights:
             chunk_iter = zip(self.index_chunks, self.distance_chunks,
@@ -672,8 +676,8 @@ class RegridOutput(OutputMixIn):
                 mem = psutil.virtual_memory()
                 msg = ('Coordinate chunks regridded: {0} out of {1}. '
                        'Current memory usage is {2:.3f} GB out of {3:.3f} '
-                       'GB total.'.format(count + 1, n_procs, mem.used / 1e9,
-                                          mem.total / 1e9))
+                       'GB total.'.format(count + 1, self.n_processes,
+                                          mem.used / 1e9, mem.total / 1e9))
                 logger.info(msg)
                 count += 1
 
@@ -692,7 +696,6 @@ class RegridOutput(OutputMixIn):
         futures = {}
         now = dt.now()
         logger.info('Regridding all coordinates in parallel.')
-        n_procs = len(heights) * len(self.spatial_slices)
         count = 0
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for height in heights:
@@ -706,11 +709,8 @@ class RegridOutput(OutputMixIn):
                                         height=height, s_slice=s_slice)
                     futures[future] = count
                     mem = psutil.virtual_memory()
-                    msg = ('Regrid futures submitted: {0} out of {1}. '
-                           'Current memory usage is {2:.3f} GB out of '
-                           '{3:.3f} GB total.'.format(count + 1, n_procs,
-                                                      mem.used / 1e9,
-                                                      mem.total / 1e9))
+                    msg = ('Regrid futures submitted: {0} out of {1}'.format(
+                        count + 1, self.n_processes))
                     logger.info(msg)
                     count += 1
 
