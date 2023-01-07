@@ -431,7 +431,8 @@ class RegridOutput(OutputMixIn):
 
     def __init__(self, source_files, output_pattern, target_meta, heights,
                  cache_pattern=None, leaf_size=4, k_neighbors=4,
-                 overwrite=False, n_chunks=100, worker_kwargs=None):
+                 overwrite=False, n_chunks=100, worker_kwargs=None,
+                 target_range=slice(0, None)):
         """
         Parameters
         ----------
@@ -461,6 +462,10 @@ class RegridOutput(OutputMixIn):
         worker_kwargs : dict | None
             Dictionary of workers args. Optional keys include regrid_workers
             (max number of workers to use for regridding and output)
+        target_range : slice
+            Selects the range of coordinates in the target_meta to interpolate.
+            e.g. if target_range=slice(0, 10) only the first 10 coordinates
+            from the target_meta will be interpolated and written to output.
         """
         worker_kwargs = worker_kwargs or {}
         self.regrid_workers = worker_kwargs.get('regrid_workers', None)
@@ -470,6 +475,7 @@ class RegridOutput(OutputMixIn):
         self.n_chunks = n_chunks
         self.output_pattern = output_pattern
         self.target_meta = pd.read_csv(target_meta)
+        self.target_range = target_range
         self.heights = heights
         if 'gid' in self.target_meta.columns:
             self.target_meta = self.target_meta.drop(['gid'], axis=1)
@@ -478,6 +484,7 @@ class RegridOutput(OutputMixIn):
                     f'source_files={self.source_files}, '
                     f'output_pattern={self.output_pattern}, '
                     f'target_meta={target_meta}, '
+                    f'spatial_slice={target_range}, '
                     f'k_neighbors={k_neighbors}, and '
                     f'n_chunks={n_chunks}.')
 
@@ -499,13 +506,17 @@ class RegridOutput(OutputMixIn):
                 logger.info(f'{out_file} already exists but overwrite=True. '
                             'Proceeding with overwrite.')
                 os.remove(out_file)
-            self._init_h5(out_file, self.time_index, self.target_meta,
-                          self.global_attrs)
+            if not os.path.exists(out_file):
+                self._init_h5(out_file, self.time_index, self.target_meta,
+                              self.global_attrs)
+            else:
+                logger.info(f'{out_file} exists but overwrite=False. '
+                            'Proceeding to append new data to existing file.')
 
     @property
     def spatial_slices(self):
         """Get the list of slices which select index and distance chunks"""
-        slices = np.arange(len(self.regridder.indices))
+        slices = np.arange(len(self.regridder.indices))[self.target_range]
         slices = np.array_split(slices, min(self.n_chunks, len(slices)))
         return [slice(s[0], s[-1] + 1) for s in slices]
 
@@ -551,7 +562,7 @@ class RegridOutput(OutputMixIn):
     @classmethod
     def run(cls, source_files, output_pattern, target_meta, heights,
             n_chunks=100, k_neighbors=4, leaf_size=4, cache_pattern=None,
-            worker_kwargs=None, overwrite=False):
+            worker_kwargs=None, overwrite=False, target_range=slice(0, None)):
         """
         Parameters
         ----------
@@ -580,6 +591,10 @@ class RegridOutput(OutputMixIn):
             (max number of workers to use for regridding and output)
         overwrite : bool
             Whether to overwrite previously saved output files
+        target_range : slice
+            Selects the range of coordinates in the target_meta to interpolate.
+            e.g. if target_range=slice(0, 10) only the first 10 coordinates
+            from the target_meta will be interpolated and written to output.
         """
         regrid_output = cls(source_files=source_files,
                             output_pattern=output_pattern,
@@ -590,7 +605,8 @@ class RegridOutput(OutputMixIn):
                             n_chunks=n_chunks,
                             worker_kwargs=worker_kwargs,
                             k_neighbors=k_neighbors,
-                            leaf_size=leaf_size)
+                            leaf_size=leaf_size,
+                            target_range=target_range)
 
         for height in heights:
             output_files = regrid_output.get_height_output_files(height)
@@ -757,10 +773,11 @@ class RegridOutput(OutputMixIn):
             slice specifying indices of coordinates to regrid and write to
             output file
         """
-        with RexOutputs(ws_file, 'a') as ws_res:
-            with RexOutputs(wd_file, 'a') as wd_res:
-                out = self.regridder.regrid_coordinates(
-                    index_chunk=index_chunk, distance_chunk=distance_chunk,
-                    height=height, source_files=source_files)
-                ws_res[f'windspeed_{height}m', :, s_slice] = out[0]
-                wd_res[f'winddirection_{height}m', :, s_slice] = out[1]
+        ws, wd = self.regridder.regrid_coordinates(
+            index_chunk=index_chunk, distance_chunk=distance_chunk,
+            height=height, source_files=source_files)
+        logger.info(f'Finished regridding chunk with s_slice={s_slice}')
+        with RexOutputs(ws_file, mode='a') as ws_res:
+            ws_res[f'windspeed_{height}m', :, s_slice] = ws
+        with RexOutputs(wd_file, mode='a') as wd_res:
+            wd_res[f'winddirection_{height}m', :, s_slice] = wd

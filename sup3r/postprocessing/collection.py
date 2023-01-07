@@ -478,7 +478,7 @@ class Collector(OutputMixIn):
                             msg += f'{futures[future]}'
                             logger.exception(msg)
                             raise RuntimeError(msg) from e
-            with RexOutputs(out_file, 'r') as f:
+            with RexOutputs(out_file, mode='r') as f:
                 target_ti = f.time_index
                 y_write_slice, x_write_slice = Collector.get_slices(
                     target_ti, target_masked_meta, time_index,
