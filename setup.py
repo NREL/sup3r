@@ -53,6 +53,7 @@ setup(
                             "sup3r-pipeline=sup3r.pipeline.pipeline_cli:main",
                             "sup3r-batch=sup3r.batch.batch_cli:main",
                             "sup3r-qa=sup3r.qa.qa_cli:main",
+                            "sup3r-regrid=sup3r.utilities.regridder_cli:main",
                             "sup3r-visual-qa=sup3r.qa.visual_qa_cli:main",
                             "sup3r-stats=sup3r.qa.stats_cli:main",
                             "sup3r-bias-calc=sup3r.bias.bias_calc_cli:main",

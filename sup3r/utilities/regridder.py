@@ -432,18 +432,19 @@ class RegridOutput(OutputMixIn):
     a new target grid. The interpolated data is then written to new files, with
     one file for each field (e.g. windspeed_100m)."""
 
-    def __init__(self, source_files, output_pattern, target_meta, heights,
+    def __init__(self, source_files, out_pattern, target_meta, heights,
                  cache_pattern=None, leaf_size=4, k_neighbors=4,
-                 incremental=False, n_chunks=100, worker_kwargs=None):
+                 incremental=False, n_chunks=100, max_nodes=1,
+                 worker_kwargs=None):
         """
         Parameters
         ----------
         source_files : str | list
             Path to source files to regrid to target_meta
-        output_pattern : str
+        out_pattern : str
             Pattern to use for naming outputs file to store the regridded data.
-            This must include a {chunk_index} format key. e.g.
-            ./chunk_{chunk_index}.h5
+            This must include a {file_id} format key. e.g.
+            ./chunk_{file_id}.h5
         target_meta : str
             Path to dataframe of final grid coordinates on which to regrid
         heights : list
@@ -462,6 +463,8 @@ class RegridOutput(OutputMixIn):
             Number of spatial chunks to use for interpolation. The total number
             of points in the target_meta will be split into n_chunks and the
             points in each chunk will be interpolated at the same time.
+        max_nodes : int
+            Number of nodes to distribute chunks across.
         worker_kwargs : dict | None
             Dictionary of workers args. Optional keys include regrid_workers
             (max number of workers to use for regridding and output)
@@ -472,7 +475,9 @@ class RegridOutput(OutputMixIn):
         self.source_files = (source_files if isinstance(source_files, list)
                              else glob(source_files))
         self._n_chunks = n_chunks
-        self.output_pattern = output_pattern
+        self._n_nodes = max_nodes
+        self._node_chunks = None
+        self.out_pattern = out_pattern
         self.target_meta_path = target_meta
         self.target_meta = pd.read_csv(self.target_meta_path)
         self.target_meta['gid'] = np.arange(len(self.target_meta))
@@ -480,7 +485,7 @@ class RegridOutput(OutputMixIn):
             ['latitude', 'longitude'], ascending=[False, True])
         self.heights = heights
         self.incremental = incremental
-        os.makedirs(os.path.dirname(self.output_pattern), exist_ok=True)
+        os.makedirs(os.path.dirname(self.out_pattern), exist_ok=True)
 
         with MultiFileResource(source_files) as res:
             self.time_index = res.time_index
@@ -497,7 +502,7 @@ class RegridOutput(OutputMixIn):
 
         logger.info('Initializing RegridOutput with '
                     f'source_files={self.source_files}, '
-                    f'output_pattern={self.output_pattern}, '
+                    f'out_pattern={self.out_pattern}, '
                     f'heights={self.heights}, '
                     f'target_meta={target_meta}, '
                     f'k_neighbors={k_neighbors}, and '
@@ -505,15 +510,29 @@ class RegridOutput(OutputMixIn):
         logger.info(f'Max memory usage: {self.max_memory:.3f} GB.')
 
     @property
-    def n_chunks(self):
+    def chunks(self):
         """Get the number of chunks to split the target meta into """
         return min(self._n_chunks, len(self.regridder.indices))
+
+    @property
+    def nodes(self):
+        """Get the max number of nodes to distribute chunks across"""
+        return min(self._n_nodes, self.chunks)
+
+    @property
+    def node_chunks(self):
+        """Get the chunk indices for different nodes"""
+        if self._node_chunks is None:
+            n_chunks = min(self.nodes, self.chunks)
+            self._node_chunks = np.array_split(np.arange(self.chunks),
+                                               n_chunks)
+        return self._node_chunks
 
     @property
     def spatial_slices(self):
         """Get the list of slices which select index and distance chunks"""
         slices = np.arange(len(self.regridder.indices))
-        slices = np.array_split(slices, self.n_chunks)
+        slices = np.array_split(slices, self.chunks)
         return [slice(s[0], s[-1] + 1) for s in slices]
 
     @property
@@ -548,8 +567,8 @@ class RegridOutput(OutputMixIn):
     @property
     def output_files(self):
         """Get list of output files for each spatial chunk"""
-        return [self.output_pattern.format(chunk_index=str(i).zfill(6))
-                for i in range(self.n_chunks)]
+        return [self.out_pattern.format(file_id=str(i).zfill(6))
+                for i in range(self.chunks)]
 
     @property
     def output_features(self):
@@ -559,51 +578,6 @@ class RegridOutput(OutputMixIn):
             out.append(f'windspeed_{height}m')
             out.append(f'winddirection_{height}m')
         return out
-
-    @classmethod
-    def run(cls, source_files, output_pattern, target_meta, heights,
-            n_chunks=100, k_neighbors=4, leaf_size=4, cache_pattern=None,
-            worker_kwargs=None, incremental=False):
-        """
-        Parameters
-        ----------
-        source_files : str | list
-            Path to source files to regrid to target_meta
-        output_pattern : str
-            Pattern to use for naming outputs file to store the regridded data
-        target_meta : pd.DataFrame
-            Dataframe of final grid coordinates on which to regrid
-        heights : list
-            List of wind field heights to regrid. e.g if heights = [100] then
-            windspeed_100m and winddirection_100m will be regridded and stored
-            in the output_file.
-        n_chunks : int
-            Number of spatial chunks to use for interpolation. The total number
-            of points in the target_meta will be split into n_chunks and the
-            points in each chunk will be interpolated at the same time.
-        k_neighbors : int, optional
-            number of nearest neighbors to use for interpolation
-        leaf_size : int, optional
-            leaf size for BallTree
-        cache_pattern : str | None
-            File name pattern for ball tree indices and distances
-        worker_kwargs : dict | None
-            Dictionary of workers args. Optional keys include regrid_workers
-            (max number of workers to use for regridding and output)
-        incremental : bool
-            Whether to keep already written output chunks or overwrite them
-        """
-        regrid_output = cls(source_files=source_files,
-                            output_pattern=output_pattern,
-                            target_meta=target_meta,
-                            cache_pattern=cache_pattern,
-                            heights=heights,
-                            incremental=incremental,
-                            n_chunks=n_chunks,
-                            worker_kwargs=worker_kwargs,
-                            k_neighbors=k_neighbors,
-                            leaf_size=leaf_size)
-        regrid_output._run()
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -621,8 +595,9 @@ class RegridOutput(OutputMixIn):
                       'import time;\n'
                       'from reV.pipeline.status import Status;\n')
 
-        regrid_fun_str = get_fun_call_str(cls.run, config)
+        regrid_fun_str = get_fun_call_str(cls, config)
 
+        node_index = config['node_index']
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
         log_arg_str = (f'"sup3r", log_level="{log_level}"')
@@ -632,7 +607,8 @@ class RegridOutput(OutputMixIn):
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
-               f"{regrid_fun_str};\n"
+               f"regrid_output = {regrid_fun_str};\n"
+               f"regrid_output.run({node_index});\n"
                "t_elap = time.time() - t0;\n"
                )
 
@@ -641,56 +617,72 @@ class RegridOutput(OutputMixIn):
 
         return cmd.replace('\\', '/')
 
-    def _run(self):
-        """Run regridding and output write in either serial or parallel"""
+    def run(self, node_index):
+        """Run regridding and output write in either serial or parallel
+
+        Parameters
+        ----------
+        node_index : int
+            Node index to run. e.g. if node_index=0 then only the chunks for
+            node_chunks[0] will be run.
+        """
         if self.regrid_workers == 1:
-            self._run_serial(source_files=self.source_files)
+            self._run_serial(source_files=self.source_files,
+                             node_index=node_index)
         else:
             self._run_parallel(source_files=self.source_files,
+                               node_index=node_index,
                                max_workers=self.regrid_workers)
 
-    def collect(self, output_pattern, max_workers=None):
+    def collect(self, out_pattern, max_workers=None):
         """Collect output chunks
 
         Parameters
         ----------
-        output_pattern : str
+        out_pattern : str
             Output pattern for collected output files. Needs to include
             {feature} key. e.g. ./collected_{feature}.h5
         """
         for feature in self.output_features:
-            out_file = output_pattern.format(feature=feature)
+            out_file = out_pattern.format(feature=feature)
             Collector.collect(self.output_files, out_file, [feature],
                               target_final_meta_file=self.target_meta_path,
                               max_workers=max_workers)
 
-    def _run_serial(self, source_files):
+    def _run_serial(self, source_files, node_index):
         """Regrid data and write to output file, in serial.
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
+        node_index : int
+            Node index to run. e.g. if node_index=0 then the chunks for
+            node_chunks[0] will be run.
         """
         logger.info('Regridding all coordinates in serial.')
-        for chunk_index in range(self.n_chunks):
+        for i, chunk_index in enumerate(self.node_chunks[node_index]):
             self.write_coordinates(source_files=source_files,
                                    chunk_index=chunk_index)
 
             mem = psutil.virtual_memory()
             msg = ('Coordinate chunks regridded: {0} out of {1}. '
                    'Current memory usage is {2:.3f} GB out of {3:.3f} '
-                   'GB total.'.format(chunk_index + 1, self.n_chunks,
+                   'GB total.'.format(i + 1,
+                                      len(self.node_chunks[node_index]),
                                       mem.used / 1e9, mem.total / 1e9))
             logger.info(msg)
 
-    def _run_parallel(self, source_files, max_workers=None):
+    def _run_parallel(self, source_files, node_index, max_workers=None):
         """Regrid data and write to output file, in parallel.
 
         Parameters
         ----------
         source_files : list
             List of paths to source files
+        node_index : int
+            Node index to run. e.g. if node_index=0 then the chunks for
+            node_chunks[0] will be run.
         max_workers : int | None
             Max number of workers to use for regridding in parallel
         """
@@ -698,14 +690,14 @@ class RegridOutput(OutputMixIn):
         now = dt.now()
         logger.info('Regridding all coordinates in parallel.')
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            for chunk_index in range(self.n_chunks):
+            for i, chunk_index in enumerate(self.node_chunks[node_index]):
                 future = exe.submit(self.write_coordinates,
                                     source_files=source_files,
                                     chunk_index=chunk_index)
                 futures[future] = chunk_index
                 mem = psutil.virtual_memory()
                 msg = ('Regrid futures submitted: {0} out of {1}'.format(
-                       chunk_index + 1, self.n_chunks))
+                       i + 1, len(self.node_chunks[node_index])))
                 logger.info(msg)
 
             logger.info(f'Submitted all regrid futures in {dt.now() - now}.')

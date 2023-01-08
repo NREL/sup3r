@@ -17,6 +17,7 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.batch.batch_cli import from_config as batch_cli
 from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
+from sup3r.utilities.regridder_cli import from_config as regrid_cli
 
 
 logger = logging.getLogger(__name__)
@@ -445,6 +446,49 @@ def stats(ctx, verbose):
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(stats_cli, config_file=config_file, verbose=verbose)
+
+
+@main.command()
+@click.option('-v', '--verbose', is_flag=True,
+              help='Flag to turn on debug logging.')
+@click.pass_context
+def regrid(ctx, verbose):
+    """Sup3r regrid module for regridding forward pass output to a different
+    meta file.
+
+    You can call the regrid module via the sup3r-pipeline CLI, or call it
+    directly with either of these equivalent commands::
+
+        $ sup3r -c config_regrid.json regrid
+
+        $ sup3r-regrid from-config -c config_regrid.json
+
+    A sup3r regrid config.json file can contain any arguments or keyword
+    arguments required to initialize the
+    :class:`sup3r.utilities.regridder.RegridOutput` class. The config also has
+    several optional arguments: ``log_file``, ``log_level``, and
+    ``execution_control``.
+    Here's a small example regrid config::
+
+        {
+            "source_files": "./source_files*.h5",
+            "out_pattern": "./chunks_{file_id}.h5",
+            "heights": [100, 200],
+            "target_meta": "./target_meta.csv",
+            "n_chunks": 100,
+            "worker_kwargs": {"regrid_workers": 10, "query_workers": 10},
+            "cache_pattern": "./{array_name}.pkl",
+            "log_file": "./logs/regrid.log",
+            "execution_control": {"option": "local"},
+            "log_level": "DEBUG"
+        }
+
+    Note that the ``execution_control`` has the same options as forward-pass
+    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    """
+    config_file = ctx.obj['CONFIG_FILE']
+    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.invoke(regrid_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)

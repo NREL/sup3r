@@ -27,25 +27,31 @@ FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 
 
 def test_regridding():
-    """Make sure regridding reproduces original data when meta is the same"""
+    """Make sure regridding reproduces original data when coordinates in the
+    meta is the same"""
     with tempfile.TemporaryDirectory() as td:
         meta_path = os.path.join(td, 'test_meta.csv')
-        output_pattern = os.path.join(td, '{chunk_index}.h5')
+        shuffled_meta_path = os.path.join(td, 'test_meta_shuffled.csv')
+        out_pattern = os.path.join(td, '{chunk_index}.h5')
         collect_file = os.path.join(td, 'regrid_collect.h5')
         heights = [80, 100]
         with Resource(FP_WTK) as res:
             target_meta = res.meta.copy()
             target_meta['gid'] = np.arange(len(target_meta))
             target_meta.to_csv(meta_path, index=False)
+            target_meta = target_meta.sample(frac=1, random_state=0)
+            target_meta.to_csv(shuffled_meta_path, index=False)
 
             regrid_output = RegridOutput(source_files=[FP_WTK],
-                                         output_pattern=output_pattern,
-                                         target_meta=meta_path,
+                                         out_pattern=out_pattern,
+                                         target_meta=shuffled_meta_path,
                                          heights=heights, k_neighbors=4,
                                          worker_kwargs={'regrid_workers': 1,
                                                         'query_workers': 1},
-                                         incremental=True, n_chunks=10)
-            regrid_output._run()
+                                         incremental=True, n_chunks=10,
+                                         max_nodes=2)
+            for node_index in range(regrid_output.nodes):
+                regrid_output.run(node_index=node_index)
 
             Collector.collect(regrid_output.output_files,
                               collect_file,
