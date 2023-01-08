@@ -2734,7 +2734,7 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
             Same keyword args as DataHandlerH5
         """
         super().__init__(*args, **kwargs)
-        self._nan_mask = None
+        self._not_nan_mask = None
 
     @classmethod
     def feature_registry(cls):
@@ -2757,17 +2757,17 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
         return registry
 
     @property
-    def nan_mask(self):
-        """Get a boolean mask for the temporal data axis where True if any NaNs
-        are in each timestep
+    def not_nan_mask(self):
+        """Get a boolean mask for the temporal data axis where True if no NaNs
+        are in the timestep
 
         Returns
         -------
         np.ndarray
         """
-        if self._nan_mask is None:
-            self._nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
-        return self._nan_mask
+        if self._not_nan_mask is None:
+            self._not_nan_mask = ~np.isnan(self.data).any(axis=(0, 1, 3))
+        return self._not_nan_mask
 
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
@@ -2778,7 +2778,7 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        data = self.data[:, :, ~self.nan_mask, :]
+        data = self.data[:, :, self.not_nan_mask, :]
         spatial_slice = uniform_box_sampler(data, self.sample_shape[:2])
         temporal_slice = uniform_time_sampler(data, self.sample_shape[2])
         return tuple(
@@ -2794,7 +2794,7 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
             4D array
             (spatial_1, spatial_2, temporal, features)
         """
-        data = self.data[:, :, ~self.nan_mask, :]
+        data = self.data[:, :, self.not_nan_mask, :]
         self.current_obs_index = self.get_observation_index()
         observation = data[self.current_obs_index]
         return observation
