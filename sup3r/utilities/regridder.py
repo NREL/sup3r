@@ -756,5 +756,7 @@ class RegridOutput(OutputMixIn):
                     attrs, dtype = self.get_dset_attrs(dset)
                     fh.add_dataset(tmp_file, dset, data, dtype=dtype,
                                    attrs=attrs, chunks=attrs['chunks'])
+
+                logger.info(f'Added {features} to {out_file}')
         os.replace(tmp_file, out_file)
         logger.info(f'Finished regridding chunk with s_slice={s_slice}')
