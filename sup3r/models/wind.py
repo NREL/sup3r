@@ -69,7 +69,7 @@ class WindGan(Sup3rGan, AbstractWindInterface):
             Keyword arguments including 'training_features', 'output_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
-        AbstractWindInterface.set_model_params_wind(**kwargs)
+        kwargs = self.set_model_params_wind(**kwargs)
         super().set_model_params(**kwargs)
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,

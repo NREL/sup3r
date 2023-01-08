@@ -909,7 +909,8 @@ class AbstractWindInterface(ABC):
     Abstract class to define the required training interface
     for Sup3r wind model subclasses
     """
-    # pylint: disable=E0211
+
+    @staticmethod
     def set_model_params_wind(**kwargs):
         """Set parameters used for training the model
 
@@ -917,7 +918,17 @@ class AbstractWindInterface(ABC):
         ----------
         kwargs : dict
             Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'. For the
+            Wind classes, the last entry in "output_features" must be
+            "topography"
+
+        Returns
+        -------
+        kwargs : dict
+            Same as input but with topography removed from "output_features",
+            this is because topography is concatenated mid-network in the
+            WindGan generators and is not an output feature but is required in
+            the hi-res training set.
         """
         output_features = kwargs['output_features']
         msg = ('Last output feature from the data handler must be topography '
@@ -926,6 +937,7 @@ class AbstractWindInterface(ABC):
         assert output_features[-1] == 'topography', msg
         output_features.remove('topography')
         kwargs['output_features'] = output_features
+        return kwargs
 
     def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
         """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
