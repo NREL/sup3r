@@ -2713,7 +2713,9 @@ class DataHandlerH5(DataHandler):
 
 class DataHandlerH5SolarSpatial(DataHandlerH5):
     """Special data handling and batch sampling for h5 NSRDB solar data for
-    spatial enhancement only"""
+    spatial enhancement only. This class masks out any NaN clearsky ratio data.
+    Cannot be used for temporal enhancement because of the NaN discontinuity at
+    night."""
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileNSRDBX
@@ -2734,7 +2736,8 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
             Same keyword args as DataHandlerH5
         """
         super().__init__(*args, **kwargs)
-        self._not_nan_mask = None
+        not_nan_mask = ~np.isnan(self.data).any(axis=(0, 1, 3))
+        self.data = self.data[:, :, not_nan_mask, :]
 
     @classmethod
     def feature_registry(cls):
@@ -2755,49 +2758,6 @@ class DataHandlerH5SolarSpatial(DataHandlerH5):
             'clearsky_ratio': ClearSkyRatioH5,
             'topography': TopoH5}
         return registry
-
-    @property
-    def not_nan_mask(self):
-        """Get a boolean mask for the temporal data axis where True if no NaNs
-        are in the timestep
-
-        Returns
-        -------
-        np.ndarray
-        """
-        if self._not_nan_mask is None:
-            self._not_nan_mask = ~np.isnan(self.data).any(axis=(0, 1, 3))
-        return self._not_nan_mask
-
-    def get_observation_index(self):
-        """Randomly gets spatial sample and time sample
-
-        Returns
-        -------
-        observation_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
-        """
-        data = self.data[:, :, self.not_nan_mask, :]
-        spatial_slice = uniform_box_sampler(data, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(data, self.sample_shape[2])
-        return tuple(
-            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
-
-    def get_next(self):
-        """Gets data for observation using random observation index. Loops
-        repeatedly over randomized time index
-
-        Returns
-        -------
-        observation : np.ndarray
-            4D array
-            (spatial_1, spatial_2, temporal, features)
-        """
-        data = self.data[:, :, self.not_nan_mask, :]
-        self.current_obs_index = self.get_observation_index()
-        observation = data[self.current_obs_index]
-        return observation
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

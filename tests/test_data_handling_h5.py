@@ -613,9 +613,7 @@ def test_solar_spatial_h5():
                                    shape=(20, 20), sample_shape=(10, 10, 12))
     assert np.nanmax(dh.data) == 1
     assert np.nanmin(dh.data) == 0
-    assert np.isnan(dh.data).any()
-    assert (np.isnan(dh.data).sum() / dh.data.size) > 0.45
-    assert (np.isnan(dh.data).sum() / dh.data.size) < 0.55
+    assert not np.isnan(dh.data).any()
     for _ in range(10):
         x = dh.get_next()
         assert x.shape == (10, 10, 12, 1)
