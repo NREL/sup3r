@@ -483,7 +483,7 @@ class Collector(OutputMixIn):
             warn(msg)
 
     @classmethod
-    def group_time_chunks(cls, file_paths):
+    def group_time_chunks(cls, file_paths, n_writes=None):
         """Group files by temporal_chunk_index. Assumes file_paths have a
         suffix format like _{temporal_chunk_index}_{spatial_chunk_index}.h5
 
@@ -492,6 +492,8 @@ class Collector(OutputMixIn):
         file_paths : list
             List of file paths each with a suffix
             _{temporal_chunk_index}_{spatial_chunk_index}.h5
+        n_writes : int | None
+            Number of writes to use for collection
 
         Returns
         -------
@@ -499,15 +501,23 @@ class Collector(OutputMixIn):
             List of lists of file paths groups by temporal_chunk_index
         """
         file_split = {}
-        for f in file_paths:
-            t_chunk = f.split('_')[-2]
-            file_split[t_chunk] = file_split.get(t_chunk, []) + [f]
+        for file in file_paths:
+            t_chunk = file.split('_')[-2]
+            file_split[t_chunk] = file_split.get(t_chunk, []) + [file]
         file_chunks = []
         for files in file_split.values():
             file_chunks.append(files)
+
+        logger.debug(f'Split file list into {len(file_chunks)} chunks '
+                     'according to temporal chunk indices')
+
+        if n_writes is not None:
+            msg = (f'n_writes ({n_writes}) must be less than or equal '
+                   f'to the number of temporal chunks ({len(file_chunks)}).')
+            assert n_writes < len(file_chunks), msg
         return file_chunks
 
-    def get_flist_chunks(self, file_paths, n_writes=None):
+    def get_flist_chunks(self, file_paths, n_writes=None, join_times=False):
         """Get file list chunks based on n_writes
 
         Parameters
@@ -516,6 +526,15 @@ class Collector(OutputMixIn):
             List of file paths to collect
         n_writes : int | None
             Number of writes to use for collection
+        join_times : bool
+            Option to split full file list into chunks with each chunk having
+            the same temporal_chunk_index. The number of writes will then be
+            min(number of temporal chunks, n_writes). This ensures that each
+            write has all the spatial chunks for a given time index. Assumes
+            file_paths have a suffix format
+            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required
+            if there are multiple writes and chunks have different time
+            indices.
 
         Returns
         -------
@@ -523,14 +542,13 @@ class Collector(OutputMixIn):
             List of file list chunks. Used to split collection and writing into
             multiple steps.
         """
-        flist_chunks = self.group_time_chunks(file_paths)
-        logger.debug(f'Split file list into {len(flist_chunks)} chunks '
-                     'according to temporal chunk indices')
+        if join_times:
+            flist_chunks = self.group_time_chunks(file_paths,
+                                                  n_writes=n_writes)
+        else:
+            flist_chunks = [file_paths]
+
         if n_writes is not None:
-            msg = (f'n_writes ({n_writes}) must be less than or equal '
-                   'to the number of temporal chunks '
-                   f'({len(flist_chunks)}).')
-            assert n_writes < len(flist_chunks), msg
             flist_chunks = np.array_split(flist_chunks, n_writes)
             flist_chunks = [np.concatenate(fp_chunk)
                             for fp_chunk in flist_chunks]
@@ -572,9 +590,13 @@ class Collector(OutputMixIn):
             Job name for status file if running from pipeline.
         join_times : bool
             Option to split full file list into chunks with each chunk having
-            the same temporal_chunk_index. The number of temporal chunk indices
-            will then be used as the number of writes. Assumes file_paths have
-            a suffix format _{temporal_chunk_index}_{spatial_chunk_index}.h5
+            the same temporal_chunk_index. The number of writes will then be
+            min(number of temporal chunks, n_writes). This ensures that each
+            write has all the spatial chunks for a given time index. Assumes
+            file_paths have a suffix format
+            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required
+            if there are multiple writes and chunks have different time
+            indices.
         target_final_meta_file : str
             Path to target final meta containing coordinates to keep from the
             full file list collected meta. This can be but is not necessarily a
@@ -586,7 +608,8 @@ class Collector(OutputMixIn):
             output files.
         n_writes : int | None
             Number of writes to split full file list into. Must be less than
-            or equal to the number of temporal chunks.
+            or equal to the number of temporal chunks if chunks have different
+            time indices.
         overwrite : bool
             Whether to overwrite existing output file
         threshold : float
@@ -620,8 +643,8 @@ class Collector(OutputMixIn):
         for _, dset in enumerate(features):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
-                flist_chunks = collector.get_flist_chunks(collector.flist,
-                                                          n_writes=n_writes)
+                flist_chunks = collector.get_flist_chunks(
+                    collector.flist, n_writes=n_writes, join_times=join_times)
             else:
                 flist_chunks = [collector.flist]
 
