@@ -13,7 +13,7 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from rex.utilities.fun_utils import get_fun_call_str
 from rex import MultiFileResource
 
-from sup3r.postprocessing.file_handling import OutputMixIn
+from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -539,7 +539,7 @@ class RegridOutput(OutputMixIn):
     def max_memory(self):
         """Check max memory usage (in GB)"""
         chunk_mem = 8 * len(self.time_index) * len(self.index_chunks[0])
-        chunk_mem *= len(self.index_chunks[0][0]) * len(self.heights)
+        chunk_mem *= len(self.index_chunks[0][0])
         return self.regrid_workers * chunk_mem / 1e9
 
     @property
@@ -734,19 +734,27 @@ class RegridOutput(OutputMixIn):
         s_slice = self.spatial_slices[chunk_index]
         out_file = self.output_files[chunk_index]
         meta = self.meta_chunks[chunk_index]
-        data_list = []
         if os.path.exists(out_file) and not self.incremental:
             msg = (f'{out_file} already exists and incremental=True. Skipping'
                    ' this chunk.')
             logger.info(msg)
             return
 
-        for height in self.heights:
-            ws, wd = self.regridder.regrid_coordinates(
-                index_chunk=index_chunk, distance_chunk=distance_chunk,
-                height=height, source_files=source_files)
-            data_list.append(ws)
-            data_list.append(wd)
-        self.write_data(out_file, self.output_features, self.time_index,
-                        data_list, meta, self.global_attrs)
+        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        with RexOutputs(tmp_file, 'w') as fh:
+            fh.meta = meta
+            fh.time_index = self.time_index
+            fh.run_attrs = self.global_attrs
+            for height in self.heights:
+                ws, wd = self.regridder.regrid_coordinates(
+                    index_chunk=index_chunk, distance_chunk=distance_chunk,
+                    height=height, source_files=source_files)
+
+                features = [f'windspeed_{height}m', f'winddirection_{height}m']
+
+                for dset, data in zip(features, [ws, wd]):
+                    attrs, dtype = self.get_dset_attrs(dset)
+                    fh.add_dataset(tmp_file, dset, data, dtype=dtype,
+                                   attrs=attrs, chunks=attrs['chunks'])
+        os.replace(tmp_file, out_file)
         logger.info(f'Finished regridding chunk with s_slice={s_slice}')

@@ -32,7 +32,7 @@ def test_regridding():
     with tempfile.TemporaryDirectory() as td:
         meta_path = os.path.join(td, 'test_meta.csv')
         shuffled_meta_path = os.path.join(td, 'test_meta_shuffled.csv')
-        out_pattern = os.path.join(td, '{chunk_index}.h5')
+        out_pattern = os.path.join(td, '{file_id}.h5')
         collect_file = os.path.join(td, 'regrid_collect.h5')
         heights = [80, 100]
         with Resource(FP_WTK) as res:
