@@ -12,6 +12,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
+from sup3r.preprocessing.data_handling import DataHandlerH5SolarSpatial
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
@@ -601,3 +602,28 @@ def test_smoothing():
                         low_res_no_smooth[i, ..., t, j], 0.6, mode='nearest')
         assert np.array_equal(batch.low_res, low_res)
         assert not np.array_equal(low_res, low_res_no_smooth)
+
+
+def test_solar_spatial_h5():
+    """Test solar spatial batch handling."""
+    input_file_s = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
+    features_s = ['clearsky_ratio']
+    target_s = (39.01, -105.13)
+    dh = DataHandlerH5SolarSpatial(input_file_s, features_s, target=target_s,
+                                   shape=(20, 20), sample_shape=(10, 10, 12))
+    assert np.nanmax(dh.data) == 1
+    assert np.nanmin(dh.data) == 0
+    assert np.isnan(dh.data).any()
+    assert (np.isnan(dh.data).sum() / dh.data.size) > 0.45
+    assert (np.isnan(dh.data).sum() / dh.data.size) < 0.55
+    for _ in range(10):
+        x = dh.get_next()
+        assert x.shape == (10, 10, 12, 1)
+        assert not np.isnan(x).any()
+
+    batch_handler = SpatialBatchHandler([dh], **bh_kwargs)
+    for batch in batch_handler:
+        assert not np.isnan(batch.low_res).any()
+        assert not np.isnan(batch.high_res).any()
+        assert batch.low_res.shape == (8, 2, 2, 1)
+        assert batch.high_res.shape == (8, 10, 10, 1)

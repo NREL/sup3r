@@ -2711,6 +2711,95 @@ class DataHandlerH5(DataHandler):
         return raster_index
 
 
+class DataHandlerH5SolarSpatial(DataHandlerH5):
+    """Special data handling and batch sampling for h5 NSRDB solar data for
+    spatial enhancement only"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = MultiFileNSRDBX
+
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataHandlerH5
+        **kwargs : dict
+            Same keyword args as DataHandlerH5
+        """
+        super().__init__(*args, **kwargs)
+        self._nan_mask = None
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U': UWind,
+            'V': VWind,
+            'windspeed': 'wind_speed',
+            'winddirection': 'wind_direction',
+            'lat_lon': LatLonH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5,
+            'topography': TopoH5}
+        return registry
+
+    @property
+    def nan_mask(self):
+        """Get a boolean mask for the temporal data axis where True if any NaNs
+        are in each timestep
+
+        Returns
+        -------
+        np.ndarray
+        """
+        if self._nan_mask is None:
+            self._nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
+        return self._nan_mask
+
+    def get_observation_index(self):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        """
+        data = self.data[:, :, ~self.nan_mask, :]
+        spatial_slice = uniform_box_sampler(data, self.sample_shape[:2])
+        temporal_slice = uniform_time_sampler(data, self.sample_shape[2])
+        return tuple(
+            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
+
+    def get_next(self):
+        """Gets data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        """
+        data = self.data[:, :, ~self.nan_mask, :]
+        self.current_obs_index = self.get_observation_index()
+        observation = data[self.current_obs_index]
+        return observation
+
+
 class DataHandlerH5WindCC(DataHandlerH5):
     """Special data handling and batch sampling for h5 wtk or nsrdb data for
     climate change applications"""
