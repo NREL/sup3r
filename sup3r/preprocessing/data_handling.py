@@ -575,7 +575,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  shuffle_time=False, time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_ti_cache=False,
                  load_cached=False, train_only_features=None,
-                 handle_features=None, single_ts_files=None,
+                 handle_features=None, single_ts_files=None, mask_nan=False,
                  worker_kwargs=None, res_kwargs=None):
         """
         Parameters
@@ -661,6 +661,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
             determined from file_paths directly.
+        mask_nan : bool
+            Flag to mask out (remove) any timesteps with NaN data from the
+            source dataset. This is False by default because it can create
+            discontinuities in the timeseries.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
             extract_workers, compute_workers, load_workers, norm_workers,
@@ -770,6 +774,12 @@ class DataHandler(FeatureHandler, InputMixIn):
                 self.data = None if not self.load_cached else self.data
 
             self._val_split_check()
+
+        if mask_nan:
+            nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
+            logger.info('Removing {} out of {} timesteps due to NaNs'
+                        .format(nan_mask.sum(), self.data.shape[2]))
+            self.data = self.data[:, :, ~nan_mask, :]
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -2639,7 +2649,9 @@ class DataHandlerH5(DataHandler):
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
             'P_(.*)m': 'pressure_(.*)m',
-            'topography': TopoH5}
+            'topography': TopoH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
         return registry
 
     @classmethod
