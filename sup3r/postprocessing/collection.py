@@ -546,7 +546,7 @@ class Collector(OutputMixIn):
             flist_chunks = self.group_time_chunks(file_paths,
                                                   n_writes=n_writes)
         else:
-            flist_chunks = [file_paths]
+            flist_chunks = [[f] for f in file_paths]
 
         if n_writes is not None:
             flist_chunks = np.array_split(flist_chunks, n_writes)

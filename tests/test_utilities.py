@@ -56,7 +56,9 @@ def test_regridding():
             Collector.collect(regrid_output.output_files,
                               collect_file,
                               regrid_output.output_features,
-                              target_final_meta_file=meta_path)
+                              target_final_meta_file=meta_path,
+                              join_times=False,
+                              n_writes=2)
             with Resource(collect_file) as out_res:
                 for height in heights:
                     ws_name = f'windspeed_{height}m'
