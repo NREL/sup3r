@@ -575,7 +575,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                  shuffle_time=False, time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_ti_cache=False,
                  load_cached=False, train_only_features=None,
-                 handle_features=None, single_ts_files=None,
+                 handle_features=None, single_ts_files=None, mask_nan=False,
                  worker_kwargs=None, res_kwargs=None):
         """
         Parameters
@@ -661,6 +661,10 @@ class DataHandler(FeatureHandler, InputMixIn):
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
             determined from file_paths directly.
+        mask_nan : bool
+            Flag to mask out (remove) any timesteps with NaN data from the
+            source dataset. This is False by default because it can create
+            discontinuities in the timeseries.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
             extract_workers, compute_workers, load_workers, norm_workers,
@@ -770,6 +774,12 @@ class DataHandler(FeatureHandler, InputMixIn):
                 self.data = None if not self.load_cached else self.data
 
             self._val_split_check()
+
+        if mask_nan:
+            nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
+            logger.info('Removing {} out of {} timesteps due to NaNs'
+                        .format(nan_mask.sum(), self.data.shape[2]))
+            self.data = self.data[:, :, ~nan_mask, :]
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -2639,7 +2649,9 @@ class DataHandlerH5(DataHandler):
             'REWS_(.*)m': Rews,
             'RMOL': 'inversemoninobukhovlength_2m',
             'P_(.*)m': 'pressure_(.*)m',
-            'topography': TopoH5}
+            'topography': TopoH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
         return registry
 
     @classmethod
@@ -2709,55 +2721,6 @@ class DataHandlerH5(DataHandler):
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index
-
-
-class DataHandlerH5SolarSpatial(DataHandlerH5):
-    """Special data handling and batch sampling for h5 NSRDB solar data for
-    spatial enhancement only. This class masks out any NaN clearsky ratio data.
-    Cannot be used for temporal enhancement because of the NaN discontinuity at
-    night."""
-
-    # the handler from rex to open h5 data.
-    REX_HANDLER = MultiFileNSRDBX
-
-    # list of features / feature name patterns that are input to the generative
-    # model but are not part of the synthetic output and are not sent to the
-    # discriminator. These are case-insensitive and follow the Unix shell-style
-    # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
-
-    def __init__(self, *args, **kwargs):
-        """
-        Parameters
-        ----------
-        *args : list
-            Same positional args as DataHandlerH5
-        **kwargs : dict
-            Same keyword args as DataHandlerH5
-        """
-        super().__init__(*args, **kwargs)
-        not_nan_mask = ~np.isnan(self.data).any(axis=(0, 1, 3))
-        self.data = self.data[:, :, not_nan_mask, :]
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U': UWind,
-            'V': VWind,
-            'windspeed': 'wind_speed',
-            'winddirection': 'wind_direction',
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5,
-            'topography': TopoH5}
-        return registry
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

@@ -12,7 +12,6 @@ from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
-from sup3r.preprocessing.data_handling import DataHandlerH5SolarSpatial
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities import utilities
@@ -605,15 +604,19 @@ def test_smoothing():
 
 
 def test_solar_spatial_h5():
-    """Test solar spatial batch handling."""
+    """Test solar spatial batch handling with NaN drop."""
     input_file_s = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
     features_s = ['clearsky_ratio']
     target_s = (39.01, -105.13)
-    dh = DataHandlerH5SolarSpatial(input_file_s, features_s, target=target_s,
-                                   shape=(20, 20), sample_shape=(10, 10, 12))
+    dh_nan = DataHandler(input_file_s, features_s, target=target_s,
+                         shape=(20, 20), sample_shape=(10, 10, 12),
+                         mask_nan=False)
+    dh = DataHandler(input_file_s, features_s, target=target_s,
+                     shape=(20, 20), sample_shape=(10, 10, 12), mask_nan=True)
     assert np.nanmax(dh.data) == 1
     assert np.nanmin(dh.data) == 0
     assert not np.isnan(dh.data).any()
+    assert np.isnan(dh_nan.data).any()
     for _ in range(10):
         x = dh.get_next()
         assert x.shape == (10, 10, 12, 1)
