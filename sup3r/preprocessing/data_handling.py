@@ -6,7 +6,6 @@ Sup3r preprocessing module.
 
 from abc import abstractmethod
 import copy
-import json
 from fnmatch import fnmatch
 import logging
 import xarray as xr
@@ -41,6 +40,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        spatial_coarsening,
                                        np_to_pd_times)
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   Feature,
                                                   BVFreqMon,
@@ -1195,28 +1195,13 @@ class DataHandler(FeatureHandler, InputMixIn):
             logger.warning(msg)
             warnings.warn(msg)
 
-        job_name = config.get('job_name', None)
-
         cmd = (f"python -c \'{import_str}\n"
                "t0 = time.time();\n"
                f"logger = init_logger({log_arg_str});\n"
                f"data_handler = {dh_init_str};\n"
                "t_elap = time.time() - t0;\n")
 
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'\"{status_dir}\", '
-            status_file_arg_str += f'module=\"{ModuleName.DATA_EXTRACT}\", '
-            status_file_arg_str += f'job_name=\"{job_name}\", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += (f"Status.make_job_file({status_file_arg_str})")
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_EXTRACT, cmd)
 
         cmd += (";\'\n")
         return cmd.replace('\\', '/')
@@ -1759,7 +1744,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 f_index = self.features.index(f)
                 self.data_fill(t, ts, f_index, f)
             interval = int(np.ceil(len(shifted_time_chunks) / 10))
-            if interval > 0 and t % interval == 0:
+            if t % interval == 0:
                 logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
                             'chunks to final data array')
             self._raw_data.pop(t)
@@ -1806,7 +1791,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                                'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    if interval > 0 and i % interval == 0:
+                    if i % interval == 0:
                         logger.debug(f'Added {i+1} out of {len(futures)} '
                                      'chunks to final data array')
         logger.info('Finished building data array')

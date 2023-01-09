@@ -4,13 +4,13 @@ Example Use:
 
     stitch_and_save(year=2017, month=1,
                     input_pattern="wrfout_d0{domain}_{year}-{month}*",
-                    output_pattern="{year}/{month}/", overlap=15, n_domains=4,
+                    out_pattern="{year}/{month}/", overlap=15, n_domains=4,
                     max_levels=10)
 
     This will combine 4 domains, for Jan 2017, using an overlap of 15 grid
     points the blend the domain edges, and save only the first 10 pressure
     levels. The stitched files will be saved in the directory specified with
-    output_pattern.
+    out_pattern.
 """
 # -*- coding: utf-8 -*-
 import xarray as xr
@@ -111,7 +111,7 @@ class Regridder:
         return data_out
 
 
-def get_files(year, month, input_pattern, output_pattern, n_domains=4):
+def get_files(year, month, input_pattern, out_pattern, n_domains=4):
     """Get input files for all domains to stitch together, and output file
     name
 
@@ -124,7 +124,7 @@ def get_files(year, month, input_pattern, output_pattern, n_domains=4):
     input_pattern : str
         Pattern for input files. Assumes pattern contains {month}, {year}, and
         {domain}
-    output_pattern : str
+    out_pattern : str
         Pattern for output files. Assumes pattern contains {month} and {year}
     n_domains : int
         Number of domains to stitch together
@@ -141,7 +141,7 @@ def get_files(year, month, input_pattern, output_pattern, n_domains=4):
                   for i in range(1, n_domains + 1)]
     input_files = {i: sorted(glob.glob(in_pattern[i]))
                    for i in range(n_domains)}
-    out_pattern = output_pattern.format(year=year, month=str(month).zfill(2))
+    out_pattern = out_pattern.format(year=year, month=str(month).zfill(2))
     out_files = [os.path.join(out_pattern,
                               os.path.basename(input_files[0][i]).replace(
                                   'custom_wrfout_d01', 'stitched_wrfout'))
@@ -411,7 +411,7 @@ def stitch_domains(year, month, time_step, input_files, overlap=50,
     return handles
 
 
-def stitch_and_save(year, month, input_pattern, output_pattern,
+def stitch_and_save(year, month, input_pattern, out_pattern,
                     time_step=None, overlap=50, n_domains=4, max_level=15,
                     overwrite=False):
     """Stitch all smaller domains into largest domain and save output
@@ -430,7 +430,7 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
     input_pattern : str
         Pattern for input files. Assumes pattern contains {month}, {year}, and
         {domain}
-    output_pattern : str
+    out_pattern : str
         Pattern for output files
     overlap : int
         Number of grid points to use for blending edges
@@ -443,7 +443,7 @@ def stitch_and_save(year, month, input_pattern, output_pattern,
     """
     logger.info(f'Getting file patterns for year={year}, month={month}')
     input_files, out_files = get_files(year, month, input_pattern,
-                                       output_pattern, n_domains=n_domains)
+                                       out_pattern, n_domains=n_domains)
     out_files = (out_files if time_step is None
                  else out_files[time_step - 1: time_step])
     for i, out_file in enumerate(out_files):

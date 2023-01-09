@@ -6,6 +6,7 @@ Sup3r base CLI class.
 import click
 import logging
 import os
+import json
 
 from reV.pipeline.status import Status
 
@@ -243,3 +244,41 @@ class BaseCLI:
 
         click.echo(msg)
         logger.info(msg)
+
+    @classmethod
+    def add_status_cmd(cls, config, module_name, cmd):
+        """Append status file command to command for executing given module
+
+        Parameters
+        ----------
+        config : dict
+            sup3r config with all necessary args and kwargs to run given
+            module.
+        module_name : str
+            Module name string from :class:`sup3r.utilities.ModuleName`.
+        cmd : str
+            String including command to execute given module.
+
+        Returns
+        -------
+        cmd : str
+            Command string with status file command included if job_name is
+            not None
+        """
+        job_name = config.get('job_name', None)
+        status_dir = config.get('status_dir', None)
+        if job_name is not None and status_dir is not None:
+            status_file_arg_str = f'"{status_dir}", '
+            status_file_arg_str += f'module="{module_name}", '
+            status_file_arg_str += f'job_name="{job_name}", '
+            status_file_arg_str += 'attrs=job_attrs'
+
+            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
+                                               .replace("null", "None")
+                                               .replace("false", "False")
+                                               .replace("true", "True")))
+            cmd += 'job_attrs.update({"job_status": "successful"});\n'
+            cmd += 'job_attrs.update({"time": t_elap});\n'
+            cmd += f"Status.make_job_file({status_file_arg_str})"
+
+        return cmd

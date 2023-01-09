@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 import glob
-import json
 from datetime import datetime as dt
 import os
 
@@ -13,6 +12,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class Sup3rVisualQa:
         for feature in self.features:
             for i, t_slice in enumerate(time_slices):
                 out_file = self.out_pattern.format(feature=feature,
-                                                   index=i)
+                                                   index=str(i).zfill(8))
                 self.plot_figure(res, time_index, feature, t_slice,
                                  spatial_slice, out_file)
 
@@ -235,22 +235,7 @@ class Sup3rVisualQa:
                "qa.run();\n"
                "t_elap = time.time() - t0;\n")
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.VISUAL_QA}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.VISUAL_QA, cmd)
         cmd += (";\'\n")
 
         return cmd.replace('\\', '/')

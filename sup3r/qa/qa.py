@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """sup3r QA module."""
 import os
-import json
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -19,7 +18,7 @@ from sup3r.utilities.utilities import (get_input_handler_class,
                                        spatial_coarsening,
                                        temporal_coarsening,
                                        )
-
+from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
@@ -525,22 +524,7 @@ class Sup3rQa:
                "qa.run();\n"
                "t_elap = time.time() - t0;\n")
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.QA}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
-
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.QA, cmd)
         cmd += (";\'\n")
 
         return cmd.replace('\\', '/')
