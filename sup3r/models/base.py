@@ -448,8 +448,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             device = self.default_device
 
         logger.info('Initializing model weights on device "{}"'.format(device))
-        low_res = np.random.uniform(0, 1, lr_shape).astype(np.float32)
-        hi_res = np.random.uniform(0, 1, hr_shape).astype(np.float32)
+        low_res = np.ones(lr_shape).astype(np.float32)
+        hi_res = np.ones(hr_shape).astype(np.float32)
         with tf.device(device):
             _ = self._tf_generate(low_res)
             _ = self._tf_discriminate(hi_res)
