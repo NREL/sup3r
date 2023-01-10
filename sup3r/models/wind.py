@@ -50,11 +50,11 @@ class WindGan(Sup3rGan, AbstractWindInterface):
             device = self.default_device
 
         logger.info('Initializing model weights on device "{}"'.format(device))
-        low_res = np.random.uniform(0, 1, lr_shape).astype(np.float32)
-        hi_res = np.random.uniform(0, 1, hr_shape).astype(np.float32)
+        low_res = np.ones(lr_shape).astype(np.float32)
+        hi_res = np.ones(hr_shape).astype(np.float32)
 
         hr_topo_shape = hr_shape[:-1] + (1,)
-        hr_topo = np.random.uniform(0, 1, hr_topo_shape).astype(np.float32)
+        hr_topo = np.ones(hr_topo_shape).astype(np.float32)
 
         with tf.device(device):
             _ = self._tf_generate(low_res, hr_topo)
