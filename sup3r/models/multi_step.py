@@ -371,14 +371,14 @@ class SpatialThenTemporalGan(SpatialThenTemporalBase):
     @property
     def training_features(self):
         """Get the list of input feature names that the first spatial
-        generative model in this SpatialThenTemporalBase model requires as
+        generative model in this SpatialThenTemporalGan model requires as
         input."""
         return self.spatial_models.training_features
 
     @property
     def output_features(self):
         """Get the list of output feature names that the last spatiotemporal
-        interpolation model in this SpatialThenTemporalBase model outputs."""
+        interpolation model in this SpatialThenTemporalGan model outputs."""
         return self.temporal_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
@@ -498,14 +498,14 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
     @property
     def training_features(self):
         """Get the list of input feature names that the first temporal
-        generative model in this SpatialThenTemporalBase model requires as
+        generative model in this TemporalThenSpatialGan model requires as
         input."""
         return self.temporal_models.training_features
 
     @property
     def output_features(self):
         """Get the list of output feature names that the last spatial
-        interpolation model in this SpatialThenTemporalBase model outputs."""
+        interpolation model in this TemporalThenSpatialGan model outputs."""
         return self.spatial_models.output_features
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
@@ -586,7 +586,7 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
         return hi_res
 
 
-class MultiStepSurfaceMetGan(SpatialThenTemporalBase):
+class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
     """A two-step GAN where the first step is a spatial-only enhancement on a
     4D tensor of near-surface temperature and relative humidity data, and the
     second step is a (spatio)temporal enhancement on a 5D tensor.
@@ -735,7 +735,7 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalBase):
         return cls(s_models, t_models)
 
 
-class SolarMultiStepGan(SpatialThenTemporalBase):
+class SolarMultiStepGan(SpatialThenTemporalGan):
     """Special multi step model for solar clearsky ratio super resolution.
 
     This model takes in two parallel models for wind-only and solar-only
