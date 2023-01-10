@@ -21,7 +21,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
     def __init__(self, gen_layers,
                  optimizer=None, learning_rate=1e-4, num_par=None,
-                 history=None, meta=None, means=None, stdevs=None, name=None):
+                 history=None, meta=None, means=None, stdevs=None,
+                 default_device=None, name=None):
         """
         Parameters
         ----------
@@ -52,11 +53,23 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             Set of stdev values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
             normalization scheme between transfer learning domains.
+        default_device : str | None
+            Option for default device placement of model weights. If None and a
+            single GPU exists, that GPU will be the default device. If None and
+            multiple GPUs exist, the CPU will be the default device (this was
+            tested as most efficient given the custom multi-gpu strategy
+            developed in self.run_gradient_descent())
         name : str | None
             Optional name for the model.
         """
+        super().__init__()
 
-        self._version_record = VERSION_RECORD
+        self.default_device = default_device
+        if self.default_device is None and len(self.gpu_list) == 1:
+            self.default_device = '/gpu:0'
+        elif self.default_device is None and len(self.gpu_list) > 1:
+            self.default_device = '/cpu:0'
+
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
         self._num_par = num_par if num_par is not None else 0
@@ -273,58 +286,6 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         """
         return self.generator_weights
 
-    def run_gradient_descent(self, low_res, output_true, mask,
-                             training_weights,
-                             optimizer=None, **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, output_true)
-        and adjust NN weights
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        output_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        mask : np.ndarray
-            Mask of high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        optimizer : tf.keras.optimizers.Optimizer
-            Optimizer class to use to update weights. This can be different if
-            you're training just the generator or one of the discriminator
-            models. Defaults to the generator optimizer.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-        with tf.GradientTape(watch_accessed_variables=False) as tape:
-            tape.watch(training_weights)
-
-            output_gen = self._tf_generate(low_res)
-            loss_out = self.calc_loss(output_true, output_gen, mask,
-                                      **calc_loss_kwargs)
-            loss, loss_details = loss_out
-
-            grad = tape.gradient(loss, training_weights)
-
-        if optimizer is None:
-            optimizer = self.optimizer
-
-        optimizer.apply_gradients(zip(grad, training_weights))
-
-        return loss_details
-
     @tf.function
     def calc_loss_cond_mom(self, output_true, output_gen, mask):
         """Calculate the loss of the moment predictor
@@ -415,13 +376,20 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         return loss_details
 
-    def train_epoch(self, batch_handler):
+    def train_epoch(self, batch_handler, multi_gpu=False):
         """Train the model for one epoch.
 
         Parameters
         ----------
         batch_handler : sup3r.data_handling.preprocessing.BatchHandler
             BatchHandler object to iterate through
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and the resulting gradient from each GPU will
+            constitute a single gradient descent step with the nominal learning
+            rate that the model was initialized with.
 
         Returns
         -------
@@ -434,9 +402,11 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
             b_loss_details = self.run_gradient_descent(
-                batch.low_res, batch.output, batch.mask,
+                batch.low_res, batch.output,
                 self.generator_weights,
-                optimizer=self.optimizer)
+                optimizer=self.optimizer,
+                multi_gpu=multi_gpu,
+                mask=batch.mask)
 
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
@@ -455,7 +425,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
               out_dir='./condMom_{epoch}',
               early_stop_on=None,
               early_stop_threshold=0.005,
-              early_stop_n_epoch=5):
+              early_stop_n_epoch=5,
+              multi_gpu=False):
         """Train the model on real low res data and real high res data
 
         Parameters
@@ -486,6 +457,13 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         early_stop_n_epoch : int
             The number of consecutive epochs that satisfy the threshold that
             warrants an early stop.
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and the resulting gradient from each GPU will
+            constitute a single gradient descent step with the nominal learning
+            rate that the model was initialized with.
         """
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
@@ -511,7 +489,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
                     .format(n_epoch, epochs[0]))
 
         for epoch in epochs:
-            loss_details = self.train_epoch(batch_handler)
+            loss_details = self.train_epoch(batch_handler, multi_gpu=multi_gpu)
 
             loss_details = self.calc_val_loss(batch_handler, loss_details)
 

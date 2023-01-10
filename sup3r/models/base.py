@@ -24,7 +24,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
     def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
                  optimizer=None, learning_rate=1e-4,
                  optimizer_disc=None, learning_rate_disc=None,
-                 history=None, meta=None, means=None, stdevs=None, name=None):
+                 history=None, meta=None, means=None, stdevs=None,
+                 default_device=None, name=None):
         """
         Parameters
         ----------
@@ -70,11 +71,23 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Set of stdev values for data normalization with the same length as
             number of features. Can be used to maintain a consistent
             normalization scheme between transfer learning domains.
+        default_device : str | None
+            Option for default device placement of model weights. If None and a
+            single GPU exists, that GPU will be the default device. If None and
+            multiple GPUs exist, the CPU will be the default device (this was
+            tested as most efficient given the custom multi-gpu strategy
+            developed in self.run_gradient_descent())
         name : str | None
             Optional name for the GAN.
         """
+        super().__init__()
 
-        self._version_record = VERSION_RECORD
+        self.default_device = default_device
+        if self.default_device is None and len(self.gpu_list) == 1:
+            self.default_device = '/gpu:0'
+        elif self.default_device is None and len(self.gpu_list) > 1:
+            self.default_device = '/cpu:0'
+
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
@@ -412,6 +425,35 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         """
         return self.generator_weights + self.discriminator_weights
 
+    def init_weights(self, lr_shape, hr_shape, device=None):
+        """Initialize the generator and discriminator weights with device
+        placement.
+
+        Parameters
+        ----------
+        lr_shape : tuple
+            Shape of one batch of low res input data for sup3r resolution. Note
+            that the batch size (axis=0) must be included, but the actual batch
+            size doesnt really matter.
+        hr_shape : tuple
+            Shape of one batch of high res input data for sup3r resolution.
+            Note that the batch size (axis=0) must be included, but the actual
+            batch size doesnt really matter.
+        device : str | None
+            Option to place model weights on a device. If None,
+            self.default_device will be used.
+        """
+
+        if device is None:
+            device = self.default_device
+
+        logger.info('Initializing model weights on device "{}"'.format(device))
+        low_res = np.ones(lr_shape).astype(np.float32)
+        hi_res = np.ones(hr_shape).astype(np.float32)
+        with tf.device(device):
+            _ = self._tf_generate(low_res)
+            _ = self._tf_discriminate(hi_res)
+
     @staticmethod
     def get_weight_update_fraction(history, comparison_key,
                                    update_bounds=(0.5, 0.95),
@@ -451,54 +493,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             return 1 / (1 + update_frac)
         else:
             return 1
-
-    def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             optimizer=None, **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true)
-        and adjust NN weights
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        optimizer : tf.keras.optimizers.Optimizer
-            Optimizer class to use to update weights. This can be different if
-            you're training just the generator or one of the discriminator
-            models. Defaults to the generator optimizer.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        with tf.GradientTape(watch_accessed_variables=False) as tape:
-            tape.watch(training_weights)
-
-            hi_res_gen = self._tf_generate(low_res)
-            loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                      **calc_loss_kwargs)
-            loss, loss_details = loss_out
-
-            grad = tape.gradient(loss, training_weights)
-
-        if optimizer is None:
-            optimizer = self.optimizer
-
-        optimizer.apply_gradients(zip(grad, training_weights))
-
-        return loss_details
 
     @tf.function
     def calc_loss_gen_content(self, hi_res_true, hi_res_gen):
@@ -680,7 +674,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         return loss_details
 
     def train_epoch(self, batch_handler, weight_gen_advers, train_gen,
-                    train_disc, disc_loss_bounds):
+                    train_disc, disc_loss_bounds, multi_gpu=False):
         """Train the GAN for one epoch.
 
         Parameters
@@ -698,6 +692,13 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Lower and upper bounds for the discriminator loss outside of which
             the discriminators will not train unless train_disc=True or
             and train_gen=False.
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and the resulting gradient from each GPU will
+            constitute a single gradient descent step with the nominal learning
+            rate that the model was initialized with.
 
         Returns
         -------
@@ -721,13 +722,17 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
+            if not self.generator_weights:
+                self.init_weights(batch.low_res.shape, batch.high_res.shape)
+
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
                 b_loss_details = self.run_gradient_descent(
                     batch.low_res, batch.high_res, self.generator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer,
-                    train_gen=True, train_disc=False)
+                    train_gen=True, train_disc=False,
+                    multi_gpu=multi_gpu)
 
             if only_disc or (train_disc and not disc_too_good):
                 trained_disc = True
@@ -735,7 +740,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
                     batch.low_res, batch.high_res, self.discriminator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer_disc,
-                    train_gen=False, train_disc=True)
+                    train_gen=False, train_disc=True,
+                    multi_gpu=multi_gpu)
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
             b_loss_details['disc_trained_frac'] = float(trained_disc)
@@ -822,7 +828,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
               adaptive_update_bounds=(0.9, 0.99),
-              adaptive_update_fraction=0.0):
+              adaptive_update_fraction=0.0,
+              multi_gpu=False):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -873,6 +880,13 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         adaptive_update_fraction : float
             Amount by which to increase or decrease adversarial weights for
             adaptive updates
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and the resulting gradient from each GPU will
+            constitute a single gradient descent step with the nominal learning
+            rate that the model was initialized with.
         """
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
@@ -901,7 +915,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         for epoch in epochs:
             loss_details = self.train_epoch(batch_handler, weight_gen_advers,
                                             train_gen, train_disc,
-                                            disc_loss_bounds)
+                                            disc_loss_bounds,
+                                            multi_gpu=multi_gpu)
 
             loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
                                               loss_details)

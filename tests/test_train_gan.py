@@ -216,7 +216,7 @@ def test_train_st_dc(n_epoch=2, log=False):
                                  temporal_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
-    batch_size = 2
+    batch_size = 4
     n_batches = 2
     total_count = batch_size * n_batches
     deviation = np.sqrt(1 / (total_count - 1))

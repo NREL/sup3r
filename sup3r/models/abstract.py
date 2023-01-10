@@ -2,21 +2,23 @@
 """
 Abstract class to define the required interface for Sup3r model subclasses
 """
+from abc import ABC, abstractmethod
 import os
 import time
 import json
-from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
-from sup3r.utilities import VERSION_RECORD
-import sup3r.utilities.loss_metrics
+from rex.utilities.utilities import safe_json_load
 import tensorflow as tf
 from tensorflow.keras import optimizers
 import numpy as np
 import logging
 import pprint
 from warnings import warn
-from rex.utilities.utilities import safe_json_load
+
+from sup3r.utilities import VERSION_RECORD
+import sup3r.utilities.loss_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,20 @@ class AbstractSingleModel(ABC):
     for Sup3r model subclasses
     """
 
+    def __init__(self):
+        self.gpu_list = tf.config.list_physical_devices('GPU')
+        self.default_device = '/cpu:0'
+        self._version_record = VERSION_RECORD
+        self.name = None
+        self._meta = None
+        self.loss_name = None
+        self.loss_fun = None
+        self._history = None
+        self._optimizer = None
+        self._gen = None
+        self._means = None
+        self._stdevs = None
+
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
         config, or .pkl file saved pre-trained model.
@@ -232,7 +248,8 @@ class AbstractSingleModel(ABC):
                 raise KeyError(msg)
 
         elif isinstance(model, str) and model.endswith('.pkl'):
-            model = CustomNetwork.load(model)
+            with tf.device(self.default_device):
+                model = CustomNetwork.load(model)
 
         if isinstance(model, list):
             model = CustomNetwork(hidden_layers=model, name=name)
@@ -761,6 +778,130 @@ class AbstractSingleModel(ABC):
 
         return stop
 
+    @tf.function()
+    def get_single_grad(self, low_res, hi_res_true, training_weights,
+                        device_name=None, **calc_loss_kwargs):
+        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
+        do not update weights, just return gradient details.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        hi_res_true : np.ndarray
+            Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
+        device_name : None | str
+            Optional tensorflow device name for GPU placement. Note that if a
+            GPU is available, variables will be placed on that GPU even if
+            device_name=None.
+        calc_loss_kwargs : dict
+            Kwargs to pass to the self.calc_loss() method
+
+        Returns
+        -------
+        grad : list
+            a list or nested structure of Tensors (or IndexedSlices, or None,
+            or CompositeTensor) representing the gradients for the
+            training_weights
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+
+        with tf.device(device_name):
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                tape.watch(training_weights)
+
+                hi_res_gen = self._tf_generate(low_res)
+                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
+                                          **calc_loss_kwargs)
+                loss, loss_details = loss_out
+
+                grad = tape.gradient(loss, training_weights)
+
+        return grad, loss_details
+
+    def run_gradient_descent(self, low_res, hi_res_true, training_weights,
+                             optimizer=None, multi_gpu=False,
+                             **calc_loss_kwargs):
+        """Run gradient descent for one mini-batch of (low_res, hi_res_true)
+        and update weights
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        hi_res_true : np.ndarray
+            Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
+        optimizer : tf.keras.optimizers.Optimizer
+            Optimizer class to use to update weights. This can be different if
+            you're training just the generator or one of the discriminator
+            models. Defaults to the generator optimizer.
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and the resulting gradient from each GPU will
+            constitute a single gradient descent step with the nominal learning
+            rate that the model was initialized with.
+        calc_loss_kwargs : dict
+            Kwargs to pass to the self.calc_loss() method
+
+        Returns
+        -------
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+
+        t0 = time.time()
+        if optimizer is None:
+            optimizer = self.optimizer
+
+        if not multi_gpu or len(self.gpu_list) == 1:
+            grad, loss_details = self.get_single_grad(low_res, hi_res_true,
+                                                      training_weights,
+                                                      **calc_loss_kwargs)
+            optimizer.apply_gradients(zip(grad, training_weights))
+            t1 = time.time()
+            logger.debug(f'Finished single gradient descent steps on '
+                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
+
+        else:
+            futures = []
+            lr_chunks = np.array_split(low_res, len(self.gpu_list))
+            hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
+
+            with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
+                for i in range(len(self.gpu_list)):
+                    futures.append(exe.submit(self.get_single_grad,
+                                              lr_chunks[i],
+                                              hr_true_chunks[i],
+                                              training_weights,
+                                              device_name=f'/gpu:{i}',
+                                              **calc_loss_kwargs))
+            for i, future in enumerate(futures):
+                grad, loss_details = future.result()
+                optimizer.apply_gradients(zip(grad, training_weights))
+
+            t1 = time.time()
+            logger.debug(f'Finished {len(futures)} gradient descent steps on '
+                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
+
+        return loss_details
+
 
 # pylint: disable=E1101,W0201,E0203
 class AbstractWindInterface(ABC):
@@ -768,7 +909,8 @@ class AbstractWindInterface(ABC):
     Abstract class to define the required training interface
     for Sup3r wind model subclasses
     """
-    # pylint: disable=E0211
+
+    @staticmethod
     def set_model_params_wind(**kwargs):
         """Set parameters used for training the model
 
@@ -776,7 +918,17 @@ class AbstractWindInterface(ABC):
         ----------
         kwargs : dict
             Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'. For the
+            Wind classes, the last entry in "output_features" must be
+            "topography"
+
+        Returns
+        -------
+        kwargs : dict
+            Same as input but with topography removed from "output_features",
+            this is because topography is concatenated mid-network in the
+            WindGan generators and is not an output feature but is required in
+            the hi-res training set.
         """
         output_features = kwargs['output_features']
         msg = ('Last output feature from the data handler must be topography '
@@ -785,6 +937,7 @@ class AbstractWindInterface(ABC):
         assert output_features[-1] == 'topography', msg
         output_features.remove('topography')
         kwargs['output_features'] = output_features
+        return kwargs
 
     def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
         """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
@@ -960,3 +1113,54 @@ class AbstractWindInterface(ABC):
                 raise RuntimeError(msg) from e
 
         return hi_res
+
+    @tf.function()
+    def get_single_grad_wind(self, low_res, hi_res_true, training_weights,
+                             device_name=None, **calc_loss_kwargs):
+        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
+        do not update weights, just return gradient details.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        hi_res_true : np.ndarray
+            Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
+        device_name : None | str
+            Optional tensorflow device name for GPU placement. Note that if a
+            GPU is available, variables will be placed on that GPU even if
+            device_name=None.
+        calc_loss_kwargs : dict
+            Kwargs to pass to the self.calc_loss() method
+
+        Returns
+        -------
+        grad : list
+            a list or nested structure of Tensors (or IndexedSlices, or None,
+            or CompositeTensor) representing the gradients for the
+            training_weights
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+
+        hi_res_topo = hi_res_true[..., -1:]
+
+        with tf.device(device_name):
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                tape.watch(training_weights)
+
+                hi_res_gen = self._tf_generate(low_res, hi_res_topo)
+                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
+                                          **calc_loss_kwargs)
+                loss, loss_details = loss_out
+
+                grad = tape.gradient(loss, training_weights)
+
+        return grad, loss_details
