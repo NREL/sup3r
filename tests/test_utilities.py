@@ -53,7 +53,7 @@ def test_regridding():
             for node_index in range(regrid_output.nodes):
                 regrid_output.run(node_index=node_index)
 
-            Collector.collect(regrid_output.output_files,
+            Collector.collect(regrid_output.out_files,
                               collect_file,
                               regrid_output.output_features,
                               target_final_meta_file=meta_path,

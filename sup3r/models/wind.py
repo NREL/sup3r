@@ -12,7 +12,7 @@ from sup3r.models.abstract import AbstractWindInterface
 logger = logging.getLogger(__name__)
 
 
-class WindGan(Sup3rGan, AbstractWindInterface):
+class WindGan(AbstractWindInterface, Sup3rGan):
     """Wind super resolution GAN with handling of low and high res topography
     inputs.
 
@@ -69,70 +69,8 @@ class WindGan(Sup3rGan, AbstractWindInterface):
             Keyword arguments including 'training_features', 'output_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
-        kwargs = self.set_model_params_wind(**kwargs)
-        super().set_model_params(**kwargs)
-
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self._means,
-            self._stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1. This also normalizes
-            hi_res_topo.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : ndarray | list | None
-            Exogenous data for topography inputs. The first entry in this list
-            (or only entry) is a low-resolution topography array that can be
-            concatenated to the low_res input array. The second entry is
-            high-resolution topography (either 2D or 4D/5D depending on if
-            spatial or spatiotemporal super res).
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        return self.generate_wind(low_res, norm_in,
-                                  un_norm_out, exogenous_data)
-
-    @tf.function
-    def _tf_generate(self, low_res, hi_res_topo):
-        """Use the generator model to generate high res data from los res input
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data. The generator should always
-            received normalized data with mean=0 stdev=1.
-        hi_res_topo : np.ndarray
-            This should be a 4D array for spatial enhancement model or 5D array
-            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
-            (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input.
-
-        Returns
-        -------
-        hi_res : tf.Tensor
-            Synthetically generated high-resolution data
-        """
-        return self._tf_generate_wind(low_res, hi_res_topo)
+        AbstractWindInterface.set_model_params(**kwargs)
+        Sup3rGan.set_model_params(self, **kwargs)
 
     @tf.function()
     def get_single_grad(self, low_res, hi_res_true, training_weights,

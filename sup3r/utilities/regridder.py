@@ -16,6 +16,7 @@ from rex import MultiFileResource
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.postprocessing.collection import Collector
 from sup3r.utilities import ModuleName
+from sup3r.utilities.utilities import DistributedProcess
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
@@ -426,7 +427,7 @@ class WindRegridder(Regridder):
         return ws, wd
 
 
-class RegridOutput(OutputMixIn):
+class RegridOutput(OutputMixIn, DistributedProcess):
     """Output regridded data as it is interpolated. Takes source data from
     windspeed and winddirection h5 files and uses this data to interpolate onto
     a new target grid. The interpolated data is then written to new files, with
@@ -474,10 +475,6 @@ class RegridOutput(OutputMixIn):
         self.query_workers = worker_kwargs.get('query_workers', None)
         self.source_files = (source_files if isinstance(source_files, list)
                              else glob(source_files))
-        self._n_chunks = n_chunks
-        self._n_nodes = max_nodes
-        self._node_chunks = None
-        self.out_pattern = out_pattern
         self.target_meta_path = target_meta
         self.target_meta = pd.read_csv(self.target_meta_path)
         self.target_meta['gid'] = np.arange(len(self.target_meta))
@@ -485,6 +482,7 @@ class RegridOutput(OutputMixIn):
             ['latitude', 'longitude'], ascending=[False, True])
         self.heights = heights
         self.incremental = incremental
+        self.out_pattern = out_pattern
         os.makedirs(os.path.dirname(self.out_pattern), exist_ok=True)
 
         with MultiFileResource(source_files) as res:
@@ -499,6 +497,10 @@ class RegridOutput(OutputMixIn):
                                        cache_pattern=cache_pattern,
                                        n_chunks=n_chunks,
                                        max_workers=self.query_workers)
+        DistributedProcess.__init__(self, max_nodes=max_nodes,
+                                    n_chunks=n_chunks,
+                                    max_chunks=len(self.regridder.indices),
+                                    incremental=incremental)
 
         logger.info('Initializing RegridOutput with '
                     f'source_files={self.source_files}, '
@@ -508,25 +510,6 @@ class RegridOutput(OutputMixIn):
                     f'k_neighbors={k_neighbors}, and '
                     f'n_chunks={n_chunks}.')
         logger.info(f'Max memory usage: {self.max_memory:.3f} GB.')
-
-    @property
-    def chunks(self):
-        """Get the number of chunks to split the target meta into """
-        return min(self._n_chunks, len(self.regridder.indices))
-
-    @property
-    def nodes(self):
-        """Get the max number of nodes to distribute chunks across"""
-        return min(self._n_nodes, self.chunks)
-
-    @property
-    def node_chunks(self):
-        """Get the chunk indices for different nodes"""
-        if self._node_chunks is None:
-            n_chunks = min(self.nodes, self.chunks)
-            self._node_chunks = np.array_split(np.arange(self.chunks),
-                                               n_chunks)
-        return self._node_chunks
 
     @property
     def spatial_slices(self):
@@ -565,7 +548,7 @@ class RegridOutput(OutputMixIn):
         return [self.regridder.target_meta[s] for s in self.spatial_slices]
 
     @property
-    def output_files(self):
+    def out_files(self):
         """Get list of output files for each spatial chunk"""
         return [self.out_pattern.format(file_id=str(i).zfill(6))
                 for i in range(self.chunks)]
@@ -626,6 +609,9 @@ class RegridOutput(OutputMixIn):
             Node index to run. e.g. if node_index=0 then only the chunks for
             node_chunks[0] will be run.
         """
+        if self.node_finished(node_index):
+            return
+
         if self.regrid_workers == 1:
             self._run_serial(source_files=self.source_files,
                              node_index=node_index)
@@ -633,21 +619,6 @@ class RegridOutput(OutputMixIn):
             self._run_parallel(source_files=self.source_files,
                                node_index=node_index,
                                max_workers=self.regrid_workers)
-
-    def collect(self, out_pattern, max_workers=None):
-        """Collect output chunks
-
-        Parameters
-        ----------
-        out_pattern : str
-            Output pattern for collected output files. Needs to include
-            {feature} key. e.g. ./collected_{feature}.h5
-        """
-        for feature in self.output_features:
-            out_file = out_pattern.format(feature=feature)
-            Collector.collect(self.output_files, out_file, [feature],
-                              target_final_meta_file=self.target_meta_path,
-                              max_workers=max_workers)
 
     def _run_serial(self, source_files, node_index):
         """Regrid data and write to output file, in serial.
@@ -732,12 +703,9 @@ class RegridOutput(OutputMixIn):
         index_chunk = self.index_chunks[chunk_index]
         distance_chunk = self.distance_chunks[chunk_index]
         s_slice = self.spatial_slices[chunk_index]
-        out_file = self.output_files[chunk_index]
+        out_file = self.out_files[chunk_index]
         meta = self.meta_chunks[chunk_index]
-        if os.path.exists(out_file) and not self.incremental:
-            msg = (f'{out_file} already exists and incremental=True. Skipping'
-                   ' this chunk.')
-            logger.info(msg)
+        if self.chunk_finished(chunk_index):
             return
 
         tmp_file = out_file.replace('.h5', '.h5.tmp')
