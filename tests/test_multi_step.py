@@ -6,7 +6,8 @@ import pytest
 import tempfile
 
 from sup3r import CONFIG_DIR
-from sup3r.models import (Sup3rGan, MultiStepGan, SpatialThenTemporalGan,
+from sup3r.models import (Sup3rGan, MultiStepGan,
+                          SpatialThenTemporalGan, TemporalThenSpatialGan,
                           SolarMultiStepGan, LinearInterp)
 
 FEATURES = ['U_100m', 'V_100m']
@@ -125,6 +126,38 @@ def test_spatial_then_temporal_gan():
         ms_model = SpatialThenTemporalGan.load(fp1, fp2)
 
         x = np.ones((4, 10, 10, len(FEATURES)))
+        out = ms_model.generate(x)
+        assert out.shape == (1, 60, 60, 16, 2)
+
+
+def test_temporal_then_spatial_gan():
+    """Test the 2-step temporal-then-spatial GAN"""
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model1 = Sup3rGan(fp_gen, fp_disc)
+    _ = model1.generate(np.ones((4, 10, 10, len(FEATURES))))
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model2 = Sup3rGan(fp_gen, fp_disc)
+    _ = model2.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
+
+    model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
+    model2.set_norm_stats([0.3, 0.9], [0.02, 0.07])
+    model1.set_model_params(training_features=FEATURES,
+                            output_features=FEATURES)
+    model2.set_model_params(training_features=FEATURES,
+                            output_features=FEATURES)
+
+    with tempfile.TemporaryDirectory() as td:
+        fp1 = os.path.join(td, 'model1')
+        fp2 = os.path.join(td, 'model2')
+        model1.save(fp1)
+        model2.save(fp2)
+
+        ms_model = TemporalThenSpatialGan.load(fp1, fp2)
+
+        x = np.ones((1, 10, 10, 4, len(FEATURES)))
         out = ms_model.generate(x)
         assert out.shape == (1, 60, 60, 16, 2)
 

@@ -4,7 +4,8 @@ from .base import Sup3rGan
 from .wind import WindGan
 from .solar_cc import SolarCC
 from .data_centric import Sup3rGanDC
-from .multi_step import (MultiStepGan, SpatialThenTemporalGan,
+from .multi_step import (MultiStepGan,
+                         SpatialThenTemporalGan, TemporalThenSpatialGan,
                          MultiStepSurfaceMetGan, SolarMultiStepGan)
 from .surface import SurfaceSpatialMetModel
 from .linear import LinearInterp
