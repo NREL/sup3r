@@ -24,10 +24,10 @@ from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
 from sup3r.postprocessing.file_handling import (OutputHandlerH5,
                                                 OutputHandlerNC,
                                                 OutputHandler)
-from sup3r.utilities.utilities import (DistributedProcess,
-                                       get_chunk_slices,
+from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
+from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 

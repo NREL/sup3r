@@ -15,7 +15,7 @@ from rex import MultiFileResource
 
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
-from sup3r.utilities.utilities import DistributedProcess
+from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)

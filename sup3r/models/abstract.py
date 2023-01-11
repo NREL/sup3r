@@ -910,7 +910,8 @@ class AbstractWindInterface(ABC):
     for Sup3r wind model subclasses
     """
     # pylint: disable=E0211
-    def set_model_params(self, **kwargs):
+    @staticmethod
+    def set_model_params(**kwargs):
         """Set parameters used for training the model
 
         Parameters
