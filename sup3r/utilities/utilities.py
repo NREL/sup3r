@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Utilities module for preparing
-training data
+"""Utilities module for preparing training data
 
 @author: bbenton
 """

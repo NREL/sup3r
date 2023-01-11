@@ -27,6 +27,7 @@ from sup3r.postprocessing.file_handling import (OutputHandlerH5,
 from sup3r.utilities.utilities import (get_chunk_slices,
                                        get_source_type,
                                        get_input_handler_class)
+from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -549,7 +550,7 @@ class ForwardPassSlicer:
         return cropped_slices
 
 
-class ForwardPassStrategy(InputMixIn):
+class ForwardPassStrategy(InputMixIn, DistributedProcess):
     """Class to prepare data for forward passes through generator.
 
     A full file list of contiguous times is provided. The corresponding data is
@@ -678,8 +679,10 @@ class ForwardPassStrategy(InputMixIn):
         raster_index = self._input_handler_kwargs.get('raster_index', None)
         temporal_slice = self._input_handler_kwargs.get('temporal_slice',
                                                         slice(None, None, 1))
-        InputMixIn.__init__(self, target=target, shape=grid_shape,
-                            raster_file=raster_file, raster_index=raster_index,
+        InputMixIn.__init__(self, target=target,
+                            shape=grid_shape,
+                            raster_file=raster_file,
+                            raster_index=raster_index,
                             temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
@@ -694,13 +697,9 @@ class ForwardPassStrategy(InputMixIn):
         self.incremental = incremental
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = bias_correct_kwargs or {}
-        self._failed_chunks = False
         self._input_handler_class = None
         self._input_handler_name = input_handler
-        self._max_nodes = max_nodes
-        self._out_files = None
         self._file_ids = None
-        self._node_chunks = None
         self._hr_lat_lon = None
         self._lr_lat_lon = None
         self._init_handler = None
@@ -745,61 +744,11 @@ class ForwardPassStrategy(InputMixIn):
                                             self.spatial_pad,
                                             self.temporal_pad)
 
+        DistributedProcess.__init__(self, max_nodes=max_nodes,
+                                    max_chunks=self.fwp_slicer.n_chunks,
+                                    incremental=self.incremental)
+
         self.preflight()
-
-    @property
-    def failed_chunks(self):
-        """Check whether any forward passes have generated constant output."""
-        return self._failed_chunks
-
-    @failed_chunks.setter
-    def failed_chunks(self, failed):
-        """Set failed_chunks value. Will be set to True by a ForwardPass object
-        if there is a failed chunk"""
-        self._failed_chunks = failed
-
-    def node_finished(self, node_index):
-        """Check if all out files for a given node have been saved
-
-        Parameters
-        ----------
-        node_index : int
-            Index of node to check for completed forward passes
-
-        Returns
-        -------
-        bool
-            Whether all forward passes for the given node have finished
-        """
-        node_files = [self.out_files[i] for i in self.node_chunks[node_index]]
-        return all(os.path.exists(out_file) for out_file in node_files)
-
-    @property
-    def all_finished(self):
-        """Check if all out files have been saved"""
-        return all(os.path.exists(out_file) for out_file in self.out_files)
-
-    def chunk_finished(self, chunk_index):
-        """Check if forward pass for given chunk_index has already been run.
-
-        Parameters
-        ----------
-        chunk_index : int
-            Index of the chunk to check for a finished forward pass. Considered
-            finished if there is already an output file and incremental is
-            False.
-
-        Returns
-        -------
-        bool
-            Whether the forward pass for the given chunk has finished
-        """
-        out_file = self.out_files[chunk_index]
-        if os.path.exists(out_file) and self.incremental:
-            logger.info('Not running chunk index {}, output file '
-                        'exists: {}'.format(chunk_index, out_file))
-            return True
-        return False
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""
@@ -972,47 +921,14 @@ class ForwardPassStrategy(InputMixIn):
                 self.file_paths, self._input_handler_name)
         return self._input_handler_class
 
-    def __len__(self):
-        """Get the number of nodes that this strategy is distributing to"""
-        return self.fwp_slicer.n_chunks
-
     @property
     def max_nodes(self):
         """Get the maximum number of nodes that this strategy should distribute
         work to, equal to either the specified max number of nodes or total
         number of temporal chunks"""
-        nodes = (self._max_nodes if self._max_nodes is not None
-                 else self.fwp_slicer.n_temporal_chunks)
-        nodes = np.min((nodes, self.chunks))
-        return nodes
-
-    @property
-    def nodes(self):
-        """Get the number of nodes that this strategy should distribute work
-        to, equal to either the specified max number of nodes or total number
-        of temporal chunks"""
-        return len(self.node_chunks)
-
-    @property
-    def chunks(self):
-        """Get the number of spatiotemporal chunks going through forward pass,
-        calculated as the source time index divided by the temporal part of the
-        fwp_chunk_shape times the number of spatial chunks"""
-        return self.fwp_slicer.n_chunks
-
-    @property
-    def node_chunks(self):
-        """Get chunked list of spatiotemporal chunk indices that will be
-        used to distribute sets of spatiotemporal chunks across nodes. For
-        example, if we want to distribute 10 spatiotemporal chunks across 2
-        nodes this will return [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]. So the first
-        node will be used to run forward passes on the first 5 spatiotemporal
-        chunks and the second node will be used for the last 5"""
-        if self._node_chunks is None:
-            n_chunks = np.min((self.max_nodes, self.chunks))
-            self._node_chunks = np.array_split(np.arange(self.chunks),
-                                               n_chunks)
-        return self._node_chunks
+        self._max_nodes = (self._max_nodes if self._max_nodes is not None
+                           else self.fwp_slicer.n_temporal_chunks)
+        return self._max_nodes
 
     @staticmethod
     def get_output_file_names(out_files, file_ids):
@@ -1786,8 +1702,7 @@ class ForwardPass:
             Index of node on which the forward passes for spatiotemporal chunks
             will be run.
         """
-        if strategy.node_finished(node_index) and strategy.incremental:
-            logger.info(f'All jobs for node_index={node_index} already done.')
+        if strategy.node_finished(node_index):
             return
 
         if strategy.pass_workers == 1:

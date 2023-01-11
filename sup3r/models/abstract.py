@@ -909,9 +909,9 @@ class AbstractWindInterface(ABC):
     Abstract class to define the required training interface
     for Sup3r wind model subclasses
     """
-
+    # pylint: disable=E0211
     @staticmethod
-    def set_model_params_wind(**kwargs):
+    def set_model_params(**kwargs):
         """Set parameters used for training the model
 
         Parameters
@@ -1002,8 +1002,8 @@ class AbstractWindInterface(ABC):
 
         return hi_res_topo
 
-    def generate_wind(self, low_res, norm_in=True, un_norm_out=True,
-                      exogenous_data=None):
+    def generate(self, low_res, norm_in=True, un_norm_out=True,
+                 exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -1076,7 +1076,7 @@ class AbstractWindInterface(ABC):
         return hi_res
 
     @tf.function
-    def _tf_generate_wind(self, low_res, hi_res_topo):
+    def _tf_generate(self, low_res, hi_res_topo):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -1115,8 +1115,8 @@ class AbstractWindInterface(ABC):
         return hi_res
 
     @tf.function()
-    def get_single_grad_wind(self, low_res, hi_res_true, training_weights,
-                             device_name=None, **calc_loss_kwargs):
+    def get_single_grad(self, low_res, hi_res_true, training_weights,
+                        device_name=None, **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 
