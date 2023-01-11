@@ -77,6 +77,7 @@ class DistributedProcess:
         return all(self.chunk_finished(i)
                    for i in self.node_chunks[node_index])
 
+    # pylint: disable=E1136
     def chunk_finished(self, chunk_index):
         """Check if process for given chunk_index has already been run.
 
@@ -105,7 +106,7 @@ class DistributedProcess:
         return all(self.node_finished(i) for i in range(self.nodes))
 
     @property
-    def out_files(self) -> list:
+    def out_files(self):
         """Get list of out files to write process output to"""
         return self._out_files
 
