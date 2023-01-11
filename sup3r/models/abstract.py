@@ -910,7 +910,7 @@ class AbstractWindInterface(ABC):
     for Sup3r wind model subclasses
     """
     # pylint: disable=E0211
-    def set_model_params(**kwargs):
+    def set_model_params(self, **kwargs):
         """Set parameters used for training the model
 
         Parameters
@@ -1114,8 +1114,8 @@ class AbstractWindInterface(ABC):
         return hi_res
 
     @tf.function()
-    def get_single_grad_wind(self, low_res, hi_res_true, training_weights,
-                             device_name=None, **calc_loss_kwargs):
+    def get_single_grad(self, low_res, hi_res_true, training_weights,
+                        device_name=None, **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 

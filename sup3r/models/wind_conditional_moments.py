@@ -33,48 +33,8 @@ class WindCondMom(AbstractWindInterface, Sup3rCondMom):
             Keyword arguments including 'training_features', 'output_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
-        AbstractWindInterface.set_model_params(**kwargs)
+        AbstractWindInterface.set_model_params(self, **kwargs)
         Sup3rCondMom.set_model_params(self, **kwargs)
-
-    @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
-        do not update weights, just return gradient details.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        device_name : None | str
-            Optional tensorflow device name for GPU placement. Note that if a
-            GPU is available, variables will be placed on that GPU even if
-            device_name=None.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        grad : list
-            a list or nested structure of Tensors (or IndexedSlices, or None,
-            or CompositeTensor) representing the gradients for the
-            training_weights
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-        return self.get_single_grad_wind(low_res, hi_res_true,
-                                         training_weights,
-                                         device_name=device_name,
-                                         **calc_loss_kwargs)
 
     @tf.function
     def calc_loss(self, hi_res_true, hi_res_gen, mask, **kwargs):

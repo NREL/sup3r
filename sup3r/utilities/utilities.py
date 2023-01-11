@@ -74,8 +74,8 @@ class DistributedProcess:
         bool
             Whether all processes for the given node have finished
         """
-        return all([self.chunk_finished(i)
-                    for i in self.node_chunks[node_index]])
+        return all(self.chunk_finished(i)
+                   for i in self.node_chunks[node_index])
 
     def chunk_finished(self, chunk_index):
         """Check if process for given chunk_index has already been run.
@@ -102,10 +102,10 @@ class DistributedProcess:
     @property
     def all_finished(self):
         """Check if all out files have been saved"""
-        return all([self.node_finished(i) for i in range(self.nodes)])
+        return all(self.node_finished(i) for i in range(self.nodes))
 
     @property
-    def out_files(self):
+    def out_files(self) -> list:
         """Get list of out files to write process output to"""
         return self._out_files
 

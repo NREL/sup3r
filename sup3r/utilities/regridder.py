@@ -14,7 +14,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex import MultiFileResource
 
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
-from sup3r.postprocessing.collection import Collector
 from sup3r.utilities import ModuleName
 from sup3r.utilities.utilities import DistributedProcess
 from sup3r.utilities.cli import BaseCLI
