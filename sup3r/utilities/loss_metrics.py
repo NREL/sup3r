@@ -1,6 +1,6 @@
 """Loss metrics for Sup3r"""
 
-from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError
 import tensorflow as tf
 
 
@@ -171,3 +171,39 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         x1_coarse = tf.reduce_mean(x1, axis=(1, 2))
         x2_coarse = tf.reduce_mean(x2, axis=(1, 2))
         return self.MSE_LOSS(x1_coarse, x2_coarse)
+
+
+class TRHLoss(tf.keras.losses.Loss):
+    """Loss class for Temperature and Relative Humidity Sup3rCC GAN that
+    encourages accuracy of the min/max values in the timeseries"""
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    def __call__(self, x1, x2):
+        """Custom Sup3rCC content loss function for Temp + RH
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_min = tf.reduce_min(x1, axis=3)
+        x2_min = tf.reduce_min(x2, axis=3)
+
+        x1_max = tf.reduce_max(x1, axis=3)
+        x2_max = tf.reduce_max(x2, axis=3)
+
+        mae = self.MAE_LOSS(x1, x2)
+        mae_min = self.MAE_LOSS(x1_min, x2_min)
+        mae_max = self.MAE_LOSS(x1_max, x2_max)
+
+        return mae + mae_min + mae_max

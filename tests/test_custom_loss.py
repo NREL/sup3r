@@ -3,7 +3,7 @@
 import numpy as np
 import tensorflow as tf
 
-from sup3r.utilities.loss_metrics import MmdMseLoss, CoarseMseLoss
+from sup3r.utilities.loss_metrics import MmdMseLoss, CoarseMseLoss, TRHLoss
 
 
 def test_mmd_loss():
@@ -52,3 +52,26 @@ def test_coarse_mse_loss():
     assert mse.numpy().size == 1
     assert coarse_mse.numpy().size == 1
     assert mse.numpy() > 10 * coarse_mse.numpy()
+
+
+def test_trh_loss():
+    """Test custom Sup3rCC Temp + RH loss function that looks at min/max values
+    in the timeseries."""
+    trh_loss = TRHLoss()
+
+    x = np.zeros((1, 1, 1, 72, 1))
+    y = np.zeros((1, 1, 1, 72, 1))
+
+    # loss should be dominated by special min/max values
+    x[..., 24, 0] = 20
+    y[..., 25, 0] = 25
+    loss = trh_loss(x, y)
+    assert loss.numpy() > 5
+    assert loss.numpy() < 6
+
+    # loss should be dominated by special min/max values
+    x[..., 24, 0] = -10
+    y[..., 25, 0] = -15
+    loss = trh_loss(x, y)
+    assert loss.numpy() > 5
+    assert loss.numpy() < 6
