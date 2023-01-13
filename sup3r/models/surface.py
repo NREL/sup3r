@@ -227,6 +227,37 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
         return idf_temp
 
+    def _fix_downscaled_bias(self, single_lr, single_hr,
+                             method=Image.Resampling.BILINEAR):
+        """Fix any bias introduced by the spatial downscaling with lapse rate.
+
+        Parameters
+        ----------
+        single_lr : np.ndarray
+            Single timestep raster data with shape
+            (lat, lon) matching the low-resolution input data.
+        single_hr : np.ndarray
+            Single timestep downscaled raster data with shape
+            (lat, lon) matching the high-resolution input data.
+        method : Image.Resampling.BILINEAR
+            An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
+            NEAREST enforces zero bias but makes slightly more spatial seams.
+
+        Returns
+        -------
+        single_hr : np.ndarray
+            Single timestep downscaled raster data with shape
+            (lat, lon) matching the high-resolution input data.
+        """
+
+        re_coarse = spatial_coarsening(np.expand_dims(single_hr, axis=-1),
+                                       s_enhance=self._s_enhance,
+                                       obs_axis=False)[..., 0]
+        bias = re_coarse - single_lr
+        bc = self.downscale_arr(bias, s_enhance=self._s_enhance, method=method)
+        single_hr -= bc
+        return single_hr
+
     @staticmethod
     def downscale_arr(arr, s_enhance, method=Image.Resampling.BILINEAR):
         """Downscale a 2D array of data Image.resize() method
@@ -286,6 +317,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
         hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
         hi_res_temp -= topo_hr * self._temp_lapse
+        hi_res_temp = self._fix_downscaled_bias(single_lr_temp, hi_res_temp)
 
         return hi_res_temp
 
@@ -347,6 +379,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
                      + self._w_delta_temp * delta_temp
                      + self._w_delta_topo * delta_topo)
 
+        hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh)
+
         return hi_res_rh
 
     def downscale_pres(self, single_lr_pres, topo_lr, topo_hr):
@@ -402,6 +436,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
         const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
         hi_res_pres -= const
+
+        hi_res_pres = self._fix_downscaled_bias(single_lr_pres, hi_res_pres)
 
         if np.min(hi_res_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
