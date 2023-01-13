@@ -173,14 +173,14 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         return self.MSE_LOSS(x1_coarse, x2_coarse)
 
 
-class TRHLoss(tf.keras.losses.Loss):
-    """Loss class for Temperature and Relative Humidity Sup3rCC GAN that
-    encourages accuracy of the min/max values in the timeseries"""
+class TemporalExtremesLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values in the
+    timeseries"""
 
     MAE_LOSS = MeanAbsoluteError()
 
     def __call__(self, x1, x2):
-        """Custom Sup3rCC content loss function for Temp + RH
+        """Custom content loss that encourages temporal min/max accuracy
 
         Parameters
         ----------
