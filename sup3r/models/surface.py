@@ -43,7 +43,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
     def __init__(self, features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
-                 pres_div=None, pres_exp=None):
+                 pres_div=None, pres_exp=None, fix_bias=True):
         """
         Parameters
         ----------
@@ -85,6 +85,10 @@ class SurfaceSpatialMetModel(AbstractInterface):
         pres_div : None | float
             Exponential factor in the pressure scale height equation. Defaults
             to the cls.PRES_EXP attribute.
+        fix_bias : bool
+            Some local bias can be introduced by the bilinear interp + lapse
+            rate, this flag will attempt to correct that bias by using the
+            low-resolution deviation from the input data
         """
 
         self._features = features
@@ -95,6 +99,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
+        self._fix_bias = fix_bias
 
         if isinstance(self._noise_adders, (int, float)):
             self._noise_adders = [self._noise_adders] * len(self._features)
@@ -317,7 +322,10 @@ class SurfaceSpatialMetModel(AbstractInterface):
         lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
         hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
         hi_res_temp -= topo_hr * self._temp_lapse
-        hi_res_temp = self._fix_downscaled_bias(single_lr_temp, hi_res_temp)
+
+        if self._fix_bias:
+            hi_res_temp = self._fix_downscaled_bias(single_lr_temp,
+                                                    hi_res_temp)
 
         return hi_res_temp
 
@@ -379,7 +387,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
                      + self._w_delta_temp * delta_temp
                      + self._w_delta_topo * delta_topo)
 
-        hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh)
+        if self._fix_bias:
+            hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh)
 
         return hi_res_rh
 
@@ -437,7 +446,9 @@ class SurfaceSpatialMetModel(AbstractInterface):
         const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
         hi_res_pres -= const
 
-        hi_res_pres = self._fix_downscaled_bias(single_lr_pres, hi_res_pres)
+        if self._fix_bias:
+            hi_res_pres = self._fix_downscaled_bias(single_lr_pres,
+                                                    hi_res_pres)
 
         if np.min(hi_res_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
