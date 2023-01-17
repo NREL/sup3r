@@ -617,6 +617,9 @@ class Collector(OutputMixIn):
         """
         t0 = time.time()
 
+        logger.info(f'Initializing collection for file_paths={file_paths}, '
+                    f'with max_workers={max_workers}.')
+
         if log_level is not None:
             init_logger('sup3r.preprocessing', log_file=log_file,
                         log_level=log_level)
@@ -664,7 +667,7 @@ class Collector(OutputMixIn):
                                 .format(j + 1, len(flist_chunks)))
                     time_index, target_final_meta, masked_meta, shape, _ = \
                         collector._get_collection_attrs(
-                            flist,
+                            flist, max_workers=max_workers,
                             target_final_meta_file=target_final_meta_file,
                             threshold=threshold)
                     collector._collect_flist(dset, masked_meta, time_index,

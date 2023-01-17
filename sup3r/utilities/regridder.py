@@ -279,6 +279,7 @@ class Regridder(TreeBuilder):
             Chunk of the full array of distances where distances[i] gives the
             list of distances to the source coordinates to be used for
             interpolation for the i-th coordinate in the target data.
+            (temporal, n_points, k_neighbors)
         values : ndarray
             Array of values corresponding to the point distances with shape
             (temporal, n_points, k_neighbors)
@@ -289,7 +290,14 @@ class Regridder(TreeBuilder):
             Time series of values at interpolated point with shape
             (temporal, n_points)
         """
-        weights = 1 / np.array(distance_chunk)
+        dists = np.array(distance_chunk)
+        min_dist = 1e-12
+        mask = (dists < min_dist)
+        if mask.sum() > 0:
+            logger.info(f'{np.sum(mask)} of {np.product(mask.shape)} '
+                        'distances are zero.')
+        dists[mask] = min_dist
+        weights = 1 / dists
         norm = np.sum(weights, axis=-1)
         out = np.einsum('ijk,jk->ij', values, weights) / norm
         return out
@@ -304,6 +312,7 @@ class Regridder(TreeBuilder):
             Chunk of the full array of indices where indices[i] gives the
             list of coordinate indices in the source data to be used for
             interpolation for the i-th coordinate in the target data.
+            (temporal, n_points, k_neighbors)
         feature : str
             Name of feature to interpolate
         source_files : list
@@ -339,6 +348,7 @@ class WindRegridder(Regridder):
             Chunk of the full array of indices where indices[i] gives the
             list of coordinate indices in the source data to be used for
             interpolation for the i-th coordinate in the target data.
+            (temporal, n_points, k_neighbors)
         height : int
             Wind height level
         source_files : list
@@ -401,10 +411,12 @@ class WindRegridder(Regridder):
             Chunk of the full array of indices where indices[i] gives the
             list of coordinate indices in the source data to be used for
             interpolation for the i-th coordinate in the target data.
+            (temporal, n_points, k_neighbors)
         distance_chunk : ndarray
             Chunk of the full array of distances where distances[i] gives the
             list of distances to the source coordinates to be used for
             interpolation for the i-th coordinate in the target data.
+            (temporal, n_points, k_neighbors)
         height : int
             Wind height level
         source_files : list
