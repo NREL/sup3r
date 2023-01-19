@@ -10,13 +10,13 @@ from PIL import Image
 from sklearn import linear_model
 from warnings import warn
 
-from sup3r.models.abstract import AbstractInterface
+from sup3r.models.linear import LinearInterp
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
-class SurfaceSpatialMetModel(AbstractInterface):
+class SurfaceSpatialMetModel(LinearInterp):
     """Model to spatially downscale daily-average near-surface temperature,
     relative humidity, and pressure
 
@@ -117,42 +117,6 @@ class SurfaceSpatialMetModel(AbstractInterface):
     def __len__(self):
         """Get number of model steps (match interface of MultiStepGan)"""
         return 1
-
-    @classmethod
-    def load(cls, model_dir, verbose=False):
-        """Load the GAN with its sub-networks from a previously saved-to output
-        directory.
-
-        Parameters
-        ----------
-        model_dir : str
-            Directory to load SurfaceSpatialMetModel model files from. Must
-            have a model_params.json file containing "meta" key with all of the
-            class init args.
-        verbose : bool
-            Flag to log information about the loaded model.
-
-        Returns
-        -------
-        out : SurfaceSpatialMetModel
-            Returns an initialized SurfaceSpatialMetModel
-        """
-
-        fp_params = os.path.join(model_dir, 'model_params.json')
-        assert os.path.exists(fp_params), f'Could not find: {fp_params}'
-        with open(fp_params, 'r') as f:
-            params = json.load(f)
-
-        meta = params['meta']
-        args = signature(cls.__init__).parameters
-        kwargs = {k: v for k, v in meta.items() if k in args}
-        model = cls(**kwargs)
-
-        if verbose:
-            logger.info('Loading SurfaceSpatialMetModel with meta data: {}'
-                        .format(model.meta))
-
-        return model
 
     @staticmethod
     def _get_s_enhance(topo_lr, topo_hr):
@@ -594,22 +558,6 @@ class SurfaceSpatialMetModel(AbstractInterface):
                 'fix_bias': self._fix_bias,
                 'class': self.__class__.__name__,
                 }
-
-    @property
-    def training_features(self):
-        """Get the list of input feature names that the generative model was
-        trained on.
-
-        Note that topography needs to be passed into generate() as an exogenous
-        data input.
-        """
-        return self._features
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the generative model
-        outputs"""
-        return self._features
 
     def train(self, true_hr_temp, true_hr_rh, true_hr_topo):
         """This method trains the relative humidity linear model. The
