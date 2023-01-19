@@ -2,6 +2,7 @@
 """Simple models for super resolution such as linear interp models."""
 import numpy as np
 import logging
+from inspect import signature
 import os
 import json
 from sup3r.utilities.utilities import st_interp
@@ -45,7 +46,8 @@ class LinearInterp(AbstractInterface):
         Parameters
         ----------
         model_dir : str
-            Directory to load LinearInterp model files from.
+            Directory to load LinearInterp model files from. Must
+            have a model_params.json file containing all of the init args.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -59,11 +61,10 @@ class LinearInterp(AbstractInterface):
         with open(fp_params, 'r') as f:
             params = json.load(f)
 
-        meta = params.get('meta', {'class': 'Sup3rGan'})
-        model = cls(features=meta['training_features'],
-                    s_enhance=meta['s_enhance'],
-                    t_enhance=meta['t_enhance'],
-                    t_centered=meta['t_centered'])
+        meta = params.get('meta', {'class': 'LinearInterp'})
+        args = signature(cls.__init__).parameters
+        kwargs = {k: v for k, v in meta.items() if k in args}
+        model = cls(**kwargs)
 
         if verbose:
             logger.info('Loading LinearInterp with meta data: {}'

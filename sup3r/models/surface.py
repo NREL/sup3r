@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Special models for surface meteorological data."""
+import os
+import json
 import logging
+from inspect import signature
 from fnmatch import fnmatch
 import numpy as np
 from PIL import Image
@@ -43,7 +46,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
     def __init__(self, features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
-                 pres_div=None, pres_exp=None, fix_bias=True):
+                 pres_div=None, pres_exp=None, interp_method='BILINEAR',
+                 fix_bias=True):
         """
         Parameters
         ----------
@@ -85,6 +89,9 @@ class SurfaceSpatialMetModel(AbstractInterface):
         pres_div : None | float
             Exponential factor in the pressure scale height equation. Defaults
             to the cls.PRES_EXP attribute.
+        interp_method : str
+            Name of the interpolation method to use from PIL.Image.Resampling
+            (NEAREST, BILINEAR, BICUBIC, LANCZOS)
         fix_bias : bool
             Some local bias can be introduced by the bilinear interp + lapse
             rate, this flag will attempt to correct that bias by using the
@@ -100,6 +107,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
         self._fix_bias = fix_bias
+        self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
             self._noise_adders = [self._noise_adders] * len(self._features)
@@ -109,26 +117,17 @@ class SurfaceSpatialMetModel(AbstractInterface):
         return 1
 
     @classmethod
-    def load(cls, features, s_enhance, verbose=False, **kwargs):
+    def load(cls, model_dir, verbose=False):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
         Parameters
         ----------
-        features : list
-            List of feature names that this model will operate on for both
-            input and output. This must match the feature axis ordering in the
-            array input to generate(). Typically this is a list containing:
-            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
-            contain multiple instances of each variable at different heights.
-            relativehumidity_*m entries must have corresponding temperature_*m
-            entires at the same hub height.
-        s_enhance : int
-            Integer factor by which the spatial axes are to be enhanced.
+        model_dir : str
+            Directory to load SurfaceSpatialMetModel model files from. Must
+            have a model_params.json file containing all of the init args.
         verbose : bool
             Flag to log information about the loaded model.
-        kwargs : None | dict
-            Optional kwargs to initialize SurfaceSpatialMetModel
 
         Returns
         -------
@@ -136,7 +135,15 @@ class SurfaceSpatialMetModel(AbstractInterface):
             Returns an initialized SurfaceSpatialMetModel
         """
 
-        model = cls(features, s_enhance, **kwargs)
+        fp_params = os.path.join(model_dir, 'model_params.json')
+        assert os.path.exists(fp_params), f'Could not find: {fp_params}'
+        with open(fp_params, 'r') as f:
+            params = json.load(f)
+
+        meta = params.get('meta', {'class': 'SurfaceSpatialMetModel'})
+        args = signature(cls.__init__).parameters
+        kwargs = {k: v for k, v in meta.items() if k in args}
+        model = cls(**kwargs)
 
         if verbose:
             logger.info('Loading SurfaceSpatialMetModel with meta data: {}'
@@ -320,12 +327,14 @@ class SurfaceSpatialMetModel(AbstractInterface):
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
         lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
-        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
+        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance,
+                                         method=self._interp_method)
         hi_res_temp -= topo_hr * self._temp_lapse
 
         if self._fix_bias:
             hi_res_temp = self._fix_downscaled_bias(single_lr_temp,
-                                                    hi_res_temp)
+                                                    hi_res_temp,
+                                                    method=self._interp_method)
 
         return hi_res_temp
 
@@ -376,9 +385,12 @@ class SurfaceSpatialMetModel(AbstractInterface):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance)
-        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance)
-        interp_topo = self.downscale_arr(topo_lr, self._s_enhance)
+        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance,
+                                       method=self._interp_method)
+        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance,
+                                         method=self._interp_method)
+        interp_topo = self.downscale_arr(topo_lr, self._s_enhance,
+                                         method=self._interp_method)
 
         delta_temp = single_hr_temp - interp_temp
         delta_topo = topo_hr - interp_topo
@@ -388,7 +400,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
                      + self._w_delta_topo * delta_topo)
 
         if self._fix_bias:
-            hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh)
+            hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh,
+                                                  method=self._interp_method)
 
         return hi_res_rh
 
@@ -441,14 +454,16 @@ class SurfaceSpatialMetModel(AbstractInterface):
             logger.error(msg)
             raise ValueError(msg)
 
-        hi_res_pres = self.downscale_arr(single_lr_pres, self._s_enhance)
+        hi_res_pres = self.downscale_arr(single_lr_pres, self._s_enhance,
+                                         method=self._interp_method)
 
         const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
         hi_res_pres -= const
 
         if self._fix_bias:
             hi_res_pres = self._fix_downscaled_bias(single_lr_pres,
-                                                    hi_res_pres)
+                                                    hi_res_pres,
+                                                    method=self._interp_method)
 
         if np.min(hi_res_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
@@ -571,6 +586,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
                 'pressure_exponent': self._pres_exp,
                 'training_features': self.training_features,
                 'output_features': self.output_features,
+                'interp_method': str(self._interp_method),
+                'fix_bias': self._fix_bias,
                 'class': self.__class__.__name__,
                 }
 
