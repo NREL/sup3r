@@ -67,11 +67,11 @@ def test_surface_model(s_enhance=5):
     diff = true_hi_res - hi_res
 
     # high res temperature should have very low bias and MAE < 1C
-    assert np.abs(diff[..., 0].mean()) < 1e-6
+    assert np.abs(diff[..., 0].mean()) < 1e-4
     assert np.abs(diff[..., 0]).mean() < 5
 
     # high res relative humidity should have very low bias and MAE < 3%
-    assert np.abs(diff[..., 1].mean()) < 1e-6
+    assert np.abs(diff[..., 1].mean()) < 1e-4
     assert np.abs(diff[..., 1]).mean() < 2
 
     # high res pressure should have very low bias and MAE < 200 Pa

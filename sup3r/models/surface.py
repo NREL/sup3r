@@ -46,7 +46,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
     def __init__(self, features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
-                 pres_div=None, pres_exp=None, interp_method='BILINEAR',
+                 pres_div=None, pres_exp=None, interp_method='LANCZOS',
                  fix_bias=True):
         """
         Parameters
@@ -92,6 +92,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
         interp_method : str
             Name of the interpolation method to use from PIL.Image.Resampling
             (NEAREST, BILINEAR, BICUBIC, LANCZOS)
+            LANCZOS is default and has been tested to work best for
+            SurfaceSpatialMetModel.
         fix_bias : bool
             Some local bias can be introduced by the bilinear interp + lapse
             rate, this flag will attempt to correct that bias by using the
@@ -241,7 +243,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         return idf_temp
 
     def _fix_downscaled_bias(self, single_lr, single_hr,
-                             method=Image.Resampling.BILINEAR):
+                             method=Image.Resampling.LANCZOS):
         """Fix any bias introduced by the spatial downscaling with lapse rate.
 
         Parameters
@@ -252,7 +254,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         single_hr : np.ndarray
             Single timestep downscaled raster data with shape
             (lat, lon) matching the high-resolution input data.
-        method : Image.Resampling.BILINEAR
+        method : Image.Resampling.LANCZOS
             An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
             NEAREST enforces zero bias but makes slightly more spatial seams.
 
@@ -272,7 +274,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         return single_hr
 
     @staticmethod
-    def downscale_arr(arr, s_enhance, method=Image.Resampling.BILINEAR):
+    def downscale_arr(arr, s_enhance, method=Image.Resampling.LANCZOS):
         """Downscale a 2D array of data Image.resize() method
 
         Parameters
@@ -282,9 +284,9 @@ class SurfaceSpatialMetModel(AbstractInterface):
             (lat, lon)
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
-        method : Image.Resampling.BILINEAR
+        method : Image.Resampling.LANCZOS
             An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
-            BILINEAR is default and has been tested to work best for
+            LANCZOS is default and has been tested to work best for
             SurfaceSpatialMetModel.
         """
         im = Image.fromarray(arr)
