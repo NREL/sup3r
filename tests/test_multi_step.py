@@ -95,7 +95,8 @@ def test_multi_step_norm(norm_option):
         out1 = model1.generate(x)
         out2 = model2.generate(out1)
         out3 = model3.generate(out2)
-        assert np.allclose(out, out3, atol=5e-4)
+        rdiff = np.abs(out - out3) / np.abs(out.mean())
+        assert rdiff.max() < 1e-4
 
 
 def test_spatial_then_temporal_gan():

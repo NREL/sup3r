@@ -76,7 +76,8 @@ class LinearInterp(AbstractInterface):
     @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
-        return {'s_enhance': self._s_enhance,
+        return {'features': self._features,
+                's_enhance': self._s_enhance,
                 't_enhance': self._t_enhance,
                 't_centered': self._t_centered,
                 'training_features': self.training_features,
