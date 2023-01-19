@@ -47,7 +47,8 @@ class LinearInterp(AbstractInterface):
         ----------
         model_dir : str
             Directory to load LinearInterp model files from. Must
-            have a model_params.json file containing all of the init args.
+            have a model_params.json file containing "meta" key with all of the
+            class init args.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -61,7 +62,7 @@ class LinearInterp(AbstractInterface):
         with open(fp_params, 'r') as f:
             params = json.load(f)
 
-        meta = params.get('meta', {'class': 'LinearInterp'})
+        meta = params['meta']
         args = signature(cls.__init__).parameters
         kwargs = {k: v for k, v in meta.items() if k in args}
         model = cls(**kwargs)

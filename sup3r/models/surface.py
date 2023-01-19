@@ -125,7 +125,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
         ----------
         model_dir : str
             Directory to load SurfaceSpatialMetModel model files from. Must
-            have a model_params.json file containing all of the init args.
+            have a model_params.json file containing "meta" key with all of the
+            class init args.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -140,7 +141,7 @@ class SurfaceSpatialMetModel(AbstractInterface):
         with open(fp_params, 'r') as f:
             params = json.load(f)
 
-        meta = params.get('meta', {'class': 'SurfaceSpatialMetModel'})
+        meta = params['meta']
         args = signature(cls.__init__).parameters
         kwargs = {k: v for k, v in meta.items() if k in args}
         model = cls(**kwargs)
@@ -444,17 +445,18 @@ class SurfaceSpatialMetModel(AbstractInterface):
             warn(msg)
 
         const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
-        single_lr_pres = single_lr_pres.copy() + const
+        lr_pres_adj = single_lr_pres.copy() + const
 
-        if np.min(single_lr_pres) < 0.0:
+        if np.min(lr_pres_adj) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
                    'resulted in negative values. Incorrectly '
                    'scaled/unscaled values or incorrect units are '
-                   'the most likely causes.')
+                   'the most likely causes. All pressure data should be '
+                   'in Pascals.')
             logger.error(msg)
             raise ValueError(msg)
 
-        hi_res_pres = self.downscale_arr(single_lr_pres, self._s_enhance,
+        hi_res_pres = self.downscale_arr(lr_pres_adj, self._s_enhance,
                                          method=self._interp_method)
 
         const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)

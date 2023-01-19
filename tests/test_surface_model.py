@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the temperature and relative humidity scaling relationships of the
 SurfaceSpatialMetModel"""
+import json
 import os
 import tempfile
 import pytest
@@ -53,7 +54,14 @@ def test_surface_model(s_enhance=5):
 
     low_res, true_hi_res, topo_lr, topo_hr = get_inputs(s_enhance)
 
-    model = SurfaceSpatialMetModel.load(features=FEATURES, s_enhance=s_enhance)
+    kwargs = {'meta': {'features': FEATURES, 's_enhance': s_enhance}}
+    with tempfile.TemporaryDirectory() as td:
+        fp_params = os.path.join(td, 'model_params.json')
+        with open(fp_params, 'w') as f:
+            json.dump(kwargs, f)
+
+        model = SurfaceSpatialMetModel.load(model_dir=td)
+
     hi_res = model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
 
     diff = true_hi_res - hi_res
@@ -116,14 +124,21 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
                            t_enhance=t_enhance)
 
     with tempfile.TemporaryDirectory() as td:
-        fp = os.path.join(td, 'model')
-        model.save(fp)
+        temporal_dir = os.path.join(td, 'model')
+        model.save(temporal_dir)
 
-        surface_model_kwargs = {'features': FEATURES, 's_enhance': s_enhance}
-        temporal_model_kwargs = {'model_dirs': fp}
+        surface_model_kwargs = {'meta': {'features': FEATURES,
+                                         's_enhance': s_enhance}}
+
+        surface_dir = os.path.join(td, 'surface/')
+        os.makedirs(surface_dir)
+        fp_params = os.path.join(surface_dir, 'model_params.json')
+        with open(fp_params, 'w') as f:
+            json.dump(surface_model_kwargs, f)
+
         ms_model = MultiStepSurfaceMetGan.load(
-            surface_model_kwargs=surface_model_kwargs,
-            temporal_model_kwargs=temporal_model_kwargs)
+            surface_model_kwargs={'model_dir': surface_dir},
+            temporal_model_kwargs={'model_dirs': temporal_dir})
 
         for model in ms_model.models:
             assert isinstance(model.s_enhance, int)
