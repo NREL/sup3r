@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 """Special models for surface meteorological data."""
+import os
+import json
 import logging
+from inspect import signature
 from fnmatch import fnmatch
 import numpy as np
 from PIL import Image
 from sklearn import linear_model
 from warnings import warn
 
-from sup3r.models.abstract import AbstractInterface
+from sup3r.models.linear import LinearInterp
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
-class SurfaceSpatialMetModel(AbstractInterface):
+class SurfaceSpatialMetModel(LinearInterp):
     """Model to spatially downscale daily-average near-surface temperature,
     relative humidity, and pressure
 
@@ -43,7 +46,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
     def __init__(self, features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
-                 pres_div=None, pres_exp=None):
+                 pres_div=None, pres_exp=None, interp_method='LANCZOS',
+                 fix_bias=True):
         """
         Parameters
         ----------
@@ -85,6 +89,15 @@ class SurfaceSpatialMetModel(AbstractInterface):
         pres_div : None | float
             Exponential factor in the pressure scale height equation. Defaults
             to the cls.PRES_EXP attribute.
+        interp_method : str
+            Name of the interpolation method to use from PIL.Image.Resampling
+            (NEAREST, BILINEAR, BICUBIC, LANCZOS)
+            LANCZOS is default and has been tested to work best for
+            SurfaceSpatialMetModel.
+        fix_bias : bool
+            Some local bias can be introduced by the bilinear interp + lapse
+            rate, this flag will attempt to correct that bias by using the
+            low-resolution deviation from the input data
         """
 
         self._features = features
@@ -95,6 +108,8 @@ class SurfaceSpatialMetModel(AbstractInterface):
         self._w_delta_topo = w_delta_topo or self.W_DELTA_TOPO
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
+        self._fix_bias = fix_bias
+        self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
             self._noise_adders = [self._noise_adders] * len(self._features)
@@ -102,42 +117,6 @@ class SurfaceSpatialMetModel(AbstractInterface):
     def __len__(self):
         """Get number of model steps (match interface of MultiStepGan)"""
         return 1
-
-    @classmethod
-    def load(cls, features, s_enhance, verbose=False, **kwargs):
-        """Load the GAN with its sub-networks from a previously saved-to output
-        directory.
-
-        Parameters
-        ----------
-        features : list
-            List of feature names that this model will operate on for both
-            input and output. This must match the feature axis ordering in the
-            array input to generate(). Typically this is a list containing:
-            temperature_*m, relativehumidity_*m, and pressure_*m. The list can
-            contain multiple instances of each variable at different heights.
-            relativehumidity_*m entries must have corresponding temperature_*m
-            entires at the same hub height.
-        s_enhance : int
-            Integer factor by which the spatial axes are to be enhanced.
-        verbose : bool
-            Flag to log information about the loaded model.
-        kwargs : None | dict
-            Optional kwargs to initialize SurfaceSpatialMetModel
-
-        Returns
-        -------
-        out : SurfaceSpatialMetModel
-            Returns an initialized SurfaceSpatialMetModel
-        """
-
-        model = cls(features, s_enhance, **kwargs)
-
-        if verbose:
-            logger.info('Loading SurfaceSpatialMetModel with meta data: {}'
-                        .format(model.meta))
-
-        return model
 
     @staticmethod
     def _get_s_enhance(topo_lr, topo_hr):
@@ -227,8 +206,39 @@ class SurfaceSpatialMetModel(AbstractInterface):
 
         return idf_temp
 
+    def _fix_downscaled_bias(self, single_lr, single_hr,
+                             method=Image.Resampling.LANCZOS):
+        """Fix any bias introduced by the spatial downscaling with lapse rate.
+
+        Parameters
+        ----------
+        single_lr : np.ndarray
+            Single timestep raster data with shape
+            (lat, lon) matching the low-resolution input data.
+        single_hr : np.ndarray
+            Single timestep downscaled raster data with shape
+            (lat, lon) matching the high-resolution input data.
+        method : Image.Resampling.LANCZOS
+            An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
+            NEAREST enforces zero bias but makes slightly more spatial seams.
+
+        Returns
+        -------
+        single_hr : np.ndarray
+            Single timestep downscaled raster data with shape
+            (lat, lon) matching the high-resolution input data.
+        """
+
+        re_coarse = spatial_coarsening(np.expand_dims(single_hr, axis=-1),
+                                       s_enhance=self._s_enhance,
+                                       obs_axis=False)[..., 0]
+        bias = re_coarse - single_lr
+        bc = self.downscale_arr(bias, s_enhance=self._s_enhance, method=method)
+        single_hr -= bc
+        return single_hr
+
     @staticmethod
-    def downscale_arr(arr, s_enhance, method=Image.Resampling.BILINEAR):
+    def downscale_arr(arr, s_enhance, method=Image.Resampling.LANCZOS):
         """Downscale a 2D array of data Image.resize() method
 
         Parameters
@@ -238,9 +248,9 @@ class SurfaceSpatialMetModel(AbstractInterface):
             (lat, lon)
         s_enhance : int
             Integer factor by which the spatial axes are to be enhanced.
-        method : Image.Resampling.BILINEAR
+        method : Image.Resampling.LANCZOS
             An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
-            BILINEAR is default and has been tested to work best for
+            LANCZOS is default and has been tested to work best for
             SurfaceSpatialMetModel.
         """
         im = Image.fromarray(arr)
@@ -284,8 +294,14 @@ class SurfaceSpatialMetModel(AbstractInterface):
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
         lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
-        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance)
+        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance,
+                                         method=self._interp_method)
         hi_res_temp -= topo_hr * self._temp_lapse
+
+        if self._fix_bias:
+            hi_res_temp = self._fix_downscaled_bias(single_lr_temp,
+                                                    hi_res_temp,
+                                                    method=self._interp_method)
 
         return hi_res_temp
 
@@ -336,9 +352,12 @@ class SurfaceSpatialMetModel(AbstractInterface):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance)
-        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance)
-        interp_topo = self.downscale_arr(topo_lr, self._s_enhance)
+        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance,
+                                       method=self._interp_method)
+        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance,
+                                         method=self._interp_method)
+        interp_topo = self.downscale_arr(topo_lr, self._s_enhance,
+                                         method=self._interp_method)
 
         delta_temp = single_hr_temp - interp_temp
         delta_topo = topo_hr - interp_topo
@@ -346,6 +365,10 @@ class SurfaceSpatialMetModel(AbstractInterface):
         hi_res_rh = (interp_rh
                      + self._w_delta_temp * delta_temp
                      + self._w_delta_topo * delta_topo)
+
+        if self._fix_bias:
+            hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh,
+                                                  method=self._interp_method)
 
         return hi_res_rh
 
@@ -388,20 +411,27 @@ class SurfaceSpatialMetModel(AbstractInterface):
             warn(msg)
 
         const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
-        single_lr_pres = single_lr_pres.copy() + const
+        lr_pres_adj = single_lr_pres.copy() + const
 
-        if np.min(single_lr_pres) < 0.0:
+        if np.min(lr_pres_adj) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
                    'resulted in negative values. Incorrectly '
                    'scaled/unscaled values or incorrect units are '
-                   'the most likely causes.')
+                   'the most likely causes. All pressure data should be '
+                   'in Pascals.')
             logger.error(msg)
             raise ValueError(msg)
 
-        hi_res_pres = self.downscale_arr(single_lr_pres, self._s_enhance)
+        hi_res_pres = self.downscale_arr(lr_pres_adj, self._s_enhance,
+                                         method=self._interp_method)
 
         const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
         hi_res_pres -= const
+
+        if self._fix_bias:
+            hi_res_pres = self._fix_downscaled_bias(single_lr_pres,
+                                                    hi_res_pres,
+                                                    method=self._interp_method)
 
         if np.min(hi_res_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
@@ -524,24 +554,10 @@ class SurfaceSpatialMetModel(AbstractInterface):
                 'pressure_exponent': self._pres_exp,
                 'training_features': self.training_features,
                 'output_features': self.output_features,
+                'interp_method': str(self._interp_method),
+                'fix_bias': self._fix_bias,
                 'class': self.__class__.__name__,
                 }
-
-    @property
-    def training_features(self):
-        """Get the list of input feature names that the generative model was
-        trained on.
-
-        Note that topography needs to be passed into generate() as an exogenous
-        data input.
-        """
-        return self._features
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the generative model
-        outputs"""
-        return self._features
 
     def train(self, true_hr_temp, true_hr_rh, true_hr_topo):
         """This method trains the relative humidity linear model. The
