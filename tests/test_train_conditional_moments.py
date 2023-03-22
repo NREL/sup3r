@@ -400,9 +400,11 @@ def test_train_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
         model_mom2.save(out_dir)
 
 
-@pytest.mark.parametrize('FEATURES',
-                         (['U_100m', 'V_100m'],))
+@pytest.mark.parametrize('FEATURES, end_t_padding',
+                         [(['U_100m', 'V_100m'], False),
+                          (['U_100m', 'V_100m'], True)])
 def test_train_st_mom1(FEATURES,
+                       end_t_padding,
                        log=False, full_shape=(20, 20),
                        sample_shape=(12, 12, 24), n_epoch=2,
                        batch_size=2, n_batches=2,
@@ -428,7 +430,8 @@ def test_train_st_mom1(FEATURES,
 
     batch_handler = BatchHandlerMom1([handler], batch_size=batch_size,
                                      s_enhance=3, t_enhance=4,
-                                     n_batches=n_batches)
+                                     n_batches=n_batches,
+                                     end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -445,9 +448,11 @@ def test_train_st_mom1(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom1_sf(FEATURES,
+                          end_t_padding=False,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 24), n_epoch=2,
                           batch_size=2, n_batches=2,
+                          temporal_slice=slice(None, None, 1),
                           out_dir_root=None):
     """Test basic spatiotemporal model training for first conditional moment
     of the subfilter velocity."""
@@ -464,13 +469,14 @@ def test_train_st_mom1_sf(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            temporal_slice=temporal_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom1SF([handler], batch_size=batch_size,
                                        s_enhance=3, t_enhance=4,
-                                       n_batches=n_batches)
+                                       n_batches=n_batches,
+                                       end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -487,9 +493,11 @@ def test_train_st_mom1_sf(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2(FEATURES,
+                       end_t_padding=False,
                        log=False, full_shape=(20, 20),
                        sample_shape=(12, 12, 16), n_epoch=2,
                        batch_size=2, n_batches=2,
+                       temporal_slice=slice(None, None, 1),
                        out_dir_root=None,
                        model_mom1_dir=None):
     """Test basic spatiotemporal model training
@@ -516,14 +524,15 @@ def test_train_st_mom2(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            temporal_slice=temporal_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2([handler], batch_size=batch_size,
                                      s_enhance=3, t_enhance=4,
                                      n_batches=n_batches,
-                                     model_mom1=model_mom1)
+                                     model_mom1=model_mom1,
+                                     end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -539,8 +548,10 @@ def test_train_st_mom2(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sf(FEATURES,
+                          end_t_padding=False,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 16), n_epoch=2,
+                          temporal_slice=slice(None, None, 1),
                           batch_size=2, n_batches=2,
                           out_dir_root=None,
                           model_mom1_dir=None):
@@ -568,14 +579,15 @@ def test_train_st_mom2_sf(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            temporal_slice=temporal_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
     batch_handler = BatchHandlerMom2SF([handler], batch_size=batch_size,
                                        s_enhance=3, t_enhance=4,
                                        n_batches=n_batches,
-                                       model_mom1=model_mom1)
+                                       model_mom1=model_mom1,
+                                       end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -591,8 +603,10 @@ def test_train_st_mom2_sf(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sep(FEATURES,
+                           end_t_padding=False,
                            log=False, full_shape=(20, 20),
                            sample_shape=(12, 12, 16), n_epoch=2,
+                           temporal_slice=slice(None, None, 1),
                            batch_size=2, n_batches=2,
                            out_dir_root=None):
     """Test basic spatiotemporal model training
@@ -610,7 +624,7 @@ def test_train_st_mom2_sep(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            temporal_slice=temporal_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -618,7 +632,8 @@ def test_train_st_mom2_sep(FEATURES,
                                         batch_size=batch_size,
                                         s_enhance=3,
                                         t_enhance=4,
-                                        n_batches=n_batches)
+                                        n_batches=n_batches,
+                                        end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -634,6 +649,7 @@ def test_train_st_mom2_sep(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sep_sf(FEATURES,
+                              end_t_padding=False,
                               log=False, full_shape=(20, 20),
                               sample_shape=(12, 12, 16), n_epoch=2,
                               batch_size=2, n_batches=2,
@@ -659,7 +675,8 @@ def test_train_st_mom2_sep_sf(FEATURES,
     batch_handler = BatchHandlerMom2SepSF([handler],
                                           batch_size=batch_size,
                                           s_enhance=3, t_enhance=4,
-                                          n_batches=n_batches)
+                                          n_batches=n_batches,
+                                          end_t_padding=end_t_padding)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:

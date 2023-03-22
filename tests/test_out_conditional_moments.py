@@ -721,6 +721,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                      sample_shape=(12, 12, 24),
                      batch_size=4, n_batches=4,
                      s_enhance=3, t_enhance=4,
+                     end_t_padding=False,
                      model_dir=None):
     """Test basic spatiotemporal model outputing for
     first conditional moment."""
@@ -735,7 +736,8 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                                      batch_size=batch_size,
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
-                                     n_batches=n_batches)
+                                     n_batches=n_batches,
+                                     end_t_padding=end_t_padding)
 
     # Load Model
     if model_dir is None:
@@ -820,6 +822,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                         sample_shape=(12, 12, 24),
                         batch_size=4, n_batches=4,
                         s_enhance=3, t_enhance=4,
+                        end_t_padding=False,
                         model_dir=None):
     """Test basic spatiotemporal model outputing for first conditional moment
     of subfilter velocity."""
@@ -834,7 +837,8 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                                        batch_size=batch_size,
                                        s_enhance=s_enhance,
                                        t_enhance=t_enhance,
-                                       n_batches=n_batches)
+                                       n_batches=n_batches,
+                                       end_t_padding=end_t_padding)
 
     # Load Model
     if model_dir is None:
@@ -926,6 +930,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                      sample_shape=(12, 12, 24),
                      batch_size=4, n_batches=4,
                      s_enhance=3, t_enhance=4,
+                     end_t_padding=False,
                      model_dir=None,
                      model_mom1_dir=None):
     """Test basic spatiotemporal model outputing
@@ -952,7 +957,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
                                      n_batches=n_batches,
-                                     model_mom1=model_mom1)
+                                     model_mom1=model_mom1,
+                                     end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1048,6 +1054,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                         sample_shape=(12, 12, 24),
                         batch_size=4, n_batches=4,
                         s_enhance=3, t_enhance=4,
+                        end_t_padding=False,
                         model_dir=None,
                         model_mom1_dir=None):
     """Test basic spatiotemporal model outputing for second conditional moment
@@ -1074,7 +1081,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                                        s_enhance=s_enhance,
                                        t_enhance=t_enhance,
                                        n_batches=n_batches,
-                                       model_mom1=model_mom1)
+                                       model_mom1=model_mom1,
+                                       end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1183,6 +1191,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                          sample_shape=(12, 12, 24),
                          batch_size=4, n_batches=4,
                          s_enhance=3, t_enhance=4,
+                         end_t_padding=False,
                          model_dir=None,
                          model_mom1_dir=None):
     """Test basic spatiotemporal model outputing
@@ -1208,7 +1217,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                                         batch_size=batch_size,
                                         s_enhance=s_enhance,
                                         t_enhance=t_enhance,
-                                        n_batches=n_batches)
+                                        n_batches=n_batches,
+                                        end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1315,6 +1325,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                             sample_shape=(12, 12, 24),
                             batch_size=4, n_batches=4,
                             s_enhance=3, t_enhance=4,
+                            end_t_padding=False,
                             model_dir=None,
                             model_mom1_dir=None):
     """Test basic spatiotemporal model outputing for second conditional moment
@@ -1340,7 +1351,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                                           batch_size=batch_size,
                                           s_enhance=s_enhance,
                                           t_enhance=t_enhance,
-                                          n_batches=n_batches)
+                                          n_batches=n_batches,
+                                          end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
