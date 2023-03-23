@@ -2,4 +2,5 @@
 ignore = E731,E402,F,W503,C901
 exclude = .git,__pycache__,docs/source/conf.py,old,build,dist
 max-complexity = 10
-per-file-ignores = tests/*.py:C901
+per-file-ignores =
+   tests/*.py:C901
