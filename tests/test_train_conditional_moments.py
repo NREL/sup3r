@@ -445,9 +445,11 @@ def test_train_st_mom1(FEATURES,
         model.save(out_dir)
 
 
-@pytest.mark.parametrize('FEATURES',
-                         (['U_100m', 'V_100m'],))
+@pytest.mark.parametrize('FEATURES, t_enhance_mode',
+                         [(['U_100m', 'V_100m'], 'constant'),
+                          (['U_100m', 'V_100m'], 'linear')])
 def test_train_st_mom1_sf(FEATURES,
+                          t_enhance_mode,
                           end_t_padding=False,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 24), n_epoch=2,
@@ -473,10 +475,12 @@ def test_train_st_mom1_sf(FEATURES,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandlerMom1SF([handler], batch_size=batch_size,
-                                       s_enhance=3, t_enhance=4,
-                                       n_batches=n_batches,
-                                       end_t_padding=end_t_padding)
+    batch_handler = BatchHandlerMom1SF(
+        [handler], batch_size=batch_size,
+        s_enhance=3, t_enhance=4,
+        n_batches=n_batches,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -548,6 +552,7 @@ def test_train_st_mom2(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sf(FEATURES,
+                          t_enhance_mode='constant',
                           end_t_padding=False,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 16), n_epoch=2,
@@ -583,11 +588,13 @@ def test_train_st_mom2_sf(FEATURES,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandlerMom2SF([handler], batch_size=batch_size,
-                                       s_enhance=3, t_enhance=4,
-                                       n_batches=n_batches,
-                                       model_mom1=model_mom1,
-                                       end_t_padding=end_t_padding)
+    batch_handler = BatchHandlerMom2SF(
+        [handler], batch_size=batch_size,
+        s_enhance=3, t_enhance=4,
+        n_batches=n_batches,
+        model_mom1=model_mom1,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
@@ -649,6 +656,7 @@ def test_train_st_mom2_sep(FEATURES,
 @pytest.mark.parametrize('FEATURES',
                          (['U_100m', 'V_100m'],))
 def test_train_st_mom2_sep_sf(FEATURES,
+                              t_enhance_mode='constant',
                               end_t_padding=False,
                               log=False, full_shape=(20, 20),
                               sample_shape=(12, 12, 16), n_epoch=2,
@@ -672,11 +680,13 @@ def test_train_st_mom2_sep_sf(FEATURES,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandlerMom2SepSF([handler],
-                                          batch_size=batch_size,
-                                          s_enhance=3, t_enhance=4,
-                                          n_batches=n_batches,
-                                          end_t_padding=end_t_padding)
+    batch_handler = BatchHandlerMom2SepSF(
+        [handler],
+        batch_size=batch_size,
+        s_enhance=3, t_enhance=4,
+        n_batches=n_batches,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
