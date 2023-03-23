@@ -10,7 +10,6 @@ import glob
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
-from scipy.ndimage import interpolation
 from scipy.ndimage import zoom
 from scipy.ndimage.filters import gaussian_filter
 from fnmatch import fnmatch
@@ -835,27 +834,35 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
         if obs_axis and len(data.shape) == 5:
             enhancement = [1, s_enhance, s_enhance, 1, 1]
-            enhanced_data = interpolation.zoom(data,
-                                               enhancement,
-                                               order=0)
+            enhanced_data = zoom(data,
+                                 enhancement,
+                                 order=0,
+                                 mode='nearest',
+                                 grid_mode=True)
 
         elif obs_axis and len(data.shape) == 4:
             enhancement = [1, s_enhance, s_enhance, 1]
-            enhanced_data = interpolation.zoom(data,
-                                               enhancement,
-                                               order=0)
+            enhanced_data = zoom(data,
+                                 enhancement,
+                                 order=0,
+                                 mode='nearest',
+                                 grid_mode=True)
 
         elif not obs_axis and len(data.shape) == 4:
             enhancement = [s_enhance, s_enhance, 1, 1]
-            enhanced_data = interpolation.zoom(data,
-                                               enhancement,
-                                               order=0)
+            enhanced_data = zoom(data,
+                                 enhancement,
+                                 order=0,
+                                 mode='nearest',
+                                 grid_mode=True)
 
         elif not obs_axis and len(data.shape) == 3:
             enhancement = [s_enhance, s_enhance, 1]
-            enhanced_data = interpolation.zoom(data,
-                                               enhancement,
-                                               order=0)
+            enhanced_data = zoom(data,
+                                 enhancement,
+                                 order=0,
+                                 mode='nearest',
+                                 grid_mode=True)
         else:
             msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
                    f'received: {data.shape}')
