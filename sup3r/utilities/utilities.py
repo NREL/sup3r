@@ -9,9 +9,10 @@ import logging
 import glob
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator
-from scipy.ndimage.filters import gaussian_filter
 from scipy.interpolate import interp1d
 from scipy.ndimage import interpolation
+from scipy.ndimage import zoom
+from ndimage.filters import gaussian_filter
 from fnmatch import fnmatch
 import os
 import re
@@ -632,9 +633,11 @@ def temporal_simple_enhancing(data, t_enhance=4):
         enhanced_data = data
     elif t_enhance not in [None, 1] and len(data.shape) == 5:
         enhancement = [1, 1, 1, t_enhance, 1]
-        enhanced_data = interpolation.zoom(data,
-                                           enhancement,
-                                           order=0)
+        enhanced_data = zoom(data,
+                             enhancement,
+                             order=0,
+                             mode='nearest',
+                             grid_mode=True)
     elif len(data.shape) != 5:
         msg = ('Data must be 5D to do temporal enhancing, but '
                f'received: {data.shape}')
