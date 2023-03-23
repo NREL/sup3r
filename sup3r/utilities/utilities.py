@@ -611,7 +611,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     return coarse_data
 
 
-def temporal_simple_enhancing(data, t_enhance=4):
+def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
     """"Upsample data according to t_enhance resolution
 
     Parameters
@@ -631,12 +631,21 @@ def temporal_simple_enhancing(data, t_enhance=4):
     if t_enhance in [None, 1]:
         enhanced_data = data
     elif t_enhance not in [None, 1] and len(data.shape) == 5:
-        enhancement = [1, 1, 1, t_enhance, 1]
-        enhanced_data = zoom(data,
-                             enhancement,
-                             order=0,
-                             mode='nearest',
-                             grid_mode=True)
+        if mode == 'constant':
+            enhancement = [1, 1, 1, t_enhance, 1]
+            enhanced_data = zoom(data,
+                                 enhancement,
+                                 order=0,
+                                 mode='nearest',
+                                 grid_mode=True)
+        elif mode == 'linear':
+            index_t_hr = np.array(list(range(data.shape[3] * t_enhance)))
+            index_t_lr = index_t_hr[::t_enhance]
+            enhanced_data = interp1d(index_t_lr,
+                                     data,
+                                     axis=3,
+                                     fill_value='extrapolate')(index_t_hr)
+            enhanced_data = np.array(enhanced_data, dtype=np.float32)
     elif len(data.shape) != 5:
         msg = ('Data must be 5D to do temporal enhancing, but '
                f'received: {data.shape}')
