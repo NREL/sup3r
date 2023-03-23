@@ -12,7 +12,7 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 from scipy.ndimage import interpolation
 from scipy.ndimage import zoom
-from ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter
 from fnmatch import fnmatch
 import os
 import re
