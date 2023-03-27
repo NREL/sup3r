@@ -704,7 +704,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         assert file_paths is not None and bool(file_paths), msg
 
         self.file_paths = file_paths
-        self.features = features
+        self.features = features if isinstance(features, list) else [features]
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split

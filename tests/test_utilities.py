@@ -26,7 +26,7 @@ from sup3r import TEST_DATA_DIR
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 
 
-def test_regridding(log=True):
+def test_regridding(log=False):
     """Make sure regridding reproduces original data when coordinates in the
     meta is the same"""
     if log:
