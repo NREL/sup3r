@@ -1011,8 +1011,11 @@ def calc_height(data, raster_index, time_slice=slice(None)):
         del gp
 
     elif all(field in data for field in ('zg', 'orog')):
+        if len(data['orog'].dims) == 3:
+            hgt = data['orog'][(0,) + tuple(raster_index)]
+        else:
+            hgt = data['orog'][tuple(raster_index)]
         gp = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
-        hgt = data['orog'][tuple(raster_index)]
         hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[1], axis=0)
         hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[0], axis=0)
         hgt = gp - hgt
@@ -1106,10 +1109,11 @@ def interp_to_level(var_array, lev_array, levels):
 
     if bad_min.any():
         msg = ('Approximately {:.2f}% of the lowest vertical levels '
-               '(maximum value of {:.3f}) '
+               '(maximum value of {:.3f}, minimum value of {:.3f}) '
                'were greater than the minimum requested level: {}'
                .format(100 * bad_min.sum() / bad_min.size,
-                       lev_array[:, 0, :, :].max(), min(levels)))
+                       lev_array[:, 0, :, :].max(),
+                       lev_array[:, 0, :, :].min(), min(levels)))
         logger.warning(msg)
         warn(msg)
 

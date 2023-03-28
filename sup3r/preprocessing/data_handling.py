@@ -383,7 +383,7 @@ class InputMixIn:
         of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
         if self._invert_lat is None:
             lat_lon = self.raw_lat_lon
-            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
+            self._invert_lat = (not self.lats_are_descending(lat_lon))
         return self._invert_lat
 
     @property
@@ -397,7 +397,7 @@ class InputMixIn:
         """
         if self._target is None:
             lat_lon = self.lat_lon
-            if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
+            if not self.lats_are_descending(lat_lon):
                 self._target = tuple(lat_lon[0, 0, :])
             else:
                 self._target = tuple(lat_lon[-1, 0, :])
@@ -407,6 +407,22 @@ class InputMixIn:
     def target(self, target):
         """Update target property"""
         self._target = target
+
+    @classmethod
+    def lats_are_descending(cls, lat_lon):
+        """Check if latitudes are in descending order (i.e. the target
+        coordinate is already at the bottom left corner)
+
+        Parameters
+        ----------
+        lat_lon : np.ndarray
+            Lat/Lon array with shape (n_lats, n_lons, 2)
+
+        Returns
+        -------
+        bool
+        """
+        return lat_lon[-1, 0, 0] < lat_lon[0, 0, 0]
 
     @property
     def grid_shape(self):
@@ -692,6 +708,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         res_kwargs : dict | None
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,
+                      'concat_dim': 'Time',
+                      'combine': 'nested',
                       'chunks': {'south_north': 120, 'west_east': 120}}
             which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
@@ -1955,8 +1973,8 @@ class DataHandlerNC(DataHandler):
         """
         default_kws = {'combine': 'nested', 'concat_dim': 'Time',
                        'chunks': cls.CHUNKS}
-        kwargs.update(default_kws)
-        return xr.open_mfdataset(file_paths, **kwargs)
+        default_kws.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kws)
 
     @classmethod
     def get_file_times(cls, file_paths, **kwargs):
@@ -2253,9 +2271,14 @@ class DataHandlerNC(DataHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
-        raster_index = [slice(row, row + grid_shape[0]),
+        if cls.lats_are_descending(lat_lon):
+            row_end = row + 1
+            row_start = row_end - grid_shape[0]
+        else:
+            row_end = row + grid_shape[0]
+            row_start = row
+        raster_index = [slice(row_start, row_end),
                         slice(col, col + grid_shape[1])]
-
         cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
         return raster_index
 
@@ -2349,6 +2372,34 @@ class DataHandlerNC(DataHandler):
         return raster_index
 
 
+class DataHandlerNCforERA(DataHandlerNC):
+    """Data Handler for NETCDF ERA5 data"""
+
+    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U_(.*)': 'u_(.*)',
+            'V_(.*)': 'v_(.*)',
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
+            'topography': 'orog',
+            'lat_lon': LatLonNC}
+        return registry
+
+
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
@@ -2437,8 +2488,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         data : xarray.Dataset
         """
         default_kws = {'chunks': cls.CHUNKS}
-        kwargs.update(default_kws)
-        return xr.open_mfdataset(file_paths, **kwargs)
+        default_kws.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kws)
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw

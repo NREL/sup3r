@@ -995,8 +995,8 @@ class LatLonNC:
             idx = (raster_index[0], raster_index[1])
 
         if len(handle.variables[lat_key].dims) == 1:
-            lons = handle.variables[lat_key].values
-            lats = handle.variables[lon_key].values
+            lons = handle.variables[lon_key].values
+            lats = handle.variables[lat_key].values
             lons, lats = np.meshgrid(lons, lats)
             lat_lon = np.dstack((lats[tuple(raster_index)],
                                  lons[tuple(raster_index)]))
