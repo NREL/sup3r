@@ -1068,7 +1068,7 @@ def interp_to_level(var_array, lev_array, levels):
     lev_array : ndarray
         Array of height or pressure values corresponding to the wrf source data
         in the same shape as var_array. If this is height and the requested
-        levels are input is a hub height above surface, lev_array should be the
+        levels are hub heights above surface, lev_array should be the
         geopotential height corresponding to every var_array index relative to
         the surface elevation (subtract the elevation at the surface from the
         geopotential height)
@@ -1096,6 +1096,7 @@ def interp_to_level(var_array, lev_array, levels):
         raise RuntimeError(msg)
 
     nans = np.isnan(lev_array)
+    logger.info('lev_array.shape: {}'.format(lev_array.shape))
     bad_min = min(levels) < lev_array[:, 0, :, :]
     bad_max = max(levels) > lev_array[:, -1, :, :]
 
@@ -1119,10 +1120,12 @@ def interp_to_level(var_array, lev_array, levels):
 
     if bad_max.any():
         msg = ('Approximately {:.2f}% of the highest vertical levels '
-               '(minimum value of {:.3f}) '
+               '(minimum value of {:.3f}, maximum value of {:.3f}) '
                'were lower than the maximum requested level: {}'
                .format(100 * bad_max.sum() / bad_max.size,
-                       lev_array[:, -1, :, :].min(), max(levels)))
+                       lev_array[:, -1, :, :].min(),
+                       lev_array[:, -1, :, :].max(),
+                       max(levels)))
         logger.warning(msg)
         warn(msg)
 
@@ -1193,6 +1196,8 @@ def interp_var_to_height(data, var, raster_index, heights,
         raster_index = [0] + raster_index
     logger.debug(f'Interpolating {var} to heights (meters): {heights}')
     hgt = calc_height(data, raster_index, time_slice)
+    logger.info(f'Computed height array with min/max: {np.nanmin(hgt)} / '
+                f'{np.nanmax(hgt)}')
     if data[var].dims == ('plev',):
         arr = np.array(data[var])
         arr = np.expand_dims(arr, axis=(0, 2, 3))

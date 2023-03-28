@@ -981,12 +981,12 @@ class LatLonNC:
 
         fp = file_paths if isinstance(file_paths, str) else file_paths[0]
         handle = xr.open_dataset(fp)
-        lat_key = 'XLAT'
-        lon_key = 'XLONG'
-        if lat_key not in handle.variables:
-            lat_key = 'latitude'
-        if lon_key not in handle.variables:
-            lon_key = 'longitude'
+        valid_vars = set(handle.variables)
+        lat_key = {'XLAT', 'lat', 'latitude'}.intersection(valid_vars)
+        lat_key = list(lat_key)[0]
+        lon_key = {'XLONG', 'lon', 'longitude'}.intersection(valid_vars)
+        lon_key = list(lon_key)[0]
+
         if len(handle.variables[lat_key].dims) == 4:
             idx = (0, raster_index[0], raster_index[1], 0)
         elif len(handle.variables[lat_key].dims) == 3:
@@ -1004,45 +1004,7 @@ class LatLonNC:
             lats = handle.variables[lat_key].values[idx]
             lons = handle.variables[lon_key].values[idx]
             lat_lon = np.dstack((lats, lons))
-        return lat_lon
 
-
-class LatLonNCforCC:
-    """Lat Lon feature class with compute method"""
-
-    @staticmethod
-    def compute(file_paths, raster_index):
-        """Get lats and lons
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        raster_index : list
-            List of slices for raster
-
-        Returns
-        -------
-        ndarray
-            lat lon array
-            (spatial_1, spatial_2, 2)
-        """
-
-        fp = file_paths if isinstance(file_paths, str) else file_paths[0]
-        handle = xr.open_dataset(fp)
-        lats = handle.lat.values
-        lons = handle.lon.values
-        if handle.lat.dims != ('lat',):
-            lats = lats[handle.lat.dims.index('lat')]
-        if handle.lon.dims != ('lon',):
-            lons = lons[handle.lon.dims.index('lon')]
-
-        assert len(lats.shape) == 1, f'Got bad lats shape: {lats.shape}'
-        assert len(lons.shape) == 1, f'Got bad lons shape: {lons.shape}'
-
-        lons, lats = np.meshgrid(lons, lats)
-        lat_lon = np.dstack((lats[tuple(raster_index)],
-                             lons[tuple(raster_index)]))
         return lat_lon
 
 
