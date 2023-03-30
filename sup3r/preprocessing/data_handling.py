@@ -423,6 +423,29 @@ class InputMixIn:
         """
         return lat_lon[-1, 0, 0] < lat_lon[0, 0, 0]
 
+    @classmethod
+    def get_time_dim_name(cls, filepath):
+        """Get the name of the time dimension in the given file
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the file
+
+        Returns
+        -------
+        time_key : str
+            Name of the time dimension in the given file
+        """
+
+        handle = xr.open_dataset(filepath)
+        valid_vars = set(handle.dims)
+        time_key = list({'time', 'Time'}.intersection(valid_vars))
+        if len(time_key) > 0:
+            return time_key[0]
+        else:
+            return 'time'
+
     @property
     def grid_shape(self):
         """Get shape of raster
@@ -721,7 +744,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         assert file_paths is not None and bool(file_paths), msg
 
         self.file_paths = file_paths
-        self.features = features if isinstance(features, list) else [features]
+        self.features = (features if isinstance(features, (list, tuple))
+                         else [features])
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split
@@ -1970,7 +1994,8 @@ class DataHandlerNC(DataHandler):
         -------
         data : xarray.Dataset
         """
-        default_kws = {'combine': 'nested', 'concat_dim': 'Time',
+        time_key = cls.get_time_dim_name(file_paths[0])
+        default_kws = {'combine': 'nested', 'concat_dim': time_key,
                        'chunks': cls.CHUNKS}
         default_kws.update(kwargs)
         return xr.open_mfdataset(file_paths, **default_kws)
@@ -2329,7 +2354,8 @@ class DataHandlerNC(DataHandler):
             List of slices selecting region from entire available grid.
         """
         if (raster_index[0].stop > lat_lon.shape[0]
-           or raster_index[1].stop > lat_lon.shape[1]):
+           or raster_index[1].stop > lat_lon.shape[1]
+           or raster_index[0].start < 0 or raster_index[1].start < 0):
             msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
                    f'{raster_index} for data domain of size '
                    f'{lat_lon.shape[:-1]} with lower left corner '

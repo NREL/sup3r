@@ -120,6 +120,29 @@ class OutputMixIn:
     """
 
     @staticmethod
+    def get_time_dim_name(filepath):
+        """Get the name of the time dimension in the given file
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the file
+
+        Returns
+        -------
+        time_key : str
+            Name of the time dimension in the given file
+        """
+
+        handle = xr.open_dataset(filepath)
+        valid_vars = set(handle.dims)
+        time_key = list({'time', 'Time'}.intersection(valid_vars))
+        if len(time_key) > 0:
+            return time_key[0]
+        else:
+            return 'time'
+
+    @staticmethod
     def get_dset_attrs(feature):
         """Get attrributes for output feature
 
@@ -550,8 +573,8 @@ class OutputHandlerNC(OutputHandler):
             ncfile.to_netcdf(out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')
 
-    @staticmethod
-    def combine_file(files, outfile):
+    @classmethod
+    def combine_file(cls, files, outfile):
         """Combine all chunked output files from ForwardPass into a single file
 
         Parameters
@@ -561,7 +584,8 @@ class OutputHandlerNC(OutputHandler):
         outfile : str
             Output file name for combined file
         """
-        ds = xr.open_mfdataset(files, combine='nested', concat_dim='Time')
+        time_key = cls.get_time_dim_name(files[0])
+        ds = xr.open_mfdataset(files, combine='nested', concat_dim=time_key)
         ds.to_netcdf(outfile)
         logger.info(f'Saved combined file: {outfile}')
 
@@ -755,7 +779,7 @@ class OutputHandlerH5(OutputHandler):
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})
         data_list = []
-        for i, f in enumerate(features):
+        for i, _ in enumerate(features):
             flat_data = data[..., i].reshape((-1, len(times)))
             flat_data = np.transpose(flat_data, (1, 0))
             data_list.append(flat_data)
