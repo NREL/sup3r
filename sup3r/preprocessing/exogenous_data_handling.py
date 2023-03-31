@@ -1,7 +1,9 @@
 """Sup3r exogenous data handling"""
-
+import os
+import shutil
 import logging
 import numpy as np
+import pickle
 from warnings import warn
 
 from sup3r.utilities.topo import TopoExtractH5, TopoExtractNC
@@ -20,7 +22,7 @@ class ExogenousDataHandler:
     def __init__(self, file_paths, features, source_file, s_enhancements,
                  agg_factors, target=None, shape=None, raster_file=None,
                  max_delta=20, input_handler=None, topo_handler=None,
-                 exo_steps=None):
+                 exo_steps=None, cache_data=True):
         """
         Parameters
         ----------
@@ -79,11 +81,23 @@ class ExogenousDataHandler:
             e.g. If we have two model steps which take exo data and one which
             does not exo_steps = [0, 1]. The length of this list should be
             equal to the number of s_enhancements and the number of agg_factors
+        cache_data : bool
+            Flag to cache exogeneous data in ./exo_cache/ this can speed up
+            forward passes with large temporal extents
         """
 
         self.features = features
         self.s_enhancements = s_enhancements
         self.agg_factors = agg_factors
+        self.source_file = source_file
+        self.file_paths = file_paths
+        self.topo_handler = topo_handler
+        self.target = target
+        self.shape = shape
+        self.raster_file = raster_file
+        self.max_delta = max_delta
+        self.input_handler = input_handler
+        self.cache_data = cache_data
         self.data = []
         exo_steps = exo_steps or np.arange(len(self.s_enhancements))
 
@@ -111,15 +125,7 @@ class ExogenousDataHandler:
             if i in exo_steps:
                 for f in features:
                     if f == 'topography':
-                        topo_handler = self.get_topo_handler(source_file,
-                                                             topo_handler)
-                        data = topo_handler(file_paths, source_file, s_enhance,
-                                            agg_factor, target=target,
-                                            shape=shape,
-                                            raster_file=raster_file,
-                                            max_delta=max_delta,
-                                            input_handler=input_handler)
-                        data = data.hr_elev
+                        data = self.get_topo_data(s_enhance, agg_factor)
                         fdata.append(data)
                     else:
                         msg = (f"Can only extract topography. Recived {f}.")
@@ -127,6 +133,55 @@ class ExogenousDataHandler:
                 self.data.append(np.stack(fdata, axis=-1))
             else:
                 self.data.append(None)
+
+    def get_topo_data(self, s_enhance, agg_factor):
+        """Get the exogenous topography data
+
+        Parameters
+        ----------
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        agg_factor : int
+            Factor by which to aggregate the topo_source_h5 elevation
+            data to the resolution of the file_paths input enhanced by
+            s_enhance.
+
+        Returns
+        -------
+        data : np.ndarray
+            2D array of elevation data with shape (lat, lon)
+        """
+
+        cache_dir = './exo_cache/'
+        fn = f'exo_{self.target}_{self.shape}_agg{agg_factor}_{s_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(cache_dir, fn)
+        temp_fp = cache_fp + '.tmp'
+
+        if os.path.exists(cache_fp):
+            with open(cache_fp, 'rb') as f:
+                data = pickle.load(f)
+
+        else:
+            topo_handler = self.get_topo_handler(self.source_file,
+                                                 self.topo_handler)
+            data = topo_handler(self.file_paths, self.source_file, s_enhance,
+                                agg_factor, target=self.target,
+                                shape=self.shape,
+                                raster_file=self.raster_file,
+                                max_delta=self.max_delta,
+                                input_handler=self.input_handler)
+            data = data.hr_elev
+            if self.cache_data:
+                os.makedirs(cache_dir, exist_ok=True)
+                with open(temp_fp, 'wb') as f:
+                    pickle.dump(data, f)
+                shutil.move(temp_fp, cache_fp)
+
+        return data
 
     @staticmethod
     def get_topo_handler(source_file, topo_handler):
