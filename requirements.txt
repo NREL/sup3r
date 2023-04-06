@@ -6,8 +6,8 @@ NREL-farms>=1.0.4
 pytest>=5.2
 pillow
 tensorflow>2.4
-xarray==0.20.0 # pin until next release
-netcdf4==1.5.8 # pinning due to h5 issues
+xarray
+netCDF4
 dask
-sphinx!=5.2.0.post0 # bug fix, remove on next release
-pandas<2.0.0 # some methods changed in 2.0.0. pinning until ready to update
+sphinx
+pandas

@@ -10,6 +10,7 @@ import json
 import os
 import numpy as np
 import logging
+import pandas as pd
 from scipy.spatial import KDTree
 from farms.disc import disc
 from farms.utilities import calc_dhi, dark_night
@@ -122,7 +123,7 @@ class Solar:
 
         ti_gan = self.gan_data.time_index
         ti_gan_1 = np.roll(ti_gan, 1)
-        delta = (ti_gan - ti_gan_1)[1:].mean().total_seconds()
+        delta = pd.Series(ti_gan - ti_gan_1)[1:].mean().total_seconds()
         msg = ('Its assumed that the sup3r GAN output solar data will be '
                'hourly but received time index: {}'.format(ti_gan))
         assert delta == 3600, msg
@@ -216,7 +217,7 @@ class Solar:
 
             ti_nsrdb = self.nsrdb.time_index
             ti_nsrdb_1 = np.roll(ti_nsrdb, 1)
-            delta = (ti_nsrdb - ti_nsrdb_1)[1:].mean().total_seconds()
+            delta = pd.Series(ti_nsrdb - ti_nsrdb_1)[1:].mean().total_seconds()
             step = int(3600 // delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 

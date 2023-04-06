@@ -437,10 +437,9 @@ class InputMixIn:
         time_key : str
             Name of the time dimension in the given file
         """
-
-        handle = xr.open_dataset(filepath)
-        valid_vars = set(handle.dims)
-        time_key = list({'time', 'Time'}.intersection(valid_vars))
+        with xr.open_dataset(filepath) as handle:
+            valid_vars = set(handle.dims)
+            time_key = list({'time', 'Time'}.intersection(valid_vars))
         if len(time_key) > 0:
             return time_key[0]
         else:
@@ -556,7 +555,7 @@ class InputMixIn:
     def time_freq_hours(self):
         """Get the time frequency in hours as a float"""
         ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
-        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode[0])
         return time_freq
 
@@ -2576,7 +2575,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             meta_nsrdb = res.meta
 
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
-        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode[0])
         t_start = self.temporal_slice.start or 0
         t_end_target = self.temporal_slice.stop or len(self.raw_time_index)
