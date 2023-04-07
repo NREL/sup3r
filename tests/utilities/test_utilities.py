@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import tempfile
 
-from rex import Resource
+from rex import Resource, init_logger
 
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.utilities import (get_chunk_slices,
@@ -26,9 +26,12 @@ from sup3r import TEST_DATA_DIR
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 
 
-def test_regridding():
+def test_regridding(log=False):
     """Make sure regridding reproduces original data when coordinates in the
     meta is the same"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
     with tempfile.TemporaryDirectory() as td:
         meta_path = os.path.join(td, 'test_meta.csv')
         shuffled_meta_path = os.path.join(td, 'test_meta_shuffled.csv')
@@ -58,7 +61,7 @@ def test_regridding():
                               regrid_output.output_features,
                               target_final_meta_file=meta_path,
                               join_times=False,
-                              n_writes=2)
+                              n_writes=2, max_workers=1)
             with Resource(collect_file) as out_res:
                 for height in heights:
                     ws_name = f'windspeed_{height}m'
@@ -74,6 +77,8 @@ def test_regridding():
                     v_src = ws_src * np.cos(np.radians(wd_src))
                     assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
                     assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
+                    assert np.isnan(u).sum() == 0
+                    assert np.isnan(v).sum() == 0
 
 
 def test_get_chunk_slices():
