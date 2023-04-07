@@ -27,8 +27,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities.utilities import (estimate_max_workers,
                                        get_chunk_slices,
-                                       interp_var_to_height,
-                                       interp_var_to_pressure,
+                                       get_time_dim_name,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
@@ -39,6 +38,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
                                        np_to_pd_times)
+from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -422,28 +422,6 @@ class InputMixIn:
         bool
         """
         return lat_lon[-1, 0, 0] < lat_lon[0, 0, 0]
-
-    @classmethod
-    def get_time_dim_name(cls, filepath):
-        """Get the name of the time dimension in the given file
-
-        Parameters
-        ----------
-        filepath : str
-            Path to the file
-
-        Returns
-        -------
-        time_key : str
-            Name of the time dimension in the given file
-        """
-        with xr.open_dataset(filepath) as handle:
-            valid_vars = set(handle.dims)
-            time_key = list({'time', 'Time'}.intersection(valid_vars))
-        if len(time_key) > 0:
-            return time_key[0]
-        else:
-            return 'time'
 
     @property
     def grid_shape(self):
@@ -1993,7 +1971,7 @@ class DataHandlerNC(DataHandler):
         -------
         data : xarray.Dataset
         """
-        time_key = cls.get_time_dim_name(file_paths[0])
+        time_key = get_time_dim_name(file_paths[0])
         default_kws = {'combine': 'nested', 'concat_dim': time_key,
                        'chunks': cls.CHUNKS}
         default_kws.update(kwargs)
@@ -2160,15 +2138,13 @@ class DataHandlerNC(DataHandler):
 
         elif basename in handle:
             if interp_height is not None:
-                fdata = interp_var_to_height(handle, basename,
-                                             raster_index,
-                                             np.float32(interp_height),
-                                             time_slice)
+                fdata = Interpolator.interp_var_to_height(
+                    handle, basename, raster_index, np.float32(interp_height),
+                    time_slice)
             elif interp_pressure is not None:
-                fdata = interp_var_to_pressure(handle, basename,
-                                               raster_index,
-                                               np.float32(interp_pressure),
-                                               time_slice)
+                fdata = Interpolator.interp_var_to_pressure(
+                    handle, basename, raster_index,
+                    np.float32(interp_pressure), time_slice)
 
         else:
             msg = f'{feature} cannot be extracted from source data.'

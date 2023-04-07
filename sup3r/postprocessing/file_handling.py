@@ -17,7 +17,9 @@ from warnings import warn
 
 from sup3r.version import __version__
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import (invert_uv, estimate_max_workers,
+from sup3r.utilities.utilities import (invert_uv,
+                                       get_time_dim_name,
+                                       estimate_max_workers,
                                        pd_date_range)
 from sup3r.preprocessing.feature_handling import Feature
 
@@ -584,7 +586,7 @@ class OutputHandlerNC(OutputHandler):
         outfile : str
             Output file name for combined file
         """
-        time_key = cls.get_time_dim_name(files[0])
+        time_key = get_time_dim_name(files[0])
         ds = xr.open_mfdataset(files, combine='nested', concat_dim=time_key)
         ds.to_netcdf(outfile)
         logger.info(f'Saved combined file: {outfile}')
