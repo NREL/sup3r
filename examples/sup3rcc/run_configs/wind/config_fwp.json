@@ -1,0 +1,60 @@
+{
+    "file_paths": "PLACEHOLDER",
+    "model_kwargs": {
+        "spatial_model_dirs": [
+            "./sup3rcc_models_202303/sup3rcc_wind_step1_5x_1x_6f/",
+            "./sup3rcc_models_202303/sup3rcc_wind_step2_5x_1x_6f/"
+        ],
+        "temporal_model_dirs": "./sup3rcc_models_202303/sup3rcc_wind_step3_1x_24x_6f/"
+    },
+    "model_class": "SpatialThenTemporalGan",
+    "out_pattern": "./chunks/sup3r_chunk_{file_id}.h5",
+    "log_pattern": "./logs/sup3r_fwp_log_{node_index}.log",
+    "bias_correct_method": "monthly_local_linear_bc",
+    "bias_correct_kwargs": {
+        "U_10m": {"feature_name": "U_10m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_u_10m.h5", "out_range": [-100, 100]},
+        "V_10m": {"feature_name": "V_10m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_v_10m.h5", "out_range": [-100, 100]},
+        "U_100m": {"feature_name": "U_100m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_u_100m.h5", "out_range": [-100, 100]},
+        "V_100m": {"feature_name": "V_100m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_v_100m.h5", "out_range": [-100, 100]},
+        "U_200m": {"feature_name": "U_200m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_u_200m.h5", "out_range": [-100, 100]},
+        "V_200m": {"feature_name": "V_200m", "bias_fp": "/scratch/gbuster/sup3r/source_gcm_data/bc_conus_mriesm20_ssp585_r1i1p1f1_v_200m.h5", "out_range": [-100, 100]}
+    },
+    "spatial_pad": 5,
+    "temporal_pad": 2,
+    "fwp_chunk_shape": [7, 7, 3],
+    "input_handler": "DataHandlerNCforCC",
+    "input_handler_kwargs": {
+        "target": [23.2, -129],
+        "shape": [26, 59],
+        "temporal_slice": [null, null, null],
+        "worker_kwargs": {
+            "max_workers": 1
+        }
+    },
+    "worker_kwargs": {
+        "max_workers": null,
+        "output_workers": 1,
+        "pass_workers": 4,
+        "ti_workers": 1
+    },
+    "max_nodes": 50,
+    "exo_kwargs": {
+        "file_paths": ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20150101-20151231.nc"],
+        "features": ["topography"],
+        "source_file": "/scratch/gbuster/sup3r/source_gcm_data/nsrdb_clearsky.h5",
+        "target": [23.2, -129],
+        "shape": [26, 59],
+        "s_enhancements": [1, 5, 5],
+        "agg_factors": [625, 25, 1],
+        "input_handler": "DataHandlerNCforCC",
+        "exo_steps": [0, 1, 2]
+    },
+    "execution_control": {
+        "option": "eagle",
+        "feature": "--qos=normal",
+        "walltime": 4,
+        "memory": 173,
+        "alloc": "ntps"
+    },
+    "log_level": "INFO"
+}

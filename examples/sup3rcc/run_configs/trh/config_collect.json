@@ -1,0 +1,17 @@
+{
+    "file_paths": "./chunks/sup3r_chunk_*.h5",
+    "out_file": "./output/sup3r_data.h5",
+    "features": [
+        "temperature_2m",
+        "relativehumidity_2m"
+    ],
+    "target_final_meta_file": "/projects/ntps/sup3r/final_models/meta/sup3rcc_mriesm20_25x_4km_meta.csv",
+    "log_file": "./logs/collect.log",
+    "execution_control": {
+        "option": "eagle",
+        "feature": "--qos=high",
+        "walltime": 4,
+        "alloc": "ntps"
+    },
+    "log_level": "DEBUG"
+}

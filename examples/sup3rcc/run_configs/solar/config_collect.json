@@ -1,0 +1,18 @@
+{
+    "file_paths": "./chunks/*irradiance.h5",
+    "out_file": "./output/sup3r_data.h5",
+    "features": [
+        "ghi",
+        "dni",
+        "dhi"
+    ],
+    "target_final_meta_file": "/projects/ntps/sup3r/final_models/meta/sup3rcc_mriesm20_25x_4km_meta.csv",
+    "log_file": "./logs/sup3r_collect.log",
+    "execution_control": {
+        "option": "eagle",
+        "feature": "--qos=high",
+        "walltime": 4,
+        "alloc": "ntps"
+    },
+    "log_level": "DEBUG"
+}
