@@ -7,7 +7,7 @@ pytest>=5.2
 pillow
 tensorflow>2.4
 xarray
-netCDF4
+netCDF4==1.5.8
 dask
 sphinx
 pandas
