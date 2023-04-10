@@ -1,0 +1,7 @@
+{
+    "logging": {"log_level": "INFO"},
+    "pipeline": [
+        {"forward-pass": "./config_fwp.json"},
+        {"data-collect": "./config_collect.json"}
+    ]
+}

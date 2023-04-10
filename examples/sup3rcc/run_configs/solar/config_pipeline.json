@@ -1,0 +1,8 @@
+{
+    "logging": {"log_level": "DEBUG"},
+    "pipeline": [
+        {"forward-pass": "./config_fwp.json"},
+        {"solar": "./config_solar.json"},
+        {"data-collect": "./config_collect.json"}
+    ]
+}

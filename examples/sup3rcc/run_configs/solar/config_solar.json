@@ -1,0 +1,12 @@
+{
+    "fp_pattern": "./chunks/sup3r*.h5",
+    "nsrdb_fp": "/scratch/gbuster/sup3r/source_gcm_data/nsrdb_clearsky.h5",
+    "log_level": "INFO",
+    "log_pattern": "./logs/sup3r_solar_log_{node_index}.log",
+    "execution_control": {
+        "option": "eagle",
+        "feature": "--qos=normal",
+        "walltime": 0.2,
+        "alloc": "setosa"
+    }
+}
