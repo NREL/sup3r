@@ -135,7 +135,9 @@ class BatchMom1(Batch):
             Temporal padding size. If None or 0, no padding is applied.
             None by default
         end_t_padding : bool | False
-            Pad end of temporal space.
+            Zero pad the end of temporal space.
+            Ensures that loss is calculated only if snapshot is surrounded
+            by temporal landmarks.
             False by default
         t_enhance : int | None
             Temporal enhancement factor to define end padding.
@@ -225,7 +227,9 @@ class BatchMom1(Batch):
             Width of temporal padding to predict only middle part. If None,
             no padding is used
         end_t_padding : bool | False
-            Pad end of temporal space
+            Zero pad the end of temporal space.
+            Ensures that loss is calculated only if snapshot is surrounded
+            by temporal landmarks.
             False by default
 
         Returns
@@ -533,7 +537,9 @@ class ValidationDataMom1(ValidationData):
             Width of temporal padding to predict only middle part. If None,
             no padding is used
         end_t_padding : bool | False
-            Pad end of temporal space
+            Zero pad the end of temporal space.
+            Ensures that loss is calculated only if snapshot is surrounded
+            by temporal landmarks.
             False by default
         """
 
@@ -681,7 +687,9 @@ class BatchHandlerMom1(BatchHandler):
             Width of temporal padding to predict only middle part. If None,
             no padding is used
         end_t_padding : bool | False
-            Pad end of temporal space
+            Zero pad the end of temporal space.
+            Ensures that loss is calculated only if snapshot is surrounded
+            by temporal landmarks.
             False by default
         """
         if max_workers is not None:
