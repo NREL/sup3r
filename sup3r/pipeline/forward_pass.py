@@ -1061,6 +1061,8 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+        self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
+                                                          self.lr_slice[1]]
 
     def update_input_handler_kwargs(self, strategy):
         """Update the kwargs for the input handler for the current forward pass
@@ -1120,6 +1122,12 @@ class ForwardPass:
         """Get low-resolution cropped time index to use for getting
         high-resolution time index"""
         return self.data_handler.time_index[self.ti_crop_slice]
+
+    @property
+    def lr_lat_lon(self):
+        """Get low resolution lat lon for current chunk"""
+        return self.strategy.lr_lat_lon[self.lr_slice[0],
+                                        self.lr_slice[1]]
 
     @property
     def hr_lat_lon(self):
