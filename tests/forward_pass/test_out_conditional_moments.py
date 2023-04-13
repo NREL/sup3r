@@ -721,6 +721,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                      sample_shape=(12, 12, 24),
                      batch_size=4, n_batches=4,
                      s_enhance=3, t_enhance=4,
+                     end_t_padding=False,
                      model_dir=None):
     """Test basic spatiotemporal model outputing for
     first conditional moment."""
@@ -735,7 +736,8 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                                      batch_size=batch_size,
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
-                                     n_batches=n_batches)
+                                     n_batches=n_batches,
+                                     end_t_padding=end_t_padding)
 
     # Load Model
     if model_dir is None:
@@ -786,13 +788,17 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
                       + batch_handler.means[0])
                 aug_lr = np.reshape(lr, (1,) + lr.shape + (1,))
                 tup_lr = temporal_simple_enhancing(aug_lr,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = tup_lr[0, :, :, :, 0]
                 hr = (batch.output[i, :, :, :, 0] * batch_handler.stds[0]
                       + batch_handler.means[0])
                 gen = (out[i, :, :, :, 0] * batch_handler.stds[0]
                        + batch_handler.means[0])
-                for j in range(batch.output.shape[3]):
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j], gen[:, :, j]],
                         [0, batch.output.shape[1]],
@@ -820,6 +826,8 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                         sample_shape=(12, 12, 24),
                         batch_size=4, n_batches=4,
                         s_enhance=3, t_enhance=4,
+                        end_t_padding=False,
+                        t_enhance_mode='constant',
                         model_dir=None):
     """Test basic spatiotemporal model outputing for first conditional moment
     of subfilter velocity."""
@@ -830,11 +838,14 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
-    batch_handler = BatchHandlerMom1SF([handler],
-                                       batch_size=batch_size,
-                                       s_enhance=s_enhance,
-                                       t_enhance=t_enhance,
-                                       n_batches=n_batches)
+    batch_handler = BatchHandlerMom1SF(
+        [handler],
+        batch_size=batch_size,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=n_batches,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     # Load Model
     if model_dir is None:
@@ -866,14 +877,16 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
                 up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
                                                      s_enhance=s_enhance)
                 up_lr = temporal_simple_enhancing(up_lr_tmp,
-                                                  t_enhance=t_enhance)
+                                                  t_enhance=t_enhance,
+                                                  mode=t_enhance_mode)
                 up_lr = up_lr[0, :, :, :, 0]
 
                 hr = (batch.high_res[i, :, :, :, 0]
@@ -890,8 +903,10 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
                            * batch_handler.stds[0]
                            + batch_handler.means[0]
                            + sf_pred)
-
-                for j in range(batch.output.shape[3]):
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
                          hr_pred[:, :, j], sf[:, :, j],
@@ -926,6 +941,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                      sample_shape=(12, 12, 24),
                      batch_size=4, n_batches=4,
                      s_enhance=3, t_enhance=4,
+                     end_t_padding=False,
                      model_dir=None,
                      model_mom1_dir=None):
     """Test basic spatiotemporal model outputing
@@ -952,7 +968,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
                                      n_batches=n_batches,
-                                     model_mom1=model_mom1)
+                                     model_mom1=model_mom1,
+                                     end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -987,7 +1004,8 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
@@ -1000,7 +1018,10 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
                                 * batch_handler.stds[0]**2)
                 integratedSigma.append(np.mean(sigma, axis=(0, 1)))
 
-                for j in range(batch.output.shape[3]):
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
                          hr_to_mean[:, :, j], sigma[:, :, j]],
@@ -1048,6 +1069,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                         sample_shape=(12, 12, 24),
                         batch_size=4, n_batches=4,
                         s_enhance=3, t_enhance=4,
+                        end_t_padding=False,
+                        t_enhance_mode='constant',
                         model_dir=None,
                         model_mom1_dir=None):
     """Test basic spatiotemporal model outputing for second conditional moment
@@ -1069,12 +1092,15 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
-    batch_handler = BatchHandlerMom2SF([handler],
-                                       batch_size=batch_size,
-                                       s_enhance=s_enhance,
-                                       t_enhance=t_enhance,
-                                       n_batches=n_batches,
-                                       model_mom1=model_mom1)
+    batch_handler = BatchHandlerMom2SF(
+        [handler],
+        batch_size=batch_size,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=n_batches,
+        model_mom1=model_mom1,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1108,7 +1134,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
@@ -1116,7 +1143,8 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                 up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
                                                      s_enhance=s_enhance)
                 up_lr = temporal_simple_enhancing(up_lr_tmp,
-                                                  t_enhance=t_enhance)
+                                                  t_enhance=t_enhance,
+                                                  mode=t_enhance_mode)
                 up_lr = up_lr[0, :, :, :, 0]
 
                 hr = (batch.high_res[i, :, :, :, 0]
@@ -1131,7 +1159,11 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
                 sigma = np.sqrt(out[i, :, :, :, 0]
                                 * batch_handler.stds[0]**2)
                 integratedSigma.append(np.mean(sigma, axis=(0, 1)))
-                for j in range(batch.output.shape[3]):
+
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
                          sf[:, :, j], sf_to_mean[:, :, j],
@@ -1183,6 +1215,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                          sample_shape=(12, 12, 24),
                          batch_size=4, n_batches=4,
                          s_enhance=3, t_enhance=4,
+                         end_t_padding=False,
                          model_dir=None,
                          model_mom1_dir=None):
     """Test basic spatiotemporal model outputing
@@ -1208,7 +1241,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                                         batch_size=batch_size,
                                         s_enhance=s_enhance,
                                         t_enhance=t_enhance,
-                                        n_batches=n_batches)
+                                        n_batches=n_batches,
+                                        end_t_padding=end_t_padding)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1246,7 +1280,8 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
@@ -1267,7 +1302,10 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
                                              a_min=0,
                                              a_max=None))
                 integratedSigma.append(np.mean(sigma_pred, axis=(0, 1)))
-                for j in range(batch.output.shape[3]):
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
                          hr_to_mean[:, :, j], sigma_pred[:, :, j]],
@@ -1315,6 +1353,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                             sample_shape=(12, 12, 24),
                             batch_size=4, n_batches=4,
                             s_enhance=3, t_enhance=4,
+                            end_t_padding=False,
+                            t_enhance_mode='constant',
                             model_dir=None,
                             model_mom1_dir=None):
     """Test basic spatiotemporal model outputing for second conditional moment
@@ -1336,11 +1376,14 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
         fp_gen = os.path.join(model_mom1_dir, 'model_params.json')
         model_mom1 = Sup3rCondMom(fp_gen).load(model_mom1_dir)
 
-    batch_handler = BatchHandlerMom2SepSF([handler],
-                                          batch_size=batch_size,
-                                          s_enhance=s_enhance,
-                                          t_enhance=t_enhance,
-                                          n_batches=n_batches)
+    batch_handler = BatchHandlerMom2SepSF(
+        [handler],
+        batch_size=batch_size,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=n_batches,
+        end_t_padding=end_t_padding,
+        temporal_enhancing_method=t_enhance_mode)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -1378,7 +1421,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                 b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
-                                                   t_enhance=t_enhance)
+                                                   t_enhance=t_enhance,
+                                                   mode='constant')
                 tup_lr = (tup_lr[0, :, :, :, 0]
                           * batch_handler.stds[0]
                           + batch_handler.means[0])
@@ -1386,7 +1430,8 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                 up_lr_tmp = spatial_simple_enhancing(b_lr_aug,
                                                      s_enhance=s_enhance)
                 up_lr = temporal_simple_enhancing(up_lr_tmp,
-                                                  t_enhance=t_enhance)
+                                                  t_enhance=t_enhance,
+                                                  mode=t_enhance_mode)
                 up_lr = up_lr[0, :, :, :, 0]
 
                 hr = (batch.high_res[i, :, :, :, 0]
@@ -1407,7 +1452,10 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
                                              a_min=0,
                                              a_max=None))
                 integratedSigma.append(np.mean(sigma_pred, axis=(0, 1)))
-                for j in range(batch.output.shape[3]):
+                max_t_ind = batch.output.shape[3]
+                if end_t_padding:
+                    max_t_ind -= t_enhance
+                for j in range(max_t_ind):
                     fig = plot_multi_contour(
                         [tup_lr[:, :, j], hr[:, :, j],
                          sf[:, :, j], sf_to_mean[:, :, j],
