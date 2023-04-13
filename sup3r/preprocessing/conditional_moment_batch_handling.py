@@ -200,8 +200,14 @@ class BatchMom1(Batch):
             Method to use for temporal coarsening. Can be subsample, average,
             or total
         temporal_enhancing_method : str
-            Method to enhance temporally when constructin subfilter.
-            Can be constant or linear
+            [constant, linear]
+            Method to enhance temporally when constructing subfilter.
+            At every temporal location, a low-res temporal data is substracted
+            from the high-res temporal data predicted.
+            constant will assume that the low-res temporal data is constant
+            between landmarks.
+            linear will linearly interpolate between landmarks to generate the
+            low-res data to remove from the high-res.
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
@@ -511,8 +517,13 @@ class ValidationDataMom1(ValidationData):
             time steps
         temporal_enhancing_method : str
             [constant, linear]
-            Constant will repeat the steps t_enhance times. Linear will
-            linearly interpolate between coarse steps.
+            Method to enhance temporally when constructing subfilter.
+            At every temporal location, a low-res temporal data is substracted
+            from the high-res temporal data predicted.
+            constant will assume that the low-res temporal data is constant
+            between landmarks.
+            linear will linearly interpolate between landmarks to generate the
+            low-res data to remove from the high-res.
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
@@ -647,8 +658,13 @@ class BatchHandlerMom1(BatchHandler):
             time steps
         temporal_enhancing_method : str
             [constant, linear]
-            Constant will repeat the steps t_enhance times. Linear will
-            linearly interpolate between coarse steps.
+            Method to enhance temporally when constructing subfilter.
+            At every temporal location, a low-res temporal data is substracted
+            from the high-res temporal data predicted.
+            constant will assume that the low-res temporal data is constant
+            between landmarks.
+            linear will linearly interpolate between landmarks to generate the
+            low-res data to remove from the high-res.
         stdevs_file : str | None
             Path to stdevs data or where to save data after calling get_stats
         means_file : str | None
