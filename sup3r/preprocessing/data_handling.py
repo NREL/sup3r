@@ -27,8 +27,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.utilities.utilities import (estimate_max_workers,
                                        get_chunk_slices,
-                                       interp_var_to_height,
-                                       interp_var_to_pressure,
+                                       get_time_dim_name,
                                        uniform_box_sampler,
                                        uniform_time_sampler,
                                        weighted_time_sampler,
@@ -39,6 +38,7 @@ from sup3r.utilities.utilities import (estimate_max_workers,
                                        daily_temporal_coarsening,
                                        spatial_coarsening,
                                        np_to_pd_times)
+from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.preprocessing.feature_handling import (FeatureHandler,
@@ -48,7 +48,6 @@ from sup3r.preprocessing.feature_handling import (FeatureHandler,
                                                   BVFreqSquaredNC,
                                                   InverseMonNC,
                                                   LatLonNC,
-                                                  LatLonNCforCC,
                                                   TempNC,
                                                   TempNCforCC,
                                                   PotentialTempNC,
@@ -383,7 +382,7 @@ class InputMixIn:
         of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
         if self._invert_lat is None:
             lat_lon = self.raw_lat_lon
-            self._invert_lat = (lat_lon[0, 0, 0] < lat_lon[-1, 0, 0])
+            self._invert_lat = (not self.lats_are_descending(lat_lon))
         return self._invert_lat
 
     @property
@@ -397,7 +396,7 @@ class InputMixIn:
         """
         if self._target is None:
             lat_lon = self.lat_lon
-            if lat_lon[0, 0, 0] < lat_lon[-1, 0, 0]:
+            if not self.lats_are_descending(lat_lon):
                 self._target = tuple(lat_lon[0, 0, :])
             else:
                 self._target = tuple(lat_lon[-1, 0, :])
@@ -407,6 +406,22 @@ class InputMixIn:
     def target(self, target):
         """Update target property"""
         self._target = target
+
+    @classmethod
+    def lats_are_descending(cls, lat_lon):
+        """Check if latitudes are in descending order (i.e. the target
+        coordinate is already at the bottom left corner)
+
+        Parameters
+        ----------
+        lat_lon : np.ndarray
+            Lat/Lon array with shape (n_lats, n_lons, 2)
+
+        Returns
+        -------
+        bool
+        """
+        return lat_lon[-1, 0, 0] < lat_lon[0, 0, 0]
 
     @property
     def grid_shape(self):
@@ -518,7 +533,7 @@ class InputMixIn:
     def time_freq_hours(self):
         """Get the time frequency in hours as a float"""
         ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
-        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode[0])
         return time_freq
 
@@ -692,6 +707,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         res_kwargs : dict | None
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,
+                      'concat_dim': 'Time',
+                      'combine': 'nested',
                       'chunks': {'south_north': 120, 'west_east': 120}}
             which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
@@ -704,7 +721,8 @@ class DataHandler(FeatureHandler, InputMixIn):
         assert file_paths is not None and bool(file_paths), msg
 
         self.file_paths = file_paths
-        self.features = features
+        self.features = (features if isinstance(features, (list, tuple))
+                         else [features])
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split
@@ -1953,10 +1971,11 @@ class DataHandlerNC(DataHandler):
         -------
         data : xarray.Dataset
         """
-        default_kws = {'combine': 'nested', 'concat_dim': 'Time',
+        time_key = get_time_dim_name(file_paths[0])
+        default_kws = {'combine': 'nested', 'concat_dim': time_key,
                        'chunks': cls.CHUNKS}
-        kwargs.update(default_kws)
-        return xr.open_mfdataset(file_paths, **kwargs)
+        default_kws.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kws)
 
     @classmethod
     def get_file_times(cls, file_paths, **kwargs):
@@ -2119,15 +2138,13 @@ class DataHandlerNC(DataHandler):
 
         elif basename in handle:
             if interp_height is not None:
-                fdata = interp_var_to_height(handle, basename,
-                                             raster_index,
-                                             np.float32(interp_height),
-                                             time_slice)
+                fdata = Interpolator.interp_var_to_height(
+                    handle, basename, raster_index, np.float32(interp_height),
+                    time_slice)
             elif interp_pressure is not None:
-                fdata = interp_var_to_pressure(handle, basename,
-                                               raster_index,
-                                               np.float32(interp_pressure),
-                                               time_slice)
+                fdata = Interpolator.interp_var_to_pressure(
+                    handle, basename, raster_index,
+                    np.float32(interp_pressure), time_slice)
 
         else:
             msg = f'{feature} cannot be extracted from source data.'
@@ -2253,9 +2270,14 @@ class DataHandlerNC(DataHandler):
             logger.warning(msg)
             warnings.warn(msg)
 
-        raster_index = [slice(row, row + grid_shape[0]),
+        if cls.lats_are_descending(lat_lon):
+            row_end = row + 1
+            row_start = row_end - grid_shape[0]
+        else:
+            row_end = row + grid_shape[0]
+            row_start = row
+        raster_index = [slice(row_start, row_end),
                         slice(col, col + grid_shape[1])]
-
         cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
         return raster_index
 
@@ -2307,7 +2329,8 @@ class DataHandlerNC(DataHandler):
             List of slices selecting region from entire available grid.
         """
         if (raster_index[0].stop > lat_lon.shape[0]
-           or raster_index[1].stop > lat_lon.shape[1]):
+           or raster_index[1].stop > lat_lon.shape[1]
+           or raster_index[0].start < 0 or raster_index[1].start < 0):
             msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
                    f'{raster_index} for data domain of size '
                    f'{lat_lon.shape[:-1]} with lower left corner '
@@ -2347,6 +2370,34 @@ class DataHandlerNC(DataHandler):
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
 
         return raster_index
+
+
+class DataHandlerNCforERA(DataHandlerNC):
+    """Data Handler for NETCDF ERA5 data"""
+
+    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
+    Chunk sizes that approximately match the data volume being extracted
+    typically results in the most efficient IO."""
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'U_(.*)': 'u_(.*)',
+            'V_(.*)': 'v_(.*)',
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
+            'topography': 'orog',
+            'lat_lon': LatLonNC}
+        return registry
 
 
 class DataHandlerNCforCC(DataHandlerNC):
@@ -2406,7 +2457,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             'relativehumidity_min_2m': 'hursmin',
             'relativehumidity_max_2m': 'hursmax',
             'clearsky_ratio': ClearSkyRatioCC,
-            'lat_lon': LatLonNCforCC,
+            'lat_lon': LatLonNC,
             'Pressure_(.*)': 'plev_(.*)',
             'Temperature_(.*)': TempNCforCC,
             'temperature_2m': Tas,
@@ -2437,8 +2488,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         data : xarray.Dataset
         """
         default_kws = {'chunks': cls.CHUNKS}
-        kwargs.update(default_kws)
-        return xr.open_mfdataset(file_paths, **kwargs)
+        default_kws.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kws)
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
@@ -2500,7 +2551,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             meta_nsrdb = res.meta
 
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
-        ti_deltas_hours = ti_deltas.total_seconds()[1:-1] / 3600
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode[0])
         t_start = self.temporal_slice.start or 0
         t_end_target = self.temporal_slice.stop or len(self.raw_time_index)

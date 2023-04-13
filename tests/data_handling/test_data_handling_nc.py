@@ -12,7 +12,7 @@ from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
-from sup3r.utilities import utilities
+from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
@@ -76,8 +76,8 @@ def test_height_interpolation():
         tmp = xr.open_mfdataset(input_files, concat_dim='Time',
                                 combine='nested')
 
-        U_tmp = utilities.unstagger_var(tmp, 'U', raster_index)
-        h_array = utilities.calc_height(tmp, raster_index)
+        U_tmp = Interpolator.unstagger_var(tmp, 'U', raster_index)
+        h_array = Interpolator.calc_height(tmp, raster_index)
         if data_handler.invert_lat:
             data = data[::-1]
 

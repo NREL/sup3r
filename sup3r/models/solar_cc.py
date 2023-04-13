@@ -125,12 +125,15 @@ class SolarCC(Sup3rGan):
             disc_out_true.append(disc_t)
             loss_gen_content += gen_c
 
-        # strided sampling of all hours for gen adverserial loss
-        time_samples = range(0, t_len - self.STRIDE_LEN, self.STRIDE_LEN)
-        time_samples = [slice(i0, i0 + self.DAYLIGHT_HOURS)
-                        for i0 in time_samples]
-        for t_slice in time_samples:
-            disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t_slice, :])
+        # Randomly sample daylight windows from generated data. Better than
+        # strided samples covering full day because the random samples will
+        # provide an evenly balanced training set for the disc
+        logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS)]
+        time_samples = tf.random.categorical(logits, len(day_slices))
+        for i in range(len(day_slices)):
+            t0 = time_samples[0, i]
+            t1 = t0 + self.DAYLIGHT_HOURS
+            disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
             disc_out_gen.append(disc_g)
 
         disc_out_true = tf.concat([disc_out_true], axis=0)
