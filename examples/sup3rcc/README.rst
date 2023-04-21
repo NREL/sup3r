@@ -2,12 +2,12 @@
 Sup3rCC Examples
 ################
 
-Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available on AWS S3 at the URI ``s3://nrel-pds-sup3rcc/`` and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/``. This set of examples lays out basic ways to use the Sup3rCC models and data.
+Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/`` (note: the data is being loaded into HSDS as of 4/21/2023). This set of examples lays out basic ways to use the Sup3rCC models and data.
 
 Sup3rCC Data Access
 ===================
 
-The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
+The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket=nrel-pds-sup3rcc>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
 
 The Sup3rCC data is also loaded into `HSDS <https://www.hdfgroup.org/solutions/highly-scalable-data-service-hsds/>`_ so that you may stream the data via the `NREL developer API <https://developer.nrel.gov/signup/>`_ or your own HSDS server. This is the best option if you're not going to want the full annual dataset over the whole United States. See these `rex instructions <https://nrel.github.io/rex/misc/examples.hsds.html>`_ for more details on how to access this data with HSDS and rex.
 
@@ -49,3 +49,8 @@ Recommended Citation
 ====================
 
 Grant Buster, Brandon Benton, Andrew Glaws, and Ryan King. "Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts using Generative Machine Learning". Under review (April 2023).
+
+Acknowledgements
+================
+
+This work was authored by the National Renewable Energy Laboratory, operated by Alliance for Sustainable Energy, LLC, for the U.S. Department of Energy (DOE) under Contract No. DE-AC36-08GO28308. Funding provided by the DOE Grid Deployment Office (GDO), the DOE Advanced Scientific Computing Research (ASCR) program, the DOE Solar Energy Technologies Office (SETO), and the Laboratory Directed Research and Development (LDRD) program at the National Renewable Energy Laboratory. The research was performed using computational resources sponsored by the DOE Office of Energy Efficiency and Renewable Energy and located at the National Renewable Energy Laboratory. The views expressed in the article do not necessarily represent the views of the DOE or the U.S. Government. The U.S. Government retains and the publisher, by accepting the article for publication, acknowledges that the U.S. Government retains a nonexclusive, paid-up, irrevocable, worldwide license to publish or reproduce the published form of this work, or allow others to do so, for U.S. Government purposes.
