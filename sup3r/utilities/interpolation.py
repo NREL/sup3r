@@ -68,6 +68,8 @@ class Interpolator:
             msg = ('Need either PHB/PH/HGT or zg/orog in data to perform '
                    'height interpolation')
             raise ValueError(msg)
+        logger.debug('Spatiotemporally averaged height levels: '
+                     f'{np.nanmean(np.array(hgt), axis=(0, 2, 3))}')
         return np.array(hgt)
 
     @classmethod
@@ -162,6 +164,7 @@ class Interpolator:
         p_array = np.zeros(data[var][idx].shape, dtype=np.float32)
         for i in range(p_array.shape[1]):
             p_array[:, i, ...] = data.plev[i]
+        logger.info(f'Available pressure levels: {data.plev}')
 
         return p_array
 
@@ -206,7 +209,7 @@ class Interpolator:
             raise RuntimeError(msg)
 
         nans = np.isnan(lev_array)
-        logger.debug('lev_array.shape: {}'.format(lev_array.shape))
+        logger.debug('Level array shape: {}'.format(lev_array.shape))
         bad_min = min(levels) < lev_array[:, 0, :, :]
         bad_max = max(levels) > lev_array[:, -1, :, :]
 

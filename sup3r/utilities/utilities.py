@@ -496,7 +496,9 @@ def transform_rotate_wind(ws, wd, lat_lon):
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
-    theta[0] = theta[1]  # fix the roll row
+
+    if len(theta) > 1:
+        theta[0] = theta[1]  # fix the roll row
     wd = np.radians(wd)
 
     u_rot = np.cos(theta)[:, :, np.newaxis] * ws * np.sin(wd)
@@ -550,7 +552,8 @@ def invert_uv(u, v, lat_lon):
 
     # calculate the angle from the vertical
     theta = (np.pi / 2) - np.arctan2(dy, dx)
-    theta[0] = theta[1]  # fix the roll row
+    if len(theta) > 1:
+        theta[0] = theta[1]  # fix the roll row
 
     u_rot = np.cos(theta)[:, :, np.newaxis] * u
     u_rot -= np.sin(theta)[:, :, np.newaxis] * v

@@ -1036,9 +1036,10 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def extract_features(self):
         """Features to extract directly from the source handler"""
+        lower_features = [f.lower() for f in self.handle_features]
         return [f for f in self.raw_features
                 if self.lookup(f, 'compute') is None
-                or Feature.get_basename(f) in self.handle_features]
+                or Feature.get_basename(f.lower()) in lower_features]
 
     @property
     def derive_features(self):
@@ -2132,18 +2133,20 @@ class DataHandlerNC(DataHandler):
         interp_pressure = f_info.pressure
         basename = f_info.basename
 
-        if feature in handle:
-            fdata = cls.direct_extract(handle, feature, raster_index,
+        if feature in handle or feature.lower() in handle:
+            feat_key = feature if feature in handle else feature.lower()
+            fdata = cls.direct_extract(handle, feat_key, raster_index,
                                        time_slice)
 
-        elif basename in handle:
+        elif basename in handle or basename.lower() in handle:
+            feat_key = basename if basename in handle else basename.lower()
             if interp_height is not None:
                 fdata = Interpolator.interp_var_to_height(
-                    handle, basename, raster_index, np.float32(interp_height),
+                    handle, feat_key, raster_index, np.float32(interp_height),
                     time_slice)
             elif interp_pressure is not None:
                 fdata = Interpolator.interp_var_to_pressure(
-                    handle, basename, raster_index,
+                    handle, feat_key, raster_index,
                     np.float32(interp_pressure), time_slice)
 
         else:
@@ -2370,34 +2373,6 @@ class DataHandlerNC(DataHandler):
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
 
         return raster_index
-
-
-class DataHandlerNCforERA(DataHandlerNC):
-    """Data Handler for NETCDF ERA5 data"""
-
-    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
-    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
-    Chunk sizes that approximately match the data volume being extracted
-    typically results in the most efficient IO."""
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features or extracting renamed
-        features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U_(.*)': 'u_(.*)',
-            'V_(.*)': 'v_(.*)',
-            'Windspeed_(.*)m': WindspeedNC,
-            'Winddirection_(.*)m': WinddirectionNC,
-            'topography': 'orog',
-            'lat_lon': LatLonNC}
-        return registry
 
 
 class DataHandlerNCforCC(DataHandlerNC):
