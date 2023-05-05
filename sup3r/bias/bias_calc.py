@@ -8,6 +8,7 @@ import json
 import logging
 import numpy as np
 import pandas as pd
+from glob import glob
 from scipy.spatial import KDTree
 from scipy.stats import ks_2samp
 from scipy.ndimage.filters import gaussian_filter
@@ -83,9 +84,9 @@ class DataRetrievalBase:
         bias_handler_kwargs = bias_handler_kwargs or {}
 
         if isinstance(self.base_fps, str):
-            self.base_fps = [self.base_fps]
+            self.base_fps = sorted(glob(self.base_fps))
         if isinstance(self.bias_fps, str):
-            self.bias_fps = [self.bias_fps]
+            self.bias_fps = sorted(glob(self.bias_fps))
 
         self.base_handler = getattr(rex, base_handler)
         self.bias_handler = getattr(sup3r.preprocessing.data_handling,
