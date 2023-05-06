@@ -298,6 +298,8 @@ class DataRetrievalBase:
             1D array of temporal data at the requested gid.
         """
         idx = np.where(self.bias_gid_raster == bias_gid)
+        if self.bias_dh.data is None:
+            self.bias_dh.load_cached_data()
         bias_data = self.bias_dh.data[idx][0]
 
         if bias_data.shape[-1] == 1:
