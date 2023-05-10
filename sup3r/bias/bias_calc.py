@@ -426,9 +426,9 @@ class DataRetrievalBase:
             base_data = res[base_dset, :, base_gid]
 
         if len(base_data.shape) == 2:
-            base_data = base_data.mean(axis=1)
+            base_data = np.nanmean(base_data, axis=1)
             if base_cs_ghi is not None:
-                base_cs_ghi = base_cs_ghi.mean(axis=1)
+                base_cs_ghi = np.nanmean(base_cs_ghi, axis=1)
 
         return base_data, base_cs_ghi
 
@@ -519,17 +519,17 @@ class LinearCorrection(DataRetrievalBase):
             like: bias_data * scalar + adder
         """
 
-        bias_std = bias_data.std()
+        bias_std = np.nanstd(bias_data)
         if bias_std == 0:
-            bias_std = base_data.std()
+            bias_std = np.nanstd(base_data)
 
-        scalar = base_data.std() / bias_std
-        adder = base_data.mean() - bias_data.mean() * scalar
+        scalar = np.nanstd(base_data) / bias_std
+        adder = np.nanmean(base_data) - np.nanmean(bias_data) * scalar
 
-        out = {f'bias_{bias_feature}_mean': bias_data.mean(),
+        out = {f'bias_{bias_feature}_mean': np.nanmean(bias_data),
                f'bias_{bias_feature}_std': bias_std,
-               f'base_{base_dset}_mean': base_data.mean(),
-               f'base_{base_dset}_std': base_data.std(),
+               f'base_{base_dset}_mean': np.nanmean(base_data),
+               f'base_{base_dset}_std': np.nanstd(base_data),
                f'{bias_feature}_scalar': scalar,
                f'{bias_feature}_adder': adder,
                }
