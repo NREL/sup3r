@@ -86,6 +86,19 @@ class AbstractInterface(ABC):
         """
 
     @property
+    def input_dims(self):
+        """Get dimension of model generator input. This is usually 4D for
+        spatial models and 5D for spatiotemporal models. This gives the input
+        to the first step if the model is multi-step. Returns 5 for linear
+        models."""
+        if hasattr(self, '_gen'):
+            return self._gen.layers[0].rank
+        elif hasattr(self, 'models'):
+            return self.models[0]._gen.layers[0].rank
+        else:
+            return 5
+
+    @property
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""

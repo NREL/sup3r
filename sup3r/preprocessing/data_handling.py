@@ -1843,7 +1843,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             the data is a 3D array of shape (lat, lon, time) where time is
             length 1 for annual correction or 12 for monthly correction.
         threshold : float
-            Nearest neighbor euclidian distance threshold. If the DataHandler
+            Nearest neighbor euclidean distance threshold. If the DataHandler
             coordinates are more than this value away from the bias correction
             lat/lon, an error is raised.
         """
@@ -2333,11 +2333,14 @@ class DataHandlerNC(DataHandler):
         """
         if (raster_index[0].stop > lat_lon.shape[0]
            or raster_index[1].stop > lat_lon.shape[1]
-           or raster_index[0].start < 0 or raster_index[1].start < 0):
+           or raster_index[0].start < 0
+           or raster_index[1].start < 0):
             msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
                    f'{raster_index} for data domain of size '
                    f'{lat_lon.shape[:-1]} with lower left corner '
-                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}).')
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
+                   f' and upper right corner ({np.max(lat_lon[..., 0])}, '
+                   f'{np.max(lat_lon[..., 1])}).')
             raise ValueError(msg)
 
     def get_raster_index(self):
@@ -2369,6 +2372,9 @@ class DataHandlerNC(DataHandler):
                          .format(raster_index))
 
             if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
 
@@ -2729,6 +2735,9 @@ class DataHandlerH5(DataHandler):
                                                    self.grid_shape,
                                                    max_delta=self.max_delta)
             if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index

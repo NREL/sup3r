@@ -69,7 +69,7 @@ class Interpolator:
                    'height interpolation')
             raise ValueError(msg)
         logger.debug('Spatiotemporally averaged height levels: '
-                     f'{np.nanmean(np.array(hgt), axis=(0, 2, 3))}')
+                     f'{list(np.nanmean(np.array(hgt), axis=(0, 2, 3)))}')
         return np.array(hgt)
 
     @classmethod
