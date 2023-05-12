@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Sup3r batch_handling module.
+Sup3r conditional moment batch_handling module.
 """
 import logging
 import numpy as np
@@ -310,6 +310,7 @@ class BatchMom1SF(BatchMom1):
                                                 t_enhance=t_enhance,
                                                 mode=t_enhance_mode)
         enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+
         return high_res - enhanced_lr
 
 
