@@ -158,8 +158,8 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                             train_only_features=tuple())
 
     fp_gen = os.path.join(CONFIG_DIR,
-                          'spatiotemporal',
-                          'gen_3x_4x_topo_2f.json')
+                          'sup3rcc',
+                          'gen_wind_3x_4x_2f.json')
 
     WindCondMom.seed()
     model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
@@ -250,8 +250,8 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
                             train_only_features=tuple())
 
     fp_gen = os.path.join(CONFIG_DIR,
-                          'spatiotemporal',
-                          'gen_3x_4x_topo_2f.json')
+                          'sup3rcc',
+                          'gen_wind_3x_4x_2f.json')
 
     WindCondMom.seed()
     model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
