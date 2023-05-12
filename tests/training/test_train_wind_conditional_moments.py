@@ -110,15 +110,13 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
 
     WindCondMom.seed()
     model = WindCondMom(gen_model, learning_rate=1e-4)
-
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
         model.train(batcher, n_epoch=n_epoch,
                     checkpoint_int=None,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
-
-        assert 'test_0' in os.listdir(out_dir_root)
+        assert f'test_{n_epoch-1}' in os.listdir(out_dir_root)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'WindCondMom'
         assert 'topography' in batcher.output_features
