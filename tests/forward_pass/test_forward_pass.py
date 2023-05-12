@@ -95,6 +95,59 @@ def test_fwp_nc_cc(log=False):
                 s_enhance * fwp_chunk_shape[1])
 
 
+def test_fwp_spatial_only():
+    """Test forward pass handler output for spatial only model."""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 2
+    model.meta['t_enhance'] = 1
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_dir = os.path.join(td, 's_gan')
+        model.save(out_dir)
+
+        cache_pattern = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+
+        max_workers = 1
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
+        handler = ForwardPassStrategy(
+            input_files, model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
+            worker_kwargs=dict(max_workers=max_workers))
+        forward_pass = ForwardPass(handler)
+        assert forward_pass.output_workers == max_workers
+        assert forward_pass.data_handler.compute_workers == max_workers
+        assert forward_pass.data_handler.load_workers == max_workers
+        assert forward_pass.data_handler.norm_workers == max_workers
+        assert forward_pass.data_handler.extract_workers == max_workers
+        forward_pass.run(handler, node_index=0)
+
+        with xr.open_dataset(handler.out_files[0]) as fh:
+            assert fh[FEATURES[0]].shape == (
+                len(handler.time_index),
+                2 * fwp_chunk_shape[0],
+                2 * fwp_chunk_shape[1])
+            assert fh[FEATURES[1]].shape == (
+                len(handler.time_index),
+                2 * fwp_chunk_shape[0],
+                2 * fwp_chunk_shape[1])
+
+
 def test_fwp_nc():
     """Test forward pass handler output for netcdf write."""
 

@@ -1675,10 +1675,13 @@ class FeatureHandler:
         """
         raw_features = []
         method = cls.lookup(feature, 'inputs', handle_features=handle_features)
+        lower_handle_features = [f.lower() for f in handle_features]
 
         check1 = feature not in raw_features
-        check2 = (cls.valid_handle_features([feature], handle_features)
+        check2 = (cls.valid_handle_features([feature.lower()],
+                                            lower_handle_features)
                   or method is None)
+
         if check1 and check2:
             raw_features.append(feature)
 

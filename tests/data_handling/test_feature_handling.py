@@ -19,6 +19,8 @@ WTK_FEAT = ['windspeed_100m', 'winddirection_100m',
 
 WRF_FEAT = ['U', 'V', 'T', 'UST', 'HFX', 'HGT']
 
+ERA_FEAT = ['u', 'v']
+
 NSRDB_FEAT = ['ghi', 'clearsky_ghi', 'wind_speed', 'wind_direction']
 
 CC_FEAT = ['ua', 'uv', 'tas', 'hurs', 'zg', 'orog', 'ta']
@@ -60,6 +62,16 @@ def test_feature_inputs_nc():
 
     out = DataHandlerNC.get_inputs_recursive('BVF2_200m', WRF_FEAT)
     assert out == ['T_200m', 'T_100m']
+
+    out = DataHandlerNC.get_inputs_recursive('windspeed_200m', WRF_FEAT)
+    assert out == ['U_200m', 'V_200m', 'lat_lon']
+
+
+def test_feature_inputs_lowercase():
+    """Test basic NC feature name / inputs parsing with lowercase raw
+    features."""
+    out = DataHandlerNC.get_inputs_recursive('windspeed_200m', ERA_FEAT)
+    assert out == ['U_200m', 'V_200m', 'lat_lon']
 
 
 def test_feature_inputs_cc():

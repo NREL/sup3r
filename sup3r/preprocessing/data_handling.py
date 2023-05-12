@@ -1036,9 +1036,10 @@ class DataHandler(FeatureHandler, InputMixIn):
     @property
     def extract_features(self):
         """Features to extract directly from the source handler"""
+        lower_features = [f.lower() for f in self.handle_features]
         return [f for f in self.raw_features
                 if self.lookup(f, 'compute') is None
-                or Feature.get_basename(f) in self.handle_features]
+                or Feature.get_basename(f.lower()) in lower_features]
 
     @property
     def derive_features(self):
@@ -1842,7 +1843,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             the data is a 3D array of shape (lat, lon, time) where time is
             length 1 for annual correction or 12 for monthly correction.
         threshold : float
-            Nearest neighbor euclidian distance threshold. If the DataHandler
+            Nearest neighbor euclidean distance threshold. If the DataHandler
             coordinates are more than this value away from the bias correction
             lat/lon, an error is raised.
         """
@@ -2132,18 +2133,20 @@ class DataHandlerNC(DataHandler):
         interp_pressure = f_info.pressure
         basename = f_info.basename
 
-        if feature in handle:
-            fdata = cls.direct_extract(handle, feature, raster_index,
+        if feature in handle or feature.lower() in handle:
+            feat_key = feature if feature in handle else feature.lower()
+            fdata = cls.direct_extract(handle, feat_key, raster_index,
                                        time_slice)
 
-        elif basename in handle:
+        elif basename in handle or basename.lower() in handle:
+            feat_key = basename if basename in handle else basename.lower()
             if interp_height is not None:
                 fdata = Interpolator.interp_var_to_height(
-                    handle, basename, raster_index, np.float32(interp_height),
+                    handle, feat_key, raster_index, np.float32(interp_height),
                     time_slice)
             elif interp_pressure is not None:
                 fdata = Interpolator.interp_var_to_pressure(
-                    handle, basename, raster_index,
+                    handle, feat_key, raster_index,
                     np.float32(interp_pressure), time_slice)
 
         else:
@@ -2330,11 +2333,14 @@ class DataHandlerNC(DataHandler):
         """
         if (raster_index[0].stop > lat_lon.shape[0]
            or raster_index[1].stop > lat_lon.shape[1]
-           or raster_index[0].start < 0 or raster_index[1].start < 0):
+           or raster_index[0].start < 0
+           or raster_index[1].start < 0):
             msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
                    f'{raster_index} for data domain of size '
                    f'{lat_lon.shape[:-1]} with lower left corner '
-                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}).')
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
+                   f' and upper right corner ({np.max(lat_lon[..., 0])}, '
+                   f'{np.max(lat_lon[..., 1])}).')
             raise ValueError(msg)
 
     def get_raster_index(self):
@@ -2366,38 +2372,13 @@ class DataHandlerNC(DataHandler):
                          .format(raster_index))
 
             if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
 
         return raster_index
-
-
-class DataHandlerNCforERA(DataHandlerNC):
-    """Data Handler for NETCDF ERA5 data"""
-
-    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
-    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
-    Chunk sizes that approximately match the data volume being extracted
-    typically results in the most efficient IO."""
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features or extracting renamed
-        features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U_(.*)': 'u_(.*)',
-            'V_(.*)': 'v_(.*)',
-            'Windspeed_(.*)m': WindspeedNC,
-            'Winddirection_(.*)m': WinddirectionNC,
-            'topography': 'orog',
-            'lat_lon': LatLonNC}
-        return registry
 
 
 class DataHandlerNCforCC(DataHandlerNC):
@@ -2754,6 +2735,9 @@ class DataHandlerH5(DataHandler):
                                                    self.grid_shape,
                                                    max_delta=self.max_delta)
             if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
                 logger.debug(f'Saving raster index: {self.raster_file}')
                 np.savetxt(self.raster_file, raster_index)
         return raster_index

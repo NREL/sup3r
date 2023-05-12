@@ -1061,6 +1061,8 @@ class ForwardPass:
         out = self.pad_source_data(self.input_data, self.pad_width,
                                    self.exogenous_data, exo_s_en)
         self.input_data, self.exogenous_data = out
+        self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
+                                                          self.lr_slice[1]]
 
     def update_input_handler_kwargs(self, strategy):
         """Update the kwargs for the input handler for the current forward pass
@@ -1120,6 +1122,12 @@ class ForwardPass:
         """Get low-resolution cropped time index to use for getting
         high-resolution time index"""
         return self.data_handler.time_index[self.ti_crop_slice]
+
+    @property
+    def lr_lat_lon(self):
+        """Get low resolution lat lon for current chunk"""
+        return self.strategy.lr_lat_lon[self.lr_slice[0],
+                                        self.lr_slice[1]]
 
     @property
     def hr_lat_lon(self):
@@ -1520,6 +1528,9 @@ class ForwardPass:
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
+        if len(hi_res.shape) == 4:
+            hi_res = np.expand_dims(np.transpose(hi_res, (1, 2, 0, 3)), axis=0)
+
         if (s_enhance is not None
                 and hi_res.shape[1] != s_enhance * data_chunk.shape[i_lr_s]):
             msg = ('The stated spatial enhancement of {}x did not match '
@@ -1572,14 +1583,14 @@ class ForwardPass:
         if exo_data is not None:
             for i, arr in enumerate(exo_data):
                 if arr is not None:
-                    tp = isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS)
-                    tp = tp and (i < len(model.spatial_models))
-                    if tp:
+                    current_model = (model if not hasattr(model, 'models')
+                                     else model.models[i])
+                    if current_model.input_dims == 4:
                         exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
                     else:
                         exo_data[i] = np.expand_dims(arr, axis=0)
 
-        if isinstance(model, sup3r.models.SPATIAL_FIRST_MODELS):
+        if model.input_dims == 4:
             i_lr_t = 0
             i_lr_s = 1
             data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))

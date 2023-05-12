@@ -13,7 +13,7 @@ from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
 from sup3r.preprocessing.batch_handling import (BatchHandler,
                                                 SpatialBatchHandler)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.pytest import make_fake_nc_files
+from sup3r.utilities.pytest import make_fake_nc_files, make_fake_era_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
@@ -103,6 +103,29 @@ def test_height_interpolation():
                     stdev = np.std(U_tmp[t, :, i, j])
 
                     assert compare_val - stdev <= val <= compare_val + stdev
+
+
+def test_single_site_extraction():
+    """Make sure single location can be extracted from ERA data without
+    error."""
+
+    height = 10
+    features = [f'windspeed_{height}m']
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_era_files(td, INPUT_FILE, 8)
+        kwargs = dh_kwargs.copy()
+        kwargs['shape'] = [1, 1]
+        data_handler = DataHandler(input_files, features, val_split=0.0,
+                                   **kwargs)
+
+        data = data_handler.data[0, 0, :, 0]
+
+        data_handler = DataHandler(input_files, features, val_split=0.0,
+                                   **dh_kwargs)
+
+        baseline = data_handler.data[-1, 0, :, 0]
+
+        assert np.allclose(baseline, data)
 
 
 @pytest.mark.parametrize('sample_shape',

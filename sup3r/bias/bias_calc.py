@@ -8,6 +8,7 @@ import json
 import logging
 import numpy as np
 import pandas as pd
+from glob import glob
 from scipy.spatial import KDTree
 from scipy.stats import ks_2samp
 from scipy.ndimage.filters import gaussian_filter
@@ -83,9 +84,9 @@ class DataRetrievalBase:
         bias_handler_kwargs = bias_handler_kwargs or {}
 
         if isinstance(self.base_fps, str):
-            self.base_fps = [self.base_fps]
+            self.base_fps = sorted(glob(self.base_fps))
         if isinstance(self.bias_fps, str):
-            self.bias_fps = [self.bias_fps]
+            self.bias_fps = sorted(glob(self.bias_fps))
 
         self.base_handler = getattr(rex, base_handler)
         self.bias_handler = getattr(sup3r.preprocessing.data_handling,
@@ -297,6 +298,8 @@ class DataRetrievalBase:
             1D array of temporal data at the requested gid.
         """
         idx = np.where(self.bias_gid_raster == bias_gid)
+        if self.bias_dh.data is None:
+            self.bias_dh.load_cached_data()
         bias_data = self.bias_dh.data[idx][0]
 
         if bias_data.shape[-1] == 1:
@@ -423,9 +426,9 @@ class DataRetrievalBase:
             base_data = res[base_dset, :, base_gid]
 
         if len(base_data.shape) == 2:
-            base_data = base_data.mean(axis=1)
+            base_data = np.nanmean(base_data, axis=1)
             if base_cs_ghi is not None:
-                base_cs_ghi = base_cs_ghi.mean(axis=1)
+                base_cs_ghi = np.nanmean(base_cs_ghi, axis=1)
 
         return base_data, base_cs_ghi
 
@@ -516,17 +519,17 @@ class LinearCorrection(DataRetrievalBase):
             like: bias_data * scalar + adder
         """
 
-        bias_std = bias_data.std()
+        bias_std = np.nanstd(bias_data)
         if bias_std == 0:
-            bias_std = base_data.std()
+            bias_std = np.nanstd(base_data)
 
-        scalar = base_data.std() / bias_std
-        adder = base_data.mean() - bias_data.mean() * scalar
+        scalar = np.nanstd(base_data) / bias_std
+        adder = np.nanmean(base_data) - np.nanmean(bias_data) * scalar
 
-        out = {f'bias_{bias_feature}_mean': bias_data.mean(),
+        out = {f'bias_{bias_feature}_mean': np.nanmean(bias_data),
                f'bias_{bias_feature}_std': bias_std,
-               f'base_{base_dset}_mean': base_data.mean(),
-               f'base_{base_dset}_std': base_data.std(),
+               f'base_{base_dset}_mean': np.nanmean(base_data),
+               f'base_{base_dset}_std': np.nanstd(base_data),
                f'{bias_feature}_scalar': scalar,
                f'{bias_feature}_adder': adder,
                }
