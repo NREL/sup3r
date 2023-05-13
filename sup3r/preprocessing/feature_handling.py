@@ -1,30 +1,31 @@
-# -*- coding: utf-8 -*-
 """
 Sup3r feature handling module.
 
 @author: bbenton
 """
 
+import logging
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from concurrent.futures import as_completed
-import logging
-import numpy as np
-import re
-import xarray as xr
-import psutil
 
+import numpy as np
+import psutil
+import xarray as xr
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
-from sup3r.utilities.utilities import (invert_pot_temp, invert_uv,
-                                       rotor_equiv_ws,
-                                       transform_rotate_wind,
-                                       bvf_squared,
-                                       get_raster_shape,
-                                       inverse_mo_length,
-                                       vorticity_calc
-                                       )
 
+from sup3r.utilities.utilities import (
+    bvf_squared,
+    get_raster_shape,
+    inverse_mo_length,
+    invert_pot_temp,
+    invert_uv,
+    rotor_equiv_ws,
+    transform_rotate_wind,
+    vorticity_calc,
+)
 
 np.random.seed(42)
 
@@ -209,6 +210,7 @@ class PotentialTempNC(DerivedFeature):
 
     @classmethod
     def inputs(cls, feature):
+        """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
         features = [f'T_{height}m']
         return features
@@ -239,6 +241,7 @@ class TempNC(DerivedFeature):
 
     @classmethod
     def inputs(cls, feature):
+        """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
         features = [f'PotentialTemp_{height}m',
                     f'Pressure_{height}m']
@@ -271,6 +274,7 @@ class PressureNC(DerivedFeature):
 
     @classmethod
     def inputs(cls, feature):
+        """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
         features = [f'P_{height}m',
                     f'PB_{height}m']
@@ -302,6 +306,7 @@ class BVFreqSquaredNC(DerivedFeature):
 
     @classmethod
     def inputs(cls, feature):
+        """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
         features = [f'PT_{height}m',
                     f'PT_{int(height) - 100}m']
@@ -949,12 +954,14 @@ class Tas(DerivedFeature):
 class TasMin(Tas):
     """Daily min air temperature near surface variable from climate change nc
     files"""
+
     CC_FEATURE_NAME = 'tasmin'
 
 
 class TasMax(Tas):
     """Daily max air temperature near surface variable from climate change nc
     files"""
+
     CC_FEATURE_NAME = 'tasmax'
 
 
@@ -1757,6 +1764,8 @@ class FeatureHandler:
             slice of time to extract
         feature : str
             Feature to extract from data
+        kwargs : dict
+            Keyword arguments passed to source handler
 
         Returns
         -------

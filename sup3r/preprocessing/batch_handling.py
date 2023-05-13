@@ -1,30 +1,30 @@
-# -*- coding: utf-8 -*-
 """
 Sup3r batch_handling module.
 @author: bbenton
 """
 import logging
-import numpy as np
-from datetime import datetime as dt
 import os
 import pickle
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime as dt
+
+import numpy as np
+from rex.utilities import log_mem
 from scipy.ndimage.filters import gaussian_filter
 
-from concurrent.futures import (as_completed, ThreadPoolExecutor)
-
-from rex.utilities import log_mem
-
-from sup3r.utilities.utilities import (estimate_max_workers,
-                                       weighted_time_sampler,
-                                       weighted_box_sampler,
-                                       spatial_coarsening,
-                                       temporal_coarsening,
-                                       smooth_data,
-                                       nsrdb_reduce_daily_data,
-                                       uniform_box_sampler,
-                                       uniform_time_sampler,
-                                       nn_fill_array)
 from sup3r.preprocessing.data_handling import DataHandlerDCforH5
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    nn_fill_array,
+    nsrdb_reduce_daily_data,
+    smooth_data,
+    spatial_coarsening,
+    temporal_coarsening,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
+)
 
 np.random.seed(42)
 
@@ -35,7 +35,7 @@ class Batch:
     """Batch of low_res and high_res data"""
 
     def __init__(self, low_res, high_res):
-        """Stores low and high res data
+        """Store low and high res data
 
         Parameters
         ----------
@@ -174,7 +174,7 @@ class ValidationData:
         """
         Parameters
         ----------
-        handlers : list[DataHandler]
+        data_handlers : list[DataHandler]
             List of DataHandler instances
         batch_size : int
             Size of validation data batches
@@ -233,7 +233,8 @@ class ValidationData:
         val_indices : list[dict]
             List of dicts with handler_index and tuple_index. The tuple index
             is used to get validation data observation with
-            data[tuple_index]"""
+        data[tuple_index]
+        """
 
         val_indices = []
         for i, h in enumerate(self.handlers):
@@ -243,7 +244,7 @@ class ValidationData:
                                                         self.sample_shape[:2])
                     temporal_slice = uniform_time_sampler(h.val_data,
                                                           self.sample_shape[2])
-                    tuple_index = tuple(spatial_slice + [temporal_slice]
+                    tuple_index = tuple([*spatial_slice, temporal_slice]
                                         + [np.arange(h.val_data.shape[-1])])
                     val_indices.append({'handler_index': i,
                                         'tuple_index': tuple_index})
@@ -617,7 +618,7 @@ class BatchHandler:
                                  'loaded.')
 
     def parallel_stats(self):
-        """Get standard deviations and means for training features in parallel
+        """Get standard deviations and means for training features in parallel.
         """
         logger.info(f'Calculating stats for {len(self.training_features)} '
                     'features.')
@@ -694,15 +695,20 @@ class BatchHandler:
         return self.means, self.stds
 
     def cache_stats(self):
-        """Saved stdevs and means to cache files if files are not None
-        """
+        """Saved stdevs and means to cache files if files are not None"""
 
         if self.stdevs_file is not None:
             logger.info(f'Saving stdevs to {self.stdevs_file}')
+            basedir = os.path.dirname(self.stdevs_file)
+            if not os.path.exists(basedir):
+                os.makedirs(basedir)
             with open(self.stdevs_file, 'wb') as fh:
                 pickle.dump(self.stds, fh)
         if self.means_file is not None:
             logger.info(f'Saving means to {self.means_file}')
+            basedir = os.path.dirname(self.means_file)
+            if not os.path.exists(basedir):
+                os.makedirs(basedir)
             with open(self.means_file, 'wb') as fh:
                 pickle.dump(self.means, fh)
 
@@ -745,6 +751,8 @@ class BatchHandler:
             Index of feature to get variance for
         handler_idx : int
             Index of data handler to get variance for
+        mean : float
+            Mean for the given handler and feature
 
         Returns
         -------
@@ -970,8 +978,8 @@ class BatchHandlerCC(BatchHandler):
                 obs_hourly, self.output_features_ind)
 
             if low_res is None:
-                lr_shape = (self.batch_size,) + obs_daily_avg.shape
-                hr_shape = (self.batch_size,) + obs_hourly.shape
+                lr_shape = (self.batch_size, *obs_daily_avg.shape)
+                hr_shape = (self.batch_size, *obs_hourly.shape)
                 low_res = np.zeros(lr_shape, dtype=np.float32)
                 high_res = np.zeros(hr_shape, dtype=np.float32)
 
@@ -1073,7 +1081,7 @@ class SpatialBatchHandlerCC(BatchHandler):
             self.current_batch_indices.append(handler.current_obs_index)
 
             if high_res is None:
-                hr_shape = (self.batch_size,) + obs_daily_avg.shape
+                hr_shape = (self.batch_size, *obs_daily_avg.shape)
                 high_res = np.zeros(hr_shape, dtype=np.float32)
 
                 msg = ('SpatialBatchHandlerCC can only use n_temporal==1 '
@@ -1154,7 +1162,8 @@ class ValidationDataDC(ValidationData):
         val_indices : list[dict]
             List of dicts with handler_index and tuple_index. The tuple index
             is used to get validation data observation with
-            data[tuple_index]"""
+        data[tuple_index]
+        """
 
         val_indices = {}
         for t in range(self.N_TIME_BINS):
@@ -1168,7 +1177,7 @@ class ValidationDataDC(ValidationData):
                 weights[t] = 1
                 temporal_slice = weighted_time_sampler(
                     h.data, self.sample_shape[2], weights)
-                tuple_index = tuple(spatial_slice + [temporal_slice]
+                tuple_index = tuple([*spatial_slice, temporal_slice]
                                     + [np.arange(h.data.shape[-1])])
                 val_indices[t].append({'handler_index': h_idx,
                                        'tuple_index': tuple_index})
@@ -1183,7 +1192,7 @@ class ValidationDataDC(ValidationData):
                     h.data, self.sample_shape[:2], weights)
                 temporal_slice = uniform_time_sampler(
                     h.data, self.sample_shape[2])
-                tuple_index = tuple(spatial_slice + [temporal_slice]
+                tuple_index = tuple([*spatial_slice, temporal_slice]
                                     + [np.arange(h.data.shape[-1])])
                 val_indices[s + self.N_TIME_BINS].append(
                     {'handler_index': h_idx, 'tuple_index': tuple_index})
@@ -1216,11 +1225,13 @@ class ValidationDataDC(ValidationData):
 
 class ValidationDataTemporalDC(ValidationDataDC):
     """Iterator for data-centric temporal validation data"""
+
     N_SPACE_BINS = 0
 
 
 class ValidationDataSpatialDC(ValidationDataDC):
     """Iterator for data-centric spatial validation data"""
+
     N_TIME_BINS = 0
 
     def __next__(self):

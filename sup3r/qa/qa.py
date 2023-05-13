@@ -1,24 +1,26 @@
-# -*- coding: utf-8 -*-
 """sup3r QA module."""
-import os
-import pandas as pd
-import numpy as np
-import xarray as xr
 import logging
+import os
 from inspect import signature
 from warnings import warn
+
+import numpy as np
+import pandas as pd
+import xarray as xr
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
+
 import sup3r.bias.bias_transforms
+from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
-from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
 from sup3r.utilities import ModuleName
-from sup3r.utilities.utilities import (get_input_handler_class,
-                                       get_source_type,
-                                       spatial_coarsening,
-                                       temporal_coarsening,
-                                       )
 from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.utilities import (
+    get_input_handler_class,
+    get_source_type,
+    spatial_coarsening,
+    temporal_coarsening,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +50,7 @@ class Sup3rQa:
                  overwrite_cache=False,
                  input_handler=None,
                  worker_kwargs=None):
-        """
-        Parameters
+        """Parameters
         ----------
         source_file_paths : list | str
             A list of low-resolution source files to extract raster data from.

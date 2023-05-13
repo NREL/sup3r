@@ -1,27 +1,33 @@
-# -*- coding: utf-8 -*-
 """sup3r WindStats module."""
-import pandas as pd
-import numpy as np
+import logging
 import os
 import pickle
-import logging
-import psutil
 from abc import ABC, abstractmethod
-from scipy.ndimage.filters import gaussian_filter
-from rex.utilities.fun_utils import get_fun_call_str
 
+import numpy as np
+import pandas as pd
+import psutil
+from rex.utilities.fun_utils import get_fun_call_str
+from scipy.ndimage.filters import gaussian_filter
+
+from sup3r.preprocessing.feature_handling import Feature
+from sup3r.qa.utilities import (
+    direct_dist,
+    frequency_spectrum,
+    gradient_dist,
+    time_derivative_dist,
+    wavenumber_spectrum,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.utilities import (get_input_handler_class,
-                                       get_source_type,
-                                       temporal_coarsening,
-                                       spatial_coarsening,
-                                       st_interp, vorticity_calc)
-from sup3r.qa.utilities import (time_derivative_dist, direct_dist,
-                                gradient_dist, wavenumber_spectrum,
-                                frequency_spectrum)
-from sup3r.preprocessing.feature_handling import Feature
-
+from sup3r.utilities.utilities import (
+    get_input_handler_class,
+    get_source_type,
+    spatial_coarsening,
+    st_interp,
+    temporal_coarsening,
+    vorticity_calc,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +45,7 @@ class Sup3rStatsBase(ABC):
     _FLUCT_FFT_K = 'fluctuation_spectrum_k'
 
     def __init__(self):
-        """Base stats class"""
+        """Initialize base class for stats"""
         self.overwrite_stats = True
 
     def __enter__(self):
@@ -160,8 +166,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                  include_stats=None, max_values=None, smoothing=None,
                  spatial_res=None, temporal_res=None, n_bins=40, qa_fp=None,
                  interp_dists=True, time_chunk_size=100):
-        """
-        Parameters
+        """Parameters
         ----------
         input_data : ndarray
             An array of feature data to use for computing statistics
@@ -627,8 +632,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                  max_values=None, smoothing=None, coarsen=False,
                  spatial_res=None, temporal_res=None, n_bins=40,
                  max_delta=10, qa_fp=None):
-        """
-        Parameters
+        """Parameters
         ----------
         source_file_paths : list | str
             A list of source files to compute statistics on. Either .nc or .h5
@@ -842,7 +846,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
         Parameters
         ----------
-
         file_paths : list | str
             A list of source files to extract raster data from. Each file must
             have the same number of timesteps. Can also pass a string with a
@@ -929,11 +932,6 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                     self._input_features.append(f'V_{height}m')
         return self._input_features
 
-    @property
-    def compute_features(self):
-        """Get list of requested feature names"""
-        return self._features
-
     @input_features.setter
     def input_features(self, input_features):
         """Set input features"""
@@ -950,6 +948,11 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
                     self._input_features.append(f'V_{height}m')
         return self._input_features
 
+    @property
+    def compute_features(self):
+        """Get list of requested feature names"""
+        return self._features
+
     def coarsen_data(self, data, smoothing=None):
         """Re-coarsen a high-resolution synthetic output dataset
 
@@ -958,6 +961,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
         data : np.ndarray
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
+        smoothing : float | None
+            Amount of smoothing to apply using a gaussian filter.
 
         Returns
         -------
@@ -1002,8 +1007,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                  get_interp=False, include_stats=None, max_values=None,
                  smoothing=None, spatial_res=None, temporal_res=None,
                  n_bins=40, max_delta=10, save_fig_data=False):
-        """
-        Parameters
+        """Parameters
         ----------
         lr_file_paths : list | str
             A list of low-resolution source files (either .nc or .h5)
