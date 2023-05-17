@@ -10,6 +10,7 @@ from sup3r.utilities.utilities import (spatial_simple_enhancing,
                                        temporal_simple_enhancing)
 from sup3r.preprocessing.batch_handling import Batch
 from sup3r.preprocessing.conditional_moment_batch_handling import (
+    SpatialBatchHandlerMom1,
     BatchMom1,
     ValidationDataMom1,
     BatchHandlerMom1)
@@ -56,6 +57,15 @@ class WindBatchMom1SF(WindBatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        SF: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR from HR
         enhanced_lr = spatial_simple_enhancing(low_res,
@@ -102,6 +112,14 @@ class WindBatchMom2(WindBatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        (HR - <HR|LR>)**2 : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res and LR is low-res
         """
         # Remove first moment from HR and square it
         out = model_mom1._tf_generate(low_res, high_res[..., -1:]).numpy()
@@ -147,6 +165,15 @@ class WindBatchMom2SF(WindBatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either 'constant' or 'linear'
+
+        Returns
+        -------
+        (SF - <SF|LR>)**2 : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR and first moment from HR and square it
         out = model_mom1._tf_generate(low_res, high_res[..., -1:]).numpy()
@@ -195,6 +222,15 @@ class WindBatchMom2SepSF(WindBatchMom1SF):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        SF**2 : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR from HR and square it
         return super(WindBatchMom2SepSF,
@@ -214,35 +250,12 @@ class WindBatchHandlerMom1(BatchHandlerMom1):
     DATA_HANDLER_CLASS = None
 
 
-class WindSpatialBatchHandlerMom1(WindBatchHandlerMom1):
+class WindSpatialBatchHandlerMom1(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class"""
-
-    def __next__(self):
-        if self._i < self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
-            handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                                 self.sample_shape[1], self.shape[-1]),
-                                dtype=np.float32)
-            for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next()[..., 0, :]
-
-            batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
-                smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1,
-                s_padding=self.s_padding,
-                t_padding=self.t_padding,
-                end_t_padding=self.end_t_padding)
-
-            self._i += 1
-            return batch
-        else:
-            raise StopIteration
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationDataMom1
+    BATCH_CLASS = WindBatchMom1
+    DATA_HANDLER_CLASS = None
 
 
 class ValidationDataWindMom1SF(ValidationDataMom1):

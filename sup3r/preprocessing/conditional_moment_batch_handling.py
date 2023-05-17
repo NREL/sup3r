@@ -97,6 +97,14 @@ class BatchMom1(Batch):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        HR: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res and LR is low-res
         """
         return high_res
 
@@ -147,6 +155,13 @@ class BatchMom1(Batch):
         output_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
+
+        Returns
+        -------
+        mask: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         """
         mask = np.zeros(high_res.shape, dtype=np.float32)
         s_min = s_padding if s_padding is not None else 0
@@ -302,6 +317,15 @@ class BatchMom1SF(BatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        SF: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR from HR
         enhanced_lr = spatial_simple_enhancing(low_res,
@@ -347,6 +371,14 @@ class BatchMom2(BatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        (HR - <HR|LR>)**2: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res and LR is low-res
         """
         # Remove first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
@@ -386,6 +418,14 @@ class BatchMom2Sep(BatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        HR**2: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res
         """
         return super(BatchMom2Sep,
                      BatchMom2Sep).make_output(low_res, high_res,
@@ -428,6 +468,15 @@ class BatchMom2SF(BatchMom1):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either 'constant' or 'linear'
+
+        Returns
+        -------
+        (SF - <SF|LR>)**2: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR and first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
@@ -474,6 +523,15 @@ class BatchMom2SepSF(BatchMom1SF):
         t_enhance_mode : str
             Enhancing mode for temporal subfilter.
             Can be either constant or linear
+
+        Returns
+        -------
+        SF**2: np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
         """
         # Remove LR from HR and square it
         return super(BatchMom2SepSF,
