@@ -64,7 +64,7 @@ Option 2: Clone repo (recommended for developers)
     6) Install ``sup3r`` and its dependencies by running:
        ``pip install .`` (or ``pip install -e .`` if running a dev branch
        or working on the source code)
-    7) Set up the pre-commit hooks by calling ``pre-commit install``
+    7) *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` and ``pre-commit install``
 
 Recommended Citation
 ====================
