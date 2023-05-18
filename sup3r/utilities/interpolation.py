@@ -1,11 +1,11 @@
 """Interpolator class with methods for pressure and height interpolation"""
-import numpy as np
 import logging
 from warnings import warn
+
+import numpy as np
 from scipy.interpolate import interp1d
 
 from sup3r.utilities.utilities import forward_average
-
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class Interpolator:
                 gp += cls.extract_var(data, 'PH', raster_index, time_slice)
 
             # Terrain Height (m)
-            hgt = data['HGT'][(time_slice,) + tuple(raster_index)]
+            hgt = data['HGT'][(time_slice, *tuple(raster_index))]
             if gp.shape != hgt.shape:
                 hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3],
                                 axis=1)
@@ -55,10 +55,10 @@ class Interpolator:
 
         elif all(field in data for field in ('zg', 'orog')):
             if len(data['orog'].dims) == 3:
-                hgt = data['orog'][(0,) + tuple(raster_index)]
+                hgt = data['orog'][(0, *tuple(raster_index))]
             else:
                 hgt = data['orog'][tuple(raster_index)]
-            gp = data['zg'][(time_slice, slice(None),) + tuple(raster_index)]
+            gp = data['zg'][(time_slice, slice(None), *tuple(raster_index))]
             hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[1], axis=0)
             hgt = np.repeat(np.expand_dims(hgt, axis=0), gp.shape[0], axis=0)
             hgt = gp - hgt
@@ -160,7 +160,7 @@ class Interpolator:
             (temporal, vertical_level, spatial_1, spatial_2)
             4D array of pressure levels in pascals
         """
-        idx = (time_slice, slice(None),) + tuple(raster_index)
+        idx = (time_slice, slice(None), *tuple(raster_index))
         p_array = np.zeros(data[var][idx].shape, dtype=np.float32)
         for i in range(p_array.shape[1]):
             p_array[:, i, ...] = data.plev[i]
@@ -221,6 +221,10 @@ class Interpolator:
             logger.warning(msg)
             warn(msg)
 
+        # This and the next if statement can return warnings in the case of
+        # pressure inversions, in which case the "lowest" or "highest" pressure
+        # does not correspond to the lowest or highest height. Interpolation
+        # can be performed without issue in this case.
         if bad_min.any():
             msg = ('Approximately {:.2f}% of the lowest vertical levels '
                    '(maximum value of {:.3f}, minimum value of {:.3f}) '
@@ -306,7 +310,7 @@ class Interpolator:
             Array of interpolated values.
         """
         if len(data[var].dims) == 5:
-            raster_index = [0] + raster_index
+            raster_index = [0, *raster_index]
         logger.debug(f'Interpolating {var} to heights (meters): {heights}')
         hgt = cls.calc_height(data, raster_index, time_slice)
         logger.info(f'Computed height array with min/max: {np.nanmin(hgt)} / '
@@ -349,7 +353,7 @@ class Interpolator:
         """
         logger.debug(f'Interpolating {var} to pressures (Pa): {pressures}')
         if len(data[var].dims) == 5:
-            raster_index = [0] + raster_index
+            raster_index = [0, *raster_index]
 
         if all('stag' not in d for d in data[var].dims):
             arr = cls.extract_var(data, var, raster_index, time_slice)
