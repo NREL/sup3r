@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r data pipeline architecture.
-"""
+"""Sup3r data pipeline architecture."""
 import logging
 
 from reV.pipeline.pipeline import Pipeline
@@ -24,8 +21,7 @@ class Sup3rPipeline(Pipeline):
                     3: 'complete'}
 
     def __init__(self, pipeline, monitor=True, verbose=False):
-        """
-        Parameters
+        """Parameters
         ----------
         pipeline : str | dict
             Pipeline config file path or dictionary.

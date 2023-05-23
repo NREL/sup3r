@@ -1,72 +1,73 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r preprocessing module.
+"""Sup3r preprocessing module.
 @author: bbenton
 """
 
-from abc import abstractmethod
 import copy
-from fnmatch import fnmatch
+import glob
 import logging
-import xarray as xr
-import pandas as pd
-import numpy as np
-from scipy.spatial import KDTree
 import os
-from datetime import datetime as dt
 import pickle
 import warnings
-import glob
-from scipy.stats import mode
-from scipy.ndimage.filters import gaussian_filter
-from concurrent.futures import (as_completed, ThreadPoolExecutor)
+from abc import abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime as dt
+from fnmatch import fnmatch
 
-from rex import MultiFileWindX, MultiFileNSRDBX, Resource
+import numpy as np
+import pandas as pd
+import xarray as xr
+from rex import MultiFileNSRDBX, MultiFileWindX, Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
+from scipy.ndimage.filters import gaussian_filter
+from scipy.spatial import KDTree
+from scipy.stats import mode
 
-from sup3r.utilities.utilities import (estimate_max_workers,
-                                       get_chunk_slices,
-                                       get_time_dim_name,
-                                       uniform_box_sampler,
-                                       uniform_time_sampler,
-                                       weighted_time_sampler,
-                                       weighted_box_sampler,
-                                       get_raster_shape,
-                                       get_source_type,
-                                       ignore_case_path_fetch,
-                                       daily_temporal_coarsening,
-                                       spatial_coarsening,
-                                       np_to_pd_times)
-from sup3r.utilities.interpolation import Interpolator
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon,
+    BVFreqSquaredH5,
+    BVFreqSquaredNC,
+    ClearSkyRatioCC,
+    ClearSkyRatioH5,
+    CloudMaskH5,
+    Feature,
+    FeatureHandler,
+    InverseMonNC,
+    LatLonH5,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    Tas,
+    TasMax,
+    TasMin,
+    TempNC,
+    TempNCforCC,
+    TopoH5,
+    UWind,
+    VWind,
+    WinddirectionNC,
+    WindspeedNC,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.preprocessing.feature_handling import (FeatureHandler,
-                                                  Feature,
-                                                  BVFreqMon,
-                                                  BVFreqSquaredH5,
-                                                  BVFreqSquaredNC,
-                                                  InverseMonNC,
-                                                  LatLonNC,
-                                                  TempNC,
-                                                  TempNCforCC,
-                                                  PotentialTempNC,
-                                                  PressureNC,
-                                                  UWind,
-                                                  VWind,
-                                                  LatLonH5,
-                                                  ClearSkyRatioH5,
-                                                  ClearSkyRatioCC,
-                                                  CloudMaskH5,
-                                                  WindspeedNC,
-                                                  WinddirectionNC,
-                                                  Shear,
-                                                  Rews,
-                                                  Tas,
-                                                  TasMin,
-                                                  TasMax,
-                                                  TopoH5,
-                                                  )
+from sup3r.utilities.interpolation import Interpolator
+from sup3r.utilities.utilities import (
+    daily_temporal_coarsening,
+    estimate_max_workers,
+    get_chunk_slices,
+    get_raster_shape,
+    get_source_type,
+    get_time_dim_name,
+    ignore_case_path_fetch,
+    np_to_pd_times,
+    spatial_coarsening,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
+)
 
 np.random.seed(42)
 
@@ -331,7 +332,7 @@ class InputMixIn:
 
     @property
     def raw_lat_lon(self):
-        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        """Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
         array with same ordering in last dimension. This returns the gid
         without any lat inversion.
 
@@ -356,7 +357,7 @@ class InputMixIn:
 
     @property
     def lat_lon(self):
-        """lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        """Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
         array with same ordering in last dimension. This ensures that the
         lower left hand corner of the domain is given by lat_lon[-1, 0]
 
@@ -852,9 +853,9 @@ class DataHandler(FeatureHandler, InputMixIn):
     @classmethod
     @abstractmethod
     def source_handler(cls, file_paths, **kwargs):
-        """Handler for source data. Can use xarray, ResourceX, etc.
+        """Handle for source data. Uses xarray, ResourceX, etc.
 
-        Note that xarray appears to treat open file handlers as singletons
+        NOTE: that xarray appears to treat open file handlers as singletons
         within a threadpool, so its okay to open this source_handler without a
         context handler or a .close() statement.
         """
@@ -1109,7 +1110,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         if len(self.sample_shape) == 2:
             logger.info('Found 2D sample shape of {}. Adding temporal dim of 1'
                         .format(self.sample_shape))
-            self.sample_shape = self.sample_shape + (1,)
+            self.sample_shape = (*self.sample_shape, 1)
 
         start = self.temporal_slice.start
         stop = self.temporal_slice.stop
@@ -1142,8 +1143,8 @@ class DataHandler(FeatureHandler, InputMixIn):
             raise RuntimeError(msg)
 
         msg = (f'Initializing DataHandler {self.input_file_info}. '
-               f'Getting temporal range {str(self.time_index[0])} to '
-               f'{str(self.time_index[-1])} (inclusive) '
+               f'Getting temporal range {self.time_index[0]!s} to '
+               f'{self.time_index[-1]!s} (inclusive) '
                f'based on temporal_slice {self.temporal_slice}')
         logger.info(msg)
 
@@ -1365,10 +1366,10 @@ class DataHandler(FeatureHandler, InputMixIn):
         spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
         temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
         return tuple(
-            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
+            [*spatial_slice, temporal_slice] + [np.arange(len(self.features))])
 
     def get_next(self):
-        """Gets data for observation using random observation index. Loops
+        """Get data for observation using random observation index. Loops
         repeatedly over randomized time index
 
         Returns
@@ -1382,7 +1383,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         return observation
 
     def split_data(self, data=None):
-        """Splits time dimension into set of training indices and validation
+        """Split time dimension into set of training indices and validation
         indices
 
         Parameters
@@ -1531,8 +1532,7 @@ class DataHandler(FeatureHandler, InputMixIn):
                 raise RuntimeError(msg) from e
 
     def load_cached_data(self):
-        """Load data from cache files and split into training and validation
-        """
+        """Load data from cache files and split into training and validation"""
         if self.data is not None:
             logger.info('Called load_cached_data() but self.data is not None')
 
@@ -1625,7 +1625,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         return extract_features
 
     def run_all_data_init(self):
-        """Building base 4D data array. Can handle multiple files but assumes
+        """Build base 4D data array. Can handle multiple files but assumes
         each file has the same spatial domain
 
         Returns
@@ -1918,7 +1918,8 @@ class DataHandlerNC(DataHandler):
     typically results in the most efficient IO."""
 
     def __init__(self, *args, xr_chunks=None, **kwargs):
-        """
+        """Initialize NETCDF data handler.
+
         Parameters
         ----------
         *args : list
@@ -2164,7 +2165,7 @@ class DataHandlerNC(DataHandler):
 
         Parameters
         ----------
-        data : xarray
+        handle : xarray
             netcdf data object
         feature : str
             Name of feature to extract directly from source handler
@@ -2183,7 +2184,7 @@ class DataHandlerNC(DataHandler):
         if len(handle[feature].dims) == 4:
             idx = tuple([time_slice] + [0] + raster_index)
         elif len(handle[feature].dims) == 3:
-            idx = tuple([time_slice] + raster_index)
+            idx = tuple([time_slice, *raster_index])
         else:
             idx = tuple(raster_index)
         fdata = np.array(handle[feature][idx], dtype=np.float32)
@@ -2391,7 +2392,8 @@ class DataHandlerNCforCC(DataHandlerNC):
 
     def __init__(self, *args, nsrdb_source_fp=None, nsrdb_agg=1,
                  nsrdb_smoothing=0, **kwargs):
-        """
+        """Initialize NETCDF data handler for climate change data.
+
         Parameters
         ----------
         *args : list
@@ -2560,14 +2562,14 @@ class DataHandlerNCforCC(DataHandlerNC):
         with Resource(self._nsrdb_source_fp) as res:
             cs_ghi = res['clearsky_ghi', t_slice, i.flatten()]
 
-        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + cs_shape)
+        cs_ghi = cs_ghi.reshape((len(cs_ghi), *cs_shape))
         cs_ghi = cs_ghi.mean(axis=-1)
 
         windows = np.array_split(np.arange(len(cs_ghi)),
                                  len(cs_ghi) // (24 // time_freq))
         cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
         cs_ghi = np.vstack(cs_ghi)
-        cs_ghi = cs_ghi.reshape((len(cs_ghi),) + tuple(self.grid_shape))
+        cs_ghi = cs_ghi.reshape((len(cs_ghi), *tuple(self.grid_shape)))
         cs_ghi = np.transpose(cs_ghi, axes=(1, 2, 0))
 
         if self.invert_lat:
@@ -2601,8 +2603,8 @@ class DataHandlerH5(DataHandler):
     REX_HANDLER = MultiFileWindX
 
     @classmethod
-    def source_handler(cls, file_paths):
-        """rex data handler
+    def source_handler(cls, file_paths, **kwargs):
+        """Rex data handler
 
         Note that xarray appears to treat open file handlers as singletons
         within a threadpool, so its okay to open this source_handler without a
@@ -2612,12 +2614,14 @@ class DataHandlerH5(DataHandler):
         ----------
         file_paths : str | list
             paths to data files
+        kwargs : dict
+            keyword arguments passed to source handler
 
         Returns
         -------
         data : ResourceX
         """
-        return cls.REX_HANDLER(file_paths)
+        return cls.REX_HANDLER(file_paths, **kwargs)
 
     @classmethod
     def get_full_domain(cls, file_paths):
@@ -2636,6 +2640,8 @@ class DataHandlerH5(DataHandler):
         file_paths : list
             path to data file
         max_workers : int | None
+            placeholder to match signature
+        kwargs : dict
             placeholder to match signature
 
         Returns
@@ -2686,6 +2692,8 @@ class DataHandlerH5(DataHandler):
             Feature to extract from data
         time_slice : slice
             slice of time to extract
+        kwargs : dict
+            keyword arguments passed to source handler
 
         Returns
         -------
@@ -2696,8 +2704,8 @@ class DataHandlerH5(DataHandler):
         logger.info(f'Extracting {feature} with kwargs={kwargs}')
         handle = cls.source_handler(file_paths, **kwargs)
         try:
-            fdata = handle[(feature, time_slice,)
-                           + tuple([raster_index.flatten()])]
+            fdata = handle[(feature, time_slice,
+                            *tuple([raster_index.flatten()]))]
         except ValueError as e:
             msg = f'{feature} cannot be extracted from source data'
             logger.exception(msg)
@@ -2774,7 +2782,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
         if len(sample_shape) == 2:
             logger.info('Found 2D sample shape of {}. Adding spatial dim of 24'
                         .format(sample_shape))
-            sample_shape = sample_shape + (24,)
+            sample_shape = (*sample_shape, 24)
             t_shape = sample_shape[-1]
             kwargs['sample_shape'] = sample_shape
 
@@ -2890,18 +2898,16 @@ class DataHandlerH5WindCC(DataHandlerH5):
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
-        obs_ind_hourly = tuple(spatial_slice
-                               + [t_slice_hourly]
+        obs_ind_hourly = tuple([*spatial_slice, t_slice_hourly]
                                + [np.arange(len(self.features))])
 
-        obs_ind_daily = tuple(spatial_slice
-                              + [t_slice_daily]
+        obs_ind_daily = tuple([*spatial_slice, t_slice_daily]
                               + [np.arange(len(self.features))])
 
         return obs_ind_hourly, obs_ind_daily
 
     def get_next(self):
-        """Gets data for observation using random observation index. Loops
+        """Get data for observation using random observation index. Loops
         repeatedly over randomized time index
 
         Returns
@@ -2920,7 +2926,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
         return obs_hourly, obs_daily_avg
 
     def split_data(self, data=None):
-        """Splits time dimension into set of training indices and validation
+        """Split time dimension into set of training indices and validation
         indices. For NSRDB it makes sure that the splits happen at midnight.
 
         Parameters
@@ -3115,10 +3121,10 @@ class DataHandlerDC(DataHandler):
                                                   self.sample_shape[2])
 
         return tuple(
-            spatial_slice + [temporal_slice] + [np.arange(len(self.features))])
+            [*spatial_slice, temporal_slice] + [np.arange(len(self.features))])
 
     def get_next(self, temporal_weights=None, spatial_weights=None):
-        """Gets data for observation using weighted random observation index.
+        """Get data for observation using weighted random observation index.
         Loops repeatedly over randomized time index.
 
         Parameters

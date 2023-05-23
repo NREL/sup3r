@@ -1117,6 +1117,7 @@ class AbstractWindInterface(ABC):
                 if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
                         and hi_res_topo is not None):
                     hi_res = layer(hi_res, hi_res_topo)
+
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:

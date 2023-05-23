@@ -4,32 +4,36 @@ Sup3r forward pass handling module.
 
 @author: bbenton
 """
-from concurrent.futures import as_completed
-import numpy as np
+import copy
 import logging
 import os
 import warnings
-import copy
+from concurrent.futures import as_completed
 from datetime import datetime as dt
-import psutil
 from inspect import signature
 
-from rex.utilities.fun_utils import get_fun_call_str
+import numpy as np
+import psutil
 from rex.utilities.execution import SpawnProcessPool
+from rex.utilities.fun_utils import get_fun_call_str
 
-import sup3r.models
 import sup3r.bias.bias_transforms
+import sup3r.models
+from sup3r.postprocessing.file_handling import (
+    OutputHandler,
+    OutputHandlerH5,
+    OutputHandlerNC,
+)
 from sup3r.preprocessing.data_handling import InputMixIn
 from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
-from sup3r.postprocessing.file_handling import (OutputHandlerH5,
-                                                OutputHandlerNC,
-                                                OutputHandler)
-from sup3r.utilities.utilities import (get_chunk_slices,
-                                       get_source_type,
-                                       get_input_handler_class)
-from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.execution import DistributedProcess
+from sup3r.utilities.utilities import (
+    get_chunk_slices,
+    get_input_handler_class,
+    get_source_type,
+)
 
 np.random.seed(42)
 
@@ -1500,6 +1504,10 @@ class ForwardPass:
         model_path : str
             Path to file for Sup3rGan used to generate high resolution
             data
+        t_enhance : int
+            Factor by which to enhance temporal resolution
+        s_enhance : int
+            Factor by which to enhance spatial resolution
         exo_data : list | None
             List of arrays of exogenous data for each model step.
             If there are two spatial enhancement steps this is a list of length
@@ -1780,7 +1788,7 @@ class ForwardPass:
         pool_kws = dict(max_workers=strategy.pass_workers, loggers=['sup3r'])
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
-            for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
+            for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
                 fut = exe.submit(cls._single_proc_run,
                                  strategy=strategy,
                                  node_index=node_index,
@@ -1813,7 +1821,7 @@ class ForwardPass:
                     f'{dt.now() - start}')
 
     def run_chunk(self):
-        """This routine runs a forward pass on single spatiotemporal chunk."""
+        """Run a forward pass on single spatiotemporal chunk."""
 
         msg = (f'Running forward pass for chunk_index={self.chunk_index}, '
                f'node_index={self.node_index}, file_paths={self.file_paths}. '
@@ -1842,5 +1850,4 @@ class ForwardPass:
                 lat_lon=self.hr_lat_lon, times=self.hr_times,
                 out_file=self.out_file, meta_data=self.meta,
                 max_workers=self.output_workers, gids=self.gids)
-        else:
-            return self.output_data
+        return self.output_data

@@ -1,25 +1,25 @@
-# -*- coding: utf-8 -*-
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
-import os
-import h5py
 import json
 import logging
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from glob import glob
+
+import h5py
 import numpy as np
 import pandas as pd
-from glob import glob
-from scipy.spatial import KDTree
-from scipy.stats import ks_2samp
-from scipy.ndimage.filters import gaussian_filter
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
-from sup3r.utilities import ModuleName, VERSION_RECORD
-from sup3r.utilities.utilities import nn_fill_array
-from sup3r.utilities.cli import BaseCLI
-import sup3r.preprocessing.data_handling
+from scipy.ndimage.filters import gaussian_filter
+from scipy.spatial import KDTree
+from scipy.stats import ks_2samp
 
+import sup3r.preprocessing.data_handling
+from sup3r.utilities import VERSION_RECORD, ModuleName
+from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)
 
@@ -672,7 +672,7 @@ class LinearCorrection(DataRetrievalBase):
                 f'base_{self.base_dset}_mean',
                 f'base_{self.base_dset}_std',
                 ]
-        out = {k: np.full(self.bias_gid_raster.shape + (self.NT,),
+        out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
                           np.nan, np.float32)
                for k in keys}
 
