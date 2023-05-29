@@ -553,9 +553,15 @@ class LinearCorrection(DataRetrievalBase):
                                         bias_feature, base_dset)
         return out
 
-    def fill_extend(self, out, smooth_extend):
+    def fill_smooth_extend(self, out, fill_extend=True, smooth_extend=0,
+                           smooth_interior=0):
         """Fill data extending beyond the base meta data extent by doing a
-        nearest neighbor gap fill.
+        nearest neighbor gap fill. Smooth interior and extended region with
+        given smoothing values.
+        Interior smoothing can reduce the affect of extreme values
+        within aggregations over large number of pixels.
+        The interior is assumed to be defined by the region without nan values.
+        The extended region is assumed to be the region with nan values.
 
         Parameters
         ----------
@@ -564,11 +570,20 @@ class LinearCorrection(DataRetrievalBase):
             data and the scalar + adder factors to correct the biased data
             like: bias_data * scalar + adder. Each value is of shape
             (lat, lon, time).
+        fill_extend : bool
+            Whether to fill data extending beyond the base meta data with
+            nearest neighbor values.
         smooth_extend : float
             Option to smooth the scalar/adder data outside of the spatial
             domain set by the threshold input. This alleviates the weird seams
             far from the domain of interest. This value is the standard
             deviation for the gaussian_filter kernel
+        smooth_interior : float
+            Value to use to smooth the scalar/adder data inside of the spatial
+            domain set by the threshold input. This can reduce the affect of
+            extreme values within aggregations over large number of pixels.
+            This value is the standard deviation for the gaussian_filter
+            kernel.
 
         Returns
         -------
@@ -581,12 +596,30 @@ class LinearCorrection(DataRetrievalBase):
         for key, arr in out.items():
             nan_mask = np.isnan(arr[..., 0])
             for idt in range(self.NT):
-                arr[..., idt] = nn_fill_array(arr[..., idt])
+
+                arr_smooth = arr[..., idt]
+
+                needs_fill = (fill_extend or smooth_extend > 0
+                              or smooth_interior > 0)
+
+                if needs_fill:
+                    arr_smooth = nn_fill_array(arr_smooth)
+
+                arr_smooth_int = arr_smooth_ext = arr_smooth
+
                 if smooth_extend > 0:
-                    arr_smooth = gaussian_filter(arr[..., idt],
-                                                 smooth_extend,
-                                                 mode='nearest')
-                    out[key][nan_mask, idt] = arr_smooth[nan_mask]
+                    arr_smooth_ext = gaussian_filter(arr_smooth_ext,
+                                                     smooth_extend,
+                                                     mode='nearest')
+
+                if smooth_interior > 0:
+                    arr_smooth_int = gaussian_filter(arr_smooth_int,
+                                                     smooth_interior,
+                                                     mode='nearest')
+
+                out[key][nan_mask, idt] = arr_smooth_ext[nan_mask]
+                out[key][~nan_mask, idt] = arr_smooth_int[~nan_mask]
+
         return out
 
     def write_outputs(self, fp_out, out):
@@ -623,7 +656,8 @@ class LinearCorrection(DataRetrievalBase):
                             .format(fp_out))
 
     def run(self, knn, threshold=0.6, fp_out=None, max_workers=None,
-            daily_reduction='avg', fill_extend=True, smooth_extend=0):
+            daily_reduction='avg', fill_extend=True, smooth_extend=0,
+            smooth_interior=0):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
@@ -654,6 +688,10 @@ class LinearCorrection(DataRetrievalBase):
             domain set by the threshold input. This alleviates the weird seams
             far from the domain of interest. This value is the standard
             deviation for the gaussian_filter kernel
+        smooth_interior : float
+            Option to smooth the scalar/adder data within the valid spatial
+            domain.  This can reduce the affect of extreme values within
+            aggregations over large number of pixels.
 
         Returns
         -------
@@ -732,8 +770,8 @@ class LinearCorrection(DataRetrievalBase):
 
         logger.info('Finished calculating bias correction factors.')
 
-        if fill_extend:
-            out = self.fill_extend(out, smooth_extend)
+        out = self.fill_smooth_extend(out, fill_extend, smooth_extend,
+                                      smooth_interior)
 
         self.write_outputs(fp_out, out)
 
