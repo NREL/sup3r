@@ -30,8 +30,8 @@ class DataRetrievalBase:
     """
 
     def __init__(self, base_fps, bias_fps, base_dset, bias_feature,
-                 target, shape,
-                 base_handler='Resource', bias_handler='DataHandlerNCforCC',
+                 target=None, shape=None, base_handler='Resource',
+                 bias_handler='DataHandlerNCforCC',
                  bias_handler_kwargs=None, decimals=None):
         """
         Parameters
@@ -53,8 +53,10 @@ class DataRetrievalBase:
             be a single feature name corresponding to base_dset
         target : tuple
             (lat, lon) lower left corner of raster to retrieve from bias_fps.
+            If None then the lower left corner of the full domain will be used.
         shape : tuple
-            (rows, cols) grid size to retrieve from bias_fps.
+            (rows, cols) grid size to retrieve from bias_fps. If None then the
+            full domain shape will be used.
         base_handler : str
             Name of rex resource handler class to be retrieved from the rex
             library.
@@ -553,8 +555,8 @@ class LinearCorrection(DataRetrievalBase):
                                         bias_feature, base_dset)
         return out
 
-    def fill_smooth_extend(self, out, fill_extend=True, smooth_extend=0,
-                           smooth_interior=0):
+    def fill_and_smooth(self, out, fill_extend=True, smooth_extend=0,
+                        smooth_interior=0):
         """Fill data extending beyond the base meta data extent by doing a
         nearest neighbor gap fill. Smooth interior and extended region with
         given smoothing values.
@@ -580,7 +582,7 @@ class LinearCorrection(DataRetrievalBase):
             deviation for the gaussian_filter kernel
         smooth_interior : float
             Value to use to smooth the scalar/adder data inside of the spatial
-            domain set by the threshold input. This can reduce the affect of
+            domain set by the threshold input. This can reduce the effect of
             extreme values within aggregations over large number of pixels.
             This value is the standard deviation for the gaussian_filter
             kernel.
@@ -599,7 +601,7 @@ class LinearCorrection(DataRetrievalBase):
 
                 arr_smooth = arr[..., idt]
 
-                needs_fill = (fill_extend or smooth_extend > 0
+                needs_fill = (np.isnan(arr_smooth).any() and fill_extend
                               or smooth_interior > 0)
 
                 if needs_fill:
@@ -770,8 +772,8 @@ class LinearCorrection(DataRetrievalBase):
 
         logger.info('Finished calculating bias correction factors.')
 
-        out = self.fill_smooth_extend(out, fill_extend, smooth_extend,
-                                      smooth_interior)
+        out = self.fill_and_smooth(out, fill_extend, smooth_extend,
+                                   smooth_interior)
 
         self.write_outputs(fp_out, out)
 

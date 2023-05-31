@@ -1305,7 +1305,7 @@ def get_input_handler_class(file_paths, input_handler_name):
         A list of files to extract raster data from. Each file must have
         the same number of timesteps. Can also pass a string with a
         unix-style file path which will be passed through glob.glob
-    input_handler : str
+    input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a class in data_handling.py. If None the correct handler will
         be guessed based on file type and time series properties.
