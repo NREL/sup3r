@@ -601,7 +601,7 @@ class LinearCorrection(DataRetrievalBase):
 
                 arr_smooth = arr[..., idt]
 
-                needs_fill = (np.isnan(arr_smooth).any() and fill_extend
+                needs_fill = ((np.isnan(arr_smooth).any() and fill_extend)
                               or smooth_interior > 0)
 
                 if needs_fill:
