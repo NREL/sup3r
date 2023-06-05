@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Bias correction transformation functions."""
-import numpy as np
 import logging
 from warnings import warn
-from rex import Resource
 
+import numpy as np
+from rex import Resource
+from scipy.ndimage.filters import gaussian_filter
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def global_linear_bc(input, scalar, adder, out_range=None):
 
 
 def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
-                    out_range=None):
+                    out_range=None, smoothing=0):
     """Bias correct data using a simple annual (or multi-year) *scalar +adder
     method on a site-by-site basis.
 
@@ -64,6 +65,11 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         source shape will be used.
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
+    smoothing : float
+        Value to use to smooth the scalar/adder data. This can reduce the
+        effect of extreme values within aggregations over large number of
+        pixels.  This value is the standard deviation for the gaussian_filter
+        kernel.
 
     Returns
     -------
@@ -99,6 +105,15 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
     scalar = np.repeat(scalar, input.shape[-1], axis=-1)
     adder = np.repeat(adder, input.shape[-1], axis=-1)
 
+    if smoothing > 0:
+        for idt in range(scalar.shape[-1]):
+            scalar[..., idt] = gaussian_filter(scalar[..., idt],
+                                               smoothing,
+                                               mode='nearest')
+            adder[..., idt] = gaussian_filter(adder[..., idt],
+                                              smoothing,
+                                              mode='nearest')
+
     out = input * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
@@ -108,7 +123,8 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
 
 
 def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
-                            time_index, temporal_avg=True, out_range=None):
+                            time_index, temporal_avg=True, out_range=None,
+                            smoothing=0):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
 
@@ -145,6 +161,11 @@ def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         this to False.
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
+    smoothing : float
+        Value to use to smooth the scalar/adder data. This can reduce the
+        effect of extreme values within aggregations over large number of
+        pixels.  This value is the standard deviation for the gaussian_filter
+        kernel.
 
     Returns
     -------
@@ -188,6 +209,15 @@ def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
                .format(feature_name, bias_fp))
         logger.warning(msg)
         warn(msg)
+
+    if smoothing > 0:
+        for idt in range(scalar.shape[-1]):
+            scalar[..., idt] = gaussian_filter(scalar[..., idt],
+                                               smoothing,
+                                               mode='nearest')
+            adder[..., idt] = gaussian_filter(adder[..., idt],
+                                              smoothing,
+                                              mode='nearest')
 
     out = input * scalar + adder
     if out_range is not None:

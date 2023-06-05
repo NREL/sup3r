@@ -7,19 +7,19 @@ as daily average GHI / daily average clearsky GHI.
 """
 import glob
 import json
-import os
-import numpy as np
 import logging
+import os
+
+import numpy as np
 import pandas as pd
-from scipy.spatial import KDTree
 from farms.disc import disc
 from farms.utilities import calc_dhi, dark_night
-from rex import Resource, MultiTimeResource
+from rex import MultiTimeResource, Resource
 from rex.utilities.fun_utils import get_fun_call_str
+from scipy.spatial import KDTree
 
+from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.utilities import ModuleName
-from sup3r.postprocessing.file_handling import RexOutputs, H5_ATTRS
-
 
 logger = logging.getLogger(__name__)
 
@@ -545,7 +545,6 @@ class Solar:
                                attrs=attrs,
                                chunks=attrs['chunks'])
                 logger.info(f'Added "{feature}" to output file.')
-
             run_attrs = self.gan_data.h5[self._sup3r_fps[0]].global_attrs
             run_attrs['nsrdb_source'] = self._nsrdb_fp
             fh.run_attrs = run_attrs

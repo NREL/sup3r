@@ -4,22 +4,22 @@
 @author: bbenton
 """
 
-import numpy as np
-import logging
 import glob
-from scipy import ndimage as nd
-from scipy.interpolate import RegularGridInterpolator
-from scipy.interpolate import interp1d
-from scipy.ndimage import zoom
-from scipy.ndimage.filters import gaussian_filter
-from fnmatch import fnmatch
+import logging
 import os
 import re
+from fnmatch import fnmatch
 from warnings import warn
-import psutil
+
+import numpy as np
 import pandas as pd
-from packaging import version
+import psutil
 import xarray as xr
+from packaging import version
+from scipy import ndimage as nd
+from scipy.interpolate import RegularGridInterpolator, interp1d
+from scipy.ndimage import zoom
+from scipy.ndimage.filters import gaussian_filter
 
 np.random.seed(42)
 
@@ -140,7 +140,7 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
 
 
 def get_raster_shape(raster_index):
-    """method to get shape of raster_index"""
+    """Method to get shape of raster_index"""
 
     if any(isinstance(r, slice) for r in raster_index):
         shape = (raster_index[0].stop - raster_index[0].start,
@@ -182,7 +182,7 @@ def get_wrf_date_range(files):
 
 
 def uniform_box_sampler(data, shape):
-    '''Extracts a sample cut from data.
+    """Extracts a sample cut from data.
 
     Parameters
     ----------
@@ -197,7 +197,7 @@ def uniform_box_sampler(data, shape):
     -------
     slices : list
         List of slices corresponding to row and col extent of arr sample
-    '''
+    """
 
     shape_1 = data.shape[0] if data.shape[0] < shape[0] else shape[0]
     shape_2 = data.shape[1] if data.shape[1] < shape[1] else shape[1]
@@ -299,7 +299,7 @@ def weighted_time_sampler(data, shape, weights):
 
 
 def uniform_time_sampler(data, shape):
-    '''Extracts a temporal slice from data.
+    """Extracts a temporal slice from data.
 
     Parameters
     ----------
@@ -314,7 +314,7 @@ def uniform_time_sampler(data, shape):
     -------
     slice : slice
         time slice with size shape
-    '''
+    """
     shape = data.shape[2] if data.shape[2] < shape else shape
     start = np.random.randint(0, data.shape[2] - shape + 1)
     stop = start + shape
@@ -996,7 +996,7 @@ def potential_temperature_difference(T_top, P_top, T_bottom, P_bottom):
     """Potential temp difference calculation
 
     Parameters
-    ---------
+    ----------
     T_top : ndarray
         Temperature at higher height. Used in the approximation of potential
         temperature derivative
@@ -1023,7 +1023,7 @@ def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
     """Potential temp average calculation
 
     Parameters
-    ---------
+    ----------
     T_top : ndarray
         Temperature at higher height. Used in the approximation of potential
         temperature derivative
@@ -1305,7 +1305,7 @@ def get_input_handler_class(file_paths, input_handler_name):
         A list of files to extract raster data from. Each file must have
         the same number of timesteps. Can also pass a string with a
         unix-style file path which will be passed through glob.glob
-    input_handler : str
+    input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a class in data_handling.py. If None the correct handler will
         be guessed based on file type and time series properties.

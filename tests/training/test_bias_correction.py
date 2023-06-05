@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
-import h5py
 import os
-import pytest
 import tempfile
+
+import h5py
 import numpy as np
+import pytest
 import xarray as xr
 
-from sup3r import TEST_DATA_DIR, CONFIG_DIR
-from sup3r.models import Sup3rGan
-from sup3r.qa.qa import Sup3rQa
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
-
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.qa.qa import Sup3rQa
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
@@ -23,6 +23,39 @@ with xr.open_mfdataset(FP_CC) as fh:
     MIN_LON = np.min(fh.lon.values) - 360
     TARGET = (MIN_LAT, MIN_LON)
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
+
+
+def test_smooth_interior_bc():
+    """Test linear bias correction with interior smoothing"""
+
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
+
+    out = calc.run(knn=1, threshold=0.6, fill_extend=False, max_workers=1)
+    og_scalar = out['rsds_scalar']
+    og_adder = out['rsds_adder']
+    nan_mask = np.isnan(og_scalar)
+    assert np.isnan(og_adder[nan_mask]).all()
+
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_interior=0,
+                   max_workers=1)
+    scalar = out['rsds_scalar']
+    adder = out['rsds_adder']
+    # Make sure smooth_interior=0 does not change interior pixels
+    assert np.allclose(og_scalar[~nan_mask], scalar[~nan_mask])
+    assert np.allclose(og_adder[~nan_mask], adder[~nan_mask])
+    assert not np.isnan(adder[nan_mask]).any()
+    assert not np.isnan(scalar[nan_mask]).any()
+
+    # make sure smoothing affects the interior pixels but not the exterior
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_interior=1,
+                   max_workers=1)
+    smooth_scalar = out['rsds_scalar']
+    smooth_adder = out['rsds_adder']
+    assert not np.allclose(smooth_scalar[~nan_mask], scalar[~nan_mask])
+    assert not np.allclose(smooth_adder[~nan_mask], adder[~nan_mask])
+    assert np.allclose(smooth_scalar[nan_mask], scalar[nan_mask])
+    assert np.allclose(smooth_adder[nan_mask], adder[nan_mask])
 
 
 def test_linear_bc():
