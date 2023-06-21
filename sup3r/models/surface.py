@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """Special models for surface meteorological data."""
-import os
-import json
 import logging
-from inspect import signature
 from fnmatch import fnmatch
 import numpy as np
 from PIL import Image
@@ -148,6 +145,17 @@ class SurfaceSpatialMetModel(LinearInterp):
         assert se0 == se1, 'Calculated s_enhance does not match along axis'
 
         return int(se0)
+
+    @property
+    def input_dims(self):
+        """Get dimension of model generator input. This is always 4 for an
+        input array of shape: (n_obs, spatial_1, spatial_2, n_features)
+
+        Returns
+        -------
+        int
+        """
+        return 4
 
     @property
     def feature_inds_temp(self):
