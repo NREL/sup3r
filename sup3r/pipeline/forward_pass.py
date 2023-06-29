@@ -429,6 +429,8 @@ class ForwardPassSlicer:
             Low resolution slices to be enhanced
         enhancement : int
             Enhancement factor
+        step : int | None
+            Step size for slices
 
         Returns
         -------

@@ -2,23 +2,25 @@
 """
 Abstract class to define the required interface for Sup3r model subclasses
 """
-from abc import ABC, abstractmethod
-import os
-import time
 import json
+import logging
+import os
+import pprint
+import time
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
+from inspect import signature
+from warnings import warn
+
+import numpy as np
+import tensorflow as tf
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
-import tensorflow as tf
 from tensorflow.keras import optimizers
-import numpy as np
-import logging
-import pprint
-from warnings import warn
 
-from sup3r.utilities import VERSION_RECORD
 import sup3r.utilities.loss_metrics
+from sup3r.utilities import VERSION_RECORD
 
 logger = logging.getLogger(__name__)
 
@@ -491,7 +493,10 @@ class AbstractSingleModel(ABC):
         if isinstance(optimizer, dict):
             class_name = optimizer['name']
             OptimizerClass = getattr(optimizers, class_name)
-            optimizer = OptimizerClass.from_config(optimizer)
+            sig = signature(OptimizerClass)
+            optimizer_kwargs = {k: v for k, v in optimizer.items()
+                                if k in sig.parameters}
+            optimizer = OptimizerClass.from_config(optimizer_kwargs)
         elif optimizer is None:
             optimizer = optimizers.Adam(learning_rate=learning_rate)
 
@@ -518,7 +523,7 @@ class AbstractSingleModel(ABC):
         """
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'r') as f:
+        with open(fp_params) as f:
             params = json.load(f)
 
         # using the saved model dir makes this more portable
@@ -705,7 +710,7 @@ class AbstractSingleModel(ABC):
         return stop
 
     @abstractmethod
-    def save(self, low_res):
+    def save(self, out_dir):
         """Save the model with its sub-networks to a directory.
 
         Parameters
@@ -922,6 +927,7 @@ class AbstractWindInterface(ABC):
     Abstract class to define the required training interface
     for Sup3r wind model subclasses
     """
+
     # pylint: disable=E0211
     @staticmethod
     def set_model_params(**kwargs):

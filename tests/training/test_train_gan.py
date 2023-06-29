@@ -1,27 +1,26 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
-import os
 import json
+import os
+import tempfile
+
 import numpy as np
 import pytest
-import tempfile
 import tensorflow as tf
+from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
-from rex import init_logger
-
-from sup3r import TEST_DATA_DIR
-from sup3r import CONFIG_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC, Sup3rGanSpatialDC
-from sup3r.preprocessing.data_handling import (DataHandlerH5,
-                                               DataHandlerDCforH5)
-from sup3r.preprocessing.batch_handling import (BatchHandler,
-                                                BatchHandlerDC,
-                                                SpatialBatchHandler,
-                                                BatchHandlerSpatialDC)
+from sup3r.preprocessing.batch_handling import (
+    BatchHandler,
+    BatchHandlerDC,
+    BatchHandlerSpatialDC,
+    SpatialBatchHandler,
+)
+from sup3r.preprocessing.data_handling import DataHandlerDCforH5, DataHandlerH5
 from sup3r.utilities.loss_metrics import MmdMseLoss
-
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -295,7 +294,7 @@ def test_train_st(n_epoch=2, log=False):
         model.save(out_dir)
         loaded = model.load(out_dir)
 
-        with open(os.path.join(out_dir, 'model_params.json'), 'r') as f:
+        with open(os.path.join(out_dir, 'model_params.json')) as f:
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], 5e-5)
