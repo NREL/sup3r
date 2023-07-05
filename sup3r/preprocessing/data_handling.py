@@ -549,7 +549,7 @@ class InputMixIn:
         """Get the time frequency in hours as a float"""
         ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode[0])
+        time_freq = float(mode(ti_deltas_hours).mode)
         return time_freq
 
     @property
@@ -2546,7 +2546,7 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode[0])
+        time_freq = float(mode(ti_deltas_hours).mode)
         t_start = self.temporal_slice.start or 0
         t_end_target = self.temporal_slice.stop or len(self.raw_time_index)
         t_start = int(t_start * 24 * (1 / time_freq))
