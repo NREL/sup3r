@@ -271,7 +271,7 @@ class InputMixIn:
 
         msg = ('No valid files provided to DataHandler. '
                f'Received file_paths={file_paths}. Aborting.')
-        assert len(self._file_paths) > 0 and file_paths is not None, msg
+        assert file_paths is not None and len(self._file_paths) > 0, msg
 
         self._file_paths = sorted(self._file_paths)
 
