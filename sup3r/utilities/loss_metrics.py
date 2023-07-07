@@ -1,7 +1,7 @@
 """Loss metrics for Sup3r"""
 
-from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError
 import tensorflow as tf
+from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
 
 def gaussian_kernel(x1, x2, sigma=1.0):
@@ -171,6 +171,42 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         x1_coarse = tf.reduce_mean(x1, axis=(1, 2))
         x2_coarse = tf.reduce_mean(x2, axis=(1, 2))
         return self.MSE_LOSS(x1_coarse, x2_coarse)
+
+
+class SpatialExtremesLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values in the
+    spatial domain"""
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages temporal min/max accuracy
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_min = tf.reduce_min(x1, axis=(1, 2))
+        x2_min = tf.reduce_min(x2, axis=(1, 2))
+
+        x1_max = tf.reduce_max(x1, axis=(1, 2))
+        x2_max = tf.reduce_max(x2, axis=(1, 2))
+
+        mae = self.MAE_LOSS(x1, x2)
+        mae_min = self.MAE_LOSS(x1_min, x2_min)
+        mae_max = self.MAE_LOSS(x1_max, x2_max)
+
+        return mae + mae_min + mae_max
 
 
 class TemporalExtremesLoss(tf.keras.losses.Loss):

@@ -264,10 +264,14 @@ class InputMixIn:
         """
         self._file_paths = file_paths
         if isinstance(self._file_paths, str):
-            if '*' in self._file_paths:
+            if '*' in file_paths:
                 self._file_paths = glob.glob(self._file_paths)
             else:
                 self._file_paths = [self._file_paths]
+
+        msg = ('No valid files provided to DataHandler. '
+               f'Received file_paths={file_paths}. Aborting.')
+        assert file_paths is not None and len(self._file_paths) > 0, msg
 
         self._file_paths = sorted(self._file_paths)
 
@@ -375,6 +379,16 @@ class InputMixIn:
     def lat_lon(self, lat_lon):
         """Update lat lon"""
         self._lat_lon = lat_lon
+
+    @property
+    def latitude(self):
+        """Return latitude array"""
+        return self.lat_lon[..., 0]
+
+    @property
+    def longitude(self):
+        """Return longitude array"""
+        return self.lat_lon[..., 1]
 
     @property
     def invert_lat(self):
@@ -535,7 +549,7 @@ class InputMixIn:
         """Get the time frequency in hours as a float"""
         ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode[0])
+        time_freq = float(mode(ti_deltas_hours).mode)
         return time_freq
 
     @property
@@ -717,9 +731,6 @@ class DataHandler(FeatureHandler, InputMixIn):
                             raster_file=raster_file,
                             raster_index=raster_index,
                             temporal_slice=temporal_slice)
-
-        msg = 'No files provided to DataHandler. Aborting.'
-        assert file_paths is not None and bool(file_paths), msg
 
         self.file_paths = file_paths
         self.features = (features if isinstance(features, (list, tuple))
@@ -1366,7 +1377,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
         temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
         return tuple(
-            [*spatial_slice, temporal_slice] + [np.arange(len(self.features))])
+            [*spatial_slice, temporal_slice, np.arange(len(self.features))])
 
     def get_next(self):
         """Get data for observation using random observation index. Loops
@@ -2182,7 +2193,7 @@ class DataHandlerNC(DataHandler):
         # Sometimes xarray returns fields with (Times, time, lats, lons)
         # with a single entry in the 'time' dimension so we include this [0]
         if len(handle[feature].dims) == 4:
-            idx = tuple([time_slice] + [0] + raster_index)
+            idx = tuple([time_slice, 0, *raster_index])
         elif len(handle[feature].dims) == 3:
             idx = tuple([time_slice, *raster_index])
         else:
@@ -2535,7 +2546,7 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode[0])
+        time_freq = float(mode(ti_deltas_hours).mode)
         t_start = self.temporal_slice.start or 0
         t_end_target = self.temporal_slice.stop or len(self.raw_time_index)
         t_start = int(t_start * 24 * (1 / time_freq))
@@ -2898,11 +2909,11 @@ class DataHandlerH5WindCC(DataHandlerH5):
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
-        obs_ind_hourly = tuple([*spatial_slice, t_slice_hourly]
-                               + [np.arange(len(self.features))])
+        obs_ind_hourly = tuple([*spatial_slice, t_slice_hourly,
+                               np.arange(len(self.features))])
 
-        obs_ind_daily = tuple([*spatial_slice, t_slice_daily]
-                              + [np.arange(len(self.features))])
+        obs_ind_daily = tuple([*spatial_slice, t_slice_daily,
+                              np.arange(len(self.features))])
 
         return obs_ind_hourly, obs_ind_daily
 
@@ -3121,7 +3132,7 @@ class DataHandlerDC(DataHandler):
                                                   self.sample_shape[2])
 
         return tuple(
-            [*spatial_slice, temporal_slice] + [np.arange(len(self.features))])
+            [*spatial_slice, temporal_slice, np.arange(len(self.features))])
 
     def get_next(self, temporal_weights=None, spatial_weights=None):
         """Get data for observation using weighted random observation index.

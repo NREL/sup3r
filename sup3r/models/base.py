@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """Sup3r model software"""
 import copy
-import os
-import time
 import logging
-import numpy as np
+import os
 import pprint
+import time
+from warnings import warn
+
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
-from warnings import warn
 
 from sup3r.models.abstract import AbstractInterface, AbstractSingleModel
 from sup3r.utilities import VERSION_RECORD
-
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +240,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         hi_res : tf.Tensor
             Synthetically generated high-resolution data
         """
-
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:

@@ -429,6 +429,8 @@ class ForwardPassSlicer:
             Low resolution slices to be enhanced
         enhancement : int
             Enhancement factor
+        step : int | None
+            Step size for slices
 
         Returns
         -------
@@ -1587,16 +1589,20 @@ class ForwardPass:
         i_lr_s : int
             Axis index for the low-resolution spatial_1 dimension
         """
-
+        current_model = None
         if exo_data is not None:
             for i, arr in enumerate(exo_data):
                 if arr is not None:
-                    current_model = (model if not hasattr(model, 'models')
-                                     else model.models[i])
-                    if current_model.input_dims == 4:
-                        exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
-                    else:
-                        exo_data[i] = np.expand_dims(arr, axis=0)
+                    if not hasattr(model, 'models'):
+                        current_model = model
+                    elif i < len(model.models):
+                        current_model = model.models[i]
+
+                    if current_model is not None:
+                        if current_model.input_dims == 4:
+                            exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
+                        else:
+                            exo_data[i] = np.expand_dims(arr, axis=0)
 
         if model.input_dims == 4:
             i_lr_t = 0
