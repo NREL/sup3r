@@ -4,10 +4,35 @@ from warnings import warn
 
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 
-from sup3r.utilities.utilities import forward_average
+from sup3r.utilities.utilities import forward_average, windspeed_log_law
 
 logger = logging.getLogger(__name__)
+
+
+def windspeed_log_interp(lev_array, var_array, levels):
+    """Fit ws log law to data and get requested level values from fit.
+
+    Parameters
+    ----------
+    lev_array : ndarray
+        Array of height values corresponding to the wrf source
+        data in the same shape as var_array.
+    var_array : ndarray
+        Array of variable data, for example u-wind in a 1D array of shape
+        (vertical)
+    levels : float | list
+        level or levels to interpolate to (e.g. final desired hub heights
+        above surface elevation)
+
+    Returns
+    -------
+    values : ndarray
+        Array of interpolated windspeed values at the requested heights.
+    """
+    popt, _ = curve_fit(windspeed_log_law, lev_array, var_array)
+    return windspeed_log_law(levels, *popt)
 
 
 class Interpolator:
@@ -169,9 +194,9 @@ class Interpolator:
         return p_array
 
     @classmethod
-    def interp_to_level(cls, var_array, lev_array, levels):
-        """Interpolate var_array to given level(s) based on h_array.
-        Interpolation is linear and done for every 'z' column of [var, h] data.
+    def prep_level_interp(cls, var_array, lev_array, levels):
+        """Prepare var_array interpolation. Check level ranges and add noise to
+        mask locations.
 
         Parameters
         ----------
@@ -191,8 +216,10 @@ class Interpolator:
 
         Returns
         -------
-        out_array : ndarray
-            Array of interpolated values.
+        lev_array : ndarray
+            Array of levels with noise added to mask locations.
+        levels : list
+            List of levels to interpolate to.
         """
 
         msg = ('Input arrays must be the same shape.'
@@ -246,12 +273,6 @@ class Interpolator:
             logger.warning(msg)
             warn(msg)
 
-        array_shape = var_array.shape
-
-        # Flatten h_array and var_array along lat, long axis
-        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
-        out_array = np.zeros(shape, dtype=np.float32).T
-
         # if multiple vertical levels have identical heights at the desired
         # interpolation level, interpolation to that value will fail because
         # linear slope will be NaN. This is most common if you have multiple
@@ -260,6 +281,42 @@ class Interpolator:
         for level in levels:
             mask = (lev_array == level)
             lev_array[mask] += np.random.uniform(-1e-5, 0, size=mask.sum())
+
+        return lev_array, levels
+
+    @classmethod
+    def interp_to_level(cls, var_array, lev_array, levels):
+        """Interpolate var_array to given level(s) based on h_array.
+        Interpolation is linear and done for every 'z' column of [var, h] data.
+
+        Parameters
+        ----------
+        var_array : ndarray
+            Array of variable data, for example u-wind in a 4D array of shape
+            (time, vertical, lat, lon)
+        lev_array : ndarray
+            Array of height or pressure values corresponding to the wrf source
+            data in the same shape as var_array. If this is height and the
+            requested levels are hub heights above surface, lev_array should be
+            the geopotential height corresponding to every var_array index
+            relative to the surface elevation (subtract the elevation at the
+            surface from the geopotential height)
+        levels : float | list
+            level or levels to interpolate to (e.g. final desired hub heights
+            above surface elevation)
+
+        Returns
+        -------
+        out_array : ndarray
+            Array of interpolated values.
+        """
+        lev_array, levels = cls.prep_level_interp(var_array, lev_array, levels)
+
+        array_shape = var_array.shape
+
+        # Flatten h_array and var_array along lat, long axis
+        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
+        out_array = np.zeros(shape, dtype=np.float32).T
 
         # iterate through time indices
         for idt in range(array_shape[0]):
@@ -325,7 +382,69 @@ class Interpolator:
             arr = cls.extract_var(data, var, raster_index, time_slice)
         else:
             arr = cls.unstagger_var(data, var, raster_index, time_slice)
-        return cls.interp_to_level(arr, hgt, heights)[0]
+
+        if any(v in var for v in ['windspeed', 'U_', 'V_']):
+            return cls.interp_ws_to_height(arr, hgt, heights)[0]
+        else:
+            return cls.interp_to_level(arr, hgt, heights)[0]
+
+    @classmethod
+    def interp_ws_to_height(cls, var_array, lev_array, levels):
+        """Interpolate windspeed_array to given level(s) based on h_array.
+        Interpolation using windspeed log profile and is done for every 'z'
+        column of [var, h] data.
+
+        Parameters
+        ----------
+        var_array : ndarray
+            Array of variable data, for example u-wind in a 4D array of shape
+            (time, vertical, lat, lon)
+        lev_array : ndarray
+            Array of height values corresponding to the wrf source
+            data in the same shape as var_array. lev_array should be
+            the geopotential height corresponding to every var_array index
+            relative to the surface elevation (subtract the elevation at the
+            surface from the geopotential height)
+        levels : float | list
+            level or levels to interpolate to (e.g. final desired hub heights
+            above surface elevation)
+
+        Returns
+        -------
+        out_array : ndarray
+            Array of interpolated values.
+        """
+        lev_array, levels = cls.prep_level_interp(var_array, lev_array, levels)
+
+        array_shape = var_array.shape
+
+        # Flatten h_array and var_array along lat, long axis
+        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
+        out_array = np.zeros(shape, dtype=np.float32).T
+
+        # iterate through time indices
+        for idt in range(array_shape[0]):
+            shape = (array_shape[-3], np.product(array_shape[-2:]))
+            h_tmp = lev_array[idt].reshape(shape).T
+            var_tmp = var_array[idt].reshape(shape).T
+            not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
+
+            # Interp each vertical column of height and var to requested levels
+            zip_iter = zip(h_tmp, var_tmp, not_nan)
+            out_array[:, idt, :] = np.array(
+                [windspeed_log_interp(h[mask], var[mask], levels)
+                 for h, var, mask in zip_iter], dtype=np.float32)
+
+        # Reshape out_array
+        if isinstance(levels, (float, np.float32, int)):
+            shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])
+            out_array = out_array.T.reshape(shape)
+        else:
+            shape = (len(levels), array_shape[-4], array_shape[-2],
+                     array_shape[-1])
+            out_array = out_array.T.reshape(shape)
+
+        return out_array
 
     @classmethod
     def interp_var_to_pressure(cls, data, var, raster_index, pressures,

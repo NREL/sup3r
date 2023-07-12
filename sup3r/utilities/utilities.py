@@ -26,6 +26,30 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def windspeed_log_law(z, z0, d, uf):
+    """Windspeed log profile.
+
+    Parameters
+    ----------
+    z : float
+        Height above ground in meters
+    z0 : float
+        Surface roughness in meters
+    d : float
+        Zero-plane displacement in meters (height above the ground at which
+        zero mean wind speed is achieved as a result of flow obstacles such as
+        trees or buildings)
+    uf : float
+        Friction velocity in meters per second
+
+    Returns
+    -------
+    ws : float
+        Value of windspeed at a given height.
+    """
+    return uf / 0.41 * np.log((z - d) / z0)
+
+
 def get_time_dim_name(filepath):
     """Get the name of the time dimension in the given file. This is
     specifically for netcdf files.
