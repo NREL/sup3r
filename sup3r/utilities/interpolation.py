@@ -4,35 +4,12 @@ from warnings import warn
 
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.optimize import curve_fit
 
-from sup3r.utilities.utilities import forward_average, windspeed_log_law
+from sup3r.utilities.log_scaler import ws_log_interp
+from sup3r.utilities.utilities import forward_average
 
 logger = logging.getLogger(__name__)
 
-
-def windspeed_log_interp(lev_array, var_array, levels):
-    """Fit ws log law to data and get requested level values from fit.
-
-    Parameters
-    ----------
-    lev_array : ndarray
-        Array of height values corresponding to the wrf source
-        data in the same shape as var_array.
-    var_array : ndarray
-        Array of variable data, for example u-wind in a 1D array of shape
-        (vertical)
-    levels : float | list
-        level or levels to interpolate to (e.g. final desired hub heights
-        above surface elevation)
-
-    Returns
-    -------
-    values : ndarray
-        Array of interpolated windspeed values at the requested heights.
-    """
-    popt, _ = curve_fit(windspeed_log_law, lev_array, var_array)
-    return windspeed_log_law(levels, *popt)
 
 
 class Interpolator:
@@ -382,17 +359,13 @@ class Interpolator:
             arr = cls.extract_var(data, var, raster_index, time_slice)
         else:
             arr = cls.unstagger_var(data, var, raster_index, time_slice)
-
-        if any(v in var for v in ['windspeed', 'U_', 'V_']):
-            return cls.interp_ws_to_height(arr, hgt, heights)[0]
-        else:
-            return cls.interp_to_level(arr, hgt, heights)[0]
+        return cls.interp_to_level(arr, hgt, heights)[0]
 
     @classmethod
     def interp_ws_to_height(cls, var_array, lev_array, levels):
-        """Interpolate windspeed_array to given level(s) based on h_array.
-        Interpolation using windspeed log profile and is done for every 'z'
-        column of [var, h] data.
+        """Interpolate windspeed array to given level(s) based on h_array.
+        Interpolation is done using windspeed log profile and is done for every
+        'z' column of [var, h] data.
 
         Parameters
         ----------
@@ -428,11 +401,13 @@ class Interpolator:
             h_tmp = lev_array[idt].reshape(shape).T
             var_tmp = var_array[idt].reshape(shape).T
             not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
+            pos_hgt = h_tmp >= 0.0
+            mask = not_nan & pos_hgt
 
             # Interp each vertical column of height and var to requested levels
-            zip_iter = zip(h_tmp, var_tmp, not_nan)
+            zip_iter = zip(h_tmp, var_tmp, mask)
             out_array[:, idt, :] = np.array(
-                [windspeed_log_interp(h[mask], var[mask], levels)
+                [ws_log_interp(h[mask], var[mask], levels)
                  for h, var, mask in zip_iter], dtype=np.float32)
 
         # Reshape out_array

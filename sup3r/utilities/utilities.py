@@ -26,28 +26,28 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def windspeed_log_law(z, z0, d, uf):
+def windspeed_log_law(z, a, b, c):
     """Windspeed log profile.
 
     Parameters
     ----------
     z : float
         Height above ground in meters
-    z0 : float
-        Surface roughness in meters
-    d : float
-        Zero-plane displacement in meters (height above the ground at which
-        zero mean wind speed is achieved as a result of flow obstacles such as
-        trees or buildings)
-    uf : float
-        Friction velocity in meters per second
+    a : float
+        Proportional to friction velocity
+    b : float
+        Related to zero-plane displacement in meters (height above the ground
+        at which zero mean wind speed is achieved as a result of flow obstacles
+        such as trees or buildings)
+    c : float
+        Proportional to stability term.
 
     Returns
     -------
     ws : float
         Value of windspeed at a given height.
     """
-    return uf / 0.41 * np.log((z - d) / z0)
+    return a * np.log(z + b) + c
 
 
 def get_time_dim_name(filepath):
