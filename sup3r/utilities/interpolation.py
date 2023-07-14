@@ -5,11 +5,9 @@ from warnings import warn
 import numpy as np
 from scipy.interpolate import interp1d
 
-from sup3r.utilities.log_scaler import ws_log_interp
 from sup3r.utilities.utilities import forward_average
 
 logger = logging.getLogger(__name__)
-
 
 
 class Interpolator:
@@ -360,66 +358,6 @@ class Interpolator:
         else:
             arr = cls.unstagger_var(data, var, raster_index, time_slice)
         return cls.interp_to_level(arr, hgt, heights)[0]
-
-    @classmethod
-    def interp_ws_to_height(cls, var_array, lev_array, levels):
-        """Interpolate windspeed array to given level(s) based on h_array.
-        Interpolation is done using windspeed log profile and is done for every
-        'z' column of [var, h] data.
-
-        Parameters
-        ----------
-        var_array : ndarray
-            Array of variable data, for example u-wind in a 4D array of shape
-            (time, vertical, lat, lon)
-        lev_array : ndarray
-            Array of height values corresponding to the wrf source
-            data in the same shape as var_array. lev_array should be
-            the geopotential height corresponding to every var_array index
-            relative to the surface elevation (subtract the elevation at the
-            surface from the geopotential height)
-        levels : float | list
-            level or levels to interpolate to (e.g. final desired hub heights
-            above surface elevation)
-
-        Returns
-        -------
-        out_array : ndarray
-            Array of interpolated values.
-        """
-        lev_array, levels = cls.prep_level_interp(var_array, lev_array, levels)
-
-        array_shape = var_array.shape
-
-        # Flatten h_array and var_array along lat, long axis
-        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
-        out_array = np.zeros(shape, dtype=np.float32).T
-
-        # iterate through time indices
-        for idt in range(array_shape[0]):
-            shape = (array_shape[-3], np.product(array_shape[-2:]))
-            h_tmp = lev_array[idt].reshape(shape).T
-            var_tmp = var_array[idt].reshape(shape).T
-            not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
-            pos_hgt = h_tmp >= 0.0
-            mask = not_nan & pos_hgt
-
-            # Interp each vertical column of height and var to requested levels
-            zip_iter = zip(h_tmp, var_tmp, mask)
-            out_array[:, idt, :] = np.array(
-                [ws_log_interp(h[mask], var[mask], levels)
-                 for h, var, mask in zip_iter], dtype=np.float32)
-
-        # Reshape out_array
-        if isinstance(levels, (float, np.float32, int)):
-            shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])
-            out_array = out_array.T.reshape(shape)
-        else:
-            shape = (len(levels), array_shape[-4], array_shape[-2],
-                     array_shape[-1])
-            out_array = out_array.T.reshape(shape)
-
-        return out_array
 
     @classmethod
     def interp_var_to_pressure(cls, data, var, raster_index, pressures,
