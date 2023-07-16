@@ -908,12 +908,16 @@ class AbstractSingleModel(ABC):
             futures = []
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
+            split_mask = False
             if 'mask' in calc_loss_kwargs:
-                calc_loss_kwargs['mask'] = np.array_split(mask,
-                                                          len(self.gpu_list))
+                split_mask = True
+                mask_chunks = np.array_split(calc_loss_kwargs['mask'],
+                                             len(self.gpu_list))
 
             with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
                 for i in range(len(self.gpu_list)):
+                    if split_mask:
+                        calc_loss_kwargs['mask'] = mask_chunks[i]
                     futures.append(exe.submit(self.get_single_grad,
                                               lr_chunks[i],
                                               hr_true_chunks[i],
