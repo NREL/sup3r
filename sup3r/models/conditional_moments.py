@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Sup3r model software"""
+"""Sup3r conditional moment model software"""
 import os
 import time
 import logging
