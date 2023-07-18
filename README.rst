@@ -45,9 +45,9 @@ Option 1: Install from PIP (recommended for analysts):
 
 2. Activate environment: ``conda activate sup3r``
 
-3. Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
+3. Install sup3r: ``pip install NREL-sup3r``
 
-4. Install sup3r: ``pip install NREL-sup3r``
+4. Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
 
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------
@@ -58,12 +58,13 @@ Option 2: Clone repo (recommended for developers)
     1) Create a conda env: ``conda create -n sup3r``
     2) Run the command: ``conda activate sup3r``
     3) ``cd`` into the repo cloned in 1.
-    4) Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
-    5) Prior to running ``pip`` below, make sure the branch is correct (install
+    4) Prior to running ``pip`` below, make sure the branch is correct (install
        from main!)
-    6) Install ``sup3r`` and its dependencies by running:
+    5) Install ``sup3r`` and its dependencies by running:
        ``pip install .`` (or ``pip install -e .`` if running a dev branch
        or working on the source code)
+    6) Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
+       On Eagle HPC, you will need to also run ``pip install protobuf==3.20.*`` and ``pip install chardet``
     7) *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` and ``pre-commit install``
 
 Recommended Citation
