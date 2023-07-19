@@ -14,10 +14,10 @@ from warnings import warn
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import optimizers
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
-from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
 from sup3r.utilities import VERSION_RECORD
@@ -98,6 +98,7 @@ class AbstractInterface(ABC):
         -------
         int
         """
+        # pylint: disable=E1101
         if hasattr(self, '_gen'):
             return self._gen.layers[0].rank
         elif hasattr(self, 'models'):
@@ -853,6 +854,7 @@ class AbstractSingleModel(ABC):
     def run_gradient_descent(self, low_res, hi_res_true, training_weights,
                              optimizer=None, multi_gpu=False,
                              **calc_loss_kwargs):
+        # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and update weights
 
@@ -906,9 +908,16 @@ class AbstractSingleModel(ABC):
             futures = []
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
+            split_mask = False
+            if 'mask' in calc_loss_kwargs:
+                split_mask = True
+                mask_chunks = np.array_split(calc_loss_kwargs['mask'],
+                                             len(self.gpu_list))
 
             with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
                 for i in range(len(self.gpu_list)):
+                    if split_mask:
+                        calc_loss_kwargs['mask'] = mask_chunks[i]
                     futures.append(exe.submit(self.get_single_grad,
                                               lr_chunks[i],
                                               hr_true_chunks[i],
