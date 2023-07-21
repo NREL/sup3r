@@ -2,7 +2,7 @@
 Sup3rCC Examples
 ################
 
-Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/`` (note: the data is being loaded into HSDS as of 4/21/2023). This set of examples lays out basic ways to use the Sup3rCC models and data.
+Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/``. This set of examples lays out basic ways to use the Sup3rCC models and data.
 
 Sup3rCC Data Access
 ===================
