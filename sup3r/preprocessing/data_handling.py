@@ -600,7 +600,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 
     def __init__(self, file_paths, features, target=None, shape=None,
                  max_delta=20, temporal_slice=slice(None, None, 1),
-                 hr_spatial_coarsen=None, time_roll=0, val_split=0.05,
+                 hr_spatial_coarsen=None, time_roll=0, val_split=0.0,
                  sample_shape=(10, 10, 1), raster_file=None, raster_index=None,
                  shuffle_time=False, time_chunk_size=None, cache_pattern=None,
                  overwrite_cache=False, overwrite_ti_cache=False,

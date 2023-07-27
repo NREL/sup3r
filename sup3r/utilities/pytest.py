@@ -38,6 +38,34 @@ def make_fake_nc_files(td, input_file, n_files):
     return fake_files
 
 
+def make_fake_multi_time_nc_files(td, input_file, n_steps, n_files):
+    """Make dummy nc file with multiple timesteps
+
+    Parameters
+    ----------
+    input_file : str
+        File to use as template for timesteps in dummy file
+    n_files : int
+        Number of timesteps in dummy file to create
+
+    Returns
+    -------
+    fake_file : str
+        multi timestep dummy file
+    """
+    fake_files = make_fake_nc_files(td, input_file, n_steps)
+    fake_files = np.array_split(fake_files, n_files)
+    dummy_files = []
+    for i, files in enumerate(fake_files):
+        dummy_file = os.path.join(
+            td, f'multi_timestep_file_{str(i).zfill(3)}.nc')
+        dummy_files.append(dummy_file)
+        with xr.open_mfdataset(files, combine='nested',
+                               concat_dim='Time') as dset:
+            dset.to_netcdf(dummy_file)
+    return dummy_files
+
+
 def make_fake_era_files(td, input_file, n_files):
     """Make dummy era files with increasing times. ERA files have a different
     naming convention than WRF.

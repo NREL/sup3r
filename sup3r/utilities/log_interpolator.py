@@ -322,6 +322,8 @@ class LogInterpolator:
             for idt in range(array_shape[0]):
                 self.interp_single_ts(out_array, lev_array, var_array, levels,
                                       idt)
+                logger.info(
+                    f'{idt + 1} of {array_shape[0]} timesteps finished.')
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
