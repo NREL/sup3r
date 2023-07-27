@@ -99,7 +99,7 @@ def test_data_caching():
         cache_pattern = os.path.join(td, 'cached_features_h5')
         handler = DataHandler(input_files[0], features,
                               cache_pattern=cache_pattern,
-                              overwrite_cache=True,
+                              overwrite_cache=True, val_split=0.05,
                               **dh_kwargs)
 
         assert handler.data is None
@@ -115,6 +115,7 @@ def test_data_caching():
         handler = DataHandler(input_files[0], features,
                               cache_pattern=cache_pattern,
                               overwrite_cache=True, load_cached=True,
+                              val_split=0.05,
                               **dh_kwargs)
         assert handler.data is not None
         assert handler.val_data is not None
@@ -283,7 +284,8 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(input_files[0], features, **dh_kwargs)
+    handler = DataHandler(input_files[0], features, val_split=0.05,
+                          **dh_kwargs)
     assert handler.data.shape == (shape[0], shape[1], handler.data.shape[2],
                                   len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -293,7 +295,7 @@ def test_data_extraction():
 def test_hr_coarsening():
     """Test spatial coarsening of the high res field"""
     handler = DataHandler(input_files[0], features, hr_spatial_coarsen=2,
-                          **dh_kwargs)
+                          val_split=0.05, **dh_kwargs)
     assert handler.data.shape == (shape[0] // 2, shape[1] // 2,
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
@@ -304,7 +306,7 @@ def test_hr_coarsening():
         if os.path.exists(cache_pattern):
             os.system(f'rm {cache_pattern}')
         handler = DataHandler(input_files[0], features, hr_spatial_coarsen=2,
-                              cache_pattern=cache_pattern,
+                              cache_pattern=cache_pattern, val_split=0.05,
                               overwrite_cache=True, **dh_kwargs)
         assert handler.data is None
         handler.load_cached_data()
@@ -322,7 +324,8 @@ def test_validation_batching():
     for input_file in input_files:
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = (sample_shape[0], sample_shape[1], 1)
-        data_handler = DataHandler(input_file, features, **dh_kwargs_new)
+        data_handler = DataHandler(input_file, features, val_split=0.05,
+                                   **dh_kwargs_new)
         data_handlers.append(data_handler)
     batch_handler = SpatialBatchHandler([data_handler], **bh_kwargs)
 
@@ -348,7 +351,8 @@ def test_temporal_coarsening(method, t_enhance):
 
     data_handlers = []
     for input_file in input_files:
-        data_handler = DataHandler(input_file, features, **dh_kwargs)
+        data_handler = DataHandler(input_file, features, val_split=0.05,
+                                   **dh_kwargs)
         data_handlers.append(data_handler)
     max_workers = 1
     bh_kwargs_new = bh_kwargs.copy()

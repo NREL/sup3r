@@ -298,7 +298,7 @@ def test_spatiotemporal_normalization():
 
 def test_data_extraction():
     """Test data extraction class"""
-    handler = DataHandler(INPUT_FILE, features, **dh_kwargs)
+    handler = DataHandler(INPUT_FILE, features, val_split=0.05, **dh_kwargs)
     assert handler.data.shape == (shape[0], shape[1],
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
