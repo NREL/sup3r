@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Bias correction transformation functions."""
 import logging
+import os
 from warnings import warn
 
 import numpy as np
@@ -8,6 +9,58 @@ from rex import Resource
 from scipy.ndimage.filters import gaussian_filter
 
 logger = logging.getLogger(__name__)
+
+
+def get_domain_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
+    """Get bc factors (scalar/adder) for the given feature for the given
+    domain (specified by lat_lon).
+
+    Parameters
+    ----------
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    feature_name : str
+        Name of feature that is being corrected. Datasets with names
+        "{feature_name}_scalar" and "{feature_name}_adder" will be retrieved
+        from bias_fp.
+    bias_fp : str
+        Filepath to bias correction file from the bias calc module. Must have
+        datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
+        the full low-resolution shape of the forward pass input that will be
+        sliced using lr_padded_slice for the current chunk.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error is
+        raised.
+    """
+    dset_scalar = f'{feature_name}_scalar'
+    dset_adder = f'{feature_name}_adder'
+    with Resource(bias_fp) as res:
+        lat = np.expand_dims(res['latitude'], axis=-1)
+        lon = np.expand_dims(res['longitude'], axis=-1)
+        lat_lon_bc = np.dstack((lat, lon))
+        diff = lat_lon_bc - lat_lon[:1, :1]
+        diff = np.hypot(diff[..., 0], diff[..., 1])
+        idy, idx = np.where(diff == diff.min())
+        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
+        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
+
+        if diff.min() > threshold:
+            msg = ('The DataHandler top left coordinate of {} '
+                   'appears to be {} away from the nearest '
+                   'bias correction coordinate of {} from {}. '
+                   'Cannot apply bias correction.'
+                   .format(lat_lon, diff.min(),
+                           lat_lon_bc[idy, idx],
+                           os.path.basename(bias_fp)))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        assert (dset_scalar in res.dsets and dset_adder in res.dsets)
+        scalar = res[dset_scalar, slice_y, slice_x]
+        adder = res[dset_adder, slice_y, slice_x]
+        return scalar, adder
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -37,7 +90,7 @@ def global_linear_bc(input, scalar, adder, out_range=None):
     return out
 
 
-def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
+def local_linear_bc(input, lat_lon, feature_name, bias_fp, lr_padded_slice,
                     out_range=None, smoothing=0):
     """Bias correct data using a simple annual (or multi-year) *scalar +adder
     method on a site-by-site basis.
@@ -47,6 +100,9 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
     input : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
     feature_name : str
         Name of feature that is being corrected. Datasets with names
         "{feature_name}_scalar" and "{feature_name}_adder" will be retrieved
@@ -77,12 +133,7 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
         out = input * scalar + adder
     """
 
-    scalar = f'{feature_name}_scalar'
-    adder = f'{feature_name}_adder'
-    with Resource(bias_fp) as res:
-        scalar = res[scalar]
-        adder = res[adder]
-
+    scalar, adder = get_domain_bc_factors(lat_lon, feature_name, bias_fp)
     # 3D bias correction factors have seasonal/monthly correction in last axis
     if len(scalar.shape) == 3 and len(adder.shape) == 3:
         scalar = scalar.mean(axis=-1)
@@ -122,9 +173,9 @@ def local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
     return out
 
 
-def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
-                            time_index, temporal_avg=True, out_range=None,
-                            smoothing=0):
+def monthly_local_linear_bc(input, lat_lon, feature_name, bias_fp,
+                            lr_padded_slice, time_index, temporal_avg=True,
+                            out_range=None, smoothing=0):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
 
@@ -133,6 +184,9 @@ def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
     input : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
     feature_name : str
         Name of feature that is being corrected. Datasets with names
         "{feature_name}_scalar" and "{feature_name}_adder" will be retrieved
@@ -172,12 +226,7 @@ def monthly_local_linear_bc(input, feature_name, bias_fp, lr_padded_slice,
     out : np.ndarray
         out = input * scalar + adder
     """
-
-    scalar = f'{feature_name}_scalar'
-    adder = f'{feature_name}_adder'
-    with Resource(bias_fp) as res:
-        scalar = res[scalar]
-        adder = res[adder]
+    scalar, adder = get_domain_bc_factors(lat_lon, feature_name, bias_fp)
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'
     assert len(adder.shape) == 3, 'Monthly bias correct needs 3D adders'

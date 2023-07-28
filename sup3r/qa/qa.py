@@ -338,7 +338,7 @@ class Sup3rQa:
         elif self.output_type == 'h5':
             return Resource
 
-    def bias_correct_source_data(self, data, source_feature):
+    def bias_correct_source_data(self, data, lat_lon, source_feature):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
@@ -347,6 +347,10 @@ class Sup3rQa:
         data : np.ndarray
             Any source data to be bias corrected, with the feature channel in
             the last axis.
+        lat_lon : np.ndarray
+            Latitude longitude array for the given data. Used to get the
+            correct bc factors for the appropriate domain.
+            (n_lats, n_lons, 2)
         source_feature : str | list
             The source feature name corresponding to the output feature name
 
@@ -383,7 +387,7 @@ class Sup3rQa:
                          'function: {} with kwargs: {}'
                          .format(source_feature, method, feature_kwargs))
 
-            data = method(data, **feature_kwargs)
+            data = method(data, lat_lon, **feature_kwargs)
 
         return data
 
@@ -403,6 +407,7 @@ class Sup3rQa:
             Low-res source input data including optional bias correction
         """
 
+        lat_lon = self.source_handler.lat_lon
         if 'windspeed' in feature and len(source_feature) == 2:
             u_feat, v_feat = source_feature
             logger.info('For sup3r output feature "{}", retrieving u/v '
@@ -412,13 +417,13 @@ class Sup3rQa:
             v_idf = self.source_handler.features.index(v_feat)
             u_true = self.source_handler.data[..., u_idf]
             v_true = self.source_handler.data[..., v_idf]
-            u_true = self.bias_correct_source_data(u_true, u_feat)
-            v_true = self.bias_correct_source_data(v_true, v_feat)
+            u_true = self.bias_correct_source_data(u_true, lat_lon, u_feat)
+            v_true = self.bias_correct_source_data(v_true, lat_lon, v_feat)
             data_true = np.hypot(u_true, v_true)
         else:
             idf = self.source_handler.features.index(source_feature)
             data_true = self.source_handler.data[..., idf]
-            data_true = self.bias_correct_source_data(data_true,
+            data_true = self.bias_correct_source_data(data_true, lat_lon,
                                                       source_feature)
 
         return data_true

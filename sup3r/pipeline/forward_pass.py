@@ -849,6 +849,14 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         ----------
         file_paths : list
             List of file paths for source data
+        max_workers : int | None
+            Number of workers to use to extract the time index from the given
+            files. This is used when a large number of single timestep netcdf
+            files is provided.
+        **kwargs : dict
+            Dictionary of kwargs passed to the resource handler opening the
+            given file_paths. For netcdf files this is xarray.open_mfdataset().
+            For h5 files this is usually rex.Resource().
 
         Returns
         -------
@@ -1061,7 +1069,8 @@ class ForwardPass:
         self.data_handler.load_cached_data()
         self.input_data = self.data_handler.data
 
-        self.input_data = self.bias_correct_source_data(self.input_data)
+        self.input_data = self.bias_correct_source_data(
+            self.input_data, self.strategy.lr_lat_lon)
 
         exo_s_en = self.exo_kwargs.get('s_enhancements', None)
         out = self.pad_source_data(self.input_data, self.pad_width,
@@ -1400,7 +1409,7 @@ class ForwardPass:
 
         return out, exo_data
 
-    def bias_correct_source_data(self, data):
+    def bias_correct_source_data(self, data, lat_lon):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
@@ -1409,6 +1418,10 @@ class ForwardPass:
         data : np.ndarray
             Any source data to be bias corrected, with the feature channel in
             the last axis.
+        lat_lon : np.ndarray
+            Latitude longitude array for the given data. Used to get the
+            correct bc factors for the appropriate domain.
+            (n_lats, n_lons, 2)
 
         Returns
         -------
@@ -1433,7 +1446,8 @@ class ForwardPass:
                              'using function: {} with kwargs: {}'
                              .format(feature, idf, method, feature_kwargs))
 
-                data[..., idf] = method(data[..., idf], **feature_kwargs)
+                data[..., idf] = method(data[..., idf], lat_lon,
+                                        **feature_kwargs)
 
         return data
 
@@ -1716,8 +1730,8 @@ class ForwardPass:
 
     @classmethod
     def run(cls, strategy, node_index):
-        """This routine runs forward passes on all spatiotemporal chunks for
-        the given node index.
+        """Runs forward passes on all spatiotemporal chunks for the given node
+        index.
 
         Parameters
         ----------
@@ -1738,8 +1752,8 @@ class ForwardPass:
 
     @classmethod
     def _run_serial(cls, strategy, node_index):
-        """This routine runs forward passes, on all spatiotemporal chunks for
-        the given node index, in serial.
+        """Runs forward passes, on all spatiotemporal chunks for the given node
+        index, in serial.
 
         Parameters
         ----------
@@ -1772,9 +1786,8 @@ class ForwardPass:
 
     @classmethod
     def _run_parallel(cls, strategy, node_index):
-        """This routine runs forward passes, on all spatiotemporal chunks for
-        the given node index, with data extraction and forward pass routines in
-        parallel.
+        """Runs forward passes, on all spatiotemporal chunks for the given node
+        index, with data extraction and forward pass routines in parallel.
 
         Parameters
         ----------

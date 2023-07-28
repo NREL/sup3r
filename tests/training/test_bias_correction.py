@@ -13,6 +13,7 @@ from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.preprocessing.data_handling import DataHandlerNCforCC
 from sup3r.qa.qa import Sup3rQa
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
@@ -179,6 +180,7 @@ def test_linear_transform():
     """Test the linear bc transform method"""
     calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
                             TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
+    lat_lon = calc.bias_dh.lat_lon
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'bc.h5')
         out = calc.run(knn=1, threshold=0.6, fill_extend=False, max_workers=1,
@@ -187,7 +189,7 @@ def test_linear_transform():
         adder = out['rsds_adder']
         test_data = np.ones_like(scalar)
         with pytest.warns():
-            out = local_linear_bc(test_data, 'rsds', fp_out,
+            out = local_linear_bc(test_data, lat_lon, 'rsds', fp_out,
                                   lr_padded_slice=None, out_range=None)
 
         out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1,
@@ -195,7 +197,7 @@ def test_linear_transform():
         scalar = out['rsds_scalar']
         adder = out['rsds_adder']
         test_data = np.ones_like(scalar)
-        out = local_linear_bc(test_data, 'rsds', fp_out,
+        out = local_linear_bc(test_data, lat_lon, 'rsds', fp_out,
                               lr_padded_slice=None, out_range=None)
         assert np.allclose(out, scalar + adder)
 
@@ -205,15 +207,15 @@ def test_linear_transform():
         out_mask = too_big | too_small
         assert out_mask.any()
 
-        out = local_linear_bc(test_data, 'rsds', fp_out,
+        out = local_linear_bc(test_data, lat_lon, 'rsds', fp_out,
                               lr_padded_slice=None, out_range=out_range)
 
         assert np.allclose(out[too_big], np.max(out_range))
         assert np.allclose(out[too_small], np.min(out_range))
 
         lr_slice = (slice(1, 2), slice(2, 3), slice(None))
-        sliced_out = local_linear_bc(test_data[lr_slice], 'rsds', fp_out,
-                                     lr_padded_slice=lr_slice,
+        sliced_out = local_linear_bc(test_data[lr_slice], lat_lon[lr_slice],
+                                     'rsds', fp_out, lr_padded_slice=lr_slice,
                                      out_range=out_range)
         assert np.allclose(out[lr_slice], sliced_out)
 
@@ -223,6 +225,7 @@ def test_montly_linear_transform():
     calc = MonthlyLinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
                                    TARGET, SHAPE,
                                    bias_handler='DataHandlerNCforCC')
+    lat_lon = calc.bias_dh.lat_lon
     _, base_ti = calc.get_base_data(calc.base_fps, calc.base_dset,
                                     5, calc.base_handler,
                                     daily_reduction='avg')
@@ -234,7 +237,7 @@ def test_montly_linear_transform():
         adder = out['rsds_adder']
         test_data = np.ones((scalar.shape[0], scalar.shape[1], len(base_ti)))
         with pytest.warns():
-            out = monthly_local_linear_bc(test_data, 'rsds', fp_out,
+            out = monthly_local_linear_bc(test_data, lat_lon, 'rsds', fp_out,
                                           lr_padded_slice=None,
                                           time_index=base_ti,
                                           temporal_avg=True,
@@ -245,7 +248,7 @@ def test_montly_linear_transform():
         truth = np.expand_dims(truth, axis=-1)
         assert np.allclose(truth, out)
 
-        out = monthly_local_linear_bc(test_data, 'rsds', fp_out,
+        out = monthly_local_linear_bc(test_data, lat_lon, 'rsds', fp_out,
                                       lr_padded_slice=None,
                                       time_index=base_ti,
                                       temporal_avg=False,
@@ -293,6 +296,9 @@ def test_fwp_integration():
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
+    lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
+                                 shape=shape).lat_lon
+
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
@@ -314,6 +320,8 @@ def test_fwp_integration():
             f.create_dataset('U_100m_adder', data=adder)
             f.create_dataset('V_100m_scalar', data=scalar)
             f.create_dataset('V_100m_adder', data=adder)
+            f.create_dataset('latitude', data=lat_lon[..., 0])
+            f.create_dataset('longitude', data=lat_lon[..., 1])
 
         bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
                                           'bias_fp': bias_fp},
@@ -369,6 +377,8 @@ def test_qa_integration():
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
+    lat_lon = DataHandlerNCforCC(input_files, features=[]).lat_lon
+
     with tempfile.TemporaryDirectory() as td:
         bias_fp = os.path.join(td, 'bc.h5')
 
@@ -384,6 +394,8 @@ def test_qa_integration():
             f.create_dataset('U_100m_adder', data=adder)
             f.create_dataset('V_100m_scalar', data=scalar)
             f.create_dataset('V_100m_adder', data=adder)
+            f.create_dataset('latitude', data=lat_lon[..., 0])
+            f.create_dataset('longitude', data=lat_lon[..., 1])
 
         qa_kw = {'s_enhance': 3,
                  't_enhance': 4,
