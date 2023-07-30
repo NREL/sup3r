@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 """H5 file collection."""
-from concurrent.futures import as_completed, ThreadPoolExecutor
+import glob
 import logging
-import numpy as np
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from warnings import warn
+
+import numpy as np
 import pandas as pd
 import psutil
-import time
-import glob
-from warnings import warn
+from rex.utilities.fun_utils import get_fun_call_str
+from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from rex.utilities.loggers import init_logger
-from rex.utilities.fun_utils import get_fun_call_str
-
 from sup3r.pipeline import Status
-from sup3r.postprocessing.file_handling import RexOutputs, OutputMixIn
+from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -161,7 +161,7 @@ class Collector(OutputMixIn):
             dataset to retrieve data from fpath.
         time_index : pd.Datetimeindex
             Time index of the final file.
-        final_meta : pd.DataFrame
+        meta : pd.DataFrame
             Meta data of the final file.
         scale_factor : int | float
             Final destination scale factor after collection. If the data
@@ -266,9 +266,9 @@ class Collector(OutputMixIn):
                 if i % interval == 0:
                     mem = psutil.virtual_memory()
                     logger.info('Meta collection futures completed: '
-                                '{0} out of {1}. '
+                                '{} out of {}. '
                                 'Current memory usage is '
-                                '{2:.3f} GB out of {3:.3f} GB total.'
+                                '{:.3f} GB out of {:.3f} GB total.'
                                 .format(i + 1, len(futures),
                                         mem.used / 1e9, mem.total / 1e9))
                 try:
@@ -423,9 +423,9 @@ class Collector(OutputMixIn):
 
             self.data = np.zeros(shape, dtype=final_dtype)
             mem = psutil.virtual_memory()
-            logger.debug('Initializing output dataset "{0}" in-memory with '
-                         'shape {1} and dtype {2}. Current memory usage is '
-                         '{3:.3f} GB out of {4:.3f} GB total.'
+            logger.debug('Initializing output dataset "{}" in-memory with '
+                         'shape {} and dtype {}. Current memory usage is '
+                         '{:.3f} GB out of {:.3f} GB total.'
                          .format(feature, shape, final_dtype,
                                  mem.used / 1e9, mem.total / 1e9))
 
@@ -452,9 +452,9 @@ class Collector(OutputMixIn):
                         completed += 1
                         mem = psutil.virtual_memory()
                         logger.info('Collection futures completed: '
-                                    '{0} out of {1}. '
+                                    '{} out of {}. '
                                     'Current memory usage is '
-                                    '{2:.3f} GB out of {3:.3f} GB total.'
+                                    '{:.3f} GB out of {:.3f} GB total.'
                                     .format(completed, len(futures),
                                             mem.used / 1e9, mem.total / 1e9))
                         try:
@@ -503,7 +503,7 @@ class Collector(OutputMixIn):
         file_split = {}
         for file in file_paths:
             t_chunk = file.split('_')[-2]
-            file_split[t_chunk] = file_split.get(t_chunk, []) + [file]
+            file_split[t_chunk] = [*file_split.get(t_chunk, []), file]
         file_chunks = []
         for files in file_split.values():
             file_chunks.append(files)
@@ -562,8 +562,6 @@ class Collector(OutputMixIn):
                 job_name=None, join_times=False, target_final_meta_file=None,
                 n_writes=None, overwrite=True, threshold=1e-4):
         """Collect data files from a dir to one output file.
-
-        Assumes the file list is chunked in time (row chunked).
 
         Filename requirements:
          - Should end with ".h5"
