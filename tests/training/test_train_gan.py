@@ -18,6 +18,7 @@ from sup3r.preprocessing.batch_handling import (
     BatchHandlerDC,
     BatchHandlerSpatialDC,
     SpatialBatchHandler,
+    SpatialDeterministicBatchHandler,
 )
 from sup3r.preprocessing.data_handling import DataHandlerDCforH5, DataHandlerH5
 from sup3r.utilities.loss_metrics import MmdMseLoss
@@ -25,6 +26,76 @@ from sup3r.utilities.loss_metrics import MmdMseLoss
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
+
+
+def test_train_spatial_deterministic(log=False, full_shape=(20, 20),
+                                     sample_shape=(10, 10, 1), n_epoch=2):
+    """Test basic spatial model training with only gen content loss."""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
+                     loss='MeanAbsoluteError')
+
+    # need to reduce the number of temporal examples to test faster
+    handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
+                            shape=full_shape,
+                            sample_shape=sample_shape,
+                            temporal_slice=slice(None, 100, 10),
+                            worker_kwargs=dict(max_workers=1), val_split=0.1)
+
+    with tempfile.TemporaryDirectory() as td:
+        batch_handler = SpatialDeterministicBatchHandler(
+            [handler], batch_cache_pattern=f'{td}/obs.pkl', batch_size=10,
+            s_enhance=2, n_batches=2)
+
+        # test that training works and reduces loss
+        model.train(batch_handler, n_epoch=n_epoch, weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False, checkpoint_int=1,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert len(model.history) == n_epoch
+        vlossg = model.history['val_loss_gen'].values
+        tlossg = model.history['train_loss_gen'].values
+        assert np.sum(np.diff(vlossg)) < 0
+        assert np.sum(np.diff(tlossg)) < 0
+        assert 'test_0' in os.listdir(td)
+        assert 'test_1' in os.listdir(td)
+        assert 'model_gen.pkl' in os.listdir(td + '/test_1')
+        assert 'model_disc.pkl' in os.listdir(td + '/test_1')
+
+        # make an un-trained dummy model
+        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
+                         loss='MeanAbsoluteError')
+
+        # test save/load functionality
+        out_dir = os.path.join(td, 'spatial_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        assert isinstance(dummy.loss_fun, tf.keras.losses.MeanAbsoluteError)
+        assert isinstance(model.loss_fun, tf.keras.losses.MeanAbsoluteError)
+        assert isinstance(loaded.loss_fun, tf.keras.losses.MeanAbsoluteError)
+
+        for batch in batch_handler:
+            out_og = model._tf_generate(batch.low_res)
+            out_dummy = dummy._tf_generate(batch.low_res)
+            out_loaded = loaded._tf_generate(batch.low_res)
+
+            # make sure the loaded model generates the same data as the saved
+            # model but different than the dummy
+            tf.assert_equal(out_og, out_loaded)
+            with pytest.raises(InvalidArgumentError):
+                tf.assert_equal(out_og, out_dummy)
+
+            # make sure the trained model has less loss than dummy
+            loss_og = model.calc_loss(batch.high_res, out_og)[0]
+            loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
+            assert loss_og.numpy() < loss_dummy.numpy()
 
 
 def test_train_spatial(log=False, full_shape=(20, 20),

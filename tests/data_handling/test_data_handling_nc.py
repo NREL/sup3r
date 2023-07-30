@@ -2,25 +2,29 @@
 """pytests for data handling"""
 
 import os
+import tempfile
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import matplotlib.pyplot as plt
-import tempfile
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR
+from sup3r.preprocessing.batch_handling import (
+    BatchHandler,
+    SpatialBatchHandler,
+    SpatialDeterministicBatchHandler,
+)
 from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
-from sup3r.preprocessing.batch_handling import (BatchHandler,
-                                                SpatialBatchHandler)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.pytest import make_fake_nc_files, make_fake_era_files
+from sup3r.utilities.pytest import make_fake_era_files, make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
 val_split = 0.2
 target = (19.3, -123.5)
 shape = (8, 8)
-sample_shape = (8, 8, 6)
+sample_shape = (6, 6, 6)
 s_enhance = 2
 t_enhance = 2
 dh_kwargs = dict(target=target,
@@ -46,7 +50,7 @@ def test_topography():
         ri = data_handler.raster_index
         with xr.open_mfdataset(input_files, concat_dim='Time',
                                combine='nested') as res:
-            topo = np.array(res['HGT'][tuple([slice(None)] + ri)])
+            topo = np.array(res['HGT'][tuple([slice(None), *ri])])
         topo = np.transpose(topo, (1, 2, 0))[::-1]
         topo_idx = data_handler.features.index('topography')
         assert np.allclose(topo, data_handler.data[..., :, topo_idx])
@@ -476,6 +480,50 @@ def test_spatiotemporal_batch_handling(plot=False):
                 for ifeature in range(batch.high_res.shape[-1]):
                     data_fine = batch.high_res[0, 0, :, :, ifeature]
                     data_coarse = batch.low_res[0, 0, :, :, ifeature]
+                    fig = plt.figure(figsize=(10, 5))
+                    ax1 = fig.add_subplot(121)
+                    ax2 = fig.add_subplot(122)
+                    ax1.imshow(data_fine)
+                    ax2.imshow(data_coarse)
+                    plt.savefig(f'./{i}_{ifeature}.png')
+                    plt.close()
+
+
+def test_deterministic_batch_handling(plot=False):
+    """Test spatial deterministic batch handling class"""
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        tmp_kwargs = dh_kwargs.copy()
+        tmp_kwargs['sample_shape'] = (4, 4, 1)
+        data_handler = DataHandler(input_files, features, **tmp_kwargs)
+        batch_handler = SpatialDeterministicBatchHandler(
+            [data_handler], batch_cache_pattern=f'{td}/obs.pkl', **bh_kwargs)
+
+        assert len(batch_handler.observations) == batch_handler.total_samples
+        assert os.path.exists(f'{td}/obs.pkl')
+
+        for batch in batch_handler:
+            assert batch.low_res.shape[0] == batch.high_res.shape[0]
+
+        for i, batch in enumerate(batch_handler):
+            assert batch.high_res.dtype == np.float32
+            assert batch.low_res.dtype == np.float32
+            assert batch.low_res.shape == (
+                batch.low_res.shape[0],
+                tmp_kwargs['sample_shape'][0] // s_enhance,
+                tmp_kwargs['sample_shape'][1] // s_enhance,
+                len(features))
+            assert batch.high_res.shape == (
+                batch.high_res.shape[0],
+                tmp_kwargs['sample_shape'][0],
+                tmp_kwargs['sample_shape'][1],
+                len(features) - 1)
+
+            if plot:
+                for ifeature in range(batch.high_res.shape[-1]):
+                    data_fine = batch.high_res[0, :, :, ifeature]
+                    data_coarse = batch.low_res[0, :, :, ifeature]
                     fig = plt.figure(figsize=(10, 5))
                     ax1 = fig.add_subplot(121)
                     ax2 = fig.add_subplot(122)

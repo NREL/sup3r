@@ -244,7 +244,8 @@ class ValidationData:
                                                         self.sample_shape[:2])
                     temporal_slice = uniform_time_sampler(h.val_data,
                                                           self.sample_shape[2])
-                    tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.val_data.shape[-1])])
+                    tuple_index = tuple([*spatial_slice, temporal_slice,
+                                         np.arange(h.val_data.shape[-1])])
                     val_indices.append({'handler_index': i,
                                         'tuple_index': tuple_index})
         return val_indices
@@ -323,14 +324,14 @@ class ValidationData:
                 high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                      self.sample_shape[1],
                                      self.sample_shape[2],
-                                     self.handlers[0].shape[-1]),
+                                     self.shape[-1]),
                                     dtype=np.float32)
             else:
                 high_res = np.zeros((self._remaining_observations,
                                      self.sample_shape[0],
                                      self.sample_shape[1],
                                      self.sample_shape[2],
-                                     self.handlers[0].shape[-1]),
+                                     self.shape[-1]),
                                     dtype=np.float32)
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
@@ -1176,7 +1177,8 @@ class ValidationDataDC(ValidationData):
                 weights[t] = 1
                 temporal_slice = weighted_time_sampler(
                     h.data, self.sample_shape[2], weights)
-                tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.data.shape[-1])])
+                tuple_index = tuple([*spatial_slice, temporal_slice,
+                                     np.arange(h.data.shape[-1])])
                 val_indices[t].append({'handler_index': h_idx,
                                        'tuple_index': tuple_index})
         for s in range(self.N_SPACE_BINS):
@@ -1190,7 +1192,8 @@ class ValidationDataDC(ValidationData):
                     h.data, self.sample_shape[:2], weights)
                 temporal_slice = uniform_time_sampler(
                     h.data, self.sample_shape[2])
-                tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.data.shape[-1])])
+                tuple_index = tuple([*spatial_slice, temporal_slice,
+                                     np.arange(h.data.shape[-1])])
                 val_indices[s + self.N_TIME_BINS].append(
                     {'handler_index': h_idx, 'tuple_index': tuple_index})
         return val_indices
@@ -1429,8 +1432,7 @@ class DeterministicBatchHandler(BatchHandler):
     BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = None
 
-    def __init__(self, *args,
-                 batch_cache_pattern='./batch_cache/observations.pkl',
+    def __init__(self, *args, batch_cache_pattern=None,
                  overwrite_batches=False, **kwargs):
         """
         Initialize sampler. n_batches * batch_size * sample_shape must be at
@@ -1445,7 +1447,7 @@ class DeterministicBatchHandler(BatchHandler):
         **kwargs : dict
             Same keyword args as BatchHandler
         """
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.batch_cache_pattern = batch_cache_pattern
         self.total_samples = self.n_batches * self.batch_size
         self.overwrite_batches = overwrite_batches
@@ -1453,20 +1455,29 @@ class DeterministicBatchHandler(BatchHandler):
         logger.info(f'Precomputing {self.total_samples} batch observations '
                     f'across {len(self.data_handlers)} data_handlers.')
         self.observations = self.get_all_observations()
+        self.free_handler_data()
 
-    def cache_observations(self):
+    def free_handler_data(self):
+        """Free handler data arrays after storing observations"""
+        for handler in self.data_handlers:
+            handler.data = None
+
+    def cache_observations(self, obs):
         """Cache precomputed observations"""
-        with open(self.batch_cache_pattern, 'wb') as f:
-            pickle.dump(self.observations, f, protocol=4)
-            logger.info(f'Cached observations to {self.batch_cache_pattern}.')
+        if self.batch_cache_pattern is not None:
+            with open(self.batch_cache_pattern, 'wb') as f:
+                pickle.dump(obs, f, protocol=4)
+                logger.info(
+                    f'Cached observations to {self.batch_cache_pattern}.')
 
     def load_cached_observations(self):
         """Load cached observations"""
-        with open(self.batch_cache_pattern, 'rb') as f:
-            obs = pickle.load(f)
-            logger.info(
-                f'Loaded observations from {self.batch_cache_pattern}.')
-        return obs
+        if self.batch_cache_pattern is not None:
+            with open(self.batch_cache_pattern, 'rb') as f:
+                obs = pickle.load(f)
+                logger.info(
+                    f'Loaded observations from {self.batch_cache_pattern}.')
+            return obs
 
     def get_handler_observations(self, data, n_samples):
         """Get set of n_samples from data each with sample_shape"""
@@ -1474,17 +1485,17 @@ class DeterministicBatchHandler(BatchHandler):
         max_cover = n_samples * np.array(self.sample_shape)
         msg = (
             'n_samples * sample_shape must be >= data.shape[:-1]. Received '
-            f'{self.max_cover} and {data.shape[:-1]}'
+            f'{max_cover} and {data.shape[:-1]}'
         )
-        check = all([x >= y for x, y in zip(max_cover, data.shape[:-1])])
+        check = all(x >= y for (x, y) in zip(max_cover, data.shape[:-1]))
         assert check, msg
 
         msg = (
             'sample_shape must be < data.shape[:-1]. Received '
-            f'{self.sample_shape} and {data.shape}.'
+            f'{self.sample_shape} and {data.shape[:-1]}.'
         )
-        assert all([x < y for x, y
-                    in zip(self.sample_shape, data.shape[:-1])]), msg
+        assert all(x < y for (x, y)
+                   in zip(self.sample_shape, data.shape[:-1])), msg
 
         shape_diff = np.array(data.shape[:-1]) - np.array(self.sample_shape)
         max_samples = np.product(shape_diff + 1)
@@ -1506,7 +1517,10 @@ class DeterministicBatchHandler(BatchHandler):
     def get_all_observations(self):
         """Get set of observations across all data handlers"""
 
-        if os.path.exists(self.batch_cache_pattern):
+        check = (self.batch_cache_pattern is not None
+                 and os.path.exists(self.batch_cache_pattern)
+                 and not self.overwrite_batches)
+        if check:
             obs = self.load_cached_observations()
 
         else:
@@ -1520,12 +1534,10 @@ class DeterministicBatchHandler(BatchHandler):
                 samples = int(sample_frac * self.total_samples)
                 obs.append(self.get_handler_observations(handler.data,
                                                          samples))
-            return np.concatenate(obs, axis=0)
+            obs = np.concatenate(obs, axis=0)
+            self.cache_observations(obs)
 
-        check = (not os.path.exists(self.batch_cache_pattern)
-                 or self.overwrite_batches)
-        if check:
-            self.cache_observations()
+        return obs
 
     def __next__(self):
         """Get the next iterator output.
@@ -1540,7 +1552,8 @@ class DeterministicBatchHandler(BatchHandler):
         if self._i < self.n_batches:
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.sample_shape[2],
-                                 self.shape[-1]), dtype=np.float32)
+                                 len(self.training_features)),
+                                dtype=np.float32)
 
             for i in range(self.batch_size):
                 high_res[i, ...] = self.observations[
@@ -1567,7 +1580,8 @@ class SpatialDeterministicBatchHandler(DeterministicBatchHandler):
     def __next__(self):
         if self._i < self.n_batches:
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                                 self.sample_shape[1], self.shape[-1]),
+                                 self.sample_shape[1],
+                                 len(self.training_features)),
                                 dtype=np.float32)
             for i in range(self.batch_size):
                 high_res[i, ...] = self.observations[
