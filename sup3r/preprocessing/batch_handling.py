@@ -244,8 +244,7 @@ class ValidationData:
                                                         self.sample_shape[:2])
                     temporal_slice = uniform_time_sampler(h.val_data,
                                                           self.sample_shape[2])
-                    tuple_index = tuple([*spatial_slice, temporal_slice]
-                                        + [np.arange(h.val_data.shape[-1])])
+                    tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.val_data.shape[-1])])
                     val_indices.append({'handler_index': i,
                                         'tuple_index': tuple_index})
         return val_indices
@@ -1177,8 +1176,7 @@ class ValidationDataDC(ValidationData):
                 weights[t] = 1
                 temporal_slice = weighted_time_sampler(
                     h.data, self.sample_shape[2], weights)
-                tuple_index = tuple([*spatial_slice, temporal_slice]
-                                    + [np.arange(h.data.shape[-1])])
+                tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.data.shape[-1])])
                 val_indices[t].append({'handler_index': h_idx,
                                        'tuple_index': tuple_index})
         for s in range(self.N_SPACE_BINS):
@@ -1192,8 +1190,7 @@ class ValidationDataDC(ValidationData):
                     h.data, self.sample_shape[:2], weights)
                 temporal_slice = uniform_time_sampler(
                     h.data, self.sample_shape[2])
-                tuple_index = tuple([*spatial_slice, temporal_slice]
-                                    + [np.arange(h.data.shape[-1])])
+                tuple_index = tuple([*spatial_slice, temporal_slice, np.arange(h.data.shape[-1])])
                 val_indices[s + self.N_TIME_BINS].append(
                     {'handler_index': h_idx, 'tuple_index': tuple_index})
         return val_indices
@@ -1418,4 +1415,172 @@ class BatchHandlerSpatialDC(BatchHandler):
             self.norm_spatial_record = [c / total_count
                                         for c in self.spatial_sample_record]
             self.old_spatial_weights = self.spatial_weights.copy()
+            raise StopIteration
+
+
+class DeterministicBatchHandler(BatchHandler):
+    """Deterministic BatchHandler. Deterministically samples data from data
+    handlers into n_batches * batch_size equal parts with sample_shape. Caches
+    these samples for future loads.
+    """
+
+    # Classes to use for handling an individual batch obj.
+    VAL_CLASS = ValidationData
+    BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = None
+
+    def __init__(self, *args,
+                 batch_cache_pattern='./batch_cache/observations.pkl',
+                 overwrite_batches=False, **kwargs):
+        """
+        Initialize sampler. n_batches * batch_size * sample_shape must be at
+        least equal to data.shape.
+
+        *args : list
+            Same positional args as BatchHandler
+        batch_cache_pattern : str
+            Pattern to use for saving batch observations.
+        overwrite_batches : bool
+            Whether to overwrite cached observations.
+        **kwargs : dict
+            Same keyword args as BatchHandler
+        """
+        super().__init__(self, *args, **kwargs)
+        self.batch_cache_pattern = batch_cache_pattern
+        self.total_samples = self.n_batches * self.batch_size
+        self.overwrite_batches = overwrite_batches
+
+        logger.info(f'Precomputing {self.total_samples} batch observations '
+                    f'across {len(self.data_handlers)} data_handlers.')
+        self.observations = self.get_all_observations()
+
+    def cache_observations(self):
+        """Cache precomputed observations"""
+        with open(self.batch_cache_pattern, 'wb') as f:
+            pickle.dump(self.observations, f, protocol=4)
+            logger.info(f'Cached observations to {self.batch_cache_pattern}.')
+
+    def load_cached_observations(self):
+        """Load cached observations"""
+        with open(self.batch_cache_pattern, 'rb') as f:
+            obs = pickle.load(f)
+            logger.info(
+                f'Loaded observations from {self.batch_cache_pattern}.')
+        return obs
+
+    def get_handler_observations(self, data, n_samples):
+        """Get set of n_samples from data each with sample_shape"""
+
+        max_cover = n_samples * np.array(self.sample_shape)
+        msg = (
+            'n_samples * sample_shape must be >= data.shape[:-1]. Received '
+            f'{self.max_cover} and {data.shape[:-1]}'
+        )
+        check = all([x >= y for x, y in zip(max_cover, data.shape[:-1])])
+        assert check, msg
+
+        msg = (
+            'sample_shape must be < data.shape[:-1]. Received '
+            f'{self.sample_shape} and {data.shape}.'
+        )
+        assert all([x < y for x, y
+                    in zip(self.sample_shape, data.shape[:-1])]), msg
+
+        shape_diff = np.array(data.shape[:-1]) - np.array(self.sample_shape)
+        max_samples = np.product(shape_diff + 1)
+
+        msg = (
+            'n_samples must be <= product(data.shape - sample_shape + 1). '
+            f'Received {n_samples} and {max_samples}.'
+        )
+        assert n_samples <= max_samples, msg
+
+        chunk_shape = (*self.sample_shape, data.shape[-1])
+        chunks = np.lib.stride_tricks.sliding_window_view(data, chunk_shape)
+        chunks = chunks.reshape((-1, *chunk_shape))
+        indices = np.array_split(list(range(len(chunks))), n_samples)
+        indices = [index_list[0] for index_list in indices]
+        chunks = chunks[indices]
+        return chunks
+
+    def get_all_observations(self):
+        """Get set of observations across all data handlers"""
+
+        if os.path.exists(self.batch_cache_pattern):
+            obs = self.load_cached_observations()
+
+        else:
+            obs = []
+            max_elems = 0
+            for handler in self.data_handlers:
+                max_elems += np.product(handler.shape)
+
+            for handler in self.data_handlers:
+                sample_frac = np.product(handler.shape) / max_elems
+                samples = int(sample_frac * self.total_samples)
+                obs.append(self.get_handler_observations(handler.data,
+                                                         samples))
+            return np.concatenate(obs, axis=0)
+
+        check = (not os.path.exists(self.batch_cache_pattern)
+                 or self.overwrite_batches)
+        if check:
+            self.cache_observations()
+
+    def __next__(self):
+        """Get the next iterator output.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate coarsening.
+        """
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.sample_shape[2],
+                                 self.shape[-1]), dtype=np.float32)
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = self.observations[
+                    self.batch_size * self._i + i]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance, t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                output_features_ind=self.output_features_ind,
+                output_features=self.output_features,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            self._i += 1
+            return batch
+        else:
+            raise StopIteration
+
+
+class SpatialDeterministicBatchHandler(DeterministicBatchHandler):
+    """Sup3r spatial batch handling class for deterministic batch handling"""
+
+    def __next__(self):
+        if self._i < self.n_batches:
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, ...] = self.observations[
+                    self._i * self.batch_size + i, ..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res, self.s_enhance,
+                output_features_ind=self.output_features_ind,
+                training_features=self.training_features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
+            self._i += 1
+            return batch
+        else:
             raise StopIteration
