@@ -2,7 +2,11 @@
 
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from glob import glob
 from warnings import warn
 
@@ -22,11 +26,13 @@ init_logger('sup3r', log_level='DEBUG')
 logger = logging.getLogger(__name__)
 
 
-class LogInterpolator:
-    """Open ERA5 file, rescale wind components between 0 - 100 meters, and save
-    to file"""
+class LogLinInterpolator:
+    """Open ERA5 file, log interpolate wind components between 0 -
+    max_log_height, linearly interpolate components above max_log_height
+    meters, and save to file"""
 
-    def __init__(self, infile, outfile, heights=None):
+    def __init__(self, infile, outfile, output_heights=None,
+                 input_heights=None, max_log_height=100):
         """Initialize log interpolator.
 
         Parameters
@@ -36,19 +42,28 @@ class LogInterpolator:
             to contain zg, orog, and at least u/v at 10m and 100m.
         outfile : str
             Path to save output after log interpolation.
-        heights : None | list
+        output_heights : None | list
             Heights to interpolate to. If None this defaults to [40, 80].
+        input_heights : None | list
+            Explicit heights to use in interpolation. e.g. If this is [10, 100]
+            then u/v at 10 and 100m will be included explicitly in the input
+            array used for interpolation. interpolate to. If None this defaults
+            to [10, 100].
+        max_log_height : int
+            Maximum height to use for log interpolation. Above this linear
+            interpolation will be used.
         """
         self.infile = infile
         self.outfile = outfile
-        self.new_heights = heights or [40, 80]
-        self.DATA_COUNT = 0
-        self.SUCESS_COUNT = 0
+        self.new_heights = output_heights or [40, 80]
+        self.input_heights = input_heights or [10, 100]
+        self.max_log_height = max_log_height
         self.u = None
         self.v = None
         self.u_new = None
         self.v_new = None
         self.heights = None
+
         msg = (f'Initializing LogInterpolator with infile={infile}, '
                f'outfile={outfile}, new_heights={self.new_heights}')
         logger.info(msg)
@@ -60,40 +75,32 @@ class LogInterpolator:
             sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
                                 gp.shape[1], axis=1)
             self.heights = gp - sfc_hgt
-            u_10m = res['u_10m'].values
-            v_10m = res['v_10m'].values
-            u_100m = res['u_100m'].values
-            v_100m = res['v_100m'].values
-            u = res['u'].values
-            v = res['v'].values
+            u_arr = []
+            v_arr = []
+            height_arr = []
             shape = (self.heights.shape[0], 1, *self.heights.shape[2:])
-            self.heights = np.concatenate([np.full(shape, 10),
-                                           np.full(shape, 100),
-                                           self.heights], axis=1)
-            self.u = np.concatenate([u_10m[:, np.newaxis, ...],
-                                     u_100m[:, np.newaxis, ...],
-                                     u], axis=1)
-            self.v = np.concatenate([v_10m[:, np.newaxis, ...],
-                                     v_100m[:, np.newaxis, ...],
-                                     v], axis=1)
+            for height in self.input_heights:
+                u_arr.append(res[f'u_{height}m'].values[:, np.newaxis, ...])
+                v_arr.append(res[f'v_{height}m'].values[:, np.newaxis, ...])
+                height_arr.append(np.full(shape, height))
+            u_arr.append(res['u'].values)
+            v_arr.append(res['v'].values)
+            height_arr.append(self.heights)
+
+            self.heights = np.concatenate(height_arr, axis=1)
+            self.u = np.concatenate(u_arr, axis=1)
+            self.v = np.concatenate(v_arr, axis=1)
 
     def interpolate_wind(self, max_workers=None):
-        """Interpolate windspeed using log profile and winddirection
-        linearly"""
-        self.SUCESS_COUNT = 0
-        self.DATA_COUNT = 0
+        """Interpolate u/v wind components below 100m using log profile."""
         self.u_new = self.interp_ws_to_height(self.u, self.heights,
-                                              self.new_heights, max_workers)
-        msg = (f'{self.SUCESS_COUNT + 1} of {self.DATA_COUNT + 1} points '
-               'used log interpolation for U.')
-        logger.info(msg)
-        self.SUCESS_COUNT = 0
-        self.DATA_COUNT = 0
+                                              self.new_heights,
+                                              self.max_log_height,
+                                              max_workers)
         self.v_new = self.interp_ws_to_height(self.v, self.heights,
-                                              self.new_heights, max_workers)
-        msg = (f'{self.SUCESS_COUNT + 1} of {self.DATA_COUNT + 1} points '
-               'used log interpolation for V.')
-        logger.info(msg)
+                                              self.new_heights,
+                                              self.max_log_height,
+                                              max_workers)
 
     def save_output(self):
         """Save interpolated wind components to outfile"""
@@ -124,28 +131,39 @@ class LogInterpolator:
         logger.info(f'Saved interpolated output to {self.outfile}.')
 
     @classmethod
-    def run(cls, infile, outfile, heights=None, overwrite=False,
-            max_workers=None):
+    def run(cls, infile, outfile, output_heights=None, input_heights=None,
+            max_log_height=100, overwrite=False, max_workers=None):
         """Run interpolation and save output
 
         Parameters
         ----------
         infile : str
             Path to ERA5 data to use for windspeed log interpolation. Assumed
-            to contain u/v at 10m, 100m, and at least one height between.
+            to contain zg, orog, and at least u/v at 10m and 100m.
         outfile : str
             Path to save output after log interpolation.
-        heights : None | list
+        output_heights : None | list
             Heights to interpolate to. If None this defaults to [40, 80].
+        input_heights : None | list
+            Explicit heights to use in interpolation. e.g. If this is [10, 100]
+            then u/v at 10 and 100m will be included explicitly in the input
+            array used for interpolation. interpolate to. If None this defaults
+            to [10, 100].
+        max_log_height : int
+            Maximum height to use for log interpolation. Above this linear
+            interpolation will be used.
         overwrite : bool
-            Whether to overwrite exisitng outfile.
+            Whether to overwrite existing outfile.
         max_workers : None | int
             Number of workers to use for interpolating over timesteps.
         """
         if os.path.exists(outfile) and not overwrite:
             logger.info(f'{outfile} exists and overwrite=False. Skipping.')
         else:
-            log_interp = cls(infile, outfile, heights)
+            log_interp = cls(infile, outfile,
+                             output_heights=output_heights,
+                             input_heights=input_heights,
+                             max_log_height=max_log_height)
             log_interp.load()
             log_interp.interpolate_wind(max_workers=max_workers)
             log_interp.save_output()
@@ -154,7 +172,6 @@ class LogInterpolator:
     def run_multiple(cls, infiles, out_dir, heights=None,
                      overwrite=False, max_workers=None):
         """Run log interpolation on multiple files
-
 
         Parameters
         ----------
@@ -197,8 +214,10 @@ class LogInterpolator:
                 future.result()
                 logger.info(f'{i + 1} of {len(futures)} futures complete.')
 
-    def ws_log_interp(self, lev_array, var_array, levels):
-        """Fit ws log law to data and get requested level values from fit.
+    @classmethod
+    def pbl_interp_to_height(cls, lev_array, var_array, levels,
+                             max_log_height=100):
+        """Fit ws log law to data below max_log_height.
 
         Parameters
         ----------
@@ -211,47 +230,43 @@ class LogInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        max_log_height : int
+            Max height for using log interpolation.
 
         Returns
         -------
         values : ndarray
-            Array of interpolated windspeed values at the requested heights.
+            Array of interpolated windspeed values below max_log_height.
         """
         def ws_log_profile(z, a, b):
             return a * np.log(z) + b
 
         levels = np.array(levels)
-        lev_mask = levels <= 100
-        var_mask = lev_array <= 100
+        lev_mask = (0 < levels) & (levels <= max_log_height)
+        var_mask = (0 < lev_array) & (lev_array <= max_log_height)
 
-        self.DATA_COUNT += 1
         try:
             popt, _ = curve_fit(ws_log_profile, lev_array[var_mask],
                                 var_array[var_mask])
-            out = ws_log_profile(levels[lev_mask], *popt)
-            if any(levels > 100) and any(lev_array > 100):
-                ws = interp1d(lev_array[~var_mask], var_array[~var_mask],
-                              fill_value='extrapolate')(levels[~lev_mask])
-                out = np.concatenate([out, ws])
-            self.SUCESS_COUNT += 1
+            log_ws = ws_log_profile(levels[lev_mask], *popt)
         except Exception as e:
             msg = ('Log interp failed with (h, ws) = '
                    f'({lev_array[var_mask]}, {var_array[var_mask]}). {e} '
                    'Using linear interpolation.')
             logger.warning(msg)
             warn(msg)
-            out = interp1d(lev_array, var_array,
-                           fill_value='extrapolate')(levels)
-        return out
+            log_ws = interp1d(lev_array[var_mask], var_array[var_mask],
+                              fill_value='extrapolate')(levels[lev_mask])
+        return log_ws
 
-    def interp_single_ts(self, out_array, lev_array, var_array, levels, idt):
-        """Perform interpolation for a single timestep specified by the index
-        idt
+    @classmethod
+    def _interp_ws_to_height(cls, lev_array, var_array, levels,
+                             max_log_height=100):
+        """Fit ws log law to data below max_log_height and linearly
+        interpolate data above.
 
         Parameters
         ----------
-        out_array : ndarray
-            Array with interpolated values
         lev_array : ndarray
             1D Array of height values corresponding to the wrf source
             data in the same shape as var_array.
@@ -261,25 +276,125 @@ class LogInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        max_log_height : int
+            Max height for using log interpolation.
+
+        Returns
+        -------
+        values : ndarray
+            Array of interpolated windspeed values at the requested heights.
+        """
+        levels = np.array(levels)
+
+        log_ws = None
+        lin_ws = None
+
+        hgt_check = (any(levels < max_log_height)
+                     and any(lev_array < max_log_height))
+        if hgt_check:
+            log_ws = cls.pbl_interp_to_height(
+                lev_array, var_array, levels, max_log_height=max_log_height)
+
+        if any(levels > max_log_height):
+            lev_mask = levels >= max_log_height
+            var_mask = lev_array >= max_log_height
+
+            if len(lev_array[var_mask]) > 1:
+                lin_ws = interp1d(lev_array[var_mask], var_array[var_mask],
+                                  fill_value='extrapolate')(levels[lev_mask])
+            else:
+                msg = ('Requested interpolation levels are outside the '
+                       f'available range: lev_array={lev_array}, '
+                       f'levels={levels}. Using linear extrapolation.')
+                lin_ws = interp1d(lev_array, var_array,
+                                  fill_value='extrapolate')(levels[lev_mask])
+                logger.warning(msg)
+                warn(msg)
+
+        if log_ws is not None and lin_ws is not None:
+            out = np.concatenate([log_ws, lin_ws])
+
+        if log_ws is not None and lin_ws is None:
+            out = log_ws
+
+        if lin_ws is not None and log_ws is None:
+            out = lin_ws
+
+        if log_ws is None and lin_ws is None:
+            msg = (f'No interpolation was performed for lev_array={lev_array} '
+                   f'and levels={levels}')
+            raise RuntimeError(msg)
+
+        return out
+
+    @classmethod
+    def _get_timestep_interp_input(cls, lev_array, var_array, idt):
+        """Get interpolation input for given timestep
+
+        Parameters
+        ----------
+        lev_array : ndarray
+            1D Array of height values corresponding to the wrf source
+            data in the same shape as var_array.
+        var_array : ndarray
+            1D Array of variable data, for example u-wind in a 1D array of
+            shape
         idt : int
             Time index to interpolate
+
+        Returns
+        -------
+        h_t : ndarray
+            1D array of height values for the requested time
+        v_t : ndarray
+            1D array of variable data for the requested time
+        mask : ndarray
+            1D array of bool values masking nans and heights < 0
+
         """
         array_shape = var_array.shape
         shape = (array_shape[-3], np.product(array_shape[-2:]))
-        h_tmp = lev_array[idt].reshape(shape).T
-        var_tmp = var_array[idt].reshape(shape).T
-        not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
-        pos_hgt = h_tmp > 0.0
-        mask = not_nan & pos_hgt
+        h_t = lev_array[idt].reshape(shape).T
+        var_t = var_array[idt].reshape(shape).T
+        mask = ~np.isnan(h_t) & ~np.isnan(var_t)
+
+        return h_t, var_t, mask
+
+    @classmethod
+    def interp_single_ts(cls, hgt_t, var_t, mask, levels, max_log_height=100):
+        """Perform interpolation for a single timestep specified by the index
+        idt
+
+        Parameters
+        ----------
+        hgt_t : ndarray
+            1D Array of height values for a specific time.
+        var_t : ndarray
+            1D Array of variable data for a specific time.
+        mask : ndarray
+            1D Array of bool values to mask out nans and heights below 0.
+        levels : float | list
+            level or levels to interpolate to (e.g. final desired hub heights
+            above surface elevation)
+        max_log_height : int
+            Max height for using log interpolation.
+
+        Returns
+        -------
+        out_array : ndarray
+            Array of interpolated values.
+        """
 
         # Interp each vertical column of height and var to requested levels
-        zip_iter = zip(h_tmp, var_tmp, mask)
-        out_array[:, idt, :] = np.array(
-            [self.ws_log_interp(h[mask], var[mask], levels)
+        zip_iter = zip(hgt_t, var_t, mask)
+        return np.array(
+            [cls._interp_ws_to_height(h[mask], var[mask], levels,
+                                      max_log_height=max_log_height)
              for h, var, mask in zip_iter], dtype=np.float32)
 
-    def interp_ws_to_height(self, var_array, lev_array, levels,
-                            max_workers=None):
+    @classmethod
+    def interp_ws_to_height(cls, var_array, lev_array, levels,
+                            max_log_height=100, max_workers=None):
         """Interpolate windspeed array to given level(s) based on h_array.
         Interpolation is done using windspeed log profile and is done for every
         'z' column of [var, h] data.
@@ -298,6 +413,8 @@ class LogInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        max_log_height : int
+            Max height for using log interpolation.
         max_workers : None | int
             Number of workers to use for interpolating over timesteps.
 
@@ -317,24 +434,32 @@ class LogInterpolator:
         out_array = np.zeros(shape, dtype=np.float32).T
 
         # iterate through time indices
-        futures = []
+        futures = {}
         if max_workers == 1:
             for idt in range(array_shape[0]):
-                self.interp_single_ts(out_array, lev_array, var_array, levels,
-                                      idt)
+                h_t, v_t, mask = cls._get_timestep_interp_input(lev_array,
+                                                                var_array,
+                                                                idt)
+                out_array[:, idt, :] = cls.interp_single_ts(
+                    h_t, v_t, mask, levels=levels,
+                    max_log_height=max_log_height)
                 logger.info(
                     f'{idt + 1} of {array_shape[0]} timesteps finished.')
 
         else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 for idt in range(array_shape[0]):
-                    futures.append(exe.submit(self.interp_single_ts, out_array,
-                                              lev_array, var_array, levels,
-                                              idt))
+                    h_t, v_t, mask = cls._get_timestep_interp_input(lev_array,
+                                                                    var_array,
+                                                                    idt)
+                    future = exe.submit(cls.interp_single_ts, h_t, v_t, mask,
+                                        levels=levels,
+                                        max_log_height=max_log_height)
+                    futures[future] = idt
                     logger.info(
                         f'{idt + 1} of {array_shape[0]} futures submitted.')
             for i, future in enumerate(as_completed(futures)):
-                future.result()
+                out_array[:, futures[future], :] = future.result()
                 logger.info(f'{i + 1} of {len(futures)} futures complete.')
 
         # Reshape out_array

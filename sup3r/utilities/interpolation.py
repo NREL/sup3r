@@ -213,10 +213,10 @@ class Interpolator:
         nans = np.isnan(lev_array)
         logger.debug('Level array shape: {}'.format(lev_array.shape))
 
-        lowest_height_idx = np.argmin(lev_array[0, :, 0, 0])
-        highest_height_idx = np.argmax(lev_array[0, :, 0, 0])
-        bad_min = min(levels) < lev_array[:, lowest_height_idx, :, :]
-        bad_max = max(levels) > lev_array[:, highest_height_idx, :, :]
+        lowest_height = np.min(lev_array[0, ...])
+        highest_height = np.max(lev_array[0, ...])
+        bad_min = min(levels) < lowest_height
+        bad_max = max(levels) > highest_height
 
         if nans.any():
             msg = ('Approximately {:.2f}% of the vertical level '
