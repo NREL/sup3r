@@ -32,7 +32,8 @@ class LogLinInterpolator:
     meters, and save to file"""
 
     def __init__(self, infile, outfile, output_heights=None,
-                 input_heights=None, max_log_height=100):
+                 input_heights=None, max_log_height=100,
+                 only_fixed_levels=True):
         """Initialize log interpolator.
 
         Parameters
@@ -52,6 +53,11 @@ class LogLinInterpolator:
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
+        only_fixed_levels : bool
+            Use only fixed levels for log interpolation. Fixed levels are those
+            that were not computed from pressure levels but instead added along
+            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         """
         self.infile = infile
         self.outfile = outfile
@@ -63,6 +69,9 @@ class LogLinInterpolator:
         self.u_new = None
         self.v_new = None
         self.heights = None
+        self.fixed_level_mask = None
+        if only_fixed_levels:
+            self.fixed_level_mask = [True] * len(self.input_heights)
 
         msg = (f'Initializing LogInterpolator with infile={infile}, '
                f'outfile={outfile}, new_heights={self.new_heights}')
@@ -75,6 +84,10 @@ class LogLinInterpolator:
             sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
                                 gp.shape[1], axis=1)
             self.heights = gp - sfc_hgt
+
+            if self.fixed_level_mask is not None:
+                self.fixed_level_mask += [False] * self.heights.shape[1]
+
             u_arr = []
             v_arr = []
             height_arr = []
@@ -92,13 +105,15 @@ class LogLinInterpolator:
             self.v = np.concatenate(v_arr, axis=1)
 
     def interpolate_wind(self, max_workers=None):
-        """Interpolate u/v wind components below 100m using log profile."""
+        """Interpolate u/v wind components below 100m using log profile"""
         self.u_new = self.interp_ws_to_height(self.u, self.heights,
                                               self.new_heights,
+                                              self.fixed_level_mask,
                                               self.max_log_height,
                                               max_workers)
         self.v_new = self.interp_ws_to_height(self.v, self.heights,
                                               self.new_heights,
+                                              self.fixed_level_mask,
                                               self.max_log_height,
                                               max_workers)
 
@@ -132,7 +147,8 @@ class LogLinInterpolator:
 
     @classmethod
     def run(cls, infile, outfile, output_heights=None, input_heights=None,
-            max_log_height=100, overwrite=False, max_workers=None):
+            only_fixed_levels=True, max_log_height=100, overwrite=False,
+            max_workers=None):
         """Run interpolation and save output
 
         Parameters
@@ -149,6 +165,11 @@ class LogLinInterpolator:
             then u/v at 10 and 100m will be included explicitly in the input
             array used for interpolation. interpolate to. If None this defaults
             to [10, 100].
+        only_fixed_levels : bool
+            Use only fixed levels for log interpolation. Fixed levels are those
+            that were not computed from pressure levels but instead added along
+            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
@@ -163,6 +184,7 @@ class LogLinInterpolator:
             log_interp = cls(infile, outfile,
                              output_heights=output_heights,
                              input_heights=input_heights,
+                             only_fixed_levels=only_fixed_levels,
                              max_log_height=max_log_height)
             log_interp.load()
             log_interp.interpolate_wind(max_workers=max_workers)
@@ -216,6 +238,7 @@ class LogLinInterpolator:
 
     @classmethod
     def pbl_interp_to_height(cls, lev_array, var_array, levels,
+                             fixed_level_mask=None,
                              max_log_height=100):
         """Fit ws log law to data below max_log_height.
 
@@ -230,6 +253,11 @@ class LogLinInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        fixed_level_mask : ndarray | None
+            Optional mask to use only fixed levels. Fixed levels are those that
+            were not computed from pressure levels but instead added along with
+            wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         max_log_height : int
             Max height for using log interpolation.
 
@@ -241,17 +269,24 @@ class LogLinInterpolator:
         def ws_log_profile(z, a, b):
             return a * np.log(z) + b
 
+        lev_array_samp = lev_array.copy()
+        var_array_samp = var_array.copy()
+        if fixed_level_mask is not None:
+            lev_array_samp = lev_array_samp[fixed_level_mask]
+            var_array_samp = var_array_samp[fixed_level_mask]
+
         levels = np.array(levels)
         lev_mask = (0 < levels) & (levels <= max_log_height)
-        var_mask = (0 < lev_array) & (lev_array <= max_log_height)
+        var_mask = (0 < lev_array_samp) & (lev_array_samp <= max_log_height)
 
         try:
-            popt, _ = curve_fit(ws_log_profile, lev_array[var_mask],
-                                var_array[var_mask])
+            popt, _ = curve_fit(ws_log_profile, lev_array_samp[var_mask],
+                                var_array_samp[var_mask])
             log_ws = ws_log_profile(levels[lev_mask], *popt)
         except Exception as e:
             msg = ('Log interp failed with (h, ws) = '
-                   f'({lev_array[var_mask]}, {var_array[var_mask]}). {e} '
+                   f'({lev_array_samp[var_mask]}, '
+                   f'{var_array_samp[var_mask]}). {e} '
                    'Using linear interpolation.')
             logger.warning(msg)
             warn(msg)
@@ -261,6 +296,7 @@ class LogLinInterpolator:
 
     @classmethod
     def _interp_ws_to_height(cls, lev_array, var_array, levels,
+                             fixed_level_mask=None,
                              max_log_height=100):
         """Fit ws log law to data below max_log_height and linearly
         interpolate data above.
@@ -276,6 +312,11 @@ class LogLinInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        fixed_level_mask : ndarray | None
+            Optional mask to use only fixed levels. Fixed levels are those that
+            were not computed from pressure levels but instead added along with
+            wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         max_log_height : int
             Max height for using log interpolation.
 
@@ -293,7 +334,9 @@ class LogLinInterpolator:
                      and any(lev_array < max_log_height))
         if hgt_check:
             log_ws = cls.pbl_interp_to_height(
-                lev_array, var_array, levels, max_log_height=max_log_height)
+                lev_array, var_array, levels,
+                fixed_level_mask=fixed_level_mask,
+                max_log_height=max_log_height)
 
         if any(levels > max_log_height):
             lev_mask = levels >= max_log_height
@@ -361,7 +404,8 @@ class LogLinInterpolator:
         return h_t, var_t, mask
 
     @classmethod
-    def interp_single_ts(cls, hgt_t, var_t, mask, levels, max_log_height=100):
+    def interp_single_ts(cls, hgt_t, var_t, mask, levels,
+                         fixed_level_mask=None, max_log_height=100):
         """Perform interpolation for a single timestep specified by the index
         idt
 
@@ -376,6 +420,11 @@ class LogLinInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        fixed_level_mask : ndarray | None
+            Optional mask to use only fixed levels. Fixed levels are those
+            that were not computed from pressure levels but instead added along
+            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         max_log_height : int
             Max height for using log interpolation.
 
@@ -389,11 +438,13 @@ class LogLinInterpolator:
         zip_iter = zip(hgt_t, var_t, mask)
         return np.array(
             [cls._interp_ws_to_height(h[mask], var[mask], levels,
+                                      fixed_level_mask=fixed_level_mask,
                                       max_log_height=max_log_height)
              for h, var, mask in zip_iter], dtype=np.float32)
 
     @classmethod
     def interp_ws_to_height(cls, var_array, lev_array, levels,
+                            fixed_level_mask=None,
                             max_log_height=100, max_workers=None):
         """Interpolate windspeed array to given level(s) based on h_array.
         Interpolation is done using windspeed log profile and is done for every
@@ -413,6 +464,11 @@ class LogLinInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
+        fixed_level_mask : ndarray | None
+            Optional mask to use only fixed levels. Fixed levels are those
+            that were not computed from pressure levels but instead added along
+            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
         max_log_height : int
             Max height for using log interpolation.
         max_workers : None | int
@@ -442,6 +498,7 @@ class LogLinInterpolator:
                                                                 idt)
                 out_array[:, idt, :] = cls.interp_single_ts(
                     h_t, v_t, mask, levels=levels,
+                    fixed_level_mask=fixed_level_mask,
                     max_log_height=max_log_height)
                 logger.info(
                     f'{idt + 1} of {array_shape[0]} timesteps finished.')
@@ -454,6 +511,7 @@ class LogLinInterpolator:
                                                                     idt)
                     future = exe.submit(cls.interp_single_ts, h_t, v_t, mask,
                                         levels=levels,
+                                        fixed_level_mask=fixed_level_mask,
                                         max_log_height=max_log_height)
                     futures[future] = idt
                     logger.info(
