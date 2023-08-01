@@ -221,7 +221,7 @@ class LogLinInterpolator:
         if max_workers == 1:
             for _, file in enumerate(infiles):
                 outfile = os.path.basename(file).replace('.nc',
-                                                         '_log_interp.nc')
+                                                         '_all_interp.nc')
                 outfile = os.path.join(out_dir, outfile)
                 cls.run(file, outfile, heights, overwrite,
                         max_workers=max_workers)
@@ -230,7 +230,7 @@ class LogLinInterpolator:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for i, file in enumerate(infiles):
                     outfile = os.path.basename(file).replace('.nc',
-                                                             '_log_interp.nc')
+                                                             '_all_interp.nc')
                     outfile = os.path.join(out_dir, outfile)
                     futures.append(exe.submit(cls.run, file, outfile, heights,
                                               overwrite, max_workers))
@@ -269,6 +269,8 @@ class LogLinInterpolator:
         -------
         values : ndarray
             Array of interpolated windspeed values below max_log_height.
+        good : bool
+            Check if log interpolation went without issue.
         """
         def ws_log_profile(z, a, b):
             return a * np.log(z) + b
@@ -279,6 +281,7 @@ class LogLinInterpolator:
             lev_array_samp = lev_array_samp[fixed_level_mask]
             var_array_samp = var_array_samp[fixed_level_mask]
 
+        good = True
         levels = np.array(levels)
         lev_mask = (0 < levels) & (levels <= max_log_height)
         var_mask = (0 < lev_array_samp) & (lev_array_samp <= max_log_height)
@@ -292,11 +295,12 @@ class LogLinInterpolator:
                    f'({lev_array_samp[var_mask]}, '
                    f'{var_array_samp[var_mask]}). {e} '
                    'Using linear interpolation.')
+            good = False
             logger.warning(msg)
             warn(msg)
             log_ws = interp1d(lev_array[var_mask], var_array[var_mask],
                               fill_value='extrapolate')(levels[lev_mask])
-        return log_ws
+        return log_ws, good
 
     @classmethod
     def _interp_ws_to_height(cls, lev_array, var_array, levels,
@@ -328,16 +332,19 @@ class LogLinInterpolator:
         -------
         values : ndarray
             Array of interpolated windspeed values at the requested heights.
+        good : bool
+            Check if interpolation went without issue.
         """
         levels = np.array(levels)
 
         log_ws = None
         lin_ws = None
+        good = True
 
         hgt_check = (any(levels < max_log_height)
                      and any(lev_array < max_log_height))
         if hgt_check:
-            log_ws = cls.pbl_interp_to_height(
+            log_ws, good = cls.pbl_interp_to_height(
                 lev_array, var_array, levels,
                 fixed_level_mask=fixed_level_mask,
                 max_log_height=max_log_height)
@@ -345,18 +352,22 @@ class LogLinInterpolator:
         if any(levels > max_log_height):
             lev_mask = levels >= max_log_height
             var_mask = lev_array >= max_log_height
-
             if len(lev_array[var_mask]) > 1:
                 lin_ws = interp1d(lev_array[var_mask], var_array[var_mask],
                                   fill_value='extrapolate')(levels[lev_mask])
-            else:
+            elif len(lev_array) > 1:
                 msg = ('Requested interpolation levels are outside the '
                        f'available range: lev_array={lev_array}, '
                        f'levels={levels}. Using linear extrapolation.')
                 lin_ws = interp1d(lev_array, var_array,
                                   fill_value='extrapolate')(levels[lev_mask])
+                good = False
                 logger.warning(msg)
                 warn(msg)
+            else:
+                msg = ('Data seems to be all NaNs. Something may have gone '
+                       'wrong during download.')
+                raise OSError(msg)
 
         if log_ws is not None and lin_ws is not None:
             out = np.concatenate([log_ws, lin_ws])
@@ -372,7 +383,7 @@ class LogLinInterpolator:
                    f'and levels={levels}')
             raise RuntimeError(msg)
 
-        return out
+        return out, good
 
     @classmethod
     def _get_timestep_interp_input(cls, lev_array, var_array, idt):
@@ -440,11 +451,15 @@ class LogLinInterpolator:
 
         # Interp each vertical column of height and var to requested levels
         zip_iter = zip(hgt_t, var_t, mask)
-        return np.array(
-            [cls._interp_ws_to_height(h[mask], var[mask], levels,
-                                      fixed_level_mask=fixed_level_mask,
-                                      max_log_height=max_log_height)
-             for h, var, mask in zip_iter], dtype=np.float32)
+        out_array = []
+        checks = []
+        for h, var, mask in zip_iter:
+            val, check = cls._interp_ws_to_height(
+                h[mask], var[mask], levels, fixed_level_mask=fixed_level_mask,
+                max_log_height=max_log_height)
+            out_array.append(val)
+            checks.append(check)
+        return np.array(out_array), np.array(checks)
 
     @classmethod
     def interp_ws_to_height(cls, var_array, lev_array, levels,
@@ -492,6 +507,7 @@ class LogLinInterpolator:
         # Flatten h_array and var_array along lat, long axis
         shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
         out_array = np.zeros(shape, dtype=np.float32).T
+        total_checks = []
 
         # iterate through time indices
         futures = {}
@@ -500,10 +516,13 @@ class LogLinInterpolator:
                 h_t, v_t, mask = cls._get_timestep_interp_input(lev_array,
                                                                 var_array,
                                                                 idt)
-                out_array[:, idt, :] = cls.interp_single_ts(
+                out, checks = cls.interp_single_ts(
                     h_t, v_t, mask, levels=levels,
                     fixed_level_mask=fixed_level_mask,
                     max_log_height=max_log_height)
+                out_array[:, idt, :] = out
+                total_checks.append(checks)
+
                 logger.info(
                     f'{idt + 1} of {array_shape[0]} timesteps finished.')
 
@@ -521,8 +540,16 @@ class LogLinInterpolator:
                     logger.info(
                         f'{idt + 1} of {array_shape[0]} futures submitted.')
             for i, future in enumerate(as_completed(futures)):
-                out_array[:, futures[future], :] = future.result()
+                out, checks = future.result()
+                out_array[:, futures[future], :] = out
+                total_checks.append(checks)
                 logger.info(f'{i + 1} of {len(futures)} futures complete.')
+
+        total_checks = np.concatenate(total_checks)
+        good_count = total_checks.sum()
+        total_count = len(total_checks)
+        logger.info('Percent of points interpolated without issue: '
+                    f'{100 * good_count / total_count:.2f}')
 
         # Reshape out_array
         if isinstance(levels, (float, np.float32, int)):

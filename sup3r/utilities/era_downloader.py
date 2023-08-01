@@ -68,6 +68,7 @@ class EraDownloader:
         self.hours = [str(n).zfill(2) + ":00" for n in np.arange(0, 24)]
         self.combined_file = combined_out_pattern.format(
             year=year, month=str(month).zfill(2))
+        os.makedirs(os.path.dirname(self.combined_file), exist_ok=True)
         basedir = os.path.dirname(self.combined_file)
         self.surface_file = os.path.join(
             basedir, f'sfc_{year}_{str(month).zfill(2)}.nc')
@@ -76,6 +77,7 @@ class EraDownloader:
         if interp_out_pattern is not None and run_interp:
             self.interp_file = interp_out_pattern.format(
                 year=year, month=str(month).zfill(2))
+            os.makedirs(os.path.dirname(self.interp_file), exist_ok=True)
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
@@ -155,8 +157,13 @@ class EraDownloader:
 
     def good_file(self, file, shape=None):
         """Check if file has the required shape and variables."""
-        tmp = xr.open_dataset(file)
-        check = True
+        try:
+            tmp = xr.open_dataset(file)
+            check = True
+        except Exception as e:
+            logger.info(f'Could not open {file}. {e}')
+            check = False
+            return check
 
         if shape is not None:
             if tmp['u'].shape[1:] != shape[1:]:
@@ -214,21 +221,18 @@ class EraDownloader:
                 os.remove(self.combined_file)
                 os.remove(self.interp_file)
 
-    def run_interpolation(self):
+    def run_interpolation(self, max_workers=None):
         """Run interpolation to get final final. Runs log interpolation up to
         max_log_height (usually 100m) and linear interpolation above this."""
-        if not os.path.exists(self.interp_file) and self.run_interp:
-            LogLinInterpolator.run(infile=self.combined_file,
-                                   outfile=self.interp_file,
-                                   input_heights=[10, 100],
-                                   output_heights=[40, 80, 120, 160, 200],
-                                   max_workers=32,
-                                   max_log_height=100,
-                                   overwrite=self.overwrite)
-        elif self.run_interp and os.path.exists(self.interp_file):
-            logger.info(f'{self.interp_file} already exists.')
+        LogLinInterpolator.run(infile=self.combined_file,
+                               outfile=self.interp_file,
+                               input_heights=[10, 100],
+                               output_heights=[40, 80, 120, 160, 200],
+                               max_workers=max_workers,
+                               max_log_height=100,
+                               overwrite=self.overwrite)
 
-    def get_monthly_file(self):
+    def get_monthly_file(self, interp_workers=None):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
         interpolate."""
@@ -240,7 +244,8 @@ class EraDownloader:
 
         self.download_process_combine()
 
-        self.run_interpolation()
+        if self.run_interp:
+            self.run_interpolation(max_workers=interp_workers)
 
     @classmethod
     def all_months_exist(cls, year, file_pattern):
@@ -265,7 +270,7 @@ class EraDownloader:
     @classmethod
     def run_month(cls, year, month, area, levels, combined_out_pattern,
                   interp_out_pattern=None, run_interp=True, overwrite=False,
-                  required_shape=None):
+                  required_shape=None, interp_workers=None):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -292,19 +297,21 @@ class EraDownloader:
         required_shape : tuple | None
             Required shape of data to download. Used to check downloaded data.
             If None, no check is performed.
+        interp_workers : int | None
+            Max number of workers to use for interpolation.
         """
         downloader = cls(year=year, month=month, area=area, levels=levels,
                          combined_out_pattern=combined_out_pattern,
                          interp_out_pattern=interp_out_pattern,
                          run_interp=run_interp, overwrite=overwrite,
                          required_shape=required_shape)
-        downloader.get_monthly_file()
+        downloader.get_monthly_file(interp_workers=interp_workers)
 
     @classmethod
     def run_year(cls, year, area, levels, combined_out_pattern,
                  combined_yearly_file, interp_out_pattern=None,
                  interp_yearly_file=None, run_interp=True, overwrite=False,
-                 required_shape=None, max_workers=12):
+                 required_shape=None, max_workers=12, interp_workers=None):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -336,6 +343,8 @@ class EraDownloader:
         max_workers : int
             Max number of workers to use for downloading and processing monthly
             files.
+        interp_workers : int | None
+            Max number of workers to use for interpolation.
         """
         if max_workers == 1:
             for month in range(1, 13):
@@ -343,7 +352,8 @@ class EraDownloader:
                               combined_out_pattern=combined_out_pattern,
                               interp_out_pattern=interp_out_pattern,
                               run_interp=run_interp, overwrite=overwrite,
-                              required_shape=required_shape)
+                              required_shape=required_shape,
+                              interp_workers=interp_workers)
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
@@ -354,7 +364,8 @@ class EraDownloader:
                         combined_out_pattern=combined_out_pattern,
                         interp_out_pattern=interp_out_pattern,
                         run_interp=run_interp, overwrite=overwrite,
-                        required_shape=required_shape)
+                        required_shape=required_shape,
+                        interp_workers=interp_workers)
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
                                 f'{month}.')
