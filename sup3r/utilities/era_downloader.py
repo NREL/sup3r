@@ -358,19 +358,31 @@ class EraDownloader:
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
                                 f'{month}.')
-            for future, v in as_completed(futures.items()):
+            for future in as_completed(futures):
                 future.result()
+                v = futures[future]
                 logger.info(f'Finished future for year {v["year"]} and month '
                             f'{v["month"]}.')
 
-        cls.make_yearly_file(combined_out_pattern, combined_yearly_file)
+        cls.make_yearly_file(year, combined_out_pattern, combined_yearly_file)
 
         if run_interp:
-            cls.make_yearly_file(interp_out_pattern, interp_yearly_file)
+            cls.make_yearly_file(year, interp_out_pattern, interp_yearly_file)
 
     @classmethod
     def make_yearly_file(cls, year, file_pattern, yearly_file):
-        """Combine monthly files into a single file."""
+        """Combine monthly files into a single file.
+
+        Parameters
+        ----------
+        year : int
+            Year of monthly data to make into a yearly file.
+        file_pattern : str
+            File pattern for monthly files. Must have year and month format
+            keys. e.g. './era_uv_{year}_{month}_combined.nc'
+        yearly_file : str
+            Name of yearly file made from monthly files.
+        """
         msg = (f'Not all monthly files with file_patten {file_pattern} for '
                f'year {year} exist.')
         assert cls.all_months_exist(year, file_pattern), msg

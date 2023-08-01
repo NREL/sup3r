@@ -77,7 +77,7 @@ class LogLinInterpolator:
         if only_fixed_levels:
             self.fixed_level_mask = [True] * len(self.input_heights)
 
-        msg = (f'Initializing LogInterpolator with infile={infile}, '
+        msg = (f'Initializing {self.__class__.__name__} with infile={infile}, '
                f'outfile={outfile}, new_heights={self.new_heights}')
         logger.info(msg)
 
