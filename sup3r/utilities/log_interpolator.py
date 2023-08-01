@@ -70,6 +70,10 @@ class LogLinInterpolator:
         self.v_new = None
         self.heights = None
         self.fixed_level_mask = None
+
+        msg = (f'{self.infile} does not exist. Skipping.')
+        assert os.path.exists(self.infile), msg
+
         if only_fixed_levels:
             self.fixed_level_mask = [True] * len(self.input_heights)
 
