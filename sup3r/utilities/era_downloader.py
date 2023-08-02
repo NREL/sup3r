@@ -1,16 +1,19 @@
 """Download ERA5 file for the given year and month
 
-NOTE: To use this you need to have a ~/.cdsapirc file with a url and api key.
-Follow the instructions here: https://cds.climate.copernicus.eu/api-how-to
+NOTE: To use this you need to have cdsapi package installed and a ~/.cdsapirc
+file with a url and api key.  Follow the instructions here:
+https://cds.climate.copernicus.eu/api-how-to
 """
 
 import logging
 import os
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from glob import glob
+from warnings import warn
 
-import cdsapi
 import numpy as np
+import pandas as pd
 import xarray as xr
 from netCDF4 import Dataset
 
@@ -18,7 +21,12 @@ from sup3r.utilities.log_interpolator import LogLinInterpolator
 
 logger = logging.getLogger(__name__)
 
-c = cdsapi.Client()
+try:
+    import cdsapi
+    c = cdsapi.Client()
+except ImportError as e:
+    msg = f'Could not import cdsapi package. {e}'
+    logger.error(msg)
 
 
 class EraDownloader:
@@ -55,6 +63,11 @@ class EraDownloader:
             Required shape of data to download. Used to check downloaded data.
             If None, no check is performed.
         """
+        msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
+               'with a valid url and api key. Follow the instructions here: '
+               'https://cds.climate.copernicus.eu/api-how-to')
+        assert os.path.exists('~/.cdsapirc'), msg
+
         self.year = year
         self.month = month
         self.area = area
@@ -221,18 +234,16 @@ class EraDownloader:
                 os.remove(self.combined_file)
                 os.remove(self.interp_file)
 
-    def run_interpolation(self, max_workers=None):
+    def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
         max_log_height (usually 100m) and linear interpolation above this."""
         LogLinInterpolator.run(infile=self.combined_file,
                                outfile=self.interp_file,
-                               input_heights=[10, 100],
-                               output_heights=[40, 80, 120, 160, 200],
                                max_workers=max_workers,
-                               max_log_height=100,
-                               overwrite=self.overwrite)
+                               overwrite=self.overwrite,
+                               **kwargs)
 
-    def get_monthly_file(self, interp_workers=None):
+    def get_monthly_file(self, interp_workers=None, **interp_kwargs):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
         interpolate."""
@@ -245,7 +256,7 @@ class EraDownloader:
         self.download_process_combine()
 
         if self.run_interp:
-            self.run_interpolation(max_workers=interp_workers)
+            self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
     @classmethod
     def all_months_exist(cls, year, file_pattern):
@@ -270,7 +281,7 @@ class EraDownloader:
     @classmethod
     def run_month(cls, year, month, area, levels, combined_out_pattern,
                   interp_out_pattern=None, run_interp=True, overwrite=False,
-                  required_shape=None, interp_workers=None):
+                  required_shape=None, interp_workers=None, **interp_kwargs):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -299,19 +310,23 @@ class EraDownloader:
             If None, no check is performed.
         interp_workers : int | None
             Max number of workers to use for interpolation.
+        **interp_kwargs : dict
+            Keyword args for LogLinInterpolator.run()
         """
         downloader = cls(year=year, month=month, area=area, levels=levels,
                          combined_out_pattern=combined_out_pattern,
                          interp_out_pattern=interp_out_pattern,
                          run_interp=run_interp, overwrite=overwrite,
                          required_shape=required_shape)
-        downloader.get_monthly_file(interp_workers=interp_workers)
+        downloader.get_monthly_file(interp_workers=interp_workers,
+                                    **interp_kwargs)
 
     @classmethod
     def run_year(cls, year, area, levels, combined_out_pattern,
                  combined_yearly_file, interp_out_pattern=None,
                  interp_yearly_file=None, run_interp=True, overwrite=False,
-                 required_shape=None, max_workers=12, interp_workers=None):
+                 required_shape=None, max_workers=None, interp_workers=None,
+                 **interp_kwargs):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -345,6 +360,8 @@ class EraDownloader:
             files.
         interp_workers : int | None
             Max number of workers to use for interpolation.
+        **interp_kwargs : dict
+            Keyword args for LogLinInterpolator.run()
         """
         if max_workers == 1:
             for month in range(1, 13):
@@ -353,7 +370,8 @@ class EraDownloader:
                               interp_out_pattern=interp_out_pattern,
                               run_interp=run_interp, overwrite=overwrite,
                               required_shape=required_shape,
-                              interp_workers=interp_workers)
+                              interp_workers=interp_workers,
+                              **interp_kwargs)
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
@@ -365,7 +383,8 @@ class EraDownloader:
                         interp_out_pattern=interp_out_pattern,
                         run_interp=run_interp, overwrite=overwrite,
                         required_shape=required_shape,
-                        interp_workers=interp_workers)
+                        interp_workers=interp_workers,
+                        **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
                                 f'{month}.')
@@ -409,3 +428,181 @@ class EraDownloader:
                 logger.info(f'Saved {yearly_file}')
         else:
             logger.info(f'{yearly_file} already exists.')
+
+    @classmethod
+    def _check_single_file(cls, res, var_list, check_nans=True,
+                           required_shape=None):
+        """Make sure given files include the given variables. Check for NaNs
+        and required shape.
+
+        Parameters
+        ----------
+        res : xr.open_dataset() object
+            opened xarray data handler.
+        var_list : list
+            List of variables to check.
+        check_nans : bool
+            Whether to check data for NaNs.
+        required_shape : None | tuple
+            Required shape for data. Should be (n_levels, n_lats, n_lons).
+            If None the shape check will be skipped.
+
+        Returns
+        -------
+        good_vars : bool
+            Whether file includes all given variables
+        good_shape : bool
+            Whether shape matches required shape
+        nan_pct : float
+            Percent of data which consists of NaNs across all given variables.
+        """
+        good_vars = all(var in res for var in var_list)
+        good_shape = (*res['level'].shape, *res['latitude'].shape,
+                      *res['longitude'].shape)
+        good_shape = ('NA' if required_shape is None
+                      else (good_shape == required_shape))
+        nan_pct = ('NA' if not check_nans
+                   else cls.get_nan_pct(res, var_list=var_list))
+        return good_vars, good_shape, nan_pct
+
+    @classmethod
+    def get_nan_pct(cls, res, var_list=None):
+        """Get percentage of data which consists of NaNs, across the given
+        variables
+
+        Parameters
+        ----------
+        res : xr.open_dataset() object
+            opened xarray data handler.
+        var_list : list
+            List of variables to check.
+            If None: ['zg', 'orog', 'u', 'v', 'u_10m', 'v_10m',
+                      'u_100m', 'v_100m']
+
+        Returns
+        -------
+        nan_pct : float
+            Percent of data which consists of NaNs across all given variables.
+        """
+        elem_count = 0
+        nan_count = 0
+        for var in var_list:
+            nans = np.isnan(res[var].values)
+            if nans.any():
+                nan_count += nans.sum()
+            elem_count += nans.size
+        return 100 * nan_count / elem_count
+
+    @classmethod
+    def check_single_file(cls, file, var_list, check_nans=True,
+                          required_shape=None):
+        """Make sure given files include the given variables. Check for NaNs
+        and required shape.
+
+        Parameters
+        ----------
+        file : str
+            Name of file to check.
+        var_list : list
+            List of variables to check.
+        check_nans : bool
+            Whether to check data for NaNs.
+        required_shape : None | tuple
+            Required shape for data. Should be (n_levels, n_lats, n_lons).
+            If None the shape check will be skipped.
+
+        Returns
+        -------
+        good_vars : bool
+            Whether file includes all given variables
+        good_shape : bool
+            Whether shape matches required shape
+        nan_pct : float
+            Percent of data which consists of NaNs across all given variables.
+        """
+        good = True
+        nan_pct = None
+        good_shape = None
+        good_vars = None
+        try:
+            res = xr.open_dataset(file)
+        except Exception as e:
+            msg = (f'Unable to open {file}. {e}')
+            logger.warning(msg)
+            warn(msg)
+            good = False
+
+        if good:
+            out = cls._check_single_file(res, var_list, check_nans=check_nans,
+                                         required_shape=required_shape)
+            good_vars, good_shape, nan_pct = out
+        return good_vars, good_shape, nan_pct
+
+    @classmethod
+    def run_files_checks(cls, file_pattern, var_list=None,
+                         required_shape=None, check_nans=True,
+                         max_workers=None):
+        """Make sure given files include the given variables. Check for NaNs
+        and required shape.
+
+        Parameters
+        ----------
+        file_pattern : str | list
+            glob-able file pattern for files to check.
+        var_list : list | None
+            List of variables to check. If None:
+            ['zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m']
+        required_shape : None | tuple
+            Required shape for data. Should include (n_levels, n_lats, n_lons).
+            If None the shape check will be skipped.
+        check_nans : bool
+            Whether to check data for NaNs.
+        max_workers : int | None
+            Number of workers to use for thread pool file checks.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame describing file check results.
+            Has columns ['file', 'good_vars', 'good_shape', 'nan_pct']
+
+        """
+        if isinstance(file_pattern, str):
+            files = glob(file_pattern)
+        else:
+            files = file_pattern
+        if var_list is None:
+            var_list = ['zg', 'orog', 'u', 'v']
+            for h in [10, 100]:
+                var_list.append(f'u_{h}m')
+                var_list.append(f'v_{h}m')
+        df = pd.DataFrame(
+            columns=['file', 'good_vars', 'good_shape', 'nan_pct'])
+        df['file'] = files
+        if max_workers == 1:
+            for i, file in enumerate(files):
+                logger.info(f'Checking {file}.')
+                out = cls.check_single_file(file, var_list=var_list,
+                                            check_nans=check_nans,
+                                            required_shape=required_shape)
+                df.at[i, df.columns[1:]] = out
+                logger.info(f'Finished checking {file}.')
+        else:
+            futures = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                for i, file in enumerate(files):
+                    future = exe.submit(cls.check_single_file, file=file,
+                                        var_list=var_list,
+                                        check_nans=check_nans,
+                                        required_shape=required_shape)
+                    msg = (f'Submitted file check future for {file}. Future '
+                           f'{i + 1} of {len(files)}.')
+                    logger.info(msg)
+                    futures[future] = i
+            for i, future in enumerate(as_completed(futures)):
+                out = future.result()
+                df.at[futures[future], df.columns[1:]] = out
+                msg = (f'Finished checking {df["file"].iloc[futures[future]]}.'
+                       f' Future {i + 1} of {len(files)}.')
+                logger.info(msg)
+        return df

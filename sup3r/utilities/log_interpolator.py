@@ -61,7 +61,7 @@ class LogLinInterpolator:
         """
         self.infile = infile
         self.outfile = outfile
-        self.new_heights = output_heights or [40, 80]
+        self.new_heights = output_heights or [40, 80, 120, 160, 200]
         self.input_heights = input_heights or [10, 100]
         self.max_log_height = max_log_height
         self.u = None
