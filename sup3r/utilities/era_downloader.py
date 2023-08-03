@@ -8,7 +8,11 @@ https://cds.climate.copernicus.eu/api-how-to
 import logging
 import os
 from calendar import monthrange
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from glob import glob
 from warnings import warn
 
@@ -32,6 +36,15 @@ except ImportError as e:
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, file combination,
     and interpolation."""
+
+    msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
+           'with a valid url and api key. Follow the instructions here: '
+           'https://cds.climate.copernicus.eu/api-how-to')
+    req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
+    assert os.path.exists(req_file), msg
+
+    DEFAULT_VAR_LIST = ['zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m',
+                        'v_100m']
 
     def __init__(self, year, month, area, levels, combined_out_pattern,
                  interp_out_pattern=None, run_interp=True, overwrite=False,
@@ -61,21 +74,25 @@ class EraDownloader:
             Whether to overwrite existing files.
         required_shape : tuple | None
             Required shape of data to download. Used to check downloaded data.
-            If None, no check is performed.
+            Should be (n_levels, n_lats, n_lons). If None, no check is
+            performed.
         """
-        msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
-               'with a valid url and api key. Follow the instructions here: '
-               'https://cds.climate.copernicus.eu/api-how-to')
-        assert os.path.exists('~/.cdsapirc'), msg
-
         self.year = year
         self.month = month
         self.area = area
         self.levels = levels
         self.run_interp = run_interp
         self.overwrite = overwrite
-        self.required_shape = (None if not required_shape
-                               else (1, len(levels), *required_shape))
+
+        if required_shape is None or len(required_shape) == 3:
+            self.required_shape = required_shape
+        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
+            self.required_shape = (len(levels), *required_shape)
+        else:
+            msg = (f'Received weird required_shape: {required_shape}.')
+            logger.error(msg)
+            raise OSError(msg)
+
         self.days = [str(n).zfill(2)
                      for n in np.arange(1, monthrange(year, month)[1] + 1)]
         self.hours = [str(n).zfill(2) + ":00" for n in np.arange(0, 24)]
@@ -87,6 +104,7 @@ class EraDownloader:
             basedir, f'sfc_{year}_{str(month).zfill(2)}.nc')
         self.level_file = os.path.join(
             basedir, f'levels_{year}_{str(month).zfill(2)}.nc')
+        self.interp_file = None
         if interp_out_pattern is not None and run_interp:
             self.interp_file = interp_out_pattern.format(
                 year=year, month=str(month).zfill(2))
@@ -122,7 +140,7 @@ class EraDownloader:
 
     def download_levels_file(self):
         """Download file with requested pressure levels"""
-        if not os.path.exists(self.level_file):
+        if not os.path.exists(self.level_file) or self.overwrite:
             c.retrieve(
                 'reanalysis-era5-pressure-levels',
                 {
@@ -145,7 +163,7 @@ class EraDownloader:
 
     def download_surface_file(self):
         """Download surface file"""
-        if not os.path.exists(self.surface_file):
+        if not os.path.exists(self.surface_file) or self.overwrite:
             c.retrieve(
                 'reanalysis-era5-single-levels',
                 {
@@ -168,29 +186,26 @@ class EraDownloader:
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
-    def good_file(self, file, shape=None):
-        """Check if file has the required shape and variables."""
-        try:
-            tmp = xr.open_dataset(file)
-            check = True
-        except Exception as e:
-            logger.info(f'Could not open {file}. {e}')
-            check = False
-            return check
+    def good_file(self, file, required_shape):
+        """Check if file has the required shape and variables.
 
-        if shape is not None:
-            if tmp['u'].shape[1:] != shape[1:]:
-                check = False
-                logger.info(f'Bad shape: {file} {tmp["u"].shape} {shape}')
+        Parameters
+        ----------
+        file : str
+            Name of file to check for required variables and shape
+        required_shape : tuple
+            Required shape for data. Should be (n_levels, n_lats, n_lons).
 
-        vars = ['u', 'v', 'orog', 'zg']
-        for h in [10, 100]:
-            vars.append(f'u_{h}m')
-            vars.append(f'v_{h}m')
-        for var in vars:
-            if var not in tmp.variables:
-                check = False
-                logger.info(f'Missing variable: {file} ({var})')
+        Returns
+        -------
+        bool
+            Whether or not data has required shape and variables.
+        """
+        out = self.check_single_file(file, check_nans=False,
+                                     check_heights=False,
+                                     required_shape=required_shape)
+        good_vars, good_shape, _, _ = out
+        check = good_vars and good_shape
         return check
 
     def download_process_combine(self):
@@ -219,10 +234,9 @@ class EraDownloader:
                 check = self.good_file(self.combined_file,
                                        self.required_shape)
                 if not check:
-                    logger.info(f'Bad file: {self.combined_file}')
-                    os.remove(self.combined_file)
-                    if os.path.exists(self.interp_file):
-                        os.remove(self.interp_file)
+                    msg = f'Bad file: {self.combined_file}'
+                    logger.error(msg)
+                    raise OSError(msg)
                 else:
                     if os.path.exists(self.level_file):
                         os.remove(self.level_file)
@@ -231,8 +245,12 @@ class EraDownloader:
                     logger.info(f'{self.combined_file} already exists.')
             except Exception as e:
                 logger.info(f'Something wrong with {self.combined_file}. {e}')
-                os.remove(self.combined_file)
-                os.remove(self.interp_file)
+                if os.path.exists(self.combined_file):
+                    os.remove(self.combined_file)
+                check = (self.interp_file is not None
+                         and os.path.exists(self.interp_file))
+                if check:
+                    os.remove(self.interp_file)
 
     def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
@@ -307,7 +325,8 @@ class EraDownloader:
             Whether to overwrite existing files.
         required_shape : tuple | None
             Required shape of data to download. Used to check downloaded data.
-            If None, no check is performed.
+            Should be (n_levels, n_lats, n_lons).  If None, no check is
+            performed.
         interp_workers : int | None
             Max number of workers to use for interpolation.
         **interp_kwargs : dict
@@ -354,7 +373,8 @@ class EraDownloader:
             Whether to overwrite existing files.
         required_shape : tuple | None
             Required shape of data to download. Used to check downloaded data.
-            If None, no check is performed.
+            Should be (n_levels, n_lats, n_lons).  If None, no check is
+            performed.
         max_workers : int
             Max number of workers to use for downloading and processing monthly
             files.
@@ -430,8 +450,9 @@ class EraDownloader:
             logger.info(f'{yearly_file} already exists.')
 
     @classmethod
-    def _check_single_file(cls, res, var_list, check_nans=True,
-                           required_shape=None):
+    def _check_single_file(cls, res, var_list=None, check_nans=True,
+                           check_heights=True, max_interp_height=200,
+                           required_shape=None, max_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -443,9 +464,16 @@ class EraDownloader:
             List of variables to check.
         check_nans : bool
             Whether to check data for NaNs.
+        check_heights : bool
+            Whether to check for heights above max interpolation height.
+        max_interp_height : int
+            Maximum height for interpolated output. Need raw heights above this
+            to avoid extrapolation.
         required_shape : None | tuple
             Required shape for data. Should be (n_levels, n_lats, n_lons).
             If None the shape check will be skipped.
+        max_workers : int | None
+            Max number of workers to use in height check routine.
 
         Returns
         -------
@@ -453,17 +481,108 @@ class EraDownloader:
             Whether file includes all given variables
         good_shape : bool
             Whether shape matches required shape
+        good_hgts : bool
+            Whether there exists a height above the max interpolation height
+            for each spatial location and timestep
         nan_pct : float
             Percent of data which consists of NaNs across all given variables.
         """
+        var_list = var_list if var_list is not None else cls.DEFAULT_VAR_LIST
         good_vars = all(var in res for var in var_list)
-        good_shape = (*res['level'].shape, *res['latitude'].shape,
-                      *res['longitude'].shape)
+        res_shape = (*res['level'].shape, *res['latitude'].shape,
+                     *res['longitude'].shape)
         good_shape = ('NA' if required_shape is None
-                      else (good_shape == required_shape))
+                      else (res_shape == required_shape))
+        good_hgts = ('NA' if not check_heights
+                     else cls.check_heights(
+                         res, max_interp_height=max_interp_height,
+                         max_workers=max_workers))
         nan_pct = ('NA' if not check_nans
                    else cls.get_nan_pct(res, var_list=var_list))
-        return good_vars, good_shape, nan_pct
+
+        if not good_vars:
+            missing_vars = var_list[[var not in res for var in var_list]]
+            logger.error(f'Missing variables: {missing_vars}.')
+        if good_shape != 'NA' and not good_shape:
+            logger.error(f'Bad shape: {res_shape} != {required_shape}.')
+
+        return good_vars, good_shape, good_hgts, nan_pct
+
+    @classmethod
+    def check_heights(cls, res, max_interp_height=200, max_workers=10):
+        """Make sure there are heights higher than max interpolation height
+
+        Parameters
+        ----------
+        res : xr.open_dataset() object
+            opened xarray data handler.
+        max_interp_height : int
+            Maximum height for interpolated output. Need raw heights above this
+            to avoid extrapolation.
+        max_workers : int | None
+            Max number of workers to use for process pool height check.
+
+        Returns
+        -------
+        bool
+            Whether there is a height above max_interp_height for every spatial
+            location and timestep
+        """
+        gp = res['zg'].values
+        sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
+                            gp.shape[1], axis=1)
+        heights = gp - sfc_hgt
+        heights = heights.reshape(heights.shape[0], heights.shape[1], -1)
+        checks = []
+        logger.info(
+            f'Checking heights with max_interp_height={max_interp_height}.')
+
+        if max_workers == 1:
+            for idt in range(heights.shape[0]):
+                checks.append(cls._check_heights_single_ts(
+                    heights[idt], max_interp_height=max_interp_height))
+                msg = f'Finished check for {idt + 1} of {heights.shape[0]}.'
+                logger.debug(msg)
+        else:
+            futures = []
+            with ProcessPoolExecutor(max_workers=max_workers) as exe:
+                for idt in range(heights.shape[0]):
+                    future = exe.submit(
+                        cls._check_heights_single_ts, heights[idt],
+                        max_interp_height=max_interp_height)
+                    futures.append(future)
+                    msg = (f'Submitted height check for {idt + 1} of '
+                           f'{heights.shape[0]}')
+                    logger.info(msg)
+            for i, future in enumerate(as_completed(futures)):
+                checks.append(future.result())
+                msg = (f'Finished height check for {i + 1} of '
+                       f'{heights.shape[0]}')
+                logger.info(msg)
+
+        return all(checks)
+
+    @classmethod
+    def _check_heights_single_ts(cls, heights, max_interp_height=200):
+        """Make sure there are heights higher than max interpolation height for
+        a single timestep
+
+        Parameters
+        ----------
+        heights : ndarray
+            Array of heights for single timestep and all spatial locations
+        max_interp_height : int
+            Maximum height for interpolated output. Need raw heights above this
+            to avoid extrapolation.
+
+        Returns
+        -------
+        bool
+            Whether there is a height above max_interp_height for every spatial
+            location
+        """
+        checks = [any(h > max_interp_height) for h in heights.T]
+        return all(checks)
 
     @classmethod
     def get_nan_pct(cls, res, var_list=None):
@@ -486,7 +605,9 @@ class EraDownloader:
         """
         elem_count = 0
         nan_count = 0
+        var_list = var_list if var_list is not None else cls.DEFAULT_VAR_LIST
         for var in var_list:
+            logger.info(f'Checking NaNs for {var}.')
             nans = np.isnan(res[var].values)
             if nans.any():
                 nan_count += nans.sum()
@@ -494,8 +615,9 @@ class EraDownloader:
         return 100 * nan_count / elem_count
 
     @classmethod
-    def check_single_file(cls, file, var_list, check_nans=True,
-                          required_shape=None):
+    def check_single_file(cls, file, var_list=None, check_nans=True,
+                          check_heights=True, max_interp_height=200,
+                          required_shape=None, max_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -507,9 +629,16 @@ class EraDownloader:
             List of variables to check.
         check_nans : bool
             Whether to check data for NaNs.
+        check_heights : bool
+            Whether to check for heights above max interpolation height.
+        max_interp_height : int
+            Maximum height for interpolated output. Need raw heights above this
+            to avoid extrapolation.
         required_shape : None | tuple
             Required shape for data. Should be (n_levels, n_lats, n_lons).
             If None the shape check will be skipped.
+        max_workers : int | None
+            Max number of workers to use for process pool height check.
 
         Returns
         -------
@@ -517,6 +646,9 @@ class EraDownloader:
             Whether file includes all given variables
         good_shape : bool
             Whether shape matches required shape
+        good_hgts : bool
+            Whether there is a height above max_interp_height for every spatial
+            location at every timestep.
         nan_pct : float
             Percent of data which consists of NaNs across all given variables.
         """
@@ -524,6 +656,8 @@ class EraDownloader:
         nan_pct = None
         good_shape = None
         good_vars = None
+        good_hgts = None
+        var_list = var_list if var_list is not None else cls.DEFAULT_VAR_LIST
         try:
             res = xr.open_dataset(file)
         except Exception as e:
@@ -534,14 +668,18 @@ class EraDownloader:
 
         if good:
             out = cls._check_single_file(res, var_list, check_nans=check_nans,
-                                         required_shape=required_shape)
-            good_vars, good_shape, nan_pct = out
-        return good_vars, good_shape, nan_pct
+                                         check_heights=check_heights,
+                                         max_interp_height=max_interp_height,
+                                         required_shape=required_shape,
+                                         max_workers=max_workers)
+            good_vars, good_shape, good_hgts, nan_pct = out
+        return good_vars, good_shape, good_hgts, nan_pct
 
     @classmethod
     def run_files_checks(cls, file_pattern, var_list=None,
                          required_shape=None, check_nans=True,
-                         max_workers=None):
+                         check_heights=True, max_interp_height=200,
+                         max_workers=None, height_check_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -557,44 +695,53 @@ class EraDownloader:
             If None the shape check will be skipped.
         check_nans : bool
             Whether to check data for NaNs.
+        check_heights : bool
+            Whether to check for heights above max interpolation height.
+        max_interp_height : int
+            Maximum height for interpolated output. Need raw heights above this
+            to avoid extrapolation.
         max_workers : int | None
             Number of workers to use for thread pool file checks.
+        height_check_workers : int | None
+            Number of workers to use for process pool height check.
 
         Returns
         -------
         df : pd.DataFrame
-            DataFrame describing file check results.
-            Has columns ['file', 'good_vars', 'good_shape', 'nan_pct']
+            DataFrame describing file check results.  Has columns ['file',
+            'good_vars', 'good_shape', 'good_hgts', 'nan_pct']
 
         """
         if isinstance(file_pattern, str):
             files = glob(file_pattern)
         else:
             files = file_pattern
-        if var_list is None:
-            var_list = ['zg', 'orog', 'u', 'v']
-            for h in [10, 100]:
-                var_list.append(f'u_{h}m')
-                var_list.append(f'v_{h}m')
+        var_list = var_list if var_list is not None else cls.DEFAULT_VAR_LIST
         df = pd.DataFrame(
-            columns=['file', 'good_vars', 'good_shape', 'nan_pct'])
-        df['file'] = files
+            columns=['file', 'good_vars', 'good_shape', 'good_hgts',
+                     'nan_pct'])
+        df['file'] = [os.path.basename(file) for file in files]
         if max_workers == 1:
             for i, file in enumerate(files):
                 logger.info(f'Checking {file}.')
-                out = cls.check_single_file(file, var_list=var_list,
-                                            check_nans=check_nans,
-                                            required_shape=required_shape)
+                out = cls.check_single_file(
+                    file, var_list=var_list, check_nans=check_nans,
+                    check_heights=check_heights,
+                    max_interp_height=max_interp_height,
+                    max_workers=height_check_workers,
+                    required_shape=required_shape)
                 df.at[i, df.columns[1:]] = out
                 logger.info(f'Finished checking {file}.')
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for i, file in enumerate(files):
-                    future = exe.submit(cls.check_single_file, file=file,
-                                        var_list=var_list,
-                                        check_nans=check_nans,
-                                        required_shape=required_shape)
+                    future = exe.submit(
+                        cls.check_single_file, file=file, var_list=var_list,
+                        check_nans=check_nans, check_heights=check_heights,
+                        max_interp_height=max_interp_height,
+                        max_workers=height_check_workers,
+                        required_shape=required_shape)
                     msg = (f'Submitted file check future for {file}. Future '
                            f'{i + 1} of {len(files)}.')
                     logger.info(msg)

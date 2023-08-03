@@ -83,6 +83,7 @@ class LogLinInterpolator:
 
     def load(self):
         """Load ERA5 data and create wind component arrays"""
+        logger.info(f'Loading {self.infile}.')
         with xr.open_dataset(self.infile) as res:
             gp = res['zg'].values
             sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
@@ -110,11 +111,13 @@ class LogLinInterpolator:
 
     def interpolate_wind(self, max_workers=None):
         """Interpolate u/v wind components below 100m using log profile"""
+        logger.info(f'Interpolating U to heights = {self.new_heights}.')
         self.u_new = self.interp_ws_to_height(self.u, self.heights,
                                               self.new_heights,
                                               self.fixed_level_mask,
                                               self.max_log_height,
                                               max_workers)
+        logger.info(f'Interpolating V to heights = {self.new_heights}.')
         self.v_new = self.interp_ws_to_height(self.v, self.heights,
                                               self.new_heights,
                                               self.fixed_level_mask,
@@ -127,9 +130,11 @@ class LogLinInterpolator:
         os.makedirs(dirname, exist_ok=True)
         os.system(f'cp {self.infile} {self.outfile}')
         ds = Dataset(self.outfile, 'a')
+        logger.info(f'Creating {self.outfile}.')
         for i, height in enumerate(self.new_heights):
             variable = ds.variables['u_10m']
             name = f'u_{height}m'
+            logger.info(f'Adding {name} to {self.outfile}.')
             if name not in ds.variables:
                 _ = ds.createVariable(name,
                                       np.float32,
@@ -139,6 +144,7 @@ class LogLinInterpolator:
                 ds.variables[name].long_name = f'{height} meter U Component'
             variable = ds.variables['v_10m']
             name = f'v_{height}m'
+            logger.info(f'Adding {name} to {self.outfile}.')
             if name not in ds.variables:
                 ds.createVariable(name,
                                   np.float32,
@@ -195,25 +201,38 @@ class LogLinInterpolator:
             log_interp.save_output()
 
     @classmethod
-    def run_multiple(cls, infiles, out_dir, heights=None,
-                     overwrite=False, max_workers=None):
-        """Run log interpolation on multiple files
+    def run_multiple(cls, infiles, out_dir, output_heights=None,
+                     input_heights=None, only_fixed_levels=True,
+                     max_log_height=100, overwrite=False, max_workers=None):
+        """Run interpolation and save output
 
         Parameters
         ----------
         infiles : str | list
-            List of ERA5 data files or a globbable string to use for windspeed
-            log interpolation. Assumed to contain u/v at 10m, 100m, and at
-            least one height between.
+            Glob-able path or to ERA5 data or list of files to use for
+            windspeed log interpolation. Assumed to contain zg, orog, and at
+            least u/v at 10m.
         out_dir : str
-            Directory to save output after log interpolation.
-        heights : None | list
+            Path to save output directory after log interpolation.
+        output_heights : None | list
             Heights to interpolate to. If None this defaults to [40, 80].
+        input_heights : None | list
+            Explicit heights to use in interpolation. e.g. If this is [10, 100]
+            then u/v at 10 and 100m will be included explicitly in the input
+            array used for interpolation. interpolate to. If None this defaults
+            to [10, 100].
+        only_fixed_levels : bool
+            Use only fixed levels for log interpolation. Fixed levels are those
+            that were not computed from pressure levels but instead added along
+            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
+            v_100m)
+        max_log_height : int
+            Maximum height to use for log interpolation. Above this linear
+            interpolation will be used.
         overwrite : bool
-            Whether to overwrite exisitng outfiles.
-        max_workers : None | bool
-            Number of workers to use for thread pool when running multiple log
-            interpolation routines.
+            Whether to overwrite existing outfile.
+        max_workers : None | int
+            Number of workers to use for interpolating over timesteps.
         """
         futures = []
         if isinstance(infiles, str):
@@ -223,8 +242,11 @@ class LogLinInterpolator:
                 outfile = os.path.basename(file).replace('.nc',
                                                          '_all_interp.nc')
                 outfile = os.path.join(out_dir, outfile)
-                cls.run(file, outfile, heights, overwrite,
-                        max_workers=max_workers)
+                cls.run(file, outfile, output_heights=output_heights,
+                        input_heights=input_heights,
+                        only_fixed_levels=only_fixed_levels,
+                        max_log_height=max_log_height,
+                        overwrite=overwrite)
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
@@ -232,8 +254,12 @@ class LogLinInterpolator:
                     outfile = os.path.basename(file).replace('.nc',
                                                              '_all_interp.nc')
                     outfile = os.path.join(out_dir, outfile)
-                    futures.append(exe.submit(cls.run, file, outfile, heights,
-                                              overwrite, max_workers))
+                    futures.append(exe.submit(
+                        cls.run, file, outfile, output_heights=output_heights,
+                        input_heights=input_heights,
+                        only_fixed_levels=only_fixed_levels,
+                        max_log_height=max_log_height,
+                        overwrite=overwrite))
                     logger.info(
                         f'{i + 1} of {len(infiles)} futures submitted.')
             for i, future in enumerate(as_completed(futures)):
