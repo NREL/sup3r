@@ -39,6 +39,7 @@ class Collector(OutputMixIn):
             file_paths = glob.glob(file_paths)
         self.flist = sorted(file_paths)
         self.data = None
+        self.file_attrs = {}
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -126,8 +127,7 @@ class Collector(OutputMixIn):
 
         return row_slice, col_loc
 
-    @classmethod
-    def get_coordinate_indices(cls, target_meta, full_meta, threshold=1e-4):
+    def get_coordinate_indices(self, target_meta, full_meta, threshold=1e-4):
         """Get coordindate indices in meta data for given targets
 
         Parameters
@@ -142,7 +142,6 @@ class Collector(OutputMixIn):
         ll2 = np.vstack((full_meta.latitude.values,
                          full_meta.longitude.values)).T
         tree = KDTree(ll2)
-
         targets = np.vstack((target_meta.latitude.values,
                              target_meta.longitude.values)).T
         _, indices = tree.query(targets, distance_upper_bound=threshold)
@@ -219,17 +218,22 @@ class Collector(OutputMixIn):
             f_data = f_data.astype(dtype)
             self.data[row_slice, col_slice] = f_data
 
-    @staticmethod
-    def _get_file_attrs(file):
+    def _get_file_attrs(self, file):
         """Get meta data and time index for a single file"""
-        with RexOutputs(file, mode='r') as f:
-            meta = f.meta
-            time_index = f.time_index
+        if file in self.file_attrs:
+            meta = self.file_attrs[file]['meta']
+            time_index = self.file_attrs[file]['time_index']
+        else:
+            with RexOutputs(file, mode='r') as f:
+                meta = f.meta
+                time_index = f.time_index
+        if file not in self.file_attrs:
+            self.file_attrs[file] = {'meta': meta, 'time_index': time_index}
         return meta, time_index
 
-    @classmethod
-    def _get_collection_attrs_parallel(cls, file_paths, max_workers=None):
-        """Get meta data and time index from a file list to be collected.
+    def _get_collection_attrs(self, file_paths, sort=True,
+                              sort_key=None, max_workers=None):
+        """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
 
@@ -237,54 +241,125 @@ class Collector(OutputMixIn):
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            or a single string with unix-style /search/patt*ern.h5.
+        sort : bool
+            flag to sort flist to determine meta data order.
+        sort_key : None | fun
+            Optional sort key to sort flist by (determines how meta is built
+            if out_file does not exist).
         max_workers : int | None
             Number of workers to use in parallel. 1 runs serial,
             None will use all available workers.
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full list of coordinates present in the collected meta for the full
+            file list.
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
 
         Returns
         -------
         time_index : pd.datetimeindex
-            List of datetime indices for each file that is being collected
+            Concatenated full size datetime index from the flist that is
+            being collected
         meta : pd.DataFrame
-            List of meta data for each files that is being
-            collected
+            Concatenated full size meta data from the flist that is being
+            collected or provided target meta
         """
+        if sort:
+            file_paths = sorted(file_paths, key=sort_key)
+
+        logger.info('Getting collection attrs for full dataset with '
+                    f'max_workers={max_workers}.')
 
         time_index = [None] * len(file_paths)
         meta = [None] * len(file_paths)
-        futures = {}
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+        if max_workers == 1:
             for i, fn in enumerate(file_paths):
-                future = exe.submit(cls._get_file_attrs, fn)
-                futures[future] = i
+                meta[i], time_index[i] = self._get_file_attrs(fn)
+                logger.debug(f'{i+1} / {len(file_paths)} files finished')
+        else:
+            futures = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                for i, fn in enumerate(file_paths):
+                    future = exe.submit(self._get_file_attrs, fn)
+                    futures[future] = i
 
-            interval = int(np.ceil(len(futures) / 10))
-            for i, future in enumerate(as_completed(futures)):
-                if i % interval == 0:
+                for i, future in enumerate(as_completed(futures)):
                     mem = psutil.virtual_memory()
-                    logger.info('Meta collection futures completed: '
-                                '{} out of {}. '
-                                'Current memory usage is '
-                                '{:.3f} GB out of {:.3f} GB total.'
-                                .format(i + 1, len(futures),
-                                        mem.used / 1e9, mem.total / 1e9))
-                try:
-                    idx = futures[future]
-                    meta[idx], time_index[idx] = future.result()
-                except Exception as e:
-                    msg = ('Falied to get attrs from '
-                           f'{file_paths[futures[future]]}')
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
-        return meta, time_index
+                    msg = (f'Meta collection futures completed: {i + 1} out '
+                           f'of {len(futures)}. Current memory usage is '
+                           f'{mem.used / 1e9:.3f} GB out of '
+                           f'{mem.total / 1e9:.3f} GB total.')
+                    logger.info(msg)
+                    try:
+                        idx = futures[future]
+                        meta[idx], time_index[idx] = future.result()
+                    except Exception as e:
+                        msg = ('Falied to get attrs from '
+                               f'{file_paths[futures[future]]}')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
+        time_index = pd.DatetimeIndex(np.concatenate(time_index))
+        time_index = time_index.sort_values()
+        time_index = time_index.drop_duplicates()
+        meta = pd.concat(meta)
 
-    @classmethod
-    def _get_collection_attrs(cls, file_paths, sort=True,
-                              sort_key=None, max_workers=None,
-                              target_final_meta_file=None, threshold=1e-4):
+        if 'latitude' in meta and 'longitude' in meta:
+            meta = meta.drop_duplicates(subset=['latitude', 'longitude'])
+        meta = meta.sort_values('gid')
+
+        return time_index, meta
+
+    def get_target_and_masked_meta(self, meta, target_final_meta_file=None,
+                                   threshold=1e-4):
+        """Use combined meta for all files and target_final_meta_file to get
+        mapping from the full meta to the target meta and the mapping from the
+        target meta to the full meta, both of which are masked to remove
+        coordinates not present in the target_meta.
+
+        Parameters
+        ----------
+        meta : pd.DataFrame
+            Concatenated full size meta data from the flist that is being
+            collected or provided target meta
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full list of coordinates present in the collected meta for the full
+            file list.
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
+
+        Returns
+        -------
+        target_final_meta : pd.DataFrame
+            Concatenated full size meta data from the flist that is being
+            collected or provided target meta
+        masked_meta : pd.DataFrame
+            Concatenated full size meta data from the flist that is being
+            collected masked against target_final_meta
+        """
+        if (target_final_meta_file is not None
+                and os.path.exists(target_final_meta_file)):
+            target_final_meta = pd.read_csv(target_final_meta_file)
+            if 'gid' in target_final_meta.columns:
+                target_final_meta = target_final_meta.drop('gid', axis=1)
+            mask = self.get_coordinate_indices(target_final_meta, meta,
+                                               threshold=threshold)
+            masked_meta = meta.iloc[mask]
+            logger.info(f'Masked meta coordinates: {len(masked_meta)}')
+            mask = self.get_coordinate_indices(masked_meta, target_final_meta,
+                                               threshold=threshold)
+            target_final_meta = target_final_meta.iloc[mask]
+            logger.info(f'Target meta coordinates: {len(target_final_meta)}')
+        else:
+            target_final_meta = masked_meta = meta
+
+        return target_final_meta, masked_meta
+
+    def get_collection_attrs(self, file_paths, sort=True,
+                             sort_key=None, max_workers=None,
+                             target_final_meta_file=None, threshold=1e-4):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -327,53 +402,17 @@ class Collector(OutputMixIn):
             that all the files in file_paths have the same global file
             attributes).
         """
-
         if sort:
             file_paths = sorted(file_paths, key=sort_key)
 
-        logger.info('Getting collection attrs for full dataset')
+        logger.info('Getting collection attrs for full dataset with '
+                    f'max_workers={max_workers}.')
 
-        if max_workers == 1:
-            meta = []
-            time_index = None
-            for i, fn in enumerate(file_paths):
-                with RexOutputs(fn, mode='r') as f:
-                    meta.append(f.meta)
+        time_index, meta = self._get_collection_attrs(
+            file_paths, sort=sort, sort_key=sort_key, max_workers=max_workers)
 
-                    if time_index is None:
-                        time_index = f.time_index
-                    else:
-                        time_index = time_index.append(f.time_index)
-                logger.debug(f'{i+1} / {len(file_paths)} files finished')
-        else:
-            meta, time_index = cls._get_collection_attrs_parallel(
-                file_paths, max_workers=max_workers)
-            time_index = pd.DatetimeIndex(np.concatenate(time_index))
-
-        time_index = time_index.sort_values()
-        time_index = time_index.drop_duplicates()
-        meta = pd.concat(meta)
-
-        if 'latitude' in meta and 'longitude' in meta:
-            meta = meta.drop_duplicates(subset=['latitude', 'longitude'])
-
-        meta = meta.sort_values('gid')
-
-        if (target_final_meta_file is not None
-                and os.path.exists(target_final_meta_file)):
-            target_final_meta = pd.read_csv(target_final_meta_file)
-            if 'gid' in target_final_meta.columns:
-                target_final_meta = target_final_meta.drop('gid', axis=1)
-            mask = cls.get_coordinate_indices(target_final_meta, meta,
-                                              threshold=threshold)
-            masked_meta = meta.iloc[mask]
-            logger.info(f'Masked meta coordinates: {len(masked_meta)}')
-            mask = cls.get_coordinate_indices(masked_meta, target_final_meta,
-                                              threshold=threshold)
-            target_final_meta = target_final_meta.iloc[mask]
-            logger.info(f'Target meta coordinates: {len(target_final_meta)}')
-        else:
-            target_final_meta = masked_meta = meta
+        target_final_meta, masked_meta = self.get_target_and_masked_meta(
+            meta, target_final_meta_file, threshold=threshold)
 
         shape = (len(time_index), len(target_final_meta))
 
@@ -482,8 +521,7 @@ class Collector(OutputMixIn):
             logger.warning(msg)
             warn(msg)
 
-    @classmethod
-    def group_time_chunks(cls, file_paths, n_writes=None):
+    def group_time_chunks(self, file_paths, n_writes=None):
         """Group files by temporal_chunk_index. Assumes file_paths have a
         suffix format like _{temporal_chunk_index}_{spatial_chunk_index}.h5
 
@@ -634,7 +672,7 @@ class Collector(OutputMixIn):
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
-        out = collector._get_collection_attrs(
+        out = collector.get_collection_attrs(
             collector.flist, max_workers=max_workers,
             target_final_meta_file=target_final_meta_file,
             threshold=threshold)
@@ -664,7 +702,7 @@ class Collector(OutputMixIn):
                     logger.info('Collecting file list chunk {} out of {} '
                                 .format(j + 1, len(flist_chunks)))
                     time_index, target_final_meta, masked_meta, shape, _ = \
-                        collector._get_collection_attrs(
+                        collector.get_collection_attrs(
                             flist, max_workers=max_workers,
                             target_final_meta_file=target_final_meta_file,
                             threshold=threshold)
