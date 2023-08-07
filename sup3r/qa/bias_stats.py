@@ -54,6 +54,9 @@ class Sup3rBiasStats:
         self.threshold = threshold
         self.out_pattern = out_pattern
         self.overwrite = overwrite
+        self.indices = None
+        self.mask = None
+        self.tree = None
         if out_pattern is not None:
             os.makedirs(os.path.dirname(out_pattern), exist_ok=True)
 
@@ -65,15 +68,11 @@ class Sup3rBiasStats:
                f'max_workers={self.max_workers}.')
         logger.info(msg)
 
-        logger.info(f'Computing KDTree for reference files: {self.ref_file}')
-        self.tree = self.get_ref_tree()
-        logger.info('Computing coordinate map for sup3r_file, ref_file: '
-                    f'{self.sup3r_file}, {self.ref_file}.')
-        self.indices, self.mask = self.get_coord_map()
-
     @property
     def sup3r_sites(self):
         """Get list of matched sup3r site indices."""
+        if self.mask is None:
+            self.indices, self.mask = self.get_coord_map()
         with self.RESOURCE_CLASS(self.sup3r_file) as res:
             gids = res.meta.index.values
             return gids[self.mask]
@@ -81,6 +80,8 @@ class Sup3rBiasStats:
     @property
     def ref_sites(self):
         """Get list of matched reference site indices"""
+        if self.mask is None:
+            self.indices, self.mask = self.get_coord_map()
         return self.indices[self.mask]
 
     def get_ref_tree(self):
@@ -94,21 +95,21 @@ class Sup3rBiasStats:
         """Get list of indices to map from reference coordinates to sup3r
         coordinates with mask to remove coordinates exceeding distance
         threshold."""
+        if self.tree is None:
+            self.tree = self.get_ref_tree()
         with self.RESOURCE_CLASS(self.sup3r_file) as res:
             dists, indices = self.tree.query(
                 res.meta[['latitude', 'longitude']].values)
             mask = dists < self.threshold
         return indices, mask
 
-    def _compute_stats(self, files, sites=None, res_name=None):
+    def _compute_stats(self, files, res_name=None):
         """Compute stats for given files.
 
         Parameters
         ----------
         files : list
             List of files to compute stats for.
-        sites : list
-            List of sites to compute stats for.
         res_name : str | None
             Name of resource to compute stats for. Used to name output files.
 
@@ -130,14 +131,15 @@ class Sup3rBiasStats:
                 check = (out_path is not None and not self.overwrite
                          and os.path.exists(out_path))
                 if check:
+                    logger.info(f'Loading {out_path}.')
                     dfs[dset][stat] = pd.read_csv(out_path)
 
                 else:
                     logger.info(f'Computing {stat} for {dset} for {files}.')
                     dfs[dset][stat] = TemporalStats.run(
-                        files, dset, sites=sites, statistics=stat,
-                        diurnal=False, month=self.do_months,
-                        combinations=False, res_cls=self.RESOURCE_CLASS,
+                        files, dset, statistics=stat, diurnal=False,
+                        month=self.do_months, combinations=False,
+                        res_cls=self.RESOURCE_CLASS,
                         max_workers=self.max_workers, chunks_per_worker=5,
                         lat_lon_only=True, mask_zeros=False, out_path=out_path)
         return dfs
@@ -154,13 +156,10 @@ class Sup3rBiasStats:
             Dictionary of pandas dataframes with keys for each dataset and
             stat for reference files. e.g. ref_dfs['windspeed_10m']['mean'].
         """
-
         logger.info(f'Computing stats for sup3r_file: {self.sup3r_file}.')
-        sup3r_dfs = self._compute_stats(self.sup3r_file, self.sup3r_sites,
-                                        res_name='sup3r')
+        sup3r_dfs = self._compute_stats(self.sup3r_file, res_name='sup3r')
         logger.info(f'Computing stats for ref_file: {self.ref_file}.')
-        ref_dfs = self._compute_stats(self.ref_file, self.ref_sites,
-                                      res_name='ref')
+        ref_dfs = self._compute_stats(self.ref_file, res_name='ref')
         return sup3r_dfs, ref_dfs
 
     def compute_biases(self, sup3r_dfs, ref_dfs):
@@ -186,13 +185,15 @@ class Sup3rBiasStats:
         for dset in sup3r_dfs:
             bias_dfs[dset] = {}
             for stat, df in sup3r_dfs[dset].items():
-                bias_dfs[dset][stat] = df.copy()
-                cols = sup3r_dfs[dset][stat].columns
-                cols = set(cols).intersection(ref_dfs[dset][stat].columns)
+                sup3r_df = df.copy()
+                ref_df = ref_dfs[dset][stat]
+                cols = sup3r_df.columns
+                cols = set(cols).intersection(ref_df.columns)
                 cols = [col for col in cols if col
                         not in ('latitude', 'longitude')]
-                for col in cols:
-                    bias_dfs[dset][stat][col] -= ref_dfs[dset][stat][col]
+                bias_df = sup3r_df.iloc[self.sup3r_sites]
+                bias_df[cols] -= ref_df.iloc[self.ref_sites][cols].values
+                bias_dfs[dset][stat] = bias_df
                 if self.out_pattern is not None:
                     out_file = self.out_pattern.format(res='bias', dset=dset,
                                                        stat=stat)
@@ -231,9 +232,15 @@ class Sup3rBiasStats:
             dataset and stat. e.g. sup3r_dfs['windspeed_10m']['mean'][col] -
             ref_dfs['windspeed_10m']['mean'][col]
         """
-        bc_plot = cls(sup3r_file=sup3r_file, ref_file=ref_file,
-                      dsets=dsets, stats=stats, do_months=do_months,
-                      max_workers=max_workers, out_pattern=out_pattern,
-                      threshold=threshold)
-        sup3r_dfs, ref_dfs = bc_plot.compute_stats()
-        return bc_plot.compute_biases(sup3r_dfs, ref_dfs)
+        bc = cls(sup3r_file=sup3r_file, ref_file=ref_file,
+                 dsets=dsets, stats=stats, do_months=do_months,
+                 max_workers=max_workers, out_pattern=out_pattern,
+                 threshold=threshold)
+
+        logger.info(f'Computing KDTree for reference files: {bc.ref_file}')
+        bc.tree = bc.get_ref_tree()
+        logger.info('Computing coordinate map for sup3r_file, ref_file: '
+                    f'{bc.sup3r_file}, {bc.ref_file}.')
+        bc.indices, bc.mask = bc.get_coord_map()
+        sup3r_dfs, ref_dfs = bc.compute_stats()
+        return bc.compute_biases(sup3r_dfs, ref_dfs)

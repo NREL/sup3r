@@ -402,12 +402,6 @@ class Collector(OutputMixIn):
             that all the files in file_paths have the same global file
             attributes).
         """
-        if sort:
-            file_paths = sorted(file_paths, key=sort_key)
-
-        logger.info('Getting collection attrs for full dataset with '
-                    f'max_workers={max_workers}.')
-
         time_index, meta = self._get_collection_attrs(
             file_paths, sort=sort, sort_key=sort_key, max_workers=max_workers)
 

@@ -31,9 +31,13 @@ class LogLinInterpolator:
     max_log_height, linearly interpolate components above max_log_height
     meters, and save to file"""
 
+    DEFAULT_OUTPUT_HEIGHTS = {'u': [40, 80, 120, 160, 200],
+                              'v': [40, 80, 120, 160, 200],
+                              'temperature': [10, 40, 80, 100, 120, 160, 200],
+                              'pressure': [0, 100, 200]}
+
     def __init__(self, infile, outfile, output_heights=None,
-                 input_heights=None, max_log_height=100,
-                 only_fixed_levels=True):
+                 variables=None, max_log_height=100):
         """Initialize log interpolator.
 
         Parameters
@@ -43,122 +47,140 @@ class LogLinInterpolator:
             to contain zg, orog, and at least u/v at 10m and 100m.
         outfile : str
             Path to save output after log interpolation.
-        output_heights : None | list
-            Heights to interpolate to. If None this defaults to [40, 80].
-        input_heights : None | list
-            Explicit heights to use in interpolation. e.g. If this is [10, 100]
-            then u/v at 10 and 100m will be included explicitly in the input
-            array used for interpolation. interpolate to. If None this defaults
-            to [10, 100].
+        output_heights : None | dict
+            Dictionary of heights to interpolate to for each variables.
+            If None this defaults to DEFAULT_OUTPUT_HEIGHTS.
+        variables : list
+            List of variables to interpolate. If None this defaults to ['u',
+            'v', 'temperature', 'pressure']
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
-        only_fixed_levels : bool
-            Use only fixed levels for log interpolation. Fixed levels are those
-            that were not computed from pressure levels but instead added along
-            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
-            v_100m)
         """
         self.infile = infile
         self.outfile = outfile
-        self.new_heights = output_heights or [40, 80, 120, 160, 200]
-        self.input_heights = input_heights or [10, 100]
+        self.new_heights = output_heights or self.DEFAULT_OUTPUT_HEIGHTS
         self.max_log_height = max_log_height
-        self.u = None
-        self.v = None
-        self.u_new = None
-        self.v_new = None
-        self.heights = None
-        self.fixed_level_mask = None
+        self.variables = (['u', 'v'] if variables is None else variables)
+        self.data_dict = {}
+        self.new_data = {}
 
         msg = (f'{self.infile} does not exist. Skipping.')
         assert os.path.exists(self.infile), msg
 
-        if only_fixed_levels:
-            self.fixed_level_mask = [True] * len(self.input_heights)
-
         msg = (f'Initializing {self.__class__.__name__} with infile={infile}, '
-               f'outfile={outfile}, new_heights={self.new_heights}')
+               f'outfile={outfile}, new_heights={self.new_heights}, '
+               f'variables={variables}.')
         logger.info(msg)
 
-    def load(self):
-        """Load ERA5 data and create wind component arrays"""
-        logger.info(f'Loading {self.infile}.')
+    def _load_single_var(self, variable):
+        """Load ERA5 data for the given variable.
+
+        Parameters
+        ----------
+        variable : str
+            Name of variable to load. (e.g. u, v, temperature)
+
+        Returns
+        -------
+        heights : ndarray
+            Array of heights for the given variable. Includes heights from
+            variables at single levels (e.g. u_10m).
+        var_arr : ndarray
+            Array of values for the given variable. Includes values from single
+            level fields for the given variable. (e.g. u_10m)
+        """
+        logger.info(f'Loading {self.infile} for {variable}.')
         with xr.open_dataset(self.infile) as res:
             gp = res['zg'].values
             sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
                                 gp.shape[1], axis=1)
-            self.heights = gp - sfc_hgt
+            heights = gp - sfc_hgt
 
-            if self.fixed_level_mask is not None:
-                self.fixed_level_mask += [False] * self.heights.shape[1]
+            input_heights = []
+            for var in res:
+                if f'{variable}_' in var:
+                    height = var.split(f'{variable}_')[-1].strip('m')
+                    input_heights.append(height)
 
-            u_arr = []
-            v_arr = []
+            var_arr = []
             height_arr = []
-            shape = (self.heights.shape[0], 1, *self.heights.shape[2:])
-            for height in self.input_heights:
-                u_arr.append(res[f'u_{height}m'].values[:, np.newaxis, ...])
-                v_arr.append(res[f'v_{height}m'].values[:, np.newaxis, ...])
-                height_arr.append(np.full(shape, height))
-            u_arr.append(res['u'].values)
-            v_arr.append(res['v'].values)
-            height_arr.append(self.heights)
+            shape = (heights.shape[0], 1, *heights.shape[2:])
+            for height in input_heights:
+                var_arr.append(
+                    res[f'{variable}_{height}m'].values[:, np.newaxis, ...])
+                height_arr.append(np.full(shape, height, dtype=np.float32))
 
-            self.heights = np.concatenate(height_arr, axis=1)
-            self.u = np.concatenate(u_arr, axis=1)
-            self.v = np.concatenate(v_arr, axis=1)
+            if variable != 'pressure':
+                var_arr.append(res[f'{variable}'].values)
+            else:
+                tmp = np.zeros(heights.shape)
+                for i in range(tmp.shape[1]):
+                    tmp[:, i, :, :] = res['level'].values[i]
+                var_arr.append(tmp)
 
-    def interpolate_wind(self, max_workers=None):
-        """Interpolate u/v wind components below 100m using log profile"""
-        logger.info(f'Interpolating U to heights = {self.new_heights}.')
-        self.u_new = self.interp_ws_to_height(self.u, self.heights,
-                                              self.new_heights,
-                                              self.fixed_level_mask,
-                                              self.max_log_height,
-                                              max_workers)
-        logger.info(f'Interpolating V to heights = {self.new_heights}.')
-        self.v_new = self.interp_ws_to_height(self.v, self.heights,
-                                              self.new_heights,
-                                              self.fixed_level_mask,
-                                              self.max_log_height,
-                                              max_workers)
+            var_arr = np.concatenate(var_arr, axis=1)
+            height_arr.append(heights)
+            heights = np.concatenate(height_arr, axis=1)
+
+            fixed_level_mask = np.full(heights.shape[1], True)
+            if variable in ('u', 'v'):
+                fixed_level_mask[:] = False
+                for i, _ in enumerate(input_heights):
+                    fixed_level_mask[i] = True
+
+        return heights, var_arr, fixed_level_mask
+
+    def load(self):
+        """Load ERA5 data and create data arrays"""
+        self.data_dict = {}
+        for var in self.variables:
+            self.data_dict[var] = {}
+            out = self._load_single_var(var)
+            self.data_dict[var]['heights'] = out[0]
+            self.data_dict[var]['data'] = out[1]
+            self.data_dict[var]['mask'] = out[2]
+
+    def interpolate_vars(self, max_workers=None):
+        """Interpolate u/v wind components below 100m using log profile.
+        Interpolate non wind data linearly."""
+        for var, arrs in self.data_dict.items():
+            max_log_height = self.max_log_height
+            if var not in ('u', 'v'):
+                max_log_height = -np.inf
+            logger.info(
+                f'Interpolating {var} to heights = {self.new_heights[var]}.')
+            self.new_data[var] = self.interp_var_to_height(
+                var_array=arrs['data'],
+                lev_array=arrs['heights'],
+                levels=self.new_heights[var],
+                fixed_level_mask=arrs['mask'],
+                max_log_height=max_log_height,
+                max_workers=max_workers)
 
     def save_output(self):
-        """Save interpolated wind components to outfile"""
+        """Save interpolated data to outfile"""
         dirname = os.path.dirname(self.outfile)
         os.makedirs(dirname, exist_ok=True)
         os.system(f'cp {self.infile} {self.outfile}')
         ds = Dataset(self.outfile, 'a')
         logger.info(f'Creating {self.outfile}.')
-        for i, height in enumerate(self.new_heights):
-            variable = ds.variables['u_10m']
-            name = f'u_{height}m'
-            logger.info(f'Adding {name} to {self.outfile}.')
-            if name not in ds.variables:
-                _ = ds.createVariable(name,
-                                      np.float32,
-                                      dimensions=variable.dimensions)
-                ds.variables[name][:] = self.u_new[i, ...]
-                ds.variables[name].units = 'm s**-1'
-                ds.variables[name].long_name = f'{height} meter U Component'
-            variable = ds.variables['v_10m']
-            name = f'v_{height}m'
-            logger.info(f'Adding {name} to {self.outfile}.')
-            if name not in ds.variables:
-                ds.createVariable(name,
-                                  np.float32,
-                                  dimensions=variable.dimensions)
-                ds.variables[name][:] = self.v_new[i, ...]
-                ds.variables[name].units = 'm s**-1'
-                ds.variables[name].long_name = f'{height} meter V Component'
+        for var, data in self.new_data.items():
+            for i, height in enumerate(self.new_heights[var]):
+                name = f'{var}_{height}m'
+                logger.info(f'Adding {name} to {self.outfile}.')
+                if name not in ds.variables:
+                    _ = ds.createVariable(
+                        name, np.float32,
+                        dimensions=('time', 'latitude', 'longitude'))
+                ds.variables[name][:] = data[i, ...]
+                ds.variables[name].long_name = f'{height} meter {var}'
         ds.close()
         logger.info(f'Saved interpolated output to {self.outfile}.')
 
     @classmethod
-    def run(cls, infile, outfile, output_heights=None, input_heights=None,
-            only_fixed_levels=True, max_log_height=100, overwrite=False,
-            max_workers=None):
+    def run(cls, infile, outfile, output_heights=None, variables=None,
+            max_log_height=100, overwrite=False, max_workers=None):
         """Run interpolation and save output
 
         Parameters
@@ -169,41 +191,33 @@ class LogLinInterpolator:
         outfile : str
             Path to save output after log interpolation.
         output_heights : None | list
-            Heights to interpolate to. If None this defaults to [40, 80].
-        input_heights : None | list
-            Explicit heights to use in interpolation. e.g. If this is [10, 100]
-            then u/v at 10 and 100m will be included explicitly in the input
-            array used for interpolation. interpolate to. If None this defaults
-            to [10, 100].
-        only_fixed_levels : bool
-            Use only fixed levels for log interpolation. Fixed levels are those
-            that were not computed from pressure levels but instead added along
-            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
-            v_100m)
+            Heights to interpolate to. If None this defaults to [10, 40, 80,
+            100, 120, 160, 200].
+        variables : list
+            List of variables to interpolate. If None this defaults to u and v.
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
-        overwrite : bool
-            Whether to overwrite existing outfile.
         max_workers : None | int
             Number of workers to use for interpolating over timesteps.
+        overwrite : bool
+            Whether to overwrite existing files.
         """
         if os.path.exists(outfile) and not overwrite:
             logger.info(f'{outfile} exists and overwrite=False. Skipping.')
         else:
             log_interp = cls(infile, outfile,
                              output_heights=output_heights,
-                             input_heights=input_heights,
-                             only_fixed_levels=only_fixed_levels,
+                             variables=variables,
                              max_log_height=max_log_height)
             log_interp.load()
-            log_interp.interpolate_wind(max_workers=max_workers)
+            log_interp.interpolate_vars(max_workers=max_workers)
             log_interp.save_output()
 
     @classmethod
     def run_multiple(cls, infiles, out_dir, output_heights=None,
-                     input_heights=None, only_fixed_levels=True,
-                     max_log_height=100, overwrite=False, max_workers=None):
+                     max_log_height=100, overwrite=False, variables=None,
+                     max_workers=None):
         """Run interpolation and save output
 
         Parameters
@@ -216,19 +230,11 @@ class LogLinInterpolator:
             Path to save output directory after log interpolation.
         output_heights : None | list
             Heights to interpolate to. If None this defaults to [40, 80].
-        input_heights : None | list
-            Explicit heights to use in interpolation. e.g. If this is [10, 100]
-            then u/v at 10 and 100m will be included explicitly in the input
-            array used for interpolation. interpolate to. If None this defaults
-            to [10, 100].
-        only_fixed_levels : bool
-            Use only fixed levels for log interpolation. Fixed levels are those
-            that were not computed from pressure levels but instead added along
-            with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
-            v_100m)
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
+        variables : list
+            List of variables to interpolate. If None this defaults to u and v.
         overwrite : bool
             Whether to overwrite existing outfile.
         max_workers : None | int
@@ -243,10 +249,8 @@ class LogLinInterpolator:
                                                          '_all_interp.nc')
                 outfile = os.path.join(out_dir, outfile)
                 cls.run(file, outfile, output_heights=output_heights,
-                        input_heights=input_heights,
-                        only_fixed_levels=only_fixed_levels,
                         max_log_height=max_log_height,
-                        overwrite=overwrite)
+                        overwrite=overwrite, variables=variables)
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
@@ -256,8 +260,7 @@ class LogLinInterpolator:
                     outfile = os.path.join(out_dir, outfile)
                     futures.append(exe.submit(
                         cls.run, file, outfile, output_heights=output_heights,
-                        input_heights=input_heights,
-                        only_fixed_levels=only_fixed_levels,
+                        variables=variables,
                         max_log_height=max_log_height,
                         overwrite=overwrite))
                     logger.info(
@@ -329,11 +332,11 @@ class LogLinInterpolator:
         return log_ws, good
 
     @classmethod
-    def _interp_ws_to_height(cls, lev_array, var_array, levels,
-                             fixed_level_mask=None,
-                             max_log_height=100):
-        """Fit ws log law to data below max_log_height and linearly
-        interpolate data above.
+    def _interp_var_to_height(cls, lev_array, var_array, levels,
+                              fixed_level_mask=None,
+                              max_log_height=100):
+        """Fit ws log law to wind data below max_log_height and linearly
+        interpolate data above. Linearly interpolate non wind data.
 
         Parameters
         ----------
@@ -357,7 +360,7 @@ class LogLinInterpolator:
         Returns
         -------
         values : ndarray
-            Array of interpolated windspeed values at the requested heights.
+            Array of interpolated data values at the requested heights.
         good : bool
             Check if interpolation went without issue.
         """
@@ -480,18 +483,19 @@ class LogLinInterpolator:
         out_array = []
         checks = []
         for h, var, mask in zip_iter:
-            val, check = cls._interp_ws_to_height(
-                h[mask], var[mask], levels, fixed_level_mask=fixed_level_mask,
+            val, check = cls._interp_var_to_height(
+                h[mask], var[mask], levels,
+                fixed_level_mask=fixed_level_mask[mask],
                 max_log_height=max_log_height)
             out_array.append(val)
             checks.append(check)
         return np.array(out_array), np.array(checks)
 
     @classmethod
-    def interp_ws_to_height(cls, var_array, lev_array, levels,
-                            fixed_level_mask=None,
-                            max_log_height=100, max_workers=None):
-        """Interpolate windspeed array to given level(s) based on h_array.
+    def interp_var_to_height(cls, var_array, lev_array, levels,
+                             fixed_level_mask=None, max_log_height=100,
+                             max_workers=None):
+        """Interpolate data array to given level(s) based on h_array.
         Interpolation is done using windspeed log profile and is done for every
         'z' column of [var, h] data.
 
