@@ -111,14 +111,7 @@ class LogLinInterpolator:
                     res[f'{variable}_{height}m'].values[:, np.newaxis, ...])
                 height_arr.append(np.full(shape, height, dtype=np.float32))
 
-            if variable != 'pressure':
-                var_arr.append(res[f'{variable}'].values)
-            else:
-                tmp = np.zeros(heights.shape)
-                for i in range(tmp.shape[1]):
-                    tmp[:, i, :, :] = res['level'].values[i]
-                var_arr.append(tmp)
-
+            var_arr.append(res[f'{variable}'].values)
             var_arr = np.concatenate(var_arr, axis=1)
             height_arr.append(heights)
             heights = np.concatenate(height_arr, axis=1)
@@ -175,6 +168,16 @@ class LogLinInterpolator:
                         dimensions=('time', 'latitude', 'longitude'))
                 ds.variables[name][:] = data[i, ...]
                 ds.variables[name].long_name = f'{height} meter {var}'
+
+                if 'u_' in var or 'v_' in var:
+                    units = 'm s**-1'
+                if 'pressure' in var:
+                    units = 'Pa'
+                if 'temperature' in var:
+                    units = 'C'
+
+                ds.variables[name].units = units
+
         ds.close()
         logger.info(f'Saved interpolated output to {self.outfile}.')
 
@@ -204,7 +207,8 @@ class LogLinInterpolator:
             Whether to overwrite existing files.
         """
         if os.path.exists(outfile) and not overwrite:
-            logger.info(f'{outfile} exists and overwrite=False. Skipping.')
+            logger.info(f'{outfile} already exists and overwrite=False. '
+                        'Skipping.')
         else:
             log_interp = cls(infile, outfile,
                              output_heights=output_heights,

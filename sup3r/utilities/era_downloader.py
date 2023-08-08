@@ -72,7 +72,8 @@ class BaseEraDownloader:
             List of pressure levels to download. If None only surface
             file variables will be downloaded.
         variables : list
-            List of variables to download.
+            List of variables to download. Can be any of ['u', 'v', 'pressure',
+            temperature']
         combined_out_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
@@ -86,6 +87,7 @@ class BaseEraDownloader:
         self.area = area
         self.levels = levels
         self.overwrite = overwrite
+        self.variables = variables
         self.combined_file = combined_out_pattern.format(
             year=year, month=str(month).zfill(2))
         os.makedirs(os.path.dirname(self.combined_file), exist_ok=True)
@@ -96,6 +98,30 @@ class BaseEraDownloader:
             basedir, f'levels_{year}_{str(month).zfill(2)}.nc')
         self.sfc_file_variables = []
         self.level_file_variables = []
+        self.prep_var_lists(variables)
+        msg = ('Initialized BaseEraDownloader with: '
+               f'year={self.year}, month={self.month}, area={self.area}, '
+               f'levels={self.levels}, variables={self.variables}')
+        logger.info(msg)
+
+    def _prep_var_lists(self, variables):
+        """Add all downloadable variables for the generic requested variables.
+        e.g. if variable = 'u' add all downloadable u variables to list."""
+        d_vars = []
+        vars = variables.copy()
+        for i, v in enumerate(vars):
+            if v in ('u', 'v'):
+                vars[i] = f'{v}_'
+        for var in vars:
+            for d_var in self.SFC_VARS + self.LEVEL_VARS:
+                if var in d_var:
+                    d_vars.append(d_var)
+        return d_vars
+
+    def prep_var_lists(self, variables):
+        """Create surface and level variable lists based on requested
+        variables."""
+        variables = self._prep_var_lists(variables)
         for var in variables:
             if var in self.SFC_VARS:
                 self.sfc_file_variables.append(var)
@@ -105,13 +131,8 @@ class BaseEraDownloader:
                 msg = (f'Requested {var} is not available for download.')
                 logger.warning(msg)
                 warn(msg)
-        msg = ('Initialized BaseEraDownloader with: '
-               f'year={self.year}, month={self.month}, days={self.days}, '
-               f'hours={self.hours}, area={self.area}, levels={self.levels}, '
-               f'variables={variables}.')
-        logger.info(msg)
 
-    def run(self):
+    def download_process_combine(self):
         """Run the download routine."""
         sfc_check = len(self.sfc_file_variables) > 0
         level_check = (len(self.level_file_variables) > 0
@@ -193,6 +214,11 @@ class BaseEraDownloader:
                 ds.variables['orog'].standard_name = 'orog'
                 ds.variables['orog'].units = 'm'
 
+                for var in ds.variables:
+                    if 'temperature' in var:
+                        ds.variables[var][:] = ds.variables[var][:] + 273.15
+                        ds.variables[var].units = 'Degrees Celsius'
+
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
 
@@ -207,6 +233,22 @@ class BaseEraDownloader:
                 ds.variables['zg'].long_name = 'Geopotential Height'
                 ds.variables['zg'].standard_name = 'zg'
                 ds.variables['zg'].units = 'm'
+
+                for var in ds.variables:
+                    if 'temperature' in var:
+                        ds.variables[var][:] = ds.variables[var][:] + 273.15
+                        ds.variables[var].units = 'Degrees Celsius'
+
+                if 'pressure' in self.variables:
+                    tmp = np.zeros(ds.variables['zg'].shape)
+                    for i in range(tmp.shape[1]):
+                        tmp[:, i, :, :] = ds.variables['level'][i] * 100
+                    _ = ds.createVariable(
+                        'pressure', np.float32,
+                        dimensions=('time', 'level', 'latitude', 'longitude'))
+                    ds.variables['pressure'][:] = tmp[...]
+                    ds.variables['pressure'].long_name = 'Pressure'
+                    ds.variables['pressure'].units = 'Pa'
 
     def process_and_combine(self):
         """Process variables and combine."""
@@ -364,14 +406,10 @@ class EraDownloader(BaseEraDownloader):
     def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
         max_log_height (usually 100m) and linear interpolation above this."""
-        check_vars = ['u_component_of_wind', 'v_component_of_wind',
-                      'surface_pressure', 'temperature']
-        variables = np.array(['u', 'v', 'pressure', 'temperature'])
-        mask = np.array([var in self.variables for var in check_vars])
         LogLinInterpolator.run(infile=self.combined_file,
                                outfile=self.interp_file,
                                max_workers=max_workers,
-                               variables=variables[mask],
+                               variables=self.variables,
                                overwrite=self.overwrite,
                                **kwargs)
 
@@ -386,7 +424,7 @@ class EraDownloader(BaseEraDownloader):
         self.check_existing_files()
 
         if not os.path.exists(self.combined_file):
-            self.run()
+            self.download_process_combine()
 
         if self.run_interp:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
