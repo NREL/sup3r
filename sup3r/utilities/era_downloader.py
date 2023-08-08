@@ -48,7 +48,8 @@ class BaseEraDownloader:
     LEVEL_VARS = ['u_component_of_wind', 'v_component_of_wind',
                   'geopotential', 'temperature']
     NAME_MAP = {'u10': 'u_10m', 'v10': 'v_10m', 'u100': 'u_100m',
-                'v100': 'v_100m', 't': 'temperature', 't2m': 'temperature_2m',
+                'v100': 'v_100m', 't': 'temperature',
+                't2m': 'temperature_2m', 'u': 'u', 'v': 'v',
                 'sp': 'pressure_0m'}
 
     def __init__(self, year, month, days, hours, area, variables,
@@ -98,11 +99,30 @@ class BaseEraDownloader:
             basedir, f'levels_{year}_{str(month).zfill(2)}.nc')
         self.sfc_file_variables = []
         self.level_file_variables = []
+        self.check_good_vars(self.variables)
         self.prep_var_lists(variables)
+
         msg = ('Initialized BaseEraDownloader with: '
                f'year={self.year}, month={self.month}, area={self.area}, '
                f'levels={self.levels}, variables={self.variables}')
         logger.info(msg)
+
+    def check_good_vars(self, variables):
+        """Make sure requested variables are valid.
+
+        Parameters
+        ----------
+        variables : list
+            List of variables to download. Can be any of ['u', 'v', 'pressure',
+            temperature']
+        """
+        valid_vars = ['u', 'v', 'pressure', 'temperature']
+        good = all(var in valid_vars for var in variables)
+        if not good:
+            msg = (f'Received variables {variables} not in valid variables '
+                   f'list {valid_vars}')
+            logger.error(msg)
+            raise OSError(msg)
 
     def _prep_var_lists(self, variables):
         """Add all downloadable variables for the generic requested variables.
@@ -199,56 +219,133 @@ class BaseEraDownloader:
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
+    def init_dims(self, tmp_ds, ds, dims):
+        """Initialize dimensions in new dataset from old dataset
+
+        Parameters
+        ----------
+        tmp_ds : Dataset
+            Dataset() object from tmp file
+        ds : Dataset
+            Dataset() object for new file
+        dims : tuple
+            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
+
+        Returns
+        -------
+        ds : Dataset
+            Dataset() object for new file with dimensions initialized.
+        """
+        for var in dims:
+            ds.createDimension(var, len(tmp_ds[var]))
+            _ = ds.createVariable(var, tmp_ds[var].dtype,
+                                  dimensions=(var))
+            ds[var][:] = tmp_ds[var][:]
+            ds[var].units = tmp_ds[var].units
+        return ds
+
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
 
-        with Dataset(self.surface_file, "a") as ds:
-            if 'z' in ds.variables:
-                vals = ds.variables['z']
-                ds.renameVariable('z', 'orog')
-                for old_name, new_name in self.NAME_MAP.items():
-                    if old_name in ds.variables:
-                        ds.renameVariable(old_name, new_name)
-                ds.variables['orog'][:] = vals[:] / 9.81
-                ds.variables['orog'].long_name = 'Orography'
-                ds.variables['orog'].standard_name = 'orog'
-                ds.variables['orog'].units = 'm'
+        dims = ('time', 'latitude', 'longitude')
+        tmp_file = self.get_tmp_file(self.surface_file)
+        with Dataset(tmp_file, "r") as tmp_ds:
+            with Dataset(self.surface_file, "w") as ds:
+                ds = self.init_dims(tmp_ds, ds, dims)
 
-                for var in ds.variables:
-                    if 'temperature' in var:
-                        ds.variables[var][:] = ds.variables[var][:] + 273.15
-                        ds.variables[var].units = 'Degrees Celsius'
+                ds = self.convert_z('orog', 'Orography', tmp_ds, ds)
+
+                ds = self.map_vars(tmp_ds, ds)
+
+        os.remove(tmp_file)
+
+    def get_tmp_file(self, file):
+        """Get temp file for given file. Then only needed variables will be
+        written to the given file."""
+        tmp_file = file.replace(".nc", "_tmp.nc")
+        os.system(f'mv {file} {tmp_file}')
+        return tmp_file
+
+    def map_vars(self, tmp_ds, ds):
+        """Map variables from old dataset to new dataset
+
+        Parameters
+        ----------
+        tmp_ds : Dataset
+            Dataset() object from tmp file
+        ds : Dataset
+            Dataset() object for new file
+
+        Returns
+        -------
+        ds : Dataset
+            Dataset() object for new file with new variables written.
+        """
+        for old_name, new_name in self.NAME_MAP.items():
+            if old_name in tmp_ds.variables:
+                _ = ds.createVariable(
+                    new_name, np.float32,
+                    dimensions=tmp_ds[old_name].dimensions)
+                vals = tmp_ds.variables[old_name][:]
+                if 'temperature' in new_name:
+                    vals -= 273.15
+                ds.variables[new_name][:] = vals
+        return ds
+
+    def convert_z(self, standard_name, long_name, tmp_ds, ds):
+        """Convert z to given height variable
+
+        Parameters
+        ----------
+        standard_name : str
+            New variable name. e.g. 'zg' or 'orog'
+        long_name : str
+            Long name for new variable. e.g. 'Geopotential Height' or
+            'Orography'
+        tmp_ds : Dataset
+            Dataset() object from tmp file
+        ds : Dataset
+            Dataset() object for new file
+
+        Returns
+        -------
+        ds : Dataset
+            Dataset() object for new file with new height variable written.
+        """
+
+        _ = ds.createVariable(
+            standard_name, np.float32,
+            dimensions=tmp_ds['z'].dimensions)
+        ds.variables[standard_name][:] = tmp_ds['z'][:] / 9.81
+        ds.variables[standard_name].long_name = long_name
+        ds.variables[standard_name].standard_name = 'zg'
+        ds.variables[standard_name].units = 'm'
+        return ds
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
 
-        with Dataset(self.level_file, "a") as ds:
-            if 'z' in ds.variables:
-                vals = ds.variables['z']
-                ds.renameVariable('z', 'zg')
-                for old_name, new_name in self.NAME_MAP.items():
-                    if old_name in ds.variables:
-                        ds.renameVariable(old_name, new_name)
-                ds.variables['zg'][:] = vals[:] / 9.81
-                ds.variables['zg'].long_name = 'Geopotential Height'
-                ds.variables['zg'].standard_name = 'zg'
-                ds.variables['zg'].units = 'm'
+        dims = ('time', 'level', 'latitude', 'longitude')
+        tmp_file = self.get_tmp_file(self.level_file)
+        with Dataset(tmp_file, "r") as tmp_ds:
+            with Dataset(self.level_file, "w") as ds:
+                ds = self.init_dims(tmp_ds, ds, dims)
 
-                for var in ds.variables:
-                    if 'temperature' in var:
-                        ds.variables[var][:] = ds.variables[var][:] + 273.15
-                        ds.variables[var].units = 'Degrees Celsius'
+                ds = self.convert_z('zg', 'Geopotential Height', tmp_ds, ds)
+
+                ds = self.map_vars(tmp_ds, ds)
 
                 if 'pressure' in self.variables:
                     tmp = np.zeros(ds.variables['zg'].shape)
                     for i in range(tmp.shape[1]):
                         tmp[:, i, :, :] = ds.variables['level'][i] * 100
-                    _ = ds.createVariable(
-                        'pressure', np.float32,
-                        dimensions=('time', 'level', 'latitude', 'longitude'))
+                    _ = ds.createVariable('pressure', np.float32,
+                                          dimensions=dims)
                     ds.variables['pressure'][:] = tmp[...]
                     ds.variables['pressure'].long_name = 'Pressure'
                     ds.variables['pressure'].units = 'Pa'
+
+        os.remove(tmp_file)
 
     def process_and_combine(self):
         """Process variables and combine."""
@@ -258,7 +355,8 @@ class BaseEraDownloader:
             self.process_level_file()
             logger.info(f'Processing {self.surface_file}.')
             self.process_surface_file()
-            logger.info(f'Combining {self.level_file} and {self.surface_file}')
+            logger.info(f'Combining {self.level_file} and {self.surface_file} '
+                        f'to {self.combined_file}.')
             with xr.open_mfdataset([self.level_file, self.surface_file]) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')

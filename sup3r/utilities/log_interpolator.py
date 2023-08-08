@@ -169,6 +169,7 @@ class LogLinInterpolator:
                 ds.variables[name][:] = data[i, ...]
                 ds.variables[name].long_name = f'{height} meter {var}'
 
+                units = None
                 if 'u_' in var or 'v_' in var:
                     units = 'm s**-1'
                 if 'pressure' in var:
@@ -176,7 +177,8 @@ class LogLinInterpolator:
                 if 'temperature' in var:
                     units = 'C'
 
-                ds.variables[name].units = units
+                if units is not None:
+                    ds.variables[name].units = units
 
         ds.close()
         logger.info(f'Saved interpolated output to {self.outfile}.')
