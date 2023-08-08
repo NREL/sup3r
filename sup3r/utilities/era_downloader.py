@@ -219,60 +219,60 @@ class BaseEraDownloader:
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
-    def init_dims(self, tmp_ds, ds, dims):
+    def init_dims(self, old_ds, new_ds, dims):
         """Initialize dimensions in new dataset from old dataset
 
         Parameters
         ----------
-        tmp_ds : Dataset
-            Dataset() object from tmp file
-        ds : Dataset
+        old_ds : Dataset
+            Dataset() object from old file
+        new_ds : Dataset
             Dataset() object for new file
         dims : tuple
             Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
 
         Returns
         -------
-        ds : Dataset
+        new_ds : Dataset
             Dataset() object for new file with dimensions initialized.
         """
         for var in dims:
-            ds.createDimension(var, len(tmp_ds[var]))
-            _ = ds.createVariable(var, tmp_ds[var].dtype,
-                                  dimensions=(var))
-            ds[var][:] = tmp_ds[var][:]
-            ds[var].units = tmp_ds[var].units
-        return ds
+            new_ds.createDimension(var, len(old_ds[var]))
+            _ = new_ds.createVariable(var, old_ds[var].dtype,
+                                      dimensions=(var))
+            new_ds[var][:] = old_ds[var][:]
+            new_ds[var].units = old_ds[var].units
+        return new_ds
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
 
         dims = ('time', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.surface_file)
-        with Dataset(tmp_file, "r") as tmp_ds:
-            with Dataset(self.surface_file, "w") as ds:
-                ds = self.init_dims(tmp_ds, ds, dims)
+        with Dataset(self.surface_file, "r") as old_ds:
+            with Dataset(tmp_file, "w") as ds:
+                ds = self.init_dims(old_ds, ds, dims)
 
-                ds = self.convert_z('orog', 'Orography', tmp_ds, ds)
+                ds = self.convert_z('orog', 'Orography', old_ds, ds)
 
-                ds = self.map_vars(tmp_ds, ds)
-
-        os.remove(tmp_file)
+                ds = self.map_vars(old_ds, ds)
+        os.system(f'mv {tmp_file} {self.surface_file}')
+        logger.info(f'Finished processing {self.surface_file}. Moved '
+                    f'{tmp_file} to {self.surface_file}.')
 
     def get_tmp_file(self, file):
         """Get temp file for given file. Then only needed variables will be
         written to the given file."""
         tmp_file = file.replace(".nc", "_tmp.nc")
-        os.system(f'mv {file} {tmp_file}')
         return tmp_file
 
-    def map_vars(self, tmp_ds, ds):
+    def map_vars(self, old_ds, ds):
         """Map variables from old dataset to new dataset
 
         Parameters
         ----------
-        tmp_ds : Dataset
-            Dataset() object from tmp file
+        old_ds : Dataset
+            Dataset() object from old file
         ds : Dataset
             Dataset() object for new file
 
@@ -282,17 +282,17 @@ class BaseEraDownloader:
             Dataset() object for new file with new variables written.
         """
         for old_name, new_name in self.NAME_MAP.items():
-            if old_name in tmp_ds.variables:
+            if old_name in old_ds.variables:
                 _ = ds.createVariable(
                     new_name, np.float32,
-                    dimensions=tmp_ds[old_name].dimensions)
-                vals = tmp_ds.variables[old_name][:]
+                    dimensions=old_ds[old_name].dimensions)
+                vals = old_ds.variables[old_name][:]
                 if 'temperature' in new_name:
                     vals -= 273.15
                 ds.variables[new_name][:] = vals
         return ds
 
-    def convert_z(self, standard_name, long_name, tmp_ds, ds):
+    def convert_z(self, standard_name, long_name, old_ds, ds):
         """Convert z to given height variable
 
         Parameters
@@ -302,7 +302,7 @@ class BaseEraDownloader:
         long_name : str
             Long name for new variable. e.g. 'Geopotential Height' or
             'Orography'
-        tmp_ds : Dataset
+        old_ds : Dataset
             Dataset() object from tmp file
         ds : Dataset
             Dataset() object for new file
@@ -315,8 +315,8 @@ class BaseEraDownloader:
 
         _ = ds.createVariable(
             standard_name, np.float32,
-            dimensions=tmp_ds['z'].dimensions)
-        ds.variables[standard_name][:] = tmp_ds['z'][:] / 9.81
+            dimensions=old_ds['z'].dimensions)
+        ds.variables[standard_name][:] = old_ds['z'][:] / 9.81
         ds.variables[standard_name].long_name = long_name
         ds.variables[standard_name].standard_name = 'zg'
         ds.variables[standard_name].units = 'm'
@@ -327,13 +327,13 @@ class BaseEraDownloader:
 
         dims = ('time', 'level', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.level_file)
-        with Dataset(tmp_file, "r") as tmp_ds:
-            with Dataset(self.level_file, "w") as ds:
-                ds = self.init_dims(tmp_ds, ds, dims)
+        with Dataset(self.level_file, "r") as old_ds:
+            with Dataset(tmp_file, "w") as ds:
+                ds = self.init_dims(old_ds, ds, dims)
 
-                ds = self.convert_z('zg', 'Geopotential Height', tmp_ds, ds)
+                ds = self.convert_z('zg', 'Geopotential Height', old_ds, ds)
 
-                ds = self.map_vars(tmp_ds, ds)
+                ds = self.map_vars(old_ds, ds)
 
                 if 'pressure' in self.variables:
                     tmp = np.zeros(ds.variables['zg'].shape)
@@ -345,7 +345,9 @@ class BaseEraDownloader:
                     ds.variables['pressure'].long_name = 'Pressure'
                     ds.variables['pressure'].units = 'Pa'
 
-        os.remove(tmp_file)
+        os.system(f'mv {tmp_file} {self.level_file}')
+        logger.info(f'Finished processing {self.level_file}. Moved '
+                    f'{tmp_file} to {self.level_file}.')
 
     def process_and_combine(self):
         """Process variables and combine."""
