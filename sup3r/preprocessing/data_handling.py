@@ -2314,8 +2314,7 @@ class DataHandlerNC(DataHandler):
             'Pressure_(.*)m': PressureNC,
             'PotentialTemp_(.*)m': PotentialTempNC,
             'PT_(.*)m': PotentialTempNC,
-            'topography': 'HGT',
-        }
+            'topography': ['HGT', 'orog']}
         return registry
 
     @classmethod
