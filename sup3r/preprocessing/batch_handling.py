@@ -345,27 +345,20 @@ class ValidationData:
         """
         if self._remaining_observations > 0:
             if self._remaining_observations > self.batch_size:
-                high_res = np.zeros(
-                    (
-                        self.batch_size,
-                        self.sample_shape[0],
-                        self.sample_shape[1],
-                        self.sample_shape[2],
-                        self.handlers[0].shape[-1],
-                    ),
-                    dtype=np.float32,
-                )
+                n_obs = self.batch_size
             else:
-                high_res = np.zeros(
-                    (
-                        self._remaining_observations,
-                        self.sample_shape[0],
-                        self.sample_shape[1],
-                        self.sample_shape[2],
-                        self.handlers[0].shape[-1],
-                    ),
-                    dtype=np.float32,
-                )
+                n_obs = self._remaining_observations
+
+            high_res = np.zeros(
+                (
+                    n_obs,
+                    self.sample_shape[0],
+                    self.sample_shape[1],
+                    self.sample_shape[2],
+                    self.handlers[0].shape[-1],
+                ),
+                dtype=np.float32,
+            )
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
                 high_res[i, ...] = self.handlers[
