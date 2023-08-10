@@ -355,4 +355,15 @@ class ELRDataHandler(DataHandler):
         return self.data
 
 
+    def get_next_determ(self, obs_index):
+        """Get data for observation using random observation index. Loops
+        repeatedly over randomized time index
 
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        """
+        observation = self.data[obs_index]
+        return observation
