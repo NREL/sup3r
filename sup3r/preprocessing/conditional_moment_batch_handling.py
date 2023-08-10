@@ -1135,8 +1135,9 @@ class BatchHandlerMom1Precomp(BatchHandler):
     VAL_CLASS = ValidationDataMom1
     BATCH_CLASS = BatchMom1Precomp
     DATA_HANDLER_CLASS = None
+    ELRDATA_HANDLER_CLASS = None
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
+    def __init__(self, data_handlers, elr_data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
                  means=None, stds=None, norm=True, n_batches=10,
                  temporal_coarsening_method='subsample',
                  temporal_enhancing_method='constant', stdevs_file=None,
@@ -1237,9 +1238,11 @@ class BatchHandlerMom1Precomp(BatchHandler):
         assert np.all(handler_shapes[0] == handler_shapes), msg
 
         self.data_handlers = data_handlers
+        self.elr_data_handlers = elr_data_handlers
         self._i = 0
         self.low_res = None
         self.high_res = None
+        self.enhanced_lr = None
         self.output = None
         self.batch_size = batch_size
         self._val_data = None
@@ -1318,13 +1321,20 @@ class BatchHandlerMom1Precomp(BatchHandler):
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.sample_shape[2],
                                  self.shape[-1]), dtype=np.float32)
+            self.current_elr_handler_index = handler_index
+            elr_handler = self.elr_data_handlers[handler_index]
+            enhanced_lr = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.sample_shape[2],
+                                 self.shape[-1]), dtype=np.float32)
 
             for i in range(self.batch_size):
+                sys.exit("are elr and hr synced up?") 
                 high_res[i, ...] = handler.get_next()
+                enhanced_lr[i, ...] = elr_handler.get_next_determ(handler.current_obs_index)
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance, t_enhance=self.t_enhance,
+                high_res, enhanced_lr, self.s_enhance, t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 temporal_enhancing_method=self.temporal_enhancing_method,
                 output_features_ind=self.output_features_ind,
@@ -1351,14 +1361,18 @@ class SpatialBatchHandlerMom1Precomp(BatchHandlerMom1Precomp):
             handler_index = np.random.randint(
                 0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
+            elr_handler = self.elr_handlers[handler_index]
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            enhanced_lr = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.shape[-1]),
                                 dtype=np.float32)
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next()[..., 0, :]
-
+                enhanced_lr[i, ...] = elr_handler.get_next_determ(handler.current_obs_index)[..., 0, :]
             batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance,
+                high_res, enhanced_lr, self.s_enhance,
                 output_features_ind=self.output_features_ind,
                 training_features=self.training_features,
                 smoothing=self.smoothing,
@@ -1372,12 +1386,6 @@ class SpatialBatchHandlerMom1Precomp(BatchHandlerMom1Precomp):
             return batch
         else:
             raise StopIteration
-
-
-
-
-
-
 
 
 
