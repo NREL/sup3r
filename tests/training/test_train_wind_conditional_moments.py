@@ -12,6 +12,7 @@ from sup3r import CONFIG_DIR
 from sup3r import TEST_DATA_DIR
 from sup3r.models import WindCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
+from sup3r.preprocessing.enhanced_lr_data_handling import ELRDataHandlerH5
 from sup3r.preprocessing.wind_conditional_moment_batch_handling import (
     WindSpatialBatchHandlerMom1,
     WindSpatialBatchHandlerMom1SF,
@@ -21,10 +22,13 @@ from sup3r.preprocessing.wind_conditional_moment_batch_handling import (
     WindSpatialBatchHandlerMom2SepSF,
     WindBatchHandlerMom1,
     WindBatchHandlerMom1SF,
+    WindBatchHandlerMom1SFPrecomp,
     WindBatchHandlerMom2,
     WindBatchHandlerMom2SF,
+    WindBatchHandlerMom2SFPrecomp,
     WindBatchHandlerMom2Sep,
-    WindBatchHandlerMom2SepSF)
+    WindBatchHandlerMom2SepSF,
+    WindBatchHandlerMom2SepSFPrecomp)
 
 
 SHAPE = (20, 20)
@@ -176,6 +180,61 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
 
+@pytest.mark.parametrize('batch_class', [
+                         WindBatchHandlerMom1SFPrecomp])
+def test_wind_non_cc_hi_res_st_topo_mom1_precomp(batch_class, log=False,
+                                                 out_dir_root=None,
+                                                 n_epoch=1, n_batches=2,
+                                                 batch_size=2):
+    """Test spatiotemporal first conditional moment for wind model for non cc
+    Sup3rConcat layer that concatenates hi-res topography in the middle of
+    the network. Test for direct first moment or subfilter velocity."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    handler = DataHandlerH5(FP_WTK,
+                            ('U_100m', 'V_100m', 'topography'),
+                            target=TARGET_COORD, shape=SHAPE,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.1,
+                            sample_shape=(12, 12, 24),
+                            worker_kwargs=dict(max_workers=1),
+                            train_only_features=tuple())
+
+    elr_handler = ELRDataHandlerH5(
+        FP_WTK, ('U_100m', 'V_100m', 'topography'),
+        target=TARGET_COORD,
+        shape=SHAPE,
+        sample_shape=(12, 12, 24),
+        temporal_slice=slice(None, None, 1),
+        val_split=0.1,
+        s_enhance=2, t_enhance=4,
+        temporal_enhancing_method='constant',
+        worker_kwargs=dict(max_workers=1))
+
+    fp_gen = os.path.join(CONFIG_DIR,
+                          'sup3rcc',
+                          'gen_wind_2x_4x_2f.json')
+
+    WindCondMom.seed()
+    model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
+
+    batcher = batch_class([handler],
+                          [elr_handler],
+                          batch_size=batch_size,
+                          s_enhance=2, t_enhance=4,
+                          model_mom1=model_mom1,
+                          n_batches=n_batches)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom1.train(batcher, n_epoch=n_epoch,
+                         checkpoint_int=None,
+                         out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
+
+
 @pytest.mark.parametrize('custom_layer, batch_class', [
                          ('Sup3rConcat', WindSpatialBatchHandlerMom2),
                          ('Sup3rConcat', WindSpatialBatchHandlerMom2Sep),
@@ -258,6 +317,65 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
     batcher = batch_class([handler],
                           batch_size=batch_size,
                           s_enhance=3, t_enhance=4,
+                          model_mom1=model_mom1,
+                          n_batches=n_batches)
+
+    with tempfile.TemporaryDirectory() as td:
+        if out_dir_root is None:
+            out_dir_root = td
+        model_mom2.train(batcher, n_epoch=n_epoch,
+                         checkpoint_int=None,
+                         out_dir=os.path.join(out_dir_root,
+                                              'test_{epoch}'))
+
+
+@pytest.mark.parametrize('batch_class', [
+                         WindBatchHandlerMom2SFPrecomp,
+                         WindBatchHandlerMom2SepSFPrecomp])
+def test_wind_non_cc_hi_res_st_topo_mom2_precomp(batch_class, log=False,
+                                                 out_dir_root=None,
+                                                 n_epoch=1, n_batches=2,
+                                                 batch_size=2):
+    """Test spatiotemporal second conditional moment for wind model for non cc
+    Sup3rConcat layer that concatenates hi-res topography in the middle of
+    the network. Test for direct second moment or subfilter velocity.
+    Test for separate or learning coupled with first moment."""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    handler = DataHandlerH5(FP_WTK,
+                            ('U_100m', 'V_100m', 'topography'),
+                            target=TARGET_COORD, shape=SHAPE,
+                            temporal_slice=slice(None, None, 1),
+                            val_split=0.1,
+                            sample_shape=(12, 12, 24),
+                            worker_kwargs=dict(max_workers=1),
+                            train_only_features=tuple())
+
+    elr_handler = ELRDataHandlerH5(
+        FP_WTK, ('U_100m', 'V_100m', 'topography'),
+        target=TARGET_COORD,
+        shape=SHAPE,
+        sample_shape=(12, 12, 24),
+        temporal_slice=(None, None, 1),
+        val_split=0.1,
+        s_enhance=2, t_enhance=4,
+        temporal_enhancing_method='constant',
+        worker_kwargs=dict(max_workers=1))
+
+    fp_gen = os.path.join(CONFIG_DIR,
+                          'sup3rcc',
+                          'gen_wind_2x_4x_2f.json')
+
+    WindCondMom.seed()
+    model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
+    model_mom2 = WindCondMom(fp_gen, learning_rate=1e-4)
+
+    batcher = batch_class([handler],
+                          [elr_handler],
+                          batch_size=batch_size,
+                          s_enhance=2, t_enhance=4,
                           model_mom1=model_mom1,
                           n_batches=n_batches)
 
