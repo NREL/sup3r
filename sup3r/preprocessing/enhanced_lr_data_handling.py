@@ -2,78 +2,36 @@
 @author: bbenton
 """
 
-import copy
-import glob
 import logging
 import os
 import pickle
-import warnings
 from abc import abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
-from fnmatch import fnmatch
 
 import numpy as np
-import pandas as pd
-import xarray as xr
-from rex import MultiFileNSRDBX, MultiFileWindX, Resource
-from rex.utilities import log_mem
-from rex.utilities.fun_utils import get_fun_call_str
-from scipy.ndimage.filters import gaussian_filter
-from scipy.spatial import KDTree
-from scipy.stats import mode
+from rex import MultiFileWindX
 
 from sup3r.preprocessing.feature_handling import (
     BVFreqMon,
     BVFreqSquaredH5,
-    BVFreqSquaredNC,
-    ClearSkyRatioCC,
     ClearSkyRatioH5,
     CloudMaskH5,
     Feature,
-    FeatureHandler,
-    InverseMonNC,
     LatLonH5,
-    LatLonNC,
-    PotentialTempNC,
-    PressureNC,
     Rews,
-    Shear,
-    Tas,
-    TasMax,
-    TasMin,
-    TempNC,
-    TempNCforCC,
     TopoH5,
     UWind,
     VWind,
-    WinddirectionNC,
-    WindspeedNC,
 )
-from sup3r.utilities import ModuleName
-from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (
-    daily_temporal_coarsening,
-    estimate_max_workers,
     get_chunk_slices,
-    get_raster_shape,
-    get_source_type,
-    get_time_dim_name,
-    ignore_case_path_fetch,
-    np_to_pd_times,
-    spatial_coarsening,
-    uniform_box_sampler,
-    uniform_time_sampler,
-    weighted_box_sampler,
-    weighted_time_sampler,
     smooth_data,
     spatial_coarsening,
     temporal_coarsening,
     spatial_simple_enhancing,
     temporal_simple_enhancing,
 )
-from sup3r.preprocessing.data_handling import InputMixIn, DataHandler
+from sup3r.preprocessing.data_handling import DataHandler
 
 np.random.seed(42)
 
@@ -108,7 +66,6 @@ class ELRDataHandler(DataHandler):
                  temporal_coarsening_method='subsample',
                  temporal_enhancing_method='constant',
                  output_features_ind=None,
-                 output_features=None,
                  training_features=None,
                  smoothing=None,
                  smoothing_ignore=None,
@@ -152,7 +109,6 @@ class ELRDataHandler(DataHandler):
         sample_shape : tuple
             Size of spatial and temporal domain used in a single high-res
             observation for batching
-        raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
             exists or written to the file if it does not yet exist. If None and
@@ -233,31 +189,38 @@ class ELRDataHandler(DataHandler):
                       'chunks': {'south_north': 120, 'west_east': 120}}
             which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
-        super().__init__(file_paths, features, target=target, shape=shape,
-                 max_delta=max_delta, temporal_slice=temporal_slice,
-                 hr_spatial_coarsen=hr_spatial_coarsen, time_roll=time_roll, val_split=val_split,
-                 sample_shape=sample_shape, raster_file=raster_file, raster_index=raster_index,
-                 shuffle_time=shuffle_time, time_chunk_size=time_chunk_size, cache_pattern=cache_pattern,
-                 overwrite_cache=overwrite_cache, overwrite_ti_cache=overwrite_ti_cache,
-                 load_cached=load_cached, train_only_features=train_only_features,
-                 handle_features=handle_features, single_ts_files=single_ts_files, mask_nan=mask_nan,
-                 worker_kwargs=worker_kwargs, res_kwargs=res_kwargs)
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
+        self.temporal_coarsening_method = temporal_coarsening_method
+        self.temporal_enhancing_method = temporal_enhancing_method
+        self.output_features_ind = output_features_ind
+        self.training_features = training_features
+        self.smoothing = smoothing
+        self.smoothing_ignore = smoothing_ignore
+        self.t_enhance_mode = t_enhance_mode
 
-        self.s_enhance=s_enhance
-        self.t_enhance=t_enhance
-        self.temporal_coarsening_method=temporal_coarsening_method
-        self.temporal_enhancing_method=temporal_enhancing_method
-        self.output_features_ind=output_features_ind
-        self.output_features=output_features
-        selgf.training_features=training_features
-        self.smoothing=smoothing
-        self.smoothing_ignore=smoothing_ignore
-        self.t_enhance_mode=t_enhance_mode
+        DataHandler.__init__(self, file_paths=file_paths, features=features,
+                             target=target, shape=shape, max_delta=max_delta,
+                             temporal_slice=temporal_slice,
+                             hr_spatial_coarsen=hr_spatial_coarsen,
+                             time_roll=time_roll, val_split=val_split,
+                             sample_shape=sample_shape,
+                             raster_file=raster_file,
+                             raster_index=raster_index,
+                             shuffle_time=shuffle_time,
+                             time_chunk_size=time_chunk_size,
+                             cache_pattern=cache_pattern,
+                             overwrite_cache=overwrite_cache,
+                             overwrite_ti_cache=overwrite_ti_cache,
+                             load_cached=load_cached,
+                             train_only_features=train_only_features,
+                             handle_features=handle_features,
+                             single_ts_files=single_ts_files,
+                             mask_nan=mask_nan,
+                             worker_kwargs=worker_kwargs,
+                             res_kwargs=res_kwargs)
 
-    
-
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
+    def reduce_features(self, high_res):
         """Remove any feature channels that are only intended for the low-res
         training input.
 
@@ -271,14 +234,23 @@ class ELRDataHandler(DataHandler):
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         """
-        if output_features_ind is None:
+        if self.output_features_ind is None:
             return high_res
         else:
-            return high_res[..., output_features_ind] 
+            return high_res[..., self.output_features_ind]
 
     def get_lr_enhanced(self, high_res):
+        """Enhance low res to match high res shape
 
-        low_res = spatial_coarsening(high_res, self.s_enhance)
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        """
+
+        low_res = spatial_coarsening(high_res[np.newaxis, :], self.s_enhance)
         if self.training_features is None:
             self.training_features = [None] * low_res.shape[-1]
         if self.smoothing_ignore is None:
@@ -286,18 +258,20 @@ class ELRDataHandler(DataHandler):
         if self.t_enhance != 1:
             low_res = temporal_coarsening(low_res, self.t_enhance,
                                           self.temporal_coarsening_method)
-        low_res = smooth_data(low_res, self.training_features, self.smoothing_ignore,
+
+        low_res = smooth_data(low_res, self.training_features,
+                              self.smoothing_ignore,
                               self.smoothing)
-        high_res = reduce_features(high_res, self.output_features_ind)
+        high_res = self.reduce_features(high_res)
 
         enhanced_lr = spatial_simple_enhancing(low_res,
                                                s_enhance=self.s_enhance)
         enhanced_lr = temporal_simple_enhancing(enhanced_lr,
                                                 t_enhance=self.t_enhance,
                                                 mode=self.t_enhance_mode)
-        enhanced_lr = reduce_features(enhanced_lr, self.output_features_ind)
+        enhanced_lr = self.reduce_features(enhanced_lr)
 
-        return enhanced_lr
+        return enhanced_lr[0]
 
     def run_all_data_init(self):
         """Build base 4D data array. Can handle multiple files but assumes
@@ -339,7 +313,7 @@ class ELRDataHandler(DataHandler):
             self.data = spatial_coarsening(self.data,
                                            s_enhance=self.hr_spatial_coarsen,
                                            obs_axis=False)
-            
+
         self.data = self.get_lr_enhanced(self.data)
 
         if self.load_cached:
@@ -354,7 +328,6 @@ class ELRDataHandler(DataHandler):
                     f'{dt.now() - now}')
         return self.data
 
-
     def get_next_determ(self, obs_index):
         """Get data for observation using random observation index. Loops
         repeatedly over randomized time index
@@ -367,3 +340,244 @@ class ELRDataHandler(DataHandler):
         """
         observation = self.data[obs_index]
         return observation
+
+    @classmethod
+    def extract_feature(cls, file_paths, raster_index, feature,
+                        time_slice=slice(None), **kwargs):
+        """Extract single feature from data source
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        time_slice : slice
+            slice of time to extract
+        kwargs : dict
+            keyword arguments passed to source handler
+
+        Returns
+        -------
+        ndarray
+            Data array for extracted feature
+            (spatial_1, spatial_2, temporal)
+        """
+        logger.info(f'Extracting {feature} with kwargs={kwargs}')
+        handle = cls.source_handler(file_paths, **kwargs)
+        try:
+            fdata = handle[(feature, time_slice,
+                            *tuple([raster_index.flatten()]))]
+        except ValueError as e:
+            msg = f'{feature} cannot be extracted from source data'
+            logger.exception(msg)
+            raise ValueError(msg) from e
+
+        fdata = fdata.reshape((-1, raster_index.shape[0],
+                               raster_index.shape[1]))
+        fdata = np.transpose(fdata, (1, 2, 0))
+        return fdata.astype(np.float32)
+
+    @classmethod
+    @abstractmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+
+    @classmethod
+    @abstractmethod
+    def get_full_domain(cls, file_paths):
+        """Get target and shape for full domain"""
+
+    @classmethod
+    @abstractmethod
+    def source_handler(cls, file_paths, **kwargs):
+        """Handle for source data. Uses xarray, ResourceX, etc.
+        NOTE: that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+        """
+
+    @abstractmethod
+    def get_raster_index(self):
+        """Get raster index for file data. Here we assume the list of paths in
+        file_paths all have data with the same spatial domain. We use the first
+        file in the list to compute the raster
+
+        Returns
+        -------
+        raster_index : np.ndarray
+            2D array of grid indices for H5 or list of
+            slices for NETCDF
+        """
+
+    @property
+    def extract_features(self):
+        """Features to extract directly from the source handler"""
+        lower_features = [f.lower() for f in self.handle_features]
+        return [f for f in self.raw_features
+                if self.lookup(f, 'compute') is None
+                or Feature.get_basename(f.lower()) in lower_features]
+
+
+class ELRDataHandlerH5(ELRDataHandler):
+    """ELRDataHandler for H5 Data"""
+
+    # the handler from rex to open h5 data.
+    REX_HANDLER = MultiFileWindX
+
+    @classmethod
+    def source_handler(cls, file_paths, **kwargs):
+        """Rex data handler
+
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
+
+        Parameters
+        ----------
+        file_paths : str | list
+            paths to data files
+        kwargs : dict
+            keyword arguments passed to source handler
+
+        Returns
+        -------
+        data : ResourceX
+        """
+        return cls.REX_HANDLER(file_paths, **kwargs)
+
+    @classmethod
+    def get_full_domain(cls, file_paths):
+        """Get target and shape for largest domain possible"""
+        msg = ('You must either provide the target+shape inputs or an '
+               'existing raster_file input.')
+        logger.error(msg)
+        raise ValueError(msg)
+
+    @classmethod
+    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        max_workers : int | None
+            placeholder to match signature
+        kwargs : dict
+            placeholder to match signature
+
+        Returns
+        -------
+        time_index : pd.DateTimeIndex
+            Time index from h5 source file(s)
+        """
+        handle = cls.source_handler(file_paths)
+        time_index = handle.time_index
+        return time_index
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features or extracting renamed
+        features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'BVF2_(.*)m': BVFreqSquaredH5,
+            'BVF_MO_(.*)m': BVFreqMon,
+            'U_(.*)m': UWind,
+            'V_(.*)m': VWind,
+            'lat_lon': LatLonH5,
+            'REWS_(.*)m': Rews,
+            'RMOL': 'inversemoninobukhovlength_2m',
+            'P_(.*)m': 'pressure_(.*)m',
+            'topography': TopoH5,
+            'cloud_mask': CloudMaskH5,
+            'clearsky_ratio': ClearSkyRatioH5}
+        return registry
+
+    @classmethod
+    def extract_feature(cls, file_paths, raster_index, feature,
+                        time_slice=slice(None), **kwargs):
+        """Extract single feature from data source
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        time_slice : slice
+            slice of time to extract
+        kwargs : dict
+            keyword arguments passed to source handler
+
+        Returns
+        -------
+        ndarray
+            Data array for extracted feature
+            (spatial_1, spatial_2, temporal)
+        """
+        logger.info(f'Extracting {feature} with kwargs={kwargs}')
+        handle = cls.source_handler(file_paths, **kwargs)
+        try:
+            fdata = handle[(feature, time_slice,
+                            *tuple([raster_index.flatten()]))]
+        except ValueError as e:
+            msg = f'{feature} cannot be extracted from source data'
+            logger.exception(msg)
+            raise ValueError(msg) from e
+
+        fdata = fdata.reshape((-1, raster_index.shape[0],
+                               raster_index.shape[1]))
+        fdata = np.transpose(fdata, (1, 2, 0))
+        return fdata.astype(np.float32)
+
+    def get_raster_index(self):
+        """Get raster index for file data. Here we assume the list of paths in
+        file_paths all have data with the same spatial domain. We use the first
+        file in the list to compute the raster.
+
+        Returns
+        -------
+        raster_index : np.ndarray
+            2D array of grid indices
+        """
+        if self.raster_file is not None and os.path.exists(self.raster_file):
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.input_file_info}')
+            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
+        else:
+            check = (self.grid_shape is not None and self.target is not None)
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
+            assert check, msg
+            logger.debug('Calculating raster index from WTK file '
+                         f'for shape {self.grid_shape} and target '
+                         f'{self.target}')
+            handle = self.source_handler(self.file_paths[0])
+            raster_index = handle.get_raster_index(self.target,
+                                                   self.grid_shape,
+                                                   max_delta=self.max_delta)
+            if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
+                logger.debug(f'Saving raster index: {self.raster_file}')
+                np.savetxt(self.raster_file, raster_index)
+        return raster_index
