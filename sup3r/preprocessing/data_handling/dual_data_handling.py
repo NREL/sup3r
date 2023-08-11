@@ -5,14 +5,13 @@ from warnings import warn
 import numpy as np
 import xesmf as xe
 
-from sup3r.preprocessing.data_handling.base import InputMixIn
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
 # pylint: disable=unsubscriptable-object
-class DualDataHandler(InputMixIn):
+class DualDataHandler:
     """Batch handling class for h5 data as high res (usually WTK) and netcdf
     data as low res (usually ERA5)"""
 
@@ -47,8 +46,8 @@ class DualDataHandler(InputMixIn):
             Spatial enhancement factor
         t_enhance : int
             Temporal enhancement factor
-        **kwargs : dict
-            Same as kwargs for base data handler
+        val_split : float
+            Percentage of data to reserve for validation.
         """
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -60,19 +59,67 @@ class DualDataHandler(InputMixIn):
         self._lr_lat_lon = None
         self.val_split = val_split
         self.current_obs_index = None
+        self.load_cached = load_cached
 
-        self._shape_check()
-
-        self.get_lr_data()
-
-        self.hr_data, self.hr_val_data = self.hr_dh.split_data(
-            self.hr_data, self.val_split
-        )
-
-        self.lr_data, self.lr_val_data = self.lr_dh.split_data(
-            self.lr_data, self.val_split
-        )
         self._run_handler_checks(hr_handler, lr_handler)
+
+        if self.try_load and self.load_cached:
+            self.load_cached_data()
+
+        if not self.try_load:
+            self.get_data()
+
+        self.check_clear_data()
+
+    def get_data(self):
+        """Check hr and lr shapes and trim hr data if needed to match required
+        relationship to lr shape based on enhancement factors. Then regrid lr
+        data and split hr and lr data into training and validation sets."""
+        self._shape_check()
+        self.get_lr_data()
+        self._val_split_check()
+
+    def _val_split_check(self):
+        """Check if val_split > 0 and split data into validation and training.
+        Make sure validation data is larger than sample_shape"""
+
+        if self.lr_data is not None and self.val_split > 0.0:
+            self.lr_data, self.lr_val_data = self.lr_dh.split_data(
+                data=self.lr_data, val_split=self.val_split, shuffle_time=False
+            )
+            msg = (
+                f'Low res validation data has shape={self.lr_val_data.shape} '
+                f'and sample_shape={self.lr_sample_shape}. Use a smaller '
+                'sample_shape and/or larger val_split.'
+            )
+            check = any(
+                val_size < samp_size
+                for val_size, samp_size in zip(
+                    self.lr_val_data.shape, self.lr_sample_shape
+                )
+            )
+            if check:
+                logger.warning(msg)
+                warn(msg)
+
+        if self.hr_data is not None and self.val_split > 0.0:
+            self.hr_data, self.hr_val_data = self.hr_dh.split_data(
+                data=self.hr_data, val_split=self.val_split, shuffle_time=False
+            )
+            msg = (
+                f'High res validation data has shape={self.hr_val_data.shape} '
+                f'and sample_shape={self.hr_sample_shape}. Use a smaller '
+                'sample_shape and/or larger val_split.'
+            )
+            check = any(
+                val_size < samp_size
+                for val_size, samp_size in zip(
+                    self.hr_val_data.shape, self.hr_sample_shape
+                )
+            )
+            if check:
+                logger.warning(msg)
+                warn(msg)
 
     def normalize(self, means, stdevs):
         """Normalize low_res data
@@ -97,6 +144,10 @@ class DualDataHandler(InputMixIn):
     def _shape_check(self):
         """Check if hr_handler.shape is divisible by s_enhance. If not take
         the largest shape that can be."""
+
+        if self.hr_data is None:
+            self.hr_dh.load_cached_data()
+
         old_shape = self.hr_dh.shape[:-1]
         new_shape = (
             self.s_enhance * (old_shape[0] // self.s_enhance),
@@ -147,19 +198,21 @@ class DualDataHandler(InputMixIn):
         )
         assert lr_handler.sample_shape == lr_shape, msg
 
-        hr_shape = hr_handler.data.shape
-        lr_shape = (
-            hr_shape[0] // self.s_enhance,
-            hr_shape[1] // self.s_enhance,
-            hr_shape[2] // self.t_enhance,
-            hr_shape[3],
-        )
-        msg = (
-            f'hr_handler.data.shape {hr_handler.data.shape} and '
-            f'lr_handler.data.shape {lr_handler.shape} are '
-            f'incompatible. Must be {hr_shape} and {lr_shape}.'
-        )
-        assert lr_handler.shape == lr_shape, msg
+        if hr_handler.data is not None:
+            hr_shape = hr_handler.data.shape
+            lr_shape = (
+                hr_shape[0] // self.s_enhance,
+                hr_shape[1] // self.s_enhance,
+                hr_shape[2] // self.t_enhance,
+                hr_shape[3],
+            )
+            msg = (
+                f'hr_handler.data.shape {hr_handler.data.shape} and '
+                f'lr_handler.data.shape {lr_handler.data.shape} are '
+                f'incompatible. Must be {hr_shape} and {lr_shape}.'
+            )
+            assert lr_handler.data.shape == lr_shape, msg
+
         if hr_handler.val_data is not None:
             hr_shape = hr_handler.val_data.shape
             lr_shape = (
@@ -205,6 +258,16 @@ class DualDataHandler(InputMixIn):
     def sample_shape(self):
         """Get lr sample shape"""
         return self.lr_dh.sample_shape
+
+    @property
+    def lr_sample_shape(self):
+        """Get lr sample shape"""
+        return self.lr_dh.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Get hr sample shape"""
+        return self.hr_dh.sample_shape
 
     @property
     def features(self):
@@ -313,10 +376,9 @@ class DualDataHandler(InputMixIn):
             self.lr_dh.lat_lon = self._lr_lat_lon
         return self._lr_lat_lon
 
-    def get_lr_data(self):
-        """Check if era data is cached. If not then extract data and regrid.
-        Save to cache if cache pattern provided."""
-
+    @property
+    def regrid_cache_files(self):
+        """Get file names of regridded cache data"""
         cache_files = self.lr_dh.get_cache_file_names(
             self.regrid_cache_pattern,
             grid_shape=self.lr_grid_shape,
@@ -324,45 +386,64 @@ class DualDataHandler(InputMixIn):
             target=self.hr_dh.target,
             features=self.hr_dh.features,
         )
+        return cache_files
 
-        try_load = self._should_load_cache(
-            self.regrid_cache_pattern, cache_files, self.overwrite_regrid_cache
+    @property
+    def try_load(self):
+        """Check if we should try to load cached data"""
+        try_load = self.lr_dh._should_load_cache(
+            self.regrid_cache_pattern,
+            self.regrid_cache_files,
+            self.overwrite_regrid_cache,
         )
+        return try_load
+
+    def load_lr_cached_data(self):
+        """Load low_res cache data"""
 
         regridded_data = np.full(
             shape=self.lr_requested_shape, fill_value=np.nan, dtype=np.float32
         )
 
-        if try_load:
-            self.lr_dh._load_cached_data(
-                regridded_data,
-                cache_files,
-                self.hr_dh.features,
-                self.lr_requested_shape,
-                max_workers=self.hr_dh.load_workers,
+        self.lr_dh._load_cached_data(
+            regridded_data,
+            self.regrid_cache_files,
+            self.hr_dh.features,
+            self.lr_requested_shape,
+            max_workers=self.hr_dh.load_workers,
+        )
+
+        self.lr_data = regridded_data
+
+    def load_cached_data(self):
+        """Load regridded low_res and high_res cache data"""
+        self.load_lr_cached_data()
+        self._shape_check()
+        self._val_split_check()
+
+    def check_clear_data(self):
+        """Check if data was cached and free memory if load_cached is False"""
+        if self.regrid_cache_pattern is not None:
+            self.lr_data = None if not self.load_cached else self.lr_data
+            self.lr_val_data = (
+                None if self.lr_data is None else self.lr_val_data
             )
+        self.hr_dh.check_clear_data()
+
+    def get_lr_data(self):
+        """Check if era data is cached. If not then extract data and regrid.
+        Save to cache if cache pattern provided."""
+
+        if self.try_load:
+            self.load_lr_cached_data()
         else:
-            old_grid = {
-                'lat': self.lr_dh.lat_lon[..., 0],
-                'lon': self.lr_dh.lat_lon[..., 1],
-            }
-
-            new_grid = {
-                'lat': self.lr_lat_lon[..., 0],
-                'lon': self.lr_lat_lon[..., 1],
-            }
-
-            self.regridder = xe.Regridder(
-                old_grid, new_grid, method='bilinear'
-            )
-
             regridded_data = self.regrid_lr_data()
 
             if self.regrid_cache_pattern is not None:
                 self.lr_dh._cache_data(
                     regridded_data,
                     features=self.hr_dh.features,
-                    cache_file_paths=cache_files,
+                    cache_file_paths=self.regrid_cache_files,
                     overwrite_cache=self.overwrite_regrid_cache,
                 )
         self.lr_data = regridded_data
@@ -399,6 +480,18 @@ class DualDataHandler(InputMixIn):
             Array of regridded low_res data with all features
             (spatial_1, spatial_2, temporal, n_features)
         """
+        old_grid = {
+            'lat': self.lr_dh.lat_lon[..., 0],
+            'lon': self.lr_dh.lat_lon[..., 1],
+        }
+
+        new_grid = {
+            'lat': self.lr_lat_lon[..., 0],
+            'lon': self.lr_lat_lon[..., 1],
+        }
+
+        self.regridder = xe.Regridder(old_grid, new_grid, method='bilinear')
+
         logger.info('Regridding low resolution feature data.')
         return np.concatenate(
             [

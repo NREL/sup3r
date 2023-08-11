@@ -30,6 +30,10 @@ from sup3r.utilities.utilities import (
     get_source_type,
     ignore_case_path_fetch,
     spatial_coarsening,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
 )
 
 np.random.seed(42)
@@ -687,12 +691,24 @@ class InputMixIn:
         return try_load
 
 
-class BaseDataHandler(FeatureHandler, InputMixIn):
-    """Base data handling and extraction.
+class DataHandler(FeatureHandler, InputMixIn):
+    """Sup3r data handling and extraction for low-res source data or for
+    artificially coarsened high-res source data for training.
 
     The sup3r data handler class is based on a 4D numpy array of shape:
     (spatial_1, spatial_2, temporal, features)
     """
+
+    # list of features / feature name patterns that are input to the generative
+    # model but are not part of the synthetic output and are not sent to the
+    # discriminator. These are case-insensitive and follow the Unix shell-style
+    # wildcard format.
+    TRAIN_ONLY_FEATURES = (
+        'BVF*',
+        'inversemoninobukhovlength_*',
+        'RMOL',
+        'topography',
+    )
 
     def __init__(
         self,
@@ -704,13 +720,17 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         temporal_slice=slice(None, None, 1),
         hr_spatial_coarsen=None,
         time_roll=0,
+        val_split=0.0,
+        sample_shape=(10, 10, 1),
         raster_file=None,
         raster_index=None,
+        shuffle_time=False,
         time_chunk_size=None,
         cache_pattern=None,
         overwrite_cache=False,
         overwrite_ti_cache=False,
         load_cached=False,
+        train_only_features=None,
         handle_features=None,
         single_ts_files=None,
         mask_nan=False,
@@ -751,6 +771,11 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
             axis. Can be used to convert data to different timezones. This is
             passed to np.roll(a, time_roll, axis=2) and happens AFTER the
             temporal_slice operation.
+        val_split : float32
+            Fraction of data to store for validation
+        sample_shape : tuple
+            Size of spatial and temporal domain used in a single high-res
+            observation for batching
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
@@ -762,6 +787,8 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
             List of tuples or slices. Used as an alternative to computing the
             raster index from target+shape or loading the raster index from
             file
+        shuffle_time : bool
+            Whether to shuffle time indices before validation split
         time_chunk_size : int
             Size of chunks to split time dimension into for parallel data
             extraction. If running in serial this can be set to the size of the
@@ -845,15 +872,21 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         )
         self.val_time_index = None
         self.max_delta = max_delta
+        self.val_split = val_split
+        self.sample_shape = sample_shape
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
+        self.shuffle_time = shuffle_time
+        self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
         self.overwrite_ti_cache = overwrite_ti_cache
         self.load_cached = load_cached
         self.data = None
+        self.val_data = None
         self.res_kwargs = res_kwargs or {}
         self._single_ts_files = single_ts_files
         self._cache_pattern = cache_pattern
+        self._train_only_features = train_only_features
         self._time_chunk_size = time_chunk_size
         self._handle_features = handle_features
         self._cache_files = None
@@ -862,14 +895,16 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         self._raw_features = None
         self._raw_data = {}
         self._time_chunks = None
-        self.worker_kwargs = worker_kwargs or {}
+        worker_kwargs = worker_kwargs or {}
         self.max_workers = worker_kwargs.get('max_workers', None)
         self._ti_workers = worker_kwargs.get('ti_workers', None)
         self._extract_workers = worker_kwargs.get('extract_workers', None)
+        self._norm_workers = worker_kwargs.get('norm_workers', None)
         self._load_workers = worker_kwargs.get('load_workers', None)
         self._compute_workers = worker_kwargs.get('compute_workers', None)
         self._worker_attrs = [
             '_ti_workers',
+            '_norm_workers',
             '_compute_workers',
             '_extract_workers',
             '_load_workers',
@@ -877,24 +912,20 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
 
         self.preflight()
 
-        try_load = self._should_load_cache(
-            self._cache_pattern, self.cache_files, self.overwrite_cache
-        )
-
         overwrite = (
             self.overwrite_cache
             and self.cache_files is not None
             and all(os.path.exists(fp) for fp in self.cache_files)
         )
 
-        if try_load and self.load_cached:
+        if self.try_load and self.load_cached:
             logger.info(
                 f'All {self.cache_files} exist. Loading from cache '
                 f'instead of extracting from source files.'
             )
             self.load_cached_data()
 
-        elif try_load and not self.load_cached:
+        elif self.try_load and not self.load_cached:
             self.clear_data()
             logger.info(
                 f'All {self.cache_files} exist. Call '
@@ -908,13 +939,16 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
                     'is set to True. Proceeding with extraction.'
                 )
 
+            self._raster_size_check()
             self._run_data_init_if_needed()
 
-            if cache_pattern is not None:
+            if self._cache_pattern is not None:
                 self.cache_data(self.cache_files)
                 self.data = None if not self.load_cached else self.data
 
-        if mask_nan:
+            self._val_split_check()
+
+        if mask_nan and self.data is not None:
             nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
             logger.info(
                 'Removing {} out of {} timesteps due to NaNs'.format(
@@ -926,6 +960,19 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
 
+    @property
+    def try_load(self):
+        """Check if we should try to load cache"""
+        return self._should_load_cache(
+            self._cache_pattern, self.cache_files, self.overwrite_cache
+        )
+
+    def _check_clear_data(self):
+        """Check if data is cached and clear data if not load_cached"""
+        if self._cache_pattern is not None:
+            self.data = None if not self.load_cached else self.data
+            self.val_data = None if self.data is None else self.val_data
+
     def _run_data_init_if_needed(self):
         """Check if any features need to be extracted and proceed with data
         extraction"""
@@ -934,6 +981,44 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
                 msg = 'Data has {:.2f}% NaN values!'.format(nan_perc)
+                logger.warning(msg)
+                warnings.warn(msg)
+
+    def _raster_size_check(self):
+        """Check if the sample_shape is larger than the requested raster
+        size"""
+        bad_shape = (
+            self.sample_shape[0] > self.grid_shape[0]
+            and self.sample_shape[1] > self.grid_shape[1]
+        )
+        if bad_shape:
+            msg = (
+                f'spatial_sample_shape {self.sample_shape[:2]} is '
+                f'larger than the raster size {self.grid_shape}'
+            )
+            logger.warning(msg)
+            warnings.warn(msg)
+
+    def _val_split_check(self):
+        """Check if val_split > 0 and split data into validation and training.
+        Make sure validation data is larger than sample_shape"""
+
+        if self.data is not None and self.val_split > 0.0:
+            self.data, self.val_data = self.split_data(
+                val_split=self.val_split, shuffle_time=self.shuffle_time
+            )
+            msg = (
+                f'Validation data has shape={self.val_data.shape} '
+                f'and sample_shape={self.sample_shape}. Use a smaller '
+                'sample_shape and/or larger val_split.'
+            )
+            check = any(
+                val_size < samp_size
+                for val_size, samp_size in zip(
+                    self.val_data.shape, self.sample_shape
+                )
+            )
+            if check:
                 logger.warning(msg)
                 warnings.warn(msg)
 
@@ -969,6 +1054,13 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         handle = self.source_handler(self.file_paths)
         desc = handle.attrs
         return desc
+
+    @property
+    def train_only_features(self):
+        """Features to use for training only and not output"""
+        if self._train_only_features is None:
+            self._train_only_features = self.TRAIN_ONLY_FEATURES
+        return self._train_only_features
 
     @property
     def extract_workers(self):
@@ -1015,6 +1107,17 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
             self._load_workers, proc_mem, n_procs
         )
         return load_workers
+
+    @property
+    def norm_workers(self):
+        """Get upper bound on workers used for normalization."""
+        if self.data is not None:
+            norm_workers = estimate_max_workers(
+                self._norm_workers, 2 * self.feature_mem, self.shape[-1]
+            )
+        else:
+            norm_workers = self._norm_workers
+        return norm_workers
 
     @property
     def time_chunks(self):
@@ -1166,6 +1269,20 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         return self._raw_features
 
     @property
+    def output_features(self):
+        """Get a list of features that should be output by the generative model
+        corresponding to the features in the high res batch array."""
+        out = []
+        for feature in self.features:
+            ignore = any(
+                fnmatch(feature.lower(), pattern.lower())
+                for pattern in self.train_only_features
+            )
+            if not ignore:
+                out.append(feature)
+        return out
+
+    @property
     def grid_mem(self):
         """Get memory used by a feature at a single time step
 
@@ -1196,6 +1313,14 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
 
         self.cap_worker_args(self.max_workers)
 
+        if len(self.sample_shape) == 2:
+            logger.info(
+                'Found 2D sample shape of {}. Adding temporal dim of 1'.format(
+                    self.sample_shape
+                )
+            )
+            self.sample_shape = (*self.sample_shape, 1)
+
         start = self.temporal_slice.start
         stop = self.temporal_slice.stop
         n_steps = self.n_tsteps
@@ -1206,6 +1331,15 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
         check = self.temporal_slice.step is None
         check = check or n_steps % self.temporal_slice.step == 0
         if not check:
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        msg = (
+            f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+            'than the number of time steps in the raw data '
+            f'({len(self.raw_time_index)}).'
+        )
+        if len(self.raw_time_index) < self.sample_shape[2]:
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -1235,6 +1369,7 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
 
         logger.info(
             f'Using max_workers={self.max_workers}, '
+            f'norm_workers={self.norm_workers}, '
             f'extract_workers={self.extract_workers}, '
             f'compute_workers={self.compute_workers}, '
             f'load_workers={self.load_workers}, '
@@ -1377,6 +1512,180 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
             cache_files = None
 
         return cache_files
+
+    def unnormalize(self, means, stds):
+        """Remove normalization from stored means and stds"""
+        self.val_data = (self.val_data * stds) + means
+        self.data = (self.data * stds) + means
+
+    def normalize(self, means, stds):
+        """Normalize all data features
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        """
+        logger.info(f'Normalizing {self.shape[-1]} features.')
+        max_workers = self.norm_workers
+        if max_workers == 1:
+            for i in range(self.shape[-1]):
+                self._normalize_data(i, means[i], stds[i])
+        else:
+            self.parallel_normalization(means, stds, max_workers=max_workers)
+
+    def parallel_normalization(self, means, stds, max_workers=None):
+        """Run normalization of features in parallel
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stds : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        max_workers : int | None
+            Max number of workers to use for normalizing features
+        """
+
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i in range(self.shape[-1]):
+                future = exe.submit(self._normalize_data, i, means[i], stds[i])
+                futures[future] = i
+
+            logger.info(
+                f'Started normalizing {self.shape[-1]} features '
+                f'in {dt.now() - now}.'
+            )
+
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    future.result()
+                except Exception as e:
+                    msg = (
+                        'Error while normalizing future number '
+                        f'{futures[future]}.'
+                    )
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+                logger.debug(
+                    f'{i+1} out of {self.shape[-1]} features ' 'normalized.'
+                )
+
+    def _normalize_data(self, feature_index, mean, std):
+        """Normalize data with initialized mean and standard deviation for a
+        specific feature
+
+        Parameters
+        ----------
+        feature_index : int
+            index of feature to be normalized
+        mean : float32
+            specified mean of associated feature
+        std : float32
+            specificed standard deviation for associated feature
+        """
+
+        if self.val_data is not None:
+            self.val_data[..., feature_index] -= mean
+        self.data[..., feature_index] -= mean
+
+        if std > 0:
+            if self.val_data is not None:
+                self.val_data[..., feature_index] /= std
+            self.data[..., feature_index] /= std
+        else:
+            msg = (
+                'Standard Deviation is zero for '
+                f'{self.features[feature_index]}'
+            )
+            logger.warning(msg)
+            warnings.warn(msg)
+
+    def get_observation_index(self):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        """
+        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
+        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
+        return tuple(
+            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
+        )
+
+    def get_next(self):
+        """Get data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        """
+        self.current_obs_index = self.get_observation_index()
+        observation = self.data[self.current_obs_index]
+        return observation
+
+    def split_data(self, data=None, val_split=0.0, shuffle_time=False):
+        """Split time dimension into set of training indices and validation
+        indices
+
+        Parameters
+        ----------
+        data : np.ndarray
+            4D array of high res data
+            (spatial_1, spatial_2, temporal, features)
+        val_split : float
+            Fraction of data to separate for validation.
+        shuffle_time : bool
+            Whether to shuffle time or not.
+
+        Returns
+        -------
+        data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Training data fraction of initial data array. Initial data array is
+            overwritten by this new data array.
+        val_data : np.ndarray
+            (spatial_1, spatial_2, temporal, features)
+            Validation data fraction of initial data array.
+        """
+        self.data = data if data is not None else self.data
+
+        n_observations = self.data.shape[2]
+        all_indices = np.arange(n_observations)
+        n_val_obs = int(val_split * n_observations)
+
+        if shuffle_time:
+            np.random.shuffle(all_indices)
+
+        val_indices = all_indices[:n_val_obs]
+        training_indices = all_indices[n_val_obs:]
+
+        if not shuffle_time:
+            [self.val_data, self.data] = np.split(
+                self.data, [n_val_obs], axis=2
+            )
+        else:
+            self.val_data = self.data[:, :, val_indices, :]
+            self.data = self.data[:, :, training_indices, :]
+
+        self.val_time_index = self.time_index[val_indices]
+        self.time_index = self.time_index[training_indices]
+
+        return self.data, self.val_data
 
     @property
     def shape(self):
@@ -1535,6 +1844,15 @@ class BaseDataHandler(FeatureHandler, InputMixIn):
                 msg = 'Data has {:.2f}% NaN values!'.format(nan_perc)
                 logger.warning(msg)
                 warnings.warn(msg)
+
+            logger.debug(
+                'Splitting data into training / validation sets '
+                f'({1 - self.val_split}, {self.val_split}) '
+                f'for {self.input_file_info}'
+            )
+            self.data, self.val_data = self.split_data(
+                val_split=self.val_split, shuffle_time=self.shuffle_time
+            )
 
     @classmethod
     def check_cached_features(
