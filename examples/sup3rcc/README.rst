@@ -42,13 +42,32 @@ Nuances of Sup3rCC
 The Sup3rCC dataset is quite unlike the legacy NREL historical wind and solar datasets. As such, we expect there will be some confusion about how to use the data. There are some nuances of the data enumerated below. If you have any questions about how to apply the Sup3rCC data to your work, please reach out to Grant Buster (Grant.Buster@nrel.gov).
 
 #. Sup3rCC data is based on global climate model (GCM) data, which does not represent historical weather, only historical climate. So for example, Sup3rCC 2015 does not represent the actual historical weather in 2015, just the historical climate in 2015.
-#. The GCM data was bias-corrected using the NSRDB and WTK data. GCM irradiance, temperature, and humidity are bias corrected using the NSRDB for the years 2015-2021. GCM windspeeds from 2015-2021 are bias corrected using the WTK from 2007-2013 (we don't currently have modern years of high-resolution wind data). Note that temperature and humidity from the NSRDB are actually originally sourced from MERRA2, a reanalysis product.
-#. Sup3rCC data represents just one possible future climate subject to deep uncertainties. Do not use the Sup3rCC data as a projection of what the future will look like, only what it might possibly look like. Some uncertanties about our future climate can be quantified by exploring a large ensemble of GCM data across multiple climate scenarios and multiple models.
+#. The GCM data was bias-corrected using the NSRDB and WTK data. GCM irradiance, temperature, and humidity are bias corrected using the NSRDB for the years 2015-2021. GCM windspeeds from 2015-2021 are bias corrected using the WTK from 2007-2013 (we don't currently have modern years of high-resolution wind data). Note that temperature and humidity from the NSRDB are actually originally sourced from MERRA2, a reanalysis product. Additional bias may still exist in the high-resolution outputs and a secondary bias correction step may be valuable in downstream applications
+#. Sup3rCC data represents just one possible future climate subject to deep uncertainties. Do not use the Sup3rCC data as an accurate prediction of future weather. Some uncertanties about our future climate can be quantified by exploring a large ensemble of GCM data across multiple climate scenarios and multiple models.
+#. Sup3rCC cannot represent many meteorological events that are not skillfully represented in GCM data (e.g., hurricanes, tornadoes, mesoscale convective storms, wildfires, etc…).
+#. Sup3rCC does not currently use land use data and only understands phenomena like urban heat islands via the bias correction of the GCM data with historical reanalysis data. Application of Sup3rCC to individual cities may benefit from statistical validation using historical ground measurement data. 
+
+
+Sup3rCC Versions
+================
+
+The Sup3rCC data has versions that coincide with the sup3r software versions. Note that not every sup3r software version will have a corresponding Sup3rCC data release, but every Sup3rCC data release will have a corresponding sup3r software version. This table records versions of Sup3rCC data releases. Sup3rCC generative models may have slightly different versions than the data. The version in the Sup3rCC .h5 file attribute can be inspected to verify the actual version of the data you are using. 
+
+.. list-table::
+    :widths: auto
+    :header-rows: 1
+
+    * - Version
+      - Effective Date
+      - Notes
+    * - 0.1.0
+      - 6/27/2023
+      - Initial release of Sup3rCC including data based on MRI-ESM-2.0 and EC-Earth3 for the contiguous United States.
 
 Recommended Citation
 ====================
 
-Grant Buster, Brandon Benton, Andrew Glaws, and Ryan King. "Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts using Generative Machine Learning". Under review (April 2023).
+Grant Buster, Brandon Benton, Andrew Glaws, and Ryan King. "Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts using Generative Machine Learning". Under review (August 2023).
 
 Acknowledgements
 ================
