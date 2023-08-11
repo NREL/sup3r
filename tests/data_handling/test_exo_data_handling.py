@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """pytests for exogenous data handling"""
-import shutil
 import os
+import shutil
+
 import numpy as np
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
-
+from sup3r.preprocessing.data_handling import ExogenousDataHandler
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 

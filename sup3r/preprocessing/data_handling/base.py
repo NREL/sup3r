@@ -1,8 +1,7 @@
-"""Sup3r preprocessing module.
+"""Base data handling classes.
 @author: bbenton
 """
 
-import copy
 import glob
 import logging
 import os
@@ -16,54 +15,20 @@ from typing import ClassVar
 
 import numpy as np
 import pandas as pd
-import xarray as xr
-from rex import MultiFileNSRDBX, MultiFileWindX, Resource
+from rex import Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
-from scipy.ndimage.filters import gaussian_filter
-from scipy.spatial import KDTree
 from scipy.stats import mode
 
-from sup3r.bias.bias_transforms import get_spatial_bc_factors
-from sup3r.preprocessing.feature_handling import (
-    BVFreqMon,
-    BVFreqSquaredH5,
-    BVFreqSquaredNC,
-    ClearSkyRatioCC,
-    ClearSkyRatioH5,
-    CloudMaskH5,
-    Feature,
-    FeatureHandler,
-    InverseMonNC,
-    LatLonH5,
-    LatLonNC,
-    PotentialTempNC,
-    PressureNC,
-    Rews,
-    Shear,
-    Tas,
-    TasMax,
-    TasMin,
-    TempNC,
-    TempNCforCC,
-    TopoH5,
-    UWind,
-    VWind,
-    WinddirectionNC,
-    WindspeedNC,
-)
+from sup3r.preprocessing.feature_handling import Feature, FeatureHandler
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (
-    daily_temporal_coarsening,
     estimate_max_workers,
     get_chunk_slices,
     get_raster_shape,
     get_source_type,
-    get_time_dim_name,
     ignore_case_path_fetch,
-    np_to_pd_times,
     spatial_coarsening,
     uniform_box_sampler,
     uniform_time_sampler,
@@ -564,6 +529,93 @@ class InputMixIn:
         logger.debug(f'Built full time index in {dt.now() - now} seconds.')
         return self._raw_time_index
 
+    def _cache_data(self, data, features, cache_file_paths, overwrite=False):
+        """Cache feature data to files
+
+        Parameters
+        ----------
+        data : ndarray
+            Array of feature data to save to cache files
+        features : list
+            List of feature names.
+        cache_file_paths : str | None
+            Path to file for saving feature data
+        overwrite : bool
+            Whether to overwrite exisiting files.
+        """
+        for i, fp in enumerate(cache_file_paths):
+            if not os.path.exists(fp) or overwrite:
+                if overwrite and os.path.exists(fp):
+                    logger.info(
+                        f'Overwriting {features[i]} with shape '
+                        f'{data[..., i].shape} to {fp}'
+                    )
+                else:
+                    logger.info(
+                        f'Saving {features[i]} with shape '
+                        f'{data[..., i].shape} to {fp}'
+                    )
+
+                tmp_file = fp.replace('.pkl', '.pkl.tmp')
+                with open(tmp_file, 'wb') as fh:
+                    pickle.dump(data[..., i], fh, protocol=4)
+                os.replace(tmp_file, fp)
+            else:
+                msg = (
+                    f'Called cache_data but {fp} already exists. Set to '
+                    'overwrite_cache to True to overwrite.'
+                )
+                logger.warning(msg)
+                warnings.warn(msg)
+
+    def _load_single_cached_feature(
+        self, fp, cache_files, features, required_shape
+    ):
+        """Load single feature from given file
+
+        Parameters
+        ----------
+        fp : string
+            File path for feature cache file
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        required_shape : tuple
+            Required shape for full array of feature data
+
+        Returns
+        -------
+        out : ndarray
+            Array of data for given feature file.
+
+        Raises
+        ------
+        RuntimeError
+            Error raised if shape conflicts with requested shape
+        """
+        idx = cache_files.index(fp)
+        assert features[idx].lower() in fp.lower()
+        fp = ignore_case_path_fetch(fp)
+        logger.info(f'Loading {features[idx]} from ' f'{os.path.basename(fp)}')
+
+        out = None
+        with open(fp, 'rb') as fh:
+            try:
+                out = np.array(pickle.load(fh), dtype=np.float32)
+                assert out.shape == required_shape
+            except Exception as e:
+                msg = (
+                    'Data loaded from from cache file "{}" '
+                    'could not be written to feature channel {} '
+                    'of full data array of shape {}. '
+                    'The cached data has the wrong shape {}.'.format(
+                        fp, idx, required_shape, pickle.load(fh).shape
+                    )
+                )
+                raise RuntimeError(msg) from e
+        return out
+
     @property
     def time_index(self):
         """Time index for input data with time pruning. This is the raw time
@@ -585,12 +637,11 @@ class InputMixIn:
         time_freq = float(mode(ti_deltas_hours).mode)
         return time_freq
 
-    @property
-    def timestamp_0(self):
+    def _get_timestamp_0(self, time_index):
         """Get a string timestamp for the first time index value with the
         format YYYYMMDDHHMMSS"""
 
-        time_stamp = self.time_index[0]
+        time_stamp = time_index[0]
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -600,12 +651,11 @@ class InputMixIn:
         ts0 = yyyy + mm + dd + hh + min + ss
         return ts0
 
-    @property
-    def timestamp_1(self):
+    def _get_timestamp_1(self, time_index):
         """Get a string timestamp for the last time index value with the
         format YYYYMMDDHHMMSS"""
 
-        time_stamp = self.time_index[-1]
+        time_stamp = time_index[-1]
         yyyy = str(time_stamp.year)
         mm = str(time_stamp.month).zfill(2)
         dd = str(time_stamp.day).zfill(2)
@@ -614,6 +664,31 @@ class InputMixIn:
         ss = str(time_stamp.second).zfill(2)
         ts1 = yyyy + mm + dd + hh + min + ss
         return ts1
+
+    @property
+    def timestamp_0(self):
+        """Get a string timestamp for the first time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        return self._get_timestamp_0(self.time_index)
+
+    @property
+    def timestamp_1(self):
+        """Get a string timestamp for the last time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        return self._get_timestamp_1(self.time_index)
+
+    def _should_load_cache(
+        self, cache_pattern, cache_files, overwrite_cache=False
+    ):
+        """Check if we should load cached data"""
+        try_load = (
+            cache_pattern is not None
+            and not overwrite_cache
+            and all(os.path.exists(fp) for fp in cache_files)
+        )
+        return try_load
 
 
 class DataHandler(FeatureHandler, InputMixIn):
@@ -837,10 +912,8 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         self.preflight()
 
-        try_load = (
-            cache_pattern is not None
-            and not self.overwrite_cache
-            and all(os.path.exists(fp) for fp in self.cache_files)
+        try_load = self._should_load_cache(
+            self._cache_pattern, self.cache_files, self.overwrite_cache
         )
 
         overwrite = (
@@ -922,7 +995,9 @@ class DataHandler(FeatureHandler, InputMixIn):
         Make sure validation data is larger than sample_shape"""
 
         if self.data is not None and self.val_split > 0.0:
-            self.data, self.val_data = self.split_data()
+            self.data, self.val_data = self.split_data(
+                val_split=self.val_split, shuffle_time=self.shuffle_time
+            )
             msg = (
                 f'Validation data has shape={self.val_data.shape} '
                 f'and sample_shape={self.sample_shape}. Use a smaller '
@@ -1367,34 +1442,55 @@ class DataHandler(FeatureHandler, InputMixIn):
         cmd += ";\'\n"
         return cmd.replace('\\', '/')
 
-    def get_cache_file_names(self, cache_pattern):
+    def get_cache_file_names(
+        self,
+        cache_pattern,
+        grid_shape=None,
+        time_index=None,
+        target=None,
+        features=None,
+    ):
         """Get names of cache files from cache_pattern and feature names
 
         Parameters
         ----------
         cache_pattern : str
             Pattern to use for cache file names
+        grid_shape : tuple
+            Shape of grid to use for cache file naming
+        time_index : list | pd.DatetimeIndex
+            Time index to use for cache file naming
+        target : tuple
+            Target to use for cache file naming
+        features : list
+            List of features to use for cache file naming
 
         Returns
         -------
         list
             List of cache file names
         """
+        grid_shape = grid_shape if grid_shape is not None else self.grid_shape
+        time_index = time_index if time_index is not None else self.time_index
+        target = target if target is not None else self.target
+        features = features if features is not None else self.features
+
         if cache_pattern is not None:
             cache_files = [
-                cache_pattern.replace('{feature}', f.lower())
-                for f in self.features
+                cache_pattern.replace('{feature}', f.lower()) for f in features
             ]
             for i, f in enumerate(cache_files):
                 if '{shape}' in f:
-                    shape = f'{self.grid_shape[0]}x{self.grid_shape[1]}'
-                    shape += f'x{len(self.time_index)}'
+                    shape = f'{grid_shape[0]}x{grid_shape[1]}'
+                    shape += f'x{len(time_index)}'
                     f = f.replace('{shape}', shape)
                 if '{target}' in f:
-                    target = f'{self.target[0]:.2f}_{self.target[1]:.2f}'
-                    f = f.replace('{target}', target)
+                    target_str = f'{target[0]:.2f}_{target[1]:.2f}'
+                    f = f.replace('{target}', target_str)
                 if '{times}' in f:
-                    times = f'{self.timestamp_0}_{self.timestamp_1}'
+                    ts_0 = self._get_timestamp_0(time_index)
+                    ts_1 = self._get_timestamp_1(time_index)
+                    times = f'{ts_0}_{ts_1}'
                     f = f.replace('{times}', times)
 
                 cache_files[i] = f
@@ -1533,7 +1629,7 @@ class DataHandler(FeatureHandler, InputMixIn):
         observation = self.data[self.current_obs_index]
         return observation
 
-    def split_data(self, data=None):
+    def split_data(self, data=None, val_split=0.0, shuffle_time=False):
         """Split time dimension into set of training indices and validation
         indices
 
@@ -1542,6 +1638,10 @@ class DataHandler(FeatureHandler, InputMixIn):
         data : np.ndarray
             4D array of high res data
             (spatial_1, spatial_2, temporal, features)
+        val_split : float
+            Fraction of data to separate for validation.
+        shuffle_time : bool
+            Whether to shuffle time or not.
 
         Returns
         -------
@@ -1553,21 +1653,19 @@ class DataHandler(FeatureHandler, InputMixIn):
             (spatial_1, spatial_2, temporal, features)
             Validation data fraction of initial data array.
         """
-
-        if data is not None:
-            self.data = data
+        self.data = data if data is not None else self.data
 
         n_observations = self.data.shape[2]
         all_indices = np.arange(n_observations)
-        n_val_obs = int(self.val_split * n_observations)
+        n_val_obs = int(val_split * n_observations)
 
-        if self.shuffle_time:
+        if shuffle_time:
             np.random.shuffle(all_indices)
 
         val_indices = all_indices[:n_val_obs]
         training_indices = all_indices[n_val_obs:]
 
-        if not self.shuffle_time:
+        if not shuffle_time:
             [self.val_data, self.data] = np.split(
                 self.data, [n_val_obs], axis=2
             )
@@ -1600,57 +1698,51 @@ class DataHandler(FeatureHandler, InputMixIn):
         cache_file_paths : str | None
             Path to file for saving feature data
         """
+        self._cache_data(
+            self.data, self.features, cache_file_paths, self.overwrite_cache
+        )
 
-        for i, fp in enumerate(cache_file_paths):
-            if not os.path.exists(fp) or self.overwrite_cache:
-                if self.overwrite_cache and os.path.exists(fp):
-                    logger.info(
-                        f'Overwriting {self.features[i]} with shape '
-                        f'{self.data[..., i].shape} to {fp}'
-                    )
-                else:
-                    logger.info(
-                        f'Saving {self.features[i]} with shape '
-                        f'{self.data[..., i].shape} to {fp}'
-                    )
-
-                tmp_file = fp.replace('.pkl', '.pkl.tmp')
-                with open(tmp_file, 'wb') as fh:
-                    pickle.dump(self.data[..., i], fh, protocol=4)
-                os.replace(tmp_file, fp)
-            else:
-                msg = (
-                    f'Called cache_data but {fp} already exists. Set to '
-                    'overwrite_cache to True to overwrite.'
-                )
-                logger.warning(msg)
-                warnings.warn(msg)
-
-    def parallel_load(self, max_workers=None):
+    def parallel_load(
+        self, data, cache_files, features, required_shape, max_workers=None
+    ):
         """Load feature data in parallel
 
         Parameters
         ----------
+        data : ndarray
+            Array to fill with cached data
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        required_shape : tuple
+            Required shape for full array of feature data
         max_workers : int | None
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-        logger.info(f'Loading {len(self.cache_files)} cache files.')
+        logger.info(f'Loading {len(cache_files)} cache files.')
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
-            for i, fp in enumerate(self.cache_files):
-                future = exe.submit(self.load_single_cached_feature, fp=fp)
+            for i, fp in enumerate(cache_files):
+                future = exe.submit(
+                    self._load_single_cached_feature,
+                    fp=fp,
+                    cache_files=cache_files,
+                    features=features,
+                    required_shape=required_shape,
+                )
                 futures[future] = {'idx': i, 'fp': os.path.basename(fp)}
 
             logger.info(
-                f'Started loading all {len(self.cache_files)} cache '
+                f'Started loading all {len(cache_files)} cache '
                 f'files in {dt.now() - now}.'
             )
 
             for i, future in enumerate(as_completed(futures)):
                 try:
-                    future.result()
+                    data[..., futures[future]['idx']] = future.result()
                 except Exception as e:
                     msg = (
                         'Error while loading '
@@ -1663,41 +1755,50 @@ class DataHandler(FeatureHandler, InputMixIn):
                     f'loaded: {futures[future]["fp"]}'
                 )
 
-    def load_single_cached_feature(self, fp):
-        """Load single feature from given file
+    def _load_cached_data(
+        self, data, cache_files, features, required_shape, max_workers=None
+    ):
+        """Load cached data to provided array
 
         Parameters
         ----------
-        fp : string
-            File path for feature cache file
-
-        Raises
-        ------
-        RuntimeError
-            Error raised if shape conflicts with requested shape
+        data : ndarray
+            Array to fill with cached data
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        required_shape : tuple
+            Required shape for full array of feature data
+        max_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
         """
-        idx = self.cache_files.index(fp)
-        assert self.features[idx].lower() in fp.lower()
-        fp = ignore_case_path_fetch(fp)
-        logger.info(
-            f'Loading {self.features[idx]} from ' f'{os.path.basename(fp)}'
-        )
+        if max_workers == 1:
+            for i, fp in enumerate(cache_files):
+                data[..., i] = self._load_single_cached_feature(
+                    fp, cache_files, features, required_shape
+                )
+        else:
+            self.parallel_load(
+                data,
+                cache_files,
+                features,
+                required_shape,
+                max_workers=max_workers,
+            )
 
-        with open(fp, 'rb') as fh:
-            try:
-                self.data[..., idx] = np.array(
-                    pickle.load(fh), dtype=np.float32
-                )
-            except Exception as e:
-                msg = (
-                    'Data loaded from from cache file "{}" '
-                    'could not be written to feature channel {} '
-                    'of full data array of shape {}. '
-                    'The cached data has the wrong shape {}.'.format(
-                        fp, idx, self.data.shape, pickle.load(fh).shape
-                    )
-                )
-                raise RuntimeError(msg) from e
+    @property
+    def requested_shape(self):
+        """Get requested shape for cached data"""
+        shape = get_raster_shape(self.raster_index)
+        requested_shape = (
+            shape[0] // self.hr_spatial_coarsen,
+            shape[1] // self.hr_spatial_coarsen,
+            len(self.time_index),
+            len(self.features),
+        )
+        return requested_shape
 
     def load_cached_data(self):
         """Load data from cache files and split into training and validation"""
@@ -1705,14 +1806,6 @@ class DataHandler(FeatureHandler, InputMixIn):
             logger.info('Called load_cached_data() but self.data is not None')
 
         elif self.data is None:
-            shape = get_raster_shape(self.raster_index)
-            requested_shape = (
-                shape[0] // self.hr_spatial_coarsen,
-                shape[1] // self.hr_spatial_coarsen,
-                len(self.time_index),
-                len(self.features),
-            )
-
             msg = (
                 'Found {} cache files but need {} for features {}! '
                 'These are the cache files that were found: {}'.format(
@@ -1725,17 +1818,18 @@ class DataHandler(FeatureHandler, InputMixIn):
             assert len(self.cache_files) == len(self.features), msg
 
             self.data = np.full(
-                shape=requested_shape, fill_value=np.nan, dtype=np.float32
+                shape=self.requested_shape, fill_value=np.nan, dtype=np.float32
             )
 
             logger.info(f'Loading cached data from: {self.cache_files}')
             max_workers = self.load_workers
-            if max_workers == 1:
-                for _, fp in enumerate(self.cache_files):
-                    self.load_single_cached_feature(fp)
-            else:
-                self.parallel_load(max_workers=max_workers)
-
+            self._load_cached_data(
+                self.data,
+                self.cache_files,
+                self.features,
+                self.requested_shape[:-1],
+                max_workers=max_workers,
+            )
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
                 msg = 'Data has {:.2f}% NaN values!'.format(nan_perc)
@@ -1747,7 +1841,9 @@ class DataHandler(FeatureHandler, InputMixIn):
                 f'({1 - self.val_split}, {self.val_split}) '
                 f'for {self.input_file_info}'
             )
-            self.data, self.val_data = self.split_data()
+            self.data, self.val_data = self.split_data(
+                val_split=self.val_split, shuffle_time=self.shuffle_time
+            )
 
     @classmethod
     def check_cached_features(
@@ -2075,37 +2171,39 @@ class DataHandler(FeatureHandler, InputMixIn):
 
         completed = []
         for idf, feature in enumerate(self.features):
+            dset_scalar = f'{feature}_scalar'
+            dset_adder = f'{feature}_adder'
             for fp in bc_files:
-                if feature not in completed:
-                    scalar, adder = get_spatial_bc_factors(
-                        lat_lon=self.lat_lon,
-                        feature_name=feature,
-                        bias_fp=fp,
-                        threshold=threshold,
-                    )
+                with Resource(fp) as res:
+                    lat = np.expand_dims(res['latitude'], axis=-1)
+                    lon = np.expand_dims(res['longitude'], axis=-1)
+                    lat_lon_bc = np.dstack((lat, lon))
+                    lat_lon_0 = self.lat_lon[:1, :1]
+                    diff = lat_lon_bc - lat_lon_0
+                    diff = np.hypot(diff[..., 0], diff[..., 1])
+                    idy, idx = np.where(diff == diff.min())
+                    slice_y = slice(idy[0], idy[0] + self.shape[0])
+                    slice_x = slice(idx[0], idx[0] + self.shape[1])
 
-                    if scalar.shape[-1] == 1:
-                        scalar = np.repeat(scalar, self.shape[2], axis=2)
-                        adder = np.repeat(adder, self.shape[2], axis=2)
-                    elif scalar.shape[-1] == 12:
-                        idm = self.time_index.month.values - 1
-                        scalar = scalar[..., idm]
-                        adder = adder[..., idm]
-                    else:
+                    if diff.min() > threshold:
                         msg = (
-                            'Can only accept bias correction factors '
-                            'with last dim equal to 1 or 12 but '
-                            'received bias correction factors with '
-                            'shape {}'.format(scalar.shape)
+                            'The DataHandler top left coordinate of {} '
+                            'appears to be {} away from the nearest '
+                            'bias correction coordinate of {} from {}. '
+                            'Cannot apply bias correction.'.format(
+                                lat_lon_0,
+                                diff.min(),
+                                lat_lon_bc[idy, idx],
+                                os.path.basename(fp),
+                            )
                         )
                         logger.error(msg)
                         raise RuntimeError(msg)
 
-                    logger.info(
-                        'Bias correcting "{}" with linear '
-                        'correction from "{}"'.format(
-                            feature, os.path.basename(fp)
-                        )
+                    check = (
+                        dset_scalar in res.dsets
+                        and dset_adder in res.dsets
+                        and feature not in completed
                     )
                     self.data[..., idf] *= scalar
                     self.data[..., idf] += adder
@@ -2145,67 +2243,74 @@ class DataHandlerNC(DataHandler):
         if xr_chunks is not None:
             self.CHUNKS = xr_chunks
 
-        super().__init__(*args, **kwargs)
+                        logger.info(
+                            'Bias correcting "{}" with linear '
+                            'correction from "{}"'.format(
+                                feature, os.path.basename(fp)
+                            )
+                        )
+                        self.data[..., idf] *= scalar
+                        self.data[..., idf] += adder
+                        completed.append(feature)
 
-    @property
-    def extract_workers(self):
-        """Get upper bound for extract workers based on memory limits. Used to
-        extract data from source dataset"""
-        # This large multiplier is due to the height interpolation allocating
-        # multiple arrays with up to 60 vertical levels
-        proc_mem = 6 * 64 * self.grid_mem * len(self.time_index)
-        proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.extract_features)
-        n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(
-            self._extract_workers, proc_mem, n_procs
-        )
-        return extract_workers
 
-    @classmethod
-    def source_handler(cls, file_paths, **kwargs):
-        """Xarray data handler
+# pylint: disable=W0223
+class DataHandlerDC(DataHandler):
+    """Data-centric data handler"""
 
-        Note that xarray appears to treat open file handlers as singletons
-        within a threadpool, so its okay to open this source_handler without a
-        context handler or a .close() statement.
+    def get_observation_index(
+        self, temporal_weights=None, spatial_weights=None
+    ):
+        """Randomly gets weighted spatial sample and time sample
 
         Parameters
         ----------
-        file_paths : str | list
-            paths to data files
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
 
         Returns
         -------
-        data : xarray.Dataset
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
         """
-        time_key = get_time_dim_name(file_paths[0])
-        default_kws = {
-            'combine': 'nested',
-            'concat_dim': time_key,
-            'chunks': cls.CHUNKS,
-        }
-        default_kws.update(kwargs)
-        return xr.open_mfdataset(file_paths, **default_kws)
+        if spatial_weights is not None:
+            spatial_slice = weighted_box_sampler(
+                self.data, self.sample_shape[:2], weights=spatial_weights
+            )
+        else:
+            spatial_slice = uniform_box_sampler(
+                self.data, self.sample_shape[:2]
+            )
+        if temporal_weights is not None:
+            temporal_slice = weighted_time_sampler(
+                self.data, self.sample_shape[2], weights=temporal_weights
+            )
+        else:
+            temporal_slice = uniform_time_sampler(
+                self.data, self.sample_shape[2]
+            )
 
-    @classmethod
-    def get_file_times(cls, file_paths, **kwargs):
-        """Get time index from data files
+        return tuple(
+            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
+        )
+
+    def get_next(self, temporal_weights=None, spatial_weights=None):
+        """Get data for observation using weighted random observation index.
+        Loops repeatedly over randomized time index.
 
         Parameters
         ----------
-        file_paths : list
-            path to data file
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
 
         Returns
         -------
@@ -3498,11 +3603,3 @@ class DataHandlerDC(DataHandler):
         )
         observation = self.data[self.current_obs_index]
         return observation
-
-
-class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
-    """Data centric data handler for NETCDF files"""
-
-
-class DataHandlerDCforH5(DataHandlerH5, DataHandlerDC):
-    """Data centric data handler for H5 files"""

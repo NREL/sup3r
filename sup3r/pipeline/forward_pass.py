@@ -24,8 +24,8 @@ from sup3r.postprocessing.file_handling import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.data_handling import InputMixIn
-from sup3r.preprocessing.exogenous_data_handling import ExogenousDataHandler
+from sup3r.preprocessing.data_handling import ExogenousDataHandler
+from sup3r.preprocessing.data_handling.base import InputMixIn
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess

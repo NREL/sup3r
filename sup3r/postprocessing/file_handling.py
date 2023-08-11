@@ -2,28 +2,30 @@
 
 author : @bbenton
 """
+import json
+import logging
+import os
+import re
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
-import xarray as xr
-import pandas as pd
-import logging
-from scipy.interpolate import griddata
-import re
 from datetime import datetime as dt
-import json
-import os
 from warnings import warn
 
-from sup3r.version import __version__
-from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import (invert_uv,
-                                       get_time_dim_name,
-                                       estimate_max_workers,
-                                       pd_date_range)
-from sup3r.preprocessing.feature_handling import Feature
-
+import numpy as np
+import pandas as pd
+import xarray as xr
 from rex.outputs import Outputs as BaseRexOutputs
+from scipy.interpolate import griddata
+
+from sup3r.preprocessing.feature_handling import Feature
+from sup3r.utilities import VERSION_RECORD
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    get_time_dim_name,
+    invert_uv,
+    pd_date_range,
+)
+from sup3r.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +237,8 @@ class OutputMixIn:
             Pre-existing H5 file output path
         dsets : list
             list of datasets to write to out_file
+        time_index : pd.DatetimeIndex()
+            Pandas datetime index to use for file time_index.
         data_list : list
             List of np.ndarray objects to write to out_file
         meta : pd.DataFrame
@@ -260,7 +264,7 @@ class OutputMixIn:
 
         os.replace(tmp_file, out_file)
         msg = ('Saved output of size '
-               f'{(len(data_list),) + data_list[0].shape} to: {out_file}')
+               f'{(len(data_list), *data_list[0].shape)} to: {out_file}')
         logger.info(msg)
 
 

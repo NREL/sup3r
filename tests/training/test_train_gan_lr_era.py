@@ -12,20 +12,25 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing.h5_with_era_handling import (
-    BatchHandlerH5withERA,
-    DataHandlerH5withERA,
-    SpatialBatchHandlerH5withERA,
+from sup3r.preprocessing.data_handling import (
+    DataHandlerH5,
+    DataHandlerNC,
+    DualDataHandler,
+)
+from sup3r.preprocessing.dual_batch_handling import (
+    DualBatchHandler,
+    SpatialDualBatchHandler,
 )
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era_co_2012.h5')
+FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
 
-def test_train_spatial(log=False, full_shape=(20, 20),
-                       sample_shape=(10, 10, 1), n_epoch=2):
+def test_train_spatial(
+    log=False, full_shape=(20, 20), sample_shape=(10, 10, 1), n_epoch=2
+):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -34,27 +39,47 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
-                     loss='MeanAbsoluteError')
+    model = Sup3rGan(
+        fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+    )
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandlerH5withERA(FP_WTK, FEATURES, target=TARGET_COORD,
-                                   shape=full_shape, s_enhance=2,
-                                   t_enhance=1,
-                                   sample_shape=sample_shape,
-                                   temporal_slice=slice(None, None, 10),
-                                   worker_kwargs=dict(max_workers=1),
-                                   era_kwargs=dict(file_paths=FP_ERA),
-                                   val_split=0.1)
+    hr_handler = DataHandlerH5(
+        FP_WTK,
+        FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        sample_shape=sample_shape,
+        temporal_slice=slice(None, None, 10),
+        worker_kwargs=dict(max_workers=1),
+    )
+    lr_handler = DataHandlerNC(
+        FP_ERA,
+        FEATURES,
+        sample_shape=(sample_shape[0] // 2, sample_shape[1] // 2, 1),
+        temporal_slice=slice(None, None, 10),
+        worker_kwargs=dict(max_workers=1),
+    )
 
-    batch_handler = SpatialBatchHandlerH5withERA([handler], batch_size=2,
-                                                 s_enhance=2, n_batches=2)
+    dual_handler = DualDataHandler(
+        hr_handler, lr_handler, s_enhance=2, t_enhance=1, val_split=0.1
+    )
+
+    batch_handler = SpatialDualBatchHandler(
+        [dual_handler], batch_size=2, s_enhance=2, n_batches=2
+    )
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
-        model.train(batch_handler, n_epoch=n_epoch, weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False, checkpoint_int=1,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+        model.train(
+            batch_handler,
+            n_epoch=n_epoch,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+            checkpoint_int=1,
+            out_dir=os.path.join(td, 'test_{epoch}'),
+        )
 
         assert len(model.history) == n_epoch
         vlossg = model.history['val_loss_gen'].values
@@ -67,8 +92,9 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert 'model_disc.pkl' in os.listdir(td + '/test_1')
 
         # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
-                         loss='MeanAbsoluteError')
+        dummy = Sup3rGan(
+            fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+        )
 
         # test save/load functionality
         out_dir = os.path.join(td, 'spatial_gan')
@@ -105,21 +131,34 @@ def test_train_st(n_epoch=2, log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=5e-5,
-                     learning_rate_disc=2e-5)
+    model = Sup3rGan(
+        fp_gen, fp_disc, learning_rate=5e-5, learning_rate_disc=2e-5
+    )
 
-    handler = DataHandlerH5withERA(FP_WTK, FEATURES, target=TARGET_COORD,
-                                   shape=(20, 20), s_enhance=3,
-                                   t_enhance=4,
-                                   sample_shape=(12, 12, 16),
-                                   temporal_slice=slice(None, None, 10),
-                                   worker_kwargs=dict(max_workers=1),
-                                   era_kwargs=dict(file_paths=FP_ERA),
-                                   val_split=0.005)
+    hr_handler = DataHandlerH5(
+        FP_WTK,
+        FEATURES,
+        target=TARGET_COORD,
+        shape=(20, 20),
+        sample_shape=(12, 12, 16),
+        temporal_slice=slice(None, None, 10),
+        worker_kwargs=dict(max_workers=1),
+    )
+    lr_handler = DataHandlerNC(
+        FP_ERA,
+        FEATURES,
+        sample_shape=(4, 4, 4),
+        temporal_slice=slice(None, None, 40),
+        worker_kwargs=dict(max_workers=1),
+    )
 
-    batch_handler = BatchHandlerH5withERA([handler], batch_size=2,
-                                          s_enhance=3, t_enhance=4,
-                                          n_batches=2)
+    dual_handler = DualDataHandler(
+        hr_handler, lr_handler, s_enhance=3, t_enhance=4, val_split=0.005
+    )
+
+    batch_handler = DualBatchHandler(
+        [dual_handler], batch_size=2, s_enhance=3, t_enhance=4, n_batches=2
+    )
 
     assert batch_handler.norm_workers == 1
     assert batch_handler.stats_workers == 1
@@ -127,11 +166,15 @@ def test_train_st(n_epoch=2, log=False):
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
-        model.train(batch_handler, n_epoch=n_epoch,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=1,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+        model.train(
+            batch_handler,
+            n_epoch=n_epoch,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+            checkpoint_int=1,
+            out_dir=os.path.join(td, 'test_{epoch}'),
+        )
 
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
@@ -156,8 +199,9 @@ def test_train_st(n_epoch=2, log=False):
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], 5e-5)
-        assert np.allclose(model_params['optimizer_disc']['learning_rate'],
-                           2e-5)
+        assert np.allclose(
+            model_params['optimizer_disc']['learning_rate'], 2e-5
+        )
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
 
@@ -166,8 +210,9 @@ def test_train_st(n_epoch=2, log=False):
         assert model.meta['class'] == 'Sup3rGan'
 
         # make an un-trained dummy model
-        dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=5e-5,
-                         learning_rate_disc=2e-5)
+        dummy = Sup3rGan(
+            fp_gen, fp_disc, learning_rate=5e-5, learning_rate_disc=2e-5
+        )
 
         for batch in batch_handler:
             out_og = model._tf_generate(batch.low_res)
