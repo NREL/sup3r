@@ -22,6 +22,7 @@ class DualDataHandler(InputMixIn):
         lr_handler,
         regrid_cache_pattern=None,
         overwrite_regrid_cache=False,
+        load_cached=True,
         s_enhance=15,
         t_enhance=1,
         val_split=0.0,
@@ -72,6 +73,26 @@ class DualDataHandler(InputMixIn):
             self.lr_data, self.val_split
         )
         self._run_handler_checks(hr_handler, lr_handler)
+
+    def normalize(self, means, stdevs):
+        """Normalize low_res data
+
+        Parameters
+        ----------
+        means : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        stdevs : np.ndarray
+            dimensions (features)
+            array of means for all features with same ordering as data features
+        """
+        self.lr_dh.normalize(means, stdevs)
+
+    @property
+    def output_features(self):
+        """Get list of output features. e.g. those that are returned by a
+        GAN"""
+        return self.hr_dh.output_features
 
     def _shape_check(self):
         """Check if hr_handler.shape is divisible by s_enhance. If not take
@@ -405,11 +426,11 @@ class DualDataHandler(InputMixIn):
         lr_obs_idx = []
         for s in hr_obs_idx[:2]:
             lr_obs_idx.append(
-                slice(s.start // self.s_enhance, s.stop // self.s_enhance + 1)
+                slice(s.start // self.s_enhance, s.stop // self.s_enhance)
             )
         for s in hr_obs_idx[2:-1]:
             lr_obs_idx.append(
-                slice(s.start // self.t_enhance, s.stop // self.t_enhance + 1)
+                slice(s.start // self.t_enhance, s.stop // self.t_enhance)
             )
         lr_obs_idx.append(hr_obs_idx[-1])
         self.current_obs_index = [hr_obs_idx, lr_obs_idx]

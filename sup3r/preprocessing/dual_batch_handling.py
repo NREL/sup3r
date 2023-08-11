@@ -32,14 +32,14 @@ class DualValidationData(ValidationData):
         """
 
         val_indices = []
-        for i, h in enumerate(self.handlers):
+        for i, h in enumerate(self.data_handlers):
             if h.hr_val_data is not None:
                 for _ in range(h.hr_val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
-                        h.hr_val_data, self.sample_shape[:2]
+                        h.hr_val_data, self.hr_sample_shape[:2]
                     )
                     temporal_slice = uniform_time_sampler(
-                        h.hr_val_data, self.sample_shape[2]
+                        h.hr_val_data, self.hr_sample_shape[2]
                     )
                     hr_index = tuple(
                         [
@@ -53,14 +53,14 @@ class DualValidationData(ValidationData):
                         lr_index.append(
                             slice(
                                 s.start // self.s_enhance,
-                                s.stop // self.s_enhance + 1,
+                                s.stop // self.s_enhance,
                             )
                         )
                     for s in hr_index[2:-1]:
                         lr_index.append(
                             slice(
                                 s.start // self.t_enhance,
-                                s.stop // self.t_enhance + 1,
+                                s.stop // self.t_enhance,
                             )
                         )
                     lr_index.append(hr_index[-1])
@@ -86,14 +86,24 @@ class DualValidationData(ValidationData):
             dimension
         """
         time_steps = 0
-        for h in self.handlers:
+        for h in self.data_handlers:
             time_steps += h.hr_val_data.shape[2]
         return (
-            self.handlers[0].hr_val_data.shape[0],
-            self.handlers[0].hr_val_data.shape[1],
+            self.data_handlers[0].hr_val_data.shape[0],
+            self.data_handlers[0].hr_val_data.shape[1],
             time_steps,
-            self.handlers[0].hr_val_data.shape[3],
+            self.data_handlers[0].hr_val_data.shape[3],
         )
+
+    @property
+    def hr_sample_shape(self):
+        """Get sample shape for high_res data"""
+        return self.data_handlers[0].hr_dh.sample_shape
+
+    @property
+    def lr_sample_shape(self):
+        """Get sample shape for low_res data"""
+        return self.data_handlers[0].lr_dh.sample_shape
 
     def __next__(self):
         """Get validation data batch
@@ -113,29 +123,29 @@ class DualValidationData(ValidationData):
             high_res = np.zeros(
                 (
                     n_obs,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
-                    self.sample_shape[2],
-                    self.handlers[0].shape[-1],
+                    self.hr_sample_shape[0],
+                    self.hr_sample_shape[1],
+                    self.hr_sample_shape[2],
+                    self.data_handlers[0].shape[-1],
                 ),
                 dtype=np.float32,
             )
             low_res = np.zeros(
                 (
                     n_obs,
-                    self.sample_shape[0] // self.s_enhance,
-                    self.sample_shape[1] // self.s_enhance,
-                    self.sample_shape[2] // self.t_enhance,
-                    self.handlers[0].shape[-1],
+                    self.lr_sample_shape[0],
+                    self.lr_sample_shape[1],
+                    self.lr_sample_shape[2],
+                    self.data_handlers[0].shape[-1],
                 ),
                 dtype=np.float32,
             )
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
-                high_res[i, ...] = self.handlers[
+                high_res[i, ...] = self.data_handlers[
                     val_index['handler_index']
                 ].hr_val_data[val_index['hr_index']]
-                low_res[i, ...] = self.handlers[
+                low_res[i, ...] = self.data_handlers[
                     val_index['handler_index']
                 ].lr_val_data[val_index['lr_index']]
                 self._remaining_observations -= 1
@@ -159,6 +169,16 @@ class DualBatchHandler(BatchHandler):
 
     BATCH_CLASS = Batch
 
+    @property
+    def hr_sample_shape(self):
+        """Get sample shape for high_res data"""
+        return self.data_handlers[0].hr_dh.sample_shape
+
+    @property
+    def lr_sample_shape(self):
+        """Get sample shape for low_res data"""
+        return self.data_handlers[0].lr_dh.sample_shape
+
     def __iter__(self):
         self._i = 0
         return self
@@ -180,9 +200,9 @@ class DualBatchHandler(BatchHandler):
             high_res = np.zeros(
                 (
                     self.batch_size,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
-                    self.sample_shape[2],
+                    self.hr_sample_shape[0],
+                    self.hr_sample_shape[1],
+                    self.hr_sample_shape[2],
                     self.shape[-1],
                 ),
                 dtype=np.float32,
@@ -190,9 +210,9 @@ class DualBatchHandler(BatchHandler):
             low_res = np.zeros(
                 (
                     self.batch_size,
-                    self.sample_shape[0] // self.s_enhance,
-                    self.sample_shape[1] // self.s_enhance,
-                    self.sample_shape[2] // self.t_enhance,
+                    self.lr_sample_shape[0],
+                    self.lr_sample_shape[1],
+                    self.lr_sample_shape[2],
                     self.shape[-1],
                 ),
                 dtype=np.float32,
@@ -241,8 +261,8 @@ class SpatialDualBatchHandler(DualBatchHandler):
             high_res = np.zeros(
                 (
                     self.batch_size,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
+                    self.hr_sample_shape[0],
+                    self.hr_sample_shape[1],
                     self.shape[-1],
                 ),
                 dtype=np.float32,
@@ -250,8 +270,8 @@ class SpatialDualBatchHandler(DualBatchHandler):
             low_res = np.zeros(
                 (
                     self.batch_size,
-                    self.sample_shape[0] // self.s_enhance,
-                    self.sample_shape[1] // self.s_enhance,
+                    self.lr_sample_shape[0],
+                    self.lr_sample_shape[1],
                     self.shape[-1],
                 ),
                 dtype=np.float32,

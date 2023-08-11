@@ -221,13 +221,13 @@ class ValidationData:
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
-        self.handlers = data_handlers
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
+        self.data_handlers = data_handlers
         self.batch_size = batch_size
         self.sample_shape = handler_shapes[0]
         self.val_indices = self._get_val_indices()
         self.max = np.ceil(len(self.val_indices) / (batch_size))
-        self.s_enhance = s_enhance
-        self.t_enhance = t_enhance
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
@@ -249,7 +249,7 @@ class ValidationData:
         """
 
         val_indices = []
-        for i, h in enumerate(self.handlers):
+        for i, h in enumerate(self.data_handlers):
             if h.val_data is not None:
                 for _ in range(h.val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
@@ -286,13 +286,13 @@ class ValidationData:
             dimension
         """
         time_steps = 0
-        for h in self.handlers:
+        for h in self.data_handlers:
             time_steps += h.val_data.shape[2]
         return (
-            self.handlers[0].val_data.shape[0],
-            self.handlers[0].val_data.shape[1],
+            self.data_handlers[0].val_data.shape[0],
+            self.data_handlers[0].val_data.shape[1],
             time_steps,
-            self.handlers[0].val_data.shape[3],
+            self.data_handlers[0].val_data.shape[3],
         )
 
     def __iter__(self):
@@ -355,13 +355,13 @@ class ValidationData:
                     self.sample_shape[0],
                     self.sample_shape[1],
                     self.sample_shape[2],
-                    self.handlers[0].shape[-1],
+                    self.data_handlers[0].shape[-1],
                 ),
                 dtype=np.float32,
             )
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
-                high_res[i, ...] = self.handlers[
+                high_res[i, ...] = self.data_handlers[
                     val_index['handler_index']
                 ].val_data[val_index['tuple_index']]
                 self._remaining_observations -= 1
@@ -656,7 +656,8 @@ class BatchHandler:
         max_workers = self.load_workers
         if max_workers == 1:
             for d in self.data_handlers:
-                d.load_cached_data()
+                if d.data is None:
+                    d.load_cached_data()
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
@@ -1289,8 +1290,8 @@ class ValidationDataDC(ValidationData):
         val_indices = {}
         for t in range(self.N_TIME_BINS):
             val_indices[t] = []
-            h_idx = np.random.choice(np.arange(len(self.handlers)))
-            h = self.handlers[h_idx]
+            h_idx = np.random.choice(np.arange(len(self.data_handlers)))
+            h = self.data_handlers[h_idx]
             for _ in range(self.batch_size):
                 spatial_slice = uniform_box_sampler(
                     h.data, self.sample_shape[:2]
@@ -1312,8 +1313,8 @@ class ValidationDataDC(ValidationData):
                 )
         for s in range(self.N_SPACE_BINS):
             val_indices[s + self.N_TIME_BINS] = []
-            h_idx = np.random.choice(np.arange(len(self.handlers)))
-            h = self.handlers[h_idx]
+            h_idx = np.random.choice(np.arange(len(self.data_handlers)))
+            h = self.data_handlers[h_idx]
             for _ in range(self.batch_size):
                 weights = np.zeros(self.N_SPACE_BINS)
                 weights[s] = 1
@@ -1343,15 +1344,15 @@ class ValidationDataDC(ValidationData):
                     self.sample_shape[0],
                     self.sample_shape[1],
                     self.sample_shape[2],
-                    self.handlers[0].shape[-1],
+                    self.data_handlers[0].shape[-1],
                 ),
                 dtype=np.float32,
             )
             val_indices = self.val_indices[self._i]
             for i, idx in enumerate(val_indices):
-                high_res[i, ...] = self.handlers[idx['handler_index']].data[
-                    idx['tuple_index']
-                ]
+                high_res[i, ...] = self.data_handlers[
+                    idx['handler_index']
+                ].data[idx['tuple_index']]
 
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
@@ -1387,7 +1388,7 @@ class ValidationDataSpatialDC(ValidationDataDC):
                     self.batch_size,
                     self.sample_shape[0],
                     self.sample_shape[1],
-                    self.handlers[0].shape[-1],
+                    self.data_handlers[0].shape[-1],
                 ),
                 dtype=np.float32,
             )
