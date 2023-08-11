@@ -48,8 +48,9 @@ class Interpolator:
             # Terrain Height (m)
             hgt = data['HGT'][(time_slice, *tuple(raster_index))]
             if gp.shape != hgt.shape:
-                hgt = np.repeat(np.expand_dims(hgt, axis=1), gp.shape[-3],
-                                axis=1)
+                hgt = np.repeat(
+                    np.expand_dims(hgt, axis=1), gp.shape[-3], axis=1
+                )
             hgt = gp / 9.81 - hgt
             del gp
 
@@ -65,11 +66,15 @@ class Interpolator:
             del gp
 
         else:
-            msg = ('Need either PHB/PH/HGT or zg/orog in data to perform '
-                   'height interpolation')
+            msg = (
+                'Need either PHB/PH/HGT or zg/orog in data to perform '
+                'height interpolation'
+            )
             raise ValueError(msg)
-        logger.debug('Spatiotemporally averaged height levels: '
-                     f'{list(np.nanmean(np.array(hgt), axis=(0, 2, 3)))}')
+        logger.debug(
+            'Spatiotemporally averaged height levels: '
+            f'{list(np.nanmean(np.array(hgt), axis=(0, 2, 3)))}'
+        )
         return np.array(hgt)
 
     @classmethod
@@ -197,13 +202,18 @@ class Interpolator:
             List of levels to interpolate to.
         """
 
-        msg = ('Input arrays must be the same shape.'
-               f'\nvar_array: {var_array.shape}'
-               f'\nh_array: {lev_array.shape}')
+        msg = (
+            'Input arrays must be the same shape.'
+            f'\nvar_array: {var_array.shape}'
+            f'\nh_array: {lev_array.shape}'
+        )
         assert var_array.shape == lev_array.shape, msg
 
-        levels = ([levels] if isinstance(levels, (int, float, np.float32))
-                  else levels)
+        levels = (
+            [levels]
+            if isinstance(levels, (int, float, np.float32))
+            else levels
+        )
 
         if np.isnan(lev_array).all():
             msg = 'All pressure level height data is NaN!'
@@ -219,10 +229,11 @@ class Interpolator:
         bad_max = max(levels) > highest_height
 
         if nans.any():
-            msg = ('Approximately {:.2f}% of the vertical level '
-                   'array is NaN. Data will be interpolated or extrapolated '
-                   'past these NaN values.'
-                   .format(100 * nans.sum() / nans.size))
+            msg = (
+                'Approximately {:.2f}% of the vertical level '
+                'array is NaN. Data will be interpolated or extrapolated '
+                'past these NaN values.'.format(100 * nans.sum() / nans.size)
+            )
             logger.warning(msg)
             warn(msg)
 
@@ -231,23 +242,30 @@ class Interpolator:
         # does not correspond to the lowest or highest height. Interpolation
         # can be performed without issue in this case.
         if bad_min.any():
-            msg = ('Approximately {:.2f}% of the lowest vertical levels '
-                   '(maximum value of {:.3f}, minimum value of {:.3f}) '
-                   'were greater than the minimum requested level: {}'
-                   .format(100 * bad_min.sum() / bad_min.size,
-                           lev_array[:, 0, :, :].max(),
-                           lev_array[:, 0, :, :].min(), min(levels)))
+            msg = (
+                'Approximately {:.2f}% of the lowest vertical levels '
+                '(maximum value of {:.3f}, minimum value of {:.3f}) '
+                'were greater than the minimum requested level: {}'.format(
+                    100 * bad_min.sum() / bad_min.size,
+                    lev_array[:, 0, :, :].max(),
+                    lev_array[:, 0, :, :].min(),
+                    min(levels),
+                )
+            )
             logger.warning(msg)
             warn(msg)
 
         if bad_max.any():
-            msg = ('Approximately {:.2f}% of the highest vertical levels '
-                   '(minimum value of {:.3f}, maximum value of {:.3f}) '
-                   'were lower than the maximum requested level: {}'
-                   .format(100 * bad_max.sum() / bad_max.size,
-                           lev_array[:, -1, :, :].min(),
-                           lev_array[:, -1, :, :].max(),
-                           max(levels)))
+            msg = (
+                'Approximately {:.2f}% of the highest vertical levels '
+                '(minimum value of {:.3f}, maximum value of {:.3f}) '
+                'were lower than the maximum requested level: {}'.format(
+                    100 * bad_max.sum() / bad_max.size,
+                    lev_array[:, -1, :, :].min(),
+                    lev_array[:, -1, :, :].max(),
+                    max(levels),
+                )
+            )
             logger.warning(msg)
             warn(msg)
 
@@ -257,14 +275,14 @@ class Interpolator:
         # pressure levels at zero height at the surface in the case that the
         # data didnt provide underground data.
         for level in levels:
-            mask = (lev_array == level)
+            mask = lev_array == level
             lev_array[mask] += np.random.uniform(-1e-5, 0, size=mask.sum())
 
         return lev_array, levels
 
     @classmethod
     def interp_to_level(cls, var_array, lev_array, levels):
-        """Interpolate var_array to given level(s) based on h_array.
+        """Interpolate var_array to given level(s) based on lev_array.
         Interpolation is linear and done for every 'z' column of [var, h] data.
 
         Parameters
@@ -306,23 +324,34 @@ class Interpolator:
             # Interp each vertical column of height and var to requested levels
             zip_iter = zip(h_tmp, var_tmp, not_nan)
             out_array[:, idt, :] = np.array(
-                [interp1d(h[mask], var[mask], fill_value='extrapolate')(levels)
-                 for h, var, mask in zip_iter], dtype=np.float32)
+                [
+                    interp1d(h[mask], var[mask], fill_value='extrapolate')(
+                        levels
+                    )
+                    for h, var, mask in zip_iter
+                ],
+                dtype=np.float32,
+            )
 
         # Reshape out_array
         if isinstance(levels, (float, np.float32, int)):
             shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])
             out_array = out_array.T.reshape(shape)
         else:
-            shape = (len(levels), array_shape[-4], array_shape[-2],
-                     array_shape[-1])
+            shape = (
+                len(levels),
+                array_shape[-4],
+                array_shape[-2],
+                array_shape[-1],
+            )
             out_array = out_array.T.reshape(shape)
 
         return out_array
 
     @classmethod
-    def interp_var_to_height(cls, data, var, raster_index, heights,
-                             time_slice=slice(None)):
+    def interp_var_to_height(
+        cls, data, var, raster_index, heights, time_slice=slice(None)
+    ):
         """Interpolate var_array to given level(s) based on h_array.
         Interpolation is linear and done for every 'z' column of [var, h] data.
 
@@ -348,8 +377,10 @@ class Interpolator:
             raster_index = [0, *raster_index]
         logger.debug(f'Interpolating {var} to heights (meters): {heights}')
         hgt = cls.calc_height(data, raster_index, time_slice)
-        logger.info(f'Computed height array with min/max: {np.nanmin(hgt)} / '
-                    f'{np.nanmax(hgt)}')
+        logger.info(
+            f'Computed height array with min/max: {np.nanmin(hgt)} / '
+            f'{np.nanmax(hgt)}'
+        )
         if data[var].dims == ('plev',):
             arr = np.array(data[var])
             arr = np.expand_dims(arr, axis=(0, 2, 3))
@@ -363,8 +394,9 @@ class Interpolator:
         return cls.interp_to_level(arr, hgt, heights)[0]
 
     @classmethod
-    def interp_var_to_pressure(cls, data, var, raster_index, pressures,
-                               time_slice=slice(None)):
+    def interp_var_to_pressure(
+        cls, data, var, raster_index, pressures, time_slice=slice(None)
+    ):
         """Interpolate var_array to given level(s) based on h_array.
         Interpolation is linear and done for every 'z' column of [var, h] data.
 
@@ -397,5 +429,6 @@ class Interpolator:
 
         p_levels = cls.calc_pressure(data, var, raster_index, time_slice)
 
-        return cls.interp_to_level(arr[:, ::-1], p_levels[:, ::-1],
-                                   pressures)[0]
+        return cls.interp_to_level(arr[:, ::-1], p_levels[:, ::-1], pressures)[
+            0
+        ]
