@@ -43,8 +43,17 @@ logger = logging.getLogger(__name__)
 class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
-    def __init__(self, coarse_shape, time_steps, temporal_slice, chunk_shape,
-                 s_enhancements, t_enhancements, spatial_pad, temporal_pad):
+    def __init__(
+        self,
+        coarse_shape,
+        time_steps,
+        temporal_slice,
+        chunk_shape,
+        s_enhancements,
+        t_enhancements,
+        spatial_pad,
+        temporal_pad,
+    ):
         """
         Parameters
         ----------
@@ -214,8 +223,12 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices, self.time_steps, 1,
-                self.temporal_pad, self.temporal_slice.step)
+                self.t_lr_slices,
+                self.time_steps,
+                1,
+                self.temporal_pad,
+                self.temporal_slice.step,
+            )
         return self._t_lr_pad_slices
 
     @property
@@ -230,7 +243,8 @@ class ForwardPassSlicer:
         """
         if self._t_lr_crop_slices is None:
             self._t_lr_crop_slices = self.get_cropped_slices(
-                self.t_lr_slices, self.t_lr_pad_slices, 1)
+                self.t_lr_slices, self.t_lr_pad_slices, 1
+            )
 
         return self._t_lr_crop_slices
 
@@ -255,8 +269,10 @@ class ForwardPassSlicer:
             # don't use self.get_cropped_slices() here because temporal padding
             # gets weird at beginning and end of timeseries and the temporal
             # axis should always be evenly chunked.
-            self._t_hr_crop_slices = [slice(hr_crop_start, hr_crop_stop)
-                                      for _ in range(len(self.t_lr_slices))]
+            self._t_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+                for _ in range(len(self.t_lr_slices))
+            ]
 
         return self._t_hr_crop_slices
 
@@ -305,14 +321,20 @@ class ForwardPassSlicer:
         """
         if self._s_lr_crop_slices is None:
             self._s_lr_crop_slices = []
-            s1_crop_slices = self.get_cropped_slices(self.s1_lr_slices,
-                                                     self.s1_lr_pad_slices, 1)
-            s2_crop_slices = self.get_cropped_slices(self.s2_lr_slices,
-                                                     self.s2_lr_pad_slices, 1)
+            s1_crop_slices = self.get_cropped_slices(
+                self.s1_lr_slices, self.s1_lr_pad_slices, 1
+            )
+            s2_crop_slices = self.get_cropped_slices(
+                self.s2_lr_slices, self.s2_lr_pad_slices, 1
+            )
             for i, _ in enumerate(self.s1_lr_slices):
                 for j, _ in enumerate(self.s2_lr_slices):
-                    lr_crop_slice = (s1_crop_slices[i], s2_crop_slices[j],
-                                     slice(None), slice(None))
+                    lr_crop_slice = (
+                        s1_crop_slices[i],
+                        s2_crop_slices[j],
+                        slice(None),
+                        slice(None),
+                    )
                     self._s_lr_crop_slices.append(lr_crop_slice)
         return self._s_lr_crop_slices
 
@@ -335,10 +357,14 @@ class ForwardPassSlicer:
 
         if self._s_hr_crop_slices is None:
             self._s_hr_crop_slices = []
-            s1_hr_crop_slices = [slice(hr_crop_start, hr_crop_stop)
-                                 for _ in range(len(self.s1_lr_slices))]
-            s2_hr_crop_slices = [slice(hr_crop_start, hr_crop_stop)
-                                 for _ in range(len(self.s2_lr_slices))]
+            s1_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+                for _ in range(len(self.s1_lr_slices))
+            ]
+            s2_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+                for _ in range(len(self.s2_lr_slices))
+            ]
 
             for _, s1 in enumerate(s1_hr_crop_slices):
                 for _, s2 in enumerate(s2_hr_crop_slices):
@@ -375,8 +401,11 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s1_lr_pad_slices is None:
             self._s1_lr_pad_slices = self.get_padded_slices(
-                self.s1_lr_slices, self.grid_shape[0], 1,
-                padding=self.spatial_pad)
+                self.s1_lr_slices,
+                self.grid_shape[0],
+                1,
+                padding=self.spatial_pad,
+            )
         return self._s1_lr_pad_slices
 
     @property
@@ -385,8 +414,11 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s2_lr_pad_slices is None:
             self._s2_lr_pad_slices = self.get_padded_slices(
-                self.s2_lr_slices, self.grid_shape[1], 1,
-                padding=self.spatial_pad)
+                self.s2_lr_slices,
+                self.grid_shape[1],
+                1,
+                padding=self.spatial_pad,
+            )
         return self._s2_lr_pad_slices
 
     @property
@@ -394,8 +426,9 @@ class ForwardPassSlicer:
         """List of low resolution spatial slices for first spatial dimension
         considering padding on all sides of the spatial raster."""
         ind = slice(0, self.grid_shape[0])
-        slices = get_chunk_slices(self.grid_shape[0], self.chunk_shape[0],
-                                  index_slice=ind)
+        slices = get_chunk_slices(
+            self.grid_shape[0], self.chunk_shape[0], index_slice=ind
+        )
         return slices
 
     @property
@@ -403,8 +436,9 @@ class ForwardPassSlicer:
         """List of low resolution spatial slices for second spatial dimension
         considering padding on all sides of the spatial raster."""
         ind = slice(0, self.grid_shape[1])
-        slices = get_chunk_slices(self.grid_shape[1], self.chunk_shape[1],
-                                  index_slice=ind)
+        slices = get_chunk_slices(
+            self.grid_shape[1], self.chunk_shape[1], index_slice=ind
+        )
         return slices
 
     @property
@@ -415,8 +449,9 @@ class ForwardPassSlicer:
         n_chunks = int(np.ceil(n_chunks))
         ti_slices = self.dummy_time_index[self.temporal_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
-        ti_slices = [slice(c[0], c[-1] + 1, self.temporal_slice.step)
-                     for c in ti_slices]
+        ti_slices = [
+            slice(c[0], c[-1] + 1, self.temporal_slice.step) for c in ti_slices
+        ]
         return ti_slices
 
     @staticmethod
@@ -567,18 +602,24 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
     crop generator output to stich the chunks back togerther.
     """
 
-    def __init__(self, file_paths, model_kwargs, fwp_chunk_shape,
-                 spatial_pad, temporal_pad,
-                 model_class='Sup3rGan',
-                 out_pattern=None,
-                 input_handler=None,
-                 input_handler_kwargs=None,
-                 incremental=True,
-                 worker_kwargs=None,
-                 exo_kwargs=None,
-                 bias_correct_method=None,
-                 bias_correct_kwargs=None,
-                 max_nodes=None):
+    def __init__(
+        self,
+        file_paths,
+        model_kwargs,
+        fwp_chunk_shape,
+        spatial_pad,
+        temporal_pad,
+        model_class='Sup3rGan',
+        out_pattern=None,
+        input_handler=None,
+        input_handler_kwargs=None,
+        incremental=True,
+        worker_kwargs=None,
+        exo_kwargs=None,
+        bias_correct_method=None,
+        bias_correct_kwargs=None,
+        max_nodes=None,
+    ):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -683,13 +724,17 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         grid_shape = self._input_handler_kwargs.get('shape', None)
         raster_file = self._input_handler_kwargs.get('raster_file', None)
         raster_index = self._input_handler_kwargs.get('raster_index', None)
-        temporal_slice = self._input_handler_kwargs.get('temporal_slice',
-                                                        slice(None, None, 1))
-        InputMixIn.__init__(self, target=target,
-                            shape=grid_shape,
-                            raster_file=raster_file,
-                            raster_index=raster_index,
-                            temporal_slice=temporal_slice)
+        temporal_slice = self._input_handler_kwargs.get(
+            'temporal_slice', slice(None, None, 1)
+        )
+        InputMixIn.__init__(
+            self,
+            target=target,
+            shape=grid_shape,
+            raster_file=raster_file,
+            raster_index=raster_index,
+            temporal_slice=temporal_slice,
+        )
 
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
@@ -712,9 +757,11 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self._handle_features = None
 
         self._single_ts_files = self._input_handler_kwargs.get(
-            'single_ts_files', None)
-        self.cache_pattern = self._input_handler_kwargs.get('cache_pattern',
-                                                            None)
+            'single_ts_files', None
+        )
+        self.cache_pattern = self._input_handler_kwargs.get(
+            'cache_pattern', None
+        )
         self.max_workers = self.worker_kwargs.get('max_workers', None)
         self.output_workers = self.worker_kwargs.get('output_workers', None)
         self.pass_workers = self.worker_kwargs.get('pass_workers', None)
@@ -727,9 +774,11 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             self.model_kwargs = {'model_dir': self.model_kwargs}
 
         if model_class is None:
-            msg = ('Could not load requested model class "{}" from '
-                   'sup3r.models, Make sure you typed in the model class '
-                   'name correctly.'.format(self.model_class))
+            msg = (
+                'Could not load requested model class "{}" from '
+                'sup3r.models, Make sure you typed in the model class '
+                'name correctly.'.format(self.model_class)
+            )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -741,48 +790,60 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self.t_enhance = np.product(self.t_enhancements)
         self.output_features = model.output_features
 
-        self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
-                                            self.raw_tsteps,
-                                            self.temporal_slice,
-                                            self.fwp_chunk_shape,
-                                            self.s_enhancements,
-                                            self.t_enhancements,
-                                            self.spatial_pad,
-                                            self.temporal_pad)
+        self.fwp_slicer = ForwardPassSlicer(
+            self.grid_shape,
+            self.raw_tsteps,
+            self.temporal_slice,
+            self.fwp_chunk_shape,
+            self.s_enhancements,
+            self.t_enhancements,
+            self.spatial_pad,
+            self.temporal_pad,
+        )
 
-        DistributedProcess.__init__(self, max_nodes=max_nodes,
-                                    max_chunks=self.fwp_slicer.n_chunks,
-                                    incremental=self.incremental)
+        DistributedProcess.__init__(
+            self,
+            max_nodes=max_nodes,
+            max_chunks=self.fwp_slicer.n_chunks,
+            incremental=self.incremental,
+        )
 
         self.preflight()
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""
 
-        logger.info('Initializing ForwardPassStrategy. '
-                    f'Using n_nodes={self.nodes} with '
-                    f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
-                    f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
-                    f'and n_total_chunks={self.chunks}. '
-                    f'{self.chunks / self.nodes} chunks per node on average.')
-        logger.info(f'Using max_workers={self.max_workers}, '
-                    f'pass_workers={self.pass_workers}, '
-                    f'output_workers={self.output_workers}')
+        logger.info(
+            'Initializing ForwardPassStrategy. '
+            f'Using n_nodes={self.nodes} with '
+            f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
+            f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
+            f'and n_total_chunks={self.chunks}. '
+            f'{self.chunks / self.nodes} chunks per node on average.'
+        )
+        logger.info(
+            f'Using max_workers={self.max_workers}, '
+            f'pass_workers={self.pass_workers}, '
+            f'output_workers={self.output_workers}'
+        )
 
         out = self.fwp_slicer.get_temporal_slices()
         self.ti_slices, self.ti_pad_slices = out
 
-        msg = ('Using a padded chunk size '
-               f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
-               f'larger than the full temporal domain ({self.raw_tsteps}). '
-               'Should just run without temporal chunking. ')
-        if (self.fwp_chunk_shape[2] + 2 * self.temporal_pad
-                >= self.raw_tsteps):
+        msg = (
+            'Using a padded chunk size '
+            f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
+            f'larger than the full temporal domain ({self.raw_tsteps}). '
+            'Should just run without temporal chunking. '
+        )
+        if self.fwp_chunk_shape[2] + 2 * self.temporal_pad >= self.raw_tsteps:
             logger.warning(msg)
             warnings.warn(msg)
 
-        hr_data_shape = (self.grid_shape[0] * self.s_enhance,
-                         self.grid_shape[1] * self.s_enhance)
+        hr_data_shape = (
+            self.grid_shape[0] * self.s_enhance,
+            self.grid_shape[1] * self.s_enhance,
+        )
         self.gids = np.arange(np.product(hr_data_shape))
         self.gids = self.gids.reshape(hr_data_shape)
 
@@ -795,10 +856,13 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         """Get initial input handler used for extracting handler features and
         low res grid"""
         if self._init_handler is None:
-            out = self.input_handler_class(self.file_paths[0], [],
-                                           target=self.target,
-                                           shape=self.grid_shape,
-                                           worker_kwargs=dict(ti_workers=1))
+            out = self.input_handler_class(
+                self.file_paths[0],
+                [],
+                target=self.target,
+                shape=self.grid_shape,
+                worker_kwargs=dict(ti_workers=1),
+            )
             self._init_handler = out
         return self._init_handler
 
@@ -818,7 +882,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                 self._handle_features = self.init_handler.handle_features
             else:
                 hf = self.input_handler_class.get_handle_features(
-                    self.file_paths)
+                    self.file_paths
+                )
                 self._handle_features = hf
         return self._handle_features
 
@@ -828,8 +893,9 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         if self._hr_lat_lon is None:
             logger.info('Getting high-resolution grid for full output domain.')
             lr_lat_lon = self.lr_lat_lon.copy()
-            self._hr_lat_lon = OutputHandler.get_lat_lon(lr_lat_lon,
-                                                         self.gids.shape)
+            self._hr_lat_lon = OutputHandler.get_lat_lon(
+                lr_lat_lon, self.gids.shape
+            )
         return self._hr_lat_lon
 
     def get_full_domain(self, file_paths):
@@ -838,8 +904,9 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
 
     def get_lat_lon(self, file_paths, raster_index, invert_lat=False):
         """Get lat/lon grid for requested target and shape"""
-        return self.input_handler_class.get_lat_lon(file_paths, raster_index,
-                                                    invert_lat=invert_lat)
+        return self.input_handler_class.get_lat_lon(
+            file_paths, raster_index, invert_lat=invert_lat
+        )
 
     def get_time_index(self, file_paths, max_workers=None, **kwargs):
         """Get time index for source data using DataHandler.get_time_index
@@ -863,9 +930,9 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         time_index : ndarray
             Array of time indices for source data
         """
-        return self.input_handler_class.get_time_index(file_paths,
-                                                       max_workers=max_workers,
-                                                       **kwargs)
+        return self.input_handler_class.get_time_index(
+            file_paths, max_workers=max_workers, **kwargs
+        )
 
     @property
     def file_ids(self):
@@ -896,7 +963,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         """
         if self._out_files is None:
             self._out_files = self.get_output_file_names(
-                out_files=self.out_pattern, file_ids=self.file_ids)
+                out_files=self.out_pattern, file_ids=self.file_ids
+            )
         return self._out_files
 
     @property
@@ -932,7 +1000,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         """
         if self._input_handler_class is None:
             self._input_handler_class = get_input_handler_class(
-                self.file_paths, self._input_handler_name)
+                self.file_paths, self._input_handler_name
+            )
         return self._input_handler_class
 
     @property
@@ -940,8 +1009,11 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         """Get the maximum number of nodes that this strategy should distribute
         work to, equal to either the specified max number of nodes or total
         number of temporal chunks"""
-        self._max_nodes = (self._max_nodes if self._max_nodes is not None
-                           else self.fwp_slicer.n_temporal_chunks)
+        self._max_nodes = (
+            self._max_nodes
+            if self._max_nodes is not None
+            else self.fwp_slicer.n_temporal_chunks
+        )
         return self._max_nodes
 
     @staticmethod
@@ -1010,23 +1082,29 @@ class ForwardPass:
         self.node_index = node_index
         self.output_data = None
 
-        msg = (f'Requested forward pass on chunk_index={chunk_index} > '
-               f'n_chunks={strategy.chunks}')
+        msg = (
+            f'Requested forward pass on chunk_index={chunk_index} > '
+            f'n_chunks={strategy.chunks}'
+        )
         assert chunk_index <= strategy.chunks, msg
 
-        logger.info(f'Initializing ForwardPass for chunk={chunk_index} '
-                    f'(temporal_chunk={self.temporal_chunk_index}, '
-                    f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
-                    f' total chunks for the current node.')
+        logger.info(
+            f'Initializing ForwardPass for chunk={chunk_index} '
+            f'(temporal_chunk={self.temporal_chunk_index}, '
+            f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
+            f' total chunks for the current node.'
+        )
 
         self.model_kwargs = self.strategy.model_kwargs
         self.model_class = self.strategy.model_class
         model_class = getattr(sup3r.models, self.model_class, None)
 
         if model_class is None:
-            msg = ('Could not load requested model class "{}" from '
-                   'sup3r.models, Make sure you typed in the model class '
-                   'name correctly.'.format(self.model_class))
+            msg = (
+                'Could not load requested model class "{}" from '
+                'sup3r.models, Make sure you typed in the model class '
+                'name correctly.'.format(self.model_class)
+            )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -1050,10 +1128,14 @@ class ForwardPass:
             self.features = [f for f in self.features if f not in exo_features]
             self.exogenous_handler = ExogenousDataHandler(**exo_kwargs)
             self.exogenous_data = self.exogenous_handler.data
-            shapes = [None if d is None else d.shape
-                      for d in self.exogenous_data]
-            logger.info('Got exogenous_data of length {} with shapes: {}'
-                        .format(len(self.exogenous_data), shapes))
+            shapes = [
+                None if d is None else d.shape for d in self.exogenous_data
+            ]
+            logger.info(
+                'Got exogenous_data of length {} with shapes: {}'.format(
+                    len(self.exogenous_data), shapes
+                )
+            )
 
         self.input_handler_class = strategy.input_handler_class
 
@@ -1070,14 +1152,17 @@ class ForwardPass:
         self.input_data = self.data_handler.data
 
         self.input_data = self.bias_correct_source_data(
-            self.input_data, self.strategy.lr_lat_lon)
+            self.input_data, self.strategy.lr_lat_lon
+        )
 
         exo_s_en = self.exo_kwargs.get('s_enhancements', None)
-        out = self.pad_source_data(self.input_data, self.pad_width,
-                                   self.exogenous_data, exo_s_en)
+        out = self.pad_source_data(
+            self.input_data, self.pad_width, self.exogenous_data, exo_s_en
+        )
         self.input_data, self.exogenous_data = out
-        self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
-                                                          self.lr_slice[1]]
+        self.unpadded_input_data = self.data_handler.data[
+            self.lr_slice[0], self.lr_slice[1]
+        ]
 
     def update_input_handler_kwargs(self, strategy):
         """Update the kwargs for the input handler for the current forward pass
@@ -1106,7 +1191,8 @@ class ForwardPass:
             cache_pattern=self.cache_pattern,
             single_ts_files=self.single_ts_files,
             handle_features=strategy.handle_features,
-            val_split=0.0)
+            val_split=0.0,
+        )
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs
 
@@ -1130,7 +1216,8 @@ class ForwardPass:
         """Get low-resolution time index crop slice to crop input data time
         index before getting high-resolution time index"""
         return self.strategy.fwp_slicer.t_lr_crop_slices[
-            self.temporal_chunk_index]
+            self.temporal_chunk_index
+        ]
 
     @property
     def lr_times(self):
@@ -1141,8 +1228,7 @@ class ForwardPass:
     @property
     def lr_lat_lon(self):
         """Get low resolution lat lon for current chunk"""
-        return self.strategy.lr_lat_lon[self.lr_slice[0],
-                                        self.lr_slice[1]]
+        return self.strategy.lr_lat_lon[self.lr_slice[0], self.lr_slice[1]]
 
     @property
     def hr_lat_lon(self):
@@ -1153,21 +1239,23 @@ class ForwardPass:
     def hr_times(self):
         """Get high resolution times for the current chunk"""
         return self.output_handler_class.get_times(
-            self.lr_times, self.t_enhance * len(self.lr_times))
+            self.lr_times, self.t_enhance * len(self.lr_times)
+        )
 
     @property
     def meta(self):
         """Meta data dictionary for the forward pass run (to write to output
         files)."""
-        meta_data = {'gan_meta': self.model.meta,
-                     'model_kwargs': self.model_kwargs,
-                     'model_class': self.model_class,
-                     'spatial_enhance': int(self.s_enhance),
-                     'temporal_enhance': int(self.t_enhance),
-                     'input_files': self.file_paths,
-                     'input_features': self.features,
-                     'output_features': self.output_features,
-                     }
+        meta_data = {
+            'gan_meta': self.model.meta,
+            'model_kwargs': self.model_kwargs,
+            'model_class': self.model_class,
+            'spatial_enhance': int(self.s_enhance),
+            'temporal_enhance': int(self.t_enhance),
+            'input_files': self.file_paths,
+            'input_features': self.features,
+            'output_features': self.output_features,
+        }
         return meta_data
 
     @property
@@ -1268,7 +1356,8 @@ class ForwardPass:
     def hr_crop_slice(self):
         """Get hr cropping slice for the current chunk"""
         hr_crop_slices = self.strategy.fwp_slicer.hr_crop_slices[
-            self.temporal_chunk_index]
+            self.temporal_chunk_index
+        ]
         return hr_crop_slices[self.spatial_chunk_index]
 
     @property
@@ -1280,9 +1369,11 @@ class ForwardPass:
     @property
     def chunk_shape(self):
         """Get shape for the current padded spatiotemporal chunk"""
-        return (self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
-                self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
-                self.ti_pad_slice.stop - self.ti_pad_slice.start)
+        return (
+            self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
+            self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
+            self.ti_pad_slice.stop - self.ti_pad_slice.start,
+        )
 
     @property
     def cache_pattern(self):
@@ -1291,14 +1382,18 @@ class ForwardPass:
         if cache_pattern is not None:
             if '{temporal_chunk_index}' not in cache_pattern:
                 cache_pattern = cache_pattern.replace(
-                    '.pkl', '_{temporal_chunk_index}.pkl')
+                    '.pkl', '_{temporal_chunk_index}.pkl'
+                )
             if '{spatial_chunk_index}' not in cache_pattern:
                 cache_pattern = cache_pattern.replace(
-                    '.pkl', '_{spatial_chunk_index}.pkl')
+                    '.pkl', '_{spatial_chunk_index}.pkl'
+                )
             cache_pattern = cache_pattern.replace(
-                '{temporal_chunk_index}', str(self.temporal_chunk_index))
+                '{temporal_chunk_index}', str(self.temporal_chunk_index)
+            )
             cache_pattern = cache_pattern.replace(
-                '{spatial_chunk_index}', str(self.spatial_chunk_index))
+                '{spatial_chunk_index}', str(self.spatial_chunk_index)
+            )
         return cache_pattern
 
     @property
@@ -1308,9 +1403,11 @@ class ForwardPass:
         if raster_file is not None:
             if '{spatial_chunk_index}' not in raster_file:
                 raster_file = raster_file.replace(
-                    '.txt', '_{spatial_chunk_index}.txt')
+                    '.txt', '_{spatial_chunk_index}.txt'
+                )
             raster_file = raster_file.replace(
-                '{spatial_chunk_index}', str(self.spatial_chunk_index))
+                '{spatial_chunk_index}', str(self.spatial_chunk_index)
+            )
         return raster_file
 
     @property
@@ -1326,32 +1423,61 @@ class ForwardPass:
         """
         ti_start = self.ti_slice.start or 0
         ti_stop = self.ti_slice.stop or self.strategy.raw_tsteps
-        pad_t_start = int(np.maximum(0, (self.strategy.temporal_pad
-                                         - ti_start)))
-        pad_t_end = int(np.maximum(0, (self.strategy.temporal_pad
-                                       + ti_stop - self.strategy.raw_tsteps)))
+        pad_t_start = int(
+            np.maximum(0, (self.strategy.temporal_pad - ti_start))
+        )
+        pad_t_end = int(
+            np.maximum(
+                0,
+                (
+                    self.strategy.temporal_pad
+                    + ti_stop
+                    - self.strategy.raw_tsteps
+                ),
+            )
+        )
 
         s1_start = self.lr_slice[0].start or 0
         s1_stop = self.lr_slice[0].stop or self.strategy.grid_shape[0]
-        pad_s1_start = int(np.maximum(0, (self.strategy.spatial_pad
-                                          - s1_start)))
-        pad_s1_end = int(np.maximum(0, (self.strategy.spatial_pad
-                                        + s1_stop
-                                        - self.strategy.grid_shape[0])))
+        pad_s1_start = int(
+            np.maximum(0, (self.strategy.spatial_pad - s1_start))
+        )
+        pad_s1_end = int(
+            np.maximum(
+                0,
+                (
+                    self.strategy.spatial_pad
+                    + s1_stop
+                    - self.strategy.grid_shape[0]
+                ),
+            )
+        )
 
         s2_start = self.lr_slice[1].start or 0
         s2_stop = self.lr_slice[1].stop or self.strategy.grid_shape[1]
-        pad_s2_start = int(np.maximum(0, (self.strategy.spatial_pad
-                                          - s2_start)))
-        pad_s2_end = int(np.maximum(0, (self.strategy.spatial_pad
-                                        + s2_stop
-                                        - self.strategy.grid_shape[1])))
-        return ((pad_s1_start, pad_s1_end), (pad_s2_start, pad_s2_end),
-                (pad_t_start, pad_t_end))
+        pad_s2_start = int(
+            np.maximum(0, (self.strategy.spatial_pad - s2_start))
+        )
+        pad_s2_end = int(
+            np.maximum(
+                0,
+                (
+                    self.strategy.spatial_pad
+                    + s2_stop
+                    - self.strategy.grid_shape[1]
+                ),
+            )
+        )
+        return (
+            (pad_s1_start, pad_s1_end),
+            (pad_s2_start, pad_s2_end),
+            (pad_t_start, pad_t_end),
+        )
 
     @staticmethod
-    def pad_source_data(input_data, pad_width, exo_data,
-                        exo_s_enhancements, mode='reflect'):
+    def pad_source_data(
+        input_data, pad_width, exo_data, exo_s_enhancements, mode='reflect'
+    ):
         """Pad the edges of the source data from the data handler.
 
         Parameters
@@ -1389,22 +1515,32 @@ class ForwardPass:
         """
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
 
-        logger.info('Padded input data shape from {} to {} using mode "{}" '
-                    'with padding argument: {}'
-                    .format(input_data.shape, out.shape, mode, pad_width))
+        logger.info(
+            'Padded input data shape from {} to {} using mode "{}" '
+            'with padding argument: {}'.format(
+                input_data.shape, out.shape, mode, pad_width
+            )
+        )
 
         if exo_data is not None:
             for i, i_exo_data in enumerate(exo_data):
                 if i_exo_data is not None:
-                    total_s_enhance = exo_s_enhancements[:i + 1]
-                    total_s_enhance = [s for s in total_s_enhance
-                                       if s is not None]
+                    total_s_enhance = exo_s_enhancements[: i + 1]
+                    total_s_enhance = [
+                        s for s in total_s_enhance if s is not None
+                    ]
                     total_s_enhance = np.product(total_s_enhance)
-                    exo_pad_width = ((total_s_enhance * pad_width[0][0],
-                                      total_s_enhance * pad_width[0][1]),
-                                     (total_s_enhance * pad_width[1][0],
-                                      total_s_enhance * pad_width[1][1]),
-                                     (0, 0))
+                    exo_pad_width = (
+                        (
+                            total_s_enhance * pad_width[0][0],
+                            total_s_enhance * pad_width[0][1],
+                        ),
+                        (
+                            total_s_enhance * pad_width[1][0],
+                            total_s_enhance * pad_width[1][1],
+                        ),
+                        (0, 0),
+                    )
                     exo_data[i] = np.pad(i_exo_data, exo_pad_width, mode=mode)
 
         return out, exo_data
@@ -1442,12 +1578,16 @@ class ForwardPass:
                 if 'time_index' in signature(method).parameters:
                     feature_kwargs['time_index'] = self.data_handler.time_index
 
-                logger.debug('Bias correcting feature "{}" at axis index {} '
-                             'using function: {} with kwargs: {}'
-                             .format(feature, idf, method, feature_kwargs))
+                logger.debug(
+                    'Bias correcting feature "{}" at axis index {} '
+                    'using function: {} with kwargs: {}'.format(
+                        feature, idf, method, feature_kwargs
+                    )
+                )
 
-                data[..., idf] = method(data[..., idf], lat_lon,
-                                        **feature_kwargs)
+                data[..., idf] = method(
+                    data[..., idf], lat_lon, **feature_kwargs
+                )
 
         return data
 
@@ -1474,12 +1614,19 @@ class ForwardPass:
                     arr = np.expand_dims(arr, axis=2)
                     arr = np.repeat(arr, chunk_shape[2], axis=2)
 
-                    target_shape = (arr.shape[0], arr.shape[1], chunk_shape[2],
-                                    arr.shape[-1])
-                    msg = ('Target shape for exogenous data in forward pass '
-                           'chunk was {}, but something went wrong and i '
-                           'resized original data shape from {} to {}'
-                           .format(target_shape, og_shape, arr.shape))
+                    target_shape = (
+                        arr.shape[0],
+                        arr.shape[1],
+                        chunk_shape[2],
+                        arr.shape[-1],
+                    )
+                    msg = (
+                        'Target shape for exogenous data in forward pass '
+                        'chunk was {}, but something went wrong and i '
+                        'resized original data shape from {} to {}'.format(
+                            target_shape, og_shape, arr.shape
+                        )
+                    )
                     assert arr.shape == target_shape, msg
 
                 exo_data.append(arr)
@@ -1487,10 +1634,17 @@ class ForwardPass:
         return exo_data
 
     @classmethod
-    def _run_generator(cls, data_chunk, hr_crop_slices,
-                       model=None, model_kwargs=None, model_class=None,
-                       s_enhance=None, t_enhance=None,
-                       exo_data=None):
+    def _run_generator(
+        cls,
+        data_chunk,
+        hr_crop_slices,
+        model=None,
+        model_kwargs=None,
+        model_class=None,
+        s_enhance=None,
+        t_enhance=None,
+        exo_data=None,
+    ):
         """Run forward pass of the generator on smallest data chunk. Each chunk
         has a maximum shape given by self.strategy.fwp_chunk_shape.
 
@@ -1547,27 +1701,38 @@ class ForwardPass:
         try:
             hi_res = model.generate(data_chunk, exogenous_data=exo_data)
         except Exception as e:
-            msg = ('Forward pass failed on chunk with shape {}.'
-                   .format(data_chunk.shape))
+            msg = 'Forward pass failed on chunk with shape {}.'.format(
+                data_chunk.shape
+            )
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
         if len(hi_res.shape) == 4:
             hi_res = np.expand_dims(np.transpose(hi_res, (1, 2, 0, 3)), axis=0)
 
-        if (s_enhance is not None
-                and hi_res.shape[1] != s_enhance * data_chunk.shape[i_lr_s]):
-            msg = ('The stated spatial enhancement of {}x did not match '
-                   'the low res / high res shapes of {} -> {}'
-                   .format(s_enhance, data_chunk.shape, hi_res.shape))
+        if (
+            s_enhance is not None
+            and hi_res.shape[1] != s_enhance * data_chunk.shape[i_lr_s]
+        ):
+            msg = (
+                'The stated spatial enhancement of {}x did not match '
+                'the low res / high res shapes of {} -> {}'.format(
+                    s_enhance, data_chunk.shape, hi_res.shape
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
-        if (t_enhance is not None
-                and hi_res.shape[3] != t_enhance * data_chunk.shape[i_lr_t]):
-            msg = ('The stated temporal enhancement of {}x did not match '
-                   'the low res / high res shapes of {} -> {}'
-                   .format(t_enhance, data_chunk.shape, hi_res.shape))
+        if (
+            t_enhance is not None
+            and hi_res.shape[3] != t_enhance * data_chunk.shape[i_lr_t]
+        ):
+            msg = (
+                'The stated temporal enhancement of {}x did not match '
+                'the low res / high res shapes of {} -> {}'.format(
+                    t_enhance, data_chunk.shape, hi_res.shape
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -1649,27 +1814,31 @@ class ForwardPass:
         import_str += 'import time;\n'
         import_str += 'from reV.pipeline.status import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += ('from sup3r.pipeline.forward_pass '
-                       f'import ForwardPassStrategy, {cls.__name__};\n')
+        import_str += (
+            'from sup3r.pipeline.forward_pass '
+            f'import ForwardPassStrategy, {cls.__name__};\n'
+        )
 
         fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
 
         node_index = config['node_index']
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        log_arg_str = f'"sup3r", log_level="{log_level}"'
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"strategy = {fwps_init_str};\n"
-               f"{cls.__name__}.run(strategy, {node_index});\n"
-               "t_elap = time.time() - t0;\n")
+        cmd = (
+            f"python -c \'{import_str}\n"
+            "t0 = time.time();\n"
+            f"logger = init_logger({log_arg_str});\n"
+            f"strategy = {fwps_init_str};\n"
+            f"{cls.__name__}.run(strategy, {node_index});\n"
+            "t_elap = time.time() - t0;\n"
+        )
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.FORWARD_PASS, cmd)
-        cmd += (";\'\n")
+        cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
 
@@ -1683,7 +1852,7 @@ class ForwardPass:
             Forward pass output corresponding to the given chunk index
         """
         for i, f in enumerate(self.output_features):
-            msg = (f'All spatiotemporal values are the same for {f} output!')
+            msg = f'All spatiotemporal values are the same for {f} output!'
             if np.all(out_data[0, 0, 0, i] == out_data[..., i]):
                 self.strategy.failed_chunks = True
                 logger.error(msg)
@@ -1716,8 +1885,10 @@ class ForwardPass:
             returns an initialized forward pass object, otherwise returns None
         """
         fwp = None
-        check = (not strategy.chunk_finished(chunk_index)
-                 and not strategy.failed_chunks)
+        check = (
+            not strategy.chunk_finished(chunk_index)
+            and not strategy.failed_chunks
+        )
 
         if strategy.failed_chunks:
             msg = 'A forward pass has failed. Aborting all jobs.'
@@ -1766,23 +1937,31 @@ class ForwardPass:
         """
 
         start = dt.now()
-        logger.debug(f'Running forward passes on node {node_index} in '
-                     'serial.')
+        logger.debug(
+            f'Running forward passes on node {node_index} in ' 'serial.'
+        )
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            cls._single_proc_run(strategy=strategy, node_index=node_index,
-                                 chunk_index=chunk_index)
+            cls._single_proc_run(
+                strategy=strategy,
+                node_index=node_index,
+                chunk_index=chunk_index,
+            )
             mem = psutil.virtual_memory()
-            logger.info('Finished forward pass on chunk_index='
-                        f'{chunk_index} in {dt.now() - now}. {i + 1} of '
-                        f'{len(strategy.node_chunks[node_index])} '
-                        'complete. Current memory usage is '
-                        f'{mem.used / 1e9:.3f} GB out of '
-                        f'{mem.total / 1e9:.3f} GB total.')
+            logger.info(
+                'Finished forward pass on chunk_index='
+                f'{chunk_index} in {dt.now() - now}. {i + 1} of '
+                f'{len(strategy.node_chunks[node_index])} '
+                'complete. Current memory usage is '
+                f'{mem.used / 1e9:.3f} GB out of '
+                f'{mem.total / 1e9:.3f} GB total.'
+            )
 
-        logger.info('Finished forward passes on '
-                    f'{len(strategy.node_chunks[node_index])} chunks in '
-                    f'{dt.now() - start}')
+        logger.info(
+            'Finished forward passes on '
+            f'{len(strategy.node_chunks[node_index])} chunks in '
+            f'{dt.now() - start}'
+        )
 
     @classmethod
     def _run_parallel(cls, strategy, node_index):
@@ -1799,8 +1978,10 @@ class ForwardPass:
             will be run.
         """
 
-        logger.info(f'Running parallel forward passes on node {node_index}'
-                    f' with pass_workers={strategy.pass_workers}.')
+        logger.info(
+            f'Running parallel forward passes on node {node_index}'
+            f' with pass_workers={strategy.pass_workers}.'
+        )
 
         futures = {}
         start = dt.now()
@@ -1808,45 +1989,59 @@ class ForwardPass:
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                fut = exe.submit(cls._single_proc_run,
-                                 strategy=strategy,
-                                 node_index=node_index,
-                                 chunk_index=chunk_index)
-                futures[fut] = {'chunk_index': chunk_index,
-                                'start_time': dt.now()}
+                fut = exe.submit(
+                    cls._single_proc_run,
+                    strategy=strategy,
+                    node_index=node_index,
+                    chunk_index=chunk_index,
+                )
+                futures[fut] = {
+                    'chunk_index': chunk_index,
+                    'start_time': dt.now(),
+                }
 
-            logger.info(f'Started {len(futures)} forward pass runs in '
-                        f'{dt.now() - now}.')
+            logger.info(
+                f'Started {len(futures)} forward pass runs in '
+                f'{dt.now() - now}.'
+            )
 
             for i, future in enumerate(as_completed(futures)):
                 try:
                     future.result()
                     mem = psutil.virtual_memory()
-                    msg = ('Finished forward pass on chunk_index='
-                           f'{futures[future]["chunk_index"]} in '
-                           f'{dt.now() - futures[future]["start_time"]}. '
-                           f'{i + 1} of {len(futures)} complete. '
-                           f'Current memory usage is {mem.used / 1e9:.3f} GB '
-                           f'out of {mem.total / 1e9:.3f} GB total.')
+                    msg = (
+                        'Finished forward pass on chunk_index='
+                        f'{futures[future]["chunk_index"]} in '
+                        f'{dt.now() - futures[future]["start_time"]}. '
+                        f'{i + 1} of {len(futures)} complete. '
+                        f'Current memory usage is {mem.used / 1e9:.3f} GB '
+                        f'out of {mem.total / 1e9:.3f} GB total.'
+                    )
                     logger.info(msg)
                 except Exception as e:
-                    msg = ('Error running forward pass on chunk_index='
-                           f'{futures[future]["chunk_index"]}.')
+                    msg = (
+                        'Error running forward pass on chunk_index='
+                        f'{futures[future]["chunk_index"]}.'
+                    )
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
-        logger.info('Finished asynchronous forward passes on '
-                    f'{len(strategy.node_chunks[node_index])} chunks in '
-                    f'{dt.now() - start}')
+        logger.info(
+            'Finished asynchronous forward passes on '
+            f'{len(strategy.node_chunks[node_index])} chunks in '
+            f'{dt.now() - start}'
+        )
 
     def run_chunk(self):
         """Run a forward pass on single spatiotemporal chunk."""
 
-        msg = (f'Running forward pass for chunk_index={self.chunk_index}, '
-               f'node_index={self.node_index}, file_paths={self.file_paths}. '
-               f'Starting forward pass on chunk_shape={self.chunk_shape} with '
-               f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
-               f'{self.strategy.temporal_pad}.')
+        msg = (
+            f'Running forward pass for chunk_index={self.chunk_index}, '
+            f'node_index={self.node_index}, file_paths={self.file_paths}. '
+            f'Starting forward pass on chunk_shape={self.chunk_shape} with '
+            f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
+            f'{self.strategy.temporal_pad}.'
+        )
         logger.info(msg)
 
         data_chunk = self.input_data
@@ -1855,18 +2050,28 @@ class ForwardPass:
             exo_data = self._prep_exogenous_input(data_chunk.shape)
 
         self.output_data = self._run_generator(
-            data_chunk, hr_crop_slices=self.hr_crop_slice, model=self.model,
-            model_kwargs=self.model_kwargs, model_class=self.model_class,
-            s_enhance=self.s_enhance, t_enhance=self.t_enhance,
-            exo_data=exo_data)
+            data_chunk,
+            hr_crop_slices=self.hr_crop_slice,
+            model=self.model,
+            model_kwargs=self.model_kwargs,
+            model_class=self.model_class,
+            s_enhance=self.s_enhance,
+            t_enhance=self.t_enhance,
+            exo_data=exo_data,
+        )
 
         self._constant_output_check(self.output_data)
 
         if self.out_file is not None:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class._write_output(
-                data=self.output_data, features=self.model.output_features,
-                lat_lon=self.hr_lat_lon, times=self.hr_times,
-                out_file=self.out_file, meta_data=self.meta,
-                max_workers=self.output_workers, gids=self.gids)
+                data=self.output_data,
+                features=self.model.output_features,
+                lat_lon=self.hr_lat_lon,
+                times=self.hr_times,
+                out_file=self.out_file,
+                meta_data=self.meta,
+                max_workers=self.output_workers,
+                gids=self.gids,
+            )
         return self.output_data

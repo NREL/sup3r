@@ -347,6 +347,30 @@ class EraDownloader:
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
+    def init_dims(self, old_ds, new_ds, dims):
+        """Initialize dimensions in new dataset from old dataset
+
+        Parameters
+        ----------
+        old_ds : Dataset
+            Dataset() object from old file
+        new_ds : Dataset
+            Dataset() object for new file
+        dims : tuple
+            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
+
+        Returns
+        -------
+        new_ds : Dataset
+            Dataset() object for new file with dimensions initialized.
+        """
+        for var in dims:
+            new_ds.createDimension(var, len(old_ds[var]))
+            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=var)
+            new_ds[var][:] = old_ds[var][:]
+            new_ds[var].units = old_ds[var].units
+        return new_ds
+
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
 

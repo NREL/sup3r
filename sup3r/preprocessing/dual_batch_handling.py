@@ -168,6 +168,7 @@ class DualBatchHandler(BatchHandler):
     """Batch handling class for dual data handlers"""
 
     BATCH_CLASS = Batch
+    VAL_CLASS = DualValidationData
 
     @property
     def hr_sample_shape(self):

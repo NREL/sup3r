@@ -1394,9 +1394,9 @@ class ValidationDataSpatialDC(ValidationDataDC):
             )
             val_indices = self.val_indices[self._i]
             for i, idx in enumerate(val_indices):
-                high_res[i, ...] = self.handlers[idx['handler_index']].data[
-                    idx['tuple_index']
-                ][..., 0, :]
+                high_res[i, ...] = self.data_handlers[
+                    idx['handler_index']
+                ].data[idx['tuple_index']][..., 0, :]
 
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,

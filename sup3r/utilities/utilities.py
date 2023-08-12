@@ -148,7 +148,7 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     """
 
     indices = np.arange(0, arr_size)
-    indices = indices[index_slice.start:index_slice.stop]
+    indices = indices[index_slice.start: index_slice.stop]
     step = 1 if index_slice.step is None else index_slice.step
     slices = []
     start = indices[0]
@@ -167,8 +167,10 @@ def get_raster_shape(raster_index):
     """Method to get shape of raster_index"""
 
     if any(isinstance(r, slice) for r in raster_index):
-        shape = (raster_index[0].stop - raster_index[0].start,
-                 raster_index[1].stop - raster_index[1].start)
+        shape = (
+            raster_index[0].stop - raster_index[0].start,
+            raster_index[1].stop - raster_index[1].start,
+        )
     else:
         shape = raster_index.shape
     return shape
@@ -192,11 +194,13 @@ def get_wrf_date_range(files):
         end date
     """
 
-    date_start = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                           files[0])
+    date_start = re.search(
+        r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)', files[0]
+    )
     date_start = date_start if date_start is None else date_start[0]
-    date_end = re.search(r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)',
-                         files[-1])
+    date_end = re.search(
+        r'(\d{4}(-|_)\d+(-|_)\d+(-|_)\d+(:|_)\d+(:|_)\d+)', files[-1]
+    )
     date_end = date_end if date_end is None else date_end[0]
 
     date_start = date_start.replace(':', '_')
@@ -256,10 +260,8 @@ def weighted_box_sampler(data, shape, weights):
     slices : list
         List of spatial slices [spatial_1, spatial_2]
     """
-    max_cols = (data.shape[1] if data.shape[1] < shape[1]
-                else shape[1])
-    max_rows = (data.shape[0] if data.shape[0] < shape[0]
-                else shape[0])
+    max_cols = data.shape[1] if data.shape[1] < shape[1] else shape[1]
+    max_rows = data.shape[0] if data.shape[0] < shape[0] else shape[0]
     max_cols = data.shape[1] - max_cols + 1
     max_rows = data.shape[0] - max_rows + 1
     indices = np.arange(0, max_rows * max_cols)
@@ -268,8 +270,10 @@ def weighted_box_sampler(data, shape, weights):
     for i, w in enumerate(weights):
         weight_list += [w] * len(chunks[i])
     weight_list /= np.sum(weight_list)
-    msg = ('Must have a sample_shape with a number of elements greater than '
-           'or equal to the number of spatial weights.')
+    msg = (
+        'Must have a sample_shape with a number of elements greater than '
+        'or equal to the number of spatial weights.'
+    )
     assert len(indices) >= len(weight_list), msg
     start = np.random.choice(indices, p=weight_list)
     row = start // max_cols
@@ -307,8 +311,11 @@ def weighted_time_sampler(data, shape, weights):
     """
 
     shape = data.shape[2] if data.shape[2] < shape else shape
-    t_indices = (np.arange(0, data.shape[2]) if shape == 1
-                 else np.arange(0, data.shape[2] - shape + 1))
+    t_indices = (
+        np.arange(0, data.shape[2])
+        if shape == 1
+        else np.arange(0, data.shape[2] - shape + 1)
+    )
     t_chunks = np.array_split(t_indices, len(weights))
 
     weight_list = []
@@ -365,18 +372,22 @@ def daily_time_sampler(data, shape, time_index):
         time slice with size shape of data starting at the beginning of the day
     """
 
-    msg = (f'data {data.shape} and time index ({len(time_index)}) '
-           'shapes do not match, cannot sample daily data.')
+    msg = (
+        f'data {data.shape} and time index ({len(time_index)}) '
+        'shapes do not match, cannot sample daily data.'
+    )
     assert data.shape[2] == len(time_index), msg
 
-    ti_short = time_index[:-(shape - 1)]
-    midnight_ilocs = np.where((ti_short.hour == 0)
-                              & (ti_short.minute == 0)
-                              & (ti_short.second == 0))[0]
+    ti_short = time_index[: -(shape - 1)]
+    midnight_ilocs = np.where(
+        (ti_short.hour == 0) & (ti_short.minute == 0) & (ti_short.second == 0)
+    )[0]
 
     if not any(midnight_ilocs):
-        msg = ('Cannot sample time index of shape {} with requested daily '
-               'sample shape {}'.format(len(time_index), shape))
+        msg = (
+            'Cannot sample time index of shape {} with requested daily '
+            'sample shape {}'.format(len(time_index), shape)
+        )
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -421,8 +432,10 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
         return tslice
 
     if night_mask.all():
-        msg = (f'No daylight data found for tslice {tslice} '
-               f'{time_index[tslice]}')
+        msg = (
+            f'No daylight data found for tslice {tslice} '
+            f'{time_index[tslice]}'
+        )
         logger.warning(msg)
         warn(msg)
         return tslice
@@ -466,7 +479,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         return data
 
     if night_mask.all():
-        msg = (f'No daylight data found for data of shape {data.shape}')
+        msg = f'No daylight data found for data of shape {data.shape}'
         logger.warning(msg)
         warn(msg)
         return data
@@ -596,7 +609,7 @@ def invert_uv(u, v, lat_lon):
 
 
 def temporal_coarsening(data, t_enhance=4, method='subsample'):
-    """"Coarsen data according to t_enhance resolution
+    """Coarsen data according to t_enhance resolution
 
     Parameters
     ----------
@@ -623,36 +636,69 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
         elif method == 'average':
             coarse_data = np.nansum(
                 data.reshape(
-                    (data.shape[0], data.shape[1],
-                     data.shape[2], -1, t_enhance,
-                     data.shape[4])), axis=4)
+                    (
+                        data.shape[0],
+                        data.shape[1],
+                        data.shape[2],
+                        -1,
+                        t_enhance,
+                        data.shape[4],
+                    )
+                ),
+                axis=4,
+            )
             coarse_data /= t_enhance
 
         elif method == 'max':
             coarse_data = np.max(
                 data.reshape(
-                    (data.shape[0], data.shape[1],
-                     data.shape[2], -1, t_enhance,
-                     data.shape[4])), axis=4)
+                    (
+                        data.shape[0],
+                        data.shape[1],
+                        data.shape[2],
+                        -1,
+                        t_enhance,
+                        data.shape[4],
+                    )
+                ),
+                axis=4,
+            )
 
         elif method == 'min':
             coarse_data = np.min(
                 data.reshape(
-                    (data.shape[0], data.shape[1],
-                     data.shape[2], -1, t_enhance,
-                     data.shape[4])), axis=4)
+                    (
+                        data.shape[0],
+                        data.shape[1],
+                        data.shape[2],
+                        -1,
+                        t_enhance,
+                        data.shape[4],
+                    )
+                ),
+                axis=4,
+            )
 
         elif method == 'total':
             coarse_data = np.nansum(
                 data.reshape(
-                    (data.shape[0], data.shape[1],
-                     data.shape[2], -1, t_enhance,
-                     data.shape[4])), axis=4)
+                    (
+                        data.shape[0],
+                        data.shape[1],
+                        data.shape[2],
+                        -1,
+                        t_enhance,
+                        data.shape[4],
+                    )
+                ),
+                axis=4,
+            )
 
         else:
-            msg = ('Did not recognize temporal_coarsening method "{}", can '
-                   'only accept one of: [subsample, average, total, max, min]'
-                   .format(method))
+            msg = (
+                f'Did not recognize temporal_coarsening method "{method}", '
+                'can only accept one of: [subsample, average, total, max, min]'
+            )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -663,7 +709,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
 
 def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
-    """"Upsample data according to t_enhance resolution
+    """ "Upsample data according to t_enhance resolution
 
     Parameters
     ----------
@@ -684,22 +730,21 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
     elif t_enhance not in [None, 1] and len(data.shape) == 5:
         if mode == 'constant':
             enhancement = [1, 1, 1, t_enhance, 1]
-            enhanced_data = zoom(data,
-                                 enhancement,
-                                 order=0,
-                                 mode='nearest',
-                                 grid_mode=True)
+            enhanced_data = zoom(
+                data, enhancement, order=0, mode='nearest', grid_mode=True
+            )
         elif mode == 'linear':
             index_t_hr = np.array(list(range(data.shape[3] * t_enhance)))
             index_t_lr = index_t_hr[::t_enhance]
-            enhanced_data = interp1d(index_t_lr,
-                                     data,
-                                     axis=3,
-                                     fill_value='extrapolate')(index_t_hr)
+            enhanced_data = interp1d(
+                index_t_lr, data, axis=3, fill_value='extrapolate'
+            )(index_t_hr)
             enhanced_data = np.array(enhanced_data, dtype=np.float32)
     elif len(data.shape) != 5:
-        msg = ('Data must be 5D to do temporal enhancing, but '
-               f'received: {data.shape}')
+        msg = (
+            'Data must be 5D to do temporal enhancing, but '
+            f'received: {data.shape}'
+        )
         logger.error(msg)
         raise ValueError(msg)
 
@@ -766,23 +811,27 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
     """
 
     if smoothing is not None:
-        feat_iter = [j for j in range(low_res.shape[-1])
-                     if training_features[j] not in smoothing_ignore]
+        feat_iter = [
+            j
+            for j in range(low_res.shape[-1])
+            if training_features[j] not in smoothing_ignore
+        ]
         for i in range(low_res.shape[0]):
             for j in feat_iter:
                 if len(low_res.shape) == 5:
                     for t in range(low_res.shape[-2]):
                         low_res[i, ..., t, j] = gaussian_filter(
-                            low_res[i, ..., t, j], smoothing,
-                            mode='nearest')
+                            low_res[i, ..., t, j], smoothing, mode='nearest'
+                        )
                 else:
                     low_res[i, ..., j] = gaussian_filter(
-                        low_res[i, ..., j], smoothing, mode='nearest')
+                        low_res[i, ..., j], smoothing, mode='nearest'
+                    )
     return low_res
 
 
 def spatial_coarsening(data, s_enhance=2, obs_axis=True):
-    """"Coarsen data according to s_enhance resolution
+    """ "Coarsen data according to s_enhance resolution
 
     Parameters
     ----------
@@ -806,54 +855,78 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
     """
 
     if len(data.shape) < 3:
-        msg = ('Data must be 3D, 4D, or 5D to do spatial coarsening, but '
-               f'received: {data.shape}')
+        msg = (
+            'Data must be 3D, 4D, or 5D to do spatial coarsening, but '
+            f'received: {data.shape}'
+        )
         logger.error(msg)
         raise ValueError(msg)
 
     if s_enhance is not None and s_enhance > 1:
-        bad1 = (obs_axis and (data.shape[1] % s_enhance != 0
-                              or data.shape[2] % s_enhance != 0))
-        bad2 = (not obs_axis and (data.shape[0] % s_enhance != 0
-                                  or data.shape[1] % s_enhance != 0))
+        bad1 = obs_axis and (
+            data.shape[1] % s_enhance != 0 or data.shape[2] % s_enhance != 0
+        )
+        bad2 = not obs_axis and (
+            data.shape[0] % s_enhance != 0 or data.shape[1] % s_enhance != 0
+        )
         if bad1 or bad2:
-            msg = ('s_enhance must evenly divide grid size. '
-                   f'Received s_enhance: {s_enhance} with data shape: '
-                   f'{data.shape}')
+            msg = (
+                's_enhance must evenly divide grid size. '
+                f'Received s_enhance: {s_enhance} with data shape: '
+                f'{data.shape}'
+            )
             logger.error(msg)
             raise ValueError(msg)
 
         if obs_axis and len(data.shape) == 5:
-            data = data.reshape(data.shape[0],
-                                data.shape[1] // s_enhance, s_enhance,
-                                data.shape[2] // s_enhance, s_enhance,
-                                data.shape[3],
-                                data.shape[4])
+            data = data.reshape(
+                data.shape[0],
+                data.shape[1] // s_enhance,
+                s_enhance,
+                data.shape[2] // s_enhance,
+                s_enhance,
+                data.shape[3],
+                data.shape[4],
+            )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
         elif obs_axis and len(data.shape) == 4:
-            data = data.reshape(data.shape[0],
-                                data.shape[1] // s_enhance, s_enhance,
-                                data.shape[2] // s_enhance, s_enhance,
-                                data.shape[3])
+            data = data.reshape(
+                data.shape[0],
+                data.shape[1] // s_enhance,
+                s_enhance,
+                data.shape[2] // s_enhance,
+                s_enhance,
+                data.shape[3],
+            )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
         elif not obs_axis and len(data.shape) == 4:
-            data = data.reshape(data.shape[0] // s_enhance, s_enhance,
-                                data.shape[1] // s_enhance, s_enhance,
-                                data.shape[2],
-                                data.shape[3])
+            data = data.reshape(
+                data.shape[0] // s_enhance,
+                s_enhance,
+                data.shape[1] // s_enhance,
+                s_enhance,
+                data.shape[2],
+                data.shape[3],
+            )
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
         elif not obs_axis and len(data.shape) == 3:
-            data = data.reshape(data.shape[0] // s_enhance, s_enhance,
-                                data.shape[1] // s_enhance, s_enhance,
-                                data.shape[2])
+            data = data.reshape(
+                data.shape[0] // s_enhance,
+                s_enhance,
+                data.shape[1] // s_enhance,
+                s_enhance,
+                data.shape[2],
+            )
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
         else:
-            msg = ('Data must be 3D, 4D, or 5D to do spatial coarsening, but '
-                   f'received: {data.shape}')
+            msg = (
+                'Data must be 3D, 4D, or 5D to do spatial coarsening, but '
+                f'received: {data.shape}'
+            )
             logger.error(msg)
             raise ValueError(msg)
 
@@ -861,7 +934,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
 
 def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
-    """"Simple enhancing according to s_enhance resolution
+    """ "Simple enhancing according to s_enhance resolution
 
     Parameters
     ----------
@@ -885,59 +958,53 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
     """
 
     if len(data.shape) < 3:
-        msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
-               f'received: {data.shape}')
+        msg = (
+            'Data must be 3D, 4D, or 5D to do spatial enhancing, but '
+            f'received: {data.shape}'
+        )
         logger.error(msg)
         raise ValueError(msg)
 
     if s_enhance is not None and s_enhance > 1:
-
         if obs_axis and len(data.shape) == 5:
             enhancement = [1, s_enhance, s_enhance, 1, 1]
-            enhanced_data = zoom(data,
-                                 enhancement,
-                                 order=0,
-                                 mode='nearest',
-                                 grid_mode=True)
+            enhanced_data = zoom(
+                data, enhancement, order=0, mode='nearest', grid_mode=True
+            )
 
         elif obs_axis and len(data.shape) == 4:
             enhancement = [1, s_enhance, s_enhance, 1]
-            enhanced_data = zoom(data,
-                                 enhancement,
-                                 order=0,
-                                 mode='nearest',
-                                 grid_mode=True)
+            enhanced_data = zoom(
+                data, enhancement, order=0, mode='nearest', grid_mode=True
+            )
 
         elif not obs_axis and len(data.shape) == 4:
             enhancement = [s_enhance, s_enhance, 1, 1]
-            enhanced_data = zoom(data,
-                                 enhancement,
-                                 order=0,
-                                 mode='nearest',
-                                 grid_mode=True)
+            enhanced_data = zoom(
+                data, enhancement, order=0, mode='nearest', grid_mode=True
+            )
 
         elif not obs_axis and len(data.shape) == 3:
             enhancement = [s_enhance, s_enhance, 1]
-            enhanced_data = zoom(data,
-                                 enhancement,
-                                 order=0,
-                                 mode='nearest',
-                                 grid_mode=True)
+            enhanced_data = zoom(
+                data, enhancement, order=0, mode='nearest', grid_mode=True
+            )
         else:
-            msg = ('Data must be 3D, 4D, or 5D to do spatial enhancing, but '
-                   f'received: {data.shape}')
+            msg = (
+                'Data must be 3D, 4D, or 5D to do spatial enhancing, but '
+                f'received: {data.shape}'
+            )
             logger.error(msg)
             raise ValueError(msg)
 
     else:
-
         enhanced_data = data
 
     return enhanced_data
 
 
 def lat_lon_coarsening(lat_lon, s_enhance=2):
-    """"Coarsen lat_lon according to s_enhance resolution
+    """ "Coarsen lat_lon according to s_enhance resolution
 
     Parameters
     ----------
@@ -952,10 +1019,10 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
     coarse_lat_lon : np.ndarray
         2D array with same dimensions as lat_lon with new coarse resolution
     """
-    coarse_lat_lon = lat_lon.reshape(-1, s_enhance,
-                                     lat_lon.shape[1] // s_enhance,
-                                     s_enhance, 2).sum((3, 1))
-    coarse_lat_lon /= (s_enhance * s_enhance)
+    coarse_lat_lon = lat_lon.reshape(
+        -1, s_enhance, lat_lon.shape[1] // s_enhance, s_enhance, 2
+    ).sum((3, 1))
+    coarse_lat_lon /= s_enhance * s_enhance
     return coarse_lat_lon
 
 
@@ -991,7 +1058,7 @@ def potential_temperature(T, P):
     ndarray
         Potential temperature
     """
-    out = (T + np.float32(273.15))
+    out = T + np.float32(273.15)
     out *= (np.float32(100000) / P) ** np.float32(0.286)
     return out
 
@@ -1039,8 +1106,9 @@ def potential_temperature_difference(T_top, P_top, T_bottom, P_bottom):
     ndarray
         Difference in potential temperature between top and bottom levels
     """
-    return (potential_temperature(T_top, P_top)
-            - potential_temperature(T_bottom, P_bottom))
+    return potential_temperature(T_top, P_top) - potential_temperature(
+        T_bottom, P_bottom
+    )
 
 
 def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
@@ -1067,8 +1135,10 @@ def potential_temperature_average(T_top, P_top, T_bottom, P_bottom):
         Average of potential temperature between top and bottom levels
     """
 
-    return ((potential_temperature(T_top, P_top)
-            + potential_temperature(T_bottom, P_bottom)) / np.float32(2.0))
+    return (
+        potential_temperature(T_top, P_top)
+        + potential_temperature(T_bottom, P_bottom)
+    ) / np.float32(2.0)
 
 
 def inverse_mo_length(U_star, flux_surf):
@@ -1090,8 +1160,8 @@ def inverse_mo_length(U_star, flux_surf):
         Inverse Monin - Obukhov Length
     """
 
-    denom = -U_star ** 3 * 300
-    numer = (0.41 * 9.81 * flux_surf)
+    denom = -(U_star**3) * 300
+    numer = 0.41 * 9.81 * flux_surf
     return numer / denom
 
 
@@ -1123,16 +1193,15 @@ def bvf_squared(T_top, T_bottom, P_top, P_bottom, delta_h):
     """
 
     bvf2 = np.float32(9.81 / delta_h)
-    bvf2 *= potential_temperature_difference(
-        T_top, P_top, T_bottom, P_bottom)
-    bvf2 /= potential_temperature_average(
-        T_top, P_top, T_bottom, P_bottom)
+    bvf2 *= potential_temperature_difference(T_top, P_top, T_bottom, P_bottom)
+    bvf2 /= potential_temperature_average(T_top, P_top, T_bottom, P_bottom)
 
     return bvf2
 
 
-def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
-                               U_bottom, V_top, V_bottom, delta_h):
+def gradient_richardson_number(
+    T_top, T_bottom, P_top, P_bottom, U_top, U_bottom, V_top, V_bottom, delta_h
+):
     """Formula for the gradient richardson number - related to the bouyant
     production or consumption of turbulence divided by the shear production of
     turbulence. Used to indicate dynamic stability
@@ -1170,10 +1239,9 @@ def gradient_richardson_number(T_top, T_bottom, P_top, P_bottom, U_top,
 
     ws_grad = (U_top - U_bottom) ** 2
     ws_grad += (V_top - V_bottom) ** 2
-    ws_grad /= delta_h ** 2
+    ws_grad /= delta_h**2
     ws_grad[ws_grad < 1e-6] = 1e-6
-    Ri = bvf_squared(
-        T_top, T_bottom, P_top, P_bottom, delta_h) / ws_grad
+    Ri = bvf_squared(T_top, T_bottom, P_top, P_bottom, delta_h) / ws_grad
     del ws_grad
     return Ri
 
@@ -1193,8 +1261,9 @@ def nn_fill_array(array):
     """
 
     nan_mask = np.isnan(array)
-    indices = nd.distance_transform_edt(nan_mask, return_distances=False,
-                                        return_indices=True)
+    indices = nd.distance_transform_edt(
+        nan_mask, return_distances=False, return_indices=True
+    )
     array = array[tuple(indices)]
     return array
 
@@ -1215,9 +1284,10 @@ def ignore_case_path_fetch(fp):
 
     dirname = os.path.dirname(fp)
     basename = os.path.basename(fp)
-    for file in os.listdir(dirname):
-        if fnmatch(file.lower(), basename.lower()):
-            return os.path.join(dirname, file)
+    if os.path.exists(dirname):
+        for file in os.listdir(dirname):
+            if fnmatch(file.lower(), basename.lower()):
+                return os.path.join(dirname, file)
     return None
 
 
@@ -1270,8 +1340,10 @@ def rotor_equiv_ws(data, heights):
 
     rotor_center = np.mean(heights)
     rel_heights = [h - rotor_center for h in heights]
-    areas = [rotor_area(rel_heights[i], rel_heights[i + 1])
-             for i in range(len(rel_heights) - 1)]
+    areas = [
+        rotor_area(rel_heights[i], rel_heights[i + 1])
+        for i in range(len(rel_heights) - 1)
+    ]
     total_area = np.sum(areas)
     areas /= total_area
     rews = np.zeros(data[list(data.keys())[0]].shape)
@@ -1282,7 +1354,7 @@ def rotor_equiv_ws(data, heights):
         wd_1 = data[f'winddirection_{heights[i + 1]}m']
         ws_cos_0 = np.cos(np.radians(wd_0)) * ws_0
         ws_cos_1 = np.cos(np.radians(wd_1)) * ws_1
-        rews += areas[i] * (ws_cos_0 + ws_cos_1)**3
+        rews += areas[i] * (ws_cos_0 + ws_cos_1) ** 3
 
     rews = 0.5 * np.cbrt(rews)
     return rews
@@ -1350,19 +1422,25 @@ def get_input_handler_class(file_paths, input_handler_name):
         elif input_type == 'h5':
             input_handler_name = 'DataHandlerH5'
 
-        logger.info('"input_handler" arg was not provided. Using '
-                    f'"{input_handler_name}". If this is '
-                    'incorrect, please provide '
-                    'input_handler="DataHandlerName".')
+        logger.info(
+            '"input_handler" arg was not provided. Using '
+            f'"{input_handler_name}". If this is '
+            'incorrect, please provide '
+            'input_handler="DataHandlerName".'
+        )
 
     if isinstance(input_handler_name, str):
         import sup3r.preprocessing.data_handling
-        HandlerClass = getattr(sup3r.preprocessing.data_handling,
-                               input_handler_name, None)
+
+        HandlerClass = getattr(
+            sup3r.preprocessing.data_handling, input_handler_name, None
+        )
 
     if HandlerClass is None:
-        msg = ('Could not find requested data handler class '
-               f'"{input_handler_name}" in sup3r.preprocessing.data_handling.')
+        msg = (
+            'Could not find requested data handler class '
+            f'"{input_handler_name}" in sup3r.preprocessing.data_handling.'
+        )
         logger.error(msg)
         raise KeyError(msg)
 
@@ -1448,8 +1526,9 @@ def st_interp(low, s_enhance, t_enhance, t_centered=False):
         new_t += 5 / hr_t
 
     # set RegularGridInterpolator to do extrapolation
-    interp = RegularGridInterpolator((y, x, t), low, bounds_error=False,
-                                     fill_value=None)
+    interp = RegularGridInterpolator(
+        (y, x, t), low, bounds_error=False, fill_value=None
+    )
 
     # perform interp
     X, Y, T = np.meshgrid(new_x, new_y, new_t)
