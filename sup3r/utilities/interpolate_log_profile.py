@@ -31,13 +31,21 @@ class LogLinInterpolator:
     max_log_height, linearly interpolate components above max_log_height
     meters, and save to file"""
 
-    DEFAULT_OUTPUT_HEIGHTS = {'u': [40, 80, 120, 160, 200],
-                              'v': [40, 80, 120, 160, 200],
-                              'temperature': [10, 40, 80, 100, 120, 160, 200],
-                              'pressure': [0, 100, 200]}
+    DEFAULT_OUTPUT_HEIGHTS = {
+        'u': [40, 80, 120, 160, 200],
+        'v': [40, 80, 120, 160, 200],
+        'temperature': [10, 40, 80, 100, 120, 160, 200],
+        'pressure': [0, 100, 200],
+    }
 
-    def __init__(self, infile, outfile, output_heights=None,
-                 variables=None, max_log_height=100):
+    def __init__(
+        self,
+        infile,
+        outfile,
+        output_heights=None,
+        variables=None,
+        max_log_height=100,
+    ):
         """Initialize log interpolator.
 
         Parameters
@@ -52,25 +60,34 @@ class LogLinInterpolator:
             If None this defaults to DEFAULT_OUTPUT_HEIGHTS.
         variables : list
             List of variables to interpolate. If None this defaults to ['u',
-            'v', 'temperature', 'pressure']
+            'v']
         max_log_height : int
             Maximum height to use for log interpolation. Above this linear
             interpolation will be used.
         """
         self.infile = infile
         self.outfile = outfile
+
+        msg = (
+            'output_heights must be a dictionary with variables as keys '
+            f'and lists of heights as values. Received: {output_heights}.'
+        )
+        assert output_heights is None or isinstance(output_heights, dict), msg
+
         self.new_heights = output_heights or self.DEFAULT_OUTPUT_HEIGHTS
         self.max_log_height = max_log_height
-        self.variables = (['u', 'v'] if variables is None else variables)
+        self.variables = ['u', 'v'] if variables is None else variables
         self.data_dict = {}
         self.new_data = {}
 
-        msg = (f'{self.infile} does not exist. Skipping.')
+        msg = f'{self.infile} does not exist. Skipping.'
         assert os.path.exists(self.infile), msg
 
-        msg = (f'Initializing {self.__class__.__name__} with infile={infile}, '
-               f'outfile={outfile}, new_heights={self.new_heights}, '
-               f'variables={variables}.')
+        msg = (
+            f'Initializing {self.__class__.__name__} with infile={infile}, '
+            f'outfile={outfile}, new_heights={self.new_heights}, '
+            f'variables={variables}.'
+        )
         logger.info(msg)
 
     def _load_single_var(self, variable):
@@ -93,8 +110,9 @@ class LogLinInterpolator:
         logger.info(f'Loading {self.infile} for {variable}.')
         with xr.open_dataset(self.infile) as res:
             gp = res['zg'].values
-            sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
-                                gp.shape[1], axis=1)
+            sfc_hgt = np.repeat(
+                res['orog'].values[:, np.newaxis, ...], gp.shape[1], axis=1
+            )
             heights = gp - sfc_hgt
 
             input_heights = []
@@ -108,12 +126,14 @@ class LogLinInterpolator:
             shape = (heights.shape[0], 1, *heights.shape[2:])
             for height in input_heights:
                 var_arr.append(
-                    res[f'{variable}_{height}m'].values[:, np.newaxis, ...])
+                    res[f'{variable}_{height}m'].values[:, np.newaxis, ...]
+                )
                 height_arr.append(np.full(shape, height, dtype=np.float32))
 
-            var_arr.append(res[f'{variable}'].values)
+            if variable in res:
+                var_arr.append(res[f'{variable}'].values)
+                height_arr.append(heights)
             var_arr = np.concatenate(var_arr, axis=1)
-            height_arr.append(heights)
             heights = np.concatenate(height_arr, axis=1)
 
             fixed_level_mask = np.full(heights.shape[1], True)
@@ -142,14 +162,17 @@ class LogLinInterpolator:
             if var not in ('u', 'v'):
                 max_log_height = -np.inf
             logger.info(
-                f'Interpolating {var} to heights = {self.new_heights[var]}.')
+                f'Interpolating {var} to heights = {self.new_heights[var]}.'
+            )
+
             self.new_data[var] = self.interp_var_to_height(
                 var_array=arrs['data'],
                 lev_array=arrs['heights'],
                 levels=self.new_heights[var],
                 fixed_level_mask=arrs['mask'],
                 max_log_height=max_log_height,
-                max_workers=max_workers)
+                max_workers=max_workers,
+            )
 
     def save_output(self):
         """Save interpolated data to outfile"""
@@ -164,8 +187,10 @@ class LogLinInterpolator:
                 logger.info(f'Adding {name} to {self.outfile}.')
                 if name not in ds.variables:
                     _ = ds.createVariable(
-                        name, np.float32,
-                        dimensions=('time', 'latitude', 'longitude'))
+                        name,
+                        np.float32,
+                        dimensions=('time', 'latitude', 'longitude'),
+                    )
                 ds.variables[name][:] = data[i, ...]
                 ds.variables[name].long_name = f'{height} meter {var}'
 
@@ -203,8 +228,7 @@ class LogLinInterpolator:
         """
         for var in dims:
             new_ds.createDimension(var, len(old_ds[var]))
-            _ = new_ds.createVariable(var, old_ds[var].dtype,
-                                      dimensions=(var))
+            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=(var))
             new_ds[var][:] = old_ds[var][:]
             new_ds[var].units = old_ds[var].units
         return new_ds
@@ -237,15 +261,16 @@ class LogLinInterpolator:
         keep_vars = ('u_', 'v_', 'pressure_', 'temperature_', 'orog')
         with Dataset(infile, 'r') as old_ds:
             with Dataset(tmp_file, 'w') as new_ds:
-                new_ds = cls.init_dims(old_ds, new_ds,
-                                       ('time', 'latitude', 'longitude'))
+                new_ds = cls.init_dims(
+                    old_ds, new_ds, ('time', 'latitude', 'longitude')
+                )
                 for var in old_ds.variables:
                     if any(name in var for name in keep_vars):
                         old_var = old_ds[var]
                         vals = old_var[:]
                         _ = new_ds.createVariable(
-                            var, old_var.dtype,
-                            dimensions=old_var.dimensions)
+                            var, old_var.dtype, dimensions=old_var.dimensions
+                        )
                         new_ds[var][:] = vals
                         if hasattr(old_var, 'units'):
                             new_ds[var].units = old_var.units
@@ -255,12 +280,22 @@ class LogLinInterpolator:
                         if hasattr(old_var, 'long_name'):
                             new_ds[var].long_name = old_var.long_name
         os.system(f'mv {tmp_file} {infile}')
-        logger.info(f'Finished pruning variables in {infile}. Moved '
-                    f'{tmp_file} to {infile}.')
+        logger.info(
+            f'Finished pruning variables in {infile}. Moved '
+            f'{tmp_file} to {infile}.'
+        )
 
     @classmethod
-    def run(cls, infile, outfile, output_heights=None, variables=None,
-            max_log_height=100, overwrite=False, max_workers=None):
+    def run(
+        cls,
+        infile,
+        outfile,
+        output_heights=None,
+        variables=None,
+        max_log_height=100,
+        overwrite=False,
+        max_workers=None,
+    ):
         """Run interpolation and save output
 
         Parameters
@@ -283,13 +318,17 @@ class LogLinInterpolator:
         overwrite : bool
             Whether to overwrite existing files.
         """
-        log_interp = cls(infile, outfile,
-                         output_heights=output_heights,
-                         variables=variables,
-                         max_log_height=max_log_height)
+        log_interp = cls(
+            infile,
+            outfile,
+            output_heights=output_heights,
+            variables=variables,
+            max_log_height=max_log_height,
+        )
         if os.path.exists(outfile) and not overwrite:
-            logger.info(f'{outfile} already exists and overwrite=False. '
-                        'Skipping.')
+            logger.info(
+                f'{outfile} already exists and overwrite=False. ' 'Skipping.'
+            )
         else:
             log_interp.load()
             log_interp.interpolate_vars(max_workers=max_workers)
@@ -301,9 +340,16 @@ class LogLinInterpolator:
             cls.prune_output(outfile)
 
     @classmethod
-    def run_multiple(cls, infiles, out_dir, output_heights=None,
-                     max_log_height=100, overwrite=False, variables=None,
-                     max_workers=None):
+    def run_multiple(
+        cls,
+        infiles,
+        out_dir,
+        output_heights=None,
+        max_log_height=100,
+        overwrite=False,
+        variables=None,
+        max_workers=None,
+    ):
         """Run interpolation and save output
 
         Parameters
@@ -331,34 +377,53 @@ class LogLinInterpolator:
             infiles = glob(infiles)
         if max_workers == 1:
             for _, file in enumerate(infiles):
-                outfile = os.path.basename(file).replace('.nc',
-                                                         '_all_interp.nc')
+                outfile = os.path.basename(file).replace(
+                    '.nc', '_all_interp.nc'
+                )
                 outfile = os.path.join(out_dir, outfile)
-                cls.run(file, outfile, output_heights=output_heights,
-                        max_log_height=max_log_height,
-                        overwrite=overwrite, variables=variables)
+                cls.run(
+                    file,
+                    outfile,
+                    output_heights=output_heights,
+                    max_log_height=max_log_height,
+                    overwrite=overwrite,
+                    variables=variables,
+                )
 
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for i, file in enumerate(infiles):
-                    outfile = os.path.basename(file).replace('.nc',
-                                                             '_all_interp.nc')
+                    outfile = os.path.basename(file).replace(
+                        '.nc', '_all_interp.nc'
+                    )
                     outfile = os.path.join(out_dir, outfile)
-                    futures.append(exe.submit(
-                        cls.run, file, outfile, output_heights=output_heights,
-                        variables=variables,
-                        max_log_height=max_log_height,
-                        overwrite=overwrite))
+                    futures.append(
+                        exe.submit(
+                            cls.run,
+                            file,
+                            outfile,
+                            output_heights=output_heights,
+                            variables=variables,
+                            max_log_height=max_log_height,
+                            overwrite=overwrite,
+                        )
+                    )
                     logger.info(
-                        f'{i + 1} of {len(infiles)} futures submitted.')
+                        f'{i + 1} of {len(infiles)} futures submitted.'
+                    )
             for i, future in enumerate(as_completed(futures)):
                 future.result()
                 logger.info(f'{i + 1} of {len(futures)} futures complete.')
 
     @classmethod
-    def pbl_interp_to_height(cls, lev_array, var_array, levels,
-                             fixed_level_mask=None,
-                             max_log_height=100):
+    def pbl_interp_to_height(
+        cls,
+        lev_array,
+        var_array,
+        levels,
+        fixed_level_mask=None,
+        max_log_height=100,
+    ):
         """Fit ws log law to data below max_log_height.
 
         Parameters
@@ -387,6 +452,7 @@ class LogLinInterpolator:
         good : bool
             Check if log interpolation went without issue.
         """
+
         def ws_log_profile(z, a, b):
             return a * np.log(z) + b
 
@@ -402,25 +468,38 @@ class LogLinInterpolator:
         var_mask = (0 < lev_array_samp) & (lev_array_samp <= max_log_height)
 
         try:
-            popt, _ = curve_fit(ws_log_profile, lev_array_samp[var_mask],
-                                var_array_samp[var_mask])
+            popt, _ = curve_fit(
+                ws_log_profile,
+                lev_array_samp[var_mask],
+                var_array_samp[var_mask],
+            )
             log_ws = ws_log_profile(levels[lev_mask], *popt)
         except Exception as e:
-            msg = ('Log interp failed with (h, ws) = '
-                   f'({lev_array_samp[var_mask]}, '
-                   f'{var_array_samp[var_mask]}). {e} '
-                   'Using linear interpolation.')
+            msg = (
+                'Log interp failed with (h, ws) = '
+                f'({lev_array_samp[var_mask]}, '
+                f'{var_array_samp[var_mask]}). {e} '
+                'Using linear interpolation.'
+            )
             good = False
             logger.warning(msg)
             warn(msg)
-            log_ws = interp1d(lev_array[var_mask], var_array[var_mask],
-                              fill_value='extrapolate')(levels[lev_mask])
+            log_ws = interp1d(
+                lev_array[var_mask],
+                var_array[var_mask],
+                fill_value='extrapolate',
+            )(levels[lev_mask])
         return log_ws, good
 
     @classmethod
-    def _interp_var_to_height(cls, lev_array, var_array, levels,
-                              fixed_level_mask=None,
-                              max_log_height=100):
+    def _interp_var_to_height(
+        cls,
+        lev_array,
+        var_array,
+        levels,
+        fixed_level_mask=None,
+        max_log_height=100,
+    ):
         """Fit ws log law to wind data below max_log_height and linearly
         interpolate data above. Linearly interpolate non wind data.
 
@@ -456,32 +535,44 @@ class LogLinInterpolator:
         lin_ws = None
         good = True
 
-        hgt_check = (any(levels < max_log_height)
-                     and any(lev_array < max_log_height))
+        hgt_check = any(levels < max_log_height) and any(
+            lev_array < max_log_height
+        )
         if hgt_check:
             log_ws, good = cls.pbl_interp_to_height(
-                lev_array, var_array, levels,
+                lev_array,
+                var_array,
+                levels,
                 fixed_level_mask=fixed_level_mask,
-                max_log_height=max_log_height)
+                max_log_height=max_log_height,
+            )
 
         if any(levels > max_log_height):
             lev_mask = levels >= max_log_height
             var_mask = lev_array >= max_log_height
             if len(lev_array[var_mask]) > 1:
-                lin_ws = interp1d(lev_array[var_mask], var_array[var_mask],
-                                  fill_value='extrapolate')(levels[lev_mask])
+                lin_ws = interp1d(
+                    lev_array[var_mask],
+                    var_array[var_mask],
+                    fill_value='extrapolate',
+                )(levels[lev_mask])
             elif len(lev_array) > 1:
-                msg = ('Requested interpolation levels are outside the '
-                       f'available range: lev_array={lev_array}, '
-                       f'levels={levels}. Using linear extrapolation.')
-                lin_ws = interp1d(lev_array, var_array,
-                                  fill_value='extrapolate')(levels[lev_mask])
+                msg = (
+                    'Requested interpolation levels are outside the '
+                    f'available range: lev_array={lev_array}, '
+                    f'levels={levels}. Using linear extrapolation.'
+                )
+                lin_ws = interp1d(
+                    lev_array, var_array, fill_value='extrapolate'
+                )(levels[lev_mask])
                 good = False
                 logger.warning(msg)
                 warn(msg)
             else:
-                msg = ('Data seems to be all NaNs. Something may have gone '
-                       'wrong during download.')
+                msg = (
+                    'Data seems to be all NaNs. Something may have gone '
+                    'wrong during download.'
+                )
                 raise OSError(msg)
 
         if log_ws is not None and lin_ws is not None:
@@ -494,8 +585,10 @@ class LogLinInterpolator:
             out = lin_ws
 
         if log_ws is None and lin_ws is None:
-            msg = (f'No interpolation was performed for lev_array={lev_array} '
-                   f'and levels={levels}')
+            msg = (
+                f'No interpolation was performed for lev_array={lev_array} '
+                f'and levels={levels}'
+            )
             raise RuntimeError(msg)
 
         return out, good
@@ -534,8 +627,15 @@ class LogLinInterpolator:
         return h_t, var_t, mask
 
     @classmethod
-    def interp_single_ts(cls, hgt_t, var_t, mask, levels,
-                         fixed_level_mask=None, max_log_height=100):
+    def interp_single_ts(
+        cls,
+        hgt_t,
+        var_t,
+        mask,
+        levels,
+        fixed_level_mask=None,
+        max_log_height=100,
+    ):
         """Perform interpolation for a single timestep specified by the index
         idt
 
@@ -570,17 +670,26 @@ class LogLinInterpolator:
         checks = []
         for h, var, mask in zip_iter:
             val, check = cls._interp_var_to_height(
-                h[mask], var[mask], levels,
+                h[mask],
+                var[mask],
+                levels,
                 fixed_level_mask=fixed_level_mask[mask],
-                max_log_height=max_log_height)
+                max_log_height=max_log_height,
+            )
             out_array.append(val)
             checks.append(check)
         return np.array(out_array), np.array(checks)
 
     @classmethod
-    def interp_var_to_height(cls, var_array, lev_array, levels,
-                             fixed_level_mask=None, max_log_height=100,
-                             max_workers=None):
+    def interp_var_to_height(
+        cls,
+        var_array,
+        lev_array,
+        levels,
+        fixed_level_mask=None,
+        max_log_height=100,
+        max_workers=None,
+    ):
         """Interpolate data array to given level(s) based on h_array.
         Interpolation is done using windspeed log profile and is done for every
         'z' column of [var, h] data.
@@ -614,9 +723,9 @@ class LogLinInterpolator:
         out_array : ndarray
             Array of interpolated values.
         """
-        lev_array, levels = Interpolator.prep_level_interp(var_array,
-                                                           lev_array,
-                                                           levels)
+        lev_array, levels = Interpolator.prep_level_interp(
+            var_array, lev_array, levels
+        )
 
         array_shape = var_array.shape
 
@@ -629,32 +738,43 @@ class LogLinInterpolator:
         futures = {}
         if max_workers == 1:
             for idt in range(array_shape[0]):
-                h_t, v_t, mask = cls._get_timestep_interp_input(lev_array,
-                                                                var_array,
-                                                                idt)
+                h_t, v_t, mask = cls._get_timestep_interp_input(
+                    lev_array, var_array, idt
+                )
                 out, checks = cls.interp_single_ts(
-                    h_t, v_t, mask, levels=levels,
+                    h_t,
+                    v_t,
+                    mask,
+                    levels=levels,
                     fixed_level_mask=fixed_level_mask,
-                    max_log_height=max_log_height)
+                    max_log_height=max_log_height,
+                )
                 out_array[:, idt, :] = out
                 total_checks.append(checks)
 
                 logger.info(
-                    f'{idt + 1} of {array_shape[0]} timesteps finished.')
+                    f'{idt + 1} of {array_shape[0]} timesteps finished.'
+                )
 
         else:
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 for idt in range(array_shape[0]):
-                    h_t, v_t, mask = cls._get_timestep_interp_input(lev_array,
-                                                                    var_array,
-                                                                    idt)
-                    future = exe.submit(cls.interp_single_ts, h_t, v_t, mask,
-                                        levels=levels,
-                                        fixed_level_mask=fixed_level_mask,
-                                        max_log_height=max_log_height)
+                    h_t, v_t, mask = cls._get_timestep_interp_input(
+                        lev_array, var_array, idt
+                    )
+                    future = exe.submit(
+                        cls.interp_single_ts,
+                        h_t,
+                        v_t,
+                        mask,
+                        levels=levels,
+                        fixed_level_mask=fixed_level_mask,
+                        max_log_height=max_log_height,
+                    )
                     futures[future] = idt
                     logger.info(
-                        f'{idt + 1} of {array_shape[0]} futures submitted.')
+                        f'{idt + 1} of {array_shape[0]} futures submitted.'
+                    )
             for i, future in enumerate(as_completed(futures)):
                 out, checks = future.result()
                 out_array[:, futures[future], :] = out
@@ -664,16 +784,22 @@ class LogLinInterpolator:
         total_checks = np.concatenate(total_checks)
         good_count = total_checks.sum()
         total_count = len(total_checks)
-        logger.info('Percent of points interpolated without issue: '
-                    f'{100 * good_count / total_count:.2f}')
+        logger.info(
+            'Percent of points interpolated without issue: '
+            f'{100 * good_count / total_count:.2f}'
+        )
 
         # Reshape out_array
         if isinstance(levels, (float, np.float32, int)):
             shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])
             out_array = out_array.T.reshape(shape)
         else:
-            shape = (len(levels), array_shape[-4], array_shape[-2],
-                     array_shape[-1])
+            shape = (
+                len(levels),
+                array_shape[-4],
+                array_shape[-2],
+                array_shape[-1],
+            )
             out_array = out_array.T.reshape(shape)
 
         return out_array
