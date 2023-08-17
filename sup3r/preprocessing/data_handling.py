@@ -12,6 +12,7 @@ from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 from fnmatch import fnmatch
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -2114,7 +2115,7 @@ class DataHandler(FeatureHandler, InputMixIn):
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
-    CHUNKS = {
+    CHUNKS: ClassVar[dict] = {
         'XTIME': 100,
         'XLAT': 150,
         'XLON': 150,
@@ -2649,7 +2650,7 @@ class DataHandlerNC(DataHandler):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
-    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    CHUNKS: ClassVar[dict] = {'time': 5, 'lat': 20, 'lon': 20}
     """CHUNKS sets the chunk sizes to extract from the data in each dimension.
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
@@ -3327,8 +3328,8 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
                 'Cannot initialize DataHandlerH5SolarCC without required '
                 'features {}. All three are necessary to get the daily '
                 'average clearsky ratio (ghi sum / clearsky ghi sum), even '
-                'though only the clearsky ratio will be passed to the GAN.'
-                .format(required)
+                'though only the clearsky ratio will be passed to the '
+                'GAN.'.format(required)
             )
             logger.error(msg)
             raise KeyError(msg)

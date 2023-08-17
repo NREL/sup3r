@@ -14,6 +14,7 @@ from concurrent.futures import (
     as_completed,
 )
 from glob import glob
+from typing import ClassVar
 from warnings import warn
 
 import numpy as np
@@ -34,8 +35,9 @@ except ImportError as e:
     logger.error(msg)
 
 
-class BaseEraDownloader:
-    """Class to handle downloading ERA5 data"""
+class EraDownloader:
+    """Class to handle ERA5 downloading, variable renaming, file combination,
+    and interpolation."""
 
     msg = (
         'To download ERA5 data you need to have a ~/.cdsapirc file '
@@ -45,7 +47,26 @@ class BaseEraDownloader:
     req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
     assert os.path.exists(req_file), msg
 
-    SFC_VARS = [
+    DEFAULT_RENAMED_VARS: ClassVar[list] = [
+        'zg',
+        'orog',
+        'u',
+        'v',
+        'u_10m',
+        'v_10m',
+        'u_100m',
+        'v_100m',
+    ]
+    DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
+        '10m_u_component_of_wind',
+        '10m_v_component_of_wind',
+        '100m_u_component_of_wind',
+        '100m_v_component_of_wind',
+        'u_component_of_wind',
+        'v_component_of_wind',
+    ]
+
+    SFC_VARS: ClassVar[list] = [
         '10m_u_component_of_wind',
         '10m_v_component_of_wind',
         '100m_u_component_of_wind',
@@ -54,13 +75,13 @@ class BaseEraDownloader:
         '2m_temperature',
         'geopotential',
     ]
-    LEVEL_VARS = [
+    LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind',
         'v_component_of_wind',
         'geopotential',
         'temperature',
     ]
-    NAME_MAP = {
+    NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
         'v10': 'v_10m',
         'u100': 'u_100m',
@@ -76,13 +97,14 @@ class BaseEraDownloader:
         self,
         year,
         month,
-        days,
-        hours,
         area,
-        variables,
+        levels,
         combined_out_pattern,
-        levels=None,
+        interp_out_pattern=None,
+        run_interp=True,
         overwrite=False,
+        required_shape=None,
+        variables=None,
     ):
         """Initialize the class.
 
@@ -92,33 +114,61 @@ class BaseEraDownloader:
             Year of data to download.
         month : int
             Month of data to download.
-        days : list
-            List of integer days to download.
-        hours : list
-            List of integer hours to download.
         area : list
             Domain area of the data to download.
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
-            List of pressure levels to download. If None only surface
-            file variables will be downloaded.
-        variables : list
-            List of variables to download. Can be any of ['u', 'v', 'pressure',
-            temperature']
+            List of pressure levels to download.
         combined_out_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
+        interp_out_pattern : str | None
+            Pattern for interpolated monthly output file. Must include year and
+            month format keys.  e.g. 'era5_{year}_{month}_interp.nc'
+        run_interp : bool
+            Whether to run interpolation after downloading and combining files.
         overwrite : bool
             Whether to overwrite existing files.
+        required_shape : tuple | None
+            Required shape of data to download. Used to check downloaded data.
+            Should be (n_levels, n_lats, n_lons). If None, no check is
+            performed.
+        variables : list | None
+            Variables to download. If None this defaults to just gepotential
+            and wind components.
         """
         self.year = year
         self.month = month
-        self.days = days
-        self.hours = [str(n).zfill(2) + ":00" for n in hours]
         self.area = area
         self.levels = levels
+        self.run_interp = run_interp
         self.overwrite = overwrite
-        self.variables = variables
+        self.combined_out_pattern = combined_out_pattern
+        self.variables = (
+            variables if variables is not None else self.DEFAULT_DOWNLOAD_VARS
+        )
+        self.days = [
+            str(n).zfill(2)
+            for n in np.arange(1, monthrange(year, month)[1] + 1)
+        ]
+        self.hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+
+        if required_shape is None or len(required_shape) == 3:
+            self.required_shape = required_shape
+        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
+            self.required_shape = (len(levels), *required_shape)
+        else:
+            msg = f'Received weird required_shape: {required_shape}.'
+            logger.error(msg)
+            raise OSError(msg)
+
+        self.interp_file = None
+        if interp_out_pattern is not None and run_interp:
+            self.interp_file = interp_out_pattern.format(
+                year=year, month=str(month).zfill(2)
+            )
+            os.makedirs(os.path.dirname(self.interp_file), exist_ok=True)
+
         self.combined_file = combined_out_pattern.format(
             year=year, month=str(month).zfill(2)
         )
@@ -136,7 +186,7 @@ class BaseEraDownloader:
         self.prep_var_lists(variables)
 
         msg = (
-            'Initialized BaseEraDownloader with: '
+            'Initialized EraDownloader with: '
             f'year={self.year}, month={self.month}, area={self.area}, '
             f'levels={self.levels}, variables={self.variables}'
         )
@@ -420,126 +470,6 @@ class BaseEraDownloader:
             logger.info(f'Finished writing {self.combined_file}')
             os.remove(self.level_file)
             os.remove(self.surface_file)
-
-
-class EraDownloader(BaseEraDownloader):
-    """Class to handle ERA5 downloading, variable renaming, file combination,
-    and interpolation."""
-
-    msg = (
-        'To download ERA5 data you need to have a ~/.cdsapirc file '
-        'with a valid url and api key. Follow the instructions here: '
-        'https://cds.climate.copernicus.eu/api-how-to'
-    )
-    req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
-    assert os.path.exists(req_file), msg
-
-    DEFAULT_RENAMED_VARS = [
-        'zg',
-        'orog',
-        'u',
-        'v',
-        'u_10m',
-        'v_10m',
-        'u_100m',
-        'v_100m',
-    ]
-    DEFAULT_DOWNLOAD_VARS = [
-        '10m_u_component_of_wind',
-        '10m_v_component_of_wind',
-        '100m_u_component_of_wind',
-        '100m_v_component_of_wind',
-        'u_component_of_wind',
-        'v_component_of_wind',
-    ]
-
-    def __init__(
-        self,
-        year,
-        month,
-        area,
-        levels,
-        combined_out_pattern,
-        interp_out_pattern=None,
-        run_interp=True,
-        overwrite=False,
-        required_shape=None,
-        variables=None,
-    ):
-        """Initialize the class.
-
-        Parameters
-        ----------
-        year : int
-            Year of data to download.
-        month : int
-            Month of data to download.
-        area : list
-            Domain area of the data to download.
-            [max_lat, min_lon, min_lat, max_lon]
-        levels : list
-            List of pressure levels to download.
-        combined_out_pattern : str
-            Pattern for combined monthly output file. Must include year and
-            month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
-        interp_out_pattern : str | None
-            Pattern for interpolated monthly output file. Must include year and
-            month format keys.  e.g. 'era5_{year}_{month}_interp.nc'
-        run_interp : bool
-            Whether to run interpolation after downloading and combining files.
-        overwrite : bool
-            Whether to overwrite existing files.
-        required_shape : tuple | None
-            Required shape of data to download. Used to check downloaded data.
-            Should be (n_levels, n_lats, n_lons). If None, no check is
-            performed.
-        variables : list | None
-            Variables to download. If None this defaults to just gepotential
-            and wind components.
-        """
-        self.year = year
-        self.month = month
-        self.area = area
-        self.levels = levels
-        self.run_interp = run_interp
-        self.overwrite = overwrite
-        self.combined_out_pattern = combined_out_pattern
-        self.variables = (
-            variables if variables is not None else self.DEFAULT_DOWNLOAD_VARS
-        )
-
-        if required_shape is None or len(required_shape) == 3:
-            self.required_shape = required_shape
-        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
-            self.required_shape = (len(levels), *required_shape)
-        else:
-            msg = f'Received weird required_shape: {required_shape}.'
-            logger.error(msg)
-            raise OSError(msg)
-
-        self.days = [
-            str(n).zfill(2)
-            for n in np.arange(1, monthrange(year, month)[1] + 1)
-        ]
-        self.hours = list(range(0, 24))
-        self.interp_file = None
-        if interp_out_pattern is not None and run_interp:
-            self.interp_file = interp_out_pattern.format(
-                year=year, month=str(month).zfill(2)
-            )
-            os.makedirs(os.path.dirname(self.interp_file), exist_ok=True)
-
-        super().__init__(
-            year=self.year,
-            month=self.month,
-            days=self.days,
-            hours=self.hours,
-            area=self.area,
-            combined_out_pattern=self.combined_out_pattern,
-            levels=self.levels,
-            variables=self.variables,
-            overwrite=self.overwrite,
-        )
 
     def good_file(self, file, required_shape):
         """Check if file has the required shape and variables.

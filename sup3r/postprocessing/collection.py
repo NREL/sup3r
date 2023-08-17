@@ -132,6 +132,22 @@ class Collector(OutputMixIn):
             raise RuntimeError(msg)
 
         row_slice = slice(np.min(row_loc), np.max(row_loc) + 1)
+        col_slice = slice(np.min(col_loc), np.max(col_loc) + 1)
+
+        msg = (
+            f'row_slice={row_slice} conflict with row_indices={row_loc}. '
+            'Indices do not seem to be increasing and/or contiguous.'
+        )
+        assert (row_slice.stop - row_slice.start) == len(row_loc), msg
+
+        msg = (
+            f'col_slice={col_slice} conflict with col_indices={col_loc}. '
+            'Indices do not seem to be increasing and/or contiguous.'
+        )
+        check = (col_slice.stop - col_slice.start) == len(col_loc)
+        if not check:
+            logger.warning(msg)
+            warn(msg)
 
         return row_slice, col_loc
 
@@ -466,6 +482,61 @@ class Collector(OutputMixIn):
 
         return time_index, target_final_meta, masked_meta, shape, global_attrs
 
+    def _write_flist_data(
+        self,
+        out_file,
+        feature,
+        time_index,
+        subset_masked_meta,
+        target_masked_meta,
+    ):
+        """Write spatiotemporal file list data to output file for given
+        feature
+
+        Parameters
+        ----------
+        out_file : str
+            Name of output file
+        feature : str
+            Name of feature for output chunk
+        time_index : pd.DateTimeIndex
+            Time index for corresponding file list data
+        subset_masked_meta : pd.DataFrame
+            Meta for corresponding file list data
+        target_masked_meta : pd.DataFrame
+            Meta for full output file
+        """
+        with RexOutputs(out_file, mode='r') as f:
+            target_ti = f.time_index
+            y_write_slice, x_write_slice = Collector.get_slices(
+                target_ti,
+                target_masked_meta,
+                time_index,
+                subset_masked_meta,
+            )
+        Collector._ensure_dset_in_output(out_file, feature)
+
+        with RexOutputs(out_file, mode='a') as f:
+            try:
+                f[feature, y_write_slice, x_write_slice] = self.data
+            except Exception as e:
+                msg = (
+                    f'Problem with writing data to {out_file} with '
+                    f't_slice={y_write_slice}, '
+                    f's_slice={x_write_slice}. {e}'
+                )
+                logger.error(msg)
+                raise OSError(msg) from e
+
+        logger.debug(
+            'Finished writing "{}" for row {} and col {} to: {}'.format(
+                feature,
+                y_write_slice,
+                x_write_slice,
+                os.path.basename(out_file),
+            )
+        )
+
     def _collect_flist(
         self,
         feature,
@@ -587,25 +658,12 @@ class Collector(OutputMixIn):
                             msg += f'{futures[future]}'
                             logger.exception(msg)
                             raise RuntimeError(msg) from e
-            with RexOutputs(out_file, mode='r') as f:
-                target_ti = f.time_index
-                y_write_slice, x_write_slice = Collector.get_slices(
-                    target_ti,
-                    target_masked_meta,
-                    time_index,
-                    subset_masked_meta,
-                )
-            Collector._ensure_dset_in_output(out_file, feature)
-            with RexOutputs(out_file, mode='a') as f:
-                f[feature, y_write_slice, x_write_slice] = self.data
-
-            logger.debug(
-                'Finished writing "{}" for row {} and col {} to: {}'.format(
-                    feature,
-                    y_write_slice,
-                    x_write_slice,
-                    os.path.basename(out_file),
-                )
+            self._write_flist_data(
+                out_file,
+                feature,
+                time_index,
+                subset_masked_meta,
+                target_masked_meta,
             )
         else:
             msg = (
