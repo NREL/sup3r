@@ -52,36 +52,40 @@ class Collector(OutputMixIn):
             run data collection.
         """
 
-        import_str = ('from sup3r.postprocessing.collection '
-                      'import Collector;\n'
-                      'from rex import init_logger;\n'
-                      'import time;\n'
-                      'from reV.pipeline.status import Status;\n')
+        import_str = (
+            'from sup3r.postprocessing.collection '
+            'import Collector;\n'
+            'from rex import init_logger;\n'
+            'import time;\n'
+            'from reV.pipeline.status import Status;\n'
+        )
 
         dc_fun_str = get_fun_call_str(cls.collect, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        log_arg_str = f'"sup3r", log_level="{log_level}"'
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"{dc_fun_str};\n"
-               "t_elap = time.time() - t0;\n"
-               )
+        cmd = (
+            f"python -c \'{import_str}\n"
+            "t0 = time.time();\n"
+            f"logger = init_logger({log_arg_str});\n"
+            f"{dc_fun_str};\n"
+            "t_elap = time.time() - t0;\n"
+        )
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_COLLECT, cmd)
 
-        cmd += (";\'\n")
+        cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
 
     @classmethod
-    def get_slices(cls, final_time_index, final_meta, new_time_index,
-                   new_meta):
+    def get_slices(
+        cls, final_time_index, final_meta, new_time_index, new_meta
+    ):
         """Get index slices where the new ti/meta belong in the final ti/meta.
 
         Parameters
@@ -110,16 +114,20 @@ class Collector(OutputMixIn):
         col_loc = np.where(final_meta['gid'].isin(new_meta['gid']))[0]
 
         if not len(row_loc) > 0:
-            msg = ('Could not find row locations in file collection. '
-                   'New time index: {} final time index: {}'
-                   .format(new_time_index, final_time_index))
+            msg = (
+                'Could not find row locations in file collection. '
+                'New time index: {} final time index: {}'.format(
+                    new_time_index, final_time_index
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
         if not len(col_loc) > 0:
-            msg = ('Could not find col locations in file collection. '
-                   'New index: {} final index: {}'
-                   .format(new_index, final_index))
+            msg = (
+                'Could not find col locations in file collection. '
+                'New index: {} final index: {}'.format(new_index, final_index)
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -139,17 +147,27 @@ class Collector(OutputMixIn):
         threshold : float
             Threshold distance for finding target coordinates within full meta
         """
-        ll2 = np.vstack((full_meta.latitude.values,
-                         full_meta.longitude.values)).T
+        ll2 = np.vstack(
+            (full_meta.latitude.values, full_meta.longitude.values)
+        ).T
         tree = KDTree(ll2)
-        targets = np.vstack((target_meta.latitude.values,
-                             target_meta.longitude.values)).T
+        targets = np.vstack(
+            (target_meta.latitude.values, target_meta.longitude.values)
+        ).T
         _, indices = tree.query(targets, distance_upper_bound=threshold)
         indices = indices[indices < len(full_meta)]
         return indices
 
-    def get_data(self, file_path, feature, time_index, meta, scale_factor,
-                 dtype, threshold=1e-4):
+    def get_data(
+        self,
+        file_path,
+        feature,
+        time_index,
+        meta,
+        scale_factor,
+        dtype,
+        threshold=1e-4,
+    ):
         """Retreive a data array from a chunked file.
 
         Parameters
@@ -188,29 +206,35 @@ class Collector(OutputMixIn):
             source_scale_factor = f.attrs[feature].get('scale_factor', 1)
 
             if feature not in f.dsets:
-                e = ('Trying to collect dataset "{}" but cannot find in '
-                     'available: {}'.format(feature, f.dsets))
+                e = (
+                    'Trying to collect dataset "{}" but cannot find in '
+                    'available: {}'.format(feature, f.dsets)
+                )
                 logger.error(e)
                 raise KeyError(e)
 
-            mask = self.get_coordinate_indices(meta, f_meta,
-                                               threshold=threshold)
+            mask = self.get_coordinate_indices(
+                meta, f_meta, threshold=threshold
+            )
             f_meta = f_meta.iloc[mask]
             f_data = f[feature][:, mask]
 
         if len(mask) == 0:
-            msg = ('No target coordinates found in masked meta. '
-                   f'Skipping collection for {file_path}.')
+            msg = (
+                'No target coordinates found in masked meta. '
+                f'Skipping collection for {file_path}.'
+            )
             logger.warning(msg)
             warn(msg)
 
         else:
-            row_slice, col_slice = Collector.get_slices(time_index, meta,
-                                                        f_ti, f_meta)
+            row_slice, col_slice = Collector.get_slices(
+                time_index, meta, f_ti, f_meta
+            )
 
             if scale_factor != source_scale_factor:
                 f_data = f_data.astype(np.float32)
-                f_data *= (scale_factor / source_scale_factor)
+                f_data *= scale_factor / source_scale_factor
 
             if np.issubdtype(dtype, np.integer):
                 f_data = np.round(f_data)
@@ -231,8 +255,9 @@ class Collector(OutputMixIn):
             self.file_attrs[file] = {'meta': meta, 'time_index': time_index}
         return meta, time_index
 
-    def _get_collection_attrs(self, file_paths, sort=True,
-                              sort_key=None, max_workers=None):
+    def _get_collection_attrs(
+        self, file_paths, sort=True, sort_key=None, max_workers=None
+    ):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -269,8 +294,10 @@ class Collector(OutputMixIn):
         if sort:
             file_paths = sorted(file_paths, key=sort_key)
 
-        logger.info('Getting collection attrs for full dataset with '
-                    f'max_workers={max_workers}.')
+        logger.info(
+            'Getting collection attrs for full dataset with '
+            f'max_workers={max_workers}.'
+        )
 
         time_index = [None] * len(file_paths)
         meta = [None] * len(file_paths)
@@ -287,17 +314,21 @@ class Collector(OutputMixIn):
 
                 for i, future in enumerate(as_completed(futures)):
                     mem = psutil.virtual_memory()
-                    msg = (f'Meta collection futures completed: {i + 1} out '
-                           f'of {len(futures)}. Current memory usage is '
-                           f'{mem.used / 1e9:.3f} GB out of '
-                           f'{mem.total / 1e9:.3f} GB total.')
+                    msg = (
+                        f'Meta collection futures completed: {i + 1} out '
+                        f'of {len(futures)}. Current memory usage is '
+                        f'{mem.used / 1e9:.3f} GB out of '
+                        f'{mem.total / 1e9:.3f} GB total.'
+                    )
                     logger.info(msg)
                     try:
                         idx = futures[future]
                         meta[idx], time_index[idx] = future.result()
                     except Exception as e:
-                        msg = ('Falied to get attrs from '
-                               f'{file_paths[futures[future]]}')
+                        msg = (
+                            'Falied to get attrs from '
+                            f'{file_paths[futures[future]]}'
+                        )
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
         time_index = pd.DatetimeIndex(np.concatenate(time_index))
@@ -311,8 +342,9 @@ class Collector(OutputMixIn):
 
         return time_index, meta
 
-    def get_target_and_masked_meta(self, meta, target_final_meta_file=None,
-                                   threshold=1e-4):
+    def get_target_and_masked_meta(
+        self, meta, target_final_meta_file=None, threshold=1e-4
+    ):
         """Use combined meta for all files and target_final_meta_file to get
         mapping from the full meta to the target meta and the mapping from the
         target meta to the full meta, both of which are masked to remove
@@ -339,17 +371,20 @@ class Collector(OutputMixIn):
             Concatenated full size meta data from the flist that is being
             collected masked against target_final_meta
         """
-        if (target_final_meta_file is not None
-                and os.path.exists(target_final_meta_file)):
+        if target_final_meta_file is not None and os.path.exists(
+            target_final_meta_file
+        ):
             target_final_meta = pd.read_csv(target_final_meta_file)
             if 'gid' in target_final_meta.columns:
                 target_final_meta = target_final_meta.drop('gid', axis=1)
-            mask = self.get_coordinate_indices(target_final_meta, meta,
-                                               threshold=threshold)
+            mask = self.get_coordinate_indices(
+                target_final_meta, meta, threshold=threshold
+            )
             masked_meta = meta.iloc[mask]
             logger.info(f'Masked meta coordinates: {len(masked_meta)}')
-            mask = self.get_coordinate_indices(masked_meta, target_final_meta,
-                                               threshold=threshold)
+            mask = self.get_coordinate_indices(
+                masked_meta, target_final_meta, threshold=threshold
+            )
             target_final_meta = target_final_meta.iloc[mask]
             logger.info(f'Target meta coordinates: {len(target_final_meta)}')
         else:
@@ -357,9 +392,15 @@ class Collector(OutputMixIn):
 
         return target_final_meta, masked_meta
 
-    def get_collection_attrs(self, file_paths, sort=True,
-                             sort_key=None, max_workers=None,
-                             target_final_meta_file=None, threshold=1e-4):
+    def get_collection_attrs(
+        self,
+        file_paths,
+        sort=True,
+        sort_key=None,
+        max_workers=None,
+        target_final_meta_file=None,
+        threshold=1e-4,
+    ):
         """Get important dataset attributes from a file list to be collected.
 
         Assumes the file list is chunked in time (row chunked).
@@ -402,11 +443,21 @@ class Collector(OutputMixIn):
             that all the files in file_paths have the same global file
             attributes).
         """
+        logger.info(f'Using target_final_meta_file={target_final_meta_file}')
+        if isinstance(target_final_meta_file, str):
+            msg = (
+                f'Provided target meta ({target_final_meta_file}) does not '
+                'exist.'
+            )
+            assert os.path.exists(target_final_meta_file), msg
+
         time_index, meta = self._get_collection_attrs(
-            file_paths, sort=sort, sort_key=sort_key, max_workers=max_workers)
+            file_paths, sort=sort, sort_key=sort_key, max_workers=max_workers
+        )
 
         target_final_meta, masked_meta = self.get_target_and_masked_meta(
-            meta, target_final_meta_file, threshold=threshold)
+            meta, target_final_meta_file, threshold=threshold
+        )
 
         shape = (len(time_index), len(target_final_meta))
 
@@ -415,9 +466,17 @@ class Collector(OutputMixIn):
 
         return time_index, target_final_meta, masked_meta, shape, global_attrs
 
-    def _collect_flist(self, feature, subset_masked_meta, time_index, shape,
-                       file_paths, out_file, target_masked_meta,
-                       max_workers=None):
+    def _collect_flist(
+        self,
+        feature,
+        subset_masked_meta,
+        time_index,
+        shape,
+        file_paths,
+        out_file,
+        target_masked_meta,
+        max_workers=None,
+    ):
         """Collect a dataset from a file list without getting attributes first.
         This file list can be a subset of a full file list to be collected.
 
@@ -451,45 +510,76 @@ class Collector(OutputMixIn):
             attrs, final_dtype = self.get_dset_attrs(feature)
             scale_factor = attrs.get('scale_factor', 1)
 
-            logger.debug('Collecting file list of shape {}: {}'
-                         .format(shape, file_paths))
+            logger.debug(
+                'Collecting file list of shape {}: {}'.format(
+                    shape, file_paths
+                )
+            )
 
             self.data = np.zeros(shape, dtype=final_dtype)
             mem = psutil.virtual_memory()
-            logger.debug('Initializing output dataset "{}" in-memory with '
-                         'shape {} and dtype {}. Current memory usage is '
-                         '{:.3f} GB out of {:.3f} GB total.'
-                         .format(feature, shape, final_dtype,
-                                 mem.used / 1e9, mem.total / 1e9))
+            logger.debug(
+                'Initializing output dataset "{}" in-memory with '
+                'shape {} and dtype {}. Current memory usage is '
+                '{:.3f} GB out of {:.3f} GB total.'.format(
+                    feature,
+                    shape,
+                    final_dtype,
+                    mem.used / 1e9,
+                    mem.total / 1e9,
+                )
+            )
 
             if max_workers == 1:
                 for i, fname in enumerate(file_paths):
-                    logger.debug('Collecting data from file {} out of {}.'
-                                 .format(i + 1, len(file_paths)))
-                    self.get_data(fname, feature, time_index,
-                                  subset_masked_meta, scale_factor,
-                                  final_dtype)
+                    logger.debug(
+                        'Collecting data from file {} out of {}.'.format(
+                            i + 1, len(file_paths)
+                        )
+                    )
+                    self.get_data(
+                        fname,
+                        feature,
+                        time_index,
+                        subset_masked_meta,
+                        scale_factor,
+                        final_dtype,
+                    )
             else:
-                logger.info('Running parallel collection on {} workers.'
-                            .format(max_workers))
+                logger.info(
+                    'Running parallel collection on {} workers.'.format(
+                        max_workers
+                    )
+                )
 
                 futures = {}
                 completed = 0
                 with ThreadPoolExecutor(max_workers=max_workers) as exe:
                     for fname in file_paths:
-                        future = exe.submit(self.get_data, fname, feature,
-                                            time_index, subset_masked_meta,
-                                            scale_factor, final_dtype)
+                        future = exe.submit(
+                            self.get_data,
+                            fname,
+                            feature,
+                            time_index,
+                            subset_masked_meta,
+                            scale_factor,
+                            final_dtype,
+                        )
                         futures[future] = fname
                     for future in as_completed(futures):
                         completed += 1
                         mem = psutil.virtual_memory()
-                        logger.info('Collection futures completed: '
-                                    '{} out of {}. '
-                                    'Current memory usage is '
-                                    '{:.3f} GB out of {:.3f} GB total.'
-                                    .format(completed, len(futures),
-                                            mem.used / 1e9, mem.total / 1e9))
+                        logger.info(
+                            'Collection futures completed: '
+                            '{} out of {}. '
+                            'Current memory usage is '
+                            '{:.3f} GB out of {:.3f} GB total.'.format(
+                                completed,
+                                len(futures),
+                                mem.used / 1e9,
+                                mem.total / 1e9,
+                            )
+                        )
                         try:
                             future.result()
                         except Exception as e:
@@ -500,18 +590,28 @@ class Collector(OutputMixIn):
             with RexOutputs(out_file, mode='r') as f:
                 target_ti = f.time_index
                 y_write_slice, x_write_slice = Collector.get_slices(
-                    target_ti, target_masked_meta, time_index,
-                    subset_masked_meta)
+                    target_ti,
+                    target_masked_meta,
+                    time_index,
+                    subset_masked_meta,
+                )
             Collector._ensure_dset_in_output(out_file, feature)
             with RexOutputs(out_file, mode='a') as f:
                 f[feature, y_write_slice, x_write_slice] = self.data
 
-            logger.debug('Finished writing "{}" for row {} and col {} to: {}'
-                         .format(feature, y_write_slice, x_write_slice,
-                                 os.path.basename(out_file)))
+            logger.debug(
+                'Finished writing "{}" for row {} and col {} to: {}'.format(
+                    feature,
+                    y_write_slice,
+                    x_write_slice,
+                    os.path.basename(out_file),
+                )
+            )
         else:
-            msg = ('No target coordinates found in masked meta. Skipping '
-                   f'collection for {file_paths}.')
+            msg = (
+                'No target coordinates found in masked meta. Skipping '
+                f'collection for {file_paths}.'
+            )
             logger.warning(msg)
             warn(msg)
 
@@ -540,12 +640,16 @@ class Collector(OutputMixIn):
         for files in file_split.values():
             file_chunks.append(files)
 
-        logger.debug(f'Split file list into {len(file_chunks)} chunks '
-                     'according to temporal chunk indices')
+        logger.debug(
+            f'Split file list into {len(file_chunks)} chunks '
+            'according to temporal chunk indices'
+        )
 
         if n_writes is not None:
-            msg = (f'n_writes ({n_writes}) must be less than or equal '
-                   f'to the number of temporal chunks ({len(file_chunks)}).')
+            msg = (
+                f'n_writes ({n_writes}) must be less than or equal '
+                f'to the number of temporal chunks ({len(file_chunks)}).'
+            )
             assert n_writes < len(file_chunks), msg
         return file_chunks
 
@@ -575,24 +679,40 @@ class Collector(OutputMixIn):
             multiple steps.
         """
         if join_times:
-            flist_chunks = self.group_time_chunks(file_paths,
-                                                  n_writes=n_writes)
+            flist_chunks = self.group_time_chunks(
+                file_paths, n_writes=n_writes
+            )
         else:
             flist_chunks = [[f] for f in file_paths]
 
         if n_writes is not None:
             flist_chunks = np.array_split(flist_chunks, n_writes)
-            flist_chunks = [np.concatenate(fp_chunk)
-                            for fp_chunk in flist_chunks]
-            logger.debug(f'Split file list into {len(flist_chunks)} '
-                         f'chunks according to n_writes={n_writes}')
+            flist_chunks = [
+                np.concatenate(fp_chunk) for fp_chunk in flist_chunks
+            ]
+            logger.debug(
+                f'Split file list into {len(flist_chunks)} '
+                f'chunks according to n_writes={n_writes}'
+            )
         return flist_chunks
 
     @classmethod
-    def collect(cls, file_paths, out_file, features, max_workers=None,
-                log_level=None, log_file=None, write_status=False,
-                job_name=None, join_times=False, target_final_meta_file=None,
-                n_writes=None, overwrite=True, threshold=1e-4):
+    def collect(
+        cls,
+        file_paths,
+        out_file,
+        features,
+        max_workers=None,
+        log_level=None,
+        log_file=None,
+        write_status=False,
+        job_name=None,
+        join_times=False,
+        target_final_meta_file=None,
+        n_writes=None,
+        overwrite=True,
+        threshold=1e-4,
+    ):
         """Collect data files from a dir to one output file.
 
         Filename requirements:
@@ -647,29 +767,33 @@ class Collector(OutputMixIn):
         """
         t0 = time.time()
 
-        logger.info(f'Initializing collection for file_paths={file_paths}, '
-                    f'with max_workers={max_workers}.')
+        logger.info(
+            f'Initializing collection for file_paths={file_paths}, '
+            f'with max_workers={max_workers}.'
+        )
 
         if log_level is not None:
-            init_logger('sup3r.preprocessing', log_file=log_file,
-                        log_level=log_level)
-
-        logger.info(f'Using target_final_meta_file={target_final_meta_file}')
+            init_logger(
+                'sup3r.preprocessing', log_file=log_file, log_level=log_level
+            )
 
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
 
         collector = cls(file_paths)
-        logger.info('Collecting {} files to {}'.format(len(collector.flist),
-                                                       out_file))
+        logger.info(
+            'Collecting {} files to {}'.format(len(collector.flist), out_file)
+        )
         if overwrite and os.path.exists(out_file):
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
         out = collector.get_collection_attrs(
-            collector.flist, max_workers=max_workers,
+            collector.flist,
+            max_workers=max_workers,
             target_final_meta_file=target_final_meta_file,
-            threshold=threshold)
+            threshold=threshold,
+        )
         time_index, target_final_meta, target_masked_meta = out[:3]
         shape, global_attrs = out[3:]
 
@@ -677,41 +801,68 @@ class Collector(OutputMixIn):
             logger.debug('Collecting dataset "{}".'.format(dset))
             if join_times or n_writes is not None:
                 flist_chunks = collector.get_flist_chunks(
-                    collector.flist, n_writes=n_writes, join_times=join_times)
+                    collector.flist, n_writes=n_writes, join_times=join_times
+                )
             else:
                 flist_chunks = [collector.flist]
 
             if not os.path.exists(out_file):
-                collector._init_h5(out_file, time_index, target_final_meta,
-                                   global_attrs)
+                collector._init_h5(
+                    out_file, time_index, target_final_meta, global_attrs
+                )
 
             if len(flist_chunks) == 1:
-                collector._collect_flist(dset, target_masked_meta, time_index,
-                                         shape, flist_chunks[0], out_file,
-                                         target_masked_meta,
-                                         max_workers=max_workers)
+                collector._collect_flist(
+                    dset,
+                    target_masked_meta,
+                    time_index,
+                    shape,
+                    flist_chunks[0],
+                    out_file,
+                    target_masked_meta,
+                    max_workers=max_workers,
+                )
 
             else:
                 for j, flist in enumerate(flist_chunks):
-                    logger.info('Collecting file list chunk {} out of {} '
-                                .format(j + 1, len(flist_chunks)))
-                    time_index, target_final_meta, masked_meta, shape, _ = \
-                        collector.get_collection_attrs(
-                            flist, max_workers=max_workers,
-                            target_final_meta_file=target_final_meta_file,
-                            threshold=threshold)
-                    collector._collect_flist(dset, masked_meta, time_index,
-                                             shape, flist, out_file,
-                                             target_masked_meta,
-                                             max_workers=max_workers)
+                    logger.info(
+                        'Collecting file list chunk {} out of {} '.format(
+                            j + 1, len(flist_chunks)
+                        )
+                    )
+                    (
+                        time_index,
+                        target_final_meta,
+                        masked_meta,
+                        shape,
+                        _,
+                    ) = collector.get_collection_attrs(
+                        flist,
+                        max_workers=max_workers,
+                        target_final_meta_file=target_final_meta_file,
+                        threshold=threshold,
+                    )
+                    collector._collect_flist(
+                        dset,
+                        masked_meta,
+                        time_index,
+                        shape,
+                        flist,
+                        out_file,
+                        target_masked_meta,
+                        max_workers=max_workers,
+                    )
 
         if write_status and job_name is not None:
-            status = {'out_dir': os.path.dirname(out_file),
-                      'fout': out_file,
-                      'flist': collector.flist,
-                      'job_status': 'successful',
-                      'runtime': (time.time() - t0) / 60}
-            Status.make_job_file(os.path.dirname(out_file), 'collect',
-                                 job_name, status)
+            status = {
+                'out_dir': os.path.dirname(out_file),
+                'fout': out_file,
+                'flist': collector.flist,
+                'job_status': 'successful',
+                'runtime': (time.time() - t0) / 60,
+            }
+            Status.make_job_file(
+                os.path.dirname(out_file), 'collect', job_name, status
+            )
 
         logger.info('Finished file collection.')

@@ -142,6 +142,38 @@ class BaseEraDownloader:
         )
         logger.info(msg)
 
+    @classmethod
+    def init_dims(cls, old_ds, new_ds, dims):
+        """Initialize dimensions in new dataset from old dataset
+
+        Parameters
+        ----------
+        old_ds : Dataset
+            Dataset() object from old file
+        new_ds : Dataset
+            Dataset() object for new file
+        dims : tuple
+            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
+
+        Returns
+        -------
+        new_ds : Dataset
+            Dataset() object for new file with dimensions initialized.
+        """
+        for var in dims:
+            new_ds.createDimension(var, len(old_ds[var]))
+            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=var)
+            new_ds[var][:] = old_ds[var][:]
+            new_ds[var].units = old_ds[var].units
+        return new_ds
+
+    @classmethod
+    def get_tmp_file(cls, file):
+        """Get temp file for given file. Then only needed variables will be
+        written to the given file."""
+        tmp_file = file.replace(".nc", "_tmp.nc")
+        return tmp_file
+
     def check_good_vars(self, variables):
         """Make sure requested variables are valid.
 
@@ -265,30 +297,6 @@ class BaseEraDownloader:
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
-    def init_dims(self, old_ds, new_ds, dims):
-        """Initialize dimensions in new dataset from old dataset
-
-        Parameters
-        ----------
-        old_ds : Dataset
-            Dataset() object from old file
-        new_ds : Dataset
-            Dataset() object for new file
-        dims : tuple
-            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
-
-        Returns
-        -------
-        new_ds : Dataset
-            Dataset() object for new file with dimensions initialized.
-        """
-        for var in dims:
-            new_ds.createDimension(var, len(old_ds[var]))
-            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=(var))
-            new_ds[var][:] = old_ds[var][:]
-            new_ds[var].units = old_ds[var].units
-        return new_ds
-
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
 
@@ -306,12 +314,6 @@ class BaseEraDownloader:
             f'Finished processing {self.surface_file}. Moved '
             f'{tmp_file} to {self.surface_file}.'
         )
-
-    def get_tmp_file(self, file):
-        """Get temp file for given file. Then only needed variables will be
-        written to the given file."""
-        tmp_file = file.replace(".nc", "_tmp.nc")
-        return tmp_file
 
     def map_vars(self, old_ds, ds):
         """Map variables from old dataset to new dataset
@@ -622,6 +624,12 @@ class EraDownloader(BaseEraDownloader):
         if self.run_interp:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
+        if os.path.exists(self.interp_file):
+            if self.already_pruned(self.interp_file):
+                logger.info(f'{self.interp_file} pruned already.')
+            else:
+                self.prune_output(self.interp_file)
+
     @classmethod
     def all_months_exist(cls, year, file_pattern):
         """Check if all months in the requested year exist.
@@ -644,6 +652,70 @@ class EraDownloader(BaseEraDownloader):
                 file_pattern.format(year=year, month=str(month).zfill(2))
             )
             for month in range(1, 13)
+        )
+
+    @classmethod
+    def already_pruned(cls, infile):
+        """Check if file has been pruned already."""
+
+        keep_vars = (
+            'u_',
+            'v_',
+            'pressure_',
+            'temperature_',
+            'orog',
+            'time',
+            'latitude',
+            'longitude',
+        )
+        pruned = True
+        with Dataset(infile, 'r') as ds:
+            for var in ds.variables:
+                if not any(name in var for name in keep_vars):
+                    logger.info(f'Pruning {var} in {infile}.')
+                    pruned = False
+        return pruned
+
+    @classmethod
+    def prune_output(cls, infile):
+        """Prune output file to keep just single level variables"""
+
+        logger.info(f'Pruning {infile}.')
+        tmp_file = cls.get_tmp_file(infile)
+        keep_vars = (
+            'u_',
+            'v_',
+            'pressure_',
+            'temperature_',
+            'orog',
+            'time',
+            'latitude',
+            'longitude',
+        )
+        with Dataset(infile, 'r') as old_ds:
+            with Dataset(tmp_file, 'w') as new_ds:
+                new_ds = cls.init_dims(
+                    old_ds, new_ds, ('time', 'latitude', 'longitude')
+                )
+                for var in old_ds.variables:
+                    if any(name in var for name in keep_vars):
+                        old_var = old_ds[var]
+                        vals = old_var[:]
+                        _ = new_ds.createVariable(
+                            var, old_var.dtype, dimensions=old_var.dimensions
+                        )
+                        new_ds[var][:] = vals
+                        if hasattr(old_var, 'units'):
+                            new_ds[var].units = old_var.units
+                        if hasattr(old_var, 'standard_name'):
+                            standard_name = old_var.standard_name
+                            new_ds[var].standard_name = standard_name
+                        if hasattr(old_var, 'long_name'):
+                            new_ds[var].long_name = old_var.long_name
+        os.system(f'mv {tmp_file} {infile}')
+        logger.info(
+            f'Finished pruning variables in {infile}. Moved '
+            f'{tmp_file} to {infile}.'
         )
 
     @classmethod
