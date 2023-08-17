@@ -1,22 +1,22 @@
 """Code for regridding data from one list of coordinates to another"""
-import numpy as np
-from sklearn.neighbors import BallTree
 import logging
-import psutil
-from glob import glob
-import pickle
 import os
-import pandas as pd
+import pickle
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from glob import glob
 
-from rex.utilities.fun_utils import get_fun_call_str
+import numpy as np
+import pandas as pd
+import psutil
 from rex import MultiFileResource
+from rex.utilities.fun_utils import get_fun_call_str
+from sklearn.neighbors import BallTree
 
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
-from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.execution import DistributedProcess
 
 logger = logging.getLogger(__name__)
 
@@ -155,8 +155,8 @@ class TreeBuilder:
                 future = exe.submit(self.save_query, s_slice=s_slice)
                 futures[future] = i
                 mem = psutil.virtual_memory()
-                msg = ('Query futures submitted: {0} out of {1}. Current '
-                       'memory usage is {2:.3f} GB out of {3:.3f} GB '
+                msg = ('Query futures submitted: {} out of {}. Current '
+                       'memory usage is {:.3f} GB out of {:.3f} GB '
                        'total.'.format(i + 1, len(slices), mem.used / 1e9,
                                        mem.total / 1e9))
                 logger.info(msg)
@@ -166,9 +166,9 @@ class TreeBuilder:
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
                 mem = psutil.virtual_memory()
-                msg = ('Query futures completed: {0} out of '
-                       '{1}. Current memory usage is {2:.3f} '
-                       'GB out of {3:.3f} GB total.'.format(i + 1,
+                msg = ('Query futures completed: {} out of '
+                       '{}. Current memory usage is {:.3f} '
+                       'GB out of {:.3f} GB total.'.format(i + 1,
                                                             len(futures),
                                                             mem.used / 1e9,
                                                             mem.total / 1e9))
@@ -587,7 +587,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         import_str = ('from sup3r.utilities.regridder import RegridOutput;\n'
                       'from rex import init_logger;\n'
                       'import time;\n'
-                      'from reV.pipeline.status import Status;\n')
+                      'from sup3r.pipeline import Status;\n')
 
         regrid_fun_str = get_fun_call_str(cls, config)
 
@@ -648,8 +648,8 @@ class RegridOutput(OutputMixIn, DistributedProcess):
                                    chunk_index=chunk_index)
 
             mem = psutil.virtual_memory()
-            msg = ('Coordinate chunks regridded: {0} out of {1}. '
-                   'Current memory usage is {2:.3f} GB out of {3:.3f} '
+            msg = ('Coordinate chunks regridded: {} out of {}. '
+                   'Current memory usage is {:.3f} GB out of {:.3f} '
                    'GB total.'.format(i + 1,
                                       len(self.node_chunks[node_index]),
                                       mem.used / 1e9, mem.total / 1e9))
@@ -678,7 +678,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
                                     chunk_index=chunk_index)
                 futures[future] = chunk_index
                 mem = psutil.virtual_memory()
-                msg = ('Regrid futures submitted: {0} out of {1}'.format(
+                msg = ('Regrid futures submitted: {} out of {}'.format(
                        i + 1, len(self.node_chunks[node_index])))
                 logger.info(msg)
 
@@ -687,8 +687,8 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
                 mem = psutil.virtual_memory()
-                msg = ('Regrid futures completed: {0} out of {1}, in {2}. '
-                       'Current memory usage is {3:.3f} GB out of {4:.3f} GB '
+                msg = ('Regrid futures completed: {} out of {}, in {}. '
+                       'Current memory usage is {:.3f} GB out of {:.3f} GB '
                        'total.'.format(i + 1, len(futures), dt.now() - now,
                                        mem.used / 1e9, mem.total / 1e9))
                 logger.info(msg)

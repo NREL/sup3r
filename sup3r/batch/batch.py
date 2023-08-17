@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """sup3r batch utilities based on reV's batch module"""
+from gaps.legacy import BatchJob as GapsBatchJob
+
 from sup3r.pipeline.pipeline import Sup3rPipeline
 from sup3r.pipeline.pipeline_cli import pipeline_monitor_background
-from reV.batch.batch import BatchJob as RevBatchJob
 
 
-class BatchJob(RevBatchJob):
+class BatchJob(GapsBatchJob):
     """Framework for building a batched job suite."""
 
     # Class attributes to set the software's pipeline class and run+monitor in
