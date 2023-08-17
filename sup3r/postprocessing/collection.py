@@ -149,6 +149,18 @@ class Collector(OutputMixIn):
             logger.warning(msg)
             warn(msg)
 
+        msg = (
+            f'row_slice={row_slice} conflict with row_indices={row_loc}. '
+            'Indices do not seem to be increasing and/or contiguous.'
+        )
+        assert row_slice.stop - row_slice.start == len(row_loc), msg
+
+        msg = (
+            f'col_slice={col_slice} conflict with col_indices={col_loc}. '
+            'Indices do not seem to be increasing and/or contiguous.'
+        )
+        assert col_slice.stop - col_slice.start == len(col_loc), msg
+
         return row_slice, col_loc
 
     def get_coordinate_indices(self, target_meta, full_meta, threshold=1e-4):
