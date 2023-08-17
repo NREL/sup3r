@@ -682,16 +682,7 @@ class EraDownloader(BaseEraDownloader):
 
         logger.info(f'Pruning {infile}.')
         tmp_file = cls.get_tmp_file(infile)
-        keep_vars = (
-            'u_',
-            'v_',
-            'pressure_',
-            'temperature_',
-            'orog',
-            'time',
-            'latitude',
-            'longitude',
-        )
+        keep_vars = ('u_', 'v_', 'pressure_', 'temperature_', 'orog')
         with Dataset(infile, 'r') as old_ds:
             with Dataset(tmp_file, 'w') as new_ds:
                 new_ds = cls.init_dims(

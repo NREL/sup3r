@@ -177,16 +177,16 @@ def make_fake_h5_chunks(td):
     s_slices_lr = [slice(0, 5), slice(5, 10)]
     s_slices_hr = [slice(0, 25), slice(25, 50)]
 
-    out_pattern = os.path.join(td, 'fp_out_{t}_{s}.h5')
+    out_pattern = os.path.join(td, 'fp_out_{t}_{i}_{j}.h5')
     out_files = []
     for t, (slice_lr, slice_hr) in enumerate(zip(t_slices_lr, t_slices_hr)):
-        s_count = 0
-        for _, (s1_lr, s1_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
-            for _, (s2_lr, s2_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
+        for i, (s1_lr, s1_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
+            for j, (s2_lr, s2_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
                 out_file = out_pattern.format(
-                    t=str(t).zfill(3), s=str(s_count).zfill(3)
+                    t=str(t).zfill(3),
+                    i=str(i).zfill(3),
+                    j=str(j).zfill(3),
                 )
-                s_count += 1
                 out_files.append(out_file)
                 OutputHandlerH5.write_output(
                     data[s1_hr, s2_hr, slice_hr, :],
