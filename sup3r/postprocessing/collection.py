@@ -57,7 +57,7 @@ class Collector(OutputMixIn):
             'import Collector;\n'
             'from rex import init_logger;\n'
             'import time;\n'
-            'from reV.pipeline.status import Status;\n'
+            'from sup3r.pipeline import Status;\n'
         )
 
         dc_fun_str = get_fun_call_str(cls.collect, config)

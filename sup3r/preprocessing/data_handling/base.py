@@ -1,7 +1,7 @@
 """Base data handling classes.
 @author: bbenton
 """
-
+import copy
 import logging
 import os
 import pickle
@@ -13,21 +13,57 @@ from fnmatch import fnmatch
 from typing import ClassVar
 
 import numpy as np
-from rex import Resource
+import pandas as pd
+import xarray as xr
+from rex import MultiFileNSRDBX, MultiFileWindX, Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
+from scipy.ndimage.filters import gaussian_filter
+from scipy.spatial import KDTree
+from scipy.stats import mode
 
+from sup3r.bias.bias_transforms import get_spatial_bc_factors
 from sup3r.preprocessing.data_handling.mixin import (
     InputMixIn,
     TrainingPrepMixIn,
 )
-from sup3r.preprocessing.feature_handling import Feature, FeatureHandler
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon,
+    BVFreqSquaredH5,
+    BVFreqSquaredNC,
+    ClearSkyRatioCC,
+    ClearSkyRatioH5,
+    CloudMaskH5,
+    Feature,
+    FeatureHandler,
+    InverseMonNC,
+    LatLonH5,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    Tas,
+    TasMax,
+    TasMin,
+    TempNC,
+    TempNCforCC,
+    TopoH5,
+    UWind,
+    VWind,
+    WinddirectionNC,
+    WindspeedNC,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (
+    daily_temporal_coarsening,
     estimate_max_workers,
     get_chunk_slices,
     get_raster_shape,
+    get_time_dim_name,
+    np_to_pd_times,
     spatial_coarsening,
     uniform_box_sampler,
     uniform_time_sampler,
@@ -768,7 +804,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             'from sup3r.preprocessing.data_handling '
             f'import {cls.__name__};\n'
             'import time;\n'
-            'from reV.pipeline.status import Status;\n'
+            'from sup3r.pipeline import Status;\n'
             'from rex import init_logger;\n'
         )
 
@@ -1057,8 +1093,10 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         if self.hr_spatial_coarsen > 1:
             logger.debug('Applying hr spatial coarsening to data array')
             self.data = spatial_coarsening(
-                self.data, s_enhance=self.hr_spatial_coarsen, obs_axis=False
-            )
+                self.data, s_enhance=self.hr_spatial_coarsen, obs_axis=False)
+            self.lat_lon = spatial_coarsening(
+                self.lat_lon, s_enhance=self.hr_spatial_coarsen,
+                obs_axis=False)
         if self.load_cached:
             for f in self.cached_features:
                 f_index = self.features.index(f)
@@ -1278,39 +1316,37 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         completed = []
         for idf, feature in enumerate(self.features):
-            dset_scalar = f'{feature}_scalar'
-            dset_adder = f'{feature}_adder'
             for fp in bc_files:
-                with Resource(fp) as res:
-                    lat = np.expand_dims(res['latitude'], axis=-1)
-                    lon = np.expand_dims(res['longitude'], axis=-1)
-                    lat_lon_bc = np.dstack((lat, lon))
-                    lat_lon_0 = self.lat_lon[:1, :1]
-                    diff = lat_lon_bc - lat_lon_0
-                    diff = np.hypot(diff[..., 0], diff[..., 1])
-                    idy, idx = np.where(diff == diff.min())
-                    slice_y = slice(idy[0], idy[0] + self.shape[0])
-                    slice_x = slice(idx[0], idx[0] + self.shape[1])
+                if feature not in completed:
+                    scalar, adder = get_spatial_bc_factors(
+                        lat_lon=self.lat_lon,
+                        feature_name=feature,
+                        bias_fp=fp,
+                        threshold=threshold,
+                    )
 
-                    if diff.min() > threshold:
+                    if scalar.shape[-1] == 1:
+                        scalar = np.repeat(scalar, self.shape[2], axis=2)
+                        adder = np.repeat(adder, self.shape[2], axis=2)
+                    elif scalar.shape[-1] == 12:
+                        idm = self.time_index.month.values - 1
+                        scalar = scalar[..., idm]
+                        adder = adder[..., idm]
+                    else:
                         msg = (
-                            'The DataHandler top left coordinate of {} '
-                            'appears to be {} away from the nearest '
-                            'bias correction coordinate of {} from {}. '
-                            'Cannot apply bias correction.'.format(
-                                lat_lon_0,
-                                diff.min(),
-                                lat_lon_bc[idy, idx],
-                                os.path.basename(fp),
-                            )
+                            'Can only accept bias correction factors '
+                            'with last dim equal to 1 or 12 but '
+                            'received bias correction factors with '
+                            'shape {}'.format(scalar.shape)
                         )
                         logger.error(msg)
                         raise RuntimeError(msg)
 
-                    check = (
-                        dset_scalar in res.dsets
-                        and dset_adder in res.dsets
-                        and feature not in completed
+                    logger.info(
+                        'Bias correcting "{}" with linear '
+                        'correction from "{}"'.format(
+                            feature, os.path.basename(fp)
+                        )
                     )
                     self.data[..., idf] *= scalar
                     self.data[..., idf] += adder
@@ -1350,74 +1386,67 @@ class DataHandlerNC(DataHandler):
         if xr_chunks is not None:
             self.CHUNKS = xr_chunks
 
-                        logger.info(
-                            'Bias correcting "{}" with linear '
-                            'correction from "{}"'.format(
-                                feature, os.path.basename(fp)
-                            )
-                        )
-                        self.data[..., idf] *= scalar
-                        self.data[..., idf] += adder
-                        completed.append(feature)
+        super().__init__(*args, **kwargs)
 
+    @property
+    def extract_workers(self):
+        """Get upper bound for extract workers based on memory limits. Used to
+        extract data from source dataset"""
+        # This large multiplier is due to the height interpolation allocating
+        # multiple arrays with up to 60 vertical levels
+        proc_mem = 6 * 64 * self.grid_mem * len(self.time_index)
+        proc_mem /= len(self.time_chunks)
+        n_procs = len(self.time_chunks) * len(self.extract_features)
+        n_procs = int(np.ceil(n_procs))
+        extract_workers = estimate_max_workers(
+            self._extract_workers, proc_mem, n_procs
+        )
+        return extract_workers
 
-# pylint: disable=W0223
-class DataHandlerDC(DataHandler):
-    """Data-centric data handler"""
+    @classmethod
+    def source_handler(cls, file_paths, **kwargs):
+        """Xarray data handler
 
-    def get_observation_index(
-        self, temporal_weights=None, spatial_weights=None
-    ):
-        """Randomly gets weighted spatial sample and time sample
+        Note that xarray appears to treat open file handlers as singletons
+        within a threadpool, so its okay to open this source_handler without a
+        context handler or a .close() statement.
 
         Parameters
         ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
+        file_paths : str | list
+            paths to data files
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
-        observation_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
+        data : xarray.Dataset
         """
-        if spatial_weights is not None:
-            spatial_slice = weighted_box_sampler(
-                self.data, self.sample_shape[:2], weights=spatial_weights
-            )
-        else:
-            spatial_slice = uniform_box_sampler(
-                self.data, self.sample_shape[:2]
-            )
-        if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(
-                self.data, self.sample_shape[2], weights=temporal_weights
-            )
-        else:
-            temporal_slice = uniform_time_sampler(
-                self.data, self.sample_shape[2]
-            )
+        time_key = get_time_dim_name(file_paths[0])
+        default_kws = {
+            'combine': 'nested',
+            'concat_dim': time_key,
+            'chunks': cls.CHUNKS,
+        }
+        default_kws.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kws)
 
-        return tuple(
-            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
-        )
-
-    def get_next(self, temporal_weights=None, spatial_weights=None):
-        """Get data for observation using weighted random observation index.
-        Loops repeatedly over randomized time index.
+    @classmethod
+    def get_file_times(cls, file_paths, **kwargs):
+        """Get time index from data files
 
         Parameters
         ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
+        file_paths : list
+            path to data file
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
 
         Returns
         -------
@@ -1526,7 +1555,532 @@ class DataHandlerDC(DataHandler):
             'Pressure_(.*)m': PressureNC,
             'PotentialTemp_(.*)m': PotentialTempNC,
             'PT_(.*)m': PotentialTempNC,
-            'topography': ['HGT', 'orog']}
+            'topography': 'HGT',
+        }
+        return registry
+
+    @classmethod
+    def extract_feature(
+        cls,
+        file_paths,
+        raster_index,
+        feature,
+        time_slice=slice(None),
+        **kwargs,
+    ):
+        """Extract single feature from data source. The requested feature
+        can match exactly to one found in the source data or can have a
+        matching prefix with a suffix specifying the height or pressure level
+        to interpolate to. e.g. feature=U_100m -> interpolate exact match U to
+        100 meters.
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        raster_index : ndarray
+            Raster index array
+        feature : str
+            Feature to extract from data
+        time_slice : slice
+            slice of time to extract
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
+
+        Returns
+        -------
+        ndarray
+            Data array for extracted feature
+            (spatial_1, spatial_2, temporal)
+        """
+        logger.debug(
+            f'Extracting {feature} with time_slice={time_slice}, '
+            f'raster_index={raster_index}, kwargs={kwargs}.'
+        )
+        handle = cls.source_handler(file_paths, **kwargs)
+        f_info = Feature(feature, handle)
+        interp_height = f_info.height
+        interp_pressure = f_info.pressure
+        basename = f_info.basename
+
+        if feature in handle or feature.lower() in handle:
+            feat_key = feature if feature in handle else feature.lower()
+            fdata = cls.direct_extract(
+                handle, feat_key, raster_index, time_slice
+            )
+
+        elif basename in handle or basename.lower() in handle:
+            feat_key = basename if basename in handle else basename.lower()
+            if interp_height is not None:
+                fdata = Interpolator.interp_var_to_height(
+                    handle,
+                    feat_key,
+                    raster_index,
+                    np.float32(interp_height),
+                    time_slice,
+                )
+            elif interp_pressure is not None:
+                fdata = Interpolator.interp_var_to_pressure(
+                    handle,
+                    feat_key,
+                    raster_index,
+                    np.float32(interp_pressure),
+                    time_slice,
+                )
+
+        else:
+            msg = f'{feature} cannot be extracted from source data.'
+            logger.exception(msg)
+            raise ValueError(msg)
+
+        fdata = np.transpose(fdata, (1, 2, 0))
+        return fdata.astype(np.float32)
+
+    @classmethod
+    def direct_extract(cls, handle, feature, raster_index, time_slice):
+        """Extract requested feature directly from source data, rather than
+        interpolating to a requested height or pressure level
+
+        Parameters
+        ----------
+        handle : xarray
+            netcdf data object
+        feature : str
+            Name of feature to extract directly from source handler
+        raster_index : list
+            List of slices for raster index of spatial domain
+        time_slice : slice
+            slice of time to extract
+
+        Returns
+        -------
+        fdata : ndarray
+            Data array for requested feature
+        """
+        # Sometimes xarray returns fields with (Times, time, lats, lons)
+        # with a single entry in the 'time' dimension so we include this [0]
+        if len(handle[feature].dims) == 4:
+            idx = tuple([time_slice, 0, *raster_index])
+        elif len(handle[feature].dims) == 3:
+            idx = tuple([time_slice, *raster_index])
+        else:
+            idx = tuple(raster_index)
+        fdata = np.array(handle[feature][idx], dtype=np.float32)
+        if len(fdata.shape) == 2:
+            fdata = np.expand_dims(fdata, axis=0)
+        return fdata
+
+    @classmethod
+    def get_full_domain(cls, file_paths):
+        """Get full shape and min available lat lon. To simplify processing
+        of full domain without needing to specify target and shape.
+
+        Parameters
+        ----------
+        file_paths : list
+            List of data file paths
+
+        Returns
+        -------
+        target : tuple
+            (lat, lon) for lower left corner
+        lat_lon : ndarray
+            Raw lat/lon array for entire domain
+        """
+        return cls.get_lat_lon(file_paths, [slice(None), slice(None)])
+
+    @staticmethod
+    def get_closest_lat_lon(lat_lon, target):
+        """Get closest indices to target lat lon to use for lower left corner
+        of raster index
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon
+            (spatial_1, spatial_2, 2)
+            Last dimension in order of (lat, lon)
+        target : tuple
+            (lat, lon) for lower left corner
+
+        Returns
+        -------
+        row : int
+            row index for closest lat/lon to target lat/lon
+        col : int
+            col index for closest lat/lon to target lat/lon
+        """
+        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
+        ll2 = np.vstack(
+            (lat_lon[..., 0].flatten(), lat_lon[..., 1].flatten())
+        ).T
+        tree = KDTree(ll2)
+        _, i = tree.query(np.array(target))
+        row, col = np.where(
+            (lat_lon[..., 0] == ll2[i, 0]) & (lat_lon[..., 1] == ll2[i, 1])
+        )
+        row = row[0]
+        col = col[0]
+        return row, col
+
+    @classmethod
+    def compute_raster_index(cls, file_paths, target, grid_shape):
+        """Get raster index for a given target and shape
+
+        Parameters
+        ----------
+        file_paths : list
+            List of input data file paths
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+
+        Returns
+        -------
+        list
+            List of slices corresponding to extracted data region
+        """
+        lat_lon = cls.get_lat_lon(
+            file_paths[:1], [slice(None), slice(None)], invert_lat=False
+        )
+        cls._check_grid_extent(target, grid_shape, lat_lon)
+
+        row, col = cls.get_closest_lat_lon(lat_lon, target)
+
+        closest = tuple(lat_lon[row, col])
+        logger.debug(f'Found closest coordinate {closest} to target={target}')
+        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
+            msg = 'Closest coordinate to target is more than 1 degree away'
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        if cls.lats_are_descending(lat_lon):
+            row_end = row + 1
+            row_start = row_end - grid_shape[0]
+        else:
+            row_end = row + grid_shape[0]
+            row_start = row
+        raster_index = [
+            slice(row_start, row_end),
+            slice(col, col + grid_shape[1]),
+        ]
+        cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
+        return raster_index
+
+    @classmethod
+    def _check_grid_extent(cls, target, grid_shape, lat_lon):
+        """Make sure the requested target coordinate lies within the available
+        lat/lon grid.
+
+        Parameters
+        ----------
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+        lat_lon : ndarray
+            Array of lat/lon coordinates for entire available grid. Used to
+            check whether computed raster only includes coordinates within this
+            grid.
+        """
+        min_lat = np.min(lat_lon[..., 0])
+        min_lon = np.min(lat_lon[..., 1])
+        max_lat = np.max(lat_lon[..., 0])
+        max_lon = np.max(lat_lon[..., 1])
+        logger.debug(
+            'Calculating raster index from WRF file '
+            f'for shape {grid_shape} and target {target}'
+        )
+        logger.debug(
+            f'lat/lon (min, max): {min_lat}/{min_lon}, ' f'{max_lat}/{max_lon}'
+        )
+        msg = (
+            f'target {target} out of bounds with min lat/lon '
+            f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}'
+        )
+        assert (
+            min_lat <= target[0] <= max_lat and min_lon <= target[1] <= max_lon
+        ), msg
+
+    @classmethod
+    def _validate_raster_shape(cls, target, grid_shape, lat_lon, raster_index):
+        """Make sure the computed raster_index only includes coordinates within
+        the available grid
+
+        Parameters
+        ----------
+        target : tuple
+            Target coordinate for lower left corner of extracted data
+        grid_shape : tuple
+            Shape out extracted data
+        lat_lon : ndarray
+            Array of lat/lon coordinates for entire available grid. Used to
+            check whether computed raster only includes coordinates within this
+            grid.
+        raster_index : list
+            List of slices selecting region from entire available grid.
+        """
+        if (
+            raster_index[0].stop > lat_lon.shape[0]
+            or raster_index[1].stop > lat_lon.shape[1]
+            or raster_index[0].start < 0
+            or raster_index[1].start < 0
+        ):
+            msg = (
+                f'Invalid target {target}, shape {grid_shape}, and raster '
+                f'{raster_index} for data domain of size '
+                f'{lat_lon.shape[:-1]} with lower left corner '
+                f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
+                f' and upper right corner ({np.max(lat_lon[..., 0])}, '
+                f'{np.max(lat_lon[..., 1])}).'
+            )
+            raise ValueError(msg)
+
+    def get_raster_index(self):
+        """Get raster index for file data. Here we assume the list of paths in
+        file_paths all have data with the same spatial domain. We use the first
+        file in the list to compute the raster.
+
+        Returns
+        -------
+        raster_index : np.ndarray
+            2D array of grid indices
+        """
+        self.raster_file = (
+            self.raster_file
+            if self.raster_file is None
+            else self.raster_file.replace('.txt', '.npy')
+        )
+        if self.raster_file is not None and os.path.exists(self.raster_file):
+            logger.debug(
+                f'Loading raster index: {self.raster_file} '
+                f'for {self.input_file_info}'
+            )
+            raster_index = np.load(self.raster_file, allow_pickle=True)
+            raster_index = list(raster_index)
+        else:
+            check = self.grid_shape is not None and self.target is not None
+            msg = (
+                'Must provide raster file or shape + target to get '
+                'raster index'
+            )
+            assert check, msg
+            raster_index = self.compute_raster_index(
+                self.file_paths, self.target, self.grid_shape
+            )
+            logger.debug(
+                'Found raster index with row, col slices: {}'.format(
+                    raster_index
+                )
+            )
+
+            if self.raster_file is not None:
+                basedir = os.path.dirname(self.raster_file)
+                if not os.path.exists(basedir):
+                    os.makedirs(basedir)
+                logger.debug(f'Saving raster index: {self.raster_file}')
+                np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
+
+        return raster_index
+
+
+# pylint: disable=W0223
+class DataHandlerDC(DataHandler):
+    """Data-centric data handler"""
+
+    def get_observation_index(
+        self, temporal_weights=None, spatial_weights=None
+    ):
+        """Randomly gets weighted spatial sample and time sample
+
+        Parameters
+        ----------
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        """
+        if spatial_weights is not None:
+            spatial_slice = weighted_box_sampler(
+                self.data, self.sample_shape[:2], weights=spatial_weights
+            )
+        else:
+            spatial_slice = uniform_box_sampler(
+                self.data, self.sample_shape[:2]
+            )
+        if temporal_weights is not None:
+            temporal_slice = weighted_time_sampler(
+                self.data, self.sample_shape[2], weights=temporal_weights
+            )
+        else:
+            temporal_slice = uniform_time_sampler(
+                self.data, self.sample_shape[2]
+            )
+
+        return tuple(
+            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
+        )
+
+    def get_next(self, temporal_weights=None, spatial_weights=None):
+        """Get data for observation using weighted random observation index.
+        Loops repeatedly over randomized time index.
+
+        Parameters
+        ----------
+        temporal_weights : array
+            Weights used to select time slice
+            (n_time_chunks)
+        spatial_weights : array
+            Weights used to select spatial chunks
+            (n_lat_chunks * n_lon_chunks)
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        """
+        self.current_obs_index = self.get_observation_index(
+            temporal_weights=temporal_weights, spatial_weights=spatial_weights
+        )
+        observation = self.data[self.current_obs_index]
+        return observation
+
+    @classmethod
+    def get_file_times(cls, file_paths, **kwargs):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
+
+        Returns
+        -------
+        time_index : pd.Datetimeindex
+            List of times as a Datetimeindex
+        """
+        handle = cls.source_handler(file_paths, **kwargs)
+
+        if hasattr(handle, 'Times'):
+            time_index = np_to_pd_times(handle.Times.values)
+        elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
+            time_index = handle.indexes['time']
+            if not isinstance(time_index, pd.DatetimeIndex):
+                time_index = time_index.to_datetimeindex()
+        elif hasattr(handle, 'times'):
+            time_index = np_to_pd_times(handle.times.values)
+        else:
+            msg = (
+                f'Could not get time_index for {file_paths}. '
+                'Assuming time independence.'
+            )
+            time_index = None
+            logger.warning(msg)
+            warnings.warn(msg)
+
+        return time_index
+
+    @classmethod
+    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
+        """Get time index from data files
+
+        Parameters
+        ----------
+        file_paths : list
+            path to data file
+        max_workers : int | None
+            Max number of workers to use for parallel time index building
+        kwargs : dict
+            kwargs passed to source handler for data extraction. e.g. This
+            could be {'parallel': True,
+                      'chunks': {'south_north': 120, 'west_east': 120}}
+            which then gets passed to xr.open_mfdataset(file, **kwargs)
+
+        Returns
+        -------
+        time_index : pd.Datetimeindex
+            List of times as a Datetimeindex
+        """
+        max_workers = (
+            len(file_paths)
+            if max_workers is None
+            else np.min((max_workers, len(file_paths)))
+        )
+        if max_workers == 1:
+            return cls.get_file_times(file_paths, **kwargs)
+        ti = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i, f in enumerate(file_paths):
+                future = exe.submit(cls.get_file_times, [f], **kwargs)
+                futures[future] = {'idx': i, 'file': f}
+
+            logger.info(
+                f'Started building time index from {len(file_paths)} '
+                f'files in {dt.now() - now}.'
+            )
+
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    val = future.result()
+                    if val is not None:
+                        ti[futures[future]['idx']] = list(val)
+                except Exception as e:
+                    msg = (
+                        'Error while getting time index from file '
+                        f'{futures[future]["file"]}.'
+                    )
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+                logger.debug(f'Stored {i+1} out of {len(futures)} file times')
+        times = np.concatenate(list(ti.values()))
+        return pd.DatetimeIndex(sorted(set(times)))
+
+    @classmethod
+    def feature_registry(cls):
+        """Registry of methods for computing features
+
+        Returns
+        -------
+        dict
+            Method registry
+        """
+        registry = {
+            'BVF2_(.*)m': BVFreqSquaredNC,
+            'BVF_MO_(.*)m': BVFreqMon,
+            'RMOL': InverseMonNC,
+            'U_(.*)': UWind,
+            'V_(.*)': VWind,
+            'Windspeed_(.*)m': WindspeedNC,
+            'Winddirection_(.*)m': WinddirectionNC,
+            'lat_lon': LatLonNC,
+            'Shear_(.*)m': Shear,
+            'REWS_(.*)m': Rews,
+            'Temperature_(.*)m': TempNC,
+            'Pressure_(.*)m': PressureNC,
+            'PotentialTemp_(.*)m': PotentialTempNC,
+            'PT_(.*)m': PotentialTempNC,
+            'topography': ['HGT', 'orog'],
+        }
         return registry
 
     @classmethod
@@ -2639,74 +3193,3 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             'Finished calculating daily average datasets for {} '
             'training data days.'.format(n_data_days)
         )
-
-
-# pylint: disable=W0223
-class DataHandlerDC(DataHandler):
-    """Data-centric data handler"""
-
-    def get_observation_index(
-        self, temporal_weights=None, spatial_weights=None
-    ):
-        """Randomly gets weighted spatial sample and time sample
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
-
-        Returns
-        -------
-        observation_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
-        """
-        if spatial_weights is not None:
-            spatial_slice = weighted_box_sampler(
-                self.data, self.sample_shape[:2], weights=spatial_weights
-            )
-        else:
-            spatial_slice = uniform_box_sampler(
-                self.data, self.sample_shape[:2]
-            )
-        if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(
-                self.data, self.sample_shape[2], weights=temporal_weights
-            )
-        else:
-            temporal_slice = uniform_time_sampler(
-                self.data, self.sample_shape[2]
-            )
-
-        return tuple(
-            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
-        )
-
-    def get_next(self, temporal_weights=None, spatial_weights=None):
-        """Get data for observation using weighted random observation index.
-        Loops repeatedly over randomized time index.
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
-
-        Returns
-        -------
-        observation : np.ndarray
-            4D array
-            (spatial_1, spatial_2, temporal, features)
-        """
-        self.current_obs_index = self.get_observation_index(
-            temporal_weights=temporal_weights, spatial_weights=spatial_weights
-        )
-        observation = self.data[self.current_obs_index]
-        return observation
