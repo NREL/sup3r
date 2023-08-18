@@ -6,7 +6,6 @@ Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
 import glob
-import json
 import logging
 import os
 
@@ -19,6 +18,8 @@ from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
@@ -522,24 +523,7 @@ class Solar:
             "t_elap = time.time() - t0;\n"
         )
 
-        job_name = config.get('job_name', None)
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'command="{cmd}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += 'job_attrs = {};\n'.format(
-                json.dumps(config)
-                .replace("null", "None")
-                .replace("false", "False")
-                .replace("true", "True")
-            )
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_single_job_file({status_file_arg_str})'
-
+        cmd = BaseCLI.add_status_cmd(config, ModuleName.SOLAR, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
