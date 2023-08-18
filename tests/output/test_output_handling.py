@@ -1,26 +1,31 @@
 """Output method tests"""
 import json
-import numpy as np
 import os
-import tensorflow as tf
 import tempfile
+
+import numpy as np
 import pandas as pd
+import tensorflow as tf
+from rex import ResourceX, init_logger
 
 from sup3r import __version__
-from sup3r.postprocessing.file_handling import OutputHandlerNC, OutputHandlerH5
 from sup3r.postprocessing.collection import Collector
-from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
 from sup3r.utilities.pytest import make_fake_h5_chunks
-
-from rex import ResourceX, init_logger
+from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 
 
 def test_get_lat_lon():
     """Check that regridding works correctly"""
     low_res_lats = np.array([[1, 1, 1], [0, 0, 0]])
     low_res_lons = np.array([[-120, -100, -80], [-120, -100, -80]])
-    lat_lon = np.concatenate([np.expand_dims(low_res_lats, axis=-1),
-                              np.expand_dims(low_res_lons, axis=-1)], axis=-1)
+    lat_lon = np.concatenate(
+        [
+            np.expand_dims(low_res_lats, axis=-1),
+            np.expand_dims(low_res_lons, axis=-1),
+        ],
+        axis=-1,
+    )
     shape = (4, 6)
     new_lat_lon = OutputHandlerNC.get_lat_lon(lat_lon, shape)
 
@@ -50,14 +55,17 @@ def test_invert_uv():
     """Make sure inverse uv transform returns inputs"""
     lats = np.array([[1, 1, 1], [0, 0, 0]])
     lons = np.array([[-120, -100, -80], [-120, -100, -80]])
-    lat_lon = np.concatenate([np.expand_dims(lats, axis=-1),
-                              np.expand_dims(lons, axis=-1)], axis=-1)
+    lat_lon = np.concatenate(
+        [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
+    )
     windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
     winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon)
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -65,9 +73,11 @@ def test_invert_uv():
     assert np.allclose(winddirection, wd)
 
     lat_lon = lat_lon[::-1]
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon)
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -81,13 +91,15 @@ def test_invert_uv_inplace():
 
     lats = np.array([[1, 1, 1], [0, 0, 0]])
     lons = np.array([[-120, -100, -80], [-120, -100, -80]])
-    lat_lon = np.concatenate([np.expand_dims(lats, axis=-1),
-                              np.expand_dims(lons, axis=-1)], axis=-1)
+    lat_lon = np.concatenate(
+        [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
+    )
     u = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
     v = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
 
-    data = np.concatenate([np.expand_dims(u, axis=-1),
-                           np.expand_dims(v, axis=-1)], axis=-1)
+    data = np.concatenate(
+        [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
+    )
     OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
@@ -96,8 +108,9 @@ def test_invert_uv_inplace():
     assert np.allclose(data[..., 1], wd)
 
     lat_lon = lat_lon[::-1]
-    data = np.concatenate([np.expand_dims(u, axis=-1),
-                           np.expand_dims(v, axis=-1)], axis=-1)
+    data = np.concatenate(
+        [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
+    )
     OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
@@ -113,8 +126,19 @@ def test_h5_out_and_collect():
         fp_out = os.path.join(td, 'out_combined.h5')
 
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, _,
-         t_slices_hr, _, s_slices_hr, _, low_res_times) = out
+        (
+            out_files,
+            data,
+            ws_true,
+            wd_true,
+            features,
+            _,
+            t_slices_hr,
+            _,
+            s_slices_hr,
+            _,
+            low_res_times,
+        ) = out
 
         Collector.collect(out_files, fp_out, features=features)
         with ResourceX(fp_out) as fh:
@@ -132,15 +156,18 @@ def test_h5_out_and_collect():
                     if s1_idx == s2_idx == 0:
                         combined_ti += list(fh_i.time_index)
 
-                    ws_i = np.transpose(data[s1_hr, s2_hr, t_hr, 0],
-                                        axes=(2, 0, 1))
-                    wd_i = np.transpose(data[s1_hr, s2_hr, t_hr, 1],
-                                        axes=(2, 0, 1))
+                    ws_i = np.transpose(
+                        data[s1_hr, s2_hr, t_hr, 0], axes=(2, 0, 1)
+                    )
+                    wd_i = np.transpose(
+                        data[s1_hr, s2_hr, t_hr, 1], axes=(2, 0, 1)
+                    )
                     ws_i = ws_i.reshape(48, 625)
                     wd_i = wd_i.reshape(48, 625)
                     assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(wd_i, fh_i['winddirection_100m'],
-                                       atol=0.1)
+                    assert np.allclose(
+                        wd_i, fh_i['winddirection_100m'], atol=0.1
+                    )
 
                     for k, v in fh_i.global_attrs.items():
                         assert k in fh.global_attrs, k
@@ -182,7 +209,7 @@ def test_h5_collect_mask(log=False):
 
         Collector.collect(out_files, fp_out, features=features)
         indices = np.arange(np.product(data.shape[:2]))
-        indices = indices[-len(indices) // 2:]
+        indices = indices[slice(-len(indices) // 2, None)]
         removed = []
         for _ in range(10):
             removed.append(np.random.choice(indices))
@@ -193,9 +220,14 @@ def test_h5_collect_mask(log=False):
             mask_meta['gid'][:] = np.arange(len(mask_meta))
             mask_meta.to_csv(mask_file, index=False)
 
-        Collector.collect(out_files, fp_out_mask, features=features,
-                          target_final_meta_file=mask_file,
-                          max_workers=1, join_times=False)
+        Collector.collect(
+            out_files,
+            fp_out_mask,
+            features=features,
+            target_final_meta_file=mask_file,
+            max_workers=1,
+            join_times=False,
+        )
         with ResourceX(fp_out_mask) as fh:
             mask_meta = pd.read_csv(mask_file, dtype=np.float32)
             assert np.array_equal(mask_meta['gid'], fh.meta.index.values)
@@ -203,5 +235,6 @@ def test_h5_collect_mask(log=False):
             assert np.array_equal(mask_meta['latitude'], fh.meta['latitude'])
 
             with ResourceX(fp_out) as fh_o:
-                assert np.array_equal(fh_o['windspeed_100m', :, mask_slice],
-                                      fh['windspeed_100m'])
+                assert np.array_equal(
+                    fh_o['windspeed_100m', :, mask_slice], fh['windspeed_100m']
+                )

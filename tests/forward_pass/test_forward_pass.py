@@ -15,7 +15,8 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, WindGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.utilities.pytest import make_fake_nc_files
+from sup3r.utilities.pytest import (make_fake_nc_files,
+                                    make_fake_multi_time_nc_files)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -91,6 +92,74 @@ def test_fwp_nc_cc(log=False):
                 t_enhance * len(handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1])
+
+
+def test_fwp_single_ts_vs_multi_ts_input_files():
+    """Test forward pass handler output for spatial only model."""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
+    model.meta['training_features'] = FEATURES
+    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['s_enhance'] = 2
+    model.meta['t_enhance'] = 1
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        out_dir = os.path.join(td, 's_gan')
+        model.save(out_dir)
+
+        cache_pattern = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}_single_ts.nc')
+
+        max_workers = 1
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
+        single_ts_handler = ForwardPassStrategy(
+            input_files, model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
+            worker_kwargs=dict(max_workers=max_workers))
+        single_ts_forward_pass = ForwardPass(single_ts_handler)
+        single_ts_forward_pass.run(single_ts_handler, node_index=0)
+
+        input_files = make_fake_multi_time_nc_files(td, INPUT_FILE, 8, 2)
+
+        cache_pattern = os.path.join(td, 'cache')
+        out_files = os.path.join(td, 'out_{file_id}_multi_ts.nc')
+
+        max_workers = 1
+        input_handler_kwargs = dict(
+            target=target, shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=max_workers),
+            cache_pattern=cache_pattern,
+            overwrite_cache=True)
+        multi_ts_handler = ForwardPassStrategy(
+            input_files, model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=1, temporal_pad=1,
+            input_handler_kwargs=input_handler_kwargs, out_pattern=out_files,
+            worker_kwargs=dict(max_workers=max_workers))
+        multi_ts_forward_pass = ForwardPass(multi_ts_handler)
+        multi_ts_forward_pass.run(multi_ts_handler, node_index=0)
+
+        kwargs = {'combine': 'nested', 'concat_dim': 'Time'}
+        with xr.open_mfdataset(single_ts_handler.out_files,
+                               **kwargs) as single_ts:
+            with xr.open_mfdataset(multi_ts_handler.out_files,
+                                   **kwargs) as multi_ts:
+                for feat in model.meta['output_features']:
+                    assert np.array_equal(single_ts[feat].values,
+                                          multi_ts[feat].values)
 
 
 def test_fwp_spatial_only():

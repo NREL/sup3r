@@ -265,7 +265,12 @@ def test_train_st(n_epoch=2, log=False):
 
     batch_handler = BatchHandler([handler], batch_size=2,
                                  s_enhance=3, t_enhance=4,
-                                 n_batches=2)
+                                 n_batches=2,
+                                 worker_kwargs=dict(max_workers=1))
+
+    assert batch_handler.norm_workers == 1
+    assert batch_handler.stats_workers == 1
+    assert batch_handler.load_workers == 1
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
