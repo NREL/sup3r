@@ -17,7 +17,7 @@ from scipy.spatial import KDTree
 from scipy.stats import ks_2samp
 
 import sup3r.preprocessing.data_handling
-from sup3r.utilities import VERSION_RECORD, ModuleName
+from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import nn_fill_array
 
@@ -131,7 +131,8 @@ class DataRetrievalBase:
 
     @property
     def meta(self):
-        """Get a meta data dictionary on how these bias factors were calculated"""
+        """Get a meta data dictionary on how these bias factors were
+        calculated"""
         meta = {
             'base_fps': self.base_fps,
             'bias_fps': self.bias_fps,
@@ -215,7 +216,7 @@ class DataRetrievalBase:
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.BIAS_CALC, cmd)
+        cmd = BaseCLI.add_status_cmd(config, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

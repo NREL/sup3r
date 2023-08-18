@@ -18,7 +18,6 @@ from sup3r.qa.utilities import (
     time_derivative_dist,
     wavenumber_spectrum,
 )
-from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
     get_input_handler_class,
@@ -154,7 +153,7 @@ class Sup3rStatsBase(ABC):
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.STATS, cmd)
+        cmd = BaseCLI.add_status_cmd(config, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
@@ -1456,13 +1455,13 @@ class Sup3rStatsMulti(Sup3rStatsBase):
                 stats['interp'] = lr_stats['interp']
         if self.synth_stats.source_data is not None:
             logger.info(
-                'Computing statistics on synthetic high-resolution ' 'dataset.'
+                'Computing statistics on synthetic high-resolution dataset.'
             )
             synth_stats = self.synth_stats.run()
             stats['synth'] = synth_stats['source']
         if self.coarse_stats.source_data is not None:
             logger.info(
-                'Computing statistics on coarsened low-resolution ' 'dataset.'
+                'Computing statistics on coarsened low-resolution dataset.'
             )
             coarse_stats = self.coarse_stats.run()
             stats['coarse'] = coarse_stats['source']

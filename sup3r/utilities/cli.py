@@ -183,7 +183,7 @@ class BaseCLI:
 
         status = Status.retrieve_job_status(
             out_dir,
-            module=module_name,
+            command=cmd,
             job_name=name,
             hardware='slurm',
             subprocess_manager=slurm_manager,
@@ -221,9 +221,9 @@ class BaseCLI:
                 )
 
             # add job to sup3r status file.
-            Status.add_job(
+            Status.mark_job_as_submitted(
                 out_dir,
-                module=module_name,
+                command=cmd,
                 job_name=name,
                 replace=True,
                 job_attrs={'job_id': out, 'hardware': 'slurm'},
@@ -252,7 +252,7 @@ class BaseCLI:
         out_dir = ctx.obj['OUT_DIR']
         subprocess_manager = SubprocessManager
         status = Status.retrieve_job_status(
-            out_dir, module=module_name, job_name=name
+            out_dir, command=cmd, job_name=name
         )
         msg = f'sup3r {module_name} CLI failed to submit jobs!'
         if status == 'successful':
@@ -270,8 +270,8 @@ class BaseCLI:
                 f'Running sup3r {module_name} locally with job '
                 f'name "{name}".'
             )
-            Status.add_job(
-                out_dir, module=module_name, job_name=name, replace=True
+            Status.mark_job_as_submitted(
+                out_dir, command=cmd, job_name=name, replace=True
             )
             subprocess_manager.submit(cmd)
             msg = f'Completed sup3r {module_name} job "{name}".'
@@ -303,7 +303,7 @@ class BaseCLI:
         status_dir = config.get('status_dir', None)
         if job_name is not None and status_dir is not None:
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{module_name}", '
+            status_file_arg_str += f'command="{cmd}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
@@ -315,6 +315,6 @@ class BaseCLI:
             )
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f"Status.make_job_file({status_file_arg_str})"
+            cmd += f"Status.make_single_job_file({status_file_arg_str})"
 
         return cmd

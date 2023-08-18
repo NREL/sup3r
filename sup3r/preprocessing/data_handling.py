@@ -52,7 +52,6 @@ from sup3r.preprocessing.feature_handling import (
     WinddirectionNC,
     WindspeedNC,
 )
-from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (
@@ -1362,7 +1361,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_EXTRACT, cmd)
+        cmd = BaseCLI.add_status_cmd(config, cmd)
 
         cmd += ";\'\n"
         return cmd.replace('\\', '/')

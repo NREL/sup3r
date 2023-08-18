@@ -19,7 +19,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
-from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
 
@@ -527,7 +526,7 @@ class Solar:
         if job_name is not None:
             status_dir = config.get('status_dir', None)
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.SOLAR}", '
+            status_file_arg_str += f'command="{cmd}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
@@ -539,7 +538,7 @@ class Solar:
             )
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
+            cmd += f'Status.make_single_job_file({status_file_arg_str})'
 
         cmd += ";\'\n"
 

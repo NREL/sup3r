@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """sup3r batch utilities based on reV's batch module"""
-from gaps.legacy import BatchJob as GapsBatchJob
+from gaps.batch import BatchJob as GapsBatchJob
 
 from sup3r.pipeline.pipeline import Sup3rPipeline
 from sup3r.pipeline.pipeline_cli import pipeline_monitor_background

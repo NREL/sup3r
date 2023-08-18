@@ -14,7 +14,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.pipeline import Status
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -132,7 +131,6 @@ class Collector(OutputMixIn):
             raise RuntimeError(msg)
 
         row_slice = slice(np.min(row_loc), np.max(row_loc) + 1)
-        col_slice = slice(np.min(col_loc), np.max(col_loc) + 1)
 
         msg = (
             f'row_slice={row_slice} conflict with row_indices={row_loc}. '
@@ -494,61 +492,6 @@ class Collector(OutputMixIn):
 
         return time_index, target_final_meta, masked_meta, shape, global_attrs
 
-    def _write_flist_data(
-        self,
-        out_file,
-        feature,
-        time_index,
-        subset_masked_meta,
-        target_masked_meta,
-    ):
-        """Write spatiotemporal file list data to output file for given
-        feature
-
-        Parameters
-        ----------
-        out_file : str
-            Name of output file
-        feature : str
-            Name of feature for output chunk
-        time_index : pd.DateTimeIndex
-            Time index for corresponding file list data
-        subset_masked_meta : pd.DataFrame
-            Meta for corresponding file list data
-        target_masked_meta : pd.DataFrame
-            Meta for full output file
-        """
-        with RexOutputs(out_file, mode='r') as f:
-            target_ti = f.time_index
-            y_write_slice, x_write_slice = Collector.get_slices(
-                target_ti,
-                target_masked_meta,
-                time_index,
-                subset_masked_meta,
-            )
-        Collector._ensure_dset_in_output(out_file, feature)
-
-        with RexOutputs(out_file, mode='a') as f:
-            try:
-                f[feature, y_write_slice, x_write_slice] = self.data
-            except Exception as e:
-                msg = (
-                    f'Problem with writing data to {out_file} with '
-                    f't_slice={y_write_slice}, '
-                    f's_slice={x_write_slice}. {e}'
-                )
-                logger.error(msg)
-                raise OSError(msg) from e
-
-        logger.debug(
-            'Finished writing "{}" for row {} and col {} to: {}'.format(
-                feature,
-                y_write_slice,
-                x_write_slice,
-                os.path.basename(out_file),
-            )
-        )
-
     def _collect_flist(
         self,
         feature,
@@ -670,12 +613,25 @@ class Collector(OutputMixIn):
                             msg += f'{futures[future]}'
                             logger.exception(msg)
                             raise RuntimeError(msg) from e
-            self._write_flist_data(
-                out_file,
-                feature,
-                time_index,
-                subset_masked_meta,
-                target_masked_meta,
+            with RexOutputs(out_file, mode='r') as f:
+                target_ti = f.time_index
+                y_write_slice, x_write_slice = Collector.get_slices(
+                    target_ti,
+                    target_masked_meta,
+                    time_index,
+                    subset_masked_meta,
+                )
+            Collector._ensure_dset_in_output(out_file, feature)
+            with RexOutputs(out_file, mode='a') as f:
+                f[feature, y_write_slice, x_write_slice] = self.data
+
+            logger.debug(
+                'Finished writing "{}" for row {} and col {} to: {}'.format(
+                    feature,
+                    y_write_slice,
+                    x_write_slice,
+                    os.path.basename(out_file),
+                )
             )
         else:
             msg = (
@@ -835,7 +791,7 @@ class Collector(OutputMixIn):
         threshold : float
             Threshold distance for finding target coordinates within full meta
         """
-        t0 = time.time()
+        time.time()
 
         logger.info(
             f'Initializing collection for file_paths={file_paths}, '
@@ -922,17 +878,5 @@ class Collector(OutputMixIn):
                         target_masked_meta,
                         max_workers=max_workers,
                     )
-
-        if write_status and job_name is not None:
-            status = {
-                'out_dir': os.path.dirname(out_file),
-                'fout': out_file,
-                'flist': collector.flist,
-                'job_status': 'successful',
-                'runtime': (time.time() - t0) / 60,
-            }
-            Status.make_job_file(
-                os.path.dirname(out_file), 'collect', job_name, status
-            )
 
         logger.info('Finished file collection.')

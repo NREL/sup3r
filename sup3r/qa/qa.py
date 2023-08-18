@@ -13,7 +13,6 @@ from rex.utilities.fun_utils import get_fun_call_str
 import sup3r.bias.bias_transforms
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
-from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
     get_input_handler_class,
@@ -570,7 +569,7 @@ class Sup3rQa:
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.QA, cmd)
+        cmd = BaseCLI.add_status_cmd(config, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

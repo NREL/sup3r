@@ -11,7 +11,6 @@ import numpy as np
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
@@ -275,7 +274,7 @@ class Sup3rVisualQa:
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.VISUAL_QA, cmd)
+        cmd = BaseCLI.add_status_cmd(config, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

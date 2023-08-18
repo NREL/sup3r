@@ -1834,7 +1834,7 @@ class ForwardPass:
             f"logger = init_logger({log_arg_str});\n"
             f"strategy = {fwps_init_str};\n"
             f"{cls.__name__}.run(strategy, {node_index});\n"
-            "t_elap = time.time() - t0;\n"
+            "t_elap = time.time() - t0"
         )
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.FORWARD_PASS, cmd)
