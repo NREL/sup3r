@@ -64,6 +64,9 @@ class EraDownloader:
         '100m_v_component_of_wind',
         'u_component_of_wind',
         'v_component_of_wind',
+        '2m_temperature',
+        'temperature',
+        'surface_pressure',
     ]
 
     SFC_VARS: ClassVar[list] = [
@@ -554,7 +557,7 @@ class EraDownloader:
         if self.run_interp:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
-        if os.path.exists(self.interp_file):
+        if self.interp_file is not None and os.path.exists(self.interp_file):
             if self.already_pruned(self.interp_file):
                 logger.info(f'{self.interp_file} pruned already.')
             else:
