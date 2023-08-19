@@ -554,7 +554,7 @@ class EraDownloader:
         if self.run_interp:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
-        if os.path.exists(self.interp_file):
+        if self.interp_file is not None and os.path.exists(self.interp_file):
             if self.already_pruned(self.interp_file):
                 logger.info(f'{self.interp_file} pruned already.')
             else:
