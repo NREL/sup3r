@@ -61,6 +61,15 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.overwrite_regrid_cache = overwrite_regrid_cache
         self.regridder = None
         self._lr_lat_lon = None
+        self._hr_lat_lon = None
+        self._lr_data = None
+        self._hr_data = None
+        self._lr_val_data = None
+        self._hr_val_data = None
+        self._lr_time_index = None
+        self._hr_time_index = None
+        self._lr_val_time_index = None
+        self._hr_val_time_index = None
         self.val_split = val_split
         self.current_obs_index = None
         self.load_cached = load_cached
@@ -88,9 +97,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         Make sure validation data is larger than sample_shape"""
 
         if self.lr_data is not None and self.val_split > 0.0:
-            self.lr_data, self.lr_val_data = self.lr_dh.split_data(
-                data=self.lr_data, val_split=self.val_split, shuffle_time=False
+            train_indices, val_indices = self.lr_dh._split_data_indices(
+                self.lr_data, val_split=self.val_split, shuffle_time=False
             )
+
+            self.lr_val_data = self.lr_dh.data[:, :, val_indices, :]
+            self.lr_data = self.lr_dh.data[:, :, train_indices, :]
+
+            self.lr_val_time_index = self.lr_time_index[val_indices]
+            self.lr_time_index = self.lr_time_index[train_indices]
+
             msg = (
                 f'Low res validation data has shape={self.lr_val_data.shape} '
                 f'and sample_shape={self.lr_sample_shape}. Use a smaller '
@@ -107,9 +123,15 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 warn(msg)
 
         if self.hr_data is not None and self.val_split > 0.0:
-            self.hr_data, self.hr_val_data = self.hr_dh.split_data(
-                data=self.hr_data, val_split=self.val_split, shuffle_time=False
+            train_indices, val_indices = self.hr_dh._split_data_indices(
+                self.hr_data, val_split=self.val_split, shuffle_time=False
             )
+
+            self.hr_val_data = self.hr_dh.data[:, :, val_indices, :]
+            self.hr_data = self.hr_dh.data[:, :, train_indices, :]
+
+            self.hr_val_time_index = self.hr_time_index[val_indices]
+            self.hr_time_index = self.hr_time_index[train_indices]
             msg = (
                 f'High res validation data has shape={self.hr_val_data.shape} '
                 f'and sample_shape={self.hr_sample_shape}. Use a smaller '
@@ -138,11 +160,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             array of means for all features with same ordering as data features
         """
         self._normalize(
-            self.lr_data,
-            self.lr_val_data,
-            means,
-            stdevs,
-            self.lr_dh.norm_workers,
+            data=self.lr_data,
+            val_data=self.lr_val_data,
+            means=means,
+            stds=stdevs,
+            max_workers=self.lr_dh.norm_workers,
         )
 
     @property
@@ -159,29 +181,27 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.info("Loading high resolution cache.")
             self.hr_dh.load_cached_data(with_split=False)
 
-        old_shape = self.hr_dh.shape[:-1]
-        new_shape = (
-            self.s_enhance * (old_shape[0] // self.s_enhance),
-            self.s_enhance * (old_shape[1] // self.s_enhance),
-            self.t_enhance * (old_shape[2] // self.t_enhance),
-        )
         msg = (
             'hr_handler.shape is not divisible by s_enhance. Using '
-            f'shape = {new_shape} instead.'
+            f'shape = {self.hr_required_shape} instead.'
         )
-        if old_shape != new_shape:
+        if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)
 
-        self.hr_data = self.hr_data[
-            : new_shape[0], : new_shape[1], : new_shape[2]
+        self.hr_data = self.hr_dh.data[
+            : self.hr_required_shape[0],
+            : self.hr_required_shape[1],
+            : self.hr_required_shape[2],
         ]
-
-        self.hr_dh.lat_lon = self.hr_dh.lat_lon[: new_shape[0], : new_shape[1]]
-        self.hr_dh.time_index = self.hr_dh.time_index[: new_shape[2]]
-        self.lr_dh.time_index = self.lr_dh.time_index[
-            : new_shape[2] // self.t_enhance
+        self.hr_lat_lon = self.hr_dh.lat_lon[
+            : self.hr_required_shape[0], : self.hr_required_shape[1]
         ]
+        # self.lr_lat_lon = self.lr_lat_lon[
+        #    : self.lr_required_shape[0], : self.lr_required_shape[1]
+        #
+        self.hr_time_index = self.hr_dh.time_index[: self.hr_required_shape[2]]
+        self.lr_time_index = self.lr_dh.time_index[: self.lr_required_shape[2]]
 
     def _run_handler_checks(self, hr_handler, lr_handler):
         """Run sanity checks on high_res and low_res handlers. The handler data
@@ -211,7 +231,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         assert lr_handler.sample_shape == lr_shape, msg
 
         if hr_handler.data is not None and lr_handler.data is not None:
-            hr_shape = hr_handler.data.shape
+            hr_shape = self.hr_data.shape
             lr_shape = (
                 hr_shape[0] // self.s_enhance,
                 hr_shape[1] // self.s_enhance,
@@ -223,10 +243,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 f'lr_handler.data.shape {lr_handler.data.shape} are '
                 f'incompatible. Must be {hr_shape} and {lr_shape}.'
             )
-            assert lr_handler.data.shape == lr_shape, msg
+            assert self.lr_data.shape == lr_shape, msg
 
-        if hr_handler.val_data is not None and lr_handler.val_data is not None:
-            hr_shape = hr_handler.val_data.shape
+        if self.lr_val_data is not None and self.hr_val_data is not None:
+            hr_shape = self.hr_val_data.shape
             lr_shape = (
                 hr_shape[0] // self.s_enhance,
                 hr_shape[1] // self.s_enhance,
@@ -234,11 +254,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 hr_shape[3],
             )
             msg = (
-                f'hr_handler.val_data.shape {hr_handler.val_data.shape} '
-                f'and lr_handler.val_data.shape {lr_handler.val_data.shape}'
+                f'hr_val_data.shape {self.hr_val_data.shape} '
+                f'and lr_val_data.shape {self.lr_val_data.shape}'
                 f' are incompatible. Must be {hr_shape} and {lr_shape}.'
             )
-            assert lr_handler.val_data.shape == lr_shape, msg
+            assert self.lr_val_data.shape == lr_shape, msg
 
     @property
     def grid_mem(self):
@@ -289,32 +309,52 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def lr_time_index(self):
         """Return time index for low_res data"""
-        return self.lr_dh.time_index
+        return self._lr_time_index
 
     @lr_time_index.setter
     def lr_time_index(self, time_index):
         """Set time index for low_res data"""
-        self.lr_dh.time_index = time_index
+        self._lr_time_index = time_index
 
     @property
     def hr_time_index(self):
         """Return time index for high_res data"""
-        return self.hr_dh.time_index
+        return self._hr_time_index
 
     @hr_time_index.setter
     def hr_time_index(self, time_index):
         """Set time index for high_res data"""
-        self.hr_dh.time_index = time_index
+        self._hr_time_index = time_index
+
+    @property
+    def lr_val_time_index(self):
+        """Return time index for low_res validation data"""
+        return self._lr_val_time_index
+
+    @lr_val_time_index.setter
+    def lr_val_time_index(self, time_index):
+        """Set time index for low_res validation data"""
+        self._lr_val_time_index = time_index
+
+    @property
+    def hr_val_time_index(self):
+        """Return time index for high_res validation data"""
+        return self._hr_val_time_index
+
+    @hr_val_time_index.setter
+    def hr_val_time_index(self, time_index):
+        """Set time index for high_res validation data"""
+        self._hr_val_time_index = time_index
 
     @property
     def lr_data(self):
         """Get low_res data"""
-        return self.lr_dh.data
+        return self._lr_data
 
     @lr_data.setter
     def lr_data(self, lr_data):
         """Set low_res data"""
-        self.lr_dh.data = lr_data
+        self._lr_data = lr_data
 
     @property
     def data(self):
@@ -334,60 +374,84 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def hr_data(self):
         """Get high_res data"""
-        return self.hr_dh.data
+        return self._hr_data
 
     @hr_data.setter
     def hr_data(self, hr_data):
         """Set high_res data"""
-        self.hr_dh.data = hr_data
+        self._hr_data = hr_data
 
     @property
     def lr_val_data(self):
         """Get low_res validation data"""
-        return self.lr_dh.val_data
+        return self._lr_val_data
 
     @lr_val_data.setter
     def lr_val_data(self, lr_val_data):
         """Set low_res validation data"""
-        self.lr_dh.val_data = lr_val_data
+        self._lr_val_data = lr_val_data
 
     @property
     def hr_val_data(self):
         """Get high_res validation data"""
-        return self.hr_dh.val_data
+        return self._hr_val_data
 
     @hr_val_data.setter
     def hr_val_data(self, hr_val_data):
         """Set high_res validation data"""
-        self.hr_dh.val_data = hr_val_data
+        self._hr_val_data = hr_val_data
 
     @property
-    def lr_grid_shape(self):
-        """Return grid shape for regridded low_res data"""
-        return (
-            self.hr_dh.requested_shape[0] // self.s_enhance,
-            self.hr_dh.requested_shape[1] // self.s_enhance,
-        )
-
-    @property
-    def lr_requested_shape(self):
-        """Return requested shape for low_res data"""
+    def lr_required_shape(self):
+        """Return required shape for regridded low_res data"""
         return (
             self.hr_dh.requested_shape[0] // self.s_enhance,
             self.hr_dh.requested_shape[1] // self.s_enhance,
             self.hr_dh.requested_shape[2] // self.t_enhance,
-            len(self.features),
         )
+
+    @property
+    def hr_required_shape(self):
+        """Return required shape for high_res data"""
+        return (
+            self.s_enhance * self.lr_required_shape[0],
+            self.s_enhance * self.lr_required_shape[1],
+            self.t_enhance * self.lr_required_shape[2],
+        )
+
+    @property
+    def lr_grid_shape(self):
+        """Return grid shape for regridded low_res data"""
+        return (self.lr_required_shape[0], self.lr_required_shape[1])
+
+    @property
+    def lr_requested_shape(self):
+        """Return requested shape for low_res data"""
+        return (*self.lr_required_shape, len(self.features))
 
     @property
     def lr_lat_lon(self):
         """Get low_res lat lon array"""
         if self._lr_lat_lon is None:
             self._lr_lat_lon = spatial_coarsening(
-                self.hr_dh.lat_lon, s_enhance=self.s_enhance, obs_axis=False
+                self.hr_lat_lon, s_enhance=self.s_enhance, obs_axis=False
             )
-            self.lr_dh.lat_lon = self._lr_lat_lon
         return self._lr_lat_lon
+
+    @lr_lat_lon.setter
+    def lr_lat_lon(self, lat_lon):
+        """Set low_res lat lon array"""
+        self._lr_lat_lon = lat_lon
+
+    @property
+    def hr_lat_lon(self):
+        """Get high_res lat lon array"""
+        return self._hr_lat_lon
+
+    @hr_lat_lon.setter
+    def hr_lat_lon(self, lat_lon):
+        """Set high_res lat lon array"""
+        self._hr_lat_lon = lat_lon
 
     @property
     def regrid_cache_files(self):
@@ -424,13 +488,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._load_cached_data(
             regridded_data,
             self.regrid_cache_files,
-            self.hr_dh.features,
+            self.features,
             max_workers=self.hr_dh.load_workers,
         )
-
-        self.lr_dh.time_index = self.lr_dh.raw_time_index[
-            self.lr_dh.temporal_slice
-        ]
 
         self.lr_data = regridded_data
 
@@ -442,12 +502,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
     def check_clear_data(self):
         """Check if data was cached and free memory if load_cached is False"""
-        if self.regrid_cache_pattern is not None:
-            self.lr_data = None if not self.load_cached else self.lr_data
-            self.lr_val_data = (
-                None if self.lr_data is None else self.lr_val_data
-            )
-        self.hr_dh.check_clear_data()
+        if self.regrid_cache_pattern is not None and not self.load_cached:
+            self.lr_data = None
+            self.lr_val_data = None
+            self.hr_dh.check_clear_data()
 
     def get_lr_data(self):
         """Check if era data is cached. If not then extract data and regrid.
@@ -487,7 +545,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """
         out = np.concatenate(
             [
-                self.regridder(self.lr_data[..., i, fidx])[..., np.newaxis]
+                self.regridder(self.lr_dh.data[..., i, fidx])[..., np.newaxis]
                 for i in range(len(self.lr_time_index))
             ],
             axis=-1,
@@ -503,6 +561,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Array of regridded low_res data with all features
             (spatial_1, spatial_2, temporal, n_features)
         """
+        if self.lr_dh.data is None:
+            self.lr_dh.load_cached_data()
+
         old_grid = {
             'lat': self.lr_dh.lat_lon[..., 0],
             'lon': self.lr_dh.lat_lon[..., 1],

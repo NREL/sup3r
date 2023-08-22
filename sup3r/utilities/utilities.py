@@ -148,7 +148,7 @@ def get_chunk_slices(arr_size, chunk_size, index_slice=slice(None)):
     """
 
     indices = np.arange(0, arr_size)
-    indices = indices[index_slice.start: index_slice.stop]
+    indices = indices[slice(index_slice.start, index_slice.stop)]
     step = 1 if index_slice.step is None else index_slice.step
     slices = []
     start = indices[0]
@@ -709,7 +709,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
 
 def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
-    """ "Upsample data according to t_enhance resolution
+    """Upsample data according to t_enhance resolution
 
     Parameters
     ----------
@@ -718,6 +718,8 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
         factor by which to enhance temporal dimension
+    mode : str
+        interpolation method for enhancement.
 
     Returns
     -------
@@ -831,7 +833,7 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
 
 
 def spatial_coarsening(data, s_enhance=2, obs_axis=True):
-    """ "Coarsen data according to s_enhance resolution
+    """Coarsen data according to s_enhance resolution
 
     Parameters
     ----------
@@ -934,7 +936,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
 
 def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
-    """ "Simple enhancing according to s_enhance resolution
+    """Simple enhancing according to s_enhance resolution
 
     Parameters
     ----------
@@ -1004,7 +1006,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
 
 def lat_lon_coarsening(lat_lon, s_enhance=2):
-    """ "Coarsen lat_lon according to s_enhance resolution
+    """Coarsen lat_lon according to s_enhance resolution
 
     Parameters
     ----------
@@ -1346,7 +1348,7 @@ def rotor_equiv_ws(data, heights):
     ]
     total_area = np.sum(areas)
     areas /= total_area
-    rews = np.zeros(data[list(data.keys())[0]].shape)
+    rews = np.zeros(data[next(iter(data.keys()))].shape)
     for i in range(len(heights) - 1):
         ws_0 = data[f'windspeed_{heights[i]}m']
         ws_1 = data[f'windspeed_{heights[i + 1]}m']

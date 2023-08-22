@@ -850,6 +850,14 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
+    def _get_spatial_chunk_index(self, chunk_index):
+        """Get the spatial index for the given chunk index"""
+        return chunk_index % self.fwp_slicer.n_spatial_chunks
+
+    def _get_temporal_chunk_index(self, chunk_index):
+        """Get the temporal index for the given chunk index"""
+        return chunk_index // self.fwp_slicer.n_spatial_chunks
+
     # pylint: disable=E1102
     @property
     def init_handler(self):
@@ -1243,10 +1251,24 @@ class ForwardPass:
         )
 
     @property
+    def chunk_specific_meta(self):
+        """Meta with chunk specific info. To be included in chunk output file
+        global attributes."""
+        meta_data = {
+            "node_index": self.node_index,
+            'creation_date': dt.now().strftime("%d/%m/%Y %H:%M:%S"),
+            'fwp_chunk_shape': self.strategy.fwp_chunk_shape,
+            'spatial_pad': self.strategy.spatial_pad,
+            'temporal_pad': self.strategy.temporal_pad,
+        }
+        return meta_data
+
+    @property
     def meta(self):
         """Meta data dictionary for the forward pass run (to write to output
         files)."""
         meta_data = {
+            'chunk_meta': self.chunk_specific_meta,
             'gan_meta': self.model.meta,
             'model_kwargs': self.model_kwargs,
             'model_class': self.model_class,
@@ -1315,12 +1337,12 @@ class ForwardPass:
     @property
     def spatial_chunk_index(self):
         """Spatial index for the current chunk going through forward pass"""
-        return self.chunk_index % self.strategy.fwp_slicer.n_spatial_chunks
+        return self.strategy._get_spatial_chunk_index(self.chunk_index)
 
     @property
     def temporal_chunk_index(self):
         """Temporal index for the current chunk going through forward pass"""
-        return self.chunk_index // self.strategy.fwp_slicer.n_spatial_chunks
+        return self.strategy._get_temporal_chunk_index(self.chunk_index)
 
     @property
     def out_file(self):

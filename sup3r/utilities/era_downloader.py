@@ -56,6 +56,8 @@ class EraDownloader:
         'v_10m',
         'u_100m',
         'v_100m',
+        'temperature',
+        'pressure',
     ]
     DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
         '10m_u_component_of_wind',
@@ -64,6 +66,9 @@ class EraDownloader:
         '100m_v_component_of_wind',
         'u_component_of_wind',
         'v_component_of_wind',
+        '2m_temperature',
+        'temperature',
+        'surface_pressure',
     ]
 
     SFC_VARS: ClassVar[list] = [
@@ -74,12 +79,15 @@ class EraDownloader:
         'surface_pressure',
         '2m_temperature',
         'geopotential',
+        'total_precipitation',
     ]
     LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind',
         'v_component_of_wind',
         'geopotential',
         'temperature',
+        'relative humidity',
+        'specific humidity',
     ]
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
@@ -91,6 +99,9 @@ class EraDownloader:
         'u': 'u',
         'v': 'v',
         'sp': 'pressure_0m',
+        'r': 'relative_humidity',
+        'q': 'specific_humidity',
+        'tp': 'total_precip',
     }
 
     def __init__(
@@ -346,30 +357,6 @@ class EraDownloader:
             )
         else:
             logger.info(f'File already exists: {self.surface_file}.')
-
-    def init_dims(self, old_ds, new_ds, dims):
-        """Initialize dimensions in new dataset from old dataset
-
-        Parameters
-        ----------
-        old_ds : Dataset
-            Dataset() object from old file
-        new_ds : Dataset
-            Dataset() object for new file
-        dims : tuple
-            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
-
-        Returns
-        -------
-        new_ds : Dataset
-            Dataset() object for new file with dimensions initialized.
-        """
-        for var in dims:
-            new_ds.createDimension(var, len(old_ds[var]))
-            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=var)
-            new_ds[var][:] = old_ds[var][:]
-            new_ds[var].units = old_ds[var].units
-        return new_ds
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""

@@ -8,15 +8,16 @@ import numpy as np
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import (
-    DataHandlerH5,
-    DataHandlerNC,
+from sup3r.preprocessing.data_handling.dual_data_handling import (
     DualDataHandler,
 )
+from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
+from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
 from sup3r.preprocessing.dual_batch_handling import (
     DualBatchHandler,
     SpatialDualBatchHandler,
 )
+from sup3r.utilities.utilities import spatial_coarsening
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
@@ -136,6 +137,9 @@ def test_st_dual_batch_handler(
     log=False, full_shape=(20, 20), sample_shape=(10, 10, 4)
 ):
     """Test spatiotemporal dual batch handler."""
+    t_enhance = 2
+    s_enhance = 2
+
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
@@ -162,17 +166,35 @@ def test_st_dual_batch_handler(
     )
 
     dual_handler = DualDataHandler(
-        hr_handler, lr_handler, s_enhance=2, t_enhance=2, val_split=0.1
+        hr_handler,
+        lr_handler,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        val_split=0.1,
     )
 
     batch_handler = DualBatchHandler(
-        [dual_handler], batch_size=2, s_enhance=2, t_enhance=2, n_batches=10
+        [dual_handler],
+        batch_size=2,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=10,
     )
 
     for batch in batch_handler:
         for i, index in enumerate(batch_handler.current_batch_indices):
             hr_index = index['hr_index']
             lr_index = index['lr_index']
+
+            coarse_lat_lon = spatial_coarsening(
+                dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False
+            )
+            lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
+            assert np.array_equal(coarse_lat_lon, lr_lat_lon)
+
+            coarse_ti = dual_handler.hr_time_index[hr_index[2]][::t_enhance]
+            lr_ti = dual_handler.lr_time_index[lr_index[2]]
+            assert np.array_equal(coarse_ti.values, lr_ti.values)
 
             assert np.array_equal(
                 batch.high_res[i],
@@ -231,6 +253,12 @@ def test_spatial_dual_batch_handler(
                 dual_handler.lr_data[lr_index][..., 0, :],
             )
 
+            coarse_lat_lon = spatial_coarsening(
+                dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False
+            )
+            lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
+            assert np.array_equal(coarse_lat_lon, lr_lat_lon)
+
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
                 data_fine = batch.high_res[0, 0, :, :, ifeature]
@@ -245,13 +273,14 @@ def test_spatial_dual_batch_handler(
 
 
 def test_validation_batching(
-    log=False, full_shape=(20, 20), sample_shape=(10, 10, 1)
+    log=False, full_shape=(20, 20), sample_shape=(10, 10, 4)
 ):
     """Test batching of validation data for dual batch handler"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
     s_enhance = 2
+    t_enhance = 2
 
     hr_handler = DataHandlerH5(
         FP_WTK,
@@ -268,21 +297,25 @@ def test_validation_batching(
         sample_shape=(
             sample_shape[0] // s_enhance,
             sample_shape[1] // s_enhance,
-            1,
+            sample_shape[2] // t_enhance,
         ),
         temporal_slice=slice(None, None, 10),
         worker_kwargs=dict(max_workers=1),
     )
 
     dual_handler = DualDataHandler(
-        hr_handler, lr_handler, s_enhance=s_enhance, t_enhance=1, val_split=0.0
+        hr_handler,
+        lr_handler,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        val_split=0.1,
     )
 
-    batch_handler = SpatialDualBatchHandler(
+    batch_handler = DualBatchHandler(
         [dual_handler],
         batch_size=2,
         s_enhance=s_enhance,
-        t_enhance=1,
+        t_enhance=t_enhance,
         n_batches=10,
     )
 
@@ -294,11 +327,40 @@ def test_validation_batching(
             batch.low_res.shape[0],
             sample_shape[0] // s_enhance,
             sample_shape[1] // s_enhance,
+            sample_shape[2] // t_enhance,
             len(FEATURES),
         )
         assert batch.high_res.shape == (
             batch.high_res.shape[0],
             sample_shape[0],
             sample_shape[1],
+            sample_shape[2],
             len(FEATURES),
         )
+
+        for j, index in enumerate(
+            batch_handler.val_data.current_batch_indices
+        ):
+            hr_index = index['hr_index']
+            lr_index = index['lr_index']
+
+            assert np.array_equal(
+                batch.high_res[j, :, :],
+                dual_handler.hr_val_data[hr_index][..., 0, :],
+            )
+            assert np.array_equal(
+                batch.low_res[j, :, :],
+                dual_handler.lr_val_data[lr_index][..., 0, :],
+            )
+
+            coarse_lat_lon = spatial_coarsening(
+                dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False
+            )
+            lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
+            assert np.array_equal(coarse_lat_lon, lr_lat_lon)
+
+            coarse_ti = dual_handler.hr_val_time_index[hr_index[2]][
+                ::t_enhance
+            ]
+            lr_ti = dual_handler.hr_lr_time_index[lr_index[2]]
+            assert np.array_equal(coarse_ti.values, lr_ti.values)

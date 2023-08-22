@@ -878,7 +878,8 @@ class InputMixIn(CacheHandlingMixIn):
         )
 
         if self.time_index_file is not None:
-            logger.debug(f'Saved raw_time_index to {self.time_index_file}')
+            os.makedirs(os.path.dirname(self.time_index_file), exist_ok=True)
+            logger.debug(f'Saving raw_time_index to {self.time_index_file}')
             with open(self.time_index_file, 'wb') as f:
                 pickle.dump(self._raw_time_index, f)
         logger.debug(f'Built full time index in {dt.now() - now} seconds.')

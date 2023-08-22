@@ -12,7 +12,9 @@ import numpy as np
 from rex.utilities import log_mem
 from scipy.ndimage.filters import gaussian_filter
 
-from sup3r.preprocessing.data_handling import DataHandlerDCforH5
+from sup3r.preprocessing.data_handling.h5_data_handling import (
+    DataHandlerDCforH5,
+)
 from sup3r.utilities.utilities import (
     estimate_max_workers,
     nn_fill_array,
@@ -235,6 +237,7 @@ class ValidationData:
         self.output_features = output_features
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
+        self.current_batch_indices = []
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -343,6 +346,7 @@ class ValidationData:
             validation data batch with low and high res data each with
             n_observations = batch_size
         """
+        self.current_batch_indices = []
         if self._remaining_observations > 0:
             if self._remaining_observations > self.batch_size:
                 n_obs = self.batch_size
@@ -365,6 +369,7 @@ class ValidationData:
                     val_index['handler_index']
                 ].val_data[val_index['tuple_index']]
                 self._remaining_observations -= 1
+                self.current_batch_indices.append(val_index['handler_index'])
 
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
