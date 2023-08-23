@@ -7,6 +7,7 @@ Created on January 25 2022
 @author: bnb32
 """
 import os
+from typing import ClassVar
 
 from reV.config.base_analysis_config import AnalysisConfig
 from reV.config.base_config import BaseConfig as RevBaseConfig
@@ -21,7 +22,7 @@ class BaseConfig(RevBaseConfig):
     REQUIREMENTS = ()
     """Required keys for config"""
 
-    STR_REP = {
+    STR_REP: ClassVar[dict] = {
         'SUP3R_DIR': SUP3R_DIR,
         'CONFIG_DIR': CONFIG_DIR,
         'TEST_DATA_DIR': TEST_DATA_DIR,

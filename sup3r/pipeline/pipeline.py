@@ -42,4 +42,4 @@ class Sup3rPipeline(Pipeline):
         # init logger for pipeline module if requested in input config
         if 'logging' in self._config:
             init_logger('sup3r.pipeline', **self._config.logging)
-            init_logger('reV.pipeline', **self._config.logging)
+            init_logger('gaps.legacy', **self._config.logging)

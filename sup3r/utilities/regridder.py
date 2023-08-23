@@ -303,8 +303,8 @@ class Regridder(TreeBuilder):
 
     @staticmethod
     def interpolate(distance_chunk, values):
-        """Interpolate to a new coordinate based on distances from that
-        coordinate and the values of the points at those distances
+        """Interpolate to new coordinates based on distances from those
+        coordinates and the values of the points at those distances
 
         Parameters
         ----------
@@ -312,7 +312,7 @@ class Regridder(TreeBuilder):
             Chunk of the full array of distances where distances[i] gives the
             list of distances to the source coordinates to be used for
             interpolation for the i-th coordinate in the target data.
-            (temporal, n_points, k_neighbors)
+            (n_points, k_neighbors)
         values : ndarray
             Array of values corresponding to the point distances with shape
             (temporal, n_points, k_neighbors)
@@ -320,7 +320,7 @@ class Regridder(TreeBuilder):
         Returns
         -------
         ndarray
-            Time series of values at interpolated point with shape
+            Time series of values at interpolated points with shape
             (temporal, n_points)
         """
         dists = np.array(distance_chunk)

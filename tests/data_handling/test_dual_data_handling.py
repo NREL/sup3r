@@ -362,5 +362,5 @@ def test_validation_batching(
             coarse_ti = dual_handler.hr_val_time_index[hr_index[2]][
                 ::t_enhance
             ]
-            lr_ti = dual_handler.hr_lr_time_index[lr_index[2]]
+            lr_ti = dual_handler.lr_val_time_index[lr_index[2]]
             assert np.array_equal(coarse_ti.values, lr_ti.values)

@@ -114,6 +114,7 @@ class DualValidationData(ValidationData):
             validation data batch with low and high res data each with
             n_observations = batch_size
         """
+        self.current_batch_indices = []
         if self._remaining_observations > 0:
             if self._remaining_observations > self.batch_size:
                 n_obs = self.batch_size
@@ -149,6 +150,7 @@ class DualValidationData(ValidationData):
                     val_index['handler_index']
                 ].lr_val_data[val_index['lr_index']]
                 self._remaining_observations -= 1
+                self.current_batch_indices.append(val_index['handler_index'])
 
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]

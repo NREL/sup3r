@@ -3,12 +3,13 @@ import logging
 from warnings import warn
 
 import numpy as np
-import xesmf as xe
+import pandas as pd
 
 from sup3r.preprocessing.data_handling.mixin import (
     CacheHandlingMixIn,
     TrainingPrepMixIn,
 )
+from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         lr_handler,
         regrid_cache_pattern=None,
         overwrite_regrid_cache=False,
+        regrid_workers=1,
         load_cached=True,
         s_enhance=15,
         t_enhance=1,
@@ -43,6 +45,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Pattern for files to use for saving regridded ERA data.
         overwrite_regrid_cache : bool
             Whether to overwrite regrid cache
+        regrid_workers : int | None
+            Number of workers to use for regridding routine.
         load_cached : bool
             Whether to load cache to memory or wait until load_cached()
             is called.
@@ -59,9 +63,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_dh = hr_handler
         self.regrid_cache_pattern = regrid_cache_pattern
         self.overwrite_regrid_cache = overwrite_regrid_cache
-        self.regridder = None
+        self.val_split = val_split
+        self.current_obs_index = None
+        self.load_cached = load_cached
+        self.regrid_workers = regrid_workers
         self._lr_lat_lon = None
         self._hr_lat_lon = None
+        self._old_points = None
+        self._new_points = None
         self._lr_data = None
         self._hr_data = None
         self._lr_val_data = None
@@ -70,9 +79,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._hr_time_index = None
         self._lr_val_time_index = None
         self._hr_val_time_index = None
-        self.val_split = val_split
-        self.current_obs_index = None
-        self.load_cached = load_cached
+        self._regridder = None
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -80,7 +87,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         if not self.try_load:
             self.get_data()
 
-        self._run_handler_checks(hr_handler, lr_handler)
+        self._run_pair_checks(hr_handler, lr_handler)
 
         self.check_clear_data()
 
@@ -197,14 +204,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_lat_lon = self.hr_dh.lat_lon[
             : self.hr_required_shape[0], : self.hr_required_shape[1]
         ]
-        # self.lr_lat_lon = self.lr_lat_lon[
-        #    : self.lr_required_shape[0], : self.lr_required_shape[1]
-        #
         self.hr_time_index = self.hr_dh.time_index[: self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[: self.lr_required_shape[2]]
 
-    def _run_handler_checks(self, hr_handler, lr_handler):
-        """Run sanity checks on high_res and low_res handlers. The handler data
+    def _run_pair_checks(self, hr_handler, lr_handler):
+        """Run sanity checks on high_res and low_res pairs. The handler data
         shapes are restricted by enhancement factors."""
         msg = (
             'Validation split is done by DualDataHandler. '
@@ -239,8 +243,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 hr_shape[3],
             )
             msg = (
-                f'hr_handler.data.shape {hr_handler.data.shape} and '
-                f'lr_handler.data.shape {lr_handler.data.shape} are '
+                f'hr_data.shape {self.hr_data.shape} and '
+                f'lr_data.shape {self.lr_data.shape} are '
                 f'incompatible. Must be {hr_shape} and {lr_shape}.'
             )
             assert self.lr_data.shape == lr_shape, msg
@@ -351,20 +355,33 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Get low_res data"""
         return self._lr_data
 
+    @property
+    def lr_input_data(self):
+        """Get low res data used as input to regridding routine"""
+        if self.lr_dh.data is None:
+            self.lr_dh.load_cached_data()
+        return self.lr_dh.data
+
     @lr_data.setter
     def lr_data(self, lr_data):
         """Set low_res data"""
         self._lr_data = lr_data
 
     @property
-    def data(self):
-        """Get low_res data"""
-        return self.lr_data
+    def old_points(self):
+        """Flattened array of original low_res lat/lon. Used as input to
+        regridding routine"""
+        if self._old_points is None:
+            self._old_points = self.lr_dh.lat_lon.reshape((-1, 2))
+        return self._old_points
 
-    @data.setter
-    def data(self, data):
-        """Set low_res data"""
-        self.lr_data = data
+    @property
+    def new_points(self):
+        """Flattened array of low_res lat/lon matching high_res domain. Used as
+        target points for regridding routine."""
+        if self._new_points is None:
+            self._new_points = self.lr_lat_lon.reshape((-1, 2))
+        return self._new_points
 
     @property
     def shape(self):
@@ -529,6 +546,21 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 )
         self.lr_data = regridded_data
 
+    @property
+    def regridder(self):
+        """Get regridder object"""
+        if self._regridder is None:
+            input_meta = pd.DataFrame()
+            input_meta['latitude'] = self.lr_dh.lat_lon[..., 0].flatten()
+            input_meta['longitude'] = self.lr_dh.lat_lon[..., 1].flatten()
+            target_meta = pd.DataFrame()
+            target_meta['latitude'] = self.lr_lat_lon[..., 0].flatten()
+            target_meta['longitude'] = self.lr_lat_lon[..., 1].flatten()
+            self._regridder = Regridder(
+                input_meta, target_meta, max_workers=self.regrid_workers
+            )
+        return self._regridder
+
     def regrid_feature(self, fidx):
         """Regrid low_res feature data to high_res data grid
 
@@ -543,14 +575,17 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Array of regridded low_res data
             (spatial_1, spatial_2, temporal)
         """
-        out = np.concatenate(
+        vals = np.concatenate(
             [
-                self.regridder(self.lr_dh.data[..., i, fidx])[..., np.newaxis]
-                for i in range(len(self.lr_time_index))
+                self.lr_input_data[:, :, i, fidx].flatten()[
+                    self.regridder.indices
+                ][np.newaxis, :]
+                for i in range(self.lr_input_data.shape[-2])
             ],
-            axis=-1,
+            axis=0,
         )
-        return out
+        out = self.regridder.interpolate(self.regridder.distances, vals).T
+        return out.reshape(self.lr_required_shape)
 
     def regrid_lr_data(self):
         """Regrid low_res data for all requested features
@@ -561,22 +596,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Array of regridded low_res data with all features
             (spatial_1, spatial_2, temporal, n_features)
         """
-        if self.lr_dh.data is None:
-            self.lr_dh.load_cached_data()
-
-        old_grid = {
-            'lat': self.lr_dh.lat_lon[..., 0],
-            'lon': self.lr_dh.lat_lon[..., 1],
-        }
-
-        new_grid = {
-            'lat': self.lr_lat_lon[..., 0],
-            'lon': self.lr_lat_lon[..., 1],
-        }
-
-        self.regridder = xe.Regridder(old_grid, new_grid, method='bilinear')
-
         logger.info('Regridding low resolution feature data.')
+
         return np.concatenate(
             [
                 self.regrid_feature(i)[..., np.newaxis]
