@@ -21,10 +21,13 @@ from sup3r.utilities.execution import DistributedProcess
 logger = logging.getLogger(__name__)
 
 
-class TreeBuilder:
-    """TreeBuilder class for building ball tree and running all queries to
-    create full arrays of indices and distances for neighbor points
+class Regridder:
+    """Basic Regridder class. Builds ball tree and runs all queries to
+    create full arrays of indices and distances for neighbor points. Computes
+    array of weights used to interpolate from old grid to new grid.
     """
+
+    MIN_DISTANCE = 1e-12
 
     def __init__(
         self,
@@ -61,6 +64,8 @@ class TreeBuilder:
             to building full set of indices and distances for each target_meta
             coordinate.
         """
+        logger.info('Initializing Regridder.')
+
         self.cache_pattern = cache_pattern
         self.target_meta = target_meta
         self.source_meta = source_meta
@@ -71,6 +76,7 @@ class TreeBuilder:
         self.leaf_size = leaf_size
         self.distances = [None] * len(self.target_meta)
         self.indices = [None] * len(self.target_meta)
+        self._weights = None
 
         if self.cache_exists:
             self.load_cache()
@@ -116,7 +122,7 @@ class TreeBuilder:
             to building full set of indices and distances for each target_meta
             coordinate.
         """
-        tree_builder = cls(
+        regridder = cls(
             source_meta=source_meta,
             target_meta=target_meta,
             cache_pattern=cache_pattern,
@@ -125,9 +131,25 @@ class TreeBuilder:
             n_chunks=n_chunks,
             max_workers=max_workers,
         )
-        if not tree_builder.cache_exists:
-            tree_builder.get_all_queries(max_workers)
-            tree_builder.cache_all_queries()
+        if not regridder.cache_exists:
+            regridder.get_all_queries(max_workers)
+            regridder.cache_all_queries()
+
+    @property
+    def weights(self):
+        """Get weights used for regridding"""
+        if self._weights is None:
+            dists = np.array(self.distances)
+            mask = dists < self.MIN_DISTANCE
+            if mask.sum() > 0:
+                logger.info(
+                    f'{np.sum(mask)} of {np.product(mask.shape)} '
+                    'distances are zero.'
+                )
+            dists[mask] = self.MIN_DISTANCE
+            weights = 1 / dists
+            self._weights = weights / np.sum(weights, axis=-1)[:, None]
+        return self._weights
 
     @property
     def cache_exists(self):
@@ -295,14 +317,8 @@ class TreeBuilder:
             self.get_spatial_chunk(s_slice), k=self.k_neighbors
         )
 
-
-class Regridder(TreeBuilder):
-    """Regridder class for mapping list of coordinates to another.
-    Includes weights and indicies used to map from source grid to each point in
-    the new grid"""
-
-    @staticmethod
-    def interpolate(distance_chunk, values):
+    @classmethod
+    def interpolate(cls, distance_chunk, values):
         """Interpolate to new coordinates based on distances from those
         coordinates and the values of the points at those distances
 
@@ -310,8 +326,8 @@ class Regridder(TreeBuilder):
         ----------
         distance_chunk : ndarray
             Chunk of the full array of distances where distances[i] gives the
-            list of distances to the source coordinates to be used for
-            interpolation for the i-th coordinate in the target data.
+            list of k_neighbors distances to the source coordinates to be used
+            for interpolation for the i-th coordinate in the target data.
             (n_points, k_neighbors)
         values : ndarray
             Array of values corresponding to the point distances with shape
@@ -324,22 +340,52 @@ class Regridder(TreeBuilder):
             (temporal, n_points)
         """
         dists = np.array(distance_chunk)
-        min_dist = 1e-12
-        mask = dists < min_dist
+        mask = dists < cls.MIN_DISTANCE
         if mask.sum() > 0:
             logger.info(
                 f'{np.sum(mask)} of {np.product(mask.shape)} '
                 'distances are zero.'
             )
-        dists[mask] = min_dist
+        dists[mask] = cls.MIN_DISTANCE
         weights = 1 / dists
         norm = np.sum(weights, axis=-1)
         out = np.einsum('ijk,jk->ij', values, weights) / norm
         return out
 
+    def __call__(self, data):
+        """Regrid given spatiotemporal data over entire grid
+
+        Parameters
+        ----------
+        data : ndarray
+            Spatiotemporal data to regrid to target_meta
+            (spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        out : ndarray
+            Flattened regridded spatiotemporal data
+            (spatial, temporal)
+        """
+        vals = np.concatenate(
+            [
+                data[:, :, i].flatten()[self.indices][np.newaxis]
+                for i in range(data.shape[-1])
+            ],
+            axis=0,
+        )
+        out = np.einsum('ijk,jk->ij', vals, self.weights)
+        return out.T
+
+
+class WindRegridder(Regridder):
+    """Class to regrid windspeed and winddirection. Includes methods for
+    converting windspeed and winddirection to U and V and inverting after
+    interpolation"""
+
     @classmethod
     def get_source_values(cls, index_chunk, feature, source_files):
-        """Get values to use for interpolation
+        """Get values to use for interpolation from h5 source files
 
         Parameters
         ----------
@@ -370,12 +416,6 @@ class Regridder(TreeBuilder):
             out = out.reshape(shape)
         return out
 
-
-class WindRegridder(Regridder):
-    """Class to regrid windspeed and winddirection. Includes methods for
-    converting windspeed and winddirection to U and V and inverting after
-    interpolation"""
-
     @classmethod
     def get_source_uv(cls, index_chunk, height, source_files):
         """Get u/v wind components from windspeed and winddirection
@@ -390,7 +430,7 @@ class WindRegridder(Regridder):
         height : int
             Wind height level
         source_files : list
-            List of paths to source files
+            List of paths to h5 source files
 
         Returns
         -------
@@ -461,7 +501,7 @@ class WindRegridder(Regridder):
         height : int
             Wind height level
         source_files : list
-            List of paths to source files
+            List of paths to h5 source files
 
         Returns
         -------

@@ -47,6 +47,24 @@ class EraDownloader:
     req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
     assert os.path.exists(req_file), msg
 
+    VALID_VARIABLES: ClassVar[list] = [
+        'u',
+        'v',
+        'pressure',
+        'temperature',
+        'relative_humidity',
+        'specific_humidity',
+        'total_precipitation',
+    ]
+
+    KEEP_VARIABLES: ClassVar[list] = [
+        'orog',
+        'time',
+        'latitude',
+        'longitude',
+    ]
+    KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
+
     DEFAULT_RENAMED_VARS: ClassVar[list] = [
         'zg',
         'orog',
@@ -86,8 +104,8 @@ class EraDownloader:
         'v_component_of_wind',
         'geopotential',
         'temperature',
-        'relative humidity',
-        'specific humidity',
+        'relative_humidity',
+        'specific_humidity',
     ]
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
@@ -241,15 +259,13 @@ class EraDownloader:
         Parameters
         ----------
         variables : list
-            List of variables to download. Can be any of ['u', 'v', 'pressure',
-            temperature']
+            List of variables to download. Can be any of VALID_VARIABLES
         """
-        valid_vars = ['u', 'v', 'pressure', 'temperature']
-        good = all(var in valid_vars for var in variables)
+        good = all(var in self.VALID_VARIABLES for var in variables)
         if not good:
             msg = (
                 f'Received variables {variables} not in valid variables '
-                f'list {valid_vars}'
+                f'list {self.VALID_VARIABLES}'
             )
             logger.error(msg)
             raise OSError(msg)
@@ -599,20 +615,10 @@ class EraDownloader:
     def already_pruned(cls, infile):
         """Check if file has been pruned already."""
 
-        keep_vars = (
-            'u_',
-            'v_',
-            'pressure_',
-            'temperature_',
-            'orog',
-            'time',
-            'latitude',
-            'longitude',
-        )
         pruned = True
         with Dataset(infile, 'r') as ds:
             for var in ds.variables:
-                if not any(name in var for name in keep_vars):
+                if not any(name in var for name in cls.KEEP_VARIABLES):
                     logger.info(f'Pruning {var} in {infile}.')
                     pruned = False
         return pruned
@@ -623,14 +629,13 @@ class EraDownloader:
 
         logger.info(f'Pruning {infile}.')
         tmp_file = cls.get_tmp_file(infile)
-        keep_vars = ('u_', 'v_', 'pressure_', 'temperature_', 'orog')
         with Dataset(infile, 'r') as old_ds:
             with Dataset(tmp_file, 'w') as new_ds:
                 new_ds = cls.init_dims(
                     old_ds, new_ds, ('time', 'latitude', 'longitude')
                 )
                 for var in old_ds.variables:
-                    if any(name in var for name in keep_vars):
+                    if any(name in var for name in cls.KEEP_VARIABLES):
                         old_var = old_ds[var]
                         vals = old_var[:]
                         _ = new_ds.createVariable(

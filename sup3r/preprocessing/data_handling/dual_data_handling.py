@@ -79,7 +79,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._hr_time_index = None
         self._lr_val_time_index = None
         self._hr_val_time_index = None
-        self._regridder = None
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -90,6 +89,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._run_pair_checks(hr_handler, lr_handler)
 
         self.check_clear_data()
+
+        logger.info('Finished initializing DualDataHandler.')
 
     def get_data(self):
         """Check hr and lr shapes and trim hr data if needed to match required
@@ -368,22 +369,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._lr_data = lr_data
 
     @property
-    def old_points(self):
-        """Flattened array of original low_res lat/lon. Used as input to
-        regridding routine"""
-        if self._old_points is None:
-            self._old_points = self.lr_dh.lat_lon.reshape((-1, 2))
-        return self._old_points
-
-    @property
-    def new_points(self):
-        """Flattened array of low_res lat/lon matching high_res domain. Used as
-        target points for regridding routine."""
-        if self._new_points is None:
-            self._new_points = self.lr_lat_lon.reshape((-1, 2))
-        return self._new_points
-
-    @property
     def shape(self):
         """Get low_res shape"""
         return self.lr_dh.shape
@@ -546,46 +531,17 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 )
         self.lr_data = regridded_data
 
-    @property
-    def regridder(self):
+    def get_regridder(self):
         """Get regridder object"""
-        if self._regridder is None:
-            input_meta = pd.DataFrame()
-            input_meta['latitude'] = self.lr_dh.lat_lon[..., 0].flatten()
-            input_meta['longitude'] = self.lr_dh.lat_lon[..., 1].flatten()
-            target_meta = pd.DataFrame()
-            target_meta['latitude'] = self.lr_lat_lon[..., 0].flatten()
-            target_meta['longitude'] = self.lr_lat_lon[..., 1].flatten()
-            self._regridder = Regridder(
-                input_meta, target_meta, max_workers=self.regrid_workers
-            )
-        return self._regridder
-
-    def regrid_feature(self, fidx):
-        """Regrid low_res feature data to high_res data grid
-
-        Parameters
-        ----------
-        fidx : int
-            Feature index
-
-        Returns
-        -------
-        out : ndarray
-            Array of regridded low_res data
-            (spatial_1, spatial_2, temporal)
-        """
-        vals = np.concatenate(
-            [
-                self.lr_input_data[:, :, i, fidx].flatten()[
-                    self.regridder.indices
-                ][np.newaxis, :]
-                for i in range(self.lr_input_data.shape[-2])
-            ],
-            axis=0,
+        input_meta = pd.DataFrame()
+        input_meta['latitude'] = self.lr_dh.lat_lon[..., 0].flatten()
+        input_meta['longitude'] = self.lr_dh.lat_lon[..., 1].flatten()
+        target_meta = pd.DataFrame()
+        target_meta['latitude'] = self.lr_lat_lon[..., 0].flatten()
+        target_meta['longitude'] = self.lr_lat_lon[..., 1].flatten()
+        return Regridder(
+            input_meta, target_meta, max_workers=self.regrid_workers
         )
-        out = self.regridder.interpolate(self.regridder.distances, vals).T
-        return out.reshape(self.lr_required_shape)
 
     def regrid_lr_data(self):
         """Regrid low_res data for all requested features
@@ -597,10 +553,13 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             (spatial_1, spatial_2, temporal, n_features)
         """
         logger.info('Regridding low resolution feature data.')
+        regridder = self.get_regridder()
 
         return np.concatenate(
             [
-                self.regrid_feature(i)[..., np.newaxis]
+                regridder(self.lr_input_data[..., i]).reshape(
+                    self.lr_required_shape
+                )[..., np.newaxis]
                 for i in range(len(self.features))
             ],
             axis=-1,

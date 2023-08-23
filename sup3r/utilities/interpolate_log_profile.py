@@ -36,6 +36,7 @@ class LogLinInterpolator:
         'v': [40, 80, 120, 160, 200],
         'temperature': [10, 40, 80, 100, 120, 160, 200],
         'pressure': [0, 100, 200],
+        'relative_humidity': [80, 100, 120],
     }
 
     def __init__(
