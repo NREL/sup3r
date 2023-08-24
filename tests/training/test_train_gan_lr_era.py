@@ -122,7 +122,7 @@ def test_train_spatial(
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
-def test_train_st(n_epoch=2, log=True):
+def test_train_st(n_epoch=3, log=True):
     """Test basic spatiotemporal model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -132,7 +132,7 @@ def test_train_st(n_epoch=2, log=True):
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+        fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
     )
 
     hr_handler = DataHandlerH5(
@@ -158,10 +158,10 @@ def test_train_st(n_epoch=2, log=True):
 
     batch_handler = DualBatchHandler(
         [dual_handler],
-        batch_size=2,
+        batch_size=5,
         s_enhance=3,
         t_enhance=4,
-        n_batches=2,
+        n_batches=5,
         worker_kwargs=dict(max_workers=1),
     )
 
@@ -203,9 +203,9 @@ def test_train_st(n_epoch=2, log=True):
         with open(os.path.join(out_dir, 'model_params.json')) as f:
             model_params = json.load(f)
 
-        assert np.allclose(model_params['optimizer']['learning_rate'], 2e-5)
+        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-5)
         assert np.allclose(
-            model_params['optimizer_disc']['learning_rate'], 2e-5
+            model_params['optimizer_disc']['learning_rate'], 1e-5
         )
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
@@ -216,7 +216,7 @@ def test_train_st(n_epoch=2, log=True):
 
         # make an un-trained dummy model
         dummy = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+            fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
         )
 
         for batch in batch_handler:

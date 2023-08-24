@@ -308,12 +308,18 @@ class DataHandlerH5WindCC(DataHandlerH5):
             'training data days.'.format(n_data_days)
         )
 
-    def _normalize_data(self, feature_index, mean, std):
+    def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a
         specific feature
 
         Parameters
         ----------
+        data : np.ndarray
+            Array of training data.
+            (spatial_1, spatial_2, temporal, n_features)
+        val_data : np.ndarray
+            Array of validation data.
+            (spatial_1, spatial_2, temporal, n_features)
         feature_index : int
             index of feature to be normalized
         mean : float32
@@ -321,7 +327,7 @@ class DataHandlerH5WindCC(DataHandlerH5):
         std : float32
             specificed standard deviation for associated feature
         """
-        super()._normalize_data(feature_index, mean, std)
+        super()._normalize_data(data, val_data, feature_index, mean, std)
         self.daily_data[..., feature_index] -= mean
         self.daily_data[..., feature_index] /= std
 
@@ -473,10 +479,9 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
             msg = (
                 'Cannot initialize DataHandlerH5SolarCC without required '
                 'features {}. All three are necessary to get the daily '
-                'average clearsky ratio (ghi sum / clearsky ghi sum), even '
-                'though only the clearsky ratio will be passed to the GAN.'.format(
-                    required
-                )
+                'average clearsky ratio (ghi sum / clearsky ghi sum), '
+                'even though only the clearsky ratio will be passed to the '
+                'GAN.'.format(required)
             )
             logger.error(msg)
             raise KeyError(msg)
