@@ -139,7 +139,7 @@ class Regridder:
     def weights(self):
         """Get weights used for regridding"""
         if self._weights is None:
-            dists = np.array(self.distances)
+            dists = np.array(self.distances, dtype=np.float32)
             mask = dists < self.MIN_DISTANCE
             if mask.sum() > 0:
                 logger.info(
@@ -339,7 +339,7 @@ class Regridder:
             Time series of values at interpolated points with shape
             (temporal, n_points)
         """
-        dists = np.array(distance_chunk)
+        dists = np.array(distance_chunk, dtype=np.float32)
         mask = dists < cls.MIN_DISTANCE
         if mask.sum() > 0:
             logger.info(

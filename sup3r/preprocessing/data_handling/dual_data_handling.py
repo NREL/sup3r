@@ -28,6 +28,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         overwrite_regrid_cache=False,
         regrid_workers=1,
         load_cached=True,
+        shuffle_time=False,
         s_enhance=15,
         t_enhance=1,
         val_split=0.0,
@@ -50,6 +51,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         load_cached : bool
             Whether to load cache to memory or wait until load_cached()
             is called.
+        shuffle_time : bool
+            Whether to shuffle time indices prior to training/validation split
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -67,6 +70,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.current_obs_index = None
         self.load_cached = load_cached
         self.regrid_workers = regrid_workers
+        self.shuffle_time = shuffle_time
         self._lr_lat_lon = None
         self._hr_lat_lon = None
         self._old_points = None
@@ -104,46 +108,23 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Check if val_split > 0 and split data into validation and training.
         Make sure validation data is larger than sample_shape"""
 
-        if self.lr_data is not None and self.val_split > 0.0:
-            train_indices, val_indices = self.lr_dh._split_data_indices(
-                self.lr_data, val_split=self.val_split, shuffle_time=False
-            )
-
-            self.lr_val_data = self.lr_dh.data[:, :, val_indices, :]
-            self.lr_data = self.lr_dh.data[:, :, train_indices, :]
-
-            self.lr_val_time_index = self.lr_time_index[val_indices]
-            self.lr_time_index = self.lr_time_index[train_indices]
-
-            msg = (
-                f'Low res validation data has shape={self.lr_val_data.shape} '
-                f'and sample_shape={self.lr_sample_shape}. Use a smaller '
-                'sample_shape and/or larger val_split.'
-            )
-            check = any(
-                val_size < samp_size
-                for val_size, samp_size in zip(
-                    self.lr_val_data.shape, self.lr_sample_shape
-                )
-            )
-            if check:
-                logger.warning(msg)
-                warn(msg)
-
         if self.hr_data is not None and self.val_split > 0.0:
-            train_indices, val_indices = self.hr_dh._split_data_indices(
-                self.hr_data, val_split=self.val_split, shuffle_time=False
+            n_val_obs = self.hr_data.shape[2] * (1 - self.val_split)
+            n_val_obs = int(self.t_enhance * (n_val_obs // self.t_enhance))
+            train_indices, val_indices = self._split_data_indices(
+                self.hr_data,
+                n_val_obs=n_val_obs,
+                shuffle_time=self.shuffle_time,
             )
-
-            self.hr_val_data = self.hr_dh.data[:, :, val_indices, :]
-            self.hr_data = self.hr_dh.data[:, :, train_indices, :]
-
+            self.hr_val_data = self.hr_data[:, :, val_indices, :]
+            self.hr_data = self.hr_data[:, :, train_indices, :]
             self.hr_val_time_index = self.hr_time_index[val_indices]
             self.hr_time_index = self.hr_time_index[train_indices]
             msg = (
-                f'High res validation data has shape={self.hr_val_data.shape} '
-                f'and sample_shape={self.hr_sample_shape}. Use a smaller '
-                'sample_shape and/or larger val_split.'
+                'High res validation data has shape='
+                f'{self.hr_val_data.shape} and sample_shape='
+                f'{self.hr_sample_shape}. Use a smaller sample_shape '
+                'and/or larger val_split.'
             )
             check = any(
                 val_size < samp_size
@@ -154,6 +135,32 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             if check:
                 logger.warning(msg)
                 warn(msg)
+
+            if self.lr_data is not None and self.val_split > 0.0:
+                train_indices = list(set(train_indices // self.t_enhance))
+                val_indices = list(set(val_indices // self.t_enhance))
+
+                self.lr_val_data = self.lr_data[:, :, val_indices, :]
+                self.lr_data = self.lr_data[:, :, train_indices, :]
+
+                self.lr_val_time_index = self.lr_time_index[val_indices]
+                self.lr_time_index = self.lr_time_index[train_indices]
+
+                msg = (
+                    'Low res validation data has shape='
+                    f'{self.lr_val_data.shape} and sample_shape='
+                    f'{self.lr_sample_shape}. Use a smaller sample_shape '
+                    'and/or larger val_split.'
+                )
+                check = any(
+                    val_size < samp_size
+                    for val_size, samp_size in zip(
+                        self.lr_val_data.shape, self.lr_sample_shape
+                    )
+                )
+                if check:
+                    logger.warning(msg)
+                    warn(msg)
 
     def normalize(self, means, stdevs):
         """Normalize low_res data
@@ -201,9 +208,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             : self.hr_required_shape[0],
             : self.hr_required_shape[1],
             : self.hr_required_shape[2],
-        ]
-        self.hr_lat_lon = self.hr_dh.lat_lon[
-            : self.hr_required_shape[0], : self.hr_required_shape[1]
         ]
         self.hr_time_index = self.hr_dh.time_index[: self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[: self.lr_required_shape[2]]
@@ -352,6 +356,12 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._hr_val_time_index = time_index
 
     @property
+    def data(self):
+        """Get low res data. Same as self.lr_data but used to match property
+        used by batch handler"""
+        return self.lr_data
+
+    @property
     def lr_data(self):
         """Get low_res data"""
         return self._lr_data
@@ -361,7 +371,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Get low res data used as input to regridding routine"""
         if self.lr_dh.data is None:
             self.lr_dh.load_cached_data()
-        return self.lr_dh.data
+        return self.lr_dh.data[..., : self.lr_required_shape[2], :]
 
     @lr_data.setter
     def lr_data(self, lr_data):
@@ -448,6 +458,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def hr_lat_lon(self):
         """Get high_res lat lon array"""
+        if self._hr_lat_lon is None:
+            self._hr_lat_lon = self.hr_dh.lat_lon[
+                : self.hr_required_shape[0], : self.hr_required_shape[1]
+            ]
         return self._hr_lat_lon
 
     @hr_lat_lon.setter
@@ -574,22 +588,25 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         -------
         hr_data : ndarray
             Array of high resolution data with each feature equal in shape to
-            sample_shape
+            hr_sample_shape
         lr_data : ndarray
             Array of low resolution data with each feature equal in shape to
-            sample_shape // (s_enhance or t_enhance)
+            lr_sample_shape
         """
-        hr_obs_idx = self.hr_dh.get_observation_index()
-        lr_obs_idx = []
-        for s in hr_obs_idx[:2]:
-            lr_obs_idx.append(
-                slice(s.start // self.s_enhance, s.stop // self.s_enhance)
+        lr_obs_idx = self._get_observation_index(
+            self.lr_data, self.lr_sample_shape
+        )
+        hr_obs_idx = []
+        for s in lr_obs_idx[:2]:
+            hr_obs_idx.append(
+                slice(s.start * self.s_enhance, s.stop * self.s_enhance)
             )
-        for s in hr_obs_idx[2:-1]:
-            lr_obs_idx.append(
-                slice(s.start // self.t_enhance, s.stop // self.t_enhance)
+        for s in lr_obs_idx[2:-1]:
+            hr_obs_idx.append(
+                slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             )
-        lr_obs_idx.append(hr_obs_idx[-1])
+        hr_obs_idx.append(lr_obs_idx[-1])
+        hr_obs_idx = tuple(hr_obs_idx)
         self.current_obs_index = {
             'hr_index': hr_obs_idx,
             'lr_index': lr_obs_idx,

@@ -15,7 +15,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import mode
 
-from sup3r.utilities.utilities import get_source_type, ignore_case_path_fetch
+from sup3r.utilities.utilities import (
+    get_source_type,
+    ignore_case_path_fetch,
+    uniform_box_sampler,
+    uniform_time_sampler,
+)
 
 np.random.seed(42)
 
@@ -891,7 +896,9 @@ class TrainingPrepMixIn:
     splitting, normalization"""
 
     @classmethod
-    def _split_data_indices(cls, data, val_split=0.0, shuffle_time=False):
+    def _split_data_indices(
+        cls, data, val_split=0.0, n_val_obs=None, shuffle_time=False
+    ):
         """Split time dimension into set of training indices and validation
         indices
 
@@ -902,6 +909,9 @@ class TrainingPrepMixIn:
             (spatial_1, spatial_2, temporal, features)
         val_split : float
             Fraction of data to separate for validation.
+        n_val_obs : int | None
+            Optional number of validation observations. If provided this
+            overrides val_split
         shuffle_time : bool
             Whether to shuffle time or not.
 
@@ -916,7 +926,9 @@ class TrainingPrepMixIn:
         """
         n_observations = data.shape[2]
         all_indices = np.arange(n_observations)
-        n_val_obs = int(val_split * n_observations)
+        n_val_obs = (
+            int(val_split * n_observations) if n_val_obs is None else n_val_obs
+        )
 
         if shuffle_time:
             np.random.shuffle(all_indices)
@@ -925,6 +937,30 @@ class TrainingPrepMixIn:
         training_indices = all_indices[n_val_obs:]
 
         return training_indices, val_indices
+
+    def _get_observation_index(self, data, sample_shape):
+        """Randomly gets spatial sample and time sample
+
+        Parameters
+        ----------
+        data : ndarray
+            Array of data to sample
+            (spatial_1, spatial_2, temporal, n_features)
+        sample_shape : tuple
+            Size of observation to sample
+            (n_lats, n_lons, n_timesteps)
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        """
+        spatial_slice = uniform_box_sampler(data, sample_shape[:2])
+        temporal_slice = uniform_time_sampler(data, sample_shape[2])
+        return tuple(
+            [*spatial_slice, temporal_slice, np.arange(data.shape[-1])]
+        )
 
     @classmethod
     def _unnormalize(cls, data, val_data, means, stds):

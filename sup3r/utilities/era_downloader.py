@@ -87,6 +87,8 @@ class EraDownloader:
         '2m_temperature',
         'temperature',
         'surface_pressure',
+        'relative_humidity',
+        'total_precipitation',
     ]
 
     SFC_VARS: ClassVar[list] = [
@@ -173,46 +175,17 @@ class EraDownloader:
         self.run_interp = run_interp
         self.overwrite = overwrite
         self.combined_out_pattern = combined_out_pattern
-        self.variables = (
-            variables if variables is not None else self.DEFAULT_DOWNLOAD_VARS
-        )
-        self.days = [
-            str(n).zfill(2)
-            for n in np.arange(1, monthrange(year, month)[1] + 1)
-        ]
+        self.interp_out_pattern = interp_out_pattern
+        self._interp_file = None
+        self._combined_file = None
+        self._variables = variables
         self.hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+        self.sfc_file_variables = ['geopotential']
+        self.level_file_variables = ['geopotential']
 
-        if required_shape is None or len(required_shape) == 3:
-            self.required_shape = required_shape
-        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
-            self.required_shape = (len(levels), *required_shape)
-        else:
-            msg = f'Received weird required_shape: {required_shape}.'
-            logger.error(msg)
-            raise OSError(msg)
-
-        self.interp_file = None
-        if interp_out_pattern is not None and run_interp:
-            self.interp_file = interp_out_pattern.format(
-                year=year, month=str(month).zfill(2)
-            )
-            os.makedirs(os.path.dirname(self.interp_file), exist_ok=True)
-
-        self.combined_file = combined_out_pattern.format(
-            year=year, month=str(month).zfill(2)
-        )
-        os.makedirs(os.path.dirname(self.combined_file), exist_ok=True)
-        basedir = os.path.dirname(self.combined_file)
-        self.surface_file = os.path.join(
-            basedir, f'sfc_{year}_{str(month).zfill(2)}.nc'
-        )
-        self.level_file = os.path.join(
-            basedir, f'levels_{year}_{str(month).zfill(2)}.nc'
-        )
-        self.sfc_file_variables = []
-        self.level_file_variables = []
+        self.shape_check(required_shape, levels)
         self.check_good_vars(self.variables)
-        self.prep_var_lists(variables)
+        self.prep_var_lists(self.variables)
 
         msg = (
             'Initialized EraDownloader with: '
@@ -220,6 +193,58 @@ class EraDownloader:
             f'levels={self.levels}, variables={self.variables}'
         )
         logger.info(msg)
+
+    @property
+    def variables(self):
+        """Get list of requested variables"""
+        if self._variables is None:
+            self._variables = self.VALID_VARIABLES
+        return self._variables
+
+    @property
+    def days(self):
+        """Get list of days for the requested month"""
+        return [
+            str(n).zfill(2)
+            for n in np.arange(1, monthrange(self.year, self.month)[1] + 1)
+        ]
+
+    @property
+    def interp_file(self):
+        """Get name of file with interpolated variables"""
+        if self._interp_file is None:
+            if self.interp_out_pattern is not None and self.run_interp:
+                self._interp_file = self.interp_out_pattern.format(
+                    year=self.year, month=str(self.month).zfill(2)
+                )
+                os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
+        return self._interp_file
+
+    @property
+    def combined_file(self):
+        """Get name of file from combined surface and level files"""
+        if self._combined_file is None:
+            self._combined_file = self.combined_out_pattern.format(
+                year=self.year, month=str(self.month).zfill(2)
+            )
+            os.makedirs(os.path.dirname(self._combined_file), exist_ok=True)
+        return self._combined_file
+
+    @property
+    def surface_file(self):
+        """Get name of file with variables from single level download"""
+        basedir = os.path.dirname(self.combined_file)
+        basename = f'sfc_{"_".join(self.variables)}_{self.year}_'
+        basename += f'{str(self.month).zfill(2)}.nc'
+        return os.path.join(basedir, basename)
+
+    @property
+    def level_file(self):
+        """Get name of file with variables from pressure level download"""
+        basedir = os.path.dirname(self.combined_file)
+        basename = f'levels_{"_".join(self.variables)}_{self.year}_'
+        basename += f'{str(self.month).zfill(2)}.nc'
+        return os.path.join(basedir, basename)
 
     @classmethod
     def init_dims(cls, old_ds, new_ds, dims):
@@ -252,6 +277,17 @@ class EraDownloader:
         written to the given file."""
         tmp_file = file.replace(".nc", "_tmp.nc")
         return tmp_file
+
+    def shape_check(self, required_shape, levels):
+        """Check given required shape"""
+        if required_shape is None or len(required_shape) == 3:
+            self.required_shape = required_shape
+        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
+            self.required_shape = (len(levels), *required_shape)
+        else:
+            msg = f'Received weird required_shape: {required_shape}.'
+            logger.error(msg)
+            raise OSError(msg)
 
     def check_good_vars(self, variables):
         """Make sure requested variables are valid.
@@ -289,9 +325,11 @@ class EraDownloader:
         variables."""
         variables = self._prep_var_lists(variables)
         for var in variables:
-            if var in self.SFC_VARS:
+            if var in self.SFC_VARS and var not in self.sfc_file_variables:
                 self.sfc_file_variables.append(var)
-            elif var in self.LEVEL_VARS:
+            elif (
+                var in self.LEVEL_VARS and var not in self.level_file_variables
+            ):
                 self.level_file_variables.append(var)
             else:
                 msg = f'Requested {var} is not available for download.'
@@ -316,14 +354,12 @@ class EraDownloader:
             self.download_surface_file()
         if level_check:
             self.download_levels_file()
-        if sfc_check and level_check:
+        if sfc_check or level_check:
             self.process_and_combine()
 
     def download_levels_file(self):
         """Download file with requested pressure levels"""
         if not os.path.exists(self.level_file) or self.overwrite:
-            if 'geopotential' not in self.level_file_variables:
-                self.level_file_variables.append('geopotential')
             msg = (
                 f'Downloading {self.level_file_variables} to '
                 f'{self.level_file}.'
@@ -350,8 +386,6 @@ class EraDownloader:
     def download_surface_file(self):
         """Download surface file"""
         if not os.path.exists(self.surface_file) or self.overwrite:
-            if 'geopotential' not in self.sfc_file_variables:
-                self.sfc_file_variables.append('geopotential')
             msg = (
                 f'Downloading {self.sfc_file_variables} to '
                 f'{self.surface_file}.'
@@ -484,19 +518,28 @@ class EraDownloader:
         """Process variables and combine."""
 
         if not os.path.exists(self.combined_file) or self.overwrite:
-            logger.info(f'Processing {self.level_file}.')
-            self.process_level_file()
-            logger.info(f'Processing {self.surface_file}.')
-            self.process_surface_file()
+            files = []
+            if os.path.exists(self.level_file):
+                logger.info(f'Processing {self.level_file}.')
+                self.process_level_file()
+                files.append(self.level_file)
+            if os.path.exists(self.surface_file):
+                logger.info(f'Processing {self.surface_file}.')
+                self.process_surface_file()
+                files.append(self.surface_file)
+
             logger.info(
-                f'Combining {self.level_file} and {self.surface_file} '
+                f'Combining {files} and {self.surface_file} '
                 f'to {self.combined_file}.'
             )
-            with xr.open_mfdataset([self.level_file, self.surface_file]) as ds:
+            with xr.open_mfdataset(files) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
-            os.remove(self.level_file)
-            os.remove(self.surface_file)
+
+            if os.path.exists(self.level_file):
+                os.remove(self.level_file)
+            if os.path.exists(self.surface_file):
+                os.remove(self.surface_file)
 
     def good_file(self, file, required_shape):
         """Check if file has the required shape and variables.

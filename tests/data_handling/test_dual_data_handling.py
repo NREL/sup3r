@@ -26,7 +26,7 @@ FEATURES = ['U_100m', 'V_100m']
 
 
 def test_dual_data_handler(
-    log=False, full_shape=(20, 20), sample_shape=(10, 10, 1), plot=True
+    log=True, full_shape=(20, 20), sample_shape=(10, 10, 1), plot=True
 ):
     """Test basic spatial model training with only gen content loss."""
     if log:
@@ -66,7 +66,9 @@ def test_dual_data_handler(
             ax[0].imshow(np.mean(batch.high_res[..., -1], axis=0))
             ax[1].set_title('Low Res')
             ax[1].imshow(np.mean(batch.low_res[..., -1], axis=0))
-            fig.savefig(f'./high_vs_low_{str(i).zfill(3)}.png')
+            fig.savefig(
+                f'./high_vs_low_{str(i).zfill(3)}.png', bbox_inches='tight'
+            )
 
 
 def test_regrid_caching(
@@ -128,7 +130,6 @@ def test_regrid_caching(
             val_split=0.1,
             regrid_cache_pattern=f'{td}/cache.pkl',
         )
-
         assert np.array_equal(old_dh.lr_data, new_dh.lr_data)
         assert np.array_equal(old_dh.hr_data, new_dh.hr_data)
 
@@ -157,11 +158,11 @@ def test_st_dual_batch_handler(
         FP_ERA,
         FEATURES,
         sample_shape=(
-            sample_shape[0] // 2,
-            sample_shape[1] // 2,
-            sample_shape[2] // 2,
+            sample_shape[0] // s_enhance,
+            sample_shape[1] // s_enhance,
+            sample_shape[2] // t_enhance,
         ),
-        temporal_slice=slice(None, None, 10),
+        temporal_slice=slice(None, None, t_enhance * 10),
         worker_kwargs=dict(max_workers=1),
     )
 
@@ -261,14 +262,14 @@ def test_spatial_dual_batch_handler(
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
-                data_fine = batch.high_res[0, 0, :, :, ifeature]
-                data_coarse = batch.low_res[0, 0, :, :, ifeature]
+                data_fine = batch.high_res[0, :, :, ifeature]
+                data_coarse = batch.low_res[0, :, :, ifeature]
                 fig = plt.figure(figsize=(10, 5))
                 ax1 = fig.add_subplot(121)
                 ax2 = fig.add_subplot(122)
                 ax1.imshow(data_fine)
                 ax2.imshow(data_coarse)
-                plt.savefig(f'./{i}_{ifeature}.png')
+                plt.savefig(f'./{i}_{ifeature}.png', bbox_inches='tight')
                 plt.close()
 
 
@@ -299,7 +300,7 @@ def test_validation_batching(
             sample_shape[1] // s_enhance,
             sample_shape[2] // t_enhance,
         ),
-        temporal_slice=slice(None, None, 10),
+        temporal_slice=slice(None, None, t_enhance * 10),
         worker_kwargs=dict(max_workers=1),
     )
 
@@ -345,18 +346,19 @@ def test_validation_batching(
             lr_index = index['lr_index']
 
             assert np.array_equal(
-                batch.high_res[j, :, :],
-                dual_handler.hr_val_data[hr_index][..., 0, :],
+                batch.high_res[j],
+                dual_handler.hr_val_data[hr_index],
             )
             assert np.array_equal(
-                batch.low_res[j, :, :],
-                dual_handler.lr_val_data[lr_index][..., 0, :],
+                batch.low_res[j],
+                dual_handler.lr_val_data[lr_index],
             )
 
             coarse_lat_lon = spatial_coarsening(
                 dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False
             )
             lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
+
             assert np.array_equal(coarse_lat_lon, lr_lat_lon)
 
             coarse_ti = dual_handler.hr_val_time_index[hr_index[2]][

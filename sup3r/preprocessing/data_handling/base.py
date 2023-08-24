@@ -876,21 +876,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             self.data, self.val_data, means, stds, max_workers=max_workers
         )
 
-    def get_observation_index(self):
-        """Randomly gets spatial sample and time sample
-
-        Returns
-        -------
-        observation_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
-        """
-        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(self.data, self.sample_shape[2])
-        return tuple(
-            [*spatial_slice, temporal_slice, np.arange(len(self.features))]
-        )
-
     def get_next(self):
         """Get data for observation using random observation index. Loops
         repeatedly over randomized time index
@@ -901,7 +886,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             4D array
             (spatial_1, spatial_2, temporal, features)
         """
-        self.current_obs_index = self.get_observation_index()
+        self.current_obs_index = self._get_observation_index(
+            self.data, self.sample_shape
+        )
         observation = self.data[self.current_obs_index]
         return observation
 

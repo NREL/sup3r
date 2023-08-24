@@ -36,35 +36,35 @@ class DualValidationData(ValidationData):
             if h.hr_val_data is not None:
                 for _ in range(h.hr_val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
-                        h.hr_val_data, self.hr_sample_shape[:2]
+                        h.lr_val_data, self.lr_sample_shape[:2]
                     )
                     temporal_slice = uniform_time_sampler(
-                        h.hr_val_data, self.hr_sample_shape[2]
+                        h.lr_val_data, self.lr_sample_shape[2]
                     )
-                    hr_index = tuple(
+                    lr_index = tuple(
                         [
                             *spatial_slice,
                             temporal_slice,
-                            np.arange(h.hr_val_data.shape[-1]),
+                            np.arange(h.lr_val_data.shape[-1]),
                         ]
                     )
-                    lr_index = []
-                    for s in hr_index[:2]:
-                        lr_index.append(
+                    hr_index = []
+                    for s in lr_index[:2]:
+                        hr_index.append(
                             slice(
-                                s.start // self.s_enhance,
-                                s.stop // self.s_enhance,
+                                s.start * self.s_enhance,
+                                s.stop * self.s_enhance,
                             )
                         )
-                    for s in hr_index[2:-1]:
-                        lr_index.append(
+                    for s in lr_index[2:-1]:
+                        hr_index.append(
                             slice(
-                                s.start // self.t_enhance,
-                                s.stop // self.t_enhance,
+                                s.start * self.t_enhance,
+                                s.stop * self.t_enhance,
                             )
                         )
-                    lr_index.append(hr_index[-1])
-                    lr_index = tuple(lr_index)
+                    hr_index.append(lr_index[-1])
+                    hr_index = tuple(hr_index)
                     val_indices.append(
                         {
                             'handler_index': i,
@@ -150,7 +150,7 @@ class DualValidationData(ValidationData):
                     val_index['handler_index']
                 ].lr_val_data[val_index['lr_index']]
                 self._remaining_observations -= 1
-                self.current_batch_indices.append(val_index['handler_index'])
+                self.current_batch_indices.append(val_index)
 
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
