@@ -1,6 +1,7 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+import copy
 import json
 import logging
 import os
@@ -788,7 +789,7 @@ class LinearCorrection(DataRetrievalBase):
 
         self.write_outputs(fp_out, self.out)
 
-        return self.out
+        return copy.deepcopy(self.out)
 
 
 class MonthlyLinearCorrection(LinearCorrection):
