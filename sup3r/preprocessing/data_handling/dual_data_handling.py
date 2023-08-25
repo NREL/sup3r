@@ -216,8 +216,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             hr_shape = self.hr_data.shape
             lr_shape = (hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance,
-                        hr_shape[3])
+                        hr_shape[2] // self.t_enhance, hr_shape[3])
             msg = (f'hr_data.shape {self.hr_data.shape} and '
                    f'lr_data.shape {self.lr_data.shape} are '
                    f'incompatible. Must be {hr_shape} and {lr_shape}.')
@@ -227,8 +226,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             hr_shape = self.hr_val_data.shape
             lr_shape = (hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance,
-                        hr_shape[3])
+                        hr_shape[2] // self.t_enhance, hr_shape[3])
             msg = (f'hr_val_data.shape {self.hr_val_data.shape} '
                    f'and lr_val_data.shape {self.lr_val_data.shape}'
                    f' are incompatible. Must be {hr_shape} and {lr_shape}.')
@@ -340,8 +338,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def hr_lat_lon(self):
         """Get high_res lat lon array"""
         if self._hr_lat_lon is None:
-            self._hr_lat_lon = self.hr_dh.lat_lon[:self.hr_required_shape[0],
-                                                  :self.hr_required_shape[1]]
+            self._hr_lat_lon = self.hr_dh.lat_lon[:self.hr_required_shape[0], :
+                                                  self.hr_required_shape[1]]
         return self._hr_lat_lon
 
     @hr_lat_lon.setter
@@ -440,8 +438,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
         out = []
         for i in range(len(self.features)):
-            tmp = regridder(self.lr_input_data[..., i]).reshape(
-                self.lr_required_shape)[..., np.newaixs]
+            tmp = regridder(self.lr_input_data[..., i])
+            tmp = tmp.reshape(self.lr_required_shape)[..., np.newaxis]
             out.append(tmp)
         return np.concatenate(out, axis=-1)
 
@@ -470,6 +468,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 slice(s.start * self.t_enhance, s.stop * self.t_enhance))
         hr_obs_idx.append(lr_obs_idx[-1])
         hr_obs_idx = tuple(hr_obs_idx)
-        self.current_obs_index = {'hr_index': hr_obs_idx,
-                                  'lr_index': lr_obs_idx}
+        self.current_obs_index = {
+            'hr_index': hr_obs_idx,
+            'lr_index': lr_obs_idx
+        }
         return self.hr_data[hr_obs_idx], self.lr_data[lr_obs_idx]

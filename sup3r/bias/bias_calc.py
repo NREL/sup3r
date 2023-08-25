@@ -960,7 +960,7 @@ class SkillAssessment(MonthlyLinearCorrection):
         out = {}
         bias_mean = np.nanmean(bias_data)
         base_mean = np.nanmean(base_data)
-        out[f'{bias_feature}_bias'] = (bias_mean - base_mean)
+        out[f'{bias_feature}_bias'] = bias_mean - base_mean
 
         out[f'bias_{bias_feature}_mean'] = bias_mean
         out[f'bias_{bias_feature}_std'] = np.nanstd(bias_data)

@@ -7,6 +7,7 @@ import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -17,33 +18,17 @@ from scipy.spatial import KDTree
 from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
-from sup3r.preprocessing.feature_handling import (
-    BVFreqMon,
-    BVFreqSquaredNC,
-    ClearSkyRatioCC,
-    Feature,
-    InverseMonNC,
-    LatLonNC,
-    PotentialTempNC,
-    PressureNC,
-    Rews,
-    Shear,
-    Tas,
-    TasMax,
-    TasMin,
-    TempNC,
-    TempNCforCC,
-    UWind,
-    VWind,
-    WinddirectionNC,
-    WindspeedNC,
-)
+from sup3r.preprocessing.feature_handling import (BVFreqMon, BVFreqSquaredNC,
+                                                  ClearSkyRatioCC, Feature,
+                                                  InverseMonNC, LatLonNC,
+                                                  PotentialTempNC, PressureNC,
+                                                  Rews, Shear, Tas, TasMax,
+                                                  TasMin, TempNC, TempNCforCC,
+                                                  UWind, VWind,
+                                                  WinddirectionNC, WindspeedNC)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (
-    estimate_max_workers,
-    get_time_dim_name,
-    np_to_pd_times,
-)
+from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
+                                       np_to_pd_times)
 
 np.random.seed(42)
 
@@ -53,7 +38,7 @@ logger = logging.getLogger(__name__)
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
-    CHUNKS = {
+    CHUNKS: ClassVar[dict] = {
         'XTIME': 100,
         'XLAT': 150,
         'XLON': 150,

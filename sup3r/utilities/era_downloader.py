@@ -39,11 +39,9 @@ class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, file combination,
     and interpolation."""
 
-    msg = (
-        'To download ERA5 data you need to have a ~/.cdsapirc file '
-        'with a valid url and api key. Follow the instructions here: '
-        'https://cds.climate.copernicus.eu/api-how-to'
-    )
+    msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
+           'with a valid url and api key. Follow the instructions here: '
+           'https://cds.climate.copernicus.eu/api-how-to')
     req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
     assert os.path.exists(req_file), msg
 
@@ -124,19 +122,17 @@ class EraDownloader:
         'tp': 'total_precip',
     }
 
-    def __init__(
-        self,
-        year,
-        month,
-        area,
-        levels,
-        combined_out_pattern,
-        interp_out_pattern=None,
-        run_interp=True,
-        overwrite=False,
-        required_shape=None,
-        variables=None,
-    ):
+    def __init__(self,
+                 year,
+                 month,
+                 area,
+                 levels,
+                 combined_out_pattern,
+                 interp_out_pattern=None,
+                 run_interp=True,
+                 overwrite=False,
+                 required_shape=None,
+                 variables=None):
         """Initialize the class.
 
         Parameters
@@ -187,11 +183,9 @@ class EraDownloader:
         self.check_good_vars(self.variables)
         self.prep_var_lists(self.variables)
 
-        msg = (
-            'Initialized EraDownloader with: '
-            f'year={self.year}, month={self.month}, area={self.area}, '
-            f'levels={self.levels}, variables={self.variables}'
-        )
+        msg = ('Initialized EraDownloader with: '
+               f'year={self.year}, month={self.month}, area={self.area}, '
+               f'levels={self.levels}, variables={self.variables}')
         logger.info(msg)
 
     @property
@@ -206,7 +200,8 @@ class EraDownloader:
         """Get list of days for the requested month"""
         return [
             str(n).zfill(2)
-            for n in np.arange(1, monthrange(self.year, self.month)[1] + 1)
+            for n in np.arange(1,
+                               monthrange(self.year, self.month)[1] + 1)
         ]
 
     @property
@@ -215,8 +210,7 @@ class EraDownloader:
         if self._interp_file is None:
             if self.interp_out_pattern is not None and self.run_interp:
                 self._interp_file = self.interp_out_pattern.format(
-                    year=self.year, month=str(self.month).zfill(2)
-                )
+                    year=self.year, month=str(self.month).zfill(2))
                 os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
         return self._interp_file
 
@@ -225,8 +219,7 @@ class EraDownloader:
         """Get name of file from combined surface and level files"""
         if self._combined_file is None:
             self._combined_file = self.combined_out_pattern.format(
-                year=self.year, month=str(self.month).zfill(2)
-            )
+                year=self.year, month=str(self.month).zfill(2))
             os.makedirs(os.path.dirname(self._combined_file), exist_ok=True)
         return self._combined_file
 
@@ -299,10 +292,8 @@ class EraDownloader:
         """
         good = all(var in self.VALID_VARIABLES for var in variables)
         if not good:
-            msg = (
-                f'Received variables {variables} not in valid variables '
-                f'list {self.VALID_VARIABLES}'
-            )
+            msg = (f'Received variables {variables} not in valid variables '
+                   f'list {self.VALID_VARIABLES}')
             logger.error(msg)
             raise OSError(msg)
 
@@ -327,9 +318,8 @@ class EraDownloader:
         for var in variables:
             if var in self.SFC_VARS and var not in self.sfc_file_variables:
                 self.sfc_file_variables.append(var)
-            elif (
-                var in self.LEVEL_VARS and var not in self.level_file_variables
-            ):
+            elif (var in self.LEVEL_VARS
+                  and var not in self.level_file_variables):
                 self.level_file_variables.append(var)
             else:
                 msg = f'Requested {var} is not available for download.'
@@ -339,14 +329,11 @@ class EraDownloader:
     def download_process_combine(self):
         """Run the download routine."""
         sfc_check = len(self.sfc_file_variables) > 0
-        level_check = (
-            len(self.level_file_variables) > 0 and self.levels is not None
-        )
+        level_check = (len(self.level_file_variables) > 0
+                       and self.levels is not None)
         if self.level_file_variables:
-            msg = (
-                f'{self.level_file_variables} requested but no levels'
-                ' were provided.'
-            )
+            msg = (f'{self.level_file_variables} requested but no levels'
+                   ' were provided.')
             if self.levels is None:
                 logger.warning(msg)
                 warn(msg)
@@ -360,14 +347,11 @@ class EraDownloader:
     def download_levels_file(self):
         """Download file with requested pressure levels"""
         if not os.path.exists(self.level_file) or self.overwrite:
-            msg = (
-                f'Downloading {self.level_file_variables} to '
-                f'{self.level_file}.'
-            )
+            msg = (f'Downloading {self.level_file_variables} to '
+                   f'{self.level_file}.')
             logger.info(msg)
             CDS_API_CLIENT.retrieve(
-                'reanalysis-era5-pressure-levels',
-                {
+                'reanalysis-era5-pressure-levels', {
                     'product_type': 'reanalysis',
                     'format': 'netcdf',
                     'variable': self.level_file_variables,
@@ -377,23 +361,18 @@ class EraDownloader:
                     'day': self.days,
                     'time': self.hours,
                     'area': self.area,
-                },
-                self.level_file,
-            )
+                }, self.level_file)
         else:
             logger.info(f'File already exists: {self.level_file}.')
 
     def download_surface_file(self):
         """Download surface file"""
         if not os.path.exists(self.surface_file) or self.overwrite:
-            msg = (
-                f'Downloading {self.sfc_file_variables} to '
-                f'{self.surface_file}.'
-            )
+            msg = (f'Downloading {self.sfc_file_variables} to '
+                   f'{self.surface_file}.')
             logger.info(msg)
             CDS_API_CLIENT.retrieve(
-                'reanalysis-era5-single-levels',
-                {
+                'reanalysis-era5-single-levels', {
                     'product_type': 'reanalysis',
                     'format': 'netcdf',
                     'variable': self.sfc_file_variables,
@@ -402,9 +381,7 @@ class EraDownloader:
                     'day': self.days,
                     'time': self.hours,
                     'area': self.area,
-                },
-                self.surface_file,
-            )
+                }, self.surface_file)
         else:
             logger.info(f'File already exists: {self.surface_file}.')
 
@@ -421,10 +398,8 @@ class EraDownloader:
 
                 ds = self.map_vars(old_ds, ds)
         os.system(f'mv {tmp_file} {self.surface_file}')
-        logger.info(
-            f'Finished processing {self.surface_file}. Moved '
-            f'{tmp_file} to {self.surface_file}.'
-        )
+        logger.info(f'Finished processing {self.surface_file}. Moved '
+                    f'{tmp_file} to {self.surface_file}.')
 
     def map_vars(self, old_ds, ds):
         """Map variables from old dataset to new dataset
@@ -475,9 +450,9 @@ class EraDownloader:
             Dataset() object for new file with new height variable written.
         """
 
-        _ = ds.createVariable(
-            standard_name, np.float32, dimensions=old_ds['z'].dimensions
-        )
+        _ = ds.createVariable(standard_name,
+                              np.float32,
+                              dimensions=old_ds['z'].dimensions)
         ds.variables[standard_name][:] = old_ds['z'][:] / 9.81
         ds.variables[standard_name].long_name = long_name
         ds.variables[standard_name].standard_name = 'zg'
@@ -501,18 +476,16 @@ class EraDownloader:
                     tmp = np.zeros(ds.variables['zg'].shape)
                     for i in range(tmp.shape[1]):
                         tmp[:, i, :, :] = ds.variables['level'][i] * 100
-                    _ = ds.createVariable(
-                        'pressure', np.float32, dimensions=dims
-                    )
+                    _ = ds.createVariable('pressure',
+                                          np.float32,
+                                          dimensions=dims)
                     ds.variables['pressure'][:] = tmp[...]
                     ds.variables['pressure'].long_name = 'Pressure'
                     ds.variables['pressure'].units = 'Pa'
 
         os.system(f'mv {tmp_file} {self.level_file}')
-        logger.info(
-            f'Finished processing {self.level_file}. Moved '
-            f'{tmp_file} to {self.level_file}.'
-        )
+        logger.info(f'Finished processing {self.level_file}. Moved '
+                    f'{tmp_file} to {self.level_file}.')
 
     def process_and_combine(self):
         """Process variables and combine."""
@@ -528,10 +501,8 @@ class EraDownloader:
                 self.process_surface_file()
                 files.append(self.surface_file)
 
-            logger.info(
-                f'Combining {files} and {self.surface_file} '
-                f'to {self.combined_file}.'
-            )
+            logger.info(f'Combining {files} and {self.surface_file} '
+                        f'to {self.combined_file}.')
             with xr.open_mfdataset(files) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
@@ -556,12 +527,10 @@ class EraDownloader:
         bool
             Whether or not data has required shape and variables.
         """
-        out = self.check_single_file(
-            file,
-            check_nans=False,
-            check_heights=False,
-            required_shape=required_shape,
-        )
+        out = self.check_single_file(file,
+                                     check_nans=False,
+                                     check_heights=False,
+                                     required_shape=required_shape)
         good_vars, good_shape, _, _ = out
         check = good_vars and good_shape
         return check
@@ -582,31 +551,26 @@ class EraDownloader:
                         os.remove(self.level_file)
                     if os.path.exists(self.surface_file):
                         os.remove(self.surface_file)
-                    logger.info(
-                        f'{self.combined_file} already exists and '
-                        f'overwrite={self.overwrite}. Skipping.'
-                    )
+                    logger.info(f'{self.combined_file} already exists and '
+                                f'overwrite={self.overwrite}. Skipping.')
             except Exception as e:
                 logger.info(f'Something wrong with {self.combined_file}. {e}')
                 if os.path.exists(self.combined_file):
                     os.remove(self.combined_file)
                 check = self.interp_file is not None and os.path.exists(
-                    self.interp_file
-                )
+                    self.interp_file)
                 if check:
                     os.remove(self.interp_file)
 
     def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
         max_log_height (usually 100m) and linear interpolation above this."""
-        LogLinInterpolator.run(
-            infile=self.combined_file,
-            outfile=self.interp_file,
-            max_workers=max_workers,
-            variables=self.variables,
-            overwrite=self.overwrite,
-            **kwargs,
-        )
+        LogLinInterpolator.run(infile=self.combined_file,
+                               outfile=self.interp_file,
+                               max_workers=max_workers,
+                               variables=self.variables,
+                               overwrite=self.overwrite,
+                               **kwargs)
 
     def get_monthly_file(self, interp_workers=None, **interp_kwargs):
         """Download level and surface files, process variables, and combine
@@ -649,10 +613,8 @@ class EraDownloader:
         """
         return all(
             os.path.exists(
-                file_pattern.format(year=year, month=str(month).zfill(2))
-            )
-            for month in range(1, 13)
-        )
+                file_pattern.format(year=year, month=str(month).zfill(2)))
+            for month in range(1, 13))
 
     @classmethod
     def already_pruned(cls, infile):
@@ -674,16 +636,14 @@ class EraDownloader:
         tmp_file = cls.get_tmp_file(infile)
         with Dataset(infile, 'r') as old_ds:
             with Dataset(tmp_file, 'w') as new_ds:
-                new_ds = cls.init_dims(
-                    old_ds, new_ds, ('time', 'latitude', 'longitude')
-                )
+                new_ds = cls.init_dims(old_ds, new_ds,
+                                       ('time', 'latitude', 'longitude'))
                 for var in old_ds.variables:
                     if any(name in var for name in cls.KEEP_VARIABLES):
                         old_var = old_ds[var]
                         vals = old_var[:]
                         _ = new_ds.createVariable(
-                            var, old_var.dtype, dimensions=old_var.dimensions
-                        )
+                            var, old_var.dtype, dimensions=old_var.dimensions)
                         new_ds[var][:] = vals
                         if hasattr(old_var, 'units'):
                             new_ds[var].units = old_var.units
@@ -693,27 +653,23 @@ class EraDownloader:
                         if hasattr(old_var, 'long_name'):
                             new_ds[var].long_name = old_var.long_name
         os.system(f'mv {tmp_file} {infile}')
-        logger.info(
-            f'Finished pruning variables in {infile}. Moved '
-            f'{tmp_file} to {infile}.'
-        )
+        logger.info(f'Finished pruning variables in {infile}. Moved '
+                    f'{tmp_file} to {infile}.')
 
     @classmethod
-    def run_month(
-        cls,
-        year,
-        month,
-        area,
-        levels,
-        combined_out_pattern,
-        interp_out_pattern=None,
-        run_interp=True,
-        overwrite=False,
-        required_shape=None,
-        interp_workers=None,
-        variables=None,
-        **interp_kwargs,
-    ):
+    def run_month(cls,
+                  year,
+                  month,
+                  area,
+                  levels,
+                  combined_out_pattern,
+                  interp_out_pattern=None,
+                  run_interp=True,
+                  overwrite=False,
+                  required_shape=None,
+                  interp_workers=None,
+                  variables=None,
+                  **interp_kwargs):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -749,40 +705,35 @@ class EraDownloader:
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
-        downloader = cls(
-            year=year,
-            month=month,
-            area=area,
-            levels=levels,
-            combined_out_pattern=combined_out_pattern,
-            interp_out_pattern=interp_out_pattern,
-            run_interp=run_interp,
-            overwrite=overwrite,
-            required_shape=required_shape,
-            variables=variables,
-        )
-        downloader.get_monthly_file(
-            interp_workers=interp_workers, **interp_kwargs
-        )
+        downloader = cls(year=year,
+                         month=month,
+                         area=area,
+                         levels=levels,
+                         combined_out_pattern=combined_out_pattern,
+                         interp_out_pattern=interp_out_pattern,
+                         run_interp=run_interp,
+                         overwrite=overwrite,
+                         required_shape=required_shape,
+                         variables=variables)
+        downloader.get_monthly_file(interp_workers=interp_workers,
+                                    **interp_kwargs)
 
     @classmethod
-    def run_year(
-        cls,
-        year,
-        area,
-        levels,
-        combined_out_pattern,
-        combined_yearly_file,
-        interp_out_pattern=None,
-        interp_yearly_file=None,
-        run_interp=True,
-        overwrite=False,
-        required_shape=None,
-        max_workers=None,
-        interp_workers=None,
-        variables=None,
-        **interp_kwargs,
-    ):
+    def run_year(cls,
+                 year,
+                 area,
+                 levels,
+                 combined_out_pattern,
+                 combined_yearly_file,
+                 interp_out_pattern=None,
+                 interp_yearly_file=None,
+                 run_interp=True,
+                 overwrite=False,
+                 required_shape=None,
+                 max_workers=None,
+                 interp_workers=None,
+                 variables=None,
+                 **interp_kwargs):
         """Run routine for all months in the requested year.
 
         Parameters
@@ -825,20 +776,18 @@ class EraDownloader:
         """
         if max_workers == 1:
             for month in range(1, 13):
-                cls.run_month(
-                    year=year,
-                    month=month,
-                    area=area,
-                    levels=levels,
-                    combined_out_pattern=combined_out_pattern,
-                    interp_out_pattern=interp_out_pattern,
-                    run_interp=run_interp,
-                    overwrite=overwrite,
-                    required_shape=required_shape,
-                    interp_workers=interp_workers,
-                    variables=variables,
-                    **interp_kwargs,
-                )
+                cls.run_month(year=year,
+                              month=month,
+                              area=area,
+                              levels=levels,
+                              combined_out_pattern=combined_out_pattern,
+                              interp_out_pattern=interp_out_pattern,
+                              run_interp=run_interp,
+                              overwrite=overwrite,
+                              required_shape=required_shape,
+                              interp_workers=interp_workers,
+                              variables=variables,
+                              **interp_kwargs)
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
@@ -856,20 +805,15 @@ class EraDownloader:
                         required_shape=required_shape,
                         interp_workers=interp_workers,
                         variables=variables,
-                        **interp_kwargs,
-                    )
+                        **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
-                    logger.info(
-                        f'Submitted future for year {year} and month '
-                        f'{month}.'
-                    )
+                    logger.info(f'Submitted future for year {year} and month '
+                                f'{month}.')
             for future in as_completed(futures):
                 future.result()
                 v = futures[future]
-                logger.info(
-                    f'Finished future for year {v["year"]} and month '
-                    f'{v["month"]}.'
-                )
+                logger.info(f'Finished future for year {v["year"]} and month '
+                            f'{v["month"]}.')
 
         cls.make_yearly_file(year, combined_out_pattern, combined_yearly_file)
 
@@ -890,10 +834,8 @@ class EraDownloader:
         yearly_file : str
             Name of yearly file made from monthly files.
         """
-        msg = (
-            f'Not all monthly files with file_patten {file_pattern} for '
-            f'year {year} exist.'
-        )
+        msg = (f'Not all monthly files with file_patten {file_pattern} for '
+               f'year {year} exist.')
         assert cls.all_months_exist(year, file_pattern), msg
 
         files = [
@@ -911,16 +853,14 @@ class EraDownloader:
             logger.info(f'{yearly_file} already exists.')
 
     @classmethod
-    def _check_single_file(
-        cls,
-        res,
-        var_list=None,
-        check_nans=True,
-        check_heights=True,
-        max_interp_height=200,
-        required_shape=None,
-        max_workers=10,
-    ):
+    def _check_single_file(cls,
+                           res,
+                           var_list=None,
+                           check_nans=True,
+                           check_heights=True,
+                           max_interp_height=200,
+                           required_shape=None,
+                           max_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -961,21 +901,15 @@ class EraDownloader:
             *res['latitude'].shape,
             *res['longitude'].shape,
         )
-        good_shape = (
-            'NA' if required_shape is None else (res_shape == required_shape)
-        )
-        good_hgts = (
-            'NA'
-            if not check_heights
-            else cls.check_heights(
-                res,
-                max_interp_height=max_interp_height,
-                max_workers=max_workers,
-            )
-        )
-        nan_pct = (
-            'NA' if not check_nans else cls.get_nan_pct(res, var_list=var_list)
-        )
+        good_shape = ('NA' if required_shape is None else
+                      (res_shape == required_shape))
+        good_hgts = ('NA' if not check_heights else cls.check_heights(
+            res,
+            max_interp_height=max_interp_height,
+            max_workers=max_workers,
+        ))
+        nan_pct = ('NA' if not check_nans else cls.get_nan_pct(
+            res, var_list=var_list))
 
         if not good_vars:
             mask = np.array([var not in res for var in var_list])
@@ -1007,23 +941,20 @@ class EraDownloader:
             location and timestep
         """
         gp = res['zg'].values
-        sfc_hgt = np.repeat(
-            res['orog'].values[:, np.newaxis, ...], gp.shape[1], axis=1
-        )
+        sfc_hgt = np.repeat(res['orog'].values[:, np.newaxis, ...],
+                            gp.shape[1],
+                            axis=1)
         heights = gp - sfc_hgt
         heights = heights.reshape(heights.shape[0], heights.shape[1], -1)
         checks = []
         logger.info(
-            f'Checking heights with max_interp_height={max_interp_height}.'
-        )
+            f'Checking heights with max_interp_height={max_interp_height}.')
 
         if max_workers == 1:
             for idt in range(heights.shape[0]):
                 checks.append(
                     cls._check_heights_single_ts(
-                        heights[idt], max_interp_height=max_interp_height
-                    )
-                )
+                        heights[idt], max_interp_height=max_interp_height))
                 msg = f'Finished check for {idt + 1} of {heights.shape[0]}.'
                 logger.debug(msg)
         else:
@@ -1036,17 +967,13 @@ class EraDownloader:
                         max_interp_height=max_interp_height,
                     )
                     futures.append(future)
-                    msg = (
-                        f'Submitted height check for {idt + 1} of '
-                        f'{heights.shape[0]}'
-                    )
+                    msg = (f'Submitted height check for {idt + 1} of '
+                           f'{heights.shape[0]}')
                     logger.info(msg)
             for i, future in enumerate(as_completed(futures)):
                 checks.append(future.result())
-                msg = (
-                    f'Finished height check for {i + 1} of '
-                    f'{heights.shape[0]}'
-                )
+                msg = (f'Finished height check for {i + 1} of '
+                       f'{heights.shape[0]}')
                 logger.info(msg)
 
         return all(checks)
@@ -1103,16 +1030,14 @@ class EraDownloader:
         return 100 * nan_count / elem_count
 
     @classmethod
-    def check_single_file(
-        cls,
-        file,
-        var_list=None,
-        check_nans=True,
-        check_heights=True,
-        max_interp_height=200,
-        required_shape=None,
-        max_workers=10,
-    ):
+    def check_single_file(cls,
+                          file,
+                          var_list=None,
+                          check_nans=True,
+                          check_heights=True,
+                          max_interp_height=200,
+                          required_shape=None,
+                          max_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -1152,9 +1077,7 @@ class EraDownloader:
         good_shape = None
         good_vars = None
         good_hgts = None
-        var_list = (
-            var_list if var_list is not None else cls.DEFAULT_RENAMED_VARS
-        )
+        var_list = (var_list if var_list is not None else cls.VALID_VARIABLES)
         try:
             res = xr.open_dataset(file)
         except Exception as e:
@@ -1164,30 +1087,26 @@ class EraDownloader:
             good = False
 
         if good:
-            out = cls._check_single_file(
-                res,
-                var_list,
-                check_nans=check_nans,
-                check_heights=check_heights,
-                max_interp_height=max_interp_height,
-                required_shape=required_shape,
-                max_workers=max_workers,
-            )
+            out = cls._check_single_file(res,
+                                         var_list,
+                                         check_nans=check_nans,
+                                         check_heights=check_heights,
+                                         max_interp_height=max_interp_height,
+                                         required_shape=required_shape,
+                                         max_workers=max_workers)
             good_vars, good_shape, good_hgts, nan_pct = out
         return good_vars, good_shape, good_hgts, nan_pct
 
     @classmethod
-    def run_files_checks(
-        cls,
-        file_pattern,
-        var_list=None,
-        required_shape=None,
-        check_nans=True,
-        check_heights=True,
-        max_interp_height=200,
-        max_workers=None,
-        height_check_workers=10,
-    ):
+    def run_files_checks(cls,
+                         file_pattern,
+                         var_list=None,
+                         required_shape=None,
+                         check_nans=True,
+                         check_heights=True,
+                         max_interp_height=200,
+                         max_workers=None,
+                         height_check_workers=10):
         """Make sure given files include the given variables. Check for NaNs
         and required shape.
 
@@ -1224,9 +1143,9 @@ class EraDownloader:
             files = glob(file_pattern)
         else:
             files = file_pattern
-        df = pd.DataFrame(
-            columns=['file', 'good_vars', 'good_shape', 'good_hgts', 'nan_pct']
-        )
+        df = pd.DataFrame(columns=[
+            'file', 'good_vars', 'good_shape', 'good_hgts', 'nan_pct'
+        ])
         df['file'] = [os.path.basename(file) for file in files]
         if max_workers == 1:
             for i, file in enumerate(files):
@@ -1238,36 +1157,29 @@ class EraDownloader:
                     check_heights=check_heights,
                     max_interp_height=max_interp_height,
                     max_workers=height_check_workers,
-                    required_shape=required_shape,
-                )
-                df.at[i, df.columns[1:]] = out
+                    required_shape=required_shape)
+                df.loc[i, df.columns[1:]] = out
                 logger.info(f'Finished checking {file}.')
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for i, file in enumerate(files):
-                    future = exe.submit(
-                        cls.check_single_file,
-                        file=file,
-                        var_list=var_list,
-                        check_nans=check_nans,
-                        check_heights=check_heights,
-                        max_interp_height=max_interp_height,
-                        max_workers=height_check_workers,
-                        required_shape=required_shape,
-                    )
-                    msg = (
-                        f'Submitted file check future for {file}. Future '
-                        f'{i + 1} of {len(files)}.'
-                    )
+                    future = exe.submit(cls.check_single_file,
+                                        file=file,
+                                        var_list=var_list,
+                                        check_nans=check_nans,
+                                        check_heights=check_heights,
+                                        max_interp_height=max_interp_height,
+                                        max_workers=height_check_workers,
+                                        required_shape=required_shape)
+                    msg = (f'Submitted file check future for {file}. Future '
+                           f'{i + 1} of {len(files)}.')
                     logger.info(msg)
                     futures[future] = i
             for i, future in enumerate(as_completed(futures)):
                 out = future.result()
-                df.at[futures[future], df.columns[1:]] = out
-                msg = (
-                    f'Finished checking {df["file"].iloc[futures[future]]}.'
-                    f' Future {i + 1} of {len(files)}.'
-                )
+                df.loc[futures[future], df.columns[1:]] = out
+                msg = (f'Finished checking {df["file"].iloc[futures[future]]}.'
+                       f' Future {i + 1} of {len(files)}.')
                 logger.info(msg)
         return df
