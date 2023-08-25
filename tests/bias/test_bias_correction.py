@@ -7,9 +7,11 @@ import h5py
 import numpy as np
 import pytest
 import xarray as xr
+from scipy import stats
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.bias.bias_calc import LinearCorrection, MonthlyLinearCorrection
+from sup3r.bias.bias_calc import (LinearCorrection, MonthlyLinearCorrection,
+                                  SkillAssessment)
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
@@ -31,13 +33,14 @@ def test_smooth_interior_bc():
 
     calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
                             TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
-
     out = calc.run(knn=1, threshold=0.6, fill_extend=False, max_workers=1)
     og_scalar = out['rsds_scalar']
     og_adder = out['rsds_adder']
     nan_mask = np.isnan(og_scalar)
     assert np.isnan(og_adder[nan_mask]).all()
 
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_interior=0,
                    max_workers=1)
     scalar = out['rsds_scalar']
@@ -49,10 +52,13 @@ def test_smooth_interior_bc():
     assert not np.isnan(scalar[nan_mask]).any()
 
     # make sure smoothing affects the interior pixels but not the exterior
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_interior=1,
                    max_workers=1)
     smooth_scalar = out['rsds_scalar']
     smooth_adder = out['rsds_adder']
+
     assert not np.allclose(smooth_scalar[~nan_mask], scalar[~nan_mask])
     assert not np.allclose(smooth_adder[~nan_mask], adder[~nan_mask])
     assert np.allclose(smooth_scalar[nan_mask], scalar[nan_mask])
@@ -102,6 +108,8 @@ def test_linear_bc():
     assert np.isnan(adder[nan_mask]).all()
 
     # make sure the NN fill works for out-of-bounds pixels
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1)
     scalar = out['rsds_scalar']
     adder = out['rsds_adder']
@@ -114,6 +122,8 @@ def test_linear_bc():
     assert not np.isnan(adder[nan_mask]).any()
 
     # make sure smoothing affects the out-of-bounds pixels but not the in-bound
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_extend=2,
                    max_workers=1)
     smooth_scalar = out['rsds_scalar']
@@ -124,6 +134,8 @@ def test_linear_bc():
     assert not np.allclose(smooth_adder[nan_mask], adder[nan_mask])
 
     # parallel test
+    calc = LinearCorrection(FP_NSRDB, FP_CC, 'ghi', 'rsds',
+                            TARGET, SHAPE, bias_handler='DataHandlerNCforCC')
     out = calc.run(knn=1, threshold=0.6, fill_extend=True, smooth_extend=2,
                    max_workers=2)
     par_scalar = out['rsds_scalar']
@@ -430,3 +442,37 @@ def test_qa_integration():
                 data_bc = qa.get_source_dset(feature, feature)
 
             assert np.allclose(data_bc, data_truth, equal_nan=True)
+
+
+def test_skill_assessment():
+    """Test the skill assessment of a climate model vs. historical data"""
+    calc = SkillAssessment(FP_NSRDB, FP_CC, 'ghi', 'rsds', TARGET, SHAPE,
+                           bias_handler='DataHandlerNCforCC')
+
+    # test a known in-bounds gid
+    bias_gid = 5
+    dist, base_gid = calc.get_base_gid(bias_gid, 1)
+    bias_data = calc.get_bias_data(bias_gid)
+    base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                      base_gid, calc.base_handler,
+                                      daily_reduction='avg')
+    bias_coord = calc.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
+    base_coord = calc.base_meta.loc[base_gid, ['latitude', 'longitude']]
+    true_dist = bias_coord.values - base_coord.values
+    true_dist = np.hypot(true_dist[0], true_dist[1])
+    assert np.allclose(true_dist, dist)
+    assert true_dist < 0.1
+    iloc = np.where(calc.bias_gid_raster == bias_gid)
+    iloc += (0, )
+
+    out = calc.run(knn=1, threshold=0.6, fill_extend=True, max_workers=1)
+
+    base_mean = base_data.mean()
+    bias_mean = bias_data.mean()
+    assert np.allclose(out['base_ghi_mean'][iloc], base_mean)
+    assert np.allclose(out['bias_rsds_mean'][iloc], bias_mean)
+    assert np.allclose(out['rsds_bias'][iloc], bias_mean - base_mean)
+
+    ks = stats.ks_2samp(base_data - base_mean, bias_data - bias_mean)
+    assert np.allclose(out['rsds_ks_stat'][iloc], ks.statistic)
+    assert np.allclose(out['rsds_ks_p'][iloc], ks.pvalue)

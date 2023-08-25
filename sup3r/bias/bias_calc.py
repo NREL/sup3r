@@ -1,6 +1,7 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+import copy
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ import rex
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import KDTree
-from scipy.stats import ks_2samp
+from scipy import stats
 
 import sup3r.preprocessing.data_handling
 from sup3r.utilities import VERSION_RECORD, ModuleName
@@ -151,7 +152,7 @@ class DataRetrievalBase:
         out : float
             KS test statistic
         """
-        out = ks_2samp(base_data, bias_data * scalar + adder)
+        out = stats.ks_2samp(base_data, bias_data * scalar + adder)
         return out.statistic
 
     @classmethod
@@ -492,8 +493,30 @@ class LinearCorrection(DataRetrievalBase):
     available data (no season bias correction)
     """
 
-    # size of the time dimension, 1 is no time-based bias correction
     NT = 1
+    """size of the time dimension, 1 is no time-based bias correction"""
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataRetrievalBase
+        **kwargs : dict
+            Same keyword args as DataRetrievalBase
+        """
+        super().__init__(*args, **kwargs)
+
+        keys = [f'{self.bias_feature}_scalar',
+                f'{self.bias_feature}_adder',
+                f'bias_{self.bias_feature}_mean',
+                f'bias_{self.bias_feature}_std',
+                f'base_{self.base_dset}_mean',
+                f'base_{self.base_dset}_std',
+                ]
+        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
+                               np.nan, np.float32)
+                    for k in keys}
 
     @staticmethod
     def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
@@ -597,7 +620,7 @@ class LinearCorrection(DataRetrievalBase):
         """
         for key, arr in out.items():
             nan_mask = np.isnan(arr[..., 0])
-            for idt in range(self.NT):
+            for idt in range(arr.shape[-1]):
 
                 arr_smooth = arr[..., idt]
 
@@ -705,17 +728,6 @@ class LinearCorrection(DataRetrievalBase):
         """
         logger.debug('Starting linear correction calculation...')
 
-        keys = [f'{self.bias_feature}_scalar',
-                f'{self.bias_feature}_adder',
-                f'bias_{self.bias_feature}_mean',
-                f'bias_{self.bias_feature}_std',
-                f'base_{self.base_dset}_mean',
-                f'base_{self.base_dset}_std',
-                ]
-        out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
-                          np.nan, np.float32)
-               for k in keys}
-
         logger.info('Initialized scalar / adder with shape: {}'
                     .format(self.bias_gid_raster.shape))
 
@@ -735,7 +747,7 @@ class LinearCorrection(DataRetrievalBase):
                                                   daily_reduction,
                                                   self.bias_ti, self.decimals)
                     for key, arr in single_out.items():
-                        out[key][raster_loc] = arr
+                        self.out[key][raster_loc] = arr
 
                 logger.info('Completed bias calculations for {} out of {} '
                             'sites'.format(i + 1, len(self.bias_meta)))
@@ -765,19 +777,19 @@ class LinearCorrection(DataRetrievalBase):
                     raster_loc = futures[future]
                     single_out = future.result()
                     for key, arr in single_out.items():
-                        out[key][raster_loc] = arr
+                        self.out[key][raster_loc] = arr
 
                     logger.info('Completed bias calculations for {} out of {} '
                                 'sites'.format(i + 1, len(futures)))
 
         logger.info('Finished calculating bias correction factors.')
 
-        out = self.fill_and_smooth(out, fill_extend, smooth_extend,
-                                   smooth_interior)
+        self.out = self.fill_and_smooth(self.out, fill_extend, smooth_extend,
+                                        smooth_interior)
 
-        self.write_outputs(fp_out, out)
+        self.write_outputs(fp_out, self.out)
 
-        return out
+        return copy.deepcopy(self.out)
 
 
 class MonthlyLinearCorrection(LinearCorrection):
@@ -786,8 +798,8 @@ class MonthlyLinearCorrection(LinearCorrection):
     This calculation operates on single bias sites on a montly basis
     """
 
-    # size of the time dimension, 12 is monthly bias correction
     NT = 12
+    """size of the time dimension, 12 is monthly bias correction"""
 
     @classmethod
     def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
@@ -820,6 +832,133 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                  bias_feature,
                                                  base_dset)
                 for k, v in mout.items():
+                    out[k][month - 1] = v
+
+        return out
+
+
+class SkillAssessment(MonthlyLinearCorrection):
+    """Calculate historical skill of one dataset compared to another."""
+
+    PERCENTILES = (1, 5, 25, 50, 75, 95, 99)
+    """Data percentiles to report."""
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as DataRetrievalBase
+        **kwargs : dict
+            Same keyword args as DataRetrievalBase
+        """
+        super().__init__(*args, **kwargs)
+
+        monthly_keys = [f'{self.bias_feature}_scalar',
+                        f'{self.bias_feature}_adder',
+                        f'bias_{self.bias_feature}_mean_monthly',
+                        f'bias_{self.bias_feature}_std_monthly',
+                        f'base_{self.base_dset}_mean_monthly',
+                        f'base_{self.base_dset}_std_monthly',
+                        ]
+
+        annual_keys = [f'{self.bias_feature}_ks_stat',
+                       f'{self.bias_feature}_ks_p',
+                       f'{self.bias_feature}_bias',
+                       f'bias_{self.bias_feature}_mean',
+                       f'bias_{self.bias_feature}_std',
+                       f'bias_{self.bias_feature}_skew',
+                       f'bias_{self.bias_feature}_kurtosis',
+                       f'base_{self.base_dset}_mean',
+                       f'base_{self.base_dset}_std',
+                       f'base_{self.base_dset}_skew',
+                       f'base_{self.base_dset}_kurtosis',
+                       ]
+
+        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
+                               np.nan, np.float32)
+                    for k in monthly_keys}
+
+        arr = np.full((*self.bias_gid_raster.shape, 1), np.nan, np.float32)
+        for k in annual_keys:
+            self.out[k] = arr.copy()
+
+        for p in self.PERCENTILES:
+            base_k = f'base_{self.base_dset}_percentile_{p}'
+            bias_k = f'bias_{self.bias_feature}_percentile_{p}'
+            self.out[base_k] = arr.copy()
+            self.out[bias_k] = arr.copy()
+
+    @classmethod
+    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset):
+        """Run skill assessment metrics on 1D datasets at a single site.
+
+        Note we run the KS test on the mean=0 distributions as per:
+        S. Brands et al. 2013 https://doi.org/10.1007/s00382-013-1742-8
+        """
+
+        out = {}
+        bias_mean = np.nanmean(bias_data)
+        base_mean = np.nanmean(base_data)
+        out[f'{bias_feature}_bias'] = (bias_mean - base_mean)
+
+        out[f'bias_{bias_feature}_mean'] = bias_mean
+        out[f'bias_{bias_feature}_std'] = np.nanstd(bias_data)
+        out[f'bias_{bias_feature}_skew'] = stats.skew(bias_data)
+        out[f'bias_{bias_feature}_kurtosis'] = stats.kurtosis(bias_data)
+
+        out[f'base_{base_dset}_mean'] = base_mean
+        out[f'base_{base_dset}_std'] = np.nanstd(base_data)
+        out[f'base_{base_dset}_skew'] = stats.skew(base_data)
+        out[f'base_{base_dset}_kurtosis'] = stats.kurtosis(base_data)
+
+        ks_out = stats.ks_2samp(base_data - base_mean, bias_data - bias_mean)
+        out[f'{bias_feature}_ks_stat'] = ks_out.statistic
+        out[f'{bias_feature}_ks_p'] = ks_out.pvalue
+
+        for p in cls.PERCENTILES:
+            base_k = f'base_{base_dset}_percentile_{p}'
+            bias_k = f'bias_{bias_feature}_percentile_{p}'
+            out[base_k] = np.percentile(base_data, p)
+            out[bias_k] = np.percentile(bias_data, p)
+
+        return out
+
+    @classmethod
+    def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
+                    base_gid, base_handler, daily_reduction, bias_ti,
+                    decimals):
+        """Do a skill assessment at a single site"""
+
+        base_data, base_ti = cls.get_base_data(base_fps, base_dset,
+                                               base_gid, base_handler,
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals)
+
+        arr = np.full(cls.NT, np.nan, dtype=np.float32)
+        out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),
+               f'bias_{bias_feature}_std_monthly': arr.copy(),
+               f'base_{base_dset}_mean_monthly': arr.copy(),
+               f'base_{base_dset}_std_monthly': arr.copy(),
+               f'{bias_feature}_scalar': arr.copy(),
+               f'{bias_feature}_adder': arr.copy(),
+               }
+
+        out.update(cls._run_skill_eval(bias_data, base_data,
+                                       bias_feature, base_dset))
+
+        for month in range(1, 13):
+            bias_mask = bias_ti.month == month
+            base_mask = base_ti.month == month
+
+            if any(bias_mask) and any(base_mask):
+                mout = cls.get_linear_correction(bias_data[bias_mask],
+                                                 base_data[base_mask],
+                                                 bias_feature,
+                                                 base_dset)
+                for k, v in mout.items():
+                    if not k.endswith(('_scalar', '_adder')):
+                        k += '_monthly'
                     out[k][month - 1] = v
 
         return out
