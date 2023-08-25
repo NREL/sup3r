@@ -36,42 +36,33 @@ class DualValidationData(ValidationData):
             if h.hr_val_data is not None:
                 for _ in range(h.hr_val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
-                        h.lr_val_data, self.lr_sample_shape[:2]
-                    )
+                        h.lr_val_data, self.lr_sample_shape[:2])
                     temporal_slice = uniform_time_sampler(
-                        h.lr_val_data, self.lr_sample_shape[2]
-                    )
-                    lr_index = tuple(
-                        [
-                            *spatial_slice,
-                            temporal_slice,
-                            np.arange(h.lr_val_data.shape[-1]),
-                        ]
-                    )
+                        h.lr_val_data, self.lr_sample_shape[2])
+                    lr_index = tuple([
+                        *spatial_slice, temporal_slice,
+                        np.arange(h.lr_val_data.shape[-1])
+                    ])
                     hr_index = []
                     for s in lr_index[:2]:
                         hr_index.append(
                             slice(
                                 s.start * self.s_enhance,
                                 s.stop * self.s_enhance,
-                            )
-                        )
+                            ))
                     for s in lr_index[2:-1]:
                         hr_index.append(
                             slice(
                                 s.start * self.t_enhance,
                                 s.stop * self.t_enhance,
-                            )
-                        )
+                            ))
                     hr_index.append(lr_index[-1])
                     hr_index = tuple(hr_index)
-                    val_indices.append(
-                        {
-                            'handler_index': i,
-                            'hr_index': hr_index,
-                            'lr_index': lr_index,
-                        }
-                    )
+                    val_indices.append({
+                        'handler_index': i,
+                        'hr_index': hr_index,
+                        'lr_index': lr_index,
+                    })
         return val_indices
 
     @property
@@ -143,22 +134,21 @@ class DualValidationData(ValidationData):
             )
             for i in range(high_res.shape[0]):
                 val_index = self.val_indices[self._i + i]
-                high_res[i, ...] = self.data_handlers[
-                    val_index['handler_index']
-                ].hr_val_data[val_index['hr_index']]
-                low_res[i, ...] = self.data_handlers[
-                    val_index['handler_index']
-                ].lr_val_data[val_index['lr_index']]
+                high_res[i, ...] = self.data_handlers[val_index[
+                    'handler_index']].hr_val_data[val_index['hr_index']]
+                low_res[i, ...] = self.data_handlers[val_index[
+                    'handler_index']].lr_val_data[val_index['lr_index']]
                 self._remaining_observations -= 1
                 self.current_batch_indices.append(val_index)
 
+            # This checks if there is only a single timestep. If so this means
+            # we are using a spatial batch handler which uses 4D batches.
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
                 low_res = low_res[..., 0, :]
 
             high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind
-            )
+                high_res, self.output_features_ind)
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
             self._i += 1
             return batch
@@ -226,8 +216,7 @@ class DualBatchHandler(BatchHandler):
                 self.current_batch_indices.append(handler.current_obs_index)
 
             high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind
-            )
+                high_res, self.output_features_ind)
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
@@ -287,8 +276,7 @@ class SpatialDualBatchHandler(DualBatchHandler):
                 self.current_batch_indices.append(handler.current_obs_index)
 
             high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind
-            )
+                high_res, self.output_features_ind)
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
