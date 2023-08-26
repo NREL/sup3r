@@ -7,8 +7,6 @@ import click
 
 from rex.utilities.utilities import get_class_properties
 
-from reV.config.batch import BatchConfig
-
 from sup3r import __version__
 from sup3r.batch.batch import BatchJob
 
@@ -22,14 +20,6 @@ def main(ctx, verbose):
     """Sup3r Batch Command Line Interface"""
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
-
-
-@main.command()
-def valid_config_keys():
-    """
-    Echo the valid Batch config keys
-    """
-    click.echo(', '.join(get_class_properties(BatchConfig)))
 
 
 @main.command()
