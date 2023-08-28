@@ -35,7 +35,7 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose):
+def from_config(ctx, config_file, verbose=False):
     """Run sup3r regrid from a config file."""
 
     config = BaseCLI.from_config_preflight(ModuleName.REGRID, ctx,
