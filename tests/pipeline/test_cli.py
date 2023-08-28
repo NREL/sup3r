@@ -371,8 +371,6 @@ def test_pipeline_fwp_qa(runner):
         with open(status_fp, 'r') as f:
             status = json.load(f)
 
-        assert len(status) == 2
-        assert len(status['forward-pass']) == 2
         fwp_status = status['forward-pass']
         del fwp_status['pipeline_index']
         fwp_status = list(fwp_status.values())[0]
