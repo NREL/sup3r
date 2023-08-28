@@ -1,4 +1,5 @@
 """Sup3r pipeline tests"""
+import click
 import tempfile
 import os
 import json
@@ -7,8 +8,8 @@ import numpy as np
 import glob
 
 from rex import ResourceX
+from gaps import Pipeline
 
-from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest import make_fake_nc_files
 from sup3r import TEST_DATA_DIR, CONFIG_DIR
@@ -31,7 +32,11 @@ def test_fwp_pipeline():
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
 
-    with tempfile.TemporaryDirectory() as td:
+    test_context  = click.Context(click.Command("pipeline"), obj={})
+    with tempfile.TemporaryDirectory() as td, test_context as ctx:
+        ctx.obj["NAME"] = "test"
+        ctx.obj["VERBOSE"] = False
+
         input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
