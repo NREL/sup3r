@@ -5,10 +5,8 @@ Batch Job CLI entry points.
 """
 import click
 
-from rex.utilities.utilities import get_class_properties
-
 from sup3r import __version__
-from sup3r.batch.batch import BatchJob
+from gaps.batch import BatchJob
 
 
 @click.group()
@@ -42,18 +40,18 @@ def main(ctx, verbose):
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
 def from_config(ctx, config_file, dry_run, cancel, delete, monitor_background,
-                verbose):
+                verbose=False):
     """Run Sup3r batch from a config file."""
-    verbose = any([verbose, ctx.obj['VERBOSE']])
+    ctx.ensure_object(dict)
+    ctx.obj['VERBOSE'] = verbose or ctx.obj.get('VERBOSE', False)
+    batch = BatchJob(config_file)
 
     if cancel:
-        BatchJob.cancel_all(config_file, verbose=verbose)
+        batch.cancel()
     elif delete:
-        BatchJob.delete_all(config_file, verbose=verbose)
+        batch.delete_all()
     else:
-        BatchJob.run(config_file, dry_run=dry_run,
-                     monitor_background=monitor_background,
-                     verbose=verbose)
+        batch.run(dry_run=dry_run, monitor_background=monitor_background)
 
 
 if __name__ == '__main__':
