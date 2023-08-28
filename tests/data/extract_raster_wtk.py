@@ -5,8 +5,9 @@ Script to extract data subset in raster shape from flattened WTK h5 files.
 
 from rex import init_logger
 from rex.resource_extraction.resource_extraction import WindX
-from reV.handlers.outputs import Outputs
+from rex.outputs import Outputs
 import matplotlib.pyplot as plt
+
 
 if __name__ == '__main__':
     init_logger('rex', log_level='DEBUG')
