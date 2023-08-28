@@ -130,7 +130,7 @@ class Sup3rStatsBase(ABC):
             initialize Sup3rStats and execute Sup3rStats.run()
         """
         import_str = 'import time;\n'
-        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += f'from sup3r.qa.stats import {cls.__name__};\n'
 

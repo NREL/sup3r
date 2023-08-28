@@ -1647,7 +1647,7 @@ class ForwardPass:
             import_str += 'import os;\n'
             import_str += 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1";\n'
         import_str += 'import time;\n'
-        import_str += 'from reV.pipeline.status import Status;\n'
+        import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += ('from sup3r.pipeline.forward_pass '
                        f'import ForwardPassStrategy, {cls.__name__};\n')

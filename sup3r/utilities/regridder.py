@@ -587,7 +587,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         import_str = ('from sup3r.utilities.regridder import RegridOutput;\n'
                       'from rex import init_logger;\n'
                       'import time;\n'
-                      'from reV.pipeline.status import Status;\n')
+                      'from gaps import Status;\n')
 
         regrid_fun_str = get_fun_call_str(cls, config)
 

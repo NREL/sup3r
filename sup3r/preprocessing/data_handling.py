@@ -1335,7 +1335,7 @@ class DataHandler(FeatureHandler, InputMixIn):
             'from sup3r.preprocessing.data_handling '
             f'import {cls.__name__};\n'
             'import time;\n'
-            'from reV.pipeline.status import Status;\n'
+            'from gaps import Status;\n'
             'from rex import init_logger;\n'
         )
 
