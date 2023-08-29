@@ -1616,6 +1616,44 @@ class FeatureHandler:
         return out
 
     @classmethod
+    def _lookup(cls, out, feature, handle_features=None):
+        """Lookup feature in feature registry
+
+        Parameters
+        ----------
+        out : None
+            Candidate registry method for feature
+        feature : str
+            Feature to lookup in registry
+        handle_features : list
+            List of feature names (datasets) available in the source file. If
+            feature is found explicitly in this list, height/pressure suffixes
+            will not be appended to the output.
+
+        Returns
+        -------
+        method | None
+            Feature registry method corresponding to feature
+        """
+        if isinstance(out, list):
+            for v in out:
+                if v in handle_features:
+                    return lambda x: [v]
+
+        if out in handle_features:
+            return lambda x: [out]
+
+        height = Feature.get_height(feature)
+        if height is not None:
+            out = out.split('(.*)')[0] + f'{height}m'
+
+        pressure = Feature.get_pressure(feature)
+        if pressure is not None:
+            out = out.split('(.*)')[0] + f'{pressure}pa'
+
+        return lambda x: [out]
+
+    @classmethod
     def lookup(cls, feature, attr_name, handle_features=None):
         """Lookup feature in feature registry
 
@@ -1635,7 +1673,6 @@ class FeatureHandler:
         method | None
             Feature registry method corresponding to feature
         """
-
         handle_features = handle_features or []
 
         out = cls._exact_lookup(feature)
@@ -1645,23 +1682,12 @@ class FeatureHandler:
         if out is None:
             return None
 
-        if not isinstance(out, str):
+        if not isinstance(out, (str, list)):
             return getattr(out, attr_name, None)
 
         elif attr_name == 'inputs':
 
-            if out in handle_features:
-                return lambda x: [out]
-
-            height = Feature.get_height(feature)
-            if height is not None:
-                out = out.split('(.*)')[0] + f'{height}m'
-
-            pressure = Feature.get_pressure(feature)
-            if pressure is not None:
-                out = out.split('(.*)')[0] + f'{pressure}pa'
-
-            return lambda x: [out]
+            return cls._lookup(out, feature, handle_features)
 
     @classmethod
     def get_inputs_recursive(cls, feature, handle_features):
@@ -1702,7 +1728,6 @@ class FeatureHandler:
                     for r in cls.get_inputs_recursive(f, handle_features):
                         if r not in raw_features:
                             raw_features.append(r)
-
         return raw_features
 
     @classmethod

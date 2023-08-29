@@ -1,16 +1,17 @@
 """Sup3r topography utilities"""
 
-import numpy as np
 import logging
-from scipy.spatial import KDTree
-from rex import Resource
 from abc import ABC, abstractmethod
 
-import sup3r.preprocessing.data_handling
-from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerH5
-from sup3r.postprocessing.file_handling import OutputHandler
-from sup3r.utilities.utilities import get_source_type
+import numpy as np
+from rex import Resource
+from scipy.spatial import KDTree
 
+import sup3r.preprocessing.data_handling
+from sup3r.postprocessing.file_handling import OutputHandler
+from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
+from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
+from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,19 @@ class TopoExtract(ABC):
     (e.g. WTK or NSRDB)
     """
 
-    def __init__(self, file_paths, topo_source, s_enhance, agg_factor,
-                 target=None, shape=None, raster_file=None, max_delta=20,
-                 input_handler=None, ti_workers=1):
+    def __init__(
+        self,
+        file_paths,
+        topo_source,
+        s_enhance,
+        agg_factor,
+        target=None,
+        shape=None,
+        raster_file=None,
+        max_delta=20,
+        input_handler=None,
+        ti_workers=1,
+    ):
         """
         Parameters
         ----------
@@ -92,24 +103,33 @@ class TopoExtract(ABC):
             elif in_type == 'h5':
                 input_handler = DataHandlerH5
             else:
-                msg = ('Did not recognize input type "{}" for file paths: {}'
-                       .format(in_type, file_paths))
+                msg = 'Did not recognize input type "{}" for file paths: {}'.format(
+                    in_type, file_paths
+                )
                 logger.error(msg)
                 raise RuntimeError(msg)
         elif isinstance(input_handler, str):
-            input_handler = getattr(sup3r.preprocessing.data_handling,
-                                    input_handler, None)
+            input_handler = getattr(
+                sup3r.preprocessing.data_handling, input_handler, None
+            )
             if input_handler is None:
-                msg = ('Could not find requested data handler class '
-                       f'"{input_handler}" in '
-                       'sup3r.preprocessing.data_handling.')
+                msg = (
+                    'Could not find requested data handler class '
+                    f'"{input_handler}" in '
+                    'sup3r.preprocessing.data_handling.'
+                )
                 logger.error(msg)
                 raise KeyError(msg)
 
         self.input_handler = input_handler(
-            file_paths, [], target=target, shape=shape,
-            raster_file=raster_file, max_delta=max_delta,
-            worker_kwargs=dict(ti_workers=ti_workers))
+            file_paths,
+            [],
+            target=target,
+            shape=shape,
+            raster_file=raster_file,
+            max_delta=max_delta,
+            worker_kwargs=dict(ti_workers=ti_workers),
+        )
 
     @property
     @abstractmethod
@@ -129,8 +149,10 @@ class TopoExtract(ABC):
     @property
     def hr_shape(self):
         """Get the high-resolution spatial shape tuple"""
-        return (self._s_enhance * self.lr_lat_lon.shape[0],
-                self._s_enhance * self.lr_lat_lon.shape[1])
+        return (
+            self._s_enhance * self.lr_lat_lon.shape[0],
+            self._s_enhance * self.lr_lat_lon.shape[1],
+        )
 
     @property
     def lr_lat_lon(self):
@@ -156,8 +178,9 @@ class TopoExtract(ABC):
         """
         if self._hr_lat_lon is None:
             if self._s_enhance > 1:
-                self._hr_lat_lon = OutputHandler.get_lat_lon(self.lr_lat_lon,
-                                                             self.hr_shape)
+                self._hr_lat_lon = OutputHandler.get_lat_lon(
+                    self.lr_lat_lon, self.hr_shape
+                )
             else:
                 self._hr_lat_lon = self.lr_lat_lon
         return self._hr_lat_lon
@@ -171,9 +194,13 @@ class TopoExtract(ABC):
 
     @property
     def nn(self):
-        """Get the nearest neighbor indices """
-        ll2 = np.vstack((self.hr_lat_lon[:, :, 0].flatten(),
-                         self.hr_lat_lon[:, :, 1].flatten())).T
+        """Get the nearest neighbor indices"""
+        ll2 = np.vstack(
+            (
+                self.hr_lat_lon[:, :, 0].flatten(),
+                self.hr_lat_lon[:, :, 1].flatten(),
+            )
+        ).T
         _, nn = self.tree.query(ll2, k=self._agg_factor)
         if len(nn.shape) == 1:
             nn = np.expand_dims(nn, 1)
@@ -192,14 +219,24 @@ class TopoExtract(ABC):
             elev = elev.reshape(self.hr_shape)
             hr_elev.append(elev)
         hr_elev = np.dstack(hr_elev).mean(axis=-1)
-        logger.info('Finished mapping topo raster from {}'
-                    .format(self._topo_source))
+        logger.info(
+            'Finished mapping topo raster from {}'.format(self._topo_source)
+        )
         return hr_elev
 
     @classmethod
-    def get_topo_raster(cls, file_paths, topo_source, s_enhance,
-                        agg_factor, target=None, shape=None, raster_file=None,
-                        max_delta=20, input_handler=None):
+    def get_topo_raster(
+        cls,
+        file_paths,
+        topo_source,
+        s_enhance,
+        agg_factor,
+        target=None,
+        shape=None,
+        raster_file=None,
+        max_delta=20,
+        input_handler=None,
+    ):
         """Get the topography raster corresponding to the spatially enhanced
         grid from the file_paths input
 
@@ -251,9 +288,17 @@ class TopoExtract(ABC):
             topo_source_h5, usually meters.
         """
 
-        te = cls(file_paths, topo_source, s_enhance, agg_factor,
-                 target=target, shape=shape, raster_file=raster_file,
-                 max_delta=max_delta, input_handler=input_handler)
+        te = cls(
+            file_paths,
+            topo_source,
+            s_enhance,
+            agg_factor,
+            target=target,
+            shape=shape,
+            raster_file=raster_file,
+            max_delta=max_delta,
+            input_handler=input_handler,
+        )
 
         return te.hr_elev
 
@@ -290,11 +335,15 @@ class TopoExtractNC(TopoExtract):
         """
 
         super().__init__(*args, **kwargs)
-        logger.info('Getting topography for full domain from '
-                    f'{self._topo_source}')
+        logger.info(
+            'Getting topography for full domain from ' f'{self._topo_source}'
+        )
         self.source_handler = DataHandlerNC(
-            self._topo_source, features=['topography'],
-            worker_kwargs=dict(ti_workers=self.ti_workers), val_split=0.0)
+            self._topo_source,
+            features=['topography'],
+            worker_kwargs=dict(ti_workers=self.ti_workers),
+            val_split=0.0,
+        )
 
     @property
     def source_elevation(self):

@@ -4,9 +4,10 @@
 @author: bbenton
 """
 
-import numpy as np
 import logging
 import os
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,9 @@ class DistributedProcess:
     """High-level class with commonly used functionality for processes
     distributed across multiple nodes"""
 
-    def __init__(self, max_nodes=1, n_chunks=None, max_chunks=None,
-                 incremental=False):
+    def __init__(
+        self, max_nodes=1, n_chunks=None, max_chunks=None, incremental=False
+    ):
         """
         Parameters
         ----------
@@ -30,11 +32,14 @@ class DistributedProcess:
         incremental : bool
             Whether to skip previously run process chunks or to overwrite.
         """
-        msg = ('For a distributed process either max_chunks or '
-               'max_chunks + n_chunks must be specified. Received '
-               f'max_chunks={max_chunks}, n_chunks={n_chunks}.')
+        msg = (
+            'For a distributed process either max_chunks or '
+            'max_chunks + n_chunks must be specified. Received '
+            f'max_chunks={max_chunks}, n_chunks={n_chunks}.'
+        )
         assert max_chunks is not None, msg
         self._node_chunks = None
+        self._node_files = None
         self._n_chunks = n_chunks
         self._max_nodes = max_nodes
         self._max_chunks = max_chunks
@@ -59,8 +64,9 @@ class DistributedProcess:
         bool
             Whether all processes for the given node have finished
         """
-        return all(self.chunk_finished(i)
-                   for i in self.node_chunks[node_index])
+        return all(
+            self.chunk_finished(i) for i in self.node_chunks[node_index]
+        )
 
     # pylint: disable=E1136
     def chunk_finished(self, chunk_index):
@@ -80,8 +86,10 @@ class DistributedProcess:
         """
         out_file = self.out_files[chunk_index]
         if os.path.exists(out_file) and self.incremental:
-            logger.info('Not running chunk index {}, output file '
-                        'exists: {}'.format(chunk_index, out_file))
+            logger.info(
+                'Not running chunk index {}, output file '
+                'exists: {}'.format(chunk_index, out_file)
+            )
             return True
         return False
 
@@ -119,9 +127,18 @@ class DistributedProcess:
         """Get the chunk indices for different nodes"""
         if self._node_chunks is None:
             n_chunks = min(self.max_nodes, self.chunks)
-            self._node_chunks = np.array_split(np.arange(self.chunks),
-                                               n_chunks)
+            self._node_chunks = np.array_split(
+                np.arange(self.chunks), n_chunks
+            )
         return self._node_chunks
+
+    @property
+    def node_files(self):
+        """Get the file lists for different nodes"""
+        if self._node_files is None:
+            n_chunks = min(self.max_nodes, self.chunks)
+            self._node_files = np.array_split(self.out_files, n_chunks)
+        return self._node_files
 
     @property
     def failed_chunks(self):

@@ -3,19 +3,23 @@
 Sup3r conditional moment batch_handling module.
 """
 import logging
-import numpy as np
 from datetime import datetime as dt
 
+import numpy as np
 from rex.utilities import log_mem
 
-from sup3r.utilities.utilities import (spatial_coarsening,
-                                       temporal_coarsening,
-                                       spatial_simple_enhancing,
-                                       temporal_simple_enhancing,
-                                       smooth_data)
-from sup3r.preprocessing.batch_handling import (Batch,
-                                                ValidationData,
-                                                BatchHandler)
+from sup3r.preprocessing.batch_handling import (
+    Batch,
+    BatchHandler,
+    ValidationData,
+)
+from sup3r.utilities.utilities import (
+    smooth_data,
+    spatial_coarsening,
+    spatial_simple_enhancing,
+    temporal_coarsening,
+    temporal_simple_enhancing,
+)
 
 np.random.seed(42)
 
@@ -55,11 +59,11 @@ class BatchMom1(Batch):
     @property
     def output(self):
         """Get the output for the batch.
-           Output predicted by the neural net can be different
-           than the high_res when doing moment estimation.
-           For ex: output may be (high_res)**2
-           We distinguish output from high_res since it may not be
-           possible to recover high_res from output."""
+        Output predicted by the neural net can be different
+        than the high_res when doing moment estimation.
+        For ex: output may be (high_res)**2
+        We distinguish output from high_res since it may not be
+        possible to recover high_res from output."""
         return self._output
 
     @property
@@ -69,10 +73,15 @@ class BatchMom1(Batch):
 
     # pylint: disable=W0613
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -110,9 +119,13 @@ class BatchMom1(Batch):
 
     # pylint: disable=E1130
     @staticmethod
-    def make_mask(high_res,
-                  s_padding=None, t_padding=None,
-                  end_t_padding=False, t_enhance=None):
+    def make_mask(
+        high_res,
+        s_padding=None,
+        t_padding=None,
+        end_t_padding=False,
+        t_enhance=None,
+    ):
         """Make mask for output.
         The mask is used to ensure consistency when training conditional
         moments.
@@ -183,19 +196,23 @@ class BatchMom1(Batch):
 
     # pylint: disable=W0613
     @classmethod
-    def get_coarse_batch(cls, high_res,
-                         s_enhance, t_enhance=1,
-                         temporal_coarsening_method='subsample',
-                         temporal_enhancing_method='constant',
-                         output_features_ind=None,
-                         output_features=None,
-                         training_features=None,
-                         smoothing=None,
-                         smoothing_ignore=None,
-                         model_mom1=None,
-                         s_padding=None,
-                         t_padding=None,
-                         end_t_padding=False):
+    def get_coarse_batch(
+        cls,
+        high_res,
+        s_enhance,
+        t_enhance=1,
+        temporal_coarsening_method='subsample',
+        temporal_enhancing_method='constant',
+        output_features_ind=None,
+        output_features=None,
+        training_features=None,
+        smoothing=None,
+        smoothing_ignore=None,
+        model_mom1=None,
+        s_padding=None,
+        t_padding=None,
+        end_t_padding=False,
+    ):
         """Coarsen high res data and return Batch with high res and
         low res data
 
@@ -267,18 +284,26 @@ class BatchMom1(Batch):
             smoothing_ignore = []
 
         if t_enhance != 1:
-            low_res = temporal_coarsening(low_res, t_enhance,
-                                          temporal_coarsening_method)
+            low_res = temporal_coarsening(
+                low_res, t_enhance, temporal_coarsening_method
+            )
 
-        low_res = smooth_data(low_res, training_features, smoothing_ignore,
-                              smoothing)
+        low_res = smooth_data(
+            low_res, training_features, smoothing_ignore, smoothing
+        )
         high_res = cls.reduce_features(high_res, output_features_ind)
-        output = cls.make_output(low_res, high_res,
-                                 s_enhance, t_enhance,
-                                 model_mom1, output_features_ind,
-                                 temporal_enhancing_method)
-        mask = cls.make_mask(high_res,
-                             s_padding, t_padding, end_t_padding, t_enhance)
+        output = cls.make_output(
+            low_res,
+            high_res,
+            s_enhance,
+            t_enhance,
+            model_mom1,
+            output_features_ind,
+            temporal_enhancing_method,
+        )
+        mask = cls.make_mask(
+            high_res, s_padding, t_padding, end_t_padding, t_enhance
+        )
         batch = cls(low_res, high_res, output, mask)
 
         return batch
@@ -289,10 +314,15 @@ class BatchMom1SF(BatchMom1):
     of subfilter vel"""
 
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -328,11 +358,10 @@ class BatchMom1SF(BatchMom1):
             SF = HR - LR
         """
         # Remove LR from HR
-        enhanced_lr = spatial_simple_enhancing(low_res,
-                                               s_enhance=s_enhance)
-        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
-                                                t_enhance=t_enhance,
-                                                mode=t_enhance_mode)
+        enhanced_lr = spatial_simple_enhancing(low_res, s_enhance=s_enhance)
+        enhanced_lr = temporal_simple_enhancing(
+            enhanced_lr, t_enhance=t_enhance, mode=t_enhance_mode
+        )
         enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
 
         return high_res - enhanced_lr
@@ -343,10 +372,15 @@ class BatchMom2(BatchMom1):
     moment"""
 
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -382,7 +416,7 @@ class BatchMom2(BatchMom1):
         """
         # Remove first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
-        return (high_res - out)**2
+        return (high_res - out) ** 2
 
 
 class BatchMom2Sep(BatchMom1):
@@ -390,10 +424,15 @@ class BatchMom2Sep(BatchMom1):
     separate from first moment"""
 
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -427,12 +466,18 @@ class BatchMom2Sep(BatchMom1):
             (batch_size, spatial_1, spatial_2, temporal, features)
             HR is high-res
         """
-        return super(BatchMom2Sep,
-                     BatchMom2Sep).make_output(low_res, high_res,
-                                               s_enhance, t_enhance,
-                                               model_mom1,
-                                               output_features_ind,
-                                               t_enhance_mode)**2
+        return (
+            super(BatchMom2Sep, BatchMom2Sep).make_output(
+                low_res,
+                high_res,
+                s_enhance,
+                t_enhance,
+                model_mom1,
+                output_features_ind,
+                t_enhance_mode,
+            )
+            ** 2
+        )
 
 
 class BatchMom2SF(BatchMom1):
@@ -440,10 +485,15 @@ class BatchMom2SF(BatchMom1):
     of subfilter vel"""
 
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -480,13 +530,12 @@ class BatchMom2SF(BatchMom1):
         """
         # Remove LR and first moment from HR and square it
         out = model_mom1._tf_generate(low_res).numpy()
-        enhanced_lr = spatial_simple_enhancing(low_res,
-                                               s_enhance=s_enhance)
-        enhanced_lr = temporal_simple_enhancing(enhanced_lr,
-                                                t_enhance=t_enhance,
-                                                mode=t_enhance_mode)
+        enhanced_lr = spatial_simple_enhancing(low_res, s_enhance=s_enhance)
+        enhanced_lr = temporal_simple_enhancing(
+            enhanced_lr, t_enhance=t_enhance, mode=t_enhance_mode
+        )
         enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
-        return (high_res - enhanced_lr - out)**2
+        return (high_res - enhanced_lr - out) ** 2
 
 
 class BatchMom2SepSF(BatchMom1SF):
@@ -494,10 +543,15 @@ class BatchMom2SepSF(BatchMom1SF):
     of subfilter vel separate from first moment"""
 
     @staticmethod
-    def make_output(low_res, high_res,
-                    s_enhance=None, t_enhance=None,
-                    model_mom1=None, output_features_ind=None,
-                    t_enhance_mode='constant'):
+    def make_output(
+        low_res,
+        high_res,
+        s_enhance=None,
+        t_enhance=None,
+        model_mom1=None,
+        output_features_ind=None,
+        t_enhance_mode='constant',
+    ):
         """Make custom batch output
 
         Parameters
@@ -533,12 +587,18 @@ class BatchMom2SepSF(BatchMom1SF):
             SF = HR - LR
         """
         # Remove LR from HR and square it
-        return super(BatchMom2SepSF,
-                     BatchMom2SepSF).make_output(low_res, high_res,
-                                                 s_enhance, t_enhance,
-                                                 model_mom1,
-                                                 output_features_ind,
-                                                 t_enhance_mode)**2
+        return (
+            super(BatchMom2SepSF, BatchMom2SepSF).make_output(
+                low_res,
+                high_res,
+                s_enhance,
+                t_enhance,
+                model_mom1,
+                output_features_ind,
+                t_enhance_mode,
+            )
+            ** 2
+        )
 
 
 class ValidationDataMom1(ValidationData):
@@ -547,18 +607,27 @@ class ValidationDataMom1(ValidationData):
     # Classes to use for handling an individual batch obj.
     BATCH_CLASS = BatchMom1
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
-                 temporal_coarsening_method='subsample',
-                 temporal_enhancing_method='constant',
-                 output_features_ind=None,
-                 output_features=None,
-                 smoothing=None, smoothing_ignore=None,
-                 model_mom1=None,
-                 s_padding=None, t_padding=None, end_t_padding=False):
+    def __init__(
+        self,
+        data_handlers,
+        batch_size=8,
+        s_enhance=3,
+        t_enhance=1,
+        temporal_coarsening_method='subsample',
+        temporal_enhancing_method='constant',
+        output_features_ind=None,
+        output_features=None,
+        smoothing=None,
+        smoothing_ignore=None,
+        model_mom1=None,
+        s_padding=None,
+        t_padding=None,
+        end_t_padding=False,
+    ):
         """
         Parameters
         ----------
-        handlers : list[DataHandler]
+        data_handlers : list[DataHandler]
             List of DataHandler instances
         batch_size : int
             Size of validation data batches
@@ -615,12 +684,11 @@ class ValidationDataMom1(ValidationData):
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes)
 
-        self.handlers = data_handlers
+        self.data_handlers = data_handlers
         self.batch_size = batch_size
         self.sample_shape = handler_shapes[0]
         self.val_indices = self._get_val_indices()
-        self.max = np.ceil(
-            len(self.val_indices) / (batch_size))
+        self.max = np.ceil(len(self.val_indices) / (batch_size))
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.s_padding = s_padding
@@ -651,7 +719,8 @@ class ValidationDataMom1(ValidationData):
         batch : Batch
         """
         return self.BATCH_CLASS.get_coarse_batch(
-            high_res, self.s_enhance,
+            high_res,
+            self.s_enhance,
             t_enhance=self.t_enhance,
             temporal_coarsening_method=self.temporal_coarsening_method,
             temporal_enhancing_method=self.temporal_enhancing_method,
@@ -662,7 +731,8 @@ class ValidationDataMom1(ValidationData):
             model_mom1=self.model_mom1,
             s_padding=self.s_padding,
             t_padding=self.t_padding,
-            end_t_padding=self.end_t_padding)
+            end_t_padding=self.end_t_padding,
+        )
 
 
 class BatchHandlerMom1(BatchHandler):
@@ -673,14 +743,32 @@ class BatchHandlerMom1(BatchHandler):
     BATCH_CLASS = BatchMom1
     DATA_HANDLER_CLASS = None
 
-    def __init__(self, data_handlers, batch_size=8, s_enhance=3, t_enhance=1,
-                 means=None, stds=None, norm=True, n_batches=10,
-                 temporal_coarsening_method='subsample',
-                 temporal_enhancing_method='constant', stdevs_file=None,
-                 means_file=None, overwrite_stats=False, smoothing=None,
-                 smoothing_ignore=None, stats_workers=None, norm_workers=None,
-                 load_workers=None, max_workers=None, model_mom1=None,
-                 s_padding=None, t_padding=None, end_t_padding=False):
+    def __init__(
+        self,
+        data_handlers,
+        batch_size=8,
+        s_enhance=3,
+        t_enhance=1,
+        means=None,
+        stds=None,
+        norm=True,
+        n_batches=10,
+        temporal_coarsening_method='subsample',
+        temporal_enhancing_method='constant',
+        stdevs_file=None,
+        means_file=None,
+        overwrite_stats=False,
+        smoothing=None,
+        smoothing_ignore=None,
+        stats_workers=None,
+        norm_workers=None,
+        load_workers=None,
+        max_workers=None,
+        model_mom1=None,
+        s_padding=None,
+        t_padding=None,
+        end_t_padding=False,
+    ):
         """
         Parameters
         ----------
@@ -769,7 +857,7 @@ class BatchHandlerMom1(BatchHandler):
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
 
-        msg = ('All data handlers must have the same sample_shape')
+        msg = 'All data handlers must have the same sample_shape'
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes), msg
 
@@ -798,22 +886,27 @@ class BatchHandlerMom1(BatchHandler):
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
-        self.smoothed_features = [f for f in self.training_features
-                                  if f not in self.smoothing_ignore]
+        self.smoothed_features = [
+            f for f in self.training_features if f not in self.smoothing_ignore
+        ]
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
         self._load_workers = load_workers
         self.model_mom1 = model_mom1
 
-        logger.info(f'Initializing BatchHandler with smoothing={smoothing}. '
-                    f'Using stats_workers={self.stats_workers}, '
-                    f'norm_workers={self.norm_workers}, '
-                    f'load_workers={self.load_workers}.')
+        logger.info(
+            f'Initializing BatchHandler with smoothing={smoothing}. '
+            f'Using stats_workers={self.stats_workers}, '
+            f'norm_workers={self.norm_workers}, '
+            f'load_workers={self.load_workers}.'
+        )
 
         now = dt.now()
         self.parallel_load()
-        logger.debug(f'Finished loading data of shape {self.shape} '
-                     f'for BatchHandler in {dt.now() - now}.')
+        logger.debug(
+            f'Finished loading data of shape {self.shape} '
+            f'for BatchHandler in {dt.now() - now}.'
+        )
         log_mem(logger, log_level='INFO')
 
         if norm:
@@ -822,8 +915,10 @@ class BatchHandlerMom1(BatchHandler):
 
         logger.debug('Getting validation data for BatchHandler.')
         self.val_data = self.VAL_CLASS(
-            data_handlers, batch_size=batch_size,
-            s_enhance=s_enhance, t_enhance=t_enhance,
+            data_handlers,
+            batch_size=batch_size,
+            s_enhance=s_enhance,
+            t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
             temporal_enhancing_method=temporal_enhancing_method,
             output_features_ind=self.output_features_ind,
@@ -833,7 +928,8 @@ class BatchHandlerMom1(BatchHandler):
             model_mom1=self.model_mom1,
             s_padding=self.s_padding,
             t_padding=self.t_padding,
-            end_t_padding=self.end_t_padding)
+            end_t_padding=self.end_t_padding,
+        )
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
@@ -852,16 +948,25 @@ class BatchHandlerMom1(BatchHandler):
             handler_index = np.random.randint(0, len(self.data_handlers))
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                                 self.sample_shape[1], self.sample_shape[2],
-                                 self.shape[-1]), dtype=np.float32)
+            high_res = np.zeros(
+                (
+                    self.batch_size,
+                    self.sample_shape[0],
+                    self.sample_shape[1],
+                    self.sample_shape[2],
+                    self.shape[-1],
+                ),
+                dtype=np.float32,
+            )
 
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance, t_enhance=self.t_enhance,
+                high_res,
+                self.s_enhance,
+                t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 temporal_enhancing_method=self.temporal_enhancing_method,
                 output_features_ind=self.output_features_ind,
@@ -872,7 +977,8 @@ class BatchHandlerMom1(BatchHandler):
                 model_mom1=self.model_mom1,
                 s_padding=self.s_padding,
                 t_padding=self.t_padding,
-                end_t_padding=self.end_t_padding)
+                end_t_padding=self.end_t_padding,
+            )
 
             self._i += 1
             return batch
@@ -885,17 +991,23 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
 
     def __next__(self):
         if self._i < self.n_batches:
-            handler_index = np.random.randint(
-                0, len(self.data_handlers))
+            handler_index = np.random.randint(0, len(self.data_handlers))
             handler = self.data_handlers[handler_index]
-            high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                                 self.sample_shape[1], self.shape[-1]),
-                                dtype=np.float32)
+            high_res = np.zeros(
+                (
+                    self.batch_size,
+                    self.sample_shape[0],
+                    self.sample_shape[1],
+                    self.shape[-1],
+                ),
+                dtype=np.float32,
+            )
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next()[..., 0, :]
 
             batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res, self.s_enhance,
+                high_res,
+                self.s_enhance,
                 output_features_ind=self.output_features_ind,
                 training_features=self.training_features,
                 smoothing=self.smoothing,
@@ -903,7 +1015,8 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
                 model_mom1=self.model_mom1,
                 s_padding=self.s_padding,
                 t_padding=self.t_padding,
-                end_t_padding=self.end_t_padding)
+                end_t_padding=self.end_t_padding,
+            )
 
             self._i += 1
             return batch
@@ -914,35 +1027,41 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
 class ValidationDataMom1SF(ValidationDataMom1):
     """Iterator for validation data for first conditional moment of subfilter
     velocity"""
+
     BATCH_CLASS = BatchMom1SF
 
 
 class ValidationDataMom2(ValidationDataMom1):
     """Iterator for subfilter validation data for second conditional moment"""
+
     BATCH_CLASS = BatchMom2
 
 
 class ValidationDataMom2Sep(ValidationDataMom1):
     """Iterator for subfilter validation data for second conditional moment
     separate from first moment"""
+
     BATCH_CLASS = BatchMom2Sep
 
 
 class ValidationDataMom2SF(ValidationDataMom1):
     """Iterator for validation data for second conditional moment of subfilter
     velocity"""
+
     BATCH_CLASS = BatchMom2SF
 
 
 class ValidationDataMom2SepSF(ValidationDataMom1):
     """Iterator for validation data for second conditional moment of subfilter
     velocity separate from first moment"""
+
     BATCH_CLASS = BatchMom2SepSF
 
 
 class BatchHandlerMom1SF(BatchHandlerMom1):
     """Sup3r batch handling class for first conditional moment of subfilter
     velocity"""
+
     VAL_CLASS = ValidationDataMom1SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -950,12 +1069,14 @@ class BatchHandlerMom1SF(BatchHandlerMom1):
 class SpatialBatchHandlerMom1SF(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for first conditional moment of
     subfilter velocity"""
+
     VAL_CLASS = ValidationDataMom1SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
 class BatchHandlerMom2(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment"""
+
     VAL_CLASS = ValidationDataMom2
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -963,12 +1084,14 @@ class BatchHandlerMom2(BatchHandlerMom1):
 class BatchHandlerMom2Sep(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment separate from
     first moment"""
+
     VAL_CLASS = ValidationDataMom2Sep
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
 class SpatialBatchHandlerMom2(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment"""
+
     VAL_CLASS = ValidationDataMom2
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -976,6 +1099,7 @@ class SpatialBatchHandlerMom2(SpatialBatchHandlerMom1):
 class SpatialBatchHandlerMom2Sep(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment
     separate from first moment"""
+
     VAL_CLASS = ValidationDataMom2Sep
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -983,6 +1107,7 @@ class SpatialBatchHandlerMom2Sep(SpatialBatchHandlerMom1):
 class BatchHandlerMom2SF(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment of subfilter
     velocity"""
+
     VAL_CLASS = ValidationDataMom2SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -990,6 +1115,7 @@ class BatchHandlerMom2SF(BatchHandlerMom1):
 class BatchHandlerMom2SepSF(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment of subfilter
     velocity separate from first moment"""
+
     VAL_CLASS = ValidationDataMom2SepSF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -997,6 +1123,7 @@ class BatchHandlerMom2SepSF(BatchHandlerMom1):
 class SpatialBatchHandlerMom2SF(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment of
     subfilter velocity"""
+
     VAL_CLASS = ValidationDataMom2SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -1004,5 +1131,6 @@ class SpatialBatchHandlerMom2SF(SpatialBatchHandlerMom1):
 class SpatialBatchHandlerMom2SepSF(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment of
     subfilter velocity separate from first moment"""
+
     VAL_CLASS = ValidationDataMom2SepSF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
