@@ -5,10 +5,9 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 
-from sup3r.preprocessing.data_handling.mixin import (
-    CacheHandlingMixIn,
-    TrainingPrepMixIn,
-)
+from sup3r.preprocessing.data_handling.mixin import (CacheHandlingMixIn,
+                                                     TrainingPrepMixIn,
+                                                     )
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 
@@ -178,15 +177,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.info("Loading high resolution cache.")
             self.hr_dh.load_cached_data(with_split=False)
 
-        msg = ('hr_handler.shape is not divisible by s_enhance. Using '
-               f'shape = {self.hr_required_shape} instead.')
+        msg = (f'hr_handler.shape {self.hr_dh.shape[:-1]} is not divisible '
+               f'by s_enhance. Using shape = {self.hr_required_shape} '
+               'instead.')
         if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)
 
-        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
-                                       :self.hr_required_shape[1],
-                                       :self.hr_required_shape[2]]
+        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0], :self.
+                                       hr_required_shape[1], :self.
+                                       hr_required_shape[2]]
         self.hr_time_index = self.hr_dh.time_index[:self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[:self.lr_required_shape[2]]
 
@@ -255,7 +255,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         int
             Number of bytes for a single feature array
         """
-        feature_mem = self.grid_mem * len(self.lr_time_index)
+        feature_mem = self.grid_mem * self.lr_data.shape[-2]
         return feature_mem
 
     @property
@@ -294,7 +294,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def shape(self):
         """Get low_res shape"""
-        return self.lr_dh.shape
+        return self.lr_data.shape
 
     @property
     def lr_required_shape(self):
@@ -338,6 +338,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def hr_lat_lon(self):
         """Get high_res lat lon array"""
         if self._hr_lat_lon is None:
+
             self._hr_lat_lon = self.hr_dh.lat_lon[:self.hr_required_shape[0], :
                                                   self.hr_required_shape[1]]
         return self._hr_lat_lon

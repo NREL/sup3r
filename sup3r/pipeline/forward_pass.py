@@ -19,21 +19,16 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 import sup3r.models
-from sup3r.postprocessing.file_handling import (
-    OutputHandler,
-    OutputHandlerH5,
-    OutputHandlerNC,
-)
+from sup3r.postprocessing.file_handling import (OutputHandler, OutputHandlerH5,
+                                                OutputHandlerNC)
 from sup3r.preprocessing.data_handling import ExogenousDataHandler
 from sup3r.preprocessing.data_handling.base import InputMixIn
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
-from sup3r.utilities.utilities import (
-    get_chunk_slices,
-    get_input_handler_class,
-    get_source_type,
-)
+from sup3r.utilities.utilities import (get_chunk_slices,
+                                       get_input_handler_class,
+                                       get_source_type)
 
 np.random.seed(42)
 
@@ -1167,8 +1162,7 @@ class ForwardPass:
             cache_pattern=self.cache_pattern,
             single_ts_files=self.single_ts_files,
             handle_features=strategy.handle_features,
-            val_split=0.0,
-        )
+            val_split=0.0)
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs
 
@@ -1356,11 +1350,9 @@ class ForwardPass:
     @property
     def chunk_shape(self):
         """Get shape for the current padded spatiotemporal chunk"""
-        return (
-            self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
-            self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
-            self.ti_pad_slice.stop - self.ti_pad_slice.start,
-        )
+        return (self.lr_pad_slice[0].stop - self.lr_pad_slice[0].start,
+                self.lr_pad_slice[1].stop - self.lr_pad_slice[1].start,
+                self.ti_pad_slice.stop - self.ti_pad_slice.start)
 
     @property
     def cache_pattern(self):
