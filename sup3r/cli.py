@@ -5,7 +5,10 @@ Sup3r command line interface (CLI).
 import click
 import logging
 
+from gaps import Pipeline
+
 from sup3r.version import __version__
+from sup3r.utilities import ModuleName
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
 from sup3r.solar.solar_cli import from_config as solar_cli
 from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
@@ -14,7 +17,6 @@ from sup3r.qa.qa_cli import from_config as qa_cli
 from sup3r.qa.visual_qa_cli import from_config as visual_qa_cli
 from sup3r.qa.stats_cli import from_config as stats_cli
 from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
-from sup3r.pipeline.pipeline_cli import valid_config_keys as pipeline_keys
 from sup3r.batch.batch_cli import from_config as batch_cli
 from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
 from sup3r.utilities.regridder_cli import from_config as regrid_cli
@@ -539,13 +541,6 @@ def pipeline(ctx, cancel, monitor, background, verbose):
                    monitor=monitor, background=background, verbose=verbose)
 
 
-@pipeline.command()
-@click.pass_context
-def valid_pipeline_keys(ctx):
-    """Print the valid pipeline config keys"""
-    ctx.invoke(pipeline_keys)
-
-
 @main.group(invoke_without_command=True)
 @click.option('--dry-run', is_flag=True,
               help='Flag to do a dry run (make batch dirs without running).')
@@ -596,6 +591,17 @@ def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
                    dry_run=dry_run, cancel=cancel, delete=delete,
                    monitor_background=monitor_background,
                    verbose=verbose)
+
+
+Pipeline.COMMANDS[ModuleName.FORWARD_PASS] = fwp_cli
+Pipeline.COMMANDS[ModuleName.SOLAR] = solar_cli
+Pipeline.COMMANDS[ModuleName.DATA_EXTRACT] = dh_cli
+Pipeline.COMMANDS[ModuleName.DATA_COLLECT] = dc_cli
+Pipeline.COMMANDS[ModuleName.QA] = qa_cli
+Pipeline.COMMANDS[ModuleName.VISUAL_QA] = visual_qa_cli
+Pipeline.COMMANDS[ModuleName.STATS] = stats_cli
+Pipeline.COMMANDS[ModuleName.BIAS_CALC] = bias_calc_cli
+Pipeline.COMMANDS[ModuleName.REGRID] = regrid_cli
 
 
 if __name__ == '__main__':
