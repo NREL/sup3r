@@ -691,8 +691,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         else:
             self._run_parallel(source_files=self.source_files,
                                node_index=node_index,
-                               max_workers=self.regrid_workers,
-                               )
+                               max_workers=self.regrid_workers)
 
     def _run_serial(self, source_files, node_index):
         """Regrid data and write to output file, in serial.
@@ -714,8 +713,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             msg = ('Coordinate chunks regridded: {} out of {}. '
                    'Current memory usage is {:.3f} GB out of {:.3f} '
                    'GB total.'.format(i + 1, len(self.node_chunks[node_index]),
-                                      mem.used / 1e9, mem.total / 1e9,
-                                      ))
+                                      mem.used / 1e9, mem.total / 1e9))
             logger.info(msg)
 
     def _run_parallel(self, source_files, node_index, max_workers=None):
