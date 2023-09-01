@@ -29,6 +29,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                  shuffle_time=False,
                  s_enhance=15,
                  t_enhance=1,
+                 bc_files=None,
+                 bc_threshold=0.1,
                  val_split=0.0):
         """Initialize data handler using hr and lr data handlers for h5 data
         and nc data
@@ -54,6 +56,19 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Spatial enhancement factor
         t_enhance : int
             Temporal enhancement factor
+        bc_files : list | tuple | str | None
+            One or more filepaths to .h5 files output by
+            MonthlyLinearCorrection or LinearCorrection. Used to bias correct
+            low resolution data prior to regrdding. These should contain
+            datasets named "{feature}_scalar" and "{feature}_adder" where
+            {feature} is one of the features contained by this DataHandler and
+            the data is a 3D array of shape (lat, lon, time) where time is
+            length 1 for annual correction or 12 for monthly correction. Bias
+            correction is only run if bc_files is not None.
+        bc_threshold : float
+            Nearest neighbor euclidean distance threshold. If the DataHandler
+            coordinates are more than this value away from the bias correction
+            lat/lon, an error is raised.
         val_split : float
             Percentage of data to reserve for validation.
         """
@@ -78,6 +93,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_time_index = None
         self.lr_val_time_index = None
         self.hr_val_time_index = None
+        self.bc_files = bc_files
+        self.bc_threshold = bc_threshold
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -281,14 +298,23 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
-        used by batch handler"""
+        used by batch handler for computing means and stdevs"""
         return self.lr_data
+
+    @data.setter
+    def data(self, data):
+        """Set low res data. Same as lr_data.setter but used to match property
+        used by batch handler for computing means and stdevs"""
+        self.lr_data = data
 
     @property
     def lr_input_data(self):
         """Get low res data used as input to regridding routine"""
         if self.lr_dh.data is None:
             self.lr_dh.load_cached_data()
+        if self.bc_files is not None:
+            logger.info('Running bias correction on low resolution data.')
+            self.lr_dh.lin_bc(self.bc_files, self.bc_threshold)
         return self.lr_dh.data[..., :self.lr_required_shape[2], :]
 
     @property

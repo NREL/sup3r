@@ -12,6 +12,7 @@ from fnmatch import fnmatch
 
 import numpy as np
 import pandas as pd
+from rex import Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
@@ -1151,7 +1152,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         completed = []
         for idf, feature in enumerate(self.features):
             for fp in bc_files:
-                if feature not in completed:
+                dset_scalar = f'{feature}_scalar'
+                dset_adder = f'{feature}_adder'
+                with Resource(fp) as res:
+                    check = (dset_scalar in res.dsets
+                             and dset_adder in res.dsets)
+                if feature not in completed and check:
                     scalar, adder = get_spatial_bc_factors(
                         lat_lon=self.lat_lon,
                         feature_name=feature,

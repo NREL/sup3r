@@ -47,21 +47,18 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
 
         if diff.min() > threshold:
-            msg = (
-                'The DataHandler top left coordinate of {} '
-                'appears to be {} away from the nearest '
-                'bias correction coordinate of {} from {}. '
-                'Cannot apply bias correction.'.format(
-                    lat_lon,
-                    diff.min(),
-                    lat_lon_bc[idy, idx],
-                    os.path.basename(bias_fp),
-                )
-            )
+            msg = ('The DataHandler top left coordinate of {} '
+                   'appears to be {} away from the nearest '
+                   'bias correction coordinate of {} from {}. '
+                   'Cannot apply bias correction.'.format(
+                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
+                       os.path.basename(bias_fp),
+                   ))
             logger.error(msg)
             raise RuntimeError(msg)
 
-        assert dset_scalar in res.dsets and dset_adder in res.dsets
+        msg = (f'Either {dset_scalar} or {dset_adder} not found in {bias_fp}.')
+        assert dset_scalar in res.dsets and dset_adder in res.dsets, msg
         scalar = res[dset_scalar, slice_y, slice_x]
         adder = res[dset_adder, slice_y, slice_x]
         return scalar, adder
@@ -94,15 +91,14 @@ def global_linear_bc(input, scalar, adder, out_range=None):
     return out
 
 
-def local_linear_bc(
-    input,
-    lat_lon,
-    feature_name,
-    bias_fp,
-    lr_padded_slice,
-    out_range=None,
-    smoothing=0,
-):
+def local_linear_bc(input,
+                    lat_lon,
+                    feature_name,
+                    bias_fp,
+                    lr_padded_slice,
+                    out_range=None,
+                    smoothing=0,
+                    ):
     """Bias correct data using a simple annual (or multi-year) *scalar +adder
     method on a site-by-site basis.
 
@@ -156,10 +152,8 @@ def local_linear_bc(
         adder = adder[spatial_slice]
 
     if np.isnan(scalar).any() or np.isnan(adder).any():
-        msg = (
-            'Bias correction scalar/adder values had NaNs for '
-            f'"{feature_name}" from: {bias_fp}'
-        )
+        msg = ('Bias correction scalar/adder values had NaNs for '
+               f'"{feature_name}" from: {bias_fp}')
         logger.warning(msg)
         warn(msg)
 
@@ -171,12 +165,12 @@ def local_linear_bc(
 
     if smoothing > 0:
         for idt in range(scalar.shape[-1]):
-            scalar[..., idt] = gaussian_filter(
-                scalar[..., idt], smoothing, mode='nearest'
-            )
-            adder[..., idt] = gaussian_filter(
-                adder[..., idt], smoothing, mode='nearest'
-            )
+            scalar[..., idt] = gaussian_filter(scalar[..., idt],
+                                               smoothing,
+                                               mode='nearest')
+            adder[..., idt] = gaussian_filter(adder[..., idt],
+                                              smoothing,
+                                              mode='nearest')
 
     out = input * scalar + adder
     if out_range is not None:
@@ -186,17 +180,16 @@ def local_linear_bc(
     return out
 
 
-def monthly_local_linear_bc(
-    input,
-    lat_lon,
-    feature_name,
-    bias_fp,
-    lr_padded_slice,
-    time_index,
-    temporal_avg=True,
-    out_range=None,
-    smoothing=0,
-):
+def monthly_local_linear_bc(input,
+                            lat_lon,
+                            feature_name,
+                            bias_fp,
+                            lr_padded_slice,
+                            time_index,
+                            temporal_avg=True,
+                            out_range=None,
+                            smoothing=0,
+                            ):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
 
@@ -269,29 +262,25 @@ def monthly_local_linear_bc(
         scalar = np.repeat(scalar, input.shape[-1], axis=-1)
         adder = np.repeat(adder, input.shape[-1], axis=-1)
         if len(time_index.month.unique()) > 2:
-            msg = (
-                'Bias correction method "monthly_local_linear_bc" was used '
-                'with temporal averaging over a time index with >2 months.'
-            )
+            msg = ('Bias correction method "monthly_local_linear_bc" was used '
+                   'with temporal averaging over a time index with >2 months.')
             warn(msg)
             logger.warning(msg)
 
     if np.isnan(scalar).any() or np.isnan(adder).any():
-        msg = (
-            'Bias correction scalar/adder values had NaNs for '
-            f'"{feature_name}" from: {bias_fp}'
-        )
+        msg = ('Bias correction scalar/adder values had NaNs for '
+               f'"{feature_name}" from: {bias_fp}')
         logger.warning(msg)
         warn(msg)
 
     if smoothing > 0:
         for idt in range(scalar.shape[-1]):
-            scalar[..., idt] = gaussian_filter(
-                scalar[..., idt], smoothing, mode='nearest'
-            )
-            adder[..., idt] = gaussian_filter(
-                adder[..., idt], smoothing, mode='nearest'
-            )
+            scalar[..., idt] = gaussian_filter(scalar[..., idt],
+                                               smoothing,
+                                               mode='nearest')
+            adder[..., idt] = gaussian_filter(adder[..., idt],
+                                              smoothing,
+                                              mode='nearest')
 
     out = input * scalar + adder
     if out_range is not None:
