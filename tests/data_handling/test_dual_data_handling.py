@@ -328,3 +328,63 @@ def test_validation_batching(log=False,
                 hr_index[2]][::t_enhance]
             lr_ti = dual_handler.lr_val_time_index[lr_index[2]]
             assert np.array_equal(coarse_ti.values, lr_ti.values)
+
+
+def test_normalization(log=False,
+                       full_shape=(20, 20),
+                       sample_shape=(10, 10, 4)):
+    """Test correct normalization"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    s_enhance = 2
+    t_enhance = 2
+
+    hr_handler = DataHandlerH5(FP_WTK,
+                               FEATURES,
+                               target=TARGET_COORD,
+                               shape=full_shape,
+                               sample_shape=sample_shape,
+                               temporal_slice=slice(None, None, 10),
+                               worker_kwargs=dict(max_workers=1))
+    lr_handler = DataHandlerNC(FP_ERA,
+                               FEATURES,
+                               sample_shape=(sample_shape[0] // s_enhance,
+                                             sample_shape[1] // s_enhance,
+                                             sample_shape[2] // t_enhance),
+                               temporal_slice=slice(None, None,
+                                                    t_enhance * 10),
+                               worker_kwargs=dict(max_workers=1))
+
+    dual_handler = DualDataHandler(hr_handler,
+                                   lr_handler,
+                                   s_enhance=s_enhance,
+                                   t_enhance=t_enhance,
+                                   val_split=0.1)
+
+    means = [
+        np.nanmean(dual_handler.lr_data[..., i])
+        for i in range(dual_handler.lr_data.shape[-1])
+    ]
+    stdevs = [
+        np.nanstd(dual_handler.lr_data[..., i] - means[i])
+        for i in range(dual_handler.lr_data.shape[-1])
+    ]
+
+    batch_handler = DualBatchHandler([dual_handler],
+                                     batch_size=2,
+                                     s_enhance=s_enhance,
+                                     t_enhance=t_enhance,
+                                     n_batches=10)
+    assert np.allclose(batch_handler.means, means)
+    assert np.allclose(batch_handler.stds, stdevs)
+    stacked_data = np.concatenate(
+        [d.data for d in batch_handler.data_handlers], axis=2)
+
+    for i in range(len(FEATURES)):
+        std = np.std(stacked_data[..., i])
+        if std == 0:
+            std = 1
+        mean = np.mean(stacked_data[..., i])
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)

@@ -21,11 +21,20 @@ logger = logging.getLogger(__name__)
 class Sup3rGan(AbstractInterface, AbstractSingleModel):
     """Basic sup3r GAN model."""
 
-    def __init__(self, gen_layers, disc_layers, loss='MeanSquaredError',
-                 optimizer=None, learning_rate=1e-4,
-                 optimizer_disc=None, learning_rate_disc=None,
-                 history=None, meta=None, means=None, stdevs=None,
-                 default_device=None, name=None):
+    def __init__(self,
+                 gen_layers,
+                 disc_layers,
+                 loss='MeanSquaredError',
+                 optimizer=None,
+                 learning_rate=1e-4,
+                 optimizer_disc=None,
+                 learning_rate_disc=None,
+                 history=None,
+                 meta=None,
+                 means=None,
+                 stdevs=None,
+                 default_device=None,
+                 name=None):
         """
         Parameters
         ----------
@@ -107,10 +116,10 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc = self.load_network(disc_layers, 'discriminator')
 
-        self._means = (means if means is None
-                       else np.array(means).astype(np.float32))
-        self._stdevs = (stdevs if stdevs is None
-                        else np.array(stdevs).astype(np.float32))
+        self._means = (means if means is None else np.array(means).astype(
+            np.float32))
+        self._stdevs = (stdevs if stdevs is None else np.array(stdevs).astype(
+            np.float32))
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -158,10 +167,10 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             Returns a pretrained gan model that was previously saved to out_dir
         """
         if verbose:
-            logger.info('Loading GAN from disk in directory: {}'
-                        .format(model_dir))
-            msg = ('Active python environment versions: \n{}'
-                   .format(pprint.pformat(VERSION_RECORD, indent=4)))
+            logger.info(
+                'Loading GAN from disk in directory: {}'.format(model_dir))
+            msg = ('Active python environment versions: \n{}'.format(
+                pprint.pformat(VERSION_RECORD, indent=4)))
             logger.info(msg)
 
         fp_gen = os.path.join(model_dir, 'model_gen.pkl')
@@ -170,7 +179,10 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         return cls(fp_gen, fp_disc, **params)
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
+    def generate(self,
+                 low_res,
+                 norm_in=True,
+                 un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
@@ -202,8 +214,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
         exo_check = (exogenous_data is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check
-                   else np.concatenate((low_res, exogenous_data), axis=-1))
+        low_res = (low_res if exo_check else np.concatenate(
+            (low_res, exogenous_data), axis=-1))
 
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
@@ -213,8 +225,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             try:
                 hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -245,8 +257,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             try:
                 hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -305,8 +317,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             try:
                 out = layer(out)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, out.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, out.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -337,8 +349,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             try:
                 out = layer(out)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, out.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, out.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -397,23 +409,24 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         -------
         dict
         """
-        means = (self._means if self._means is None
-                 else [float(m) for m in self._means])
-        stdevs = (self._stdevs if self._stdevs is None
-                  else [float(s) for s in self._stdevs])
+        means = (self._means
+                 if self._means is None else [float(m) for m in self._means])
+        stdevs = (self._stdevs if self._stdevs is None else
+                  [float(s) for s in self._stdevs])
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
         config_optm_d = self.get_optimizer_config(self.optimizer_disc)
 
-        model_params = {'name': self.name,
-                        'loss': self.loss_name,
-                        'version_record': self.version_record,
-                        'optimizer': config_optm_g,
-                        'optimizer_disc': config_optm_d,
-                        'means': means,
-                        'stdevs': stdevs,
-                        'meta': self.meta,
-                        }
+        model_params = {
+            'name': self.name,
+            'loss': self.loss_name,
+            'version_record': self.version_record,
+            'optimizer': config_optm_g,
+            'optimizer_disc': config_optm_d,
+            'means': means,
+            'stdevs': stdevs,
+            'meta': self.meta,
+        }
 
         return model_params
 
@@ -454,7 +467,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             _ = self._tf_discriminate(hi_res)
 
     @staticmethod
-    def get_weight_update_fraction(history, comparison_key,
+    def get_weight_update_fraction(history,
+                                   comparison_key,
                                    update_bounds=(0.5, 0.95),
                                    update_frac=0.0):
         """Get the factor by which to multiply previous adversarial loss
@@ -568,8 +582,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         # note that these have flipped labels from the generator
         # loss because of the opposite optimization goal
         logits = tf.concat([disc_out_true, disc_out_gen], axis=0)
-        labels = tf.concat([tf.ones_like(disc_out_true),
-                            tf.zeros_like(disc_out_gen)], axis=0)
+        labels = tf.concat(
+            [tf.ones_like(disc_out_true),
+             tf.zeros_like(disc_out_gen)], axis=0)
 
         loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
                                                             labels=labels)
@@ -577,8 +592,12 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         return loss_disc
 
-    def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
-                  train_gen=True, train_disc=False):
+    def calc_loss(self,
+                  hi_res_true,
+                  hi_res_gen,
+                  weight_gen_advers=0.001,
+                  train_gen=True,
+                  train_disc=False):
         """Calculate the GAN loss function using generated and true high
         resolution data.
 
@@ -610,8 +629,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             msg = ('The tensor shapes of the synthetic output {} and '
                    'true high res {} did not have matching shape! '
                    'Check the spatiotemporal enhancement multipliers in your '
-                   'your model config and data handlers.'
-                   .format(hi_res_gen.shape, hi_res_true.shape))
+                   'your model config and data handlers.'.format(
+                       hi_res_gen.shape, hi_res_true.shape))
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -630,11 +649,12 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         elif train_disc:
             loss = loss_disc
 
-        loss_details = {'loss_gen': loss_gen,
-                        'loss_gen_content': loss_gen_content,
-                        'loss_gen_advers': loss_gen_advers,
-                        'loss_disc': loss_disc,
-                        }
+        loss_details = {
+            'loss_gen': loss_gen,
+            'loss_gen_content': loss_gen_content,
+            'loss_gen_advers': loss_gen_advers,
+            'loss_disc': loss_disc,
+        }
 
         return loss, loss_details
 
@@ -661,9 +681,11 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         for val_batch in batch_handler.val_data:
             output_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
-                val_batch.high_res, output_gen,
+                val_batch.high_res,
+                output_gen,
                 weight_gen_advers=weight_gen_advers,
-                train_gen=False, train_disc=False)
+                train_gen=False,
+                train_disc=False)
 
             loss_details = self.update_loss_details(loss_details,
                                                     v_loss_details,
@@ -672,8 +694,13 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         return loss_details
 
-    def train_epoch(self, batch_handler, weight_gen_advers, train_gen,
-                    train_disc, disc_loss_bounds, multi_gpu=False):
+    def train_epoch(self,
+                    batch_handler,
+                    weight_gen_advers,
+                    train_gen,
+                    train_disc,
+                    disc_loss_bounds,
+                    multi_gpu=False):
         """Train the GAN for one epoch.
 
         Parameters
@@ -727,19 +754,25 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
                 b_loss_details = self.run_gradient_descent(
-                    batch.low_res, batch.high_res, self.generator_weights,
+                    batch.low_res,
+                    batch.high_res,
+                    self.generator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer,
-                    train_gen=True, train_disc=False,
+                    train_gen=True,
+                    train_disc=False,
                     multi_gpu=multi_gpu)
 
             if only_disc or (train_disc and not disc_too_good):
                 trained_disc = True
                 b_loss_details = self.run_gradient_descent(
-                    batch.low_res, batch.high_res, self.discriminator_weights,
+                    batch.low_res,
+                    batch.high_res,
+                    self.discriminator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer_disc,
-                    train_gen=False, train_disc=True,
+                    train_gen=False,
+                    train_disc=True,
                     multi_gpu=multi_gpu)
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
@@ -751,24 +784,23 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
             logger.debug('Batch {} out of {} has epoch-average '
                          '(gen / disc) loss of: ({:.2e} / {:.2e}). '
-                         'Trained (gen / disc): ({} / {})'
-                         .format(ib, len(batch_handler),
-                                 loss_details['train_loss_gen'],
-                                 loss_details['train_loss_disc'],
-                                 trained_gen, trained_disc))
+                         'Trained (gen / disc): ({} / {})'.format(
+                             ib, len(batch_handler),
+                             loss_details['train_loss_gen'],
+                             loss_details['train_loss_disc'], trained_gen,
+                             trained_disc))
 
             if all([not trained_gen, not trained_disc]):
                 msg = ('For some reason none of the GAN networks trained '
-                       'during batch {} out of {}!'
-                       .format(ib, len(batch_handler)))
+                       'during batch {} out of {}!'.format(
+                           ib, len(batch_handler)))
                 logger.warning(msg)
                 warn(msg)
 
         return loss_details
 
     def update_adversarial_weights(self, history, adaptive_update_fraction,
-                                   adaptive_update_bounds,
-                                   weight_gen_advers,
+                                   adaptive_update_bounds, weight_gen_advers,
                                    train_disc):
         """Update spatial / temporal adversarial loss weights based on training
         fraction history.
@@ -805,7 +837,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             update_frac = 1
             if train_disc:
                 update_frac = self.get_weight_update_fraction(
-                    history, 'train_disc_trained_frac',
+                    history,
+                    'train_disc_trained_frac',
                     update_frac=adaptive_update_fraction,
                     update_bounds=adaptive_update_bounds)
                 weight_gen_advers *= update_frac
@@ -816,7 +849,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         return weight_gen_advers
 
-    def train(self, batch_handler, n_epoch,
+    def train(self,
+              batch_handler,
+              n_epoch,
               weight_gen_advers=0.001,
               train_gen=True,
               train_disc=True,
@@ -900,20 +935,21 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         epochs = list(range(n_epoch))
 
         if self._history is None:
-            self._history = pd.DataFrame(
-                columns=['elapsed_time'])
+            self._history = pd.DataFrame(columns=['elapsed_time'])
             self._history.index.name = 'epoch'
         else:
             epochs += self._history.index.values[-1] + 1
 
         t0 = time.time()
         logger.info('Training model with adversarial weight: {} '
-                    'for {} epochs starting at epoch {}'
-                    .format(weight_gen_advers, n_epoch, epochs[0]))
+                    'for {} epochs starting at epoch {}'.format(
+                        weight_gen_advers, n_epoch, epochs[0]))
 
         for epoch in epochs:
-            loss_details = self.train_epoch(batch_handler, weight_gen_advers,
-                                            train_gen, train_disc,
+            loss_details = self.train_epoch(batch_handler,
+                                            weight_gen_advers,
+                                            train_gen,
+                                            train_disc,
                                             disc_loss_bounds,
                                             multi_gpu=multi_gpu)
 
@@ -925,8 +961,8 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
                 loss_details["train_loss_gen"],
                 loss_details["train_loss_disc"])
 
-            if all(loss in loss_details for loss
-                   in ('val_loss_gen', 'val_loss_disc')):
+            if all(loss in loss_details
+                   for loss in ('val_loss_gen', 'val_loss_disc')):
                 msg += 'gen/disc val loss: {:.2e}/{:.2e} '.format(
                     loss_details["val_loss_gen"],
                     loss_details["val_loss_disc"])
@@ -937,20 +973,28 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             lr_d = self.get_optimizer_config(
                 self.optimizer_disc)['learning_rate']
 
-            extras = {'weight_gen_advers': weight_gen_advers,
-                      'disc_loss_bound_0': disc_loss_bounds[0],
-                      'disc_loss_bound_1': disc_loss_bounds[1],
-                      'learning_rate_gen': lr_g,
-                      'learning_rate_disc': lr_d}
+            extras = {
+                'weight_gen_advers': weight_gen_advers,
+                'disc_loss_bound_0': disc_loss_bounds[0],
+                'disc_loss_bound_1': disc_loss_bounds[1],
+                'learning_rate_gen': lr_g,
+                'learning_rate_disc': lr_d
+            }
 
             weight_gen_advers = self.update_adversarial_weights(
                 loss_details, adaptive_update_fraction, adaptive_update_bounds,
                 weight_gen_advers, train_disc)
 
-            stop = self.finish_epoch(epoch, epochs, t0, loss_details,
-                                     checkpoint_int, out_dir,
-                                     early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch, extras=extras)
+            stop = self.finish_epoch(epoch,
+                                     epochs,
+                                     t0,
+                                     loss_details,
+                                     checkpoint_int,
+                                     out_dir,
+                                     early_stop_on,
+                                     early_stop_threshold,
+                                     early_stop_n_epoch,
+                                     extras=extras)
 
             if stop:
                 break

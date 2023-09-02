@@ -85,6 +85,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.shuffle_time = shuffle_time
         self._lr_lat_lon = None
         self._hr_lat_lon = None
+        self._lr_input_data = None
         self.lr_data = None
         self.hr_data = None
         self.lr_val_data = None
@@ -163,7 +164,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                     warn(msg)
 
     def normalize(self, means, stdevs):
-        """Normalize low_res data
+        """Normalize low_res and high_res data
 
         Parameters
         ----------
@@ -174,11 +175,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
+        logger.info('Normalizing low resolution data.')
         self._normalize(data=self.lr_data,
                         val_data=self.lr_val_data,
                         means=means,
                         stds=stdevs,
                         max_workers=self.lr_dh.norm_workers)
+        logger.info('Normalizing high resolution data.')
+        self._normalize(data=self.hr_data,
+                        val_data=self.hr_val_data,
+                        means=means,
+                        stds=stdevs,
+                        max_workers=self.hr_dh.norm_workers)
 
     @property
     def output_features(self):
@@ -301,26 +309,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         used by batch handler for computing means and stdevs"""
         return self.lr_data
 
-    @data.setter
-    def data(self, data):
-        """Set low res data. Same as lr_data.setter but used to match property
-        used by batch handler for computing means and stdevs"""
-        self.lr_data = data
-
     @property
     def lr_input_data(self):
         """Get low res data used as input to regridding routine"""
-        if self.lr_dh.data is None:
-            self.lr_dh.load_cached_data()
-        if self.bc_files is not None:
-            logger.info('Running bias correction on low resolution data.')
-            self.lr_dh.lin_bc(self.bc_files, self.bc_threshold)
-        return self.lr_dh.data[..., :self.lr_required_shape[2], :]
-
-    @property
-    def shape(self):
-        """Get low_res shape"""
-        return self.lr_data.shape
+        if self._lr_input_data is None:
+            if self.lr_dh.data is None:
+                self.lr_dh.load_cached_data()
+            if self.bc_files is not None:
+                logger.info('Running bias correction on low resolution data.')
+                self.lr_dh.lin_bc(self.bc_files, self.bc_threshold)
+            self._lr_input_data = self.lr_dh.data[
+                ..., :self.lr_required_shape[2], :]
+        return self._lr_input_data
 
     @property
     def lr_required_shape(self):
@@ -328,6 +328,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return (self.hr_dh.requested_shape[0] // self.s_enhance,
                 self.hr_dh.requested_shape[1] // self.s_enhance,
                 self.hr_dh.requested_shape[2] // self.t_enhance)
+
+    @property
+    def shape(self):
+        """Get low_res shape"""
+        return (*self.lr_required_shape, len(self.features))
 
     @property
     def hr_required_shape(self):
