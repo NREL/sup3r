@@ -669,6 +669,66 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                     f'load_workers={self.load_workers}, '
                     f'ti_workers={self.ti_workers}')
 
+    @staticmethod
+    def get_closest_lat_lon(lat_lon, target):
+        """Get closest indices to target lat lon
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon
+            (spatial_1, spatial_2, 2)
+            Last dimension in order of (lat, lon)
+        target : tuple
+            (lat, lon) for target coordinate
+
+        Returns
+        -------
+        row : int
+            row index for closest lat/lon to target lat/lon
+        col : int
+            col index for closest lat/lon to target lat/lon
+        """
+        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
+        ll2 = np.vstack((lat_lon[..., 0].flatten(), lat_lon[...,
+                                                            1].flatten())).T
+        tree = KDTree(ll2)
+        _, i = tree.query(np.array(target))
+        row, col = np.where((lat_lon[..., 0] == ll2[i, 0])
+                            & (lat_lon[..., 1] == ll2[i, 1]))
+        row = row[0]
+        col = col[0]
+        return row, col
+
+    def get_lat_lon_df(self, target, features=None):
+        """Get timeseries for given target
+
+        Parameters
+        ----------
+        target : tuple
+            (lat, lon) for target coordinate
+        features : list | None
+            Optional list of features to include in returned data. If None then
+            all available features are returned.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            Pandas dataframe with columns for each feature and timeindex for
+            the given target
+        """
+        row, col = self.get_closest_lat_lon(self.lat_lon, target)
+        df = pd.DataFrame()
+        df['time'] = self.time_index
+        if self.data is None:
+            self.load_cached_data()
+        data = self.data[row, col]
+        features = features if features is not None else self.features
+        for f in features:
+            i = self.features.index(f)
+            df[f] = data[:, i]
+        return df
+
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
         """Get lat/lon grid for requested target and shape

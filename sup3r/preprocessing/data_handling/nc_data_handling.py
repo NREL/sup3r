@@ -18,17 +18,15 @@ from scipy.spatial import KDTree
 from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
-from sup3r.preprocessing.feature_handling import (BVFreqMon, BVFreqSquaredNC,
-                                                  ClearSkyRatioCC, Feature,
-                                                  InverseMonNC, LatLonNC,
-                                                  PotentialTempNC, PressureNC,
-                                                  Rews, Shear, Tas, TasMax,
-                                                  TasMin, TempNC, TempNCforCC,
-                                                  UWind, VWind,
-                                                  WinddirectionNC, WindspeedNC)
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon, BVFreqSquaredNC, ClearSkyRatioCC, Feature, InverseMonNC,
+    LatLonNC, PotentialTempNC, PressureNC, Rews, Shear, Tas, TasMax, TasMin,
+    TempNC, TempNCforCC, UWind, VWind, WinddirectionNC, WindspeedNC,
+)
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
-                                       np_to_pd_times)
+                                       np_to_pd_times,
+                                       )
 
 np.random.seed(42)
 
@@ -80,9 +78,8 @@ class DataHandlerNC(DataHandler):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.extract_features)
         n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(
-            self._extract_workers, proc_mem, n_procs
-        )
+        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
+                                               n_procs)
         return extract_workers
 
     @classmethod
@@ -146,10 +143,8 @@ class DataHandlerNC(DataHandler):
         elif hasattr(handle, 'times'):
             time_index = np_to_pd_times(handle.times.values)
         else:
-            msg = (
-                f'Could not get time_index for {file_paths}. '
-                'Assuming time independence.'
-            )
+            msg = (f'Could not get time_index for {file_paths}. '
+                   'Assuming time independence.')
             time_index = None
             logger.warning(msg)
             warnings.warn(msg)
@@ -177,11 +172,8 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        max_workers = (
-            len(file_paths)
-            if max_workers is None
-            else np.min((max_workers, len(file_paths)))
-        )
+        max_workers = (len(file_paths) if max_workers is None else np.min(
+            (max_workers, len(file_paths))))
         if max_workers == 1:
             return cls.get_file_times(file_paths, **kwargs)
         ti = {}
@@ -192,10 +184,8 @@ class DataHandlerNC(DataHandler):
                 future = exe.submit(cls.get_file_times, [f], **kwargs)
                 futures[future] = {'idx': i, 'file': f}
 
-            logger.info(
-                f'Started building time index from {len(file_paths)} '
-                f'files in {dt.now() - now}.'
-            )
+            logger.info(f'Started building time index from {len(file_paths)} '
+                        f'files in {dt.now() - now}.')
 
             for i, future in enumerate(as_completed(futures)):
                 try:
@@ -203,10 +193,8 @@ class DataHandlerNC(DataHandler):
                     if val is not None:
                         ti[futures[future]['idx']] = list(val)
                 except Exception as e:
-                    msg = (
-                        'Error while getting time index from file '
-                        f'{futures[future]["file"]}.'
-                    )
+                    msg = ('Error while getting time index from file '
+                           f'{futures[future]["file"]}.')
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
                 logger.debug(f'Stored {i+1} out of {len(futures)} file times')
@@ -242,14 +230,13 @@ class DataHandlerNC(DataHandler):
         return registry
 
     @classmethod
-    def extract_feature(
-        cls,
-        file_paths,
-        raster_index,
-        feature,
-        time_slice=slice(None),
-        **kwargs,
-    ):
+    def extract_feature(cls,
+                        file_paths,
+                        raster_index,
+                        feature,
+                        time_slice=slice(None),
+                        **kwargs,
+                        ):
         """Extract single feature from data source. The requested feature
         can match exactly to one found in the source data or can have a
         matching prefix with a suffix specifying the height or pressure level
@@ -278,10 +265,8 @@ class DataHandlerNC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-        logger.debug(
-            f'Extracting {feature} with time_slice={time_slice}, '
-            f'raster_index={raster_index}, kwargs={kwargs}.'
-        )
+        logger.debug(f'Extracting {feature} with time_slice={time_slice}, '
+                     f'raster_index={raster_index}, kwargs={kwargs}.')
         handle = cls.source_handler(file_paths, **kwargs)
         f_info = Feature(feature, handle)
         interp_height = f_info.height
@@ -290,27 +275,20 @@ class DataHandlerNC(DataHandler):
 
         if feature in handle or feature.lower() in handle:
             feat_key = feature if feature in handle else feature.lower()
-            fdata = cls.direct_extract(
-                handle, feat_key, raster_index, time_slice
-            )
+            fdata = cls.direct_extract(handle, feat_key, raster_index,
+                                       time_slice)
 
         elif basename in handle or basename.lower() in handle:
             feat_key = basename if basename in handle else basename.lower()
             if interp_height is not None:
                 fdata = Interpolator.interp_var_to_height(
-                    handle,
-                    feat_key,
-                    raster_index,
-                    np.float32(interp_height),
+                    handle, feat_key, raster_index, np.float32(interp_height),
                     time_slice,
                 )
             elif interp_pressure is not None:
                 fdata = Interpolator.interp_var_to_pressure(
-                    handle,
-                    feat_key,
-                    raster_index,
-                    np.float32(interp_pressure),
-                    time_slice,
+                    handle, feat_key, raster_index,
+                    np.float32(interp_pressure), time_slice,
                 )
 
         else:
@@ -374,40 +352,6 @@ class DataHandlerNC(DataHandler):
         """
         return cls.get_lat_lon(file_paths, [slice(None), slice(None)])
 
-    @staticmethod
-    def get_closest_lat_lon(lat_lon, target):
-        """Get closest indices to target lat lon to use for lower left corner
-        of raster index
-
-        Parameters
-        ----------
-        lat_lon : ndarray
-            Array of lat/lon
-            (spatial_1, spatial_2, 2)
-            Last dimension in order of (lat, lon)
-        target : tuple
-            (lat, lon) for lower left corner
-
-        Returns
-        -------
-        row : int
-            row index for closest lat/lon to target lat/lon
-        col : int
-            col index for closest lat/lon to target lat/lon
-        """
-        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
-        ll2 = np.vstack(
-            (lat_lon[..., 0].flatten(), lat_lon[..., 1].flatten())
-        ).T
-        tree = KDTree(ll2)
-        _, i = tree.query(np.array(target))
-        row, col = np.where(
-            (lat_lon[..., 0] == ll2[i, 0]) & (lat_lon[..., 1] == ll2[i, 1])
-        )
-        row = row[0]
-        col = col[0]
-        return row, col
-
     @classmethod
     def compute_raster_index(cls, file_paths, target, grid_shape):
         """Get raster index for a given target and shape
@@ -426,9 +370,9 @@ class DataHandlerNC(DataHandler):
         list
             List of slices corresponding to extracted data region
         """
-        lat_lon = cls.get_lat_lon(
-            file_paths[:1], [slice(None), slice(None)], invert_lat=False
-        )
+        lat_lon = cls.get_lat_lon(file_paths[:1],
+                                  [slice(None), slice(None)],
+                                  invert_lat=False)
         cls._check_grid_extent(target, grid_shape, lat_lon)
 
         row, col = cls.get_closest_lat_lon(lat_lon, target)
@@ -473,20 +417,14 @@ class DataHandlerNC(DataHandler):
         min_lon = np.min(lat_lon[..., 1])
         max_lat = np.max(lat_lon[..., 0])
         max_lon = np.max(lat_lon[..., 1])
-        logger.debug(
-            'Calculating raster index from WRF file '
-            f'for shape {grid_shape} and target {target}'
-        )
-        logger.debug(
-            f'lat/lon (min, max): {min_lat}/{min_lon}, ' f'{max_lat}/{max_lon}'
-        )
-        msg = (
-            f'target {target} out of bounds with min lat/lon '
-            f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}'
-        )
-        assert (
-            min_lat <= target[0] <= max_lat and min_lon <= target[1] <= max_lon
-        ), msg
+        logger.debug('Calculating raster index from WRF file '
+                     f'for shape {grid_shape} and target {target}')
+        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon}, '
+                     f'{max_lat}/{max_lon}')
+        msg = (f'target {target} out of bounds with min lat/lon '
+               f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
+        assert (min_lat <= target[0] <= max_lat
+                and min_lon <= target[1] <= max_lon), msg
 
     @classmethod
     def _validate_raster_shape(cls, target, grid_shape, lat_lon, raster_index):
@@ -506,20 +444,15 @@ class DataHandlerNC(DataHandler):
         raster_index : list
             List of slices selecting region from entire available grid.
         """
-        if (
-            raster_index[0].stop > lat_lon.shape[0]
-            or raster_index[1].stop > lat_lon.shape[1]
-            or raster_index[0].start < 0
-            or raster_index[1].start < 0
-        ):
-            msg = (
-                f'Invalid target {target}, shape {grid_shape}, and raster '
-                f'{raster_index} for data domain of size '
-                f'{lat_lon.shape[:-1]} with lower left corner '
-                f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
-                f' and upper right corner ({np.max(lat_lon[..., 0])}, '
-                f'{np.max(lat_lon[..., 1])}).'
-            )
+        if (raster_index[0].stop > lat_lon.shape[0]
+                or raster_index[1].stop > lat_lon.shape[1]
+                or raster_index[0].start < 0 or raster_index[1].start < 0):
+            msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
+                   f'{raster_index} for data domain of size '
+                   f'{lat_lon.shape[:-1]} with lower left corner '
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
+                   f' and upper right corner ({np.max(lat_lon[..., 0])}, '
+                   f'{np.max(lat_lon[..., 1])}).')
             raise ValueError(msg)
 
     def get_raster_index(self):
@@ -532,33 +465,23 @@ class DataHandlerNC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
-        self.raster_file = (
-            self.raster_file
-            if self.raster_file is None
-            else self.raster_file.replace('.txt', '.npy')
-        )
+        self.raster_file = (self.raster_file if self.raster_file is None else
+                            self.raster_file.replace('.txt', '.npy'))
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(
-                f'Loading raster index: {self.raster_file} '
-                f'for {self.input_file_info}'
-            )
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.input_file_info}')
             raster_index = np.load(self.raster_file, allow_pickle=True)
             raster_index = list(raster_index)
         else:
             check = self.grid_shape is not None and self.target is not None
-            msg = (
-                'Must provide raster file or shape + target to get '
-                'raster index'
-            )
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
             assert check, msg
-            raster_index = self.compute_raster_index(
-                self.file_paths, self.target, self.grid_shape
-            )
-            logger.debug(
-                'Found raster index with row, col slices: {}'.format(
-                    raster_index
-                )
-            )
+            raster_index = self.compute_raster_index(self.file_paths,
+                                                     self.target,
+                                                     self.grid_shape)
+            logger.debug('Found raster index with row, col slices: {}'.format(
+                raster_index))
 
             if self.raster_file is not None:
                 basedir = os.path.dirname(self.raster_file)
@@ -578,14 +501,13 @@ class DataHandlerNCforCC(DataHandlerNC):
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
 
-    def __init__(
-        self,
-        *args,
-        nsrdb_source_fp=None,
-        nsrdb_agg=1,
-        nsrdb_smoothing=0,
-        **kwargs,
-    ):
+    def __init__(self,
+                 *args,
+                 nsrdb_source_fp=None,
+                 nsrdb_agg=1,
+                 nsrdb_smoothing=0,
+                 **kwargs,
+                 ):
         """Initialize NETCDF data handler for climate change data.
 
         Parameters
@@ -709,30 +631,22 @@ class DataHandlerNCforCC(DataHandlerNC):
             shape is (lat, lon, time) where time is daily average values.
         """
 
-        msg = (
-            'Need nsrdb_source_fp input arg as a valid filepath to '
-            'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
-            'received: {}'.format(self._nsrdb_source_fp)
-        )
+        msg = ('Need nsrdb_source_fp input arg as a valid filepath to '
+               'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
+               'received: {}'.format(self._nsrdb_source_fp))
         assert self._nsrdb_source_fp is not None, msg
         assert os.path.exists(self._nsrdb_source_fp), msg
 
-        msg = (
-            'Can only handle source CC data in hourly frequency but '
-            'received daily frequency of {}hrs (should be 24) '
-            'with raw time index: {}'.format(
-                self.time_freq_hours, self.raw_time_index
-            )
-        )
+        msg = ('Can only handle source CC data in hourly frequency but '
+               'received daily frequency of {}hrs (should be 24) '
+               'with raw time index: {}'.format(self.time_freq_hours,
+                                                self.raw_time_index))
         assert self.time_freq_hours == 24.0, msg
 
-        msg = (
-            'Can only handle source CC data with temporal_slice.step == 1 '
-            'but received: {}'.format(self.temporal_slice.step)
-        )
-        assert (self.temporal_slice.step is None) | (
-            self.temporal_slice.step == 1
-        ), msg
+        msg = ('Can only handle source CC data with temporal_slice.step == 1 '
+               'but received: {}'.format(self.temporal_slice.step))
+        assert (self.temporal_slice.step is None) | (self.temporal_slice.step
+                                                     == 1), msg
 
         with Resource(self._nsrdb_source_fp) as res:
             ti_nsrdb = res.time_index
@@ -758,15 +672,11 @@ class DataHandlerNCforCC(DataHandlerNC):
         if len(i.shape) == 1:
             i = np.expand_dims(i, axis=1)
 
-        logger.info(
-            'Extracting clearsky_ghi data from "{}" with time slice '
-            '{} and {} locations with agg factor {}.'.format(
-                os.path.basename(self._nsrdb_source_fp),
-                t_slice,
-                i.shape[0],
-                i.shape[1],
-            )
-        )
+        logger.info('Extracting clearsky_ghi data from "{}" with time slice '
+                    '{} and {} locations with agg factor {}.'.format(
+                        os.path.basename(self._nsrdb_source_fp), t_slice,
+                        i.shape[0], i.shape[1],
+                    ))
 
         cs_shape = i.shape
         with Resource(self._nsrdb_source_fp) as res:
@@ -775,9 +685,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         cs_ghi = cs_ghi.reshape((len(cs_ghi), *cs_shape))
         cs_ghi = cs_ghi.mean(axis=-1)
 
-        windows = np.array_split(
-            np.arange(len(cs_ghi)), len(cs_ghi) // (24 // time_freq)
-        )
+        windows = np.array_split(np.arange(len(cs_ghi)),
+                                 len(cs_ghi) // (24 // time_freq))
         cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
         cs_ghi = np.vstack(cs_ghi)
         cs_ghi = cs_ghi.reshape((len(cs_ghi), *tuple(self.grid_shape)))
@@ -786,15 +695,12 @@ class DataHandlerNCforCC(DataHandlerNC):
         if self.invert_lat:
             cs_ghi = cs_ghi[::-1]
 
-        logger.info(
-            'Smoothing nsrdb clearsky ghi with a factor of {}'.format(
-                self._nsrdb_smoothing
-            )
-        )
+        logger.info('Smoothing nsrdb clearsky ghi with a factor of {}'.format(
+            self._nsrdb_smoothing))
         for iday in range(cs_ghi.shape[-1]):
-            cs_ghi[..., iday] = gaussian_filter(
-                cs_ghi[..., iday], self._nsrdb_smoothing, mode='nearest'
-            )
+            cs_ghi[..., iday] = gaussian_filter(cs_ghi[..., iday],
+                                                self._nsrdb_smoothing,
+                                                mode='nearest')
 
         if cs_ghi.shape[-1] < t_end_target:
             n = int(np.ceil(t_end_target / cs_ghi.shape[-1]))
@@ -805,9 +711,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             'Reshaped clearsky_ghi data to final shape {} to '
             'correspond with CC daily average data over source '
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
-                cs_ghi.shape, self.temporal_slice, self.grid_shape
-            )
-        )
+                cs_ghi.shape, self.temporal_slice, self.grid_shape))
 
         return cs_ghi
 
