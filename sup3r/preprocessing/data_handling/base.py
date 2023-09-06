@@ -922,6 +922,17 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         """
         return self.data.shape
 
+    @property
+    def size(self):
+        """Size of data array
+
+        Returns
+        -------
+        size : int
+            Number of total elements contained in data array
+        """
+        return np.product(self.requested_shape)
+
     def cache_data(self, cache_file_paths):
         """Cache feature data to file and delete from memory
 

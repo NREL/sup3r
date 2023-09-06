@@ -169,6 +169,7 @@ def test_st_dual_batch_handler(log=False,
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
                                      n_batches=10)
+    assert np.allclose(batch_handler.handler_weights, 0.5)
 
     for batch in batch_handler:
 

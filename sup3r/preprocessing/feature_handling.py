@@ -16,16 +16,10 @@ import xarray as xr
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
 
-from sup3r.utilities.utilities import (
-    bvf_squared,
-    get_raster_shape,
-    inverse_mo_length,
-    invert_pot_temp,
-    invert_uv,
-    rotor_equiv_ws,
-    transform_rotate_wind,
-    vorticity_calc,
-)
+from sup3r.utilities.utilities import (bvf_squared, get_raster_shape,
+                                       inverse_mo_length, invert_pot_temp,
+                                       invert_uv, rotor_equiv_ws,
+                                       transform_rotate_wind, vorticity_calc)
 
 np.random.seed(42)
 
@@ -155,6 +149,7 @@ class CloudMaskH5(DerivedFeature):
     @classmethod
     def inputs(cls, feature):
         """Get list of raw features used in calculation of the cloud mask
+
         Parameters
         ----------
         feature : str
@@ -243,8 +238,7 @@ class TempNC(DerivedFeature):
     def inputs(cls, feature):
         """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
-        features = [f'PotentialTemp_{height}m',
-                    f'Pressure_{height}m']
+        features = [f'PotentialTemp_{height}m', f'Pressure_{height}m']
         return features
 
     @classmethod
@@ -276,8 +270,7 @@ class PressureNC(DerivedFeature):
     def inputs(cls, feature):
         """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
-        features = [f'P_{height}m',
-                    f'PB_{height}m']
+        features = [f'P_{height}m', f'PB_{height}m']
         return features
 
     @classmethod
@@ -308,8 +301,7 @@ class BVFreqSquaredNC(DerivedFeature):
     def inputs(cls, feature):
         """Get list of inputs needed for compute method."""
         height = Feature.get_height(feature)
-        features = [f'PT_{height}m',
-                    f'PT_{int(height) - 100}m']
+        features = [f'PT_{height}m', f'PT_{int(height) - 100}m']
 
         return features
 
@@ -449,10 +441,10 @@ class BVFreqSquaredH5(DerivedFeature):
             List of required features for computing BVF2
         """
         height = Feature.get_height(feature)
-        features = [f'temperature_{height}m',
-                    f'temperature_{int(height) - 100}m',
-                    f'pressure_{height}m',
-                    f'pressure_{int(height) - 100}m']
+        features = [
+            f'temperature_{height}m', f'temperature_{int(height) - 100}m',
+            f'pressure_{height}m', f'pressure_{int(height) - 100}m'
+        ]
 
         return features
 
@@ -473,12 +465,10 @@ class BVFreqSquaredH5(DerivedFeature):
             Derived feature array
 
         """
-        return bvf_squared(
-            data[f'temperature_{height}m'],
-            data[f'temperature_{int(height) - 100}m'],
-            data[f'pressure_{height}m'],
-            data[f'pressure_{int(height) - 100}m'],
-            100)
+        return bvf_squared(data[f'temperature_{height}m'],
+                           data[f'temperature_{int(height) - 100}m'],
+                           data[f'pressure_{height}m'],
+                           data[f'pressure_{int(height) - 100}m'], 100)
 
 
 class WindspeedNC(DerivedFeature):
@@ -753,8 +743,9 @@ class UWind(DerivedFeature):
             List of required features for computing U
         """
         height = Feature.get_height(feature)
-        features = [f'windspeed_{height}m', f'winddirection_{height}m',
-                    'lat_lon']
+        features = [
+            f'windspeed_{height}m', f'winddirection_{height}m', 'lat_lon'
+        ]
         return features
 
     @classmethod
@@ -819,8 +810,7 @@ class Vorticity(DerivedFeature):
             Derived feature array
 
         """
-        vort = vorticity_calc(data[f'U_{height}m'],
-                              data[f'V_{height}m'])
+        vort = vorticity_calc(data[f'U_{height}m'], data[f'V_{height}m'])
         return vort
 
 
@@ -843,8 +833,9 @@ class VWind(DerivedFeature):
             List of required features for computing V
         """
         height = Feature.get_height(feature)
-        features = [f'windspeed_{height}m', f'winddirection_{height}m',
-                    'lat_lon']
+        features = [
+            f'windspeed_{height}m', f'winddirection_{height}m', 'lat_lon'
+        ]
         return features
 
     @classmethod
@@ -990,9 +981,9 @@ class LatLonNC:
         handle = xr.open_dataset(fp)
         valid_vars = set(handle.variables)
         lat_key = {'XLAT', 'lat', 'latitude'}.intersection(valid_vars)
-        lat_key = list(lat_key)[0]
+        lat_key = next(iter(lat_key))
         lon_key = {'XLONG', 'lon', 'longitude'}.intersection(valid_vars)
-        lon_key = list(lon_key)[0]
+        lon_key = next(iter(lon_key))
 
         if len(handle.variables[lat_key].dims) == 4:
             idx = (0, raster_index[0], raster_index[1], 0)
@@ -1005,8 +996,8 @@ class LatLonNC:
             lons = handle.variables[lon_key].values
             lats = handle.variables[lat_key].values
             lons, lats = np.meshgrid(lons, lats)
-            lat_lon = np.dstack((lats[tuple(raster_index)],
-                                 lons[tuple(raster_index)]))
+            lat_lon = np.dstack(
+                (lats[tuple(raster_index)], lons[tuple(raster_index)]))
         else:
             lats = handle.variables[lat_key].values[idx]
             lons = handle.variables[lon_key].values[idx]
@@ -1065,8 +1056,8 @@ class LatLonH5:
         """
         with Resource(file_paths[0], hsds=False) as handle:
             lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
-            lat_lon = lat_lon.reshape((raster_index.shape[0],
-                                       raster_index.shape[1], 2))
+            lat_lon = lat_lon.reshape(
+                (raster_index.shape[0], raster_index.shape[1], 2))
         return lat_lon
 
 
@@ -1188,8 +1179,9 @@ class FeatureHandler:
         if features is None:
             return False
 
-        return all(Feature.get_basename(f) in handle_features
-                   or f in handle_features for f in features)
+        return all(
+            Feature.get_basename(f) in handle_features or f in handle_features
+            for f in features)
 
     @classmethod
     def valid_input_features(cls, features, handle_features):
@@ -1211,9 +1203,10 @@ class FeatureHandler:
         if features is None:
             return False
 
-        if all(Feature.get_basename(f) in handle_features
-               or f in handle_features
-               or cls.lookup(f, 'compute') is not None for f in features):
+        if all(
+                Feature.get_basename(f) in handle_features
+                or f in handle_features or cls.lookup(f, 'compute') is not None
+                for f in features):
             return True
         return False
 
@@ -1235,8 +1228,7 @@ class FeatureHandler:
 
         """
         if data:
-            old_keys = [f for f in data[chunk_number]
-                        if f not in all_features]
+            old_keys = [f for f in data[chunk_number] if f not in all_features]
             for k in old_keys:
                 data[chunk_number].pop(k)
 
@@ -1282,8 +1274,13 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_extract(cls, file_paths, raster_index, time_chunks,
-                         input_features, max_workers=None, **kwargs):
+    def parallel_extract(cls,
+                         file_paths,
+                         raster_index,
+                         time_chunks,
+                         input_features,
+                         max_workers=None,
+                         **kwargs):
         """Extract features using parallel subprocesses
 
         Parameters
@@ -1382,7 +1379,8 @@ class FeatureHandler:
             Array of computed feature data
         """
         if feature not in data:
-            inputs = cls.lookup(feature, 'inputs',
+            inputs = cls.lookup(feature,
+                                'inputs',
                                 handle_features=handle_features)
             method = cls.lookup(feature, 'compute')
             height = Feature.get_height(feature)
@@ -1393,10 +1391,8 @@ class FeatureHandler:
                     data[feature] = method(data, height)
                 else:
                     for r in inputs(feature):
-                        data[r] = cls.recursive_compute(data, r,
-                                                        handle_features,
-                                                        file_paths,
-                                                        raster_index)
+                        data[r] = cls.recursive_compute(
+                            data, r, handle_features, file_paths, raster_index)
                     data[feature] = method(data, height)
             elif method is not None:
                 data[feature] = method(file_paths, raster_index)
@@ -1448,8 +1444,11 @@ class FeatureHandler:
             for _, f in enumerate(derived_features):
                 tmp = cls.get_input_arrays(data, t, f, handle_features)
                 data[t][f] = cls.recursive_compute(
-                    data=tmp, feature=f, handle_features=handle_features,
-                    file_paths=file_paths, raster_index=raster_index)
+                    data=tmp,
+                    feature=f,
+                    handle_features=handle_features,
+                    file_paths=file_paths,
+                    raster_index=raster_index)
             cls.pop_old_data(data, t, all_features)
             interval = int(np.ceil(len(time_chunks) / 10))
             if t % interval == 0:
@@ -1459,8 +1458,14 @@ class FeatureHandler:
         return data
 
     @classmethod
-    def parallel_compute(cls, data, file_paths, raster_index, time_chunks,
-                         derived_features, all_features, handle_features,
+    def parallel_compute(cls,
+                         data,
+                         file_paths,
+                         raster_index,
+                         time_chunks,
+                         derived_features,
+                         all_features,
+                         handle_features,
                          max_workers=None):
         """Compute features using parallel subprocesses
 
@@ -1507,7 +1512,8 @@ class FeatureHandler:
             for t, _ in enumerate(time_chunks):
                 for f in derived_features:
                     tmp = cls.get_input_arrays(data, t, f, handle_features)
-                    future = exe.submit(cls.recursive_compute, data=tmp,
+                    future = exe.submit(cls.recursive_compute,
+                                        data=tmp,
                                         feature=f,
                                         handle_features=handle_features,
                                         file_paths=file_paths,
@@ -1711,9 +1717,8 @@ class FeatureHandler:
         lower_handle_features = [f.lower() for f in handle_features]
 
         check1 = feature not in raw_features
-        check2 = (cls.valid_handle_features([feature.lower()],
-                                            lower_handle_features)
-                  or method is None)
+        check2 = (cls.valid_handle_features(
+            [feature.lower()], lower_handle_features) or method is None)
 
         if check1 and check2:
             raw_features.append(feature)
@@ -1775,8 +1780,12 @@ class FeatureHandler:
 
     @classmethod
     @abstractmethod
-    def extract_feature(cls, file_paths, raster_index, feature,
-                        time_slice=slice(None), **kwargs):
+    def extract_feature(cls,
+                        file_paths,
+                        raster_index,
+                        feature,
+                        time_slice=slice(None),
+                        **kwargs):
         """Extract single feature from data source
 
         Parameters

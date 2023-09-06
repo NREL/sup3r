@@ -335,6 +335,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return (*self.lr_required_shape, len(self.features))
 
     @property
+    def size(self):
+        """Get low_res size"""
+        return np.product(self.shape)
+
+    @property
     def hr_required_shape(self):
         """Return required shape for high_res data"""
         return (self.s_enhance * self.lr_required_shape[0],
