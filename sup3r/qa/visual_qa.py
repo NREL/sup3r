@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 """Module to plot feature output from forward passes for visual inspection"""
-import numpy as np
-import matplotlib.pyplot as plt
-import logging
 import glob
-from datetime import datetime as dt
+import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime as dt
 
+import matplotlib.pyplot as plt
+import numpy as np
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +20,18 @@ logger = logging.getLogger(__name__)
 class Sup3rVisualQa:
     """Module to plot features for visual qa"""
 
-    def __init__(self, file_paths, out_pattern, features, time_step=10,
-                 spatial_slice=slice(None), source_handler_class=None,
-                 max_workers=None, overwrite=False, **kwargs):
+    def __init__(
+        self,
+        file_paths,
+        out_pattern,
+        features,
+        time_step=10,
+        spatial_slice=slice(None),
+        source_handler_class=None,
+        max_workers=None,
+        overwrite=False,
+        **kwargs,
+    ):
         """
         Parameters
         ----------
@@ -61,10 +69,16 @@ class Sup3rVisualQa:
         self.features = features
         self.out_pattern = out_pattern
         self.time_step = time_step
-        self.spatial_slice = (spatial_slice if isinstance(spatial_slice, slice)
-                              else slice(*spatial_slice))
-        self.file_paths = (file_paths if isinstance(file_paths, list)
-                           else glob.glob(file_paths))
+        self.spatial_slice = (
+            spatial_slice
+            if isinstance(spatial_slice, slice)
+            else slice(*spatial_slice)
+        )
+        self.file_paths = (
+            file_paths
+            if isinstance(file_paths, list)
+            else glob.glob(file_paths)
+        )
         self.max_workers = max_workers
         self.kwargs = kwargs
         self.res_handler = source_handler_class or 'MultiFileResource'
@@ -72,16 +86,18 @@ class Sup3rVisualQa:
         self.overwrite = overwrite
         if not os.path.exists(os.path.dirname(out_pattern)):
             os.makedirs(os.path.dirname(out_pattern), exist_ok=True)
-        logger.info('Initializing Sup3rVisualQa with '
-                    f'file_paths={self.file_paths}, '
-                    f'out_pattern={self.out_pattern}, '
-                    f'features={self.features}, '
-                    f'time_step={self.time_step}, '
-                    f'spatial_slice={self.spatial_slice}, '
-                    f'source_handler_class={self.res_handler}, '
-                    f'max_workers={max_workers}, '
-                    f'overwrite={self.overwrite}, '
-                    f'kwargs={kwargs}.')
+        logger.info(
+            'Initializing Sup3rVisualQa with '
+            f'file_paths={self.file_paths}, '
+            f'out_pattern={self.out_pattern}, '
+            f'features={self.features}, '
+            f'time_step={self.time_step}, '
+            f'spatial_slice={self.spatial_slice}, '
+            f'source_handler_class={self.res_handler}, '
+            f'max_workers={max_workers}, '
+            f'overwrite={self.overwrite}, '
+            f'kwargs={kwargs}.'
+        )
 
     def run(self):
         """
@@ -91,19 +107,22 @@ class Sup3rVisualQa:
         """
         with self.res_handler(self.file_paths) as res:
             time_index = res.time_index
-            n_files = len(time_index[::self.time_step])
+            n_files = len(time_index[:: self.time_step])
             time_slices = np.array_split(np.arange(len(time_index)), n_files)
             time_slices = [slice(s[0], s[-1] + 1) for s in time_slices]
 
             if self.max_workers == 1:
-                self._serial_figure_plots(res, time_index, time_slices,
-                                          self.spatial_slice)
+                self._serial_figure_plots(
+                    res, time_index, time_slices, self.spatial_slice
+                )
             else:
-                self._parallel_figure_plots(res, time_index, time_slices,
-                                            self.spatial_slice)
+                self._parallel_figure_plots(
+                    res, time_index, time_slices, self.spatial_slice
+                )
 
-    def _serial_figure_plots(self, res, time_index, time_slices,
-                             spatial_slice):
+    def _serial_figure_plots(
+        self, res, time_index, time_slices, spatial_slice
+    ):
         """Plot figures in parallel with max_workers=self.workers
 
         Parameters
@@ -119,13 +138,16 @@ class Sup3rVisualQa:
         """
         for feature in self.features:
             for i, t_slice in enumerate(time_slices):
-                out_file = self.out_pattern.format(feature=feature,
-                                                   index=str(i).zfill(8))
-                self.plot_figure(res, time_index, feature, t_slice,
-                                 spatial_slice, out_file)
+                out_file = self.out_pattern.format(
+                    feature=feature, index=str(i).zfill(8)
+                )
+                self.plot_figure(
+                    res, time_index, feature, t_slice, spatial_slice, out_file
+                )
 
-    def _parallel_figure_plots(self, res, time_index, time_slices,
-                               spatial_slice):
+    def _parallel_figure_plots(
+        self, res, time_index, time_slices, spatial_slice
+    ):
         """Plot figures in parallel with max_workers=self.workers
 
         Parameters
@@ -145,27 +167,36 @@ class Sup3rVisualQa:
         with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
             for feature in self.features:
                 for i, t_slice in enumerate(time_slices):
-                    out_file = self.out_pattern.format(feature=feature,
-                                                       index=str(i).zfill(8))
-                    future = exe.submit(self.plot_figure, res, time_index,
-                                        feature, t_slice, spatial_slice,
-                                        out_file)
+                    out_file = self.out_pattern.format(
+                        feature=feature, index=str(i).zfill(8)
+                    )
+                    future = exe.submit(
+                        self.plot_figure,
+                        res,
+                        time_index,
+                        feature,
+                        t_slice,
+                        spatial_slice,
+                        out_file,
+                    )
                     futures[future] = out_file
 
-            logger.info(f'Started plotting {n_files} files '
-                        f'in {dt.now() - now}.')
+            logger.info(
+                f'Started plotting {n_files} files ' f'in {dt.now() - now}.'
+            )
 
             for i, future in enumerate(as_completed(futures)):
                 try:
                     future.result()
                 except Exception as e:
-                    msg = (f'Error making plot {futures[future]}.')
+                    msg = f'Error making plot {futures[future]}.'
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
                 logger.debug(f'{i+1} out of {n_files} plots created.')
 
-    def plot_figure(self, res, time_index, feature, t_slice, s_slice,
-                    out_file):
+    def plot_figure(
+        self, res, time_index, feature, t_slice, s_slice, out_file
+    ):
         """Plot temporal average for the given feature and with the time range
         specified by t_slice
 
@@ -185,19 +216,26 @@ class Sup3rVisualQa:
             Name of the output plot file
         """
         if not self.overwrite and os.path.exists(out_file):
-            logger.info(f'{out_file} already exists and overwrite='
-                        f'{self.overwrite}. Skipping this plot.')
+            logger.info(
+                f'{out_file} already exists and overwrite='
+                f'{self.overwrite}. Skipping this plot.'
+            )
             return
         start_time = time_index[t_slice.start]
         stop_time = time_index[t_slice.stop - 1]
-        logger.info(f'Plotting time average for {feature} from '
-                    f'{start_time} to {stop_time}.')
+        logger.info(
+            f'Plotting time average for {feature} from '
+            f'{start_time} to {stop_time}.'
+        )
         fig = plt.figure()
         title = f'{feature}: {start_time} - {stop_time}'
         plt.suptitle(title)
-        plt.scatter(res.meta.longitude[s_slice], res.meta.latitude[s_slice],
-                    c=np.mean(res[feature, t_slice, s_slice], axis=0),
-                    **self.kwargs)
+        plt.scatter(
+            res.meta.longitude[s_slice],
+            res.meta.latitude[s_slice],
+            c=np.mean(res[feature, t_slice, s_slice], axis=0),
+            **self.kwargs,
+        )
         plt.colorbar()
         fig.savefig(out_file)
         plt.close()
@@ -224,18 +262,20 @@ class Sup3rVisualQa:
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
 
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        log_arg_str = f'"sup3r", log_level="{log_level}"'
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"qa = {qa_init_str};\n"
-               "qa.run();\n"
-               "t_elap = time.time() - t0;\n")
+        cmd = (
+            f"python -c \'{import_str}\n"
+            "t0 = time.time();\n"
+            f"logger = init_logger({log_arg_str});\n"
+            f"qa = {qa_init_str};\n"
+            "qa.run();\n"
+            "t_elap = time.time() - t0;\n"
+        )
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.VISUAL_QA, cmd)
-        cmd += (";\'\n")
+        cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

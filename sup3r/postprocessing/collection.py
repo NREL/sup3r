@@ -132,22 +132,12 @@ class Collector(OutputMixIn):
             raise RuntimeError(msg)
 
         row_slice = slice(np.min(row_loc), np.max(row_loc) + 1)
-        col_slice = slice(np.min(col_loc), np.max(col_loc) + 1)
 
         msg = (
             f'row_slice={row_slice} conflict with row_indices={row_loc}. '
             'Indices do not seem to be increasing and/or contiguous.'
         )
         assert (row_slice.stop - row_slice.start) == len(row_loc), msg
-
-        msg = (
-            f'col_slice={col_slice} conflict with col_indices={col_loc}. '
-            'Indices do not seem to be increasing and/or contiguous.'
-        )
-        check = (col_slice.stop - col_slice.start) == len(col_loc)
-        if not check:
-            logger.warning(msg)
-            warn(msg)
 
         return row_slice, col_loc
 

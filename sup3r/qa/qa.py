@@ -32,24 +32,30 @@ class Sup3rQa:
     into a 2D raster dataset (e.g. no sparsifying of the meta data).
     """
 
-    def __init__(self, source_file_paths, out_file_path, s_enhance, t_enhance,
-                 temporal_coarsening_method,
-                 features=None,
-                 source_features=None,
-                 output_names=None,
-                 temporal_slice=slice(None),
-                 target=None,
-                 shape=None,
-                 raster_file=None,
-                 qa_fp=None,
-                 bias_correct_method=None,
-                 bias_correct_kwargs=None,
-                 save_sources=True,
-                 time_chunk_size=None,
-                 cache_pattern=None,
-                 overwrite_cache=False,
-                 input_handler=None,
-                 worker_kwargs=None):
+    def __init__(
+        self,
+        source_file_paths,
+        out_file_path,
+        s_enhance,
+        t_enhance,
+        temporal_coarsening_method,
+        features=None,
+        source_features=None,
+        output_names=None,
+        temporal_slice=slice(None),
+        target=None,
+        shape=None,
+        raster_file=None,
+        qa_fp=None,
+        bias_correct_method=None,
+        bias_correct_kwargs=None,
+        save_sources=True,
+        time_chunk_size=None,
+        cache_pattern=None,
+        overwrite_cache=False,
+        input_handler=None,
+        worker_kwargs=None,
+    ):
         """Parameters
         ----------
         source_file_paths : list | str
@@ -175,14 +181,19 @@ class Sup3rQa:
         self.t_enhance = t_enhance
         self._t_meth = temporal_coarsening_method
         self._out_fp = out_file_path
-        self._features = (features if isinstance(features, (list, tuple))
-                          else [features])
-        self._source_features = (source_features if
-                                 isinstance(source_features, (list, tuple))
-                                 else [source_features])
-        self._out_names = (output_names if
-                           isinstance(output_names, (list, tuple))
-                           else [output_names])
+        self._features = (
+            features if isinstance(features, (list, tuple)) else [features]
+        )
+        self._source_features = (
+            source_features
+            if isinstance(source_features, (list, tuple))
+            else [source_features]
+        )
+        self._out_names = (
+            output_names
+            if isinstance(output_names, (list, tuple))
+            else [output_names]
+        )
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = self.output_handler_class(self._out_fp)
@@ -190,19 +201,22 @@ class Sup3rQa:
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = bias_correct_kwargs or {}
 
-        HandlerClass = get_input_handler_class(source_file_paths,
-                                               input_handler)
-        self.source_handler = HandlerClass(source_file_paths,
-                                           self.source_features_flat,
-                                           target=target,
-                                           shape=shape,
-                                           temporal_slice=temporal_slice,
-                                           raster_file=raster_file,
-                                           cache_pattern=cache_pattern,
-                                           time_chunk_size=time_chunk_size,
-                                           overwrite_cache=overwrite_cache,
-                                           val_split=0.0,
-                                           worker_kwargs=worker_kwargs)
+        HandlerClass = get_input_handler_class(
+            source_file_paths, input_handler
+        )
+        self.source_handler = HandlerClass(
+            source_file_paths,
+            self.source_features_flat,
+            target=target,
+            shape=shape,
+            temporal_slice=temporal_slice,
+            raster_file=raster_file,
+            cache_pattern=cache_pattern,
+            time_chunk_size=time_chunk_size,
+            overwrite_cache=overwrite_cache,
+            val_split=0.0,
+            worker_kwargs=worker_kwargs,
+        )
 
     def __enter__(self):
         return self
@@ -225,8 +239,12 @@ class Sup3rQa:
         pd.DataFrame
         """
         lat_lon = self.source_handler.lat_lon
-        meta = pd.DataFrame({'latitude': lat_lon[..., 0].flatten(),
-                             'longitude': lat_lon[..., 1].flatten()})
+        meta = pd.DataFrame(
+            {
+                'latitude': lat_lon[..., 0].flatten(),
+                'longitude': lat_lon[..., 1].flatten(),
+            }
+        )
         return meta
 
     @property
@@ -369,23 +387,32 @@ class Sup3rQa:
 
             if 'time_index' in signature(method).parameters:
                 feature_kwargs['time_index'] = self.time_index
-            if ('lr_padded_slice' in signature(method).parameters
-                    and 'lr_padded_slice' not in feature_kwargs):
+            if (
+                'lr_padded_slice' in signature(method).parameters
+                and 'lr_padded_slice' not in feature_kwargs
+            ):
                 feature_kwargs['lr_padded_slice'] = None
-            if ('temporal_avg' in signature(method).parameters
-                    and 'temporal_avg' not in feature_kwargs):
-                msg = ('The kwarg "temporal_avg" was not provided in the bias '
-                       'correction kwargs but is present in the bias '
-                       'correction function "{}". If this is not set '
-                       'appropriately, especially for monthly bias '
-                       'correction, it could result in QA results that look '
-                       'worse than they actually are.'.format(method))
+            if (
+                'temporal_avg' in signature(method).parameters
+                and 'temporal_avg' not in feature_kwargs
+            ):
+                msg = (
+                    'The kwarg "temporal_avg" was not provided in the bias '
+                    'correction kwargs but is present in the bias '
+                    'correction function "{}". If this is not set '
+                    'appropriately, especially for monthly bias '
+                    'correction, it could result in QA results that look '
+                    'worse than they actually are.'.format(method)
+                )
                 logger.warning(msg)
                 warn(msg)
 
-            logger.debug('Bias correcting source_feature "{}" using '
-                         'function: {} with kwargs: {}'
-                         .format(source_feature, method, feature_kwargs))
+            logger.debug(
+                'Bias correcting source_feature "{}" using '
+                'function: {} with kwargs: {}'.format(
+                    source_feature, method, feature_kwargs
+                )
+            )
 
             data = method(data, lat_lon, **feature_kwargs)
 
@@ -410,9 +437,10 @@ class Sup3rQa:
         lat_lon = self.source_handler.lat_lon
         if 'windspeed' in feature and len(source_feature) == 2:
             u_feat, v_feat = source_feature
-            logger.info('For sup3r output feature "{}", retrieving u/v '
-                        'components "{}" and "{}"'
-                        .format(feature, u_feat, v_feat))
+            logger.info(
+                'For sup3r output feature "{}", retrieving u/v '
+                'components "{}" and "{}"'.format(feature, u_feat, v_feat)
+            )
             u_idf = self.source_handler.features.index(u_feat)
             v_idf = self.source_handler.features.index(v_feat)
             u_true = self.source_handler.data[..., u_idf]
@@ -423,8 +451,9 @@ class Sup3rQa:
         else:
             idf = self.source_handler.features.index(source_feature)
             data_true = self.source_handler.data[..., idf]
-            data_true = self.bias_correct_source_data(data_true, lat_lon,
-                                                      source_feature)
+            data_true = self.bias_correct_source_data(
+                data_true, lat_lon, source_feature
+            )
 
         return data_true
 
@@ -449,9 +478,11 @@ class Sup3rQa:
         if self.output_type == 'nc':
             data = data.values
         elif self.output_type == 'h5':
-            shape = (len(self.time_index) * self.t_enhance,
-                     int(self.lr_shape[0] * self.s_enhance),
-                     int(self.lr_shape[1] * self.s_enhance))
+            shape = (
+                len(self.time_index) * self.t_enhance,
+                int(self.lr_shape[0] * self.s_enhance),
+                int(self.lr_shape[1] * self.s_enhance),
+            )
             data = data.reshape(shape)
 
         # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
@@ -478,21 +509,28 @@ class Sup3rQa:
             A spatiotemporally coarsened copy of the input dataset, still with
             shape (spatial_1, spatial_2, temporal)
         """
-        t_meth = (self._t_meth if isinstance(self._t_meth, str)
-                  else self._t_meth[idf])
+        t_meth = (
+            self._t_meth
+            if isinstance(self._t_meth, str)
+            else self._t_meth[idf]
+        )
 
-        logger.info(f'Coarsening feature "{feature}" with {self.s_enhance}x '
-                    f'spatial averaging and "{t_meth}" {self.t_enhance}x '
-                    'temporal averaging')
+        logger.info(
+            f'Coarsening feature "{feature}" with {self.s_enhance}x '
+            f'spatial averaging and "{t_meth}" {self.t_enhance}x '
+            'temporal averaging'
+        )
 
-        data = spatial_coarsening(data, s_enhance=self.s_enhance,
-                                  obs_axis=False)
+        data = spatial_coarsening(
+            data, s_enhance=self.s_enhance, obs_axis=False
+        )
 
         # t_coarse needs shape to be 5D: (obs, s1, s2, t, f)
         data = np.expand_dims(data, axis=0)
         data = np.expand_dims(data, axis=4)
-        data = temporal_coarsening(data, t_enhance=self.t_enhance,
-                                   method=t_meth)
+        data = temporal_coarsening(
+            data, t_enhance=self.t_enhance, method=t_meth
+        )
         data = data[0]
         data = data[..., 0]
 
@@ -519,19 +557,21 @@ class Sup3rQa:
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
 
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        log_arg_str = f'"sup3r", log_level="{log_level}"'
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"qa = {qa_init_str};\n"
-               "qa.run();\n"
-               "t_elap = time.time() - t0;\n")
+        cmd = (
+            f"python -c \'{import_str}\n"
+            "t0 = time.time();\n"
+            f"logger = init_logger({log_arg_str});\n"
+            f"qa = {qa_init_str};\n"
+            "qa.run();\n"
+            "t_elap = time.time() - t0;\n"
+        )
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.QA, cmd)
-        cmd += (";\'\n")
+        cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
 
@@ -574,10 +614,14 @@ class Sup3rQa:
         # transpose and flatten to typical h5 (time, space) dimensions
         data = np.transpose(data, axes=(2, 0, 1)).reshape(shape)
 
-        RexOutputs.add_dataset(qa_fp, dset_name, data,
-                               dtype=attrs['dtype'],
-                               chunks=attrs.get('chunks', None),
-                               attrs=attrs)
+        RexOutputs.add_dataset(
+            qa_fp,
+            dset_name,
+            data,
+            dtype=attrs['dtype'],
+            chunks=attrs.get('chunks', None),
+            attrs=attrs,
+        )
 
     def run(self):
         """Go through all datasets and get the error for the re-coarsened
@@ -594,19 +638,24 @@ class Sup3rQa:
         errors = {}
         ziter = zip(self.features, self.source_features, self.output_names)
         for idf, (feature, source_feature, dset_out) in enumerate(ziter):
-            logger.info('Running QA on dataset {} of {} for "{}" '
-                        'corresponding to source feature "{}"'
-                        .format(idf + 1, len(self.features), feature,
-                                source_feature))
+            logger.info(
+                'Running QA on dataset {} of {} for "{}" '
+                'corresponding to source feature "{}"'.format(
+                    idf + 1, len(self.features), feature, source_feature
+                )
+            )
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(idf, feature, data_syn)
             data_true = self.get_source_dset(feature, source_feature)
 
             if data_syn.shape != data_true.shape:
-                msg = ('Sup3rQa failed while trying to inspect the "{}" '
-                       'feature. The source low-res data had shape {} '
-                       'while the re-coarsened synthetic data had shape {}.'
-                       .format(feature, data_true.shape, data_syn.shape))
+                msg = (
+                    'Sup3rQa failed while trying to inspect the "{}" feature. '
+                    'The source low-res data had shape {} while the '
+                    're-coarsened synthetic data had shape {}.'.format(
+                        feature, data_true.shape, data_syn.shape
+                    )
+                )
                 logger.error(msg)
                 raise RuntimeError(msg)
 

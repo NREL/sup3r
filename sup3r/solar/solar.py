@@ -29,8 +29,16 @@ class Solar:
     ratio to GHI, DNI, and DHI using NSRDB data and utility modules like
     DISC"""
 
-    def __init__(self, sup3r_fps, nsrdb_fp, t_slice=slice(None), tz=-6,
-                 agg_factor=1, nn_threshold=0.5, cloud_threshold=0.99):
+    def __init__(
+        self,
+        sup3r_fps,
+        nsrdb_fp,
+        t_slice=slice(None),
+        tz=-6,
+        agg_factor=1,
+        nn_threshold=0.5,
+        cloud_threshold=0.99,
+    ):
         """
         Parameters
         ----------
@@ -81,12 +89,21 @@ class Solar:
         if isinstance(self._sup3r_fps, str):
             self._sup3r_fps = [self._sup3r_fps]
 
-        logger.debug('Initializing solar module with sup3r files: {}'
-                     .format([os.path.basename(fp) for fp in self._sup3r_fps]))
-        logger.debug('Initializing solar module with temporal slice: {}'
-                     .format(self.t_slice))
-        logger.debug('Initializing solar module with NSRDB source fp: {}'
-                     .format(self._nsrdb_fp))
+        logger.debug(
+            'Initializing solar module with sup3r files: {}'.format(
+                [os.path.basename(fp) for fp in self._sup3r_fps]
+            )
+        )
+        logger.debug(
+            'Initializing solar module with temporal slice: {}'.format(
+                self.t_slice
+            )
+        )
+        logger.debug(
+            'Initializing solar module with NSRDB source fp: {}'.format(
+                self._nsrdb_fp
+            )
+        )
 
         self.gan_data = MultiTimeResource(self._sup3r_fps)
         self.nsrdb = Resource(self._nsrdb_fp)
@@ -124,8 +141,10 @@ class Solar:
         ti_gan = self.gan_data.time_index
         ti_gan_1 = np.roll(ti_gan, 1)
         delta = pd.Series(ti_gan - ti_gan_1)[1:].mean().total_seconds()
-        msg = ('Its assumed that the sup3r GAN output solar data will be '
-               'hourly but received time index: {}'.format(ti_gan))
+        msg = (
+            'Its assumed that the sup3r GAN output solar data will be '
+            'hourly but received time index: {}'.format(ti_gan)
+        )
         assert delta == 3600, msg
 
     def close(self):
@@ -203,12 +222,14 @@ class Solar:
             mask = doy_nsrdb.isin(doy_gan)
 
             if mask.sum() == 0:
-                msg = ('Time index intersection of the NSRDB time index and '
-                       'sup3r GAN output has only {} common timesteps! '
-                       'Something went wrong.\nNSRDB time index: \n{}\nSup3r '
-                       'GAN output time index:\n{}'
-                       .format(mask.sum(), self.nsrdb.time_index,
-                               self.time_index))
+                msg = (
+                    'Time index intersection of the NSRDB time index and '
+                    'sup3r GAN output has only {} common timesteps! '
+                    'Something went wrong.\nNSRDB time index: \n{}\nSup3r '
+                    'GAN output time index:\n{}'.format(
+                        mask.sum(), self.nsrdb.time_index, self.time_index
+                    )
+                )
                 logger.error(msg)
                 raise RuntimeError(msg)
 
@@ -221,10 +242,13 @@ class Solar:
             step = int(3600 // delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 
-            logger.debug('Found nsrdb_tslice {} with corresponding '
-                         'time index:\n\t{}'
-                         .format(self._nsrdb_tslice,
-                                 self.nsrdb.time_index[self._nsrdb_tslice]))
+            logger.debug(
+                'Found nsrdb_tslice {} with corresponding '
+                'time index:\n\t{}'.format(
+                    self._nsrdb_tslice,
+                    self.nsrdb.time_index[self._nsrdb_tslice],
+                )
+            )
 
         return self._nsrdb_tslice
 
@@ -245,7 +269,7 @@ class Solar:
             # if tz is negative, roll to utc is positive, and the beginning of
             # the dataset is rolled over from the end and must be backfilled,
             # otherwise you can get seams
-            self._cs_ratio[:-self.tz, :] = self._cs_ratio[-self.tz, :]
+            self._cs_ratio[: -self.tz, :] = self._cs_ratio[-self.tz, :]
 
             # apply temporal slicing of source data, see docstring on t_slice
             # for more info
@@ -278,8 +302,9 @@ class Solar:
         """
         if self._ghi is None:
             logger.debug('Calculating GHI.')
-            self._ghi = (self.get_nsrdb_data('clearsky_ghi')
-                         * self.clearsky_ratio)
+            self._ghi = (
+                self.get_nsrdb_data('clearsky_ghi') * self.clearsky_ratio
+            )
             self._ghi[:, self.out_of_bounds] = 0
         return self._ghi
 
@@ -299,8 +324,9 @@ class Solar:
             self._dni = self.get_nsrdb_data('clearsky_dni')
             pressure = self.get_nsrdb_data('surface_pressure')
             doy = self.time_index.day_of_year.values
-            cloudy_dni = disc(self.ghi, self.solar_zenith_angle, doy,
-                              pressure=pressure)
+            cloudy_dni = disc(
+                self.ghi, self.solar_zenith_angle, doy, pressure=pressure
+            )
             cloudy_dni = np.minimum(self._dni, cloudy_dni)
             self._dni[self.cloud_mask] = cloudy_dni[self.cloud_mask]
             self._dni = dark_night(self._dni, self.solar_zenith_angle)
@@ -319,8 +345,9 @@ class Solar:
         """
         if self._dhi is None:
             logger.debug('Calculating DHI.')
-            self._dhi, self._dni = calc_dhi(self.dni, self.ghi,
-                                            self.solar_zenith_angle)
+            self._dhi, self._dni = calc_dhi(
+                self.dni, self.ghi, self.solar_zenith_angle
+            )
             self._dhi = dark_night(self._dhi, self.solar_zenith_angle)
             self._dhi[:, self.out_of_bounds] = 0
         return self._dhi
@@ -410,8 +437,9 @@ class Solar:
 
         all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
         if ignore is not None:
-            all_fps = [fp for fp in all_fps
-                       if ignore not in os.path.basename(fp)]
+            all_fps = [
+                fp for fp in all_fps if ignore not in os.path.basename(fp)
+            ]
 
         all_fps = sorted(all_fps)
 
@@ -419,10 +447,12 @@ class Solar:
         source_fn_base = os.path.basename(all_fps[0]).replace('.h5', '')
         source_fn_base = '_'.join(source_fn_base.split('_')[:-2])
 
-        all_id_spatial = [fp.replace('.h5', '').split('_')[-1]
-                          for fp in all_fps]
-        all_id_temporal = [fp.replace('.h5', '').split('_')[-2]
-                           for fp in all_fps]
+        all_id_spatial = [
+            fp.replace('.h5', '').split('_')[-1] for fp in all_fps
+        ]
+        all_id_temporal = [
+            fp.replace('.h5', '').split('_')[-2] for fp in all_fps
+        ]
 
         all_id_spatial = sorted(list(set(all_id_spatial)))
         all_id_temporal = sorted(list(set(all_id_temporal)))
@@ -481,15 +511,17 @@ class Solar:
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
-        log_arg_str = (f'"sup3r", log_level="{log_level}"')
+        log_arg_str = f'"sup3r", log_level="{log_level}"'
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"{fun_str};\n"
-               "t_elap = time.time() - t0;\n")
+        cmd = (
+            f"python -c \'{import_str}\n"
+            "t0 = time.time();\n"
+            f"logger = init_logger({log_arg_str});\n"
+            f"{fun_str};\n"
+            "t_elap = time.time() - t0;\n"
+        )
 
         job_name = config.get('job_name', None)
         if job_name is not None:
@@ -499,15 +531,17 @@ class Solar:
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
-            cmd += ('job_attrs = {};\n'.format(json.dumps(config)
-                                               .replace("null", "None")
-                                               .replace("false", "False")
-                                               .replace("true", "True")))
+            cmd += 'job_attrs = {};\n'.format(
+                json.dumps(config)
+                .replace("null", "None")
+                .replace("false", "False")
+                .replace("true", "True")
+            )
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f'Status.make_single_job_file({status_file_arg_str})'
 
-        cmd += (";\'\n")
+        cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
 
@@ -535,15 +569,21 @@ class Solar:
                 attrs = H5_ATTRS[feature]
                 arr = getattr(self, feature, None)
                 if arr is None:
-                    msg = ('Feature "{}" was not available from Solar '
-                           'module class.'.format(feature))
+                    msg = (
+                        'Feature "{}" was not available from Solar '
+                        'module class.'.format(feature)
+                    )
                     logger.error(msg)
                     raise AttributeError(msg)
 
-                fh.add_dataset(fp_out, feature, arr,
-                               dtype=attrs['dtype'],
-                               attrs=attrs,
-                               chunks=attrs['chunks'])
+                fh.add_dataset(
+                    fp_out,
+                    feature,
+                    arr,
+                    dtype=attrs['dtype'],
+                    attrs=attrs,
+                    chunks=attrs['chunks'],
+                )
                 logger.info(f'Added "{feature}" to output file.')
             run_attrs = self.gan_data.h5[self._sup3r_fps[0]].global_attrs
             run_attrs['nsrdb_source'] = self._nsrdb_fp
@@ -552,11 +592,18 @@ class Solar:
         logger.info(f'Finished writing file: {fp_out}')
 
     @classmethod
-    def run_temporal_chunk(cls, fp_pattern, nsrdb_fp,
-                           fp_out_suffix='irradiance', tz=-6, agg_factor=1,
-                           nn_threshold=0.5, cloud_threshold=0.99,
-                           features=('ghi', 'dni', 'dhi'),
-                           temporal_id=None):
+    def run_temporal_chunk(
+        cls,
+        fp_pattern,
+        nsrdb_fp,
+        fp_out_suffix='irradiance',
+        tz=-6,
+        agg_factor=1,
+        nn_threshold=0.5,
+        cloud_threshold=0.99,
+        features=('ghi', 'dni', 'dhi'),
+        temporal_id=None,
+    ):
         """Run the solar module on all spatial chunks for a single temporal
         chunk corresponding to the fp_pattern. This typically gets run from the
         CLI.
@@ -609,22 +656,36 @@ class Solar:
         fp_sets, t_slices, temporal_ids, _, target_fps = temp
 
         if temporal_id is not None:
-            fp_sets = [fp_set for i, fp_set in enumerate(fp_sets)
-                       if temporal_ids[i] == temporal_id]
-            t_slices = [t_slice for i, t_slice in enumerate(t_slices)
-                        if temporal_ids[i] == temporal_id]
-            target_fps = [target_fp for i, target_fp in enumerate(target_fps)
-                          if temporal_ids[i] == temporal_id]
+            fp_sets = [
+                fp_set
+                for i, fp_set in enumerate(fp_sets)
+                if temporal_ids[i] == temporal_id
+            ]
+            t_slices = [
+                t_slice
+                for i, t_slice in enumerate(t_slices)
+                if temporal_ids[i] == temporal_id
+            ]
+            target_fps = [
+                target_fp
+                for i, target_fp in enumerate(target_fps)
+                if temporal_ids[i] == temporal_id
+            ]
 
         zip_iter = zip(fp_sets, t_slices, target_fps)
         for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
             fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
-            logger.info('Running temporal index {} out of {}.'
-                        .format(i + 1, len(fp_sets)))
-            kwargs = dict(t_slice=t_slice,
-                          tz=tz,
-                          agg_factor=agg_factor,
-                          nn_threshold=nn_threshold,
-                          cloud_threshold=cloud_threshold)
+            logger.info(
+                'Running temporal index {} out of {}.'.format(
+                    i + 1, len(fp_sets)
+                )
+            )
+            kwargs = dict(
+                t_slice=t_slice,
+                tz=tz,
+                agg_factor=agg_factor,
+                nn_threshold=nn_threshold,
+                cloud_threshold=cloud_threshold,
+            )
             with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
                 solar.write(fp_out, features=features)
