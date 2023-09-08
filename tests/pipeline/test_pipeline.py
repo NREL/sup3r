@@ -32,7 +32,7 @@ def test_fwp_pipeline():
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
 
-    test_context  = click.Context(click.Command("pipeline"), obj={})
+    test_context = click.Context(click.Command("pipeline"), obj={})
     with tempfile.TemporaryDirectory() as td, test_context as ctx:
         ctx.obj["NAME"] = "test"
         ctx.obj["VERBOSE"] = False
