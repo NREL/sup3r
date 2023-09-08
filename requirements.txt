@@ -1,8 +1,8 @@
 google-auth-oauthlib==0.5.3
 matplotlib>=3.1
-NREL-rex>=0.2.82
+NREL-rex>=0.2.84
 NREL-phygnn>=0.0.23
-NREL-gaps>=0.4.2
+NREL-gaps>=0.4.5
 numpy==1.22
 NREL-farms>=1.0.4
 pytest>=5.2
