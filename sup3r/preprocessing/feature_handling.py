@@ -9,6 +9,7 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from concurrent.futures import as_completed
+from typing import ClassVar
 
 import numpy as np
 import psutil
@@ -19,7 +20,8 @@ from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (bvf_squared, get_raster_shape,
                                        inverse_mo_length, invert_pot_temp,
                                        invert_uv, rotor_equiv_ws,
-                                       transform_rotate_wind, vorticity_calc)
+                                       transform_rotate_wind, vorticity_calc,
+                                       )
 
 np.random.seed(42)
 
@@ -562,7 +564,7 @@ class WinddirectionNC(DerivedFeature):
 class Veer(DerivedFeature):
     """Veer at a given height"""
 
-    HEIGHTS = [40, 60, 80, 100, 120]
+    HEIGHTS: ClassVar[list] = [40, 60, 80, 100, 120]
 
     @classmethod
     def inputs(cls, feature):
@@ -671,7 +673,7 @@ class Shear(DerivedFeature):
 class Rews(DerivedFeature):
     """Rotor equivalent wind speed"""
 
-    HEIGHTS = [40, 60, 80, 100, 120]
+    HEIGHTS: ClassVar[list] = [40, 60, 80, 100, 120]
 
     @classmethod
     def inputs(cls, feature):
@@ -724,6 +726,98 @@ class Rews(DerivedFeature):
         return rews
 
 
+class UWindPowerLaw(DerivedFeature):
+    """U wind component feature class with needed inputs method and compute
+    method. Uses power law extrapolation to get values above surface
+
+    https://en.wikipedia.org/wiki/Wind_profile_power_law
+    """
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing U wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. U_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing U
+        """
+        features = ['uas']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute U wind component from data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        alpha = 0.143
+        near_surface_height = 1
+        return data['uas'] * (float(height) / near_surface_height)**alpha
+
+
+class VWindPowerLaw(DerivedFeature):
+    """V wind component feature class with needed inputs method and compute
+    method. Uses power law extrapolation to get values above surface
+
+    https://en.wikipedia.org/wiki/Wind_profile_power_law
+    """
+
+    @classmethod
+    def inputs(cls, feature):
+        """Required inputs for computing V wind component
+
+        Parameters
+        ----------
+        feature : str
+            raw feature name. e.g. V_100m
+
+        Returns
+        -------
+        list
+            List of required features for computing V
+        """
+        features = ['vas']
+        return features
+
+    @classmethod
+    def compute(cls, data, height):
+        """Method to compute V wind component from data
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary of raw feature arrays to use for derivation
+        height : str | int
+            Height at which to compute the derived feature
+
+        Returns
+        -------
+        ndarray
+            Derived feature array
+
+        """
+        alpha = 0.143
+        near_surface_height = 1
+        return data['vas'] * (float(height) / near_surface_height)**alpha
+
+
 class UWind(DerivedFeature):
     """U wind component feature class with needed inputs method and compute
     method"""
@@ -750,7 +844,7 @@ class UWind(DerivedFeature):
 
     @classmethod
     def compute(cls, data, height):
-        """Method to compute U wind component from H5 data
+        """Method to compute U wind component from data
 
         Parameters
         ----------
@@ -840,7 +934,7 @@ class VWind(DerivedFeature):
 
     @classmethod
     def compute(cls, data, height):
-        """Method to compute V wind component from H5 data
+        """Method to compute V wind component from data
 
         Parameters
         ----------
@@ -1159,6 +1253,8 @@ class FeatureHandler:
     """Feature Handler with cache for previously loaded features used in other
     calculations """
 
+    FEATURE_REGISTRY: ClassVar[dict] = {}
+
     @classmethod
     def valid_handle_features(cls, features, handle_features):
         """Check if features are in handle
@@ -1231,6 +1327,79 @@ class FeatureHandler:
             old_keys = [f for f in data[chunk_number] if f not in all_features]
             for k in old_keys:
                 data[chunk_number].pop(k)
+
+    @classmethod
+    def has_surrounding_features(cls, feature, handle):
+        """Check if handle has feature values at surrounding heights. e.g. if
+        feature=U_40m check if the handler has u at heights below and above 40m
+
+        Parameters
+        ----------
+        feature : str
+            Raw feature name e.g. U_100m
+        handle: xarray.Dataset
+            netcdf data object
+
+        Returns
+        -------
+        bool
+            Whether feature has surrounding heights
+        """
+        basename = Feature.get_basename(feature)
+        height = float(Feature.get_height(feature))
+        handle_features = list(handle)
+
+        msg = ('Trying to check surrounding heights for multi-level feature '
+               f'({feature})')
+        assert feature.lower() != basename.lower(), msg
+        msg = ('Trying to check surrounding heights for feature already in '
+               f'handler ({feature}).')
+        assert feature not in handle_features, msg
+        surrounding_features = [
+            v for v in handle_features if Feature.get_basename(v) == basename
+        ]
+        heights = [int(Feature.get_height(v)) for v in surrounding_features]
+        heights = np.array(heights)
+        lower_check = len(heights[heights < height]) > 0
+        higher_check = len(heights[heights > height]) > 0
+        return lower_check and higher_check
+
+    @classmethod
+    def has_exact_feature(cls, feature, handle):
+        """Check if exact feature is in handle
+
+        Parameters
+        ----------
+        feature : str
+            Raw feature name e.g. U_100m
+        handle: xarray.Dataset
+            netcdf data object
+
+        Returns
+        -------
+        bool
+            Whether handle contains exact feature or not
+        """
+        return feature in handle or feature.lower() in handle
+
+    @classmethod
+    def has_multilevel_feature(cls, feature, handle):
+        """Check if exact feature is in handle
+
+        Parameters
+        ----------
+        feature : str
+            Raw feature name e.g. U_100m
+        handle: xarray.Dataset
+            netcdf data object
+
+        Returns
+        -------
+        bool
+            Whether handle contains multilevel data for given feature
+        """
+        basename = Feature.get_basename(feature)
+        return basename in handle or basename.lower() in handle
 
     @classmethod
     def serial_extract(cls, file_paths, raster_index, time_chunks,
@@ -1312,7 +1481,6 @@ class FeatureHandler:
         """
         futures = {}
         data = defaultdict(dict)
-
         with SpawnProcessPool(max_workers=max_workers) as exe:
             for t, t_slice in enumerate(time_chunks):
                 for f in input_features:
@@ -1592,7 +1760,7 @@ class FeatureHandler:
         """
 
         out = None
-        for k, v in cls.feature_registry().items():
+        for k, v in cls.FEATURE_REGISTRY.items():
             if k.lower() == feature.lower():
                 out = v
                 break
@@ -1615,7 +1783,7 @@ class FeatureHandler:
         """
 
         out = None
-        for k, v in cls.feature_registry().items():
+        for k, v in cls.FEATURE_REGISTRY.items():
             if re.match(k.lower(), feature.lower()):
                 out = v
                 break
@@ -1766,17 +1934,6 @@ class FeatureHandler:
                 logger.error(msg)
                 raise ValueError(msg)
         return raw_features
-
-    @classmethod
-    @abstractmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
 
     @classmethod
     @abstractmethod
