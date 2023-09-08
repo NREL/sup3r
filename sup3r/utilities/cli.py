@@ -222,7 +222,7 @@ class BaseCLI:
             Status.mark_job_as_submitted(out_dir, command=module_name,
                                          job_name=name, replace=True,
                                          job_attrs={'job_id': out,
-                                                    'hardware': 'slurm'})
+                                                    'hardware': 'eagle'})
         click.echo(msg)
         logger.info(msg)
 
