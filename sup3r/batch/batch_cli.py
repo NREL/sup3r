@@ -49,7 +49,7 @@ def from_config(ctx, config_file, dry_run, cancel, delete, monitor_background,
     if cancel:
         batch.cancel()
     elif delete:
-        batch.delete_all()
+        batch.delete()
     else:
         batch.run(dry_run=dry_run, monitor_background=monitor_background)
 
