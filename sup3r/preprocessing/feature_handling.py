@@ -20,8 +20,7 @@ from rex.utilities.execution import SpawnProcessPool
 from sup3r.utilities.utilities import (bvf_squared, get_raster_shape,
                                        inverse_mo_length, invert_pot_temp,
                                        invert_uv, rotor_equiv_ws,
-                                       transform_rotate_wind, vorticity_calc,
-                                       )
+                                       transform_rotate_wind, vorticity_calc)
 
 np.random.seed(42)
 
@@ -1356,7 +1355,8 @@ class FeatureHandler:
                f'handler ({feature}).')
         assert feature not in handle_features, msg
         surrounding_features = [
-            v for v in handle_features if Feature.get_basename(v) == basename
+            v for v in handle_features
+            if Feature.get_basename(v).lower() == basename.lower()
         ]
         heights = [int(Feature.get_height(v)) for v in surrounding_features]
         heights = np.array(heights)

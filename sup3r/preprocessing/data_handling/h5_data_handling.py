@@ -11,14 +11,21 @@ import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
-from sup3r.preprocessing.feature_handling import (BVFreqMon, BVFreqSquaredH5,
-                                                  ClearSkyRatioH5, CloudMaskH5,
-                                                  LatLonH5, Rews, TopoH5,
-                                                  UWind, VWind,
-                                                  )
-from sup3r.utilities.utilities import (daily_temporal_coarsening,
-                                       uniform_box_sampler,
-                                       )
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon,
+    BVFreqSquaredH5,
+    ClearSkyRatioH5,
+    CloudMaskH5,
+    LatLonH5,
+    Rews,
+    TopoH5,
+    UWind,
+    VWind,
+)
+from sup3r.utilities.utilities import (
+    daily_temporal_coarsening,
+    uniform_box_sampler,
+)
 
 np.random.seed(42)
 
@@ -399,7 +406,9 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     FEATURE_REGISTRY = DataHandlerH5WindCC.FEATURE_REGISTRY.copy()
     FEATURE_REGISTRY.update({
         'windspeed': 'wind_speed',
-        'winddirection': 'wind_direction'
+        'winddirection': 'wind_direction',
+        'U': UWind,
+        'V': VWind,
     })
 
     # the handler from rex to open h5 data.

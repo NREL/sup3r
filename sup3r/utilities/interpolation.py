@@ -396,9 +396,8 @@ class Interpolator:
         basename = Feature.get_basename(var)
 
         level_features = [
-            v for v in handle_features
-            if Feature.get_basename(v) == basename and v != basename
-        ]
+            v for v in handle_features if f'{basename}_' in v
+            or f'{basename.lower()}_' in v]
         return level_features
 
     @classmethod
@@ -476,6 +475,8 @@ class Interpolator:
         """
         arr = None
         hgt = None
+        basename = Feature.get_basename(var)
+        var = basename if basename in data else basename.lower()
         if var in data:
             if len(data[var].dims) == 5:
                 raster_index = [0, *raster_index]

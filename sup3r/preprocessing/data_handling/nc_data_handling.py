@@ -19,15 +19,34 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
-    BVFreqMon, BVFreqSquaredNC, ClearSkyRatioCC, Feature, InverseMonNC,
-    LatLonNC, PotentialTempNC, PressureNC, Rews, Shear, Tas, TasMax, TasMin,
-    TempNC, TempNCforCC, UWind, UWindPowerLaw, VWind, VWindPowerLaw,
-    WinddirectionNC, WindspeedNC,
+    BVFreqMon,
+    BVFreqSquaredNC,
+    ClearSkyRatioCC,
+    Feature,
+    InverseMonNC,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    Tas,
+    TasMax,
+    TasMin,
+    TempNC,
+    TempNCforCC,
+    UWind,
+    UWindPowerLaw,
+    VWind,
+    VWindPowerLaw,
+    WinddirectionNC,
+    WindspeedNC,
 )
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
-                                       np_to_pd_times,
-                                       )
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    get_time_dim_name,
+    np_to_pd_times,
+)
 
 np.random.seed(42)
 
@@ -38,20 +57,20 @@ class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
     FEATURE_REGISTRY: ClassVar[dict] = {
-        'BVF2_(.*)m': BVFreqSquaredNC,
-        'BVF_MO_(.*)m': BVFreqMon,
+        'BVF2_(.*)': BVFreqSquaredNC,
+        'BVF_MO_(.*)': BVFreqMon,
         'RMOL': InverseMonNC,
         'U_(.*)': UWind,
         'V_(.*)': VWind,
-        'Windspeed_(.*)m': WindspeedNC,
-        'Winddirection_(.*)m': WinddirectionNC,
+        'Windspeed_(.*)': WindspeedNC,
+        'Winddirection_(.*)': WinddirectionNC,
         'lat_lon': LatLonNC,
-        'Shear_(.*)m': Shear,
-        'REWS_(.*)m': Rews,
-        'Temperature_(.*)m': TempNC,
-        'Pressure_(.*)m': PressureNC,
-        'PotentialTemp_(.*)m': PotentialTempNC,
-        'PT_(.*)m': PotentialTempNC,
+        'Shear_(.*)': Shear,
+        'REWS_(.*)': Rews,
+        'Temperature_(.*)': TempNC,
+        'Pressure_(.*)': PressureNC,
+        'PotentialTemp_(.*)': PotentialTempNC,
+        'PT_(.*)': PotentialTempNC,
         'topography': ['HGT', 'orog'],
     }
 
@@ -262,22 +281,23 @@ class DataHandlerNC(DataHandler):
         f_info = Feature(feature, handle)
         interp_height = f_info.height
         interp_pressure = f_info.pressure
+        basename = f_info.basename
 
         if cls.has_exact_feature(feature, handle):
             feat_key = feature if feature in handle else feature.lower()
             fdata = cls.direct_extract(handle, feat_key, raster_index,
                                        time_slice)
 
-        elif cls.has_multilevel_feature(
+        elif interp_height is not None and (cls.has_multilevel_feature(
                 feature, handle) or cls.has_surrounding_features(
-                    feature, handle) and interp_height is not None:
+                    feature, handle)):
             fdata = Interpolator.interp_var_to_height(
                 handle, feature, raster_index, np.float32(interp_height),
                 time_slice)
-        elif cls.has_multilevel_feature(
-                feature, handle) and interp_pressure is not None:
+        elif interp_pressure is not None and cls.has_multilevel_feature(
+                feature, handle):
             fdata = Interpolator.interp_var_to_pressure(
-                handle, feat_key, raster_index, np.float32(interp_pressure),
+                handle, basename, raster_index, np.float32(interp_pressure),
                 time_slice)
 
         else:

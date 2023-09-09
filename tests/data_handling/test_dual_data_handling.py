@@ -130,6 +130,66 @@ def test_regrid_caching(log=True,
         assert np.array_equal(old_dh.hr_data, new_dh.hr_data)
 
 
+def test_regrid_caching_in_steps(log=True,
+                                 full_shape=(20, 20),
+                                 sample_shape=(10, 10, 1)):
+    """Test caching and loading of regridded data"""
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    # need to reduce the number of temporal examples to test faster
+    with tempfile.TemporaryDirectory() as td:
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES[0],
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   worker_kwargs=dict(max_workers=1),
+                                   )
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES[0],
+                                   sample_shape=(sample_shape[0] // 2,
+                                                 sample_shape[1] // 2, 1),
+                                   temporal_slice=slice(None, None, 10),
+                                   worker_kwargs=dict(max_workers=1),
+                                   )
+        dh_step1 = DualDataHandler(hr_handler,
+                                   lr_handler,
+                                   s_enhance=2,
+                                   t_enhance=1,
+                                   val_split=0.1,
+                                   regrid_cache_pattern=f'{td}/cache.pkl',
+                                   )
+
+        # Load handlers again with one cached feature and one noncached feature
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES,
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   worker_kwargs=dict(max_workers=1),
+                                   )
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES,
+                                   sample_shape=(sample_shape[0] // 2,
+                                                 sample_shape[1] // 2, 1),
+                                   temporal_slice=slice(None, None, 10),
+                                   worker_kwargs=dict(max_workers=1),
+                                   )
+        dh_step2 = DualDataHandler(hr_handler,
+                                   lr_handler,
+                                   s_enhance=2,
+                                   t_enhance=1,
+                                   val_split=0.1,
+                                   regrid_cache_pattern=f'{td}/cache.pkl')
+
+        assert np.array_equal(dh_step2.lr_data[..., 0:1], dh_step1.lr_data)
+        assert np.array_equal(dh_step2.noncached_features, FEATURES[1:])
+        assert np.array_equal(dh_step2.cached_features, FEATURES[0:1])
+
+
 def test_st_dual_batch_handler(log=False,
                                full_shape=(20, 20),
                                sample_shape=(10, 10, 4)):

@@ -8,9 +8,10 @@ from rex import Resource
 from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import (DataHandlerNCforCC,
-                                               DataHandlerNCforCCwithPowerLaw,
-                                               )
+from sup3r.preprocessing.data_handling import (
+    DataHandlerNCforCC,
+    DataHandlerNCforCCwithPowerLaw,
+)
 
 
 def test_data_handling_nc_cc_power_law():
@@ -61,6 +62,7 @@ def test_data_handling_nc_cc():
         shape=(20, 20),
         val_split=0.0,
         worker_kwargs=dict(max_workers=1))
+
     if handler.invert_lat:
         handler.data = handler.data[::-1]
     assert handler.data.shape == (20, 20, 20, 2)
