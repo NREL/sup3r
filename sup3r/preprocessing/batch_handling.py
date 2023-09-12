@@ -536,7 +536,7 @@ class BatchHandler:
         indices = np.arange(0, len(self.data_handlers))
         return np.random.choice(indices, p=self.handler_weights)
 
-    def get_current_handler(self):
+    def get_rand_handler(self):
         """Get random handler based on handler weights"""
         self.current_handler_index = self.get_handler_index()
         return self.data_handlers[self.current_handler_index]
@@ -952,7 +952,7 @@ class BatchHandler:
         """
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_current_handler()
+            handler = self.get_rand_handler()
             high_res = np.zeros(
                 (self.batch_size, self.sample_shape[0], self.sample_shape[1],
                  self.sample_shape[2], self.shape[-1]),
@@ -1018,7 +1018,7 @@ class BatchHandlerCC(BatchHandler):
         if self._i >= self.n_batches:
             raise StopIteration
 
-        handler = self.get_current_handler()
+        handler = self.get_rand_handler()
 
         low_res = None
         high_res = None
@@ -1124,7 +1124,7 @@ class SpatialBatchHandlerCC(BatchHandler):
         if self._i >= self.n_batches:
             raise StopIteration
 
-        handler = self.get_current_handler()
+        handler = self.get_rand_handler()
 
         high_res = None
 
@@ -1178,7 +1178,7 @@ class SpatialBatchHandler(BatchHandler):
 
     def __next__(self):
         if self._i < self.n_batches:
-            handler = self.get_current_handler()
+            handler = self.get_rand_handler()
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.shape[-1]),
                                 dtype=np.float32)
@@ -1255,10 +1255,8 @@ class ValidationDataDC(ValidationData):
                     np.arange(h.data.shape[-1])
                 ])
                 val_indices[s + self.N_TIME_BINS].append({
-                    'handler_index':
-                    h_idx,
-                    'tuple_index':
-                    tuple_index
+                    'handler_index': h_idx,
+                    'tuple_index': tuple_index
                 })
         return val_indices
 
@@ -1370,7 +1368,7 @@ class BatchHandlerDC(BatchHandler):
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_current_handler()
+            handler = self.get_rand_handler()
             high_res = np.zeros(
                 (self.batch_size, self.sample_shape[0], self.sample_shape[1],
                  self.sample_shape[2], self.shape[-1]),
@@ -1458,7 +1456,7 @@ class BatchHandlerSpatialDC(BatchHandler):
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_current_handler()
+            handler = self.get_rand_handler()
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.shape[-1],
                                  ),
