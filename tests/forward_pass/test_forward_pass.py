@@ -16,8 +16,7 @@ from sup3r.models import LinearInterp, Sup3rGan, WindGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.pytest import (make_fake_multi_time_nc_files,
-                                    make_fake_nc_files,
-                                    )
+                                    make_fake_nc_files)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -472,7 +471,7 @@ def test_fwp_chunking(log=False, plot=False):
                                fwp.ti_slice.stop * t_enhance)
             data_chunked[fwp.hr_slice][..., t_hr_slice, :] = out
 
-        err = (data_chunked - data_nochunk)
+        err = data_chunked - data_nochunk
         err /= data_nochunk
         if plot:
             for ifeature in range(data_nochunk.shape[-1]):
@@ -1414,13 +1413,13 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
 
 def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     """Test the forward pass with multiple ExoGan models requiring
-    high-resolution topography and sza input from the exogenous_data feature."""
+    high-resolution topography and sza input from the exogenous_data
+    feature."""
     Sup3rGan.seed()
     gen_model = [{
         "class": "FlexiblePadding",
         "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
-        "mode": "REFLECT"
-    }, {
+        "mode": "REFLECT"}, {
         "class": "Conv2DTranspose",
         "filters": 64,
         "kernel_size": 3,
