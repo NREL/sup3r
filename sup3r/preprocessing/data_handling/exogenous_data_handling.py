@@ -1,14 +1,18 @@
 """Sup3r exogenous data handling"""
-import os
-import shutil
 import logging
-import numpy as np
+import os
 import pickle
+import shutil
+from typing import ClassVar
 from warnings import warn
 
-from sup3r.utilities.topo import TopoExtractH5, TopoExtractNC
-import sup3r.preprocessing.data_handling
-import sup3r.utilities.topo
+import numpy as np
+
+from sup3r.preprocessing.data_handling.exo_extraction import (SzaExtractH5,
+                                                              SzaExtractNC,
+                                                              TopoExtractH5,
+                                                              TopoExtractNC,
+                                                              )
 from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
@@ -19,10 +23,32 @@ class ExogenousDataHandler:
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps."""
 
-    def __init__(self, file_paths, features, source_file, s_enhancements,
-                 agg_factors, target=None, shape=None, raster_file=None,
-                 max_delta=20, input_handler=None, topo_handler=None,
-                 exo_steps=None, cache_data=True):
+    AVAILABLE_HANDLERS: ClassVar[dict] = {
+        'topography': {
+            'h5': TopoExtractH5,
+            'nc': TopoExtractNC
+        },
+        'sza': {
+            'h5': SzaExtractH5,
+            'nc': SzaExtractNC
+        }
+    }
+
+    def __init__(self,
+                 file_paths,
+                 feature,
+                 source_file,
+                 s_enhancements,
+                 agg_factors,
+                 target=None,
+                 shape=None,
+                 raster_file=None,
+                 max_delta=20,
+                 input_handler=None,
+                 exo_handler=None,
+                 exo_steps=None,
+                 cache_data=True,
+                 t_enhancements=None):
         """
         Parameters
         ----------
@@ -32,8 +58,8 @@ class ExogenousDataHandler:
             through glob.glob. This is typically low-res WRF output or GCM
             netcdf data that is source low-resolution data intended to be
             sup3r resolved.
-        features : list
-            List of exogenous features to extract from source_h5
+        feature : str
+            Exogenous feature to extract from source_h5
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the
@@ -68,14 +94,20 @@ class ExogenousDataHandler:
             exists or written to the file if it does not yet exist.  If None
             raster_index will be calculated directly. Either need target+shape
             or raster_file.
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
         input_handler : str
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        topo_handler : str
-            topo extract class to use for source data. Provide a string name to
-            match a class in topo.py. If None the correct handler will
-            be guessed based on file type and time series properties.
+        exo_handler : str
+            Feature extract class to use for source data. For example, if
+            feature='topography' this should be either TopoExtractH5 or
+            TopoExtractNC. If None the correct handler will be guessed based on
+            file type and time series properties.
         exo_steps : list
             List of model step indices for which exogenous data is required.
             e.g. If we have two model steps which take exo data and one which
@@ -84,14 +116,19 @@ class ExogenousDataHandler:
         cache_data : bool
             Flag to cache exogeneous data in ./exo_cache/ this can speed up
             forward passes with large temporal extents
+        t_enhancements : list
+            List of factors by which the Sup3rGan model will enhance the
+            temporal dimension of low resolution data from file_paths input
+            where the total temporal enhancement is the product of these
+            factors.
         """
 
-        self.features = features
+        self.feature = feature
         self.s_enhancements = s_enhancements
         self.agg_factors = agg_factors
         self.source_file = source_file
         self.file_paths = file_paths
-        self.topo_handler = topo_handler
+        self.exo_handler = exo_handler
         self.target = target
         self.shape = shape
         self.raster_file = raster_file
@@ -99,6 +136,8 @@ class ExogenousDataHandler:
         self.input_handler = input_handler
         self.cache_data = cache_data
         self.data = []
+        self.t_enhancements = (t_enhancements if t_enhancements is not None
+                               else [1] * len(self.s_enhancements))
         exo_steps = exo_steps or np.arange(len(self.s_enhancements))
 
         if self.s_enhancements[0] != 1:
@@ -108,11 +147,20 @@ class ExogenousDataHandler:
                    's_enhancements: {}'.format(self.s_enhancements))
             logger.warning(msg)
             warn(msg)
+        if self.t_enhancements[0] != 1:
+            msg = ('t_enhancements typically starts with 1 so the first '
+                   'exogenous data input matches the temporal resolution of '
+                   'the source low-res input data, but received '
+                   't_enhancements: {}'.format(self.t_enhancements))
+            logger.warning(msg)
+            warn(msg)
 
         msg = ('Need to provide the same number of enhancement factors and '
-               f'agg factors. Received s_enhancements={s_enhancements} and '
+               f'agg factors. Received s_enhancements={self.s_enhancements}, '
+               f't_enhancements={self.t_enhancements}, and '
                f'agg_factors={agg_factors}.')
         assert len(self.s_enhancements) == len(self.agg_factors), msg
+        assert len(self.t_enhancements) == len(self.agg_factors), msg
 
         msg = ('Need to provide an integer enhancement factor for each model'
                'step. If the step is temporal enhancement then s_enhance=1')
@@ -120,27 +168,70 @@ class ExogenousDataHandler:
 
         for i in range(len(self.s_enhancements)):
             s_enhance = np.product(self.s_enhancements[:i + 1])
+            t_enhance = np.product(self.t_enhancements[:i + 1])
             agg_factor = self.agg_factors[i]
             fdata = []
             if i in exo_steps:
-                for f in features:
-                    if f == 'topography':
-                        data = self.get_topo_data(s_enhance, agg_factor)
-                        fdata.append(data)
-                    else:
-                        msg = (f"Can only extract topography. Recived {f}.")
-                        raise NotImplementedError(msg)
+                if feature in list(self.AVAILABLE_HANDLERS):
+                    data = self.get_exo_data(feature=feature,
+                                             s_enhance=s_enhance,
+                                             t_enhance=t_enhance,
+                                             agg_factor=agg_factor)
+                    fdata.append(data)
+                else:
+                    msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
+                           f" Received {feature}.")
+                    raise NotImplementedError(msg)
                 self.data.append(np.stack(fdata, axis=-1))
             else:
                 self.data.append(None)
 
-    def get_topo_data(self, s_enhance, agg_factor):
+    def get_cache_file(self, feature, s_enhance, t_enhance, agg_factor):
+        """Get cache file name
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        agg_factor : int
+            Factor by which to aggregate the topo_source_h5 elevation
+            data to the resolution of the file_paths input enhanced by
+            s_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        cache_dir = './exo_cache/'
+        fn = f'exo_{feature}_{self.target}_{self.shape}_agg{agg_factor}_'
+        fn += f'{s_enhance}x_{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(cache_dir, exist_ok=True)
+        return cache_fp
+
+    def get_exo_data(self, feature, s_enhance, t_enhance, agg_factor):
         """Get the exogenous topography data
 
         Parameters
         ----------
+        feature : str
+            Name of feature to get exo data for
         s_enhance : int
             Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
             all model steps up to the current step).
         agg_factor : int
             Factor by which to aggregate the topo_source_h5 elevation
@@ -150,77 +241,73 @@ class ExogenousDataHandler:
         Returns
         -------
         data : np.ndarray
-            2D array of elevation data with shape (lat, lon)
+            2D or 3D array of exo data with shape (lat, lon) or (lat,
+            lon, temporal)
         """
 
-        cache_dir = './exo_cache/'
-        fn = f'exo_{self.target}_{self.shape}_agg{agg_factor}_{s_enhance}x.pkl'
-        fn = fn.replace('(', '').replace(')', '')
-        fn = fn.replace('[', '').replace(']', '')
-        fn = fn.replace(',', 'x').replace(' ', '')
-        cache_fp = os.path.join(cache_dir, fn)
-        temp_fp = cache_fp + '.tmp'
+        cache_fp = self.get_cache_file(feature=feature)
+        tmp_fp = cache_fp + '.tmp'
 
         if os.path.exists(cache_fp):
             with open(cache_fp, 'rb') as f:
                 data = pickle.load(f)
 
         else:
-            topo_handler = self.get_topo_handler(self.source_file,
-                                                 self.topo_handler)
-            data = topo_handler(self.file_paths, self.source_file, s_enhance,
-                                agg_factor, target=self.target,
-                                shape=self.shape,
-                                raster_file=self.raster_file,
-                                max_delta=self.max_delta,
-                                input_handler=self.input_handler)
-            data = data.hr_elev
+            exo_handler = self.get_exo_handler(feature, self.source_file,
+                                               self.exo_handler)
+            dh = exo_handler(self.file_paths,
+                             self.source_file,
+                             s_enhance=s_enhance,
+                             t_enhance=t_enhance,
+                             agg_factor=agg_factor,
+                             target=self.target,
+                             shape=self.shape,
+                             raster_file=self.raster_file,
+                             max_delta=self.max_delta,
+                             input_handler=self.input_handler)
             if self.cache_data:
-                os.makedirs(cache_dir, exist_ok=True)
-                with open(temp_fp, 'wb') as f:
-                    pickle.dump(data, f)
-                shutil.move(temp_fp, cache_fp)
-
+                with open(tmp_fp, 'wb') as f:
+                    pickle.dump(dh.data, f)
+                shutil.move(tmp_fp, cache_fp)
         return data
 
-    @staticmethod
-    def get_topo_handler(source_file, topo_handler):
-        """Get topo extraction class for source file
+    @classmethod
+    def get_exo_handler(cls, feature, source_file, exo_handler):
+        """Get exogenous feature extraction class for source file
 
         Parameters
         ----------
+        feature : str
+            Name of feature to get exo handler for
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the
             file_paths input
-        topo_handler : str
-            topo extract class to use for source data. Provide a string name to
-            match a class in topo.py. If None the correct handler will
-            be guessed based on file type and time series properties.
+        exo_handler : str
+            Feature extract class to use for source data. For example, if
+            feature='topography' this should be either TopoExtractH5 or
+            TopoExtractNC. If None the correct handler will be guessed based on
+            file type and time series properties.
 
         Returns
         -------
-        topo_handler : str
-            topo extract class to use for source data.
+        exo_handler : str
+            Exogenous feature extraction class to use for source data.
         """
-        if topo_handler is None:
+        if exo_handler is None:
             in_type = get_source_type(source_file)
-            if in_type == 'nc':
-                topo_handler = TopoExtractNC
-            elif in_type == 'h5':
-                topo_handler = TopoExtractH5
-            else:
-                msg = ('Did not recognize input type "{}" for file paths: {}'
-                       .format(in_type, source_file))
+            if in_type not in ('h5', 'nc'):
+                msg = ('Did not recognize input type "{}" for file paths: {}'.
+                       format(in_type, source_file))
                 logger.error(msg)
                 raise RuntimeError(msg)
-        elif isinstance(topo_handler, str):
-            topo_handler = getattr(sup3r.utilities.topo, topo_handler, None)
-            if topo_handler is None:
-                msg = ('Could not find requested topo handler class '
-                       f'"{topo_handler}" in '
-                       'sup3r.utilities.topo.')
+            check = (feature in cls.AVAILABLE_HANDLERS
+                     and in_type in cls.AVAILABLE_HANDLERS[feature])
+            if check:
+                exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
+            else:
+                msg = ('Could not find exo handler class for '
+                       f'feature={feature} and input_type={in_type}.')
                 logger.error(msg)
                 raise KeyError(msg)
-
-        return topo_handler
+        return exo_handler

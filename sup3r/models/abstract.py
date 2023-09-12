@@ -14,10 +14,10 @@ from warnings import warn
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import optimizers
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
+from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
 from sup3r.utilities import VERSION_RECORD
@@ -119,6 +119,56 @@ class AbstractInterface(ABC):
         return self.meta.get('t_enhance', None)
 
     @property
+    def needs_hr_exo(self):
+        """Determine whether or not the sup3r model needs hi-res exogenous data
+
+        Returns
+        -------
+        needs_hr_exo : bool
+            True if the model requires high-resolution exogenous data,
+            typically because of the use of Sup3rAdder or Sup3rConcat layers.
+        """
+        # pylint: disable=E1101
+        return (hasattr(self, '_gen') and any(
+            isinstance(layer, (Sup3rAdder, Sup3rConcat))
+            for layer in self._gen.layers))
+
+    def _needs_lr_exo(self, low_res):
+        """Determine whether or not the sup3r model needs low-res exogenous
+        data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        needs_lr_exo : bool
+            True if the model requires low-resolution exogenous data.
+        """
+        return low_res.shape[-1] < len(self.training_features)
+
+    @property
+    def exogenous_features(self):
+        """Get list of exogenous filter names the model uses. If the model has
+        N concat or add layers this list will be the last N features in the
+        training features list. The ordering is assumed to be the same as the
+        order of concat or add layers. If training features is [..., topo,
+        sza], and the model has 2 concat or add layers, exo features will be
+        [topo, sza]. Topo will then be used in the first concat layer and sza
+        will be used in the second"""
+        # pylint: disable=E1101
+        layer_count = 0
+        if hasattr(self, '_gen'):
+            layer_count = sum(
+                isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                for layer in self._gen.layers)
+        return self.training_features[-layer_count:]
+
+    @property
     @abstractmethod
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
@@ -189,8 +239,9 @@ class AbstractInterface(ABC):
                 self.meta[var] = kwargs[var]
             elif val != kwargs[var]:
                 msg = ('Model was previously trained with {var}={} but '
-                       'received new {var}={}'
-                       .format(val, kwargs[var], var=var))
+                       'received new {var}={}'.format(val,
+                                                      kwargs[var],
+                                                      var=var))
                 logger.warning(msg)
                 warn(msg)
 
@@ -255,16 +306,14 @@ class AbstractSingleModel(ABC):
             self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
-            elif ('meta' in model
-                  and f'config_{name}' in model['meta']
+            elif ('meta' in model and f'config_{name}' in model['meta']
                   and 'hidden_layers' in model['meta'][f'config_{name}']):
                 model = model['meta'][f'config_{name}']['hidden_layers']
             else:
                 msg = ('Could not load model from json config, need '
                        '"hidden_layers" key or '
                        f'"meta/config_{name}/hidden_layers" '
-                       ' at top level but only found: {}'
-                       .format(model.keys()))
+                       ' at top level but only found: {}'.format(model.keys()))
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -277,8 +326,8 @@ class AbstractSingleModel(ABC):
 
         if not isinstance(model, CustomNetwork):
             msg = ('Something went wrong. Tried to load a custom network '
-                   'but ended up with a model of type "{}"'
-                   .format(type(model)))
+                   'but ended up with a model of type "{}"'.format(
+                       type(model)))
             logger.error(msg)
             raise TypeError(msg)
 
@@ -308,23 +357,27 @@ class AbstractSingleModel(ABC):
     def output_stdevs(self):
         """Get the data normalization standard deviation values for only the
         output features
+
         Returns
         -------
         np.ndarray
         """
-        indices = [self.training_features.index(f)
-                   for f in self.output_features]
+        indices = [
+            self.training_features.index(f) for f in self.output_features
+        ]
         return self._stdevs[indices]
 
     @property
     def output_means(self):
         """Get the data normalization mean values for only the output features
+
         Returns
         -------
         np.ndarray
         """
-        indices = [self.training_features.index(f)
-                   for f in self.output_features]
+        indices = [
+            self.training_features.index(f) for f in self.output_features
+        ]
         return self._means[indices]
 
     def set_norm_stats(self, new_means, new_stdevs):
@@ -341,10 +394,10 @@ class AbstractSingleModel(ABC):
 
         if self._means is not None:
             logger.info('Setting new normalization statistics...')
-            logger.info("Model's previous data mean values: {}"
-                        .format(self._means))
-            logger.info("Model's previous data stdev values: {}"
-                        .format(self._stdevs))
+            logger.info("Model's previous data mean values: {}".format(
+                self._means))
+            logger.info("Model's previous data stdev values: {}".format(
+                self._stdevs))
 
         self._means = new_means
         self._stdevs = new_stdevs
@@ -354,10 +407,10 @@ class AbstractSingleModel(ABC):
         if not isinstance(self._stdevs, np.ndarray):
             self._stdevs = np.array(self._stdevs)
 
-        logger.info('Set data normalization mean values: {}'
-                    .format(self._means))
-        logger.info('Set data normalization stdev values: {}'
-                    .format(self._stdevs))
+        logger.info('Set data normalization mean values: {}'.format(
+            self._means))
+        logger.info('Set data normalization stdev values: {}'.format(
+            self._stdevs))
 
     def norm_input(self, low_res):
         """Normalize low resolution data being input to the generator.
@@ -459,25 +512,6 @@ class AbstractSingleModel(ABC):
         """
         return self.generator.weights
 
-    def _needs_lr_exo(self, low_res):
-        """Determine whether or not the sup3r model needs low-res exogenous
-        data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        needs_lr_exo : bool
-            True if the model requires low-resolution exogenous data.
-        """
-
-        return low_res.shape[-1] < len(self.training_features)
-
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
         """Initialize keras optimizer object.
@@ -500,8 +534,10 @@ class AbstractSingleModel(ABC):
             class_name = optimizer['name']
             OptimizerClass = getattr(optimizers, class_name)
             sig = signature(OptimizerClass)
-            optimizer_kwargs = {k: v for k, v in optimizer.items()
-                                if k in sig.parameters}
+            optimizer_kwargs = {
+                k: v
+                for k, v in optimizer.items() if k in sig.parameters
+            }
             optimizer = OptimizerClass.from_config(optimizer_kwargs)
         elif optimizer is None:
             optimizer = optimizers.Adam(learning_rate=learning_rate)
@@ -544,8 +580,8 @@ class AbstractSingleModel(ABC):
             if verbose:
                 logger.info('Loading model from disk '
                             'that was created with the '
-                            'following package versions: \n{}'
-                            .format(pprint.pformat(version_record, indent=2)))
+                            'following package versions: \n{}'.format(
+                                pprint.pformat(version_record, indent=2)))
 
         return params
 
@@ -575,8 +611,8 @@ class AbstractSingleModel(ABC):
 
         if out is None:
             msg = ('Could not find requested loss function "{}" in '
-                   'sup3r.utilities.loss_metrics or tf.keras.losses.'
-                   .format(loss))
+                   'sup3r.utilities.loss_metrics or tf.keras.losses.'.format(
+                       loss))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -635,8 +671,8 @@ class AbstractSingleModel(ABC):
 
         for key, new_value in new_data.items():
             key = key if prefix is None else prefix + key
-            new_value = (new_value if not isinstance(new_value, tf.Tensor)
-                         else new_value.numpy())
+            new_value = (new_value if not isinstance(new_value, tf.Tensor) else
+                         new_value.numpy())
 
             if key in loss_details:
                 saved_value = loss_details[key]
@@ -710,8 +746,8 @@ class AbstractSingleModel(ABC):
                 stop = True
                 logger.info('Found early stop condition, loss values "{}" '
                             'have absolute relative differences less than '
-                            'threshold {}: {}'
-                            .format(column, threshold, diffs[-n_epoch:]))
+                            'threshold {}: {}'.format(column, threshold,
+                                                      diffs[-n_epoch:]))
 
         return stop
 
@@ -726,10 +762,17 @@ class AbstractSingleModel(ABC):
             if it does not already exist.
         """
 
-    def finish_epoch(self, epoch, epochs, t0, loss_details,
-                     checkpoint_int, out_dir,
-                     early_stop_on, early_stop_threshold,
-                     early_stop_n_epoch, extras=None):
+    def finish_epoch(self,
+                     epoch,
+                     epochs,
+                     t0,
+                     loss_details,
+                     checkpoint_int,
+                     out_dir,
+                     early_stop_on,
+                     early_stop_threshold,
+                     early_stop_n_epoch,
+                     extras=None):
         """Perform finishing checks after an epoch is done training
 
         Parameters
@@ -790,7 +833,8 @@ class AbstractSingleModel(ABC):
 
         stop = False
         if early_stop_on is not None and early_stop_on in self._history:
-            stop = self.early_stop(self._history, early_stop_on,
+            stop = self.early_stop(self._history,
+                                   early_stop_on,
                                    threshold=early_stop_threshold,
                                    n_epoch=early_stop_n_epoch)
             if stop:
@@ -803,8 +847,12 @@ class AbstractSingleModel(ABC):
         return stop
 
     @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
+    def get_single_grad(self,
+                        low_res,
+                        hi_res_true,
+                        training_weights,
+                        device_name=None,
+                        **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 
@@ -851,8 +899,12 @@ class AbstractSingleModel(ABC):
 
         return grad, loss_details
 
-    def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             optimizer=None, multi_gpu=False,
+    def run_gradient_descent(self,
+                             low_res,
+                             hi_res_true,
+                             training_weights,
+                             optimizer=None,
+                             multi_gpu=False,
                              **calc_loss_kwargs):
         # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
@@ -918,12 +970,13 @@ class AbstractSingleModel(ABC):
                 for i in range(len(self.gpu_list)):
                     if split_mask:
                         calc_loss_kwargs['mask'] = mask_chunks[i]
-                    futures.append(exe.submit(self.get_single_grad,
-                                              lr_chunks[i],
-                                              hr_true_chunks[i],
-                                              training_weights,
-                                              device_name=f'/gpu:{i}',
-                                              **calc_loss_kwargs))
+                    futures.append(
+                        exe.submit(self.get_single_grad,
+                                   lr_chunks[i],
+                                   hr_true_chunks[i],
+                                   training_weights,
+                                   device_name=f'/gpu:{i}',
+                                   **calc_loss_kwargs))
             for i, future in enumerate(futures):
                 grad, loss_details = future.result()
                 optimizer.apply_gradients(zip(grad, training_weights))
@@ -965,8 +1018,8 @@ class AbstractWindInterface(ABC):
         """
         output_features = kwargs['output_features']
         msg = ('Last output feature from the data handler must be topography '
-               'to train the WindCC model, but received output features: {}'
-               .format(output_features))
+               'to train the WindCC model, but received output features: {}'.
+               format(output_features))
         assert output_features[-1] == 'topography', msg
         output_features.remove('topography')
         kwargs['output_features'] = output_features
@@ -1035,7 +1088,10 @@ class AbstractWindInterface(ABC):
 
         return hi_res_topo
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
+    def generate(self,
+                 low_res,
+                 norm_in=True,
+                 un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
@@ -1079,8 +1135,8 @@ class AbstractWindInterface(ABC):
                 hi_res_topo = exogenous_data[1]
 
         exo_check = (low_res is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check
-                   else np.concatenate((low_res, low_res_topo), axis=-1))
+        low_res = (low_res if exo_check else np.concatenate(
+            (low_res, low_res_topo), axis=-1))
 
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
@@ -1090,14 +1146,15 @@ class AbstractWindInterface(ABC):
             try:
                 if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
                         and hi_res_topo is not None):
-                    hi_res_topo = self._reshape_norm_topo(hi_res, hi_res_topo,
+                    hi_res_topo = self._reshape_norm_topo(hi_res,
+                                                          hi_res_topo,
                                                           norm_in=norm_in)
                     hi_res = layer(hi_res, hi_res_topo)
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -1141,16 +1198,20 @@ class AbstractWindInterface(ABC):
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
         return hi_res
 
     @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
+    def get_single_grad(self,
+                        low_res,
+                        hi_res_true,
+                        training_weights,
+                        device_name=None,
+                        **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 

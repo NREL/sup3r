@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 """Sup3r multi step model frameworks"""
-import os
 import json
 import logging
+import os
+
 import numpy as np
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
 # pylint: disable=cyclic-import
 import sup3r.models
 from sup3r.models.abstract import AbstractInterface
 from sup3r.models.base import Sup3rGan
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,25 +31,6 @@ class MultiStepGan(AbstractInterface):
     def __len__(self):
         """Get number of model steps"""
         return len(self._models)
-
-    @staticmethod
-    def _needs_hr_exo(model):
-        """Determine whether or not the sup3r model needs hi-res exogenous data
-
-        Parameters
-        ----------
-        model : Sup3rGan | WindGan
-            Sup3r GAN model based on Sup3rGan with a .generator attribute
-
-        Returns
-        -------
-        needs_hr_exo : bool
-            True if the model requires high-resolution exogenous data,
-            typically because of the use of Sup3rAdder or Sup3rConcat layers.
-        """
-        return (hasattr(model, 'generator')
-                and any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                for layer in model.generator.layers))
 
     @classmethod
     def load(cls, model_dirs, verbose=True):
@@ -80,7 +60,7 @@ class MultiStepGan(AbstractInterface):
         for model_dir in model_dirs:
             fp_params = os.path.join(model_dir, 'model_params.json')
             assert os.path.exists(fp_params), f'Could not find: {fp_params}'
-            with open(fp_params, 'r') as f:
+            with open(fp_params) as f:
                 params = json.load(f)
 
             meta = params.get('meta', {'class': 'Sup3rGan'})
@@ -182,7 +162,7 @@ class MultiStepGan(AbstractInterface):
                              else True)
 
             i_exo_data = exo_data[i]
-            if self._needs_hr_exo(model):
+            if model.needs_hr_exo:
                 i_exo_data = [exo_data[i], exo_data[i + 1]]
 
             try:
