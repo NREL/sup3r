@@ -11,8 +11,7 @@ import numpy as np
 from sup3r.preprocessing.data_handling.exo_extraction import (SzaExtractH5,
                                                               SzaExtractNC,
                                                               TopoExtractH5,
-                                                              TopoExtractNC,
-                                                              )
+                                                              TopoExtractNC)
 from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
@@ -39,16 +38,18 @@ class ExogenousDataHandler:
                  feature,
                  source_file,
                  s_enhancements,
-                 agg_factors,
+                 t_enhancements,
+                 s_agg_factors,
+                 t_agg_factors,
                  target=None,
                  shape=None,
+                 temporal_slice=None,
                  raster_file=None,
                  max_delta=20,
                  input_handler=None,
                  exo_handler=None,
                  exo_steps=None,
-                 cache_data=True,
-                 t_enhancements=None):
+                 cache_data=True):
         """
         Parameters
         ----------
@@ -78,16 +79,29 @@ class ExogenousDataHandler:
             receive a high-res input feature (e.g. WindGan). The length of this
             list should be equal to the number of agg_factors and the number of
             exo_steps
-        agg_factors : list
-            List of factors by which to aggregate the topo_source_h5 elevation
-            data to the resolution of the file_paths input enhanced by
+        t_enhancements : list
+            List of factors by which the Sup3rGan model will enhance the
+            temporal dimension of low resolution data from file_paths input
+            where the total temporal enhancement is the product of these
+            factors.
+        s_agg_factors : list
+            List of factors by which to aggregate the exo_source
+            data to the spatial resolution of the file_paths input enhanced by
             s_enhance. The length of this list should be equal to the number of
             s_enhancements and the number of exo_steps
+        t_agg_factors : list
+            List of factors by which to aggregate the exo_source
+            data to the temporal resolution of the file_paths input enhanced by
+            t_enhance. The length of this list should be equal to the number of
+            t_enhancements and the number of exo_steps
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
+        temporal_slice : slice | None
+            slice used to extract interval from temporal dimension for input
+            data and source data
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
@@ -112,23 +126,22 @@ class ExogenousDataHandler:
             List of model step indices for which exogenous data is required.
             e.g. If we have two model steps which take exo data and one which
             does not exo_steps = [0, 1]. The length of this list should be
-            equal to the number of s_enhancements and the number of agg_factors
+            equal to the number of s/t_enhancements and the number of
+            s/t_agg_factors
         cache_data : bool
             Flag to cache exogeneous data in ./exo_cache/ this can speed up
             forward passes with large temporal extents
-        t_enhancements : list
-            List of factors by which the Sup3rGan model will enhance the
-            temporal dimension of low resolution data from file_paths input
-            where the total temporal enhancement is the product of these
-            factors.
         """
 
         self.feature = feature
         self.s_enhancements = s_enhancements
-        self.agg_factors = agg_factors
+        self.t_enhancements = t_enhancements
+        self.s_agg_factors = s_agg_factors
+        self.t_agg_factors = t_agg_factors
         self.source_file = source_file
         self.file_paths = file_paths
         self.exo_handler = exo_handler
+        self.temporal_slice = temporal_slice
         self.target = target
         self.shape = shape
         self.raster_file = raster_file
@@ -136,8 +149,6 @@ class ExogenousDataHandler:
         self.input_handler = input_handler
         self.cache_data = cache_data
         self.data = []
-        self.t_enhancements = (t_enhancements if t_enhancements is not None
-                               else [1] * len(self.s_enhancements))
         exo_steps = exo_steps or np.arange(len(self.s_enhancements))
 
         if self.s_enhancements[0] != 1:
@@ -157,10 +168,12 @@ class ExogenousDataHandler:
 
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={self.s_enhancements}, '
-               f't_enhancements={self.t_enhancements}, and '
-               f'agg_factors={agg_factors}.')
-        assert len(self.s_enhancements) == len(self.agg_factors), msg
-        assert len(self.t_enhancements) == len(self.agg_factors), msg
+               f'and s_agg_factors={self.s_agg_factors}.')
+        assert len(self.s_enhancements) == len(self.s_agg_factors), msg
+        msg = ('Need to provide the same number of enhancement factors and '
+               f'agg factors. Received t_enhancements={self.t_enhancements}, '
+               f'and t_agg_factors={self.t_agg_factors}.')
+        assert len(self.t_enhancements) == len(self.t_agg_factors), msg
 
         msg = ('Need to provide an integer enhancement factor for each model'
                'step. If the step is temporal enhancement then s_enhance=1')
@@ -169,14 +182,16 @@ class ExogenousDataHandler:
         for i in range(len(self.s_enhancements)):
             s_enhance = np.product(self.s_enhancements[:i + 1])
             t_enhance = np.product(self.t_enhancements[:i + 1])
-            agg_factor = self.agg_factors[i]
+            s_agg_factor = self.s_agg_factors[i]
+            t_agg_factor = self.t_agg_factors[i]
             fdata = []
             if i in exo_steps:
                 if feature in list(self.AVAILABLE_HANDLERS):
                     data = self.get_exo_data(feature=feature,
                                              s_enhance=s_enhance,
                                              t_enhance=t_enhance,
-                                             agg_factor=agg_factor)
+                                             s_agg_factor=s_agg_factor,
+                                             t_agg_factor=t_agg_factor)
                     fdata.append(data)
                 else:
                     msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
@@ -186,7 +201,8 @@ class ExogenousDataHandler:
             else:
                 self.data.append(None)
 
-    def get_cache_file(self, feature, s_enhance, t_enhance, agg_factor):
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
         """Get cache file name
 
         Parameters
@@ -199,10 +215,12 @@ class ExogenousDataHandler:
         t_enhance : int
             Temporal enhancement for this exogeneous data step (cumulative for
             all model steps up to the current step).
-        agg_factor : int
-            Factor by which to aggregate the topo_source_h5 elevation
-            data to the resolution of the file_paths input enhanced by
-            s_enhance.
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
 
         Returns
         -------
@@ -210,8 +228,8 @@ class ExogenousDataHandler:
             Name of cache file
         """
         cache_dir = './exo_cache/'
-        fn = f'exo_{feature}_{self.target}_{self.shape}_agg{agg_factor}_'
-        fn += f'{s_enhance}x_{t_enhance}x.pkl'
+        fn = f'exo_{feature}_{self.target}_{self.shape}_sagg{s_agg_factor}_'
+        fn += f'tagg_{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
@@ -220,7 +238,8 @@ class ExogenousDataHandler:
             os.makedirs(cache_dir, exist_ok=True)
         return cache_fp
 
-    def get_exo_data(self, feature, s_enhance, t_enhance, agg_factor):
+    def get_exo_data(self, feature, s_enhance, t_enhance, s_agg_factor,
+                     t_agg_factor):
         """Get the exogenous topography data
 
         Parameters
@@ -233,10 +252,12 @@ class ExogenousDataHandler:
         t_enhance : int
             Temporal enhancement for this exogeneous data step (cumulative for
             all model steps up to the current step).
-        agg_factor : int
-            Factor by which to aggregate the topo_source_h5 elevation
-            data to the resolution of the file_paths input enhanced by
-            s_enhance.
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
 
         Returns
         -------
@@ -245,9 +266,13 @@ class ExogenousDataHandler:
             lon, temporal)
         """
 
-        cache_fp = self.get_cache_file(feature=feature)
+        cache_fp = self.get_cache_file(feature=feature,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       s_agg_factor=s_agg_factor,
+                                       t_agg_factor=t_agg_factor)
         tmp_fp = cache_fp + '.tmp'
-
+        print(cache_fp)
         if os.path.exists(cache_fp):
             with open(cache_fp, 'rb') as f:
                 data = pickle.load(f)
@@ -255,19 +280,21 @@ class ExogenousDataHandler:
         else:
             exo_handler = self.get_exo_handler(feature, self.source_file,
                                                self.exo_handler)
-            dh = exo_handler(self.file_paths,
-                             self.source_file,
-                             s_enhance=s_enhance,
-                             t_enhance=t_enhance,
-                             agg_factor=agg_factor,
-                             target=self.target,
-                             shape=self.shape,
-                             raster_file=self.raster_file,
-                             max_delta=self.max_delta,
-                             input_handler=self.input_handler)
+            data = exo_handler(self.file_paths,
+                               self.source_file,
+                               s_enhance=s_enhance,
+                               t_enhance=t_enhance,
+                               s_agg_factor=s_agg_factor,
+                               t_agg_factor=t_agg_factor,
+                               target=self.target,
+                               shape=self.shape,
+                               temporal_slice=self.temporal_slice,
+                               raster_file=self.raster_file,
+                               max_delta=self.max_delta,
+                               input_handler=self.input_handler).data
             if self.cache_data:
                 with open(tmp_fp, 'wb') as f:
-                    pickle.dump(dh.data, f)
+                    pickle.dump(data, f)
                 shutil.move(tmp_fp, cache_fp)
         return data
 

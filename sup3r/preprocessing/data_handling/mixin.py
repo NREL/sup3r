@@ -15,10 +15,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import mode
 
-from sup3r.utilities.utilities import (get_source_type, ignore_case_path_fetch,
-                                       uniform_box_sampler,
-                                       uniform_time_sampler,
-                                       )
+from sup3r.utilities.utilities import (
+    get_source_type,
+    ignore_case_path_fetch,
+    uniform_box_sampler,
+    uniform_time_sampler,
+)
 
 np.random.seed(42)
 
@@ -601,6 +603,8 @@ class InputMixIn(CacheHandlingMixIn):
             elements and no more than three, corresponding to the inputs of
             slice()
         """
+        if temporal_slice is None:
+            temporal_slice = slice(None)
         msg = 'temporal_slice must be tuple, list, or slice'
         assert isinstance(temporal_slice, (tuple, list, slice)), msg
         if isinstance(temporal_slice, slice):

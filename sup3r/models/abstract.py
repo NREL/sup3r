@@ -437,7 +437,7 @@ class AbstractSingleModel(ABC):
 
             if any(self._stdevs == 0):
                 stdevs = np.where(self._stdevs == 0, 1, self._stdevs)
-                msg = ('Some standard deviations are zero.')
+                msg = 'Some standard deviations are zero.'
                 logger.warning(msg)
                 warn(msg)
             else:
@@ -961,6 +961,7 @@ class AbstractSingleModel(ABC):
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
             split_mask = False
+            mask_chunks = None
             if 'mask' in calc_loss_kwargs:
                 split_mask = True
                 mask_chunks = np.array_split(calc_loss_kwargs['mask'],
@@ -977,7 +978,7 @@ class AbstractSingleModel(ABC):
                                    training_weights,
                                    device_name=f'/gpu:{i}',
                                    **calc_loss_kwargs))
-            for i, future in enumerate(futures):
+            for _, future in enumerate(futures):
                 grad, loss_details = future.result()
                 optimizer.apply_gradients(zip(grad, training_weights))
 

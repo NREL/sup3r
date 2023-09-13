@@ -19,18 +19,21 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 import sup3r.models
-from sup3r.postprocessing.file_handling import (OutputHandler, OutputHandlerH5,
-                                                OutputHandlerNC,
-                                                )
+from sup3r.postprocessing.file_handling import (
+    OutputHandler,
+    OutputHandlerH5,
+    OutputHandlerNC,
+)
 from sup3r.preprocessing.data_handling import ExogenousDataHandler
 from sup3r.preprocessing.data_handling.base import InputMixIn
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
-from sup3r.utilities.utilities import (get_chunk_slices,
-                                       get_input_handler_class,
-                                       get_source_type,
-                                       )
+from sup3r.utilities.utilities import (
+    get_chunk_slices,
+    get_input_handler_class,
+    get_source_type,
+)
 
 np.random.seed(42)
 
@@ -40,8 +43,15 @@ logger = logging.getLogger(__name__)
 class ForwardPassSlicer:
     """Get slices for sending data chunks through model."""
 
-    def __init__(self, coarse_shape, time_steps, temporal_slice, chunk_shape,
-                 s_enhancements, t_enhancements, spatial_pad, temporal_pad,
+    def __init__(self,
+                 coarse_shape,
+                 time_steps,
+                 temporal_slice,
+                 chunk_shape,
+                 s_enhancements,
+                 t_enhancements,
+                 spatial_pad,
+                 temporal_pad,
                  ):
         """
         Parameters
@@ -212,7 +222,10 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices, self.time_steps, 1, self.temporal_pad,
+                self.t_lr_slices,
+                self.time_steps,
+                1,
+                self.temporal_pad,
                 self.temporal_slice.step,
             )
         return self._t_lr_pad_slices
@@ -307,13 +320,17 @@ class ForwardPassSlicer:
         if self._s_lr_crop_slices is None:
             self._s_lr_crop_slices = []
             s1_crop_slices = self.get_cropped_slices(self.s1_lr_slices,
-                                                     self.s1_lr_pad_slices, 1)
+                                                     self.s1_lr_pad_slices,
+                                                     1)
             s2_crop_slices = self.get_cropped_slices(self.s2_lr_slices,
-                                                     self.s2_lr_pad_slices, 1)
+                                                     self.s2_lr_pad_slices,
+                                                     1)
             for i, _ in enumerate(self.s1_lr_slices):
                 for j, _ in enumerate(self.s2_lr_slices):
-                    lr_crop_slice = (s1_crop_slices[i], s2_crop_slices[j],
-                                     slice(None), slice(None),
+                    lr_crop_slice = (s1_crop_slices[i],
+                                     s2_crop_slices[j],
+                                     slice(None),
+                                     slice(None),
                                      )
                     self._s_lr_crop_slices.append(lr_crop_slice)
         return self._s_lr_crop_slices
@@ -763,11 +780,15 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self.t_enhance = np.product(self.t_enhancements)
         self.output_features = model.output_features
 
-        self.fwp_slicer = ForwardPassSlicer(
-            self.grid_shape, self.raw_tsteps, self.temporal_slice,
-            self.fwp_chunk_shape, self.s_enhancements, self.t_enhancements,
-            self.spatial_pad, self.temporal_pad,
-        )
+        self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
+                                            self.raw_tsteps,
+                                            self.temporal_slice,
+                                            self.fwp_chunk_shape,
+                                            self.s_enhancements,
+                                            self.t_enhancements,
+                                            self.spatial_pad,
+                                            self.temporal_pad,
+                                            )
 
         DistributedProcess.__init__(self,
                                     max_nodes=max_nodes,
@@ -1090,10 +1111,13 @@ class ForwardPass:
         self.input_data = self.bias_correct_source_data(
             self.input_data, self.strategy.lr_lat_lon)
 
-        exo_s_en = self.exo_kwargs.get('s_enhancements', None)
-        self.exo_kwargs.get('s_enhancements', None)
-        out = self.pad_source_data(self.input_data, self.pad_width,
-                                   self.exogenous_data, exo_s_en)
+        exo_s_en = [1, *self.strategy.s_enhancements]
+        exo_t_en = [1, *self.strategy.t_enhancements]
+        out = self.pad_source_data(self.input_data,
+                                   self.pad_width,
+                                   self.exogenous_data,
+                                   exo_s_en,
+                                   exo_t_en)
         self.input_data, self.exogenous_data = out
         self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
                                                           self.lr_slice[1]]
@@ -1107,22 +1131,33 @@ class ForwardPass:
         exo_data : dict
             Dictionary of data arrays with keys for each exogeneous feature
         """
-        exo_data = {}
+        exo_data_dict = {}
         if self.exo_kwargs:
             self.features = [
                 f for f in self.features if f not in self.exo_features
             ]
             for feature in self.exo_features:
                 exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
+                exo_kwargs['feature'] = feature
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
-                exo_data[feature] = ExogenousDataHandler(**exo_kwargs).data
+                exo_kwargs['temporal_slice'] = self.ti_pad_slice
+                exo_data_dict[feature] = ExogenousDataHandler(
+                    **exo_kwargs).data
                 shapes = [
-                    None if d is None else d.shape for d in exo_data[feature]
+                    None if d is None else d.shape
+                    for d in exo_data_dict[feature]
                 ]
                 logger.info(
                     'Got exogenous_data of length {} with shapes: {}'.format(
-                        len(exo_data[feature]), shapes))
+                        len(exo_data_dict[feature]), shapes))
+        exo_data = []
+        for i in range(len(exo_data_dict[self.exo_features[0]])):
+            exo_data_f = []
+            for feature in self.exo_features:
+                exo_data_f.append(exo_data_dict[feature][i])
+            exo_data.append(
+                np.vstack([arr for arr in exo_data_f if arr is not None]))
         return exo_data
 
     def update_input_handler_kwargs(self, strategy):
@@ -1459,7 +1494,8 @@ class ForwardPass:
 
         logger.info('Padded input data shape from {} to {} using mode "{}" '
                     'with padding argument: {}'.format(input_data.shape,
-                                                       out.shape, mode,
+                                                       out.shape,
+                                                       mode,
                                                        pad_width))
 
         if exo_data is not None:
@@ -1472,7 +1508,7 @@ class ForwardPass:
                     total_s_enhance = np.product(total_s_enhance)
                     total_t_enhance = exo_t_enhancements[:i + 1]
                     total_t_enhance = [
-                        t for t in total_s_enhance if t is not None
+                        t for t in total_t_enhance if t is not None
                     ]
                     total_t_enhance = np.product(total_t_enhance)
                     exo_pad_width = ((total_s_enhance * pad_width[0][0],
@@ -1480,9 +1516,9 @@ class ForwardPass:
                                      (total_s_enhance * pad_width[1][0],
                                       total_s_enhance * pad_width[1][1]),
                                      (total_t_enhance * pad_width[2][0],
-                                      total_t_enhance * pad_width[2][1]))
+                                      total_t_enhance * pad_width[2][1]),
+                                     (0, 0))
                     exo_data[i] = np.pad(i_exo_data, exo_pad_width, mode=mode)
-
         return out, exo_data
 
     def bias_correct_source_data(self, data, lat_lon):
@@ -1522,51 +1558,11 @@ class ForwardPass:
                              'using function: {} with kwargs: {}'.format(
                                  feature, idf, method, feature_kwargs))
 
-                data[..., idf] = method(data[..., idf], lat_lon,
+                data[..., idf] = method(data[..., idf],
+                                        lat_lon,
                                         **feature_kwargs)
 
         return data
-
-    def _prep_exogenous_input(self, chunk_shape):
-        """Shape exogenous data according to model type and model steps
-
-        Parameters
-        ----------
-        chunk_shape : tuple
-            Shape of data chunk going through forward pass
-
-        Returns
-        -------
-        exo_data : dict
-            Dictionary of list of arrays with keys for each exogenous feature
-            and arrays of data for each feature with array length depending on
-            model steps.  If there are 2 spatial enhancement steps this is a
-            list of 3 arrays each with the appropriate shape based on the
-            enhancement factor
-        """
-        exo_data = []
-        for i in range(len(self.exogenous_data[self.exo_features[0]])):
-            exo_data_f = []
-            for feature in self.exo_features:
-                arr = self.exogenous_data[feature][i]
-                if arr is not None:
-                    og_shape = arr.shape
-                    arr = np.expand_dims(arr, axis=2)
-                    arr = np.repeat(arr, chunk_shape[2], axis=2)
-
-                    target_shape = (arr.shape[0], arr.shape[1], chunk_shape[2],
-                                    arr.shape[-1],
-                                    )
-                    msg = ('Target shape for exogenous data in forward '
-                           'pass chunk was {}, but something went wrong '
-                           'and i resized original data shape from {} to '
-                           '{}'.format(target_shape, og_shape, arr.shape))
-                    assert arr.shape == target_shape, msg
-
-                exo_data_f.append(arr)
-            exo_data.append(
-                np.vstack([arr for arr in exo_data_f if arr is not None]))
-        return exo_data
 
     @classmethod
     def _run_generator(cls,
@@ -1904,8 +1900,7 @@ class ForwardPass:
                                  chunk_index=chunk_index,
                                  )
                 futures[fut] = {
-                    'chunk_index': chunk_index,
-                    'start_time': dt.now(),
+                    'chunk_index': chunk_index, 'start_time': dt.now(),
                 }
 
             logger.info(f'Started {len(futures)} forward pass runs in '
@@ -1942,20 +1937,15 @@ class ForwardPass:
                f'{self.strategy.temporal_pad}.')
         logger.info(msg)
 
-        data_chunk = self.input_data
-        exo_data = None
-        if self.exogenous_data is not None:
-            exo_data = self._prep_exogenous_input(data_chunk.shape)
-
         self.output_data = self._run_generator(
-            data_chunk,
+            self.input_data,
             hr_crop_slices=self.hr_crop_slice,
             model=self.model,
             model_kwargs=self.model_kwargs,
             model_class=self.model_class,
             s_enhance=self.s_enhance,
             t_enhance=self.t_enhance,
-            exo_data=exo_data,
+            exo_data=self.exogenous_data,
         )
 
         self._constant_output_check(self.output_data)

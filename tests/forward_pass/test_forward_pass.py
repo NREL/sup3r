@@ -15,8 +15,10 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, WindGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.utilities.pytest import (make_fake_multi_time_nc_files,
-                                    make_fake_nc_files)
+from sup3r.utilities.pytest import (
+    make_fake_multi_time_nc_files,
+    make_fake_nc_files,
+)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -617,7 +619,9 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
                 'target': target,
                 'shape': shape,
                 's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 16],
+                't_enhancements': [1, 1, 1],
+                's_agg_factors': [16, 4, 2],
+                't_agg_factors': [1, 1, 1],
                 'exo_steps': [0, 1]
             }
         }
@@ -719,7 +723,9 @@ def test_fwp_multi_step_spatial_model_topo_noskip():
                 'target': target,
                 'shape': shape,
                 's_enhancements': [1, 2, 2],
-                'agg_factors': [12, 4, 2]
+                't_enhancements': [1, 1, 1],
+                's_agg_factors': [12, 4, 2],
+                't_agg_factors': [1, 1, 1]
             }
         }
 
@@ -824,16 +830,20 @@ def test_fwp_multi_step_model_multi_exo():
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 12]
+                's_enhancements': [1, 2, 2, 3],
+                't_enhancements': [1, 1, 1, 4],
+                's_agg_factors': [12, 4, 2, 1],
+                't_agg_factors': [4, 4, 4, 1]
             },
             'sza': {
                 'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 12]
+                's_enhancements': [1, 2, 2, 1],
+                't_enhancements': [1, 1, 1, 4],
+                's_agg_factors': [12, 4, 2, 1],
+                't_agg_factors': [4, 4, 4, 1]
             }
         }
 
@@ -942,8 +952,11 @@ def test_fwp_multi_step_model_topo_noskip():
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 12]
+                's_enhancements': [1, 2, 2, 3],
+                't_enhancements': [1, 1, 1, 4],
+                's_agg_factors': [12, 4, 2, 1],
+                't_agg_factors': [4, 4, 4, 1],
+                'cache_data': False
             }
         }
 
@@ -1348,7 +1361,9 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
             'target': target,
             'shape': shape,
             's_enhancements': [1, 2],
-            'agg_factors': [2, 4],
+            't_enhancements': [1, 1],
+            's_agg_factors': [4, 2],
+            't_agg_factors': [1, 1],
         }
 
         model_kwargs = {'model_dir': st_out_dir}
@@ -1527,16 +1542,20 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 12]
+                's_enhancements': [1, 2, 2, 3],
+                't_enhancements': [1, 1, 1, 4],
+                's_agg_factors': [12, 4, 2, 1],
+                't_agg_factors': [4, 4, 4, 1]
             },
             'sza': {
                 'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                'agg_factors': [2, 4, 12]
+                's_enhancements': [1, 2, 2, 3],
+                't_enhancements': [1, 1, 1, 4],
+                's_agg_factors': [12, 4, 2, 1],
+                't_agg_factors': [4, 4, 4, 1]
             }
         }
 
@@ -1698,7 +1717,9 @@ def test_fwp_multi_step_wind_hi_res_topo():
             'target': target,
             'shape': shape,
             's_enhancements': [1, 2, 2],
-            'agg_factors': [2, 4, 12],
+            't_enhancements': [1, 1, 1],
+            's_agg_factors': [12, 4, 2],
+            't_agg_factors': [1, 1, 1],
         }
 
         model_kwargs = {
@@ -1842,7 +1863,9 @@ def test_fwp_wind_hi_res_topo_plus_linear():
             'target': target,
             'shape': shape,
             's_enhancements': [1, 2],
-            'agg_factors': [2, 4],
+            't_enhancements': [1, 1],
+            's_agg_factors': [4, 2],
+            't_agg_factors': [1, 1]
         }
 
         model_kwargs = {
