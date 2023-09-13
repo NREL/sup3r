@@ -73,7 +73,7 @@ class BaseCLI:
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
 
-        if hardware_option.lower() in ('eagle', 'slurm'):
+        if hardware_option.lower() in ('kestrel', 'eagle', 'slurm'):
             cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
         else:
             cls.kickoff_local_job(module_name, ctx, cmd)
@@ -248,7 +248,7 @@ class BaseCLI:
                 command=module_name,
                 job_name=name,
                 replace=True,
-                job_attrs={'job_id': out, 'hardware': 'eagle'},
+                job_attrs={'job_id': out, 'hardware': 'kestrel'},
             )
 
         click.echo(msg)

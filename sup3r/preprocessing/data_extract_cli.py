@@ -57,7 +57,7 @@ def from_config(ctx, config_file, verbose=False):
     cmd_log = '\n\t'.join(cmd.split('\n'))
     logger.debug(f'Running command:\n\t{cmd_log}')
 
-    if hardware_option.lower() in ('eagle', 'slurm'):
+    if hardware_option.lower() in ('kestrel', 'eagle', 'slurm'):
         kickoff_slurm_job(ctx, cmd, **exec_kwargs)
     else:
         kickoff_local_job(ctx, cmd)

@@ -118,16 +118,16 @@ def forward_pass(ctx, verbose):
             "execution_control": {
                 "option": "local"
             },
-            "execution_control_eagle": {
-                "option": "eagle",
+            "execution_control_kestrel": {
+                "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally, while
-    the ``execution_control_eagle`` block are kwargs that would be required to
-    distribute the job on multiple nodes on the NREL HPC.
+    Note that the ``execution_control`` block will run the job locally,
+    while the ``execution_control_kestrel`` block are kwargs that would
+    be required to distribute the job on multiple nodes on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -167,16 +167,16 @@ def solar(ctx, verbose):
             "execution_control": {
                 "option": "local"
             },
-            "execution_control_eagle": {
-                "option": "eagle",
+            "execution_control_kestrel": {
+                "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally, while
-    the ``execution_control_eagle`` block are kwargs that would be required to
-    distribute the job on multiple nodes on the NREL HPC.
+    Note that the ``execution_control`` block will run the job locally,
+    while the ``execution_control_kestrel`` block are kwargs that would
+    be required to distribute the job on multiple nodes on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -231,16 +231,16 @@ def bias_calc(ctx, verbose):
             "execution_control": {
                 "option": "local"
             },
-            "execution_control_eagle": {
-                "option": "eagle",
+            "execution_control_kestrel": {
+                "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally, while
-    the ``execution_control_eagle`` block are kwargs that would be required to
-    distribute the job on multiple nodes on the NREL HPC.
+    Note that the ``execution_control`` block will run the job locally,
+    while the ``execution_control_kestrel`` block are kwargs that would
+    be required to distribute the job on multiple nodes on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -279,7 +279,7 @@ def data_extract(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -318,7 +318,7 @@ def data_collect(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -359,7 +359,7 @@ def qa(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -399,7 +399,7 @@ def visual_qa(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -443,7 +443,7 @@ def stats(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -486,7 +486,7 @@ def regrid(ctx, verbose):
         }
 
     Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "eagle"`` to run on the NREL HPC.
+    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
