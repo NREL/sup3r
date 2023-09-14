@@ -17,10 +17,16 @@ import xarray as xr
 from rex import Resource
 from rex.utilities.execution import SpawnProcessPool
 
-from sup3r.utilities.utilities import (bvf_squared, get_raster_shape,
-                                       inverse_mo_length, invert_pot_temp,
-                                       invert_uv, rotor_equiv_ws,
-                                       transform_rotate_wind, vorticity_calc)
+from sup3r.utilities.utilities import (
+    bvf_squared,
+    get_raster_shape,
+    inverse_mo_length,
+    invert_pot_temp,
+    invert_uv,
+    rotor_equiv_ws,
+    transform_rotate_wind,
+    vorticity_calc,
+)
 
 np.random.seed(42)
 
@@ -729,8 +735,10 @@ class UWindPowerLaw(DerivedFeature):
     """U wind component feature class with needed inputs method and compute
     method. Uses power law extrapolation to get values above surface
 
-    https://en.wikipedia.org/wiki/Wind_profile_power_law
+    https://csl.noaa.gov/projects/lamar/windshearformula.html
     """
+
+    ALPHA = 0.2
 
     @classmethod
     def inputs(cls, feature):
@@ -766,17 +774,18 @@ class UWindPowerLaw(DerivedFeature):
             Derived feature array
 
         """
-        alpha = 0.143
         near_surface_height = 1
-        return data['uas'] * (float(height) / near_surface_height)**alpha
+        return data['uas'] * (float(height) / near_surface_height)**cls.ALPHA
 
 
 class VWindPowerLaw(DerivedFeature):
     """V wind component feature class with needed inputs method and compute
     method. Uses power law extrapolation to get values above surface
 
-    https://en.wikipedia.org/wiki/Wind_profile_power_law
+    https://csl.noaa.gov/projects/lamar/windshearformula.html
     """
+
+    ALPHA = 0.2
 
     @classmethod
     def inputs(cls, feature):
@@ -812,9 +821,8 @@ class VWindPowerLaw(DerivedFeature):
             Derived feature array
 
         """
-        alpha = 0.143
         near_surface_height = 1
-        return data['vas'] * (float(height) / near_surface_height)**alpha
+        return data['vas'] * (float(height) / near_surface_height)**cls.ALPHA
 
 
 class UWind(DerivedFeature):

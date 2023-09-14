@@ -12,6 +12,7 @@ from sup3r.preprocessing.data_handling import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
 )
+from sup3r.preprocessing.feature_handling import UWindPowerLaw
 
 
 def test_data_handling_nc_cc_power_law():
@@ -19,7 +20,7 @@ def test_data_handling_nc_cc_power_law():
     input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
 
     with xr.open_mfdataset(input_files) as fh:
-        u_100m = fh['uas'].values * 100**0.143
+        u_100m = fh['uas'].values * 100**UWindPowerLaw.ALPHA
         u_100m = np.transpose(u_100m, axes=(1, 2, 0))
         dh = DataHandlerNCforCCwithPowerLaw(input_files, features=['u_100m'])
         if dh.invert_lat:
