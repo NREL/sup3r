@@ -29,16 +29,14 @@ class Regridder:
 
     MIN_DISTANCE = 1e-12
 
-    def __init__(
-        self,
-        source_meta,
-        target_meta,
-        cache_pattern=None,
-        leaf_size=4,
-        k_neighbors=4,
-        n_chunks=100,
-        max_workers=None,
-    ):
+    def __init__(self,
+                 source_meta,
+                 target_meta,
+                 cache_pattern=None,
+                 leaf_size=4,
+                 k_neighbors=4,
+                 n_chunks=100,
+                 max_workers=None):
         """Get weights and indices used to map from source grid to target grid
 
         Parameters
@@ -86,16 +84,14 @@ class Regridder:
             self.cache_all_queries()
 
     @classmethod
-    def run(
-        cls,
-        source_meta,
-        target_meta,
-        cache_pattern=None,
-        leaf_size=4,
-        k_neighbors=4,
-        n_chunks=100,
-        max_workers=None,
-    ):
+    def run(cls,
+            source_meta,
+            target_meta,
+            cache_pattern=None,
+            leaf_size=4,
+            k_neighbors=4,
+            n_chunks=100,
+            max_workers=None):
         """Query tree for every point in target_meta to get full set of indices
         and distances for the neighboring points in the source_meta.
 
@@ -122,15 +118,13 @@ class Regridder:
             to building full set of indices and distances for each target_meta
             coordinate.
         """
-        regridder = cls(
-            source_meta=source_meta,
-            target_meta=target_meta,
-            cache_pattern=cache_pattern,
-            leaf_size=leaf_size,
-            k_neighbors=k_neighbors,
-            n_chunks=n_chunks,
-            max_workers=max_workers,
-        )
+        regridder = cls(source_meta=source_meta,
+                        target_meta=target_meta,
+                        cache_pattern=cache_pattern,
+                        leaf_size=leaf_size,
+                        k_neighbors=k_neighbors,
+                        n_chunks=n_chunks,
+                        max_workers=max_workers)
         if not regridder.cache_exists:
             regridder.get_all_queries(max_workers)
             regridder.cache_all_queries()
@@ -142,10 +136,8 @@ class Regridder:
             dists = np.array(self.distances, dtype=np.float32)
             mask = dists < self.MIN_DISTANCE
             if mask.sum() > 0:
-                logger.info(
-                    f'{np.sum(mask)} of {np.product(mask.shape)} '
-                    'distances are zero.'
-                )
+                logger.info(f'{np.sum(mask)} of {np.product(mask.shape)} '
+                            'distances are zero.')
             dists[mask] = self.MIN_DISTANCE
             weights = 1 / dists
             self._weights = weights / np.sum(weights, axis=-1)[:, None]
@@ -154,12 +146,10 @@ class Regridder:
     @property
     def cache_exists(self):
         """Check if cache exists before building tree."""
-        cache_exists_check = (
-            self.index_file is not None
-            and os.path.exists(self.index_file)
-            and self.distance_file is not None
-            and os.path.exists(self.distance_file)
-        )
+        cache_exists_check = (self.index_file is not None
+                              and os.path.exists(self.index_file)
+                              and self.distance_file is not None
+                              and os.path.exists(self.distance_file))
         return cache_exists_check
 
     def build_tree(self):
@@ -200,13 +190,10 @@ class Regridder:
                 future = exe.submit(self.save_query, s_slice=s_slice)
                 futures[future] = i
                 mem = psutil.virtual_memory()
-                msg = (
-                    'Query futures submitted: {} out of {}. Current '
-                    'memory usage is {:.3f} GB out of {:.3f} GB '
-                    'total.'.format(
-                        i + 1, len(slices), mem.used / 1e9, mem.total / 1e9
-                    )
-                )
+                msg = ('Query futures submitted: {} out of {}. Current '
+                       'memory usage is {:.3f} GB out of {:.3f} GB '
+                       'total.'.format(i + 1, len(slices), mem.used / 1e9,
+                                       mem.total / 1e9))
                 logger.info(msg)
 
             logger.info(f'Submitted all query futures in {dt.now() - now}.')
@@ -214,21 +201,17 @@ class Regridder:
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
                 mem = psutil.virtual_memory()
-                msg = (
-                    'Query futures completed: {} out of '
-                    '{}. Current memory usage is {:.3f} '
-                    'GB out of {:.3f} GB total.'.format(
-                        i + 1, len(futures), mem.used / 1e9, mem.total / 1e9
-                    )
-                )
+                msg = ('Query futures completed: {} out of '
+                       '{}. Current memory usage is {:.3f} '
+                       'GB out of {:.3f} GB total.'.format(
+                           i + 1, len(futures), mem.used / 1e9,
+                           mem.total / 1e9))
                 logger.info(msg)
                 try:
                     future.result()
                 except Exception as e:
-                    msg = (
-                        'Failed to query coordinate chunk with '
-                        'index={index}'.format(index=idx)
-                    )
+                    msg = ('Failed to query coordinate chunk with '
+                           'index={index}'.format(index=idx))
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
@@ -244,9 +227,8 @@ class Regridder:
             self.indices = pickle.load(f)
         with open(self.distance_file, 'rb') as f:
             self.distances = pickle.load(f)
-        logger.info(
-            f'Loaded cache files: {self.index_file}, ' f'{self.distance_file}'
-        )
+        logger.info(f'Loaded cache files: {self.index_file}, '
+                    f'{self.distance_file}')
 
     def cache_all_queries(self):
         """Cache indices and distances from ball tree query"""
@@ -255,10 +237,8 @@ class Regridder:
                 pickle.dump(self.indices, f, protocol=4)
             with open(self.distance_file, 'wb') as f:
                 pickle.dump(self.distances, f, protocol=4)
-            logger.info(
-                f'Saved cache files: {self.index_file}, '
-                f'{self.distance_file}'
-            )
+            logger.info(f'Saved cache files: {self.index_file}, '
+                        f'{self.distance_file}')
 
     @property
     def index_file(self):
@@ -313,9 +293,8 @@ class Regridder:
             Array of indices for neighboring points for each point selected
             by s_slice. (n_ponts, k_neighbors)
         """
-        return self.tree.query(
-            self.get_spatial_chunk(s_slice), k=self.k_neighbors
-        )
+        return self.tree.query(self.get_spatial_chunk(s_slice),
+                               k=self.k_neighbors)
 
     @classmethod
     def interpolate(cls, distance_chunk, values):
@@ -342,10 +321,8 @@ class Regridder:
         dists = np.array(distance_chunk, dtype=np.float32)
         mask = dists < cls.MIN_DISTANCE
         if mask.sum() > 0:
-            logger.info(
-                f'{np.sum(mask)} of {np.product(mask.shape)} '
-                'distances are zero.'
-            )
+            logger.info(f'{np.sum(mask)} of {np.product(mask.shape)} '
+                        'distances are zero.')
         dists[mask] = cls.MIN_DISTANCE
         weights = 1 / dists
         norm = np.sum(weights, axis=-1)
@@ -367,13 +344,11 @@ class Regridder:
             Flattened regridded spatiotemporal data
             (spatial, temporal)
         """
-        vals = np.concatenate(
-            [
-                data[:, :, i].flatten()[self.indices][np.newaxis]
-                for i in range(data.shape[-1])
-            ],
-            axis=0,
-        )
+        vals = [
+            data[:, :, i].flatten()[self.indices][np.newaxis]
+            for i in range(data.shape[-1])
+        ]
+        vals = np.concatenate(vals, axis=0)
         out = np.einsum('ijk,jk->ij', vals, self.weights)
         return out.T
 
@@ -406,11 +381,9 @@ class WindRegridder(Regridder):
             (temporal, n_points, k_neighbors)
         """
         with MultiFileResource(source_files) as res:
-            shape = (
-                len(res.time_index),
-                len(index_chunk),
-                len(index_chunk[0]),
-            )
+            shape = (len(res.time_index), len(index_chunk),
+                     len(index_chunk[0]),
+                     )
             tmp = np.array(index_chunk).flatten()
             out = res[feature, :, tmp]
             out = out.reshape(shape)
@@ -441,12 +414,10 @@ class WindRegridder(Regridder):
             Array of meridional wind values to use for interpolation with shape
             (temporal, n_points, k_neighbors)
         """
-        ws = cls.get_source_values(
-            index_chunk, f'windspeed_{height}m', source_files
-        )
-        wd = cls.get_source_values(
-            index_chunk, f'winddirection_{height}m', source_files
-        )
+        ws = cls.get_source_values(index_chunk, f'windspeed_{height}m',
+                                   source_files)
+        wd = cls.get_source_values(index_chunk, f'winddirection_{height}m',
+                                   source_files)
         u = ws * np.sin(np.radians(wd))
         v = ws * np.cos(np.radians(wd))
 
@@ -480,9 +451,8 @@ class WindRegridder(Regridder):
         return ws, wd
 
     @classmethod
-    def regrid_coordinates(
-        cls, index_chunk, distance_chunk, height, source_files
-    ):
+    def regrid_coordinates(cls, index_chunk, distance_chunk, height,
+                           source_files):
         """Regrid wind fields at given height for the requested coordinate
         index
 
@@ -525,20 +495,19 @@ class RegridOutput(OutputMixIn, DistributedProcess):
     a new target grid. The interpolated data is then written to new files, with
     one file for each field (e.g. windspeed_100m)."""
 
-    def __init__(
-        self,
-        source_files,
-        out_pattern,
-        target_meta,
-        heights,
-        cache_pattern=None,
-        leaf_size=4,
-        k_neighbors=4,
-        incremental=False,
-        n_chunks=100,
-        max_nodes=1,
-        worker_kwargs=None,
-    ):
+    def __init__(self,
+                 source_files,
+                 out_pattern,
+                 target_meta,
+                 heights,
+                 cache_pattern=None,
+                 leaf_size=4,
+                 k_neighbors=4,
+                 incremental=False,
+                 n_chunks=100,
+                 max_nodes=1,
+                 worker_kwargs=None,
+                 ):
         """
         Parameters
         ----------
@@ -575,17 +544,13 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         worker_kwargs = worker_kwargs or {}
         self.regrid_workers = worker_kwargs.get('regrid_workers', None)
         self.query_workers = worker_kwargs.get('query_workers', None)
-        self.source_files = (
-            source_files
-            if isinstance(source_files, list)
-            else glob(source_files)
-        )
+        self.source_files = (source_files if isinstance(source_files, list)
+                             else glob(source_files))
         self.target_meta_path = target_meta
         self.target_meta = pd.read_csv(self.target_meta_path)
         self.target_meta['gid'] = np.arange(len(self.target_meta))
         self.target_meta = self.target_meta.sort_values(
-            ['latitude', 'longitude'], ascending=[False, True]
-        )
+            ['latitude', 'longitude'], ascending=[False, True])
         self.heights = heights
         self.incremental = incremental
         self.out_pattern = out_pattern
@@ -596,32 +561,26 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             self.source_meta = res.meta
             self.global_attrs = res.global_attrs
 
-        self.regridder = WindRegridder(
-            self.source_meta,
-            self.target_meta,
-            leaf_size=leaf_size,
-            k_neighbors=k_neighbors,
-            cache_pattern=cache_pattern,
-            n_chunks=n_chunks,
-            max_workers=self.query_workers,
-        )
-        DistributedProcess.__init__(
-            self,
-            max_nodes=max_nodes,
-            n_chunks=n_chunks,
-            max_chunks=len(self.regridder.indices),
-            incremental=incremental,
-        )
+        self.regridder = WindRegridder(self.source_meta,
+                                       self.target_meta,
+                                       leaf_size=leaf_size,
+                                       k_neighbors=k_neighbors,
+                                       cache_pattern=cache_pattern,
+                                       n_chunks=n_chunks,
+                                       max_workers=self.query_workers)
+        DistributedProcess.__init__(self,
+                                    max_nodes=max_nodes,
+                                    n_chunks=n_chunks,
+                                    max_chunks=len(self.regridder.indices),
+                                    incremental=incremental)
 
-        logger.info(
-            'Initializing RegridOutput with '
-            f'source_files={self.source_files}, '
-            f'out_pattern={self.out_pattern}, '
-            f'heights={self.heights}, '
-            f'target_meta={target_meta}, '
-            f'k_neighbors={k_neighbors}, and '
-            f'n_chunks={n_chunks}.'
-        )
+        logger.info('Initializing RegridOutput with '
+                    f'source_files={self.source_files}, '
+                    f'out_pattern={self.out_pattern}, '
+                    f'heights={self.heights}, '
+                    f'target_meta={target_meta}, '
+                    f'k_neighbors={k_neighbors}, and '
+                    f'n_chunks={n_chunks}.')
         logger.info(f'Max memory usage: {self.max_memory:.3f} GB.')
 
     @property
@@ -688,12 +647,10 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             run regridding.
         """
 
-        import_str = (
-            'from sup3r.utilities.regridder import RegridOutput;\n'
-            'from rex import init_logger;\n'
-            'import time;\n'
-            'from sup3r.pipeline import Status;\n'
-        )
+        import_str = ('from sup3r.utilities.regridder import RegridOutput;\n'
+                      'from rex import init_logger;\n'
+                      'import time;\n'
+                      'from sup3r.pipeline import Status;\n')
 
         regrid_fun_str = get_fun_call_str(cls, config)
 
@@ -704,14 +661,12 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (
-            f"python -c \'{import_str}\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"regrid_output = {regrid_fun_str};\n"
-            f"regrid_output.run({node_index});\n"
-            "t_elap = time.time() - t0;\n"
-        )
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"regrid_output = {regrid_fun_str};\n"
+               f"regrid_output.run({node_index});\n"
+               "t_elap = time.time() - t0;\n")
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.REGRID, cmd)
         cmd += ";\'\n"
@@ -731,15 +686,12 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             return
 
         if self.regrid_workers == 1:
-            self._run_serial(
-                source_files=self.source_files, node_index=node_index
-            )
+            self._run_serial(source_files=self.source_files,
+                             node_index=node_index)
         else:
-            self._run_parallel(
-                source_files=self.source_files,
-                node_index=node_index,
-                max_workers=self.regrid_workers,
-            )
+            self._run_parallel(source_files=self.source_files,
+                               node_index=node_index,
+                               max_workers=self.regrid_workers)
 
     def _run_serial(self, source_files, node_index):
         """Regrid data and write to output file, in serial.
@@ -754,21 +706,14 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         """
         logger.info('Regridding all coordinates in serial.')
         for i, chunk_index in enumerate(self.node_chunks[node_index]):
-            self.write_coordinates(
-                source_files=source_files, chunk_index=chunk_index
-            )
+            self.write_coordinates(source_files=source_files,
+                                   chunk_index=chunk_index)
 
             mem = psutil.virtual_memory()
-            msg = (
-                'Coordinate chunks regridded: {} out of {}. '
-                'Current memory usage is {:.3f} GB out of {:.3f} '
-                'GB total.'.format(
-                    i + 1,
-                    len(self.node_chunks[node_index]),
-                    mem.used / 1e9,
-                    mem.total / 1e9,
-                )
-            )
+            msg = ('Coordinate chunks regridded: {} out of {}. '
+                   'Current memory usage is {:.3f} GB out of {:.3f} '
+                   'GB total.'.format(i + 1, len(self.node_chunks[node_index]),
+                                      mem.used / 1e9, mem.total / 1e9))
             logger.info(msg)
 
     def _run_parallel(self, source_files, node_index, max_workers=None):
@@ -789,16 +734,14 @@ class RegridOutput(OutputMixIn, DistributedProcess):
         logger.info('Regridding all coordinates in parallel.')
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             for i, chunk_index in enumerate(self.node_chunks[node_index]):
-                future = exe.submit(
-                    self.write_coordinates,
-                    source_files=source_files,
-                    chunk_index=chunk_index,
-                )
+                future = exe.submit(self.write_coordinates,
+                                    source_files=source_files,
+                                    chunk_index=chunk_index,
+                                    )
                 futures[future] = chunk_index
                 mem = psutil.virtual_memory()
                 msg = 'Regrid futures submitted: {} out of {}'.format(
-                    i + 1, len(self.node_chunks[node_index])
-                )
+                    i + 1, len(self.node_chunks[node_index]))
                 logger.info(msg)
 
             logger.info(f'Submitted all regrid futures in {dt.now() - now}.')
@@ -806,26 +749,19 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             for i, future in enumerate(as_completed(futures)):
                 idx = futures[future]
                 mem = psutil.virtual_memory()
-                msg = (
-                    'Regrid futures completed: {} out of {}, in {}. '
-                    'Current memory usage is {:.3f} GB out of {:.3f} GB '
-                    'total.'.format(
-                        i + 1,
-                        len(futures),
-                        dt.now() - now,
-                        mem.used / 1e9,
-                        mem.total / 1e9,
-                    )
-                )
+                msg = ('Regrid futures completed: {} out of {}, in {}. '
+                       'Current memory usage is {:.3f} GB out of {:.3f} GB '
+                       'total.'.format(i + 1, len(futures),
+                                       dt.now() - now, mem.used / 1e9,
+                                       mem.total / 1e9,
+                                       ))
                 logger.info(msg)
 
                 try:
                     future.result()
                 except Exception as e:
-                    msg = (
-                        'Falied to regrid coordinate chunks with '
-                        'index={index}'.format(index=idx)
-                    )
+                    msg = ('Falied to regrid coordinate chunks with '
+                           'index={index}'.format(index=idx))
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
 
@@ -857,21 +793,18 @@ class RegridOutput(OutputMixIn, DistributedProcess):
                     index_chunk=index_chunk,
                     distance_chunk=distance_chunk,
                     height=height,
-                    source_files=source_files,
-                )
+                    source_files=source_files)
 
                 features = [f'windspeed_{height}m', f'winddirection_{height}m']
 
                 for dset, data in zip(features, [ws, wd]):
                     attrs, dtype = self.get_dset_attrs(dset)
-                    fh.add_dataset(
-                        tmp_file,
-                        dset,
-                        data,
-                        dtype=dtype,
-                        attrs=attrs,
-                        chunks=attrs['chunks'],
-                    )
+                    fh.add_dataset(tmp_file,
+                                   dset,
+                                   data,
+                                   dtype=dtype,
+                                   attrs=attrs,
+                                   chunks=attrs['chunks'])
 
                 logger.info(f'Added {features} to {out_file}')
         os.replace(tmp_file, out_file)

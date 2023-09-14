@@ -5,10 +5,8 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 
-from sup3r.preprocessing.data_handling.mixin import (
-    CacheHandlingMixIn,
-    TrainingPrepMixIn,
-)
+from sup3r.preprocessing.data_handling.mixin import (CacheHandlingMixIn,
+                                                     TrainingPrepMixIn)
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 
@@ -71,6 +69,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.shuffle_time = shuffle_time
         self._lr_lat_lon = None
         self._hr_lat_lon = None
+        self._lr_input_data = None
         self.lr_data = None
         self.hr_data = None
         self.lr_val_data = None
@@ -147,7 +146,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                     warn(msg)
 
     def normalize(self, means, stdevs):
-        """Normalize low_res data
+        """Normalize low_res and high_res data
 
         Parameters
         ----------
@@ -158,11 +157,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
+        logger.info('Normalizing low resolution data.')
         self._normalize(data=self.lr_data,
                         val_data=self.lr_val_data,
                         means=means,
                         stds=stdevs,
                         max_workers=self.lr_dh.norm_workers)
+        logger.info('Normalizing high resolution data.')
+        self._normalize(data=self.hr_data,
+                        val_data=self.hr_val_data,
+                        means=means,
+                        stds=stdevs,
+                        max_workers=self.hr_dh.norm_workers)
 
     @property
     def output_features(self):
@@ -178,15 +184,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.info("Loading high resolution cache.")
             self.hr_dh.load_cached_data(with_split=False)
 
-        msg = ('hr_handler.shape is not divisible by s_enhance. Using '
-               f'shape = {self.hr_required_shape} instead.')
+        msg = (f'hr_handler.shape {self.hr_dh.shape[:-1]} is not divisible '
+               f'by s_enhance. Using shape = {self.hr_required_shape} '
+               'instead.')
         if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)
 
-        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
-                                       :self.hr_required_shape[1],
-                                       :self.hr_required_shape[2]]
+        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0], :self.
+                                       hr_required_shape[1], :self.
+                                       hr_required_shape[2]]
         self.hr_time_index = self.hr_dh.time_index[:self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[:self.lr_required_shape[2]]
 
@@ -255,7 +262,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         int
             Number of bytes for a single feature array
         """
-        feature_mem = self.grid_mem * len(self.lr_time_index)
+        feature_mem = self.grid_mem * self.lr_data.shape[-2]
         return feature_mem
 
     @property
@@ -281,20 +288,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
-        used by batch handler"""
+        used by batch handler for computing means and stdevs"""
         return self.lr_data
 
     @property
     def lr_input_data(self):
         """Get low res data used as input to regridding routine"""
-        if self.lr_dh.data is None:
-            self.lr_dh.load_cached_data()
-        return self.lr_dh.data[..., :self.lr_required_shape[2], :]
-
-    @property
-    def shape(self):
-        """Get low_res shape"""
-        return self.lr_dh.shape
+        if self._lr_input_data is None:
+            if self.lr_dh.data is None:
+                self.lr_dh.load_cached_data()
+            self._lr_input_data = self.lr_dh.data[
+                ..., :self.lr_required_shape[2], :]
+        return self._lr_input_data
 
     @property
     def lr_required_shape(self):
@@ -302,6 +307,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return (self.hr_dh.requested_shape[0] // self.s_enhance,
                 self.hr_dh.requested_shape[1] // self.s_enhance,
                 self.hr_dh.requested_shape[2] // self.t_enhance)
+
+    @property
+    def shape(self):
+        """Get low_res shape"""
+        return (*self.lr_required_shape, len(self.features))
+
+    @property
+    def size(self):
+        """Get low_res size"""
+        return np.product(self.shape)
 
     @property
     def hr_required_shape(self):
@@ -338,6 +353,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def hr_lat_lon(self):
         """Get high_res lat lon array"""
         if self._hr_lat_lon is None:
+
             self._hr_lat_lon = self.hr_dh.lat_lon[:self.hr_required_shape[0], :
                                                   self.hr_required_shape[1]]
         return self._hr_lat_lon
