@@ -736,9 +736,11 @@ class UWindPowerLaw(DerivedFeature):
     method. Uses power law extrapolation to get values above surface
 
     https://csl.noaa.gov/projects/lamar/windshearformula.html
+    https://www.tandfonline.com/doi/epdf/10.1080/00022470.1977.10470503
     """
 
     ALPHA = 0.2
+    NEAR_SFC_HEIGHT = 10
 
     @classmethod
     def inputs(cls, feature):
@@ -774,8 +776,7 @@ class UWindPowerLaw(DerivedFeature):
             Derived feature array
 
         """
-        near_surface_height = 1
-        return data['uas'] * (float(height) / near_surface_height)**cls.ALPHA
+        return data['uas'] * (float(height) / cls.NEAR_SFC_HEIGHT)**cls.ALPHA
 
 
 class VWindPowerLaw(DerivedFeature):
@@ -783,9 +784,11 @@ class VWindPowerLaw(DerivedFeature):
     method. Uses power law extrapolation to get values above surface
 
     https://csl.noaa.gov/projects/lamar/windshearformula.html
+    https://www.tandfonline.com/doi/epdf/10.1080/00022470.1977.10470503
     """
 
     ALPHA = 0.2
+    NEAR_SFC_HEIGHT = 10
 
     @classmethod
     def inputs(cls, feature):
@@ -821,8 +824,7 @@ class VWindPowerLaw(DerivedFeature):
             Derived feature array
 
         """
-        near_surface_height = 1
-        return data['vas'] * (float(height) / near_surface_height)**cls.ALPHA
+        return data['vas'] * (float(height) / cls.NEAR_SFC_HEIGHT)**cls.ALPHA
 
 
 class UWind(DerivedFeature):
