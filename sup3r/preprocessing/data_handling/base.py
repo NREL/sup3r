@@ -9,6 +9,7 @@ from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 from fnmatch import fnmatch
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -17,38 +18,41 @@ from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.bias_transforms import get_spatial_bc_factors
-from sup3r.preprocessing.data_handling.mixin import (InputMixIn,
-                                                     TrainingPrepMixIn,
-                                                     )
-from sup3r.preprocessing.feature_handling import (BVFreqMon,
-                                                  BVFreqSquaredNC,
-                                                  Feature,
-                                                  FeatureHandler,
-                                                  InverseMonNC,
-                                                  LatLonNC,
-                                                  PotentialTempNC,
-                                                  PressureNC,
-                                                  Rews,
-                                                  Shear,
-                                                  TempNC,
-                                                  UWind,
-                                                  VWind,
-                                                  WinddirectionNC,
-                                                  WindspeedNC,
-                                                  )
+from sup3r.preprocessing.data_handling.mixin import (
+    InputMixIn,
+    TrainingPrepMixIn,
+)
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon,
+    BVFreqSquaredNC,
+    Feature,
+    FeatureHandler,
+    InverseMonNC,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    TempNC,
+    UWind,
+    VWind,
+    WinddirectionNC,
+    WindspeedNC,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (estimate_max_workers,
-                                       get_chunk_slices,
-                                       get_raster_shape,
-                                       np_to_pd_times,
-                                       spatial_coarsening,
-                                       uniform_box_sampler,
-                                       uniform_time_sampler,
-                                       weighted_box_sampler,
-                                       weighted_time_sampler,
-                                       )
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    get_chunk_slices,
+    get_raster_shape,
+    np_to_pd_times,
+    spatial_coarsening,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
+)
 
 np.random.seed(42)
 
@@ -1295,6 +1299,24 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
+    FEATURE_REGISTRY: ClassVar[dict] = {
+        'BVF2_(.*)m': BVFreqSquaredNC,
+        'BVF_MO_(.*)m': BVFreqMon,
+        'RMOL': InverseMonNC,
+        'U_(.*)': UWind,
+        'V_(.*)': VWind,
+        'Windspeed_(.*)m': WindspeedNC,
+        'Winddirection_(.*)m': WinddirectionNC,
+        'lat_lon': LatLonNC,
+        'Shear_(.*)m': Shear,
+        'REWS_(.*)m': Rews,
+        'Temperature_(.*)m': TempNC,
+        'Pressure_(.*)m': PressureNC,
+        'PotentialTemp_(.*)m': PotentialTempNC,
+        'PT_(.*)m': PotentialTempNC,
+        'topography': ['HGT', 'orog']
+    }
+
     def get_observation_index(self,
                               temporal_weights=None,
                               spatial_weights=None):
@@ -1444,34 +1466,6 @@ class DataHandlerDC(DataHandler):
                 logger.debug(f'Stored {i+1} out of {len(futures)} file times')
         times = np.concatenate(list(ti.values()))
         return pd.DatetimeIndex(sorted(set(times)))
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'BVF2_(.*)m': BVFreqSquaredNC,
-            'BVF_MO_(.*)m': BVFreqMon,
-            'RMOL': InverseMonNC,
-            'U_(.*)': UWind,
-            'V_(.*)': VWind,
-            'Windspeed_(.*)m': WindspeedNC,
-            'Winddirection_(.*)m': WinddirectionNC,
-            'lat_lon': LatLonNC,
-            'Shear_(.*)m': Shear,
-            'REWS_(.*)m': Rews,
-            'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': PressureNC,
-            'PotentialTemp_(.*)m': PotentialTempNC,
-            'PT_(.*)m': PotentialTempNC,
-            'topography': ['HGT', 'orog']
-        }
-        return registry
 
     @classmethod
     def extract_feature(cls,

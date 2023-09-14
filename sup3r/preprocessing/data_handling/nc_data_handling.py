@@ -19,14 +19,34 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
-    BVFreqMon, BVFreqSquaredNC, ClearSkyRatioCC, Feature, InverseMonNC,
-    LatLonNC, PotentialTempNC, PressureNC, Rews, Shear, Tas, TasMax, TasMin,
-    TempNC, TempNCforCC, UWind, VWind, WinddirectionNC, WindspeedNC,
+    BVFreqMon,
+    BVFreqSquaredNC,
+    ClearSkyRatioCC,
+    Feature,
+    InverseMonNC,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    Tas,
+    TasMax,
+    TasMin,
+    TempNC,
+    TempNCforCC,
+    UWind,
+    UWindPowerLaw,
+    VWind,
+    VWindPowerLaw,
+    WinddirectionNC,
+    WindspeedNC,
 )
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
-                                       np_to_pd_times,
-                                       )
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    get_time_dim_name,
+    np_to_pd_times,
+)
 
 np.random.seed(42)
 
@@ -35,6 +55,24 @@ logger = logging.getLogger(__name__)
 
 class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
+
+    FEATURE_REGISTRY: ClassVar[dict] = {
+        'BVF2_(.*)': BVFreqSquaredNC,
+        'BVF_MO_(.*)': BVFreqMon,
+        'RMOL': InverseMonNC,
+        'U_(.*)': UWind,
+        'V_(.*)': VWind,
+        'Windspeed_(.*)': WindspeedNC,
+        'Winddirection_(.*)': WinddirectionNC,
+        'lat_lon': LatLonNC,
+        'Shear_(.*)': Shear,
+        'REWS_(.*)': Rews,
+        'Temperature_(.*)': TempNC,
+        'Pressure_(.*)': PressureNC,
+        'PotentialTemp_(.*)': PotentialTempNC,
+        'PT_(.*)': PotentialTempNC,
+        'topography': ['HGT', 'orog'],
+    }
 
     CHUNKS: ClassVar[dict] = {
         'XTIME': 100,
@@ -202,34 +240,6 @@ class DataHandlerNC(DataHandler):
         return pd.DatetimeIndex(sorted(set(times)))
 
     @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'BVF2_(.*)m': BVFreqSquaredNC,
-            'BVF_MO_(.*)m': BVFreqMon,
-            'RMOL': InverseMonNC,
-            'U_(.*)': UWind,
-            'V_(.*)': VWind,
-            'Windspeed_(.*)m': WindspeedNC,
-            'Winddirection_(.*)m': WinddirectionNC,
-            'lat_lon': LatLonNC,
-            'Shear_(.*)m': Shear,
-            'REWS_(.*)m': Rews,
-            'Temperature_(.*)m': TempNC,
-            'Pressure_(.*)m': PressureNC,
-            'PotentialTemp_(.*)m': PotentialTempNC,
-            'PT_(.*)m': PotentialTempNC,
-            'topography': ['HGT', 'orog'],
-        }
-        return registry
-
-    @classmethod
     def extract_feature(cls,
                         file_paths,
                         raster_index,
@@ -273,23 +283,22 @@ class DataHandlerNC(DataHandler):
         interp_pressure = f_info.pressure
         basename = f_info.basename
 
-        if feature in handle or feature.lower() in handle:
+        if cls.has_exact_feature(feature, handle):
             feat_key = feature if feature in handle else feature.lower()
             fdata = cls.direct_extract(handle, feat_key, raster_index,
                                        time_slice)
 
-        elif basename in handle or basename.lower() in handle:
-            feat_key = basename if basename in handle else basename.lower()
-            if interp_height is not None:
-                fdata = Interpolator.interp_var_to_height(
-                    handle, feat_key, raster_index, np.float32(interp_height),
-                    time_slice,
-                )
-            elif interp_pressure is not None:
-                fdata = Interpolator.interp_var_to_pressure(
-                    handle, feat_key, raster_index,
-                    np.float32(interp_pressure), time_slice,
-                )
+        elif interp_height is not None and (cls.has_multilevel_feature(
+                feature, handle) or cls.has_surrounding_features(
+                    feature, handle)):
+            fdata = Interpolator.interp_var_to_height(
+                handle, feature, raster_index, np.float32(interp_height),
+                time_slice)
+        elif interp_pressure is not None and cls.has_multilevel_feature(
+                feature, handle):
+            fdata = Interpolator.interp_var_to_pressure(
+                handle, basename, raster_index, np.float32(interp_pressure),
+                time_slice)
 
         else:
             msg = f'{feature} cannot be extracted from source data.'
@@ -493,10 +502,33 @@ class DataHandlerNC(DataHandler):
         return raster_index
 
 
+class DataHandlerNCforERA(DataHandlerNC):
+    """Data Handler for NETCDF ERA5 data"""
+
+    FEATURE_REGISTRY = DataHandlerNC.FEATURE_REGISTRY.copy()
+    FEATURE_REGISTRY.update({'Pressure_(.*)m': 'level_(.*)'})
+
+
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
-    CHUNKS = {'time': 5, 'lat': 20, 'lon': 20}
+    FEATURE_REGISTRY = DataHandlerNC.FEATURE_REGISTRY.copy()
+    FEATURE_REGISTRY.update({
+        'U_(.*)': 'ua_(.*)',
+        'V_(.*)': 'va_(.*)',
+        'relativehumidity_2m': 'hurs',
+        'relativehumidity_min_2m': 'hursmin',
+        'relativehumidity_max_2m': 'hursmax',
+        'clearsky_ratio': ClearSkyRatioCC,
+        'lat_lon': LatLonNC,
+        'Pressure_(.*)': 'plev_(.*)',
+        'Temperature_(.*)': TempNCforCC,
+        'temperature_2m': Tas,
+        'temperature_max_2m': TasMax,
+        'temperature_min_2m': TasMin,
+    })
+
+    CHUNKS: ClassVar[dict] = {'time': 5, 'lat': 20, 'lon': 20}
     """CHUNKS sets the chunk sizes to extract from the data in each dimension.
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
@@ -535,35 +567,6 @@ class DataHandlerNCforCC(DataHandlerNC):
         self._nsrdb_agg = nsrdb_agg
         self._nsrdb_smoothing = nsrdb_smoothing
         super().__init__(*args, **kwargs)
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features or extracting renamed
-        features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U_(.*)': 'ua_(.*)',
-            'V_(.*)': 'va_(.*)',
-            'Windspeed_(.*)m': WindspeedNC,
-            'Winddirection_(.*)m': WinddirectionNC,
-            'topography': 'orog',
-            'relativehumidity_2m': 'hurs',
-            'relativehumidity_min_2m': 'hursmin',
-            'relativehumidity_max_2m': 'hursmax',
-            'clearsky_ratio': ClearSkyRatioCC,
-            'lat_lon': LatLonNC,
-            'Pressure_(.*)': 'plev_(.*)',
-            'Temperature_(.*)': TempNCforCC,
-            'temperature_2m': Tas,
-            'temperature_max_2m': TasMax,
-            'temperature_min_2m': TasMin,
-        }
-        return registry
 
     @classmethod
     def source_handler(cls, file_paths, **kwargs):
@@ -714,6 +717,14 @@ class DataHandlerNCforCC(DataHandlerNC):
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
 
         return cs_ghi
+
+
+class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
+    """Data Handler for NETCDF climate change data with power law based
+    extrapolation for windspeeds"""
+
+    FEATURE_REGISTRY = DataHandlerNCforCC.FEATURE_REGISTRY.copy()
+    FEATURE_REGISTRY.update({'U_(.*)': UWindPowerLaw, 'V_(.*)': VWindPowerLaw})
 
 
 class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):

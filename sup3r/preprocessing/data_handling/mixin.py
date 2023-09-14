@@ -15,12 +15,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import mode
 
-from sup3r.utilities.utilities import (
-    get_source_type,
-    ignore_case_path_fetch,
-    uniform_box_sampler,
-    uniform_time_sampler,
-)
+from sup3r.utilities.utilities import (get_source_type, ignore_case_path_fetch,
+                                       uniform_box_sampler,
+                                       uniform_time_sampler,
+                                       )
 
 np.random.seed(42)
 
@@ -29,6 +27,59 @@ logger = logging.getLogger(__name__)
 
 class CacheHandlingMixIn:
     """Collection of methods for handling data caching and loading"""
+
+    def __init__(self):
+        self._noncached_features = None
+        self._cache_pattern = None
+        self._cache_files = None
+        self.features = None
+        self.cache_files = None
+        self.overwrite_cache = None
+        self.load_cached = None
+        self.time_index = None
+        self.grid_shape = None
+        self.target = None
+
+    @property
+    def cache_pattern(self):
+        """Get correct cache file pattern for formatting.
+
+        Returns
+        -------
+        _cache_pattern : str
+            The cache file pattern with formatting keys included.
+        """
+        self._cache_pattern = self._get_cache_pattern(self._cache_pattern)
+        return self._cache_pattern
+
+    @cache_pattern.setter
+    def cache_pattern(self, cache_pattern):
+        """Update the cache file pattern"""
+        self._cache_pattern = cache_pattern
+
+    @property
+    def try_load(self):
+        """Check if we should try to load cache"""
+        return self._should_load_cache(self.cache_pattern, self.cache_files,
+                                       self.overwrite_cache)
+
+    @property
+    def noncached_features(self):
+        """Get list of features needing extraction or derivation"""
+        if self._noncached_features is None:
+            self._noncached_features = self.check_cached_features(
+                self.features,
+                cache_files=self.cache_files,
+                overwrite_cache=self.overwrite_cache,
+                load_cached=self.load_cached,
+            )
+        return self._noncached_features
+
+    @property
+    def cached_features(self):
+        """List of features which have been requested but have been determined
+        not to need extraction. Thus they have been cached already."""
+        return [f for f in self.features if f not in self.noncached_features]
 
     def _get_timestamp_0(self, time_index):
         """Get a string timestamp for the first time index value with the
@@ -73,14 +124,9 @@ class CacheHandlingMixIn:
                 cache_pattern = cache_pattern.replace('.pkl', '_{feature}.pkl')
         return cache_pattern
 
-    def _get_cache_file_names(
-        self,
-        cache_pattern,
-        grid_shape,
-        time_index,
-        target,
-        features,
-    ):
+    def _get_cache_file_names(self, cache_pattern, grid_shape, time_index,
+                              target, features,
+                              ):
         """Get names of cache files from cache_pattern and feature names
 
         Parameters
@@ -133,6 +179,47 @@ class CacheHandlingMixIn:
 
         return cache_files
 
+    def get_cache_file_names(self,
+                             cache_pattern,
+                             grid_shape=None,
+                             time_index=None,
+                             target=None,
+                             features=None):
+        """Get names of cache files from cache_pattern and feature names
+
+        Parameters
+        ----------
+        cache_pattern : str
+            Pattern to use for cache file names
+        grid_shape : tuple
+            Shape of grid to use for cache file naming
+        time_index : list | pd.DatetimeIndex
+            Time index to use for cache file naming
+        target : tuple
+            Target to use for cache file naming
+        features : list
+            List of features to use for cache file naming
+
+        Returns
+        -------
+        list
+            List of cache file names
+        """
+        grid_shape = grid_shape if grid_shape is not None else self.grid_shape
+        time_index = time_index if time_index is not None else self.time_index
+        target = target if target is not None else self.target
+        features = features if features is not None else self.features
+
+        return self._get_cache_file_names(cache_pattern, grid_shape,
+                                          time_index, target, features)
+
+    @property
+    def cache_files(self):
+        """Cache files for storing extracted data"""
+        if self._cache_files is None:
+            self._cache_files = self.get_cache_file_names(self.cache_pattern)
+        return self._cache_files
+
     def _cache_data(self, data, features, cache_file_paths, overwrite=False):
         """Cache feature data to files
 
@@ -151,31 +238,24 @@ class CacheHandlingMixIn:
         for i, fp in enumerate(cache_file_paths):
             if not os.path.exists(fp) or overwrite:
                 if overwrite and os.path.exists(fp):
-                    logger.info(
-                        f'Overwriting {features[i]} with shape '
-                        f'{data[..., i].shape} to {fp}'
-                    )
+                    logger.info(f'Overwriting {features[i]} with shape '
+                                f'{data[..., i].shape} to {fp}')
                 else:
-                    logger.info(
-                        f'Saving {features[i]} with shape '
-                        f'{data[..., i].shape} to {fp}'
-                    )
+                    logger.info(f'Saving {features[i]} with shape '
+                                f'{data[..., i].shape} to {fp}')
 
                 tmp_file = fp.replace('.pkl', '.pkl.tmp')
                 with open(tmp_file, 'wb') as fh:
                     pickle.dump(data[..., i], fh, protocol=4)
                 os.replace(tmp_file, fp)
             else:
-                msg = (
-                    f'Called cache_data but {fp} already exists. Set to '
-                    'overwrite_cache to True to overwrite.'
-                )
+                msg = (f'Called cache_data but {fp} already exists. Set to '
+                       'overwrite_cache to True to overwrite.')
                 logger.warning(msg)
                 warnings.warn(msg)
 
-    def _load_single_cached_feature(
-        self, fp, cache_files, features, required_shape
-    ):
+    def _load_single_cached_feature(self, fp, cache_files, features,
+                                    required_shape):
         """Load single feature from given file
 
         Parameters
@@ -202,31 +282,27 @@ class CacheHandlingMixIn:
         idx = cache_files.index(fp)
         assert features[idx].lower() in fp.lower()
         fp = ignore_case_path_fetch(fp)
-        logger.info(f'Loading {features[idx]} from ' f'{fp}.')
+        logger.info(f'Loading {features[idx]} from '
+                    f'{fp}.')
 
         out = None
         with open(fp, 'rb') as fh:
             out = np.array(pickle.load(fh), dtype=np.float32)
-            msg = (
-                'Data loaded from from cache file "{}" '
-                'could not be written to feature channel {} '
-                'of full data array of shape {}. '
-                'The cached data has the wrong shape {}.'.format(
-                    fp, idx, required_shape, out.shape
-                )
-            )
+            msg = ('Data loaded from from cache file "{}" '
+                   'could not be written to feature channel {} '
+                   'of full data array of shape {}. '
+                   'The cached data has the wrong shape {}.'.format(
+                       fp, idx, required_shape, out.shape))
             assert out.shape == required_shape, msg
         return out
 
-    def _should_load_cache(
-        self, cache_pattern, cache_files, overwrite_cache=False
-    ):
+    def _should_load_cache(self,
+                           cache_pattern,
+                           cache_files,
+                           overwrite_cache=False):
         """Check if we should load cached data"""
-        try_load = (
-            cache_pattern is not None
-            and not overwrite_cache
-            and all(os.path.exists(fp) for fp in cache_files)
-        )
+        try_load = (cache_pattern is not None and not overwrite_cache
+                    and all(os.path.exists(fp) for fp in cache_files))
         return try_load
 
     def parallel_load(self, data, cache_files, features, max_workers=None):
@@ -244,42 +320,33 @@ class CacheHandlingMixIn:
             Max number of workers to use for parallel data loading. If None
             the max number of available workers will be used.
         """
-        logger.info(
-            f'Loading {len(cache_files)} cache files with '
-            f'max_workers={max_workers}.'
-        )
+        logger.info(f'Loading {len(cache_files)} cache files with '
+                    f'max_workers={max_workers}.')
         with ThreadPoolExecutor(max_workers=max_workers) as exe:
             futures = {}
             now = dt.now()
             for i, fp in enumerate(cache_files):
-                future = exe.submit(
-                    self._load_single_cached_feature,
-                    fp=fp,
-                    cache_files=cache_files,
-                    features=features,
-                    required_shape=data.shape[:-1],
-                )
+                future = exe.submit(self._load_single_cached_feature,
+                                    fp=fp,
+                                    cache_files=cache_files,
+                                    features=features,
+                                    required_shape=data.shape[:-1],
+                                    )
                 futures[future] = {'idx': i, 'fp': os.path.basename(fp)}
 
-            logger.info(
-                f'Started loading all {len(cache_files)} cache '
-                f'files in {dt.now() - now}.'
-            )
+            logger.info(f'Started loading all {len(cache_files)} cache '
+                        f'files in {dt.now() - now}.')
 
             for i, future in enumerate(as_completed(futures)):
                 try:
                     data[..., futures[future]['idx']] = future.result()
                 except Exception as e:
-                    msg = (
-                        'Error while loading '
-                        f'{cache_files[futures[future]["idx"]]}'
-                    )
+                    msg = ('Error while loading '
+                           f'{cache_files[futures[future]["idx"]]}')
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
-                logger.debug(
-                    f'{i+1} out of {len(futures)} cache files '
-                    f'loaded: {futures[future]["fp"]}'
-                )
+                logger.debug(f'{i+1} out of {len(futures)} cache files '
+                             f'loaded: {futures[future]["fp"]}')
 
     def _load_cached_data(self, data, cache_files, features, max_workers=None):
         """Load cached data to provided array
@@ -300,36 +367,29 @@ class CacheHandlingMixIn:
         """
         if max_workers == 1:
             for i, fp in enumerate(cache_files):
-                out = self._load_single_cached_feature(
-                    fp, cache_files, features, data.shape[:-1]
-                )
-                msg = (
-                    'Data loaded from from cache file "{}" '
-                    'could not be written to feature channel {} '
-                    'of full data array of shape {}. '
-                    'The cached data has the wrong shape {}.'.format(
-                        fp, i, data[..., i].shape, out.shape
-                    )
-                )
+                out = self._load_single_cached_feature(fp, cache_files,
+                                                       features,
+                                                       data.shape[:-1])
+                msg = ('Data loaded from from cache file "{}" '
+                       'could not be written to feature channel {} '
+                       'of full data array of shape {}. '
+                       'The cached data has the wrong shape {}.'.format(
+                           fp, i, data[..., i].shape, out.shape))
                 assert data[..., i].shape == out.shape, msg
                 data[..., i] = out
 
         else:
-            self.parallel_load(
-                data,
-                cache_files,
-                features,
-                max_workers=max_workers,
-            )
+            self.parallel_load(data,
+                               cache_files,
+                               features,
+                               max_workers=max_workers)
 
     @classmethod
-    def check_cached_features(
-        cls,
-        features,
-        cache_files=None,
-        overwrite_cache=False,
-        load_cached=False,
-    ):
+    def check_cached_features(cls,
+                              features,
+                              cache_files=None,
+                              overwrite_cache=False,
+                              load_cached=False):
         """Check which features have been cached and check flags to determine
         whether to load or extract this features again
 
@@ -354,31 +414,23 @@ class CacheHandlingMixIn:
         # check if any features can be loaded from cache
         if cache_files is not None:
             for i, f in enumerate(features):
-                check = (
-                    os.path.exists(cache_files[i])
-                    and f.lower() in cache_files[i].lower()
-                )
+                check = (os.path.exists(cache_files[i])
+                         and f.lower() in cache_files[i].lower())
                 if check:
                     if not overwrite_cache:
                         if load_cached:
-                            msg = (
-                                f'{f} found in cache file {cache_files[i]}.'
-                                ' Loading from cache instead of extracting '
-                                'from source files'
-                            )
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Loading from cache instead of extracting '
+                                   'from source files')
                             logger.info(msg)
                         else:
-                            msg = (
-                                f'{f} found in cache file {cache_files[i]}.'
-                                ' Call load_cached_data() or use '
-                                'load_cached=True to load this data.'
-                            )
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Call load_cached_data() or use '
+                                   'load_cached=True to load this data.')
                             logger.info(msg)
                     else:
-                        msg = (
-                            f'{cache_files[i]} exists but overwrite_cache '
-                            'is set to True. Proceeding with extraction.'
-                        )
+                        msg = (f'{cache_files[i]} exists but overwrite_cache '
+                               'is set to True. Proceeding with extraction.')
                         logger.info(msg)
                         extract_features.append(f)
                 else:
@@ -393,14 +445,13 @@ class InputMixIn(CacheHandlingMixIn):
     """MixIn class with properties and methods for handling the spatiotemporal
     data domain to extract from source data."""
 
-    def __init__(
-        self,
-        target,
-        shape,
-        raster_file=None,
-        raster_index=None,
-        temporal_slice=slice(None, None, 1),
-    ):
+    def __init__(self,
+                 target,
+                 shape,
+                 raster_file=None,
+                 raster_index=None,
+                 temporal_slice=slice(None, None, 1),
+                 ):
         """Provide properties of the spatiotemporal data domain
 
         Parameters
@@ -465,11 +516,8 @@ class InputMixIn(CacheHandlingMixIn):
         if self._single_ts_files is None:
             logger.debug('Checking if input files are single timestep.')
             t_steps = self.get_time_index(self.file_paths[:1], max_workers=1)
-            check = (
-                len(self._file_paths) == len(self.raw_time_index)
-                and t_steps is not None
-                and len(t_steps) == 1
-            )
+            check = (len(self._file_paths) == len(self.raw_time_index)
+                     and t_steps is not None and len(t_steps) == 1)
             self._single_ts_files = check
         return self._single_ts_files
 
@@ -531,10 +579,8 @@ class InputMixIn(CacheHandlingMixIn):
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        msg = (
-            f'source files with dates from {self.raw_time_index[0]} to '
-            f'{self.raw_time_index[-1]}'
-        )
+        msg = (f'source files with dates from {self.raw_time_index[0]} to '
+               f'{self.raw_time_index[-1]}')
         return msg
 
     @property
@@ -561,20 +607,16 @@ class InputMixIn(CacheHandlingMixIn):
             self._temporal_slice = temporal_slice
         else:
             check = len(temporal_slice) <= 3
-            msg = (
-                'If providing list or tuple for temporal_slice length must '
-                'be <= 3'
-            )
+            msg = ('If providing list or tuple for temporal_slice length must '
+                   'be <= 3')
             assert check, msg
             self._temporal_slice = slice(*temporal_slice)
         if self._temporal_slice.step is None:
-            self._temporal_slice = slice(
-                self._temporal_slice.start, self._temporal_slice.stop, 1
-            )
+            self._temporal_slice = slice(self._temporal_slice.start,
+                                         self._temporal_slice.stop, 1)
         if self._temporal_slice.start is None:
-            self._temporal_slice = slice(
-                0, self._temporal_slice.stop, self._temporal_slice.step
-            )
+            self._temporal_slice = slice(0, self._temporal_slice.stop,
+                                         self._temporal_slice.step)
 
     @property
     def file_paths(self):
@@ -599,10 +641,8 @@ class InputMixIn(CacheHandlingMixIn):
             else:
                 self._file_paths = [self._file_paths]
 
-        msg = (
-            'No valid files provided to DataHandler. '
-            f'Received file_paths={file_paths}. Aborting.'
-        )
+        msg = ('No valid files provided to DataHandler. '
+               f'Received file_paths={file_paths}. Aborting.')
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
         self._file_paths = sorted(self._file_paths)
@@ -624,16 +664,13 @@ class InputMixIn(CacheHandlingMixIn):
         """Check whether we need to get the full lat/lon grid to determine
         target and shape values"""
         no_raster_file = self.raster_file is None or not os.path.exists(
-            self.raster_file
-        )
+            self.raster_file)
         no_target_shape = self._target is None or self._grid_shape is None
         need_full = no_raster_file and no_target_shape
 
         if need_full:
-            logger.info(
-                'Target + shape not specified. Getting full domain '
-                f'for {self.file_paths[0]}.'
-            )
+            logger.info('Target + shape not specified. Getting full domain '
+                        f'for {self.file_paths[0]}.')
 
         return need_full
 
@@ -655,8 +692,7 @@ class InputMixIn(CacheHandlingMixIn):
         ndarray
         """
         raster_file_exists = self.raster_file is not None and os.path.exists(
-            self.raster_file
-        )
+            self.raster_file)
 
         if self.full_raw_lat_lon is not None and raster_file_exists:
             self._raw_lat_lon = self.full_raw_lat_lon[self.raster_index]
@@ -665,9 +701,9 @@ class InputMixIn(CacheHandlingMixIn):
             self._raw_lat_lon = self.full_raw_lat_lon
 
         if self._raw_lat_lon is None:
-            self._raw_lat_lon = self.get_lat_lon(
-                self.file_paths[0:1], self.raster_index, invert_lat=False
-            )
+            self._raw_lat_lon = self.get_lat_lon(self.file_paths[0:1],
+                                                 self.raster_index,
+                                                 invert_lat=False)
         return self._raw_lat_lon
 
     @property
@@ -778,24 +814,19 @@ class InputMixIn(CacheHandlingMixIn):
         time index for the raw input data."""
 
         if self._raw_time_index is None:
-            check = (
-                self.time_index_file is not None
-                and os.path.exists(self.time_index_file)
-                and not self.overwrite_ti_cache
-            )
+            check = (self.time_index_file is not None
+                     and os.path.exists(self.time_index_file)
+                     and not self.overwrite_ti_cache)
             if check:
-                logger.debug(
-                    'Loading raw_time_index from ' f'{self.time_index_file}'
-                )
+                logger.debug('Loading raw_time_index from '
+                             f'{self.time_index_file}')
                 with open(self.time_index_file, 'rb') as f:
                     self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
             else:
                 self._raw_time_index = self._build_and_cache_time_index()
 
-            check = (
-                self._raw_time_index is not None
-                and (self._raw_time_index.hour == 12).all()
-            )
+            check = (self._raw_time_index is not None
+                     and (self._raw_time_index.hour == 12).all())
             if check:
                 self._raw_time_index -= pd.Timedelta(12, 'h')
             elif self._raw_time_index is None:
@@ -808,10 +839,8 @@ class InputMixIn(CacheHandlingMixIn):
     def time_index_conflict_check(self):
         """Check if the number of input files and the length of the time index
         is the same"""
-        msg = (
-            f'Number of time steps ({len(self._raw_time_index)}) and files '
-            f'({self.raw_tsteps}) conflict!'
-        )
+        msg = (f'Number of time steps ({len(self._raw_time_index)}) and files '
+               f'({self.raw_tsteps}) conflict!')
         check = len(self._raw_time_index) == self.raw_tsteps
         assert check, msg
 
@@ -837,23 +866,6 @@ class InputMixIn(CacheHandlingMixIn):
         return time_freq
 
     @property
-    def cache_pattern(self):
-        """Get correct cache file pattern for formatting.
-
-        Returns
-        -------
-        _cache_pattern : str
-            The cache file pattern with formatting keys included.
-        """
-        self._cache_pattern = self._get_cache_pattern(self._cache_pattern)
-        return self._cache_pattern
-
-    @cache_pattern.setter
-    def cache_pattern(self, cache_pattern):
-        """Update the cache file pattern"""
-        self._cache_pattern = cache_pattern
-
-    @property
     def time_index_file(self):
         """Get time index file path"""
         if self.source_type == 'h5':
@@ -873,14 +885,12 @@ class InputMixIn(CacheHandlingMixIn):
     def _build_and_cache_time_index(self):
         """Build time index and cache if time_index_file is not None"""
         now = dt.now()
-        logger.debug(
-            f'Getting time index for {len(self.file_paths)} '
-            f'input files. Using ti_workers={self.ti_workers}'
-            f' and res_kwargs={self.res_kwargs}'
-        )
-        self._raw_time_index = self.get_time_index(
-            self.file_paths, max_workers=self.ti_workers, **self.res_kwargs
-        )
+        logger.debug(f'Getting time index for {len(self.file_paths)} '
+                     f'input files. Using ti_workers={self.ti_workers}'
+                     f' and res_kwargs={self.res_kwargs}')
+        self._raw_time_index = self.get_time_index(self.file_paths,
+                                                   max_workers=self.ti_workers,
+                                                   **self.res_kwargs)
 
         if self.time_index_file is not None:
             os.makedirs(os.path.dirname(self.time_index_file), exist_ok=True)
@@ -896,9 +906,11 @@ class TrainingPrepMixIn:
     splitting, normalization"""
 
     @classmethod
-    def _split_data_indices(
-        cls, data, val_split=0.0, n_val_obs=None, shuffle_time=False
-    ):
+    def _split_data_indices(cls,
+                            data,
+                            val_split=0.0,
+                            n_val_obs=None,
+                            shuffle_time=False):
         """Split time dimension into set of training indices and validation
         indices
 
@@ -926,9 +938,8 @@ class TrainingPrepMixIn:
         """
         n_observations = data.shape[2]
         all_indices = np.arange(n_observations)
-        n_val_obs = (
-            int(val_split * n_observations) if n_val_obs is None else n_val_obs
-        )
+        n_val_obs = (int(val_split
+                         * n_observations) if n_val_obs is None else n_val_obs)
 
         if shuffle_time:
             np.random.shuffle(all_indices)
@@ -959,8 +970,8 @@ class TrainingPrepMixIn:
         spatial_slice = uniform_box_sampler(data, sample_shape[:2])
         temporal_slice = uniform_time_sampler(data, sample_shape[2])
         return tuple(
-            [*spatial_slice, temporal_slice, np.arange(data.shape[-1])]
-        )
+            [*spatial_slice, temporal_slice,
+             np.arange(data.shape[-1])])
 
     @classmethod
     def _unnormalize(cls, data, val_data, means, stds):
@@ -1015,8 +1026,7 @@ class TrainingPrepMixIn:
             data[..., feature_index] /= std
         else:
             msg = (
-                f'Standard Deviation is zero for feature #{feature_index + 1}'
-            )
+                f'Standard Deviation is zero for feature #{feature_index + 1}')
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -1045,13 +1055,18 @@ class TrainingPrepMixIn:
             for i in range(data.shape[-1]):
                 self._normalize_data(data, val_data, i, means[i], stds[i])
         else:
-            self.parallel_normalization(
-                data, val_data, means, stds, max_workers=max_workers
-            )
+            self.parallel_normalization(data,
+                                        val_data,
+                                        means,
+                                        stds,
+                                        max_workers=max_workers)
 
-    def parallel_normalization(
-        self, data, val_data, means, stds, max_workers=None
-    ):
+    def parallel_normalization(self,
+                               data,
+                               val_data,
+                               means,
+                               stds,
+                               max_workers=None):
         """Run normalization of features in parallel
 
         Parameters
@@ -1076,26 +1091,20 @@ class TrainingPrepMixIn:
             futures = {}
             now = dt.now()
             for i in range(data.shape[-1]):
-                future = exe.submit(
-                    self._normalize_data, data, val_data, i, means[i], stds[i]
-                )
+                future = exe.submit(self._normalize_data, data, val_data, i,
+                                    means[i], stds[i])
                 futures[future] = i
 
-            logger.info(
-                f'Started normalizing {data.shape[-1]} features '
-                f'in {dt.now() - now}.'
-            )
+            logger.info(f'Started normalizing {data.shape[-1]} features '
+                        f'in {dt.now() - now}.')
 
             for i, future in enumerate(as_completed(futures)):
                 try:
                     future.result()
                 except Exception as e:
-                    msg = (
-                        'Error while normalizing future number '
-                        f'{futures[future]}.'
-                    )
+                    msg = ('Error while normalizing future number '
+                           f'{futures[future]}.')
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
-                logger.debug(
-                    f'{i+1} out of {data.shape[-1]} features ' 'normalized.'
-                )
+                logger.debug(f'{i+1} out of {data.shape[-1]} features '
+                             'normalized.')

@@ -5,6 +5,7 @@
 import copy
 import logging
 import os
+from typing import ClassVar
 
 import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
@@ -34,6 +35,20 @@ logger = logging.getLogger(__name__)
 class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
+    FEATURE_REGISTRY: ClassVar[dict] = {
+        'BVF2_(.*)m': BVFreqSquaredH5,
+        'BVF_MO_(.*)m': BVFreqMon,
+        'U_(.*)m': UWind,
+        'V_(.*)m': VWind,
+        'lat_lon': LatLonH5,
+        'REWS_(.*)m': Rews,
+        'RMOL': 'inversemoninobukhovlength_2m',
+        'P_(.*)m': 'pressure_(.*)m',
+        'topography': TopoH5,
+        'cloud_mask': CloudMaskH5,
+        'clearsky_ratio': ClearSkyRatioH5,
+    }
+
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
 
@@ -61,10 +76,8 @@ class DataHandlerH5(DataHandler):
     @classmethod
     def get_full_domain(cls, file_paths):
         """Get target and shape for largest domain possible"""
-        msg = (
-            'You must either provide the target+shape inputs or an '
-            'existing raster_file input.'
-        )
+        msg = ('You must either provide the target+shape inputs or an '
+               'existing raster_file input.')
         logger.error(msg)
         raise ValueError(msg)
 
@@ -91,39 +104,13 @@ class DataHandlerH5(DataHandler):
         return time_index
 
     @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features or extracting renamed
-        features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'BVF2_(.*)m': BVFreqSquaredH5,
-            'BVF_MO_(.*)m': BVFreqMon,
-            'U_(.*)m': UWind,
-            'V_(.*)m': VWind,
-            'lat_lon': LatLonH5,
-            'REWS_(.*)m': Rews,
-            'RMOL': 'inversemoninobukhovlength_2m',
-            'P_(.*)m': 'pressure_(.*)m',
-            'topography': TopoH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5,
-        }
-        return registry
-
-    @classmethod
-    def extract_feature(
-        cls,
-        file_paths,
-        raster_index,
-        feature,
-        time_slice=slice(None),
-        **kwargs,
-    ):
+    def extract_feature(cls,
+                        file_paths,
+                        raster_index,
+                        feature,
+                        time_slice=slice(None),
+                        **kwargs,
+                        ):
         """Extract single feature from data source
 
         Parameters
@@ -148,17 +135,15 @@ class DataHandlerH5(DataHandler):
         logger.info(f'Extracting {feature} with kwargs={kwargs}')
         handle = cls.source_handler(file_paths, **kwargs)
         try:
-            fdata = handle[
-                (feature, time_slice, *tuple([raster_index.flatten()]))
-            ]
+            fdata = handle[(feature, time_slice,
+                            *tuple([raster_index.flatten()]))]
         except ValueError as e:
             msg = f'{feature} cannot be extracted from source data'
             logger.exception(msg)
             raise ValueError(msg) from e
 
         fdata = fdata.reshape(
-            (-1, raster_index.shape[0], raster_index.shape[1])
-        )
+            (-1, raster_index.shape[0], raster_index.shape[1]))
         fdata = np.transpose(fdata, (1, 2, 0))
         return fdata.astype(np.float32)
 
@@ -173,27 +158,21 @@ class DataHandlerH5(DataHandler):
             2D array of grid indices
         """
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(
-                f'Loading raster index: {self.raster_file} '
-                f'for {self.input_file_info}'
-            )
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.input_file_info}')
             raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
         else:
             check = self.grid_shape is not None and self.target is not None
-            msg = (
-                'Must provide raster file or shape + target to get '
-                'raster index'
-            )
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
             assert check, msg
-            logger.debug(
-                'Calculating raster index from WTK file '
-                f'for shape {self.grid_shape} and target '
-                f'{self.target}'
-            )
+            logger.debug('Calculating raster index from WTK file '
+                         f'for shape {self.grid_shape} and target '
+                         f'{self.target}')
             handle = self.source_handler(self.file_paths[0])
-            raster_index = handle.get_raster_index(
-                self.target, self.grid_shape, max_delta=self.max_delta
-            )
+            raster_index = handle.get_raster_index(self.target,
+                                                   self.grid_shape,
+                                                   max_delta=self.max_delta)
             if self.raster_file is not None:
                 basedir = os.path.dirname(self.raster_file)
                 if not os.path.exists(basedir):
@@ -207,6 +186,14 @@ class DataHandlerH5WindCC(DataHandlerH5):
     """Special data handling and batch sampling for h5 wtk or nsrdb data for
     climate change applications"""
 
+    FEATURE_REGISTRY = DataHandlerH5.FEATURE_REGISTRY.copy()
+    FEATURE_REGISTRY.update({
+        'temperature_max_(.*)m': 'temperature_(.*)m',
+        'temperature_min_(.*)m': 'temperature_(.*)m',
+        'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
+        'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m'
+    })
+
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
 
@@ -214,12 +201,10 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = (
-        'temperature_max_*m',
-        'temperature_min_*m',
-        'relativehumidity_max_*m',
-        'relativehumidity_min_*m',
-    )
+    TRAIN_ONLY_FEATURES = ('temperature_max_*m', 'temperature_min_*m',
+                           'relativehumidity_max_*m',
+                           'relativehumidity_min_*m',
+                           )
 
     def __init__(self, *args, **kwargs):
         """
@@ -236,20 +221,16 @@ class DataHandlerH5WindCC(DataHandlerH5):
         if len(sample_shape) == 2:
             logger.info(
                 'Found 2D sample shape of {}. Adding spatial dim of 24'.format(
-                    sample_shape
-                )
-            )
+                    sample_shape))
             sample_shape = (*sample_shape, 24)
             t_shape = sample_shape[-1]
             kwargs['sample_shape'] = sample_shape
 
         if t_shape < 24 or t_shape % 24 != 0:
-            msg = (
-                'Climate Change DataHandler can only work with temporal '
-                'sample shapes that are one or more days of hourly data '
-                '(e.g. 24, 48, 72...). The requested temporal sample '
-                'shape was: {}'.format(t_shape)
-            )
+            msg = ('Climate Change DataHandler can only work with temporal '
+                   'sample shapes that are one or more days of hourly data '
+                   '(e.g. 24, 48, 72...). The requested temporal sample '
+                   'shape was: {}'.format(t_shape))
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -264,28 +245,22 @@ class DataHandlerH5WindCC(DataHandlerH5):
 
     def run_daily_averages(self):
         """Calculate daily average data and store as attribute."""
-        msg = (
-            'Data needs to be hourly with at least 24 hours, but data '
-            'shape is {}.'.format(self.data.shape)
-        )
+        msg = ('Data needs to be hourly with at least 24 hours, but data '
+               'shape is {}.'.format(self.data.shape))
         assert self.data.shape[2] % 24 == 0, msg
         assert self.data.shape[2] > 24, msg
 
         n_data_days = int(self.data.shape[2] / 24)
-        daily_data_shape = (
-            self.data.shape[0:2] + (n_data_days,) + (self.data.shape[3],)
-        )
+        daily_data_shape = (*self.data.shape[0:2], n_data_days,
+                            self.data.shape[3])
 
-        logger.info(
-            'Calculating daily average datasets for {} training '
-            'data days.'.format(n_data_days)
-        )
+        logger.info('Calculating daily average datasets for {} training '
+                    'data days.'.format(n_data_days))
 
         self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
 
-        self.daily_data_slices = np.array_split(
-            np.arange(self.data.shape[2]), n_data_days
-        )
+        self.daily_data_slices = np.array_split(np.arange(self.data.shape[2]),
+                                                n_data_days)
         self.daily_data_slices = [
             slice(x[0], x[-1] + 1) for x in self.daily_data_slices
         ]
@@ -298,15 +273,13 @@ class DataHandlerH5WindCC(DataHandlerH5):
                     tmp = np.min(self.data[:, :, t_slice, idf], axis=2)
                     self.daily_data[:, :, d, idf] = tmp[:, :]
                 else:
-                    tmp = daily_temporal_coarsening(
-                        self.data[:, :, t_slice, idf], temporal_axis=2
-                    )
+                    tmp = daily_temporal_coarsening(self.data[:, :, t_slice,
+                                                              idf],
+                                                    temporal_axis=2)
                     self.daily_data[:, :, d, idf] = tmp[:, :, 0]
 
-        logger.info(
-            'Finished calculating daily average datasets for {} '
-            'training data days.'.format(n_data_days)
-        )
+        logger.info('Finished calculating daily average datasets for {} '
+                    'training data days.'.format(n_data_days))
 
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a
@@ -331,27 +304,6 @@ class DataHandlerH5WindCC(DataHandlerH5):
         self.daily_data[..., feature_index] -= mean
         self.daily_data[..., feature_index] /= std
 
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U_(.*)m': UWind,
-            'V_(.*)m': VWind,
-            'lat_lon': LatLonH5,
-            'topography': TopoH5,
-            'temperature_max_(.*)m': 'temperature_(.*)m',
-            'temperature_min_(.*)m': 'temperature_(.*)m',
-            'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
-            'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m',
-        }
-        return registry
-
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
 
@@ -375,12 +327,12 @@ class DataHandlerH5WindCC(DataHandlerH5):
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
         obs_ind_hourly = tuple(
-            [*spatial_slice, t_slice_hourly, np.arange(len(self.features))]
-        )
+            [*spatial_slice, t_slice_hourly,
+             np.arange(len(self.features))])
 
         obs_ind_daily = tuple(
-            [*spatial_slice, t_slice_daily, np.arange(len(self.features))]
-        )
+            [*spatial_slice, t_slice_daily,
+             np.arange(len(self.features))])
 
         return obs_ind_hourly, obs_ind_daily
 
@@ -431,11 +383,9 @@ class DataHandlerH5WindCC(DataHandlerH5):
         if data is not None:
             self.data = data
 
-        midnight_ilocs = np.where(
-            (self.time_index.hour == 0)
-            & (self.time_index.minute == 0)
-            & (self.time_index.second == 0)
-        )[0]
+        midnight_ilocs = np.where((self.time_index.hour == 0)
+                                  & (self.time_index.minute == 0)
+                                  & (self.time_index.second == 0))[0]
 
         n_val_obs = int(np.ceil(val_split * len(midnight_ilocs)))
         val_split_index = midnight_ilocs[n_val_obs]
@@ -452,6 +402,14 @@ class DataHandlerH5WindCC(DataHandlerH5):
 class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     """Special data handling and batch sampling for h5 NSRDB solar data for
     climate change applications"""
+
+    FEATURE_REGISTRY = DataHandlerH5WindCC.FEATURE_REGISTRY.copy()
+    FEATURE_REGISTRY.update({
+        'windspeed': 'wind_speed',
+        'winddirection': 'wind_direction',
+        'U': UWind,
+        'V': VWind,
+    })
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileNSRDBX
@@ -476,38 +434,15 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
         required = ['ghi', 'clearsky_ghi', 'clearsky_ratio']
         missing = [dset for dset in required if dset not in args[1]]
         if any(missing):
-            msg = (
-                'Cannot initialize DataHandlerH5SolarCC without required '
-                'features {}. All three are necessary to get the daily '
-                'average clearsky ratio (ghi sum / clearsky ghi sum), '
-                'even though only the clearsky ratio will be passed to the '
-                'GAN.'.format(required)
-            )
+            msg = ('Cannot initialize DataHandlerH5SolarCC without required '
+                   'features {}. All three are necessary to get the daily '
+                   'average clearsky ratio (ghi sum / clearsky ghi sum), '
+                   'even though only the clearsky ratio will be passed to the '
+                   'GAN.'.format(required))
             logger.error(msg)
             raise KeyError(msg)
 
         super().__init__(*args, **kwargs)
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {
-            'U': UWind,
-            'V': VWind,
-            'windspeed': 'wind_speed',
-            'winddirection': 'wind_direction',
-            'lat_lon': LatLonH5,
-            'cloud_mask': CloudMaskH5,
-            'clearsky_ratio': ClearSkyRatioH5,
-            'topography': TopoH5,
-        }
-        return registry
 
     def run_daily_averages(self):
         """Calculate daily average data and store as attribute.
@@ -518,28 +453,22 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
         instantaneous hourly clearsky ratios
         """
 
-        msg = (
-            'Data needs to be hourly with at least 24 hours, but data '
-            'shape is {}.'.format(self.data.shape)
-        )
+        msg = ('Data needs to be hourly with at least 24 hours, but data '
+               'shape is {}.'.format(self.data.shape))
         assert self.data.shape[2] % 24 == 0, msg
         assert self.data.shape[2] > 24, msg
 
         n_data_days = int(self.data.shape[2] / 24)
-        daily_data_shape = (
-            self.data.shape[0:2] + (n_data_days,) + (self.data.shape[3],)
-        )
+        daily_data_shape = (*self.data.shape[0:2], n_data_days,
+                            self.data.shape[3])
 
-        logger.info(
-            'Calculating daily average datasets for {} training '
-            'data days.'.format(n_data_days)
-        )
+        logger.info('Calculating daily average datasets for {} training '
+                    'data days.'.format(n_data_days))
 
         self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
 
-        self.daily_data_slices = np.array_split(
-            np.arange(self.data.shape[2]), n_data_days
-        )
+        self.daily_data_slices = np.array_split(np.arange(self.data.shape[2]),
+                                                n_data_days)
         self.daily_data_slices = [
             slice(x[0], x[-1] + 1) for x in self.daily_data_slices
         ]
@@ -551,8 +480,7 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
         for d, t_slice in enumerate(self.daily_data_slices):
             for idf in range(self.data.shape[-1]):
                 self.daily_data[:, :, d, idf] = daily_temporal_coarsening(
-                    self.data[:, :, t_slice, idf], temporal_axis=2
-                )[:, :, 0]
+                    self.data[:, :, t_slice, idf], temporal_axis=2)[:, :, 0]
 
             # note that this ratio of daily irradiance sums is not the same as
             # the average of hourly ratios.
@@ -563,23 +491,18 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
         # remove ghi and clearsky ghi from feature set. These shouldn't be used
         # downstream for solar cc and keeping them confuses the batch handler
-        logger.info(
-            'Finished calculating daily average clearsky_ratio, '
-            'removing ghi and clearsky_ghi from the '
-            'DataHandlerH5SolarCC feature list.'
-        )
+        logger.info('Finished calculating daily average clearsky_ratio, '
+                    'removing ghi and clearsky_ghi from the '
+                    'DataHandlerH5SolarCC feature list.')
         ifeats = np.array(
-            [i for i in range(len(self.features)) if i not in (i_ghi, i_cs)]
-        )
+            [i for i in range(len(self.features)) if i not in (i_ghi, i_cs)])
         self.data = self.data[..., ifeats]
         self.daily_data = self.daily_data[..., ifeats]
         self.features.remove('ghi')
         self.features.remove('clearsky_ghi')
 
-        logger.info(
-            'Finished calculating daily average datasets for {} '
-            'training data days.'.format(n_data_days)
-        )
+        logger.info('Finished calculating daily average datasets for {} '
+                    'training data days.'.format(n_data_days))
 
 
 class DataHandlerDCforH5(DataHandlerH5, DataHandlerDC):
