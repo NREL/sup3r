@@ -7,6 +7,7 @@ Sup3r forward pass handling module.
 import copy
 import logging
 import os
+import re
 import warnings
 from concurrent.futures import as_completed
 from datetime import datetime as dt
@@ -92,12 +93,6 @@ class ForwardPassSlicer:
             passes for subsequent temporal stitching. This overlap will pad
             both sides of the fwp_chunk_shape. Note that the first and last
             chunks in the temporal dimension will not be padded.
-        exo_s_enhancements : list
-            List of spatial enhancement steps specific to the exogenous_data
-            inputs. This differs from s_enhancements in that s_enhancements[0]
-            will be the spatial enhancement of the first model, but
-            exo_s_enhancements[0] may be 1 to signify exo data is required for
-            the first non-enhanced spatial input resolution.
         """
         self.grid_shape = coarse_shape
         self.time_steps = time_steps
@@ -697,7 +692,14 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         exo_kwargs : dict | None
             Dictionary of args to pass to ExogenousDataHandler for extracting
             exogenous features such as topography for future multistep foward
-            pass
+            pass. This should be a nested dictionary with keys for each
+            exogeneous feature. The dictionaries corresponding to the feature
+            names should include the path to exogenous data source, the
+            resolution of the exogenous data, and how the exogenous data should
+            be used in the model. e.g. {'topography': {'file_paths': 'path to
+            input files', 'source_file': 'path to exo data', 'exo_resolution':
+            {'spatial': '1km', 'temporal': None}, 'steps': [{'model': 0,
+            'concat_type': 'input'}, {'model': 0, 'concat_type': 'layer'}]}
         bias_correct_method : str | None
             Optional bias correction function name that can be imported from
             the :mod:`sup3r.bias.bias_transforms` module. This will transform
@@ -727,8 +729,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                             shape=grid_shape,
                             raster_file=raster_file,
                             raster_index=raster_index,
-                            temporal_slice=temporal_slice,
-                            )
+                            temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
@@ -787,14 +788,12 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                                             self.s_enhancements,
                                             self.t_enhancements,
                                             self.spatial_pad,
-                                            self.temporal_pad,
-                                            )
+                                            self.temporal_pad)
 
         DistributedProcess.__init__(self,
                                     max_nodes=max_nodes,
                                     max_chunks=self.fwp_slicer.n_chunks,
-                                    incremental=self.incremental,
-                                    )
+                                    incremental=self.incremental)
 
         self.preflight()
 
@@ -1090,7 +1089,7 @@ class ForwardPass:
         self.max_workers = strategy.max_workers
         self.pass_workers = strategy.pass_workers
         self.output_workers = strategy.output_workers
-        self.exo_kwargs = strategy.exo_kwargs
+        self.exo_kwargs = self._prep_exo_extract_kwargs(strategy.exo_kwargs)
         self.exo_features = ([]
                              if not self.exo_kwargs else list(self.exo_kwargs))
         self.exogenous_data = self.load_exo_data()
@@ -1122,6 +1121,127 @@ class ForwardPass:
         self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
                                                           self.lr_slice[1]]
 
+    def get_agg_factor(self, input_res, exo_res):
+        """Compute agg factor for exo data given input and output resolution
+
+        Parameters
+        ----------
+        input_res : str | None
+            Input resolution. e.g. 30km or 60min
+        exo_res : str | None
+            Exogenous data resolution. e.g. 1km or 5min
+
+        Returns
+        -------
+        agg_factor : int
+            Aggregation factor for exogenous data extraction.
+        """
+        ires_num = (None if input_res is None
+                    else re.search(r'\d+', input_res).group(0))
+        eres_num = (None if exo_res is None
+                    else re.search(r'\d+', exo_res).group(0))
+        i_units = (None if input_res is None
+                   else input_res.replace(ires_num, ''))
+        e_units = None if exo_res is None else exo_res.replace(eres_num, '')
+        msg = 'Received conflicting units for input and exo resolution'
+        if e_units is not None:
+            assert i_units == e_units, msg
+        if ires_num is not None and eres_num is not None:
+            agg_factor = (int(ires_num) / int(eres_num)) ** 2
+        else:
+            agg_factor = None
+        return agg_factor
+
+    def _prep_exo_extract_single_step(self, step_dict, exo_resolution):
+        """Compute agg and enhancement factors for exogenous data extraction
+        using exo_kwargs single model step. These factors are computed using
+        exo_resolution and the input/output resolution of each model step.
+
+        Parameters
+        ----------
+        step_dict : dict
+            Model step dictionary. e.g. {'model': 0, 'concat_type': 'input'}
+        exo_resolution : dict
+            Resolution of exogenous data. e.g. {'temporal': 15min, 'spatial':
+            '1km'}
+
+        Returns
+        -------
+        updated_step_dict : dict
+            Same as input dictionary with s_agg_factor, t_agg_factor,
+            s_enhance, t_enhance added
+        """
+        model_step = step_dict['model']
+        exo_res_t = exo_resolution['temporal']
+        exo_res_s = exo_resolution['spatial']
+        s_enhance = None
+        t_enhance = None
+        s_agg_factor = None
+        t_agg_factor = None
+        models = getattr(self.model, 'models', [self.model])
+        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
+               f'of model steps ({len(self.model.models)})')
+        assert len(models) > model_step, msg
+        model = models[model_step]
+        input_res_t = model.input_resolution['temporal']
+        input_res_s = model.input_resolution['spatial']
+        output_res_t = model.output_resolution['temporal']
+        output_res_s = model.output_resolution['spatial']
+        concat_type = step_dict.get('concat_type', None)
+
+        if concat_type.lower() == 'input':
+            if model_step == 0:
+                s_enhance = 1
+                t_enhance = 1
+            else:
+                s_enhance = self.strategy.s_enhancements[model_step - 1]
+                t_enhance = self.strategy.t_enhancements[model_step - 1]
+            s_agg_factor = self.get_agg_factor(input_res_s, exo_res_s)
+            t_agg_factor = self.get_agg_factor(input_res_t, exo_res_t)
+
+        elif concat_type.lower() in ('output', 'layer'):
+            s_enhance = self.strategy.s_enhancements[model_step]
+            t_enhance = self.strategy.t_enhancements[model_step]
+            s_agg_factor = self.get_agg_factor(output_res_s, exo_res_s)
+            t_agg_factor = self.get_agg_factor(output_res_t, exo_res_t)
+
+        else:
+            msg = 'Received exo_kwargs entry without valid concat_type'
+            raise OSError(msg)
+
+        updated_dict = step_dict.copy()
+        updated_dict.update({'s_enhance': s_enhance, 't_enhance': t_enhance,
+                             's_agg_factor': s_agg_factor,
+                             't_agg_factor': t_agg_factor})
+        return updated_dict
+
+    def _prep_exo_extract_kwargs(self, exo_kwargs):
+        """Compute agg and enhancement factors for all model steps for all
+        features.
+
+        Parameters
+        ----------
+        exo_kwargs: dict
+            Full exo_kwargs dictionary with all feature entries.
+            e.g. {'topography': {'exo_resolution': {'spatial': '1km',
+            'temporal': None}, 'steps': [{'model': 0, 'concat_type': 'input'},
+            {'model': 0, 'concat_type': 'layer'}]}}
+
+        Returns
+        -------
+        updated_dict : dict
+            Same as input dictionary with s_agg_factor, t_agg_factor,
+            s_enhance, t_enhance added to each step entry for all features
+        """
+        if exo_kwargs:
+            for feature, v in exo_kwargs.items():
+                exo_resolution = v['exo_resolution']
+                for i, step in enumerate(v['steps']):
+                    out = self._prep_exo_extract_single_step(
+                        step, exo_resolution)
+                    exo_kwargs[feature]['steps'][i] = out
+        return exo_kwargs
+
     def load_exo_data(self):
         """Extract exogenous data for each exo feature and store data in
         dictionary with key for each exo feature
@@ -1129,35 +1249,36 @@ class ForwardPass:
         Returns
         -------
         exo_data : dict
-            Dictionary of data arrays with keys for each exogeneous feature
+            Same as exo_kwargs dictionary with data arrays added to a 'data'
+            key for each feature
         """
-        exo_data_dict = {}
+        exo_data = None
         if self.exo_kwargs:
-            self.features = [
-                f for f in self.features if f not in self.exo_features
-            ]
+            exo_data = self.exo_kwargs.copy()
+            self.features = [f for f in self.features
+                             if f not in self.exo_features]
             for feature in self.exo_features:
                 exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
                 exo_kwargs['feature'] = feature
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
                 exo_kwargs['temporal_slice'] = self.ti_pad_slice
-                exo_data_dict[feature] = ExogenousDataHandler(
-                    **exo_kwargs).data
-                shapes = [
-                    None if d is None else d.shape
-                    for d in exo_data_dict[feature]
-                ]
+                steps = exo_kwargs.pop('steps')
+                exo_kwargs['s_agg_factors'] = [step['s_agg_factor']
+                                               for step in steps]
+                exo_kwargs['t_agg_factors'] = [step['t_agg_factor']
+                                               for step in steps]
+                exo_kwargs['s_enhancements'] = [step['s_enhance']
+                                                for step in steps]
+                exo_kwargs['t_enhancements'] = [step['t_enhance']
+                                                for step in steps]
+                data = ExogenousDataHandler(**exo_kwargs).data
+                for i, _ in enumerate(steps):
+                    exo_data[feature]['steps']['data'] = data[i]
+                shapes = [None if d is None else d.shape for d in data]
                 logger.info(
                     'Got exogenous_data of length {} with shapes: {}'.format(
-                        len(exo_data_dict[feature]), shapes))
-        exo_data = []
-        for i in range(len(exo_data_dict[self.exo_features[0]])):
-            exo_data_f = []
-            for feature in self.exo_features:
-                exo_data_f.append(exo_data_dict[feature][i])
-            exo_data.append(
-                np.vstack([arr for arr in exo_data_f if arr is not None]))
+                        len(data), shapes))
         return exo_data
 
     def update_input_handler_kwargs(self, strategy):

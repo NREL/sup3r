@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pprint
+import re
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -119,6 +120,27 @@ class AbstractInterface(ABC):
         return self.meta.get('t_enhance', None)
 
     @property
+    def input_resolution(self):
+        """Resolution of input data. Given as a dictionary {'spatial':...,
+        'temporal':...}"""
+        return self.meta.get('input_resolution', None)
+
+    @property
+    def output_resolution(self):
+        """Resolution of output data. Given as a dictionary {'spatial':...,
+        'temporal':...}"""
+        input_res = self.input_resolution
+        output_res = {} if input_res is None else input_res.copy()
+        if input_res is not None:
+            input_temporal = re.search(r'\d+', input_res['temporal']).group(0)
+            input_spatial = re.search(r'\d+', input_res['spatial']).group(0)
+            output_temporal = int(self.t_enhance * input_temporal)
+            output_spatial = int(self.s_enhance * input_spatial)
+            output_res['temporal'].replace(input_temporal, output_temporal)
+            output_res['spatial'].replace(input_spatial, output_spatial)
+        return output_res
+
+    @property
     def needs_hr_exo(self):
         """Determine whether or not the sup3r model needs hi-res exogenous data
 
@@ -229,8 +251,8 @@ class AbstractInterface(ABC):
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
 
-        keys = ('training_features', 'output_features', 'smoothed_features',
-                's_enhance', 't_enhance', 'smoothing')
+        keys = ('input_resolution', 'training_features', 'output_features',
+                'smoothed_features', 's_enhance', 't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
         for var in keys:
@@ -1004,10 +1026,10 @@ class AbstractWindInterface(ABC):
         Parameters
         ----------
         kwargs : dict
-            Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'. For the
-            Wind classes, the last entry in "output_features" must be
-            "topography"
+            Keyword arguments including 'input_resolution',
+            'training_features', 'output_features', 'smoothed_features',
+            's_enhance', 't_enhance', 'smoothing'. For the Wind classes, the
+            last entry in "output_features" must be "topography"
 
         Returns
         -------
@@ -1019,7 +1041,7 @@ class AbstractWindInterface(ABC):
         """
         output_features = kwargs['output_features']
         msg = ('Last output feature from the data handler must be topography '
-               'to train the WindCC model, but received output features: {}'.
+               'to train the Wind model, but received output features: {}'.
                format(output_features))
         assert output_features[-1] == 'topography', msg
         output_features.remove('topography')

@@ -6,12 +6,12 @@ import shutil
 from typing import ClassVar
 from warnings import warn
 
-import numpy as np
-
-from sup3r.preprocessing.data_handling.exo_extraction import (SzaExtractH5,
-                                                              SzaExtractNC,
-                                                              TopoExtractH5,
-                                                              TopoExtractNC)
+from sup3r.preprocessing.data_handling.exo_extraction import (
+    SzaExtractH5,
+    SzaExtractNC,
+    TopoExtractH5,
+    TopoExtractNC,
+)
 from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,6 @@ class ExogenousDataHandler:
                  max_delta=20,
                  input_handler=None,
                  exo_handler=None,
-                 exo_steps=None,
                  cache_data=True):
         """
         Parameters
@@ -122,12 +121,6 @@ class ExogenousDataHandler:
             feature='topography' this should be either TopoExtractH5 or
             TopoExtractNC. If None the correct handler will be guessed based on
             file type and time series properties.
-        exo_steps : list
-            List of model step indices for which exogenous data is required.
-            e.g. If we have two model steps which take exo data and one which
-            does not exo_steps = [0, 1]. The length of this list should be
-            equal to the number of s/t_enhancements and the number of
-            s/t_agg_factors
         cache_data : bool
             Flag to cache exogeneous data in ./exo_cache/ this can speed up
             forward passes with large temporal extents
@@ -149,7 +142,6 @@ class ExogenousDataHandler:
         self.input_handler = input_handler
         self.cache_data = cache_data
         self.data = []
-        exo_steps = exo_steps or np.arange(len(self.s_enhancements))
 
         if self.s_enhancements[0] != 1:
             msg = ('s_enhancements typically starts with 1 so the first '
@@ -179,27 +171,22 @@ class ExogenousDataHandler:
                'step. If the step is temporal enhancement then s_enhance=1')
         assert not any(s is None for s in self.s_enhancements), msg
 
-        for i in range(len(self.s_enhancements)):
-            s_enhance = np.product(self.s_enhancements[:i + 1])
-            t_enhance = np.product(self.t_enhancements[:i + 1])
+        for i, _ in enumerate(self.s_enhancements):
+            s_enhance = self.s_enhancements[i]
+            t_enhance = self.t_enhancements[i]
             s_agg_factor = self.s_agg_factors[i]
             t_agg_factor = self.t_agg_factors[i]
-            fdata = []
-            if i in exo_steps:
-                if feature in list(self.AVAILABLE_HANDLERS):
-                    data = self.get_exo_data(feature=feature,
-                                             s_enhance=s_enhance,
-                                             t_enhance=t_enhance,
-                                             s_agg_factor=s_agg_factor,
-                                             t_agg_factor=t_agg_factor)
-                    fdata.append(data)
-                else:
-                    msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
-                           f" Received {feature}.")
-                    raise NotImplementedError(msg)
-                self.data.append(np.stack(fdata, axis=-1))
+            if feature in list(self.AVAILABLE_HANDLERS):
+                data = self.get_exo_data(feature=feature,
+                                         s_enhance=s_enhance,
+                                         t_enhance=t_enhance,
+                                         s_agg_factor=s_agg_factor,
+                                         t_agg_factor=t_agg_factor)
+                self.data.append(data)
             else:
-                self.data.append(None)
+                msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
+                       f" Received {feature}.")
+                raise NotImplementedError(msg)
 
     def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
                        t_agg_factor):

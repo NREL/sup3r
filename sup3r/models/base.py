@@ -639,7 +639,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
-        loss_gen = (loss_gen_content + weight_gen_advers * loss_gen_advers)
+        loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
@@ -851,6 +851,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
     def train(self,
               batch_handler,
+              input_resolution,
               n_epoch,
               weight_gen_advers=0.001,
               train_gen=True,
@@ -870,6 +871,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         ----------
         batch_handler : sup3r.data_handling.preprocessing.BatchHandler
             BatchHandler object to iterate through
+        input_resolution : dict
+            Dictionary specifying spatiotemporal input resolution. e.g.
+            {'temporal': '60min', 'spatial': '30km'}
         n_epoch : int
             Number of epochs to train on
         weight_gen_advers : float
@@ -925,6 +929,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
+            input_resolution=input_resolution,
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
