@@ -1,6 +1,7 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+from abc import abstractmethod
 import copy
 import json
 import logging
@@ -120,7 +121,14 @@ class DataRetrievalBase:
         self.bias_tree = KDTree(self.bias_meta[['latitude', 'longitude']])
         self.bias_gid_raster = np.arange(lats.size)
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
+
+        self.out = None
+        self._init_out()
         logger.info('Finished initializing DataRetrievalBase.')
+
+    @abstractmethod
+    def _init_out(self):
+        """Initialize output arrays"""
 
     @property
     def meta(self):
@@ -516,17 +524,8 @@ class LinearCorrection(DataRetrievalBase):
     NT = 1
     """size of the time dimension, 1 is no time-based bias correction"""
 
-    def __init__(self, *args, **kwargs):
-        """
-        Parameters
-        ----------
-        *args : list
-            Same positional args as DataRetrievalBase
-        **kwargs : dict
-            Same keyword args as DataRetrievalBase
-        """
-        super().__init__(*args, **kwargs)
-
+    def _init_out(self):
+        """Initialize output arrays"""
         keys = [f'{self.bias_feature}_scalar',
                 f'{self.bias_feature}_adder',
                 f'bias_{self.bias_feature}_mean',
@@ -903,16 +902,8 @@ class SkillAssessment(MonthlyLinearCorrection):
     PERCENTILES = (1, 5, 25, 50, 75, 95, 99)
     """Data percentiles to report."""
 
-    def __init__(self, *args, **kwargs):
-        """
-        Parameters
-        ----------
-        *args : list
-            Same positional args as DataRetrievalBase
-        **kwargs : dict
-            Same keyword args as DataRetrievalBase
-        """
-        super().__init__(*args, **kwargs)
+    def _init_out(self):
+        """Initialize output arrays"""
 
         monthly_keys = [f'{self.bias_feature}_scalar',
                         f'{self.bias_feature}_adder',
