@@ -2,16 +2,16 @@
 """Wind conditional moment estimator with handling of low and
 high res topography inputs."""
 import logging
+
 import tensorflow as tf
 
-from sup3r.models.abstract import AbstractWindInterface
+from sup3r.models.abstract import AbstractExoInterface
 from sup3r.models.conditional_moments import Sup3rCondMom
-
 
 logger = logging.getLogger(__name__)
 
 
-class WindCondMom(AbstractWindInterface, Sup3rCondMom):
+class WindCondMom(AbstractExoInterface, Sup3rCondMom):
     """Wind conditional moment estimator with handling of low and
     high res topography inputs.
 
@@ -33,7 +33,7 @@ class WindCondMom(AbstractWindInterface, Sup3rCondMom):
             Keyword arguments including 'training_features', 'output_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
-        AbstractWindInterface.set_model_params(**kwargs)
+        AbstractExoInterface.set_model_params(self, **kwargs)
         Sup3rCondMom.set_model_params(self, **kwargs)
 
     @tf.function

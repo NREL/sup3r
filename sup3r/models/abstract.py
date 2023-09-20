@@ -1012,15 +1012,14 @@ class AbstractSingleModel(ABC):
 
 
 # pylint: disable=E1101,W0201,E0203
-class AbstractWindInterface(ABC):
+class AbstractExoInterface(ABC):
     """
     Abstract class to define the required training interface
-    for Sup3r wind model subclasses
+    for Sup3r model subclasses with exogenous features
     """
 
     # pylint: disable=E0211
-    @staticmethod
-    def set_model_params(**kwargs):
+    def set_model_params(self, **kwargs):
         """Set parameters used for training the model
 
         Parameters
@@ -1034,21 +1033,25 @@ class AbstractWindInterface(ABC):
         Returns
         -------
         kwargs : dict
-            Same as input but with topography removed from "output_features",
-            this is because topography is concatenated mid-network in the
-            WindGan generators and is not an output feature but is required in
-            the hi-res training set.
+            Same as input but with exogenous features removed from
+            "output_features", this is because the exo features are
+            concatenated mid-network in the ExoGan generators and are not
+            output features but are required in the hi-res training set.
         """
         output_features = kwargs['output_features']
-        msg = ('Last output feature from the data handler must be topography '
-               'to train the Wind model, but received output features: {}'.
+        msg = (f'Last {len(self.exogenous_features)} output features from the '
+               f'data handler must be {self.exogenous_features} '
+               'to train the Exo model, but received output features: {}'.
                format(output_features))
-        assert output_features[-1] == 'topography', msg
-        output_features.remove('topography')
+        check = (output_features[-len(self.exogenous_features)]
+                 == self.exogenous_features)
+        assert check, msg
+        for f in self.exogenous_features:
+            output_features.remove(f)
         kwargs['output_features'] = output_features
         return kwargs
 
-    def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
+    def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
         """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
         and normalize (if requested).
 
@@ -1059,16 +1062,18 @@ class AbstractWindInterface(ABC):
             array with shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        hi_res_topo : np.ndarray
+        hi_res_exo : np.ndarray
             This should be a 4D array for spatial enhancement model or 5D array
             for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
             (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input. For this function,
-            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
-            that this input gets normalized if norm_in=True.
+            spatial_1, spatial_2, temporal. This data will be input to the
+            custom phygnn Sup3rAdder or Sup3rConcat layer if found in the
+            generative network. This differs from the exogenous_data input in
+            that exogenous_data always matches the low-res input. For this
+            function, hi_res_exo can also be a 3D array (spatial_1, spatial_2,
+            1). Note that this input gets normalized if norm_in=True.
+        exo_name : str
+            Name of feature corresponding to hi_res_exo data.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -1081,35 +1086,96 @@ class AbstractWindInterface(ABC):
             Same as input but reshaped to match hi_res (if necessary) and
             normalized (if requested)
         """
-        if hi_res_topo is None:
-            return hi_res_topo
+        if hi_res_exo is None:
+            return hi_res_exo
 
         if norm_in and self._means is not None:
-            idf = self.training_features.index('topography')
-            hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
-                           / self._stdevs[idf])
+            idf = self.training_features.index(exo_name)
+            hi_res_exo = ((hi_res_exo.copy() - self._means[idf])
+                          / self._stdevs[idf])
 
-        if len(hi_res_topo.shape) > 2:
-            slicer = [0] * len(hi_res_topo.shape)
-            slicer[1] = slice(None)
-            slicer[2] = slice(None)
-            hi_res_topo = hi_res_topo[tuple(slicer)]
+        if len(hi_res_exo.shape) == 3:
+            hi_res_exo = np.expand_dims(hi_res_exo, axis=0)
+            hi_res_exo = np.repeat(hi_res_exo, hi_res.shape[0], axis=0)
+        if len(hi_res_exo.shape) == 4 and len(hi_res.shape) == 5:
+            hi_res_exo = np.expand_dims(hi_res_exo, axis=3)
+            hi_res_exo = np.repeat(hi_res_exo, hi_res.shape[3], axis=3)
 
-        if len(hi_res.shape) == 4:
-            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
-        elif len(hi_res.shape) == 5:
-            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
-
-        if len(hi_res_topo.shape) != len(hi_res.shape):
-            msg = ('hi_res and hi_res_topo arrays are not of the same rank: '
-                   '{} and {}'.format(hi_res.shape, hi_res_topo.shape))
+        if len(hi_res_exo.shape) != len(hi_res.shape):
+            msg = ('hi_res and hi_res_exo arrays are not of the same rank: '
+                   '{} and {}'.format(hi_res.shape, hi_res_exo.shape))
             logger.error(msg)
             raise RuntimeError(msg)
 
-        return hi_res_topo
+        return hi_res_exo
+
+    def _combine_input(self, low_res, exogenous_data=None):
+        """Combine exogenous_data at input resolution with low_res data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        Returns
+        -------
+        low_res : np.ndarray
+            Low-resolution input data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        for feature in self.exogenous_features:
+            msg = f'Did not find {feature} in exogenous_data'
+            assert feature in exogenous_data, msg
+            for step in exogenous_data['steps']:
+                if step['combine_type'] == 'input':
+                    low_res = np.concatenate(low_res, step['data'], axis=-1)
+        return low_res
+
+    def _combine_output(self, hi_res, exogenous_data=None):
+        """Combine exogenous_data at input resolution with low_res data
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            High-resolution output data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        Returns
+        -------
+        hi_res : np.ndarray
+            High-resolution output data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        for feature in self.exogenous_features:
+            msg = f'Did not find {feature} in exogenous_data'
+            assert feature in exogenous_data, msg
+            for step in exogenous_data['steps']:
+                if step['combine_type'] == 'output':
+                    hi_res = np.concatenate(hi_res, step['data'], axis=-1)
+        return hi_res
 
     def generate(self,
                  low_res,
@@ -1133,12 +1199,14 @@ class AbstractWindInterface(ABC):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : ndarray | list | None
-            Exogenous data for topography inputs. The first entry in this list
-            (or only entry) is a low-resolution topography array that can be
-            concatenated to the low_res input array. The second entry is
-            high-resolution topography (either 2D or 4D/5D depending on if
-            spatial or spatiotemporal super res).
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
 
         Returns
         -------
@@ -1148,18 +1216,7 @@ class AbstractWindInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res_topo = None
-        hi_res_topo = None
-        if isinstance(exogenous_data, np.ndarray):
-            low_res_topo = exogenous_data
-        elif isinstance(exogenous_data, (list, tuple)):
-            low_res_topo = exogenous_data[0]
-            if len(exogenous_data) > 1:
-                hi_res_topo = exogenous_data[1]
-
-        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check else np.concatenate(
-            (low_res, low_res_topo), axis=-1))
+        low_res = self._combine_input(low_res, exogenous_data)
 
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
@@ -1167,12 +1224,15 @@ class AbstractWindInterface(ABC):
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                        and hi_res_topo is not None):
-                    hi_res_topo = self._reshape_norm_topo(hi_res,
-                                                          hi_res_topo,
-                                                          norm_in=norm_in)
-                    hi_res = layer(hi_res, hi_res_topo)
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    exo_name = layer.name
+                    steps = exogenous_data[exo_name]['steps']
+                    hi_res_exo = [step['data'] for step in steps
+                                  if step['combine_type'] == 'layer']
+                    hi_res_exo = self._reshape_norm_exo(hi_res,
+                                                        hi_res_exo,
+                                                        norm_in=norm_in)
+                    hi_res = layer(hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
@@ -1186,10 +1246,12 @@ class AbstractWindInterface(ABC):
         if un_norm_out and self._means is not None:
             hi_res = self.un_norm_output(hi_res)
 
+        hi_res = self._combine_output(hi_res, exogenous_data)
+
         return hi_res
 
     @tf.function
-    def _tf_generate(self, low_res, hi_res_topo):
+    def _tf_generate(self, low_res, hi_res_exo):
         """Use the generator model to generate high res data from los res input
 
         Parameters
@@ -1197,14 +1259,17 @@ class AbstractWindInterface(ABC):
         low_res : np.ndarray
             Real low-resolution data. The generator should always
             received normalized data with mean=0 stdev=1.
-        hi_res_topo : np.ndarray
-            This should be a 4D array for spatial enhancement model or 5D array
-            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
-            (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input.
+        hi_res_exo : dict
+            Dictionary of exogenous_data with same resolution as high_res data
+            e.g. {'topography': np.array}
+            The arrays in this dictionary should be a 4D array for spatial
+            enhancement model or 5D array for a spatiotemporal enhancement
+            model (obs, spatial_1, spatial_2, (temporal), features)
+            corresponding to the high-resolution spatial_1 and spatial_2. This
+            data will be input to the custom phygnn Sup3rAdder or Sup3rConcat
+            layer if found in the generative network. This differs from the
+            exogenous_data input in that exogenous_data always matches the
+            low-res input.
 
         Returns
         -------
@@ -1214,10 +1279,9 @@ class AbstractWindInterface(ABC):
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                        and hi_res_topo is not None):
-                    hi_res = layer(hi_res, hi_res_topo)
-
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    hr_exo = hi_res_exo[layer.name]
+                    hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
@@ -1268,13 +1332,16 @@ class AbstractWindInterface(ABC):
             Namespace of the breakdown of loss components
         """
 
-        hi_res_topo = hi_res_true[..., -1:]
+        hi_res_exo = {}
+        for feature in self.exogenous_features:
+            f_idx = self.training_features.index(feature)
+            hi_res_exo[feature] = hi_res_true[..., f_idx: f_idx + 1]
 
         with tf.device(device_name):
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(training_weights)
 
-                hi_res_gen = self._tf_generate(low_res, hi_res_topo)
+                hi_res_gen = self._tf_generate(low_res, hi_res_exo)
                 loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                           **calc_loss_kwargs)
                 loss, loss_details = loss_out

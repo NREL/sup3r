@@ -111,6 +111,43 @@ class MultiStepGan(AbstractInterface):
         """
         Sup3rGan.seed(s=s)
 
+    def _get_model_step_exo(self, model_step, exogenous_data=None):
+        """Get the exogenous data for the given model_step from the full
+        exogenous data dictionary
+
+        Parameters
+        ----------
+        model_step : int
+            Index of the model to get exogenous data for.
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
+
+        Returns
+        -------
+        exogenous_data : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step
+        """
+        model_step_exo = None
+        if exogenous_data is not None:
+            model_step_exo = {}
+            for feature in exogenous_data:
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] == model_step]
+                if steps:
+                    model_step_exo[feature] = {'steps': steps}
+        return model_step_exo
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -129,16 +166,18 @@ class MultiStepGan(AbstractInterface):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : list
-            List of arrays of exogenous_data with length equal to the
-            number of model steps. e.g. If we want to include topography as
-            an exogenous feature in a spatial + temporal multistep model then
-            we need to provide a list of length=2 with topography at the low
-            spatial resolution and at the high resolution. If we include more
-            than one exogenous feature the ordering must be consistent.
-            Each array in the list has 3D or 4D shape:
-            (spatial_1, spatial_2, n_features)
-            (spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
 
         Returns
         -------
@@ -148,10 +187,6 @@ class MultiStepGan(AbstractInterface):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-
-        exo_data = ([None] * len(self.models) if not exogenous_data
-                    else exogenous_data)
-
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
 
@@ -161,9 +196,7 @@ class MultiStepGan(AbstractInterface):
                              if (i + 1 == len(self.models) and not un_norm_out)
                              else True)
 
-            i_exo_data = exo_data[i]
-            if model.needs_hr_exo:
-                i_exo_data = [exo_data[i], exo_data[i + 1]]
+            i_exo_data = self._get_model_step_exo(i, exogenous_data)
 
             try:
                 logger.debug('Data input to model #{} of {} has shape {}'
@@ -361,6 +394,52 @@ class SpatialThenTemporalGan(SpatialThenTemporalBase):
         interpolation model in this SpatialThenTemporalGan model outputs."""
         return self.temporal_models.output_features
 
+    def _split_exo_spatial_temporal(self, exogenous_data=None):
+        """Split exogenous_data into spatial_exo and temporal_exo eacho of
+        which are then passed through MultiStepGan models
+
+        Parameters
+        ----------
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
+
+        Returns
+        -------
+        spatial_exo : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step corresponds to a spatial model step
+        temporal_exo : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step corresponds to a temporal model step
+        """
+        spatial_exo = None
+        temporal_exo = None
+        if exogenous_data is not None:
+            spatial_exo = {}
+            for feature in exogenous_data:
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] < len(self.spatial_models)]
+                if steps:
+                    spatial_exo[feature] = {'steps': steps}
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] >= len(self.spatial_models)]
+                t_shift = len(self.spatial_models)
+                steps = [step.update({'model': step['model'] - t_shift})
+                         for step in steps]
+                if steps:
+                    temporal_exo[feature] = {'steps': steps}
+        return spatial_exo, temporal_exo
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -398,14 +477,11 @@ class SpatialThenTemporalGan(SpatialThenTemporalBase):
         """
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
-        t_exogenous = None
-        if exogenous_data is not None:
-            t_exogenous = exogenous_data[len(self.spatial_models):]
-
+        s_exo, t_exo = self._split_exo_spatial_temporal(exogenous_data)
         try:
             hi_res = self.spatial_models.generate(
                 low_res, norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
+                exogenous_data=s_exo)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-only GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -422,7 +498,7 @@ class SpatialThenTemporalGan(SpatialThenTemporalBase):
         try:
             hi_res = self.temporal_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=t_exogenous)
+                exogenous_data=t_exo)
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -488,6 +564,52 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
         interpolation model in this TemporalThenSpatialGan model outputs."""
         return self.spatial_models.output_features
 
+    def _split_exo_temporal_spatial(self, exogenous_data=None):
+        """Split exogenous_data into spatial_exo and temporal_exo eacho of
+        which are then passed through MultiStepGan models
+
+        Parameters
+        ----------
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
+
+        Returns
+        -------
+        temporal_exo : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step corresponds to a temporal model step
+        spatial_exo : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step corresponds to a spatial model step
+        """
+        spatial_exo = None
+        temporal_exo = None
+        if exogenous_data is not None:
+            temporal_exo = {}
+            for feature in exogenous_data:
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] < len(self.temporal_models)]
+                if steps:
+                    temporal_exo[feature] = {'steps': steps}
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] >= len(self.temporal_models)]
+                s_shift = len(self.temporal_models)
+                steps = [step.update({'model': step['model'] - s_shift})
+                         for step in steps]
+                if steps:
+                    spatial_exo[feature] = {'steps': steps}
+        return temporal_exo, spatial_exo
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -525,16 +647,14 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
         """
         logger.debug('Data input to the 1st step (spatio)temporal '
                      'enhancement has shape {}'.format(low_res.shape))
-        s_exogenous = None
-        if exogenous_data is not None:
-            s_exogenous = exogenous_data[len(self.temporal_models):]
+        t_exo, s_exo = self._split_exo_temporal_spatial(exogenous_data)
 
         assert low_res.shape[0] == 1, 'Low res input can only have 1 obs!'
 
         try:
             hi_res = self.temporal_models.generate(
                 low_res, norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
+                exogenous_data=t_exo)
         except Exception as e:
             msg = ('Could not run the 1st step (spatio)temporal GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -550,7 +670,7 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
         try:
             hi_res = self.spatial_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=s_exogenous)
+                exogenous_data=s_exo)
         except Exception as e:
             msg = ('Could not run the 2nd step spatial GAN on input '
                    'shape {}'.format(low_res.shape))
@@ -622,7 +742,7 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
 
-        msg = ('MultiStepSurfaceMetGan needs exogenous_data  with two '
+        msg = ('MultiStepSurfaceMetGan needs exogenous_data with two '
                'entries for low and high res topography inputs.')
         assert exogenous_data is not None, msg
         assert isinstance(exogenous_data, (list, tuple)), msg

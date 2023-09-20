@@ -1,30 +1,31 @@
 # -*- coding: utf-8 -*-
 """Wind super resolution GAN with handling of low and high res topography
 inputs."""
-import numpy as np
 import logging
+
+import numpy as np
 import tensorflow as tf
 
+from sup3r.models.abstract import AbstractExoInterface
 from sup3r.models.base import Sup3rGan
-from sup3r.models.abstract import AbstractWindInterface
-
 
 logger = logging.getLogger(__name__)
 
 
-class WindGan(AbstractWindInterface, Sup3rGan):
-    """Wind super resolution GAN with handling of low and high res topography
-    inputs.
+class MultiExoGan(AbstractExoInterface, Sup3rGan):
+    """Super resolution GAN with handling of low and high res exogenous feature
+    inputs. This exogenous data is commonly just topography.
 
     Modifications to standard Sup3rGan:
-        - Hi res topography is expected as the last feature channel in the true
-          data in the true batch observation. This topo channel is appended to
-          the generated output so the discriminator can look at the wind fields
-          compared to the associated hi res topo.
+        - Hi res exogenous features are expected as the last
+          len(self.exogenous_features) channels in the true data in the true
+          batch observation. These channels are appended to the generated
+          output so the discriminator can look at the super resolved fields
+          compared to the associated hi res exogenous feature data.
         - If a custom Sup3rAdder or Sup3rConcat layer (from phygnn) is present
-          in the network, the hi-res topography will be added or concatenated
-          to the data at that point in the network during either training or
-          the forward pass.
+          in the network, the hi-res exogenous feature matching layer.name will
+          be added or concatenated to the data at that point in the network
+          during either training or the forward pass.
     """
 
     def init_weights(self, lr_shape, hr_shape, device=None):
@@ -53,11 +54,14 @@ class WindGan(AbstractWindInterface, Sup3rGan):
         low_res = np.ones(lr_shape).astype(np.float32)
         hi_res = np.ones(hr_shape).astype(np.float32)
 
-        hr_topo_shape = hr_shape[:-1] + (1,)
-        hr_topo = np.ones(hr_topo_shape).astype(np.float32)
+        hr_exo_shape = hr_shape[:-1] + (1,)
+        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
 
         with tf.device(device):
-            _ = self._tf_generate(low_res, hr_topo)
+            hr_exo_data = {}
+            for feature in self.exogenous_features:
+                hr_exo_data[feature] = hr_exo
+            _ = self._tf_generate(low_res, hr_exo_data)
             _ = self._tf_discriminate(hi_res)
 
     def set_model_params(self, **kwargs):
@@ -66,10 +70,11 @@ class WindGan(AbstractWindInterface, Sup3rGan):
         Parameters
         ----------
         kwargs : dict
-            Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+            Keyword arguments including 'input_resolution',
+            'training_features', 'output_features', 'smoothed_features',
+            's_enhance', 't_enhance', 'smoothing'
         """
-        AbstractWindInterface.set_model_params(**kwargs)
+        AbstractExoInterface.set_model_params(self, **kwargs)
         Sup3rGan.set_model_params(self, **kwargs)
 
     @tf.function
@@ -96,9 +101,10 @@ class WindGan(AbstractWindInterface, Sup3rGan):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        # append the true topography to the generated synthetic wind data
-        hi_res_gen = tf.concat((hi_res_gen, hi_res_true[..., -1:]), axis=-1)
+        for feature in self.exogenous_features:
+            f_idx = self.training_features.index(feature)
+            exo_data = hi_res_true[..., f_idx: f_idx + 1]
+            hi_res_gen = tf.concat((hi_res_gen, exo_data), axis=-1)
 
         return super().calc_loss(hi_res_true, hi_res_gen, **kwargs)
 
@@ -123,8 +129,12 @@ class WindGan(AbstractWindInterface, Sup3rGan):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self._tf_generate(val_batch.low_res,
-                                             val_batch.high_res[..., -1:])
+            val_exo_data = {}
+            for feature in self.exogenous_features:
+                f_idx = self.training_features.index(feature)
+                exo_data = val_batch.high_res[..., f_idx: f_idx + 1]
+                val_exo_data[feature] = exo_data
+            high_res_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,

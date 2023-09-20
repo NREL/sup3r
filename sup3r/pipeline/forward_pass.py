@@ -699,7 +699,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             be used in the model. e.g. {'topography': {'file_paths': 'path to
             input files', 'source_file': 'path to exo data', 'exo_resolution':
             {'spatial': '1km', 'temporal': None}, 'steps': [{'model': 0,
-            'concat_type': 'input'}, {'model': 0, 'concat_type': 'layer'}]}
+            'combine_type': 'input'}, {'model': 0, 'combine_type': 'layer'}]}
         bias_correct_method : str | None
             Optional bias correction function name that can be imported from
             the :mod:`sup3r.bias.bias_transforms` module. This will transform
@@ -1160,7 +1160,7 @@ class ForwardPass:
         Parameters
         ----------
         step_dict : dict
-            Model step dictionary. e.g. {'model': 0, 'concat_type': 'input'}
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
         exo_resolution : dict
             Resolution of exogenous data. e.g. {'temporal': 15min, 'spatial':
             '1km'}
@@ -1187,9 +1187,9 @@ class ForwardPass:
         input_res_s = model.input_resolution['spatial']
         output_res_t = model.output_resolution['temporal']
         output_res_s = model.output_resolution['spatial']
-        concat_type = step_dict.get('concat_type', None)
+        combine_type = step_dict.get('combine_type', None)
 
-        if concat_type.lower() == 'input':
+        if combine_type.lower() == 'input':
             if model_step == 0:
                 s_enhance = 1
                 t_enhance = 1
@@ -1200,7 +1200,7 @@ class ForwardPass:
             t_agg_factor = self.get_agg_factor(input_res_t, exo_res_t)
             resolution = {'spatial': input_res_s, 'temporal': input_res_t}
 
-        elif concat_type.lower() in ('output', 'layer'):
+        elif combine_type.lower() in ('output', 'layer'):
             s_enhance = self.strategy.s_enhancements[model_step]
             t_enhance = self.strategy.t_enhancements[model_step]
             s_agg_factor = self.get_agg_factor(output_res_s, exo_res_s)
@@ -1208,7 +1208,7 @@ class ForwardPass:
             resolution = {'spatial': output_res_s, 'temporal': output_res_t}
 
         else:
-            msg = 'Received exo_kwargs entry without valid concat_type'
+            msg = 'Received exo_kwargs entry without valid combine_type'
             raise OSError(msg)
 
         updated_dict = step_dict.copy()
@@ -1227,8 +1227,8 @@ class ForwardPass:
         exo_kwargs: dict
             Full exo_kwargs dictionary with all feature entries.
             e.g. {'topography': {'exo_resolution': {'spatial': '1km',
-            'temporal': None}, 'steps': [{'model': 0, 'concat_type': 'input'},
-            {'model': 0, 'concat_type': 'layer'}]}}
+            'temporal': None}, 'steps': [{'model': 0, 'combine_type': 'input'},
+            {'model': 0, 'combine_type': 'layer'}]}}
 
         Returns
         -------
@@ -1736,9 +1736,9 @@ class ForwardPass:
             whether features should be combined at input, a mid network layer,
             or with output. e.g.
             {'topography': {'steps': [
-                {'concat_type': 'input', 'model': 0, 'data': ...,
+                {'combine_type': 'input', 'model': 0, 'data': ...,
                  'resolution': ...},
-                {'concat_type': 'layer', 'model': 0, 'data': ...,
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
                  'resolution': ...}]}}
 
         Returns
@@ -1802,9 +1802,9 @@ class ForwardPass:
             whether features should be combined at input, a mid network layer,
             or with output. e.g.
             {'topography': {'steps': [
-                {'concat_type': 'input', 'model': 0, 'data': ...,
+                {'combine_type': 'input', 'model': 0, 'data': ...,
                  'resolution': ...},
-                {'concat_type': 'layer', 'model': 0, 'data': ...,
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
                  'resolution': ...}]}}
 
         Returns
