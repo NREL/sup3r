@@ -745,7 +745,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             'from sup3r.preprocessing.data_handling '
             f'import {cls.__name__};\n'
             'import time;\n'
-            'from sup3r.pipeline import Status;\n'
+            'from gaps import Status;\n'
             'from rex import init_logger;\n')
 
         dh_init_str = get_fun_call_str(cls, config)
