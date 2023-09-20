@@ -365,9 +365,9 @@ def test_pipeline_fwp_qa(runner):
         assert len(glob.glob(f'{td}/fwp_log*.log')) == 1
         assert len(glob.glob(f'{td}/out*.h5')) == 1
         assert len(glob.glob(f'{td}/qa.h5')) == 1
-        assert len(glob.glob(f'{td}/*_status.json')) == 1
+        assert len(glob.glob(f'{td}/.gaps/*_status.json')) == 1
 
-        status_fp = glob.glob(f'{td}/*_status.json')[0]
+        status_fp = glob.glob(f'{td}/.gaps/*_status.json')[0]
         with open(status_fp, 'r') as f:
             status = json.load(f)
 

@@ -103,7 +103,7 @@ def test_fwp_pipeline():
         with ResourceX(fp_out) as f:
             assert len(f.time_index) == t_enhance * n_tsteps
 
-        status_file = glob.glob(os.path.join(td, '*_status.json'))[0]
+        status_file = glob.glob(os.path.join(td, ".gaps", '*_status.json'))[0]
         with open(status_file, 'r') as fh:
             status = json.load(fh)
             assert all(s in status for s in ('forward-pass', 'data-collect'))

@@ -175,7 +175,7 @@ def test_solar_cli(runner):
 
             raise RuntimeError(msg)
 
-        status_files = glob.glob(os.path.join(td, 'jobstatus_*.json'))
+        status_files = glob.glob(os.path.join(td, '.gaps', 'jobstatus_*.json'))
         assert len(status_files) == len(fps)
 
         out_files = glob.glob(os.path.join(td, 'chunks/*_irradiance.h5'))
