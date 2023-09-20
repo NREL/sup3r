@@ -1198,12 +1198,14 @@ class ForwardPass:
                 t_enhance = self.strategy.t_enhancements[model_step - 1]
             s_agg_factor = self.get_agg_factor(input_res_s, exo_res_s)
             t_agg_factor = self.get_agg_factor(input_res_t, exo_res_t)
+            resolution = {'spatial': input_res_s, 'temporal': input_res_t}
 
         elif concat_type.lower() in ('output', 'layer'):
             s_enhance = self.strategy.s_enhancements[model_step]
             t_enhance = self.strategy.t_enhancements[model_step]
             s_agg_factor = self.get_agg_factor(output_res_s, exo_res_s)
             t_agg_factor = self.get_agg_factor(output_res_t, exo_res_t)
+            resolution = {'spatial': output_res_s, 'temporal': output_res_t}
 
         else:
             msg = 'Received exo_kwargs entry without valid concat_type'
@@ -1212,7 +1214,8 @@ class ForwardPass:
         updated_dict = step_dict.copy()
         updated_dict.update({'s_enhance': s_enhance, 't_enhance': t_enhance,
                              's_agg_factor': s_agg_factor,
-                             't_agg_factor': t_agg_factor})
+                             't_agg_factor': t_agg_factor,
+                             'resolution': resolution})
         return updated_dict
 
     def _prep_exo_extract_kwargs(self, exo_kwargs):
@@ -1694,8 +1697,7 @@ class ForwardPass:
                        model_class=None,
                        s_enhance=None,
                        t_enhance=None,
-                       exo_data=None,
-                       ):
+                       exo_data=None):
         """Run forward pass of the generator on smallest data chunk. Each chunk
         has a maximum shape given by self.strategy.fwp_chunk_shape.
 
@@ -1729,10 +1731,15 @@ class ForwardPass:
             Factor by which to enhance temporal resolution
         s_enhance : int
             Factor by which to enhance spatial resolution
-        exo_data : list | None
-            List of arrays of exogenous data for each model step.
-            If there are two spatial enhancement steps this is a list of length
-            3 with arrays for each intermediate spatial resolution.
+        exo_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'concat_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'concat_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
 
         Returns
         -------
@@ -1790,9 +1797,15 @@ class ForwardPass:
         data_chunk : np.ndarray
             Low resolution data for a single spatiotemporal chunk that is going
             to be passed to the model generate function.
-        exo_data : list | None
-            Optional exogenous data which can be a list of arrays of exogenous
-            inputs to complement data_chunk
+        exo_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'concat_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'concat_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
 
         Returns
         -------
@@ -1801,27 +1814,27 @@ class ForwardPass:
             features) if the model is a spatial-first model or
             (n_obs, spatial_1, spatial_2, temporal, features) if the
             model is spatiotemporal
-        exo_data : list | None
-            Same reshaping procedure as for data_chunk
+        exo_data : dict | None
+            Same reshaping procedure as for data_chunk applied to
+            exo_data[feature]['steps'][...]['data']
         i_lr_t : int
             Axis index for the low-resolution temporal dimension
         i_lr_s : int
             Axis index for the low-resolution spatial_1 dimension
         """
-        current_model = None
         if exo_data is not None:
-            for i, arr in enumerate(exo_data):
-                if arr is not None:
-                    if not hasattr(model, 'models'):
-                        current_model = model
-                    elif i < len(model.models):
-                        current_model = model.models[i]
-
-                    if current_model is not None:
-                        if current_model.input_dims == 4:
-                            exo_data[i] = np.transpose(arr, axes=(2, 0, 1, 3))
-                        else:
-                            exo_data[i] = np.expand_dims(arr, axis=0)
+            for feature in exo_data:
+                for i, entry in enumerate(exo_data[feature]['steps']):
+                    models = getattr(model, 'models', [model])
+                    msg = (f'model index ({entry["model"]}) for exo step {i} '
+                           'exceeds the number of model steps')
+                    assert entry['model'] < len(models), msg
+                    current_model = models[entry['model']]
+                    if current_model.input_dims == 4:
+                        out = np.transpose(entry['data'], axes=(2, 0, 1, 3))
+                    else:
+                        out = np.expand_dims(entry['data'], axis=0)
+                    exo_data[feature]['steps'][i]['data'] = out
 
         if model.input_dims == 4:
             i_lr_t = 0
