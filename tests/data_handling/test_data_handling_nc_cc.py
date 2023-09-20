@@ -15,18 +15,19 @@ from sup3r.preprocessing.data_handling import (
 from sup3r.preprocessing.feature_handling import UWindPowerLaw
 
 
-def test_data_handling_nc_cc_power_law():
+def test_data_handling_nc_cc_power_law(hh=100):
     """Make sure the power law extrapolation of wind operates correctly"""
     input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
 
     with xr.open_mfdataset(input_files) as fh:
-        u_100m = fh['uas'].values * 100**UWindPowerLaw.ALPHA
-        u_100m = np.transpose(u_100m, axes=(1, 2, 0))
-        dh = DataHandlerNCforCCwithPowerLaw(input_files, features=['u_100m'])
+        scalar = (hh / UWindPowerLaw.NEAR_SFC_HEIGHT)**UWindPowerLaw.ALPHA
+        u_hh = fh['uas'].values * scalar
+        u_hh = np.transpose(u_hh, axes=(1, 2, 0))
+        dh = DataHandlerNCforCCwithPowerLaw(input_files, features=[f'u_{hh}m'])
         if dh.invert_lat:
             dh.data = dh.data[::-1]
         mask = np.isnan(dh.data[..., 0])
-        assert np.allclose(dh.data[~mask, 0], u_100m[~mask])
+        assert np.allclose(dh.data[~mask, 0], u_hh[~mask])
 
 
 def test_data_handling_nc_cc():
