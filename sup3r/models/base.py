@@ -179,91 +179,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         return cls(fp_gen, fp_disc, **params)
 
-    def generate(self,
-                 low_res,
-                 norm_in=True,
-                 un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self._means,
-            self._stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : ndarray | None
-            Exogenous data array, usually a 4D or 5D array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        exo_check = (exogenous_data is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check else np.concatenate(
-            (low_res, exogenous_data), axis=-1))
-
-        if norm_in and self._means is not None:
-            low_res = self.norm_input(low_res)
-
-        hi_res = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                hi_res = layer(hi_res)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, hi_res.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        hi_res = hi_res.numpy()
-
-        if un_norm_out and self._means is not None:
-            hi_res = self.un_norm_output(hi_res)
-
-        return hi_res
-
-    @tf.function
-    def _tf_generate(self, low_res):
-        """Use the generator model to generate high res data from los res input
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data. The generator should always
-            received normalized data with mean=0 stdev=1.
-
-        Returns
-        -------
-        hi_res : tf.Tensor
-            Synthetically generated high-resolution data
-        """
-        hi_res = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                hi_res = layer(hi_res)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, hi_res.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        return hi_res
-
     @property
     def discriminator(self):
         """Get the discriminator model.
@@ -679,10 +594,10 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            output_gen = self._tf_generate(val_batch.low_res)
+            high_res_gen = self._tf_generate(val_batch.low_res)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res,
-                output_gen,
+                high_res_gen,
                 weight_gen_advers=weight_gen_advers,
                 train_gen=False,
                 train_disc=False)

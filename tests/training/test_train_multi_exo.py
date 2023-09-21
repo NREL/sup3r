@@ -8,8 +8,8 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.models import WindGan
-from sup3r.models.data_centric import WindGanDC
+from sup3r.models import MultiExoGan
+from sup3r.models.data_centric import MultiExoGanDC
 from sup3r.preprocessing.batch_handling import (
     BatchHandlerCC,
     BatchHandlerDC,
@@ -60,8 +60,8 @@ def test_wind_cc_model(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_4x_24x_3f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    WindGan.seed()
-    model = WindGan(fp_gen, fp_disc, learning_rate=1e-4)
+    MultiExoGan.seed()
+    model = MultiExoGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -71,7 +71,7 @@ def test_wind_cc_model(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['class'] == 'WindGan'
+        assert model.meta['class'] == 'MultiExoGan'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
         assert len(model.output_features) == len(FEATURES_W) - 1
@@ -108,8 +108,8 @@ def test_wind_cc_model_spatial(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    WindGan.seed()
-    model = WindGan(fp_gen, fp_disc, learning_rate=1e-4)
+    MultiExoGan.seed()
+    model = MultiExoGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -120,7 +120,7 @@ def test_wind_cc_model_spatial(log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindGan'
+        assert model.meta['class'] == 'MultiExoGan'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 
@@ -188,8 +188,8 @@ def test_wind_hi_res_topo(custom_layer, log=False):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    WindGan.seed()
-    model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    MultiExoGan.seed()
+    model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -200,7 +200,7 @@ def test_wind_hi_res_topo(custom_layer, log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindGan'
+        assert model.meta['class'] == 'MultiExoGan'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 
@@ -273,8 +273,8 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    WindGan.seed()
-    model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    MultiExoGan.seed()
+    model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -285,7 +285,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindGan'
+        assert model.meta['class'] == 'MultiExoGan'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 
@@ -358,8 +358,8 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    WindGanDC.seed()
-    model = WindGanDC(gen_model, fp_disc, learning_rate=1e-4)
+    MultiExoGanDC.seed()
+    model = MultiExoGanDC(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(batcher, n_epoch=1,
@@ -370,7 +370,7 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindGanDC'
+        assert model.meta['class'] == 'MultiExoGanDC'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 

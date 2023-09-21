@@ -48,7 +48,8 @@ class ExogenousDataHandler:
                  max_delta=20,
                  input_handler=None,
                  exo_handler=None,
-                 cache_data=True):
+                 cache_data=True,
+                 cache_dir='./exo_cache'):
         """
         Parameters
         ----------
@@ -75,9 +76,8 @@ class ExogenousDataHandler:
             at 100km (s_enhance=1, exo_step=0), the input to the 5x model gets
             exogenous data at 25km (s_enhance=4, exo_step=1), and there is a
             20x (1*4*5) exogeneous data layer available if the second model can
-            receive a high-res input feature (e.g. WindGan). The length of this
-            list should be equal to the number of agg_factors and the number of
-            exo_steps
+            receive a high-res input feature (e.g. MultiExoGan). The length of
+            this list should be equal to the number of s_agg_factors
         t_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
             temporal dimension of low resolution data from file_paths input
@@ -87,12 +87,12 @@ class ExogenousDataHandler:
             List of factors by which to aggregate the exo_source
             data to the spatial resolution of the file_paths input enhanced by
             s_enhance. The length of this list should be equal to the number of
-            s_enhancements and the number of exo_steps
+            s_enhancements
         t_agg_factors : list
             List of factors by which to aggregate the exo_source
             data to the temporal resolution of the file_paths input enhanced by
             t_enhance. The length of this list should be equal to the number of
-            t_enhancements and the number of exo_steps
+            t_enhancements
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -122,8 +122,10 @@ class ExogenousDataHandler:
             TopoExtractNC. If None the correct handler will be guessed based on
             file type and time series properties.
         cache_data : bool
-            Flag to cache exogeneous data in ./exo_cache/ this can speed up
-            forward passes with large temporal extents
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
         """
 
         self.feature = feature
@@ -141,6 +143,7 @@ class ExogenousDataHandler:
         self.max_delta = max_delta
         self.input_handler = input_handler
         self.cache_data = cache_data
+        self.cache_dir = cache_dir
         self.data = []
 
         if self.s_enhancements[0] != 1:
@@ -214,15 +217,14 @@ class ExogenousDataHandler:
         cache_fp : str
             Name of cache file
         """
-        cache_dir = './exo_cache/'
         fn = f'exo_{feature}_{self.target}_{self.shape}_sagg{s_agg_factor}_'
-        fn += f'tagg_{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
+        fn += f'tagg{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
-        cache_fp = os.path.join(cache_dir, fn)
+        cache_fp = os.path.join(self.cache_dir, fn)
         if self.cache_data:
-            os.makedirs(cache_dir, exist_ok=True)
+            os.makedirs(self.cache_dir, exist_ok=True)
         return cache_fp
 
     def get_exo_data(self, feature, s_enhance, t_enhance, s_agg_factor,
@@ -259,7 +261,6 @@ class ExogenousDataHandler:
                                        s_agg_factor=s_agg_factor,
                                        t_agg_factor=t_agg_factor)
         tmp_fp = cache_fp + '.tmp'
-        print(cache_fp)
         if os.path.exists(cache_fp):
             with open(cache_fp, 'rb') as f:
                 data = pickle.load(f)

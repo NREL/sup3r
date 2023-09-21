@@ -118,6 +118,7 @@ class ExoExtract(ABC):
         self._tree = None
         self.ti_workers = ti_workers
         self._hr_lat_lon = None
+        self._hr_time_index = None
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -240,7 +241,7 @@ class ExoExtract(ABC):
     def data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (rows, cols, temporal)
+        t_enhance). The shape is (lats, lons, temporal, 1)
         """
         nn = self.nn
         hr_data = []
@@ -250,7 +251,7 @@ class ExoExtract(ABC):
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data
+        return hr_data[..., np.newaxis]
 
     @classmethod
     def get_exo_raster(cls,
@@ -370,6 +371,14 @@ class TopoExtractH5(ExoExtract):
         with Resource(self._exo_source) as res:
             source_lat_lon = res.lat_lon
         return source_lat_lon
+
+    @property
+    def hr_time_index(self):
+        """Time index of the high-resolution exo data"""
+        if self._hr_time_index is None:
+            with Resource(self._exo_source) as res:
+                self._hr_time_index = res.time_index
+        return self._hr_time_index
 
 
 class TopoExtractNC(ExoExtract):

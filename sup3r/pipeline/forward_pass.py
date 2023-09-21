@@ -1110,13 +1110,9 @@ class ForwardPass:
         self.input_data = self.bias_correct_source_data(
             self.input_data, self.strategy.lr_lat_lon)
 
-        exo_s_en = [1, *self.strategy.s_enhancements]
-        exo_t_en = [1, *self.strategy.t_enhancements]
         out = self.pad_source_data(self.input_data,
                                    self.pad_width,
-                                   self.exogenous_data,
-                                   exo_s_en,
-                                   exo_t_en)
+                                   self.exogenous_data)
         self.input_data, self.exogenous_data = out
         self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
                                                           self.lr_slice[1]]
@@ -1137,17 +1133,18 @@ class ForwardPass:
             Aggregation factor for exogenous data extraction.
         """
         ires_num = (None if input_res is None
-                    else re.search(r'\d+', input_res).group(0))
+                    else int(re.search(r'\d+', input_res).group(0)))
         eres_num = (None if exo_res is None
-                    else re.search(r'\d+', exo_res).group(0))
+                    else int(re.search(r'\d+', exo_res).group(0)))
         i_units = (None if input_res is None
-                   else input_res.replace(ires_num, ''))
-        e_units = None if exo_res is None else exo_res.replace(eres_num, '')
+                   else input_res.replace(str(ires_num), ''))
+        e_units = (None if exo_res is None
+                   else exo_res.replace(str(eres_num), ''))
         msg = 'Received conflicting units for input and exo resolution'
         if e_units is not None:
             assert i_units == e_units, msg
         if ires_num is not None and eres_num is not None:
-            agg_factor = (int(ires_num) / int(eres_num)) ** 2
+            agg_factor = int((ires_num / eres_num) ** 2)
         else:
             agg_factor = None
         return agg_factor
@@ -1180,7 +1177,7 @@ class ForwardPass:
         t_agg_factor = None
         models = getattr(self.model, 'models', [self.model])
         msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
-               f'of model steps ({len(self.model.models)})')
+               f'of model steps ({len(models)})')
         assert len(models) > model_step, msg
         model = models[model_step]
         input_res_t = model.input_resolution['temporal']
@@ -1237,9 +1234,9 @@ class ForwardPass:
             s_enhance, t_enhance added to each step entry for all features
         """
         if exo_kwargs:
-            for feature, v in exo_kwargs.items():
-                exo_resolution = v['exo_resolution']
-                for i, step in enumerate(v['steps']):
+            for feature in exo_kwargs:
+                exo_resolution = exo_kwargs[feature]['exo_resolution']
+                for i, step in enumerate(exo_kwargs[feature]['steps']):
                     out = self._prep_exo_extract_single_step(
                         step, exo_resolution)
                     exo_kwargs[feature]['steps'][i] = out
@@ -1265,8 +1262,8 @@ class ForwardPass:
                 exo_kwargs['feature'] = feature
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
+                steps = exo_kwargs['steps']
                 exo_kwargs['temporal_slice'] = self.ti_pad_slice
-                steps = exo_kwargs.pop('steps')
                 exo_kwargs['s_agg_factors'] = [step['s_agg_factor']
                                                for step in steps]
                 exo_kwargs['t_agg_factors'] = [step['t_agg_factor']
@@ -1275,9 +1272,12 @@ class ForwardPass:
                                                 for step in steps]
                 exo_kwargs['t_enhancements'] = [step['t_enhance']
                                                 for step in steps]
+                sig = signature(ExogenousDataHandler)
+                exo_kwargs = {k: v for k, v in exo_kwargs.items()
+                              if k in sig.parameters}
                 data = ExogenousDataHandler(**exo_kwargs).data
                 for i, _ in enumerate(steps):
-                    exo_data[feature]['steps']['data'] = data[i]
+                    exo_data[feature]['steps'][i]['data'] = data[i]
                 shapes = [None if d is None else d.shape for d in data]
                 logger.info(
                     'Got exogenous_data of length {} with shapes: {}'.format(
@@ -1573,8 +1573,6 @@ class ForwardPass:
     def pad_source_data(input_data,
                         pad_width,
                         exo_data,
-                        exo_s_enhancements,
-                        exo_t_enhancements,
                         mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
@@ -1583,36 +1581,27 @@ class ForwardPass:
         input_data : np.ndarray
             Source input data from data handler class, shape is:
             (spatial_1, spatial_2, temporal, features)
-        spatial_pad : int
-            Size of spatial overlap between coarse chunks passed to forward
-            passes for subsequent spatial stitching. This overlap will pad both
-            sides of the fwp_chunk_shape. Note that the first and last chunks
-            in any of the spatial dimension will not be padded.
         pad_width : tuple
             Tuple of tuples with padding width for spatial and temporal
             dimensions. Each tuple includes the start and end of padding for
             that dimension. Ordering is spatial_1, spatial_2, temporal.
-        exo_data : None | list
-            List of exogenous data arrays for each step of the sup3r resolution
-            model. List entries can be None if not exo data is requested for a
-            given model step.
-        exo_s_enhancements : list
-            List of spatial enhancement factors for each step of the sup3r
-            resolution model corresponding to the exo_data order.
-        exo_t_enhancements : list
-            List of temporal enhancement factors for each step of the sup3r
-            resolution model corresponding to the exo_data order.
+        exo_data: dict
+            Full exo_kwargs dictionary with all feature entries.
+            e.g. {'topography': {'exo_resolution': {'spatial': '1km',
+            'temporal': None}, 'steps': [{'model': 0, 'combine_type': 'input'},
+            {'model': 0, 'combine_type': 'layer'}]}}
         mode : str
-            Padding mode for np.pad(). Reflect is a good default for the
-            convolutional sup3r work.
+            Mode to use for padding. e.g. 'reflect'.
 
         Returns
         -------
         out : np.ndarray
             Padded copy of source input data from data handler class, shape is:
             (spatial_1, spatial_2, temporal, features)
-        exo_data : list | None
-            Padded copy of exo_data input.
+        exo_data : dict
+            Same as input dictionary with s_agg_factor, t_agg_factor,
+            s_enhance, t_enhance added to each step entry for all features
+
         """
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
 
@@ -1623,26 +1612,17 @@ class ForwardPass:
                                                        pad_width))
 
         if exo_data is not None:
-            for i, i_exo_data in enumerate(exo_data):
-                if i_exo_data is not None:
-                    total_s_enhance = exo_s_enhancements[:i + 1]
-                    total_s_enhance = [
-                        s for s in total_s_enhance if s is not None
-                    ]
-                    total_s_enhance = np.product(total_s_enhance)
-                    total_t_enhance = exo_t_enhancements[:i + 1]
-                    total_t_enhance = [
-                        t for t in total_t_enhance if t is not None
-                    ]
-                    total_t_enhance = np.product(total_t_enhance)
-                    exo_pad_width = ((total_s_enhance * pad_width[0][0],
-                                      total_s_enhance * pad_width[0][1]),
-                                     (total_s_enhance * pad_width[1][0],
-                                      total_s_enhance * pad_width[1][1]),
-                                     (total_t_enhance * pad_width[2][0],
-                                      total_t_enhance * pad_width[2][1]),
+            for feature in exo_data:
+                for i, step in enumerate(exo_data[feature]['steps']):
+                    exo_pad_width = ((step['s_enhance'] * pad_width[0][0],
+                                      step['s_enhance'] * pad_width[0][1]),
+                                     (step['s_enhance'] * pad_width[1][0],
+                                      step['s_enhance'] * pad_width[1][1]),
+                                     (step['t_enhance'] * pad_width[2][0],
+                                      step['t_enhance'] * pad_width[2][1]),
                                      (0, 0))
-                    exo_data[i] = np.pad(i_exo_data, exo_pad_width, mode=mode)
+                    new_exo = np.pad(step['data'], exo_pad_width, mode=mode)
+                    exo_data[feature]['steps'][i]['data'] = new_exo
         return out, exo_data
 
     def bias_correct_source_data(self, data, lat_lon):

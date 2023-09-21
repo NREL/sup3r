@@ -12,7 +12,7 @@ import xarray as xr
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
-from sup3r.models import LinearInterp, Sup3rGan, WindGan
+from sup3r.models import LinearInterp, MultiExoGan, Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities.pytest import (
@@ -579,6 +579,8 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
     s1_model.meta['output_features'] = ['U_100m', 'V_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
+    s1_model.meta['input_resolution'] = {'spatial': '48km',
+                                         'temporal': '60min'}
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
@@ -586,6 +588,8 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
     s2_model.meta['output_features'] = ['U_100m', 'V_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
+    s2_model.meta['input_resolution'] = {'spatial': '24km',
+                                         'temporal': '60min'}
     _ = s2_model.generate(np.ones((4, 10, 10, 3)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -595,6 +599,8 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
+    st_model.meta['input_resolution'] = {'spatial': '12km',
+                                         'temporal': '60min'}
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
@@ -618,11 +624,12 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
-                's_enhancements': [1, 2, 2],
-                't_enhancements': [1, 1, 1],
-                's_agg_factors': [16, 4, 2],
-                't_agg_factors': [1, 1, 1],
-                'exo_steps': [0, 1]
+                'cache_dir': td,
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
+                'steps': [
+                    {'model': 0, 'combine_type': 'input'},
+                    {'model': 1, 'combine_type': 'input'}
+                ]
             }
         }
 
@@ -689,14 +696,14 @@ def test_fwp_multi_step_spatial_model_topo_noskip():
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = WindGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s1_model = MultiExoGan(fp_gen, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s1_model.meta['output_features'] = ['U_100m', 'V_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
-    s2_model = WindGan(fp_gen, fp_disc, learning_rate=1e-4)
+    s2_model = MultiExoGan(fp_gen, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s2_model.meta['output_features'] = ['U_100m', 'V_100m']
     s2_model.meta['s_enhance'] = 2
@@ -1273,7 +1280,7 @@ def test_slicing_pad(log=False):
 
 
 def test_fwp_single_step_wind_hi_res_topo(plot=False):
-    """Test the forward pass with a single spatiotemporal WindGan model
+    """Test the forward pass with a single spatiotemporal MultiExoGan model
     requiring high-resolution topography input from the exogenous_data
     feature."""
     Sup3rGan.seed()
@@ -1324,7 +1331,8 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
         "alpha": 0.2,
         "class": "LeakyReLU"
     }, {
-        "class": "Sup3rConcat"
+        "class": "Sup3rConcat",
+        "name": "topography"
     }, {
         "class": "FlexiblePadding",
         "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
@@ -1340,13 +1348,17 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
     }]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-    model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     model.meta['output_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 2
-    _ = model.generate(np.random.rand(4, 10, 10, 6, 3),
-                       exogenous_data=(None, np.random.rand(4, 20, 20, 6, 1)))
+    model.meta['input_resolution'] = {'spatial': '8km',
+                                      'temporal': '60min'}
+    exo_tmp = {'topography': {
+        'steps': [{'model': 0, 'combine_type': 'layer',
+                   'data': np.random.rand(4, 20, 20, 12, 1)}]}}
+    _ = model.generate(np.random.rand(4, 10, 10, 6, 3), exogenous_data=exo_tmp)
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -1355,16 +1367,17 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
         model.save(st_out_dir)
 
         exo_kwargs = {
-            'file_paths': input_files,
-            'features': ['topography'],
-            'source_file': FP_WTK,
-            'target': target,
-            'shape': shape,
-            's_enhancements': [1, 2],
-            't_enhancements': [1, 1],
-            's_agg_factors': [4, 2],
-            't_agg_factors': [1, 1],
-        }
+            'topography': {
+                'file_paths': input_files,
+                'source_file': FP_WTK,
+                'target': target,
+                'shape': shape,
+                'cache_dir': td,
+                'exo_resolution': {'spatial': '4km', 'temporal': None},
+                'steps': [
+                    {'model': 0, 'combine_type': 'input'},
+                    {'model': 0, 'combine_type': 'layer'}
+                ]}}
 
         model_kwargs = {'model_dir': st_out_dir}
         out_files = os.path.join(td, 'out_{file_id}.h5')
@@ -1374,29 +1387,10 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 
-        # should get an error on a bad tensorflow concatenation
-        with pytest.raises(RuntimeError):
-            exo_kwargs['s_enhancements'] = [1, 1]
-            handler = ForwardPassStrategy(
-                input_files,
-                model_kwargs=model_kwargs,
-                model_class='WindGan',
-                fwp_chunk_shape=(4, 4, 8),
-                spatial_pad=1,
-                temporal_pad=1,
-                input_handler_kwargs=input_handler_kwargs,
-                out_pattern=out_files,
-                worker_kwargs=dict(max_workers=1),
-                exo_kwargs=exo_kwargs,
-                max_nodes=1)
-            forward_pass = ForwardPass(handler)
-            forward_pass.run(handler, node_index=0)
-
-        exo_kwargs['s_enhancements'] = [1, 2]
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='WindGan',
+            model_class='MultiExoGan',
             fwp_chunk_shape=(8, 8, 8),
             spatial_pad=4,
             temporal_pad=4,
@@ -1476,9 +1470,11 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
         "class": "Activation",
         "activation": "relu"
     }, {
-        "class": "Sup3rConcat"
+        "class": "Sup3rConcat",
+        "name": "topography"
     }, {
-        "class": "Sup3rConcat"
+        "class": "Sup3rConcat",
+        "name": "sza"
     }, {
         "class": "FlexiblePadding",
         "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -1495,7 +1491,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     }]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = [
         'U_100m', 'V_100m', 'topography', 'sza'
     ]
@@ -1505,7 +1501,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     _ = s1_model.generate(np.ones((4, 10, 10, 3)),
                           exogenous_data=(None, np.ones((4, 20, 20, 1))))
 
-    s2_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = [
         'U_100m', 'V_100m', 'topography', 'sza'
     ]
@@ -1609,7 +1605,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
 
 
 def test_fwp_multi_step_wind_hi_res_topo():
-    """Test the forward pass with multiple WindGan models requiring
+    """Test the forward pass with multiple MultiExoGan models requiring
     high-resolution topograph input from the exogenous_data feature."""
     Sup3rGan.seed()
     gen_model = [{
@@ -1658,7 +1654,8 @@ def test_fwp_multi_step_wind_hi_res_topo():
         "class": "Activation",
         "activation": "relu"
     }, {
-        "class": "Sup3rConcat"
+        "class": "Sup3rConcat",
+        "name": "topography"
     }, {
         "class": "FlexiblePadding",
         "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -1675,7 +1672,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
     }]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s1_model.meta['output_features'] = ['U_100m', 'V_100m']
     s1_model.meta['s_enhance'] = 2
@@ -1683,7 +1680,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
     _ = s1_model.generate(np.ones((4, 10, 10, 3)),
                           exogenous_data=(None, np.ones((4, 20, 20, 1))))
 
-    s2_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s2_model.meta['output_features'] = ['U_100m', 'V_100m']
     s2_model.meta['s_enhance'] = 2
@@ -1772,9 +1769,9 @@ def test_fwp_multi_step_wind_hi_res_topo():
 
 
 def test_fwp_wind_hi_res_topo_plus_linear():
-    """Test the forward pass with a WindGan model requiring high-res topo input
-    from exo data for spatial enhancement and a linear interpolation model for
-    temporal enhancement."""
+    """Test the forward pass with a MultiExoGan model requiring high-res topo
+    input from exo data for spatial enhancement and a linear interpolation
+    model for temporal enhancement."""
 
     Sup3rGan.seed()
     gen_model = [{
@@ -1836,7 +1833,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
     }]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s_model = WindGan(gen_model, fp_disc, learning_rate=1e-4)
+    s_model = MultiExoGan(gen_model, fp_disc, learning_rate=1e-4)
     s_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
     s_model.meta['output_features'] = ['U_100m', 'V_100m']
     s_model.meta['s_enhance'] = 2

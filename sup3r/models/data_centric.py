@@ -6,7 +6,7 @@ import logging
 import numpy as np
 
 from sup3r.models.base import Sup3rGan
-from sup3r.models.wind import WindGan
+from sup3r.models.multi_exo import MultiExoGan
 from sup3r.utilities.utilities import round_array
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ class Sup3rGanDC(Sup3rGan):
                     f'{round_array(new_temporal_weights)}')
 
 
-class WindGanDC(WindGan, Sup3rGanDC):
+class MultiExoGanDC(MultiExoGan, Sup3rGanDC):
     """Data-centric model using loss across time bins to select training
     observations with handling of low and high res topography
     inputs."""
@@ -149,8 +149,8 @@ class WindGanDC(WindGan, Sup3rGanDC):
         validation set has 10 bins then this will get a list of losses across
         step 0 to 10, 10 to 20, etc.  Use this to determine performance
         within bins and to update how observations are selected from these
-        bins. Use the _tf_generate function from WindGan to include the high
-        resolution topography.
+        bins. Use the _tf_generate function from MultiExoGan to include the
+        high resolution topography.
 
         Parameters
         ----------
@@ -181,7 +181,7 @@ class WindGanDC(WindGan, Sup3rGanDC):
         validation set has 10 bins then this will get a list of losses across
         step 0 to 10, 10 to 20, etc.  Use this to determine performance
         within bins and to update how observations are selected from these
-        bins. Use the _tf_generate function from WindGan to include high
+        bins. Use the _tf_generate function from MultiExoGan to include high
         resolution topography.
 
         Parameters

@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 """Sup3r conditional moment model software"""
-import os
-import time
 import logging
-import numpy as np
+import os
 import pprint
+import time
+
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
 
 from sup3r.models.abstract import AbstractInterface, AbstractSingleModel
 from sup3r.utilities import VERSION_RECORD
-
 
 logger = logging.getLogger(__name__)
 
@@ -173,9 +173,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        exo_check = (exogenous_data is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check
-                   else np.concatenate((low_res, exogenous_data), axis=-1))
+        low_res = self._combine_input(low_res, exogenous_data)
 
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
@@ -194,6 +192,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         if un_norm_out and self._means is not None:
             output = self.un_norm_output(output)
+
+        output = self._combine_output(output, exogenous_data)
 
         return output
 

@@ -67,27 +67,6 @@ class AbstractInterface(ABC):
         """
         CustomNetwork.seed(s=s)
 
-    @abstractmethod
-    def generate(self, low_res):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-
     @property
     def input_dims(self):
         """Get dimension of model generator input. This is usually 4D for
@@ -136,28 +115,14 @@ class AbstractInterface(ABC):
             input_spatial = re.search(r'\d+', input_res['spatial']).group(0)
             output_temporal = int(self.t_enhance * input_temporal)
             output_spatial = int(self.s_enhance * input_spatial)
-            output_res['temporal'].replace(input_temporal, output_temporal)
-            output_res['spatial'].replace(input_spatial, output_spatial)
+            output_res['temporal'].replace(input_temporal,
+                                           str(output_temporal))
+            output_res['spatial'].replace(input_spatial,
+                                          str(output_spatial))
         return output_res
 
-    @property
-    def needs_hr_exo(self):
-        """Determine whether or not the sup3r model needs hi-res exogenous data
-
-        Returns
-        -------
-        needs_hr_exo : bool
-            True if the model requires high-resolution exogenous data,
-            typically because of the use of Sup3rAdder or Sup3rConcat layers.
-        """
-        # pylint: disable=E1101
-        return (hasattr(self, '_gen') and any(
-            isinstance(layer, (Sup3rAdder, Sup3rConcat))
-            for layer in self._gen.layers))
-
-    def _needs_lr_exo(self, low_res):
-        """Determine whether or not the sup3r model needs low-res exogenous
-        data
+    def _combine_input(self, low_res, exogenous_data=None):
+        """Combine exogenous_data at input resolution with low_res data
 
         Parameters
         ----------
@@ -165,13 +130,84 @@ class AbstractInterface(ABC):
             Low-resolution input data, usually a 4D or 5D array of shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
 
         Returns
         -------
-        needs_lr_exo : bool
-            True if the model requires low-resolution exogenous data.
+        low_res : np.ndarray
+            Low-resolution input data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        return low_res.shape[-1] < len(self.training_features)
+        check = (exogenous_data is not None
+                 and low_res.shape[-1] < len(self.training_features))
+        if check:
+            for i, (feature, entry) in enumerate(exogenous_data.items()):
+                f_idx = low_res.shape[-1] + i
+                training_feature = self.training_features[f_idx]
+                msg = ('The ordering of features in exogenous_data conflicts '
+                       'with the ordering of training features. Received '
+                       f'{feature} instead of {training_feature}.')
+                assert feature == training_feature, msg
+                combine_types = [step['combine_type']
+                                 for step in entry['steps']]
+                if 'input' in combine_types:
+                    idx = combine_types.index('input')
+                    low_res = np.concatenate((low_res,
+                                              entry['steps'][idx]['data']),
+                                             axis=-1)
+        return low_res
+
+    def _combine_output(self, hi_res, exogenous_data=None):
+        """Combine exogenous_data at input resolution with low_res data
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            High-resolution output data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        Returns
+        -------
+        hi_res : np.ndarray
+            High-resolution output data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        if exogenous_data is not None:
+            for i, (feature, entry) in enumerate(exogenous_data.items()):
+                f_idx = hi_res.shape[-1] + i
+                training_feature = self.training_features[f_idx]
+                msg = ('The ordering of features in exogenous_data conflicts '
+                       'with the ordering of training features. Received '
+                       f'{feature} instead of {training_feature}.')
+                assert feature == training_feature, msg
+                combine_types = [step['combine_type']
+                                 for step in entry['steps']]
+                if 'output' in combine_types:
+                    idx = combine_types.index('output')
+                    hi_res = np.concatenate((hi_res,
+                                             entry['steps'][idx]['data']),
+                                            axis=-1)
+        return hi_res
 
     @property
     def exogenous_features(self):
@@ -868,59 +904,6 @@ class AbstractSingleModel(ABC):
 
         return stop
 
-    @tf.function()
-    def get_single_grad(self,
-                        low_res,
-                        hi_res_true,
-                        training_weights,
-                        device_name=None,
-                        **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
-        do not update weights, just return gradient details.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        device_name : None | str
-            Optional tensorflow device name for GPU placement. Note that if a
-            GPU is available, variables will be placed on that GPU even if
-            device_name=None.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        grad : list
-            a list or nested structure of Tensors (or IndexedSlices, or None,
-            or CompositeTensor) representing the gradients for the
-            training_weights
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        with tf.device(device_name):
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(training_weights)
-
-                hi_res_gen = self._tf_generate(low_res)
-                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                          **calc_loss_kwargs)
-                loss, loss_details = loss_out
-
-                grad = tape.gradient(loss, training_weights)
-
-        return grad, loss_details
-
     def run_gradient_descent(self,
                              low_res,
                              hi_res_true,
@@ -1010,47 +993,6 @@ class AbstractSingleModel(ABC):
 
         return loss_details
 
-
-# pylint: disable=E1101,W0201,E0203
-class AbstractExoInterface(ABC):
-    """
-    Abstract class to define the required training interface
-    for Sup3r model subclasses with exogenous features
-    """
-
-    # pylint: disable=E0211
-    def set_model_params(self, **kwargs):
-        """Set parameters used for training the model
-
-        Parameters
-        ----------
-        kwargs : dict
-            Keyword arguments including 'input_resolution',
-            'training_features', 'output_features', 'smoothed_features',
-            's_enhance', 't_enhance', 'smoothing'. For the Wind classes, the
-            last entry in "output_features" must be "topography"
-
-        Returns
-        -------
-        kwargs : dict
-            Same as input but with exogenous features removed from
-            "output_features", this is because the exo features are
-            concatenated mid-network in the ExoGan generators and are not
-            output features but are required in the hi-res training set.
-        """
-        output_features = kwargs['output_features']
-        msg = (f'Last {len(self.exogenous_features)} output features from the '
-               f'data handler must be {self.exogenous_features} '
-               'to train the Exo model, but received output features: {}'.
-               format(output_features))
-        check = (output_features[-len(self.exogenous_features)]
-                 == self.exogenous_features)
-        assert check, msg
-        for f in self.exogenous_features:
-            output_features.remove(f)
-        kwargs['output_features'] = output_features
-        return kwargs
-
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
         """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
         and normalize (if requested).
@@ -1109,74 +1051,6 @@ class AbstractExoInterface(ABC):
 
         return hi_res_exo
 
-    def _combine_input(self, low_res, exogenous_data=None):
-        """Combine exogenous_data at input resolution with low_res data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
-
-        Returns
-        -------
-        low_res : np.ndarray
-            Low-resolution input data combined with exogenous_data, usually a
-            4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        for feature in self.exogenous_features:
-            msg = f'Did not find {feature} in exogenous_data'
-            assert feature in exogenous_data, msg
-            for step in exogenous_data['steps']:
-                if step['combine_type'] == 'input':
-                    low_res = np.concatenate(low_res, step['data'], axis=-1)
-        return low_res
-
-    def _combine_output(self, hi_res, exogenous_data=None):
-        """Combine exogenous_data at input resolution with low_res data
-
-        Parameters
-        ----------
-        hi_res : np.ndarray
-            High-resolution output data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
-
-        Returns
-        -------
-        hi_res : np.ndarray
-            High-resolution output data combined with exogenous_data, usually a
-            4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        for feature in self.exogenous_features:
-            msg = f'Did not find {feature} in exogenous_data'
-            assert feature in exogenous_data, msg
-            for step in exogenous_data['steps']:
-                if step['combine_type'] == 'output':
-                    hi_res = np.concatenate(hi_res, step['data'], axis=-1)
-        return hi_res
-
     def generate(self,
                  low_res,
                  norm_in=True,
@@ -1227,8 +1101,8 @@ class AbstractExoInterface(ABC):
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
                     exo_name = layer.name
                     steps = exogenous_data[exo_name]['steps']
-                    hi_res_exo = [step['data'] for step in steps
-                                  if step['combine_type'] == 'layer']
+                    idx = [step['combine_type'] for step in steps]
+                    hi_res_exo = steps[idx]['data']
                     hi_res_exo = self._reshape_norm_exo(hi_res,
                                                         hi_res_exo,
                                                         norm_in=norm_in)
@@ -1251,8 +1125,8 @@ class AbstractExoInterface(ABC):
         return hi_res
 
     @tf.function
-    def _tf_generate(self, low_res, hi_res_exo):
-        """Use the generator model to generate high res data from los res input
+    def _tf_generate(self, low_res, hi_res_exo=None):
+        """Use the generator model to generate high res data from low res input
 
         Parameters
         ----------
@@ -1331,7 +1205,6 @@ class AbstractExoInterface(ABC):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
         hi_res_exo = {}
         for feature in self.exogenous_features:
             f_idx = self.training_features.index(feature)
@@ -1349,3 +1222,44 @@ class AbstractExoInterface(ABC):
                 grad = tape.gradient(loss, training_weights)
 
         return grad, loss_details
+
+
+# pylint: disable=E1101,W0201,E0203
+class AbstractExoInterface(AbstractInterface):
+    """
+    Abstract class to define the required training interface
+    for Sup3r model subclasses with exogenous features
+    """
+
+    # pylint: disable=E0211
+    def set_model_params(self, **kwargs):
+        """Set parameters used for training the model
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments including 'input_resolution',
+            'training_features', 'output_features', 'smoothed_features',
+            's_enhance', 't_enhance', 'smoothing'. For the Wind classes, the
+            last entry in "output_features" must be "topography"
+
+        Returns
+        -------
+        kwargs : dict
+            Same as input but with exogenous features removed from
+            "output_features", this is because the exo features are
+            concatenated mid-network in the ExoGan generators and are not
+            output features but are required in the hi-res training set.
+        """
+        output_features = kwargs['output_features']
+        msg = (f'Last {len(self.exogenous_features)} output features from the '
+               f'data handler must be {self.exogenous_features} '
+               'to train the Exo model, but received output features: {}'.
+               format(output_features))
+        check = (output_features[-len(self.exogenous_features)]
+                 == self.exogenous_features)
+        assert check, msg
+        for f in self.exogenous_features:
+            output_features.remove(f)
+        kwargs['output_features'] = output_features
+        return kwargs
