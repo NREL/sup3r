@@ -362,7 +362,9 @@ class TopoExtractH5(ExoExtract):
         """Get the 1D array of elevation data from the exo_source_h5"""
         with Resource(self._exo_source) as res:
             elev = res.get_meta_arr('elevation')
-            elev = np.repeat(elev[:, np.newaxis], self.hr_shape[-1], axis=-1)
+            elev = np.repeat(elev[:, np.newaxis],
+                             self.hr_shape[-1] * self._t_agg_factor,
+                             axis=-1)
         return elev
 
     @property

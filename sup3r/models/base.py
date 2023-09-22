@@ -377,8 +377,15 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.info('Initializing model weights on device "{}"'.format(device))
         low_res = np.ones(lr_shape).astype(np.float32)
         hi_res = np.ones(hr_shape).astype(np.float32)
+
+        hr_exo_shape = hr_shape[:-1] + (1,)
+        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+
         with tf.device(device):
-            _ = self._tf_generate(low_res)
+            hr_exo_data = {}
+            for feature in self.exogenous_features:
+                hr_exo_data[feature] = hr_exo
+            _ = self._tf_generate(low_res, hr_exo_data)
             _ = self._tf_discriminate(hi_res)
 
     @staticmethod
@@ -539,6 +546,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+        hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
 
         if hi_res_gen.shape != hi_res_true.shape:
             msg = ('The tensor shapes of the synthetic output {} and '
@@ -594,19 +602,17 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            high_res_gen = self._tf_generate(val_batch.low_res)
+            val_exo_data = self._get_exo_val_loss_input(val_batch.high_res)
+            high_res_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
-                val_batch.high_res,
-                high_res_gen,
+                val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,
-                train_gen=False,
-                train_disc=False)
+                train_gen=False, train_disc=False)
 
             loss_details = self.update_loss_details(loss_details,
                                                     v_loss_details,
                                                     len(val_batch),
                                                     prefix='val_')
-
         return loss_details
 
     def train_epoch(self,

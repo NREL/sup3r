@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Sup3r multi step model frameworks"""
+import copy
 import json
 import logging
 import os
@@ -148,6 +149,45 @@ class MultiStepGan(AbstractInterface):
                     model_step_exo[feature] = {'steps': steps}
         return model_step_exo
 
+    def _transpose_model_input(self, model, hi_res):
+        """Transpose input data according to mdel input dimensions.
+
+        NOTE: If hi_res.shape == 4, it is assumed that the dimensions have the
+              ordering (n_obs, spatial_1, spatial_2, features)
+
+              If hi_res.shape == 5, it is assumed that the dimensions have the
+              ordering (1, spatial_1, spatial_2, temporal, features)
+
+        Parameters
+        ----------
+        model : Sup3rGan
+            A single step model with the attribute model.input_dims
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data transposed according
+            to the number of model input dimensions
+        """
+        if model.input_dims == 5 and len(hi_res.shape) == 4:
+            hi_res = np.transpose(
+                hi_res, axes=(1, 2, 0, 3))[np.newaxis]
+        elif model.input_dims == 4 and len(hi_res.shape) == 5:
+            msg = ('Recieved 5D input data with shape '
+                   f'({hi_res.shape}) to a 4D model.')
+            assert hi_res.shape[0] == 1, msg
+            hi_res = np.transpose(hi_res[0], axes=(2, 0, 1, 3))
+        else:
+            msg = ('Recieved input data with shape '
+                   f'{hi_res.shape} to a {model.input_dims}D model.')
+            assert model.input_dims == len(hi_res.shape), msg
+        return hi_res
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -199,6 +239,7 @@ class MultiStepGan(AbstractInterface):
             i_exo_data = self._get_model_step_exo(i, exogenous_data)
 
             try:
+                hi_res = self._transpose_model_input(model, hi_res)
                 logger.debug('Data input to model #{} of {} has shape {}'
                              .format(i + 1, len(self.models), hi_res.shape))
                 hi_res = model.generate(hi_res, norm_in=i_norm_in,
@@ -422,20 +463,20 @@ class SpatialThenTemporalGan(SpatialThenTemporalBase):
             Same as input dictionary but with only entries with 'model':
             model_step where model_step corresponds to a temporal model step
         """
-        spatial_exo = None
-        temporal_exo = None
+        spatial_exo = {}
+        temporal_exo = {}
         if exogenous_data is not None:
-            spatial_exo = {}
-            for feature in exogenous_data:
-                steps = [step for step in exogenous_data[feature]['steps']
+            exo_data = copy.deepcopy(exogenous_data)
+            for feature in exo_data:
+                steps = [step for step in exo_data[feature]['steps']
                          if step['model'] < len(self.spatial_models)]
                 if steps:
                     spatial_exo[feature] = {'steps': steps}
-                steps = [step for step in exogenous_data[feature]['steps']
+                steps = [step for step in exo_data[feature]['steps']
                          if step['model'] >= len(self.spatial_models)]
                 t_shift = len(self.spatial_models)
-                steps = [step.update({'model': step['model'] - t_shift})
-                         for step in steps]
+                for step in steps:
+                    step.update({'model': step['model'] - t_shift})
                 if steps:
                     temporal_exo[feature] = {'steps': steps}
         return spatial_exo, temporal_exo
@@ -592,20 +633,20 @@ class TemporalThenSpatialGan(SpatialThenTemporalBase):
             Same as input dictionary but with only entries with 'model':
             model_step where model_step corresponds to a spatial model step
         """
-        spatial_exo = None
-        temporal_exo = None
+        spatial_exo = {}
+        temporal_exo = {}
         if exogenous_data is not None:
-            temporal_exo = {}
-            for feature in exogenous_data:
-                steps = [step for step in exogenous_data[feature]['steps']
+            exo_data = copy.deepcopy(exogenous_data)
+            for feature in exo_data:
+                steps = [step for step in exo_data[feature]['steps']
                          if step['model'] < len(self.temporal_models)]
                 if steps:
                     temporal_exo[feature] = {'steps': steps}
-                steps = [step for step in exogenous_data[feature]['steps']
+                steps = [step for step in exo_data[feature]['steps']
                          if step['model'] >= len(self.temporal_models)]
                 s_shift = len(self.temporal_models)
-                steps = [step.update({'model': step['model'] - s_shift})
-                         for step in steps]
+                for step in steps:
+                    step.update({'model': step['model'] - s_shift})
                 if steps:
                     spatial_exo[feature] = {'steps': steps}
         return temporal_exo, spatial_exo
@@ -723,12 +764,15 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : list
-            For the MultiStepSurfaceMetGan model, this must be a 2-entry list
-            where the first entry is a 2D (lat, lon) array of low-resolution
-            surface elevation data in meters (must match spatial_1, spatial_2
-            from low_res), and the second entry is a 2D (lat, lon) array of
-            high-resolution surface elevation data in meters.
+        exogenous_data : dict
+            For the MultiStepSurfaceMetGan, this must be a nested dictionary
+            with a main 'topography' key and two entries for
+            exogenous_data['topography']['steps']. The first entry includes a
+            2D (lat, lon) array of low-resolution surface elevation data in
+            meters (must match spatial_1, spatial_2 from low_res), and the
+            second entry includes a 2D (lat, lon) array of high-resolution
+            surface elevation data in meters. e.g.
+            {'topography': {'steps': [{'data': lr_topo}, {'data': hr_topo'}]}}
 
         Returns
         -------
@@ -745,18 +789,10 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         msg = ('MultiStepSurfaceMetGan needs exogenous_data with two '
                'entries for low and high res topography inputs.')
         assert exogenous_data is not None, msg
-        assert isinstance(exogenous_data, (list, tuple)), msg
-        exogenous_data = [d for d in exogenous_data if d is not None]
-        assert len(exogenous_data) == 2, msg
-
-        # SurfaceSpatialMetModel needs a 2D array for exo topography input
-        for i, i_exo in enumerate(exogenous_data):
-            if len(i_exo.shape) == 3:
-                exogenous_data[i] = i_exo[:, :, 0]
-            elif len(i_exo.shape) == 4:
-                exogenous_data[i] = i_exo[0, :, :, 0]
-            elif len(i_exo.shape) == 5:
-                exogenous_data[i] = i_exo[0, :, :, 0, 0]
+        exo_data = [step['data']
+                    for step in exogenous_data['topography']['steps']]
+        assert isinstance(exo_data, (list, tuple)), msg
+        assert len(exo_data) == 2, msg
 
         try:
             hi_res = self.spatial_models.generate(
@@ -1062,15 +1098,12 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
         logger.debug('Data input to the SolarMultiStepGan has shape {} which '
                      'will be split up for solar- and wind-only features.'
                      .format(low_res.shape))
-        t_exogenous = None
-        if exogenous_data is not None:
-            t_exogenous = exogenous_data[len(self.spatial_wind_models):]
-
+        s_exo, t_exo = self._split_exo_spatial_temporal(exogenous_data)
         try:
             hi_res_wind = self.spatial_wind_models.generate(
                 low_res[..., self.idf_wind],
                 norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
+                exogenous_data=s_exo)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-wind-only GAN on '
                    'input shape {}'.format(low_res.shape))
@@ -1106,7 +1139,7 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
         try:
             hi_res = self.temporal_solar_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=t_exogenous)
+                exogenous_data=t_exo)
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal solar GAN on '
                    'input shape {}'.format(low_res.shape))

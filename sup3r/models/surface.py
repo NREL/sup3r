@@ -2,10 +2,11 @@
 """Special models for surface meteorological data."""
 import logging
 from fnmatch import fnmatch
+from warnings import warn
+
 import numpy as np
 from PIL import Image
 from sklearn import linear_model
-from warnings import warn
 
 from sup3r.models.linear import LinearInterp
 from sup3r.utilities.utilities import spatial_coarsening
@@ -470,12 +471,15 @@ class SurfaceSpatialMetModel(LinearInterp):
         un_norm_out : bool
             This doesnt do anything for this SurfaceSpatialMetModel, but is
             kept to keep the same interface as Sup3rGan
-        exogenous_data : list
-            For the SurfaceSpatialMetModel, this must be a 2-entry list where
-            the first entry is a 2D (lat, lon) array of low-resolution surface
-            elevation data in meters (must match spatial_1, spatial_2 from
-            low_res), and the second entry is a 2D (lat, lon) array of
-            high-resolution surface elevation data in meters.
+        exogenous_data : dict
+            For the SurfaceSpatialMetModel, this must be a nested dictionary
+            with a main 'topography' key and two entries for
+            exogenous_data['topography']['steps']. The first entry includes a
+            2D (lat, lon) array of low-resolution surface elevation data in
+            meters (must match spatial_1, spatial_2 from low_res), and the
+            second entry includes a 2D (lat, lon) array of high-resolution
+            surface elevation data in meters. e.g.
+            {'topography': {'steps': [{'data': lr_topo}, {'data': hr_topo'}]}}
 
         Returns
         -------
@@ -485,16 +489,17 @@ class SurfaceSpatialMetModel(LinearInterp):
             channel can include temperature_*m, relativehumidity_*m, and/or
             pressure_*m
         """
-
+        exo_data = [step['data']
+                    for step in exogenous_data['topography']['steps']]
         msg = ('exogenous_data is of a bad type {}!'
-               .format(type(exogenous_data)))
-        assert isinstance(exogenous_data, (list, tuple)), msg
+               .format(type(exo_data)))
+        assert isinstance(exo_data, (list, tuple)), msg
         msg = ('exogenous_data is of a bad length {}!'
-               .format(len(exogenous_data)))
-        assert len(exogenous_data) == 2, msg
+               .format(len(exo_data)))
+        assert len(exo_data) == 2, msg
 
-        topo_lr = exogenous_data[0]
-        topo_hr = exogenous_data[1]
+        topo_lr = exo_data[0]
+        topo_hr = exo_data[1]
         logger.debug('SurfaceSpatialMetModel received low/high res topo '
                      'shapes of {} and {}'
                      .format(topo_lr.shape, topo_hr.shape))

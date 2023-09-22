@@ -142,89 +142,6 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         params = cls.load_saved_params(model_dir, verbose=verbose)
         return cls(fp_gen, **params)
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self._means,
-            self._stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : ndarray | None
-            Exogenous data array, usually a 4D or 5D array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        output : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        low_res = self._combine_input(low_res, exogenous_data)
-
-        if norm_in and self._means is not None:
-            low_res = self.norm_input(low_res)
-
-        output = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                output = layer(output)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, output.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        output = output.numpy()
-
-        if un_norm_out and self._means is not None:
-            output = self.un_norm_output(output)
-
-        output = self._combine_output(output, exogenous_data)
-
-        return output
-
-    @tf.function
-    def _tf_generate(self, low_res):
-        """Use the generator model to generate high res data from los res input
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data. The generator should always
-            received normalized data with mean=0 stdev=1.
-
-        Returns
-        -------
-        output : tf.Tensor
-            Synthetically generated high-resolution data
-        """
-
-        output = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                output = layer(output)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, output.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        return output
-
     def update_optimizer(self, **kwargs):
         """Update optimizer by changing current configuration
 
@@ -331,6 +248,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+        output_gen = self._combine_loss_input(output_true, output_gen)
 
         if output_gen.shape != output_true.shape:
             msg = ('The tensor shapes of the synthetic output {} and '
@@ -365,7 +283,8 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            output_gen = self._tf_generate(val_batch.low_res)
+            val_exo_data = self._get_exo_val_loss_input(val_batch.high_res)
+            output_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
                 val_batch.output, output_gen, val_batch.mask)
 

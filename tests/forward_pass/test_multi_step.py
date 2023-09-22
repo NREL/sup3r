@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 """Test forward passes through multi-step GAN models"""
 import os
-import numpy as np
-import pytest
 import tempfile
 
+import numpy as np
+import pytest
+
 from sup3r import CONFIG_DIR
-from sup3r.models import (Sup3rGan, MultiStepGan,
-                          SpatialThenTemporalGan, TemporalThenSpatialGan,
-                          SolarMultiStepGan, LinearInterp)
+from sup3r.models import (
+    LinearInterp,
+    MultiStepGan,
+    SolarMultiStepGan,
+    SpatialThenTemporalGan,
+    Sup3rGan,
+    TemporalThenSpatialGan,
+)
 
 FEATURES = ['U_100m', 'V_100m']
 
@@ -237,3 +243,4 @@ def test_solar_multistep():
         x = np.ones((3, 10, 10, len(features1 + features2)))
         out = ms_model.generate(x)
         assert out.shape == (1, 20, 20, 24, 1)
+

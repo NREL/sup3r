@@ -76,8 +76,8 @@ class ExogenousDataHandler:
             at 100km (s_enhance=1, exo_step=0), the input to the 5x model gets
             exogenous data at 25km (s_enhance=4, exo_step=1), and there is a
             20x (1*4*5) exogeneous data layer available if the second model can
-            receive a high-res input feature (e.g. MultiExoGan). The length of
-            this list should be equal to the number of s_agg_factors
+            receive a high-res input feature. The length of this list should be
+            equal to the number of s_agg_factors
         t_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
             temporal dimension of low resolution data from file_paths input

@@ -1117,20 +1117,20 @@ class ForwardPass:
         self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
                                                           self.lr_slice[1]]
 
-    def get_agg_factor(self, input_res, exo_res):
-        """Compute agg factor for exo data given input and output resolution
+    def _get_res_ratio(self, input_res, exo_res):
+        """Compute resolution ratio given input and output resolution
 
         Parameters
         ----------
         input_res : str | None
-            Input resolution. e.g. 30km or 60min
+            Input resolution. e.g. '30km' or '60min'
         exo_res : str | None
-            Exogenous data resolution. e.g. 1km or 5min
+            Exo resolution. e.g. '1km' or '5min'
 
         Returns
         -------
-        agg_factor : int
-            Aggregation factor for exogenous data extraction.
+        res_ratio : int | None
+            Ratio of input / exo resolution
         """
         ires_num = (None if input_res is None
                     else int(re.search(r'\d+', input_res).group(0)))
@@ -1144,10 +1144,38 @@ class ForwardPass:
         if e_units is not None:
             assert i_units == e_units, msg
         if ires_num is not None and eres_num is not None:
-            agg_factor = int((ires_num / eres_num) ** 2)
+            res_ratio = int(ires_num / eres_num)
         else:
-            agg_factor = None
-        return agg_factor
+            res_ratio = None
+        return res_ratio
+
+    def get_agg_factors(self, input_res, exo_res):
+        """Compute aggregation ratio for exo data given input and output
+        resolution
+
+        Parameters
+        ----------
+        input_res : dict | None
+            Input resolution. e.g. {'spatial': '30km', 'temporal': '60min'}
+        exo_res : dict | None
+            Exogenous data resolution. e.g.
+            {'spatial': '1km', 'temporal': '5min'}
+
+        Returns
+        -------
+        s_agg_factor : int
+            Spatial aggregation factor for exogenous data extraction.
+        t_agg_factor : int
+            Temporal aggregation factor for exogenous data extraction.
+        """
+        input_s_res = None if input_res is None else input_res['spatial']
+        exo_s_res = None if exo_res is None else exo_res['spatial']
+        s_res_ratio = self._get_res_ratio(input_s_res, exo_s_res)
+        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio)**2
+        input_t_res = None if input_res is None else input_res['temporal']
+        exo_t_res = None if exo_res is None else exo_res['temporal']
+        t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
+        return s_agg_factor, t_agg_factor
 
     def _prep_exo_extract_single_step(self, step_dict, exo_resolution):
         """Compute agg and enhancement factors for exogenous data extraction
@@ -1169,8 +1197,6 @@ class ForwardPass:
             s_enhance, t_enhance added
         """
         model_step = step_dict['model']
-        exo_res_t = exo_resolution['temporal']
-        exo_res_s = exo_resolution['spatial']
         s_enhance = None
         t_enhance = None
         s_agg_factor = None
@@ -1180,10 +1206,8 @@ class ForwardPass:
                f'of model steps ({len(models)})')
         assert len(models) > model_step, msg
         model = models[model_step]
-        input_res_t = model.input_resolution['temporal']
-        input_res_s = model.input_resolution['spatial']
-        output_res_t = model.output_resolution['temporal']
-        output_res_s = model.output_resolution['spatial']
+        input_res = model.input_resolution
+        output_res = model.output_resolution
         combine_type = step_dict.get('combine_type', None)
 
         if combine_type.lower() == 'input':
@@ -1191,21 +1215,26 @@ class ForwardPass:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = self.strategy.s_enhancements[model_step - 1]
-                t_enhance = self.strategy.t_enhancements[model_step - 1]
-            s_agg_factor = self.get_agg_factor(input_res_s, exo_res_s)
-            t_agg_factor = self.get_agg_factor(input_res_t, exo_res_t)
-            resolution = {'spatial': input_res_s, 'temporal': input_res_t}
+                s_enhance = np.product(
+                    self.strategy.s_enhancements[:model_step])
+                t_enhance = np.product(
+                    self.strategy.t_enhancements[:model_step])
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                input_res, exo_resolution)
+            resolution = input_res
 
         elif combine_type.lower() in ('output', 'layer'):
-            s_enhance = self.strategy.s_enhancements[model_step]
-            t_enhance = self.strategy.t_enhancements[model_step]
-            s_agg_factor = self.get_agg_factor(output_res_s, exo_res_s)
-            t_agg_factor = self.get_agg_factor(output_res_t, exo_res_t)
-            resolution = {'spatial': output_res_s, 'temporal': output_res_t}
+            s_enhance = np.product(
+                self.strategy.s_enhancements[:model_step + 1])
+            t_enhance = np.product(
+                self.strategy.t_enhancements[:model_step + 1])
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                output_res, exo_resolution)
+            resolution = output_res
 
         else:
-            msg = 'Received exo_kwargs entry without valid combine_type'
+            msg = ('Received exo_kwargs entry without valid combine_type '
+                   '(input/layer/output)')
             raise OSError(msg)
 
         updated_dict = step_dict.copy()
@@ -1233,7 +1262,7 @@ class ForwardPass:
             Same as input dictionary with s_agg_factor, t_agg_factor,
             s_enhance, t_enhance added to each step entry for all features
         """
-        if exo_kwargs:
+        if exo_kwargs is not None:
             for feature in exo_kwargs:
                 exo_resolution = exo_kwargs[feature]['exo_resolution']
                 for i, step in enumerate(exo_kwargs[feature]['steps']):
