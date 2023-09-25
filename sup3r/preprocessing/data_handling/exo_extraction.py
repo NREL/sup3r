@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from rex import Resource
+from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
@@ -110,15 +111,17 @@ class ExoExtract(ABC):
 
         logger.info(f'Initializing {self.__class__.__name__} utility.')
 
+        self.ti_workers = ti_workers
         self._exo_source = exo_source
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
         self._s_agg_factor = s_agg_factor
         self._t_agg_factor = t_agg_factor
         self._tree = None
-        self.ti_workers = ti_workers
         self._hr_lat_lon = None
+        self._source_lat_lon = None
         self._hr_time_index = None
+        self._src_time_index = None
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -157,24 +160,25 @@ class ExoExtract(ABC):
         """Get the 1D array of source data from the exo_source_h5"""
 
     @property
-    @abstractmethod
-    def hr_time_index(self):
-        """Get the full time index of the exo_source data"""
-
-    @property
-    def hr_temporal_slice(self):
-        """Get the temporal slice fr the exo_source data corresponding to the
+    def source_temporal_slice(self):
+        """Get the temporal slice for the exo_source data corresponding to the
         input file temporal slice"""
-        start_index = self.hr_time_index.get_loc(
-            self.input_handler.time_index[0], method='nearest')
-        end_index = self.hr_time_index.get_loc(
-            self.input_handler.time_index[-1], method='nearest')
-        return slice(start_index, end_index + 1)
+        start_index = self.source_time_index.get_indexer(
+            [self.input_handler.hr_time_index[0]], method='nearest')[0]
+        end_index = self.source_time_index.get_indexer(
+            [self.input_handler.hr_time_index[-1]], method='nearest')[0]
+        return slice(start_index, end_index + 1, self._t_agg_factor)
 
     @property
-    @abstractmethod
     def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the exo_source_h5"""
+        """Get the 2D array (n, 2) of lat, lon data for the exo source"""
+        if self._source_lat_lon is None:
+            src_enhance = int(np.sqrt(self._s_agg_factor))
+            src_shape = (self.hr_shape[0] * src_enhance,
+                         self.hr_shape[1] * src_enhance)
+            self._source_lat_lon = OutputHandler.get_lat_lon(
+                self.lr_lat_lon, src_shape).reshape((-1, 2))
+        return self._source_lat_lon
 
     @property
     def lr_shape(self):
@@ -220,6 +224,29 @@ class ExoExtract(ABC):
         return self._hr_lat_lon
 
     @property
+    def source_time_index(self):
+        """Get the full time index of the exo_source data"""
+        if self._src_time_index is None:
+            if self._t_agg_factor > 1:
+                self._src_time_index = OutputHandler.get_times(
+                    self.input_handler.time_index,
+                    self.hr_shape[-1] * self._t_agg_factor)
+            else:
+                self._src_time_index = self.hr_time_index
+        return self._src_time_index
+
+    @property
+    def hr_time_index(self):
+        """Get the full time index for aggregated source data"""
+        if self._hr_time_index is None:
+            if self._t_enhance > 1:
+                self._hr_time_index = OutputHandler.get_times(
+                    self.input_handler.time_index, self.hr_shape[-1])
+            else:
+                self._hr_time_index = self.input_handler.time_index
+        return self._hr_time_index
+
+    @property
     def tree(self):
         """Get the KDTree built on the source lat lon data"""
         if self._tree is None:
@@ -246,7 +273,7 @@ class ExoExtract(ABC):
         nn = self.nn
         hr_data = []
         for j in range(self._s_agg_factor):
-            out = self.source_data[nn[:, j], ::self._t_agg_factor]
+            out = self.source_data[nn[:, j], self.source_temporal_slice]
             out = out.reshape(self.hr_shape)
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
@@ -256,11 +283,11 @@ class ExoExtract(ABC):
     @classmethod
     def get_exo_raster(cls,
                        file_paths,
-                       exo_source,
                        s_enhance,
                        t_enhance,
                        s_agg_factor,
                        t_agg_factor,
+                       exo_source=None,
                        target=None,
                        shape=None,
                        temporal_slice=None,
@@ -276,10 +303,6 @@ class ExoExtract(ABC):
             A single source h5 file to extract raster data from or a list
             of netcdf files with identical grid. The string can be a unix-style
             file path which will be passed through glob.glob
-        exo_source : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
         s_enhance : int
             Factor by which the Sup3rGan model will enhance the spatial
             dimensions of low resolution data from file_paths input. For
@@ -306,6 +329,10 @@ class ExoExtract(ABC):
             is 4 resulting in a desired resolution of 5 min and exo_source
             has a resolution of 5 min, the t_agg_factor should be 4 so that
             every fourth timestep in the exo_source data is skipped.
+        exo_source : str
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
+            4km) data from which will be mapped to the enhanced grid of the
+            file_paths input
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -340,11 +367,11 @@ class ExoExtract(ABC):
             feature='topography'
         """
         exo = cls(file_paths,
-                  exo_source,
                   s_enhance,
                   t_enhance,
                   s_agg_factor,
                   t_agg_factor,
+                  exo_source=exo_source,
                   target=target,
                   shape=shape,
                   temporal_slice=temporal_slice,
@@ -362,9 +389,7 @@ class TopoExtractH5(ExoExtract):
         """Get the 1D array of elevation data from the exo_source_h5"""
         with Resource(self._exo_source) as res:
             elev = res.get_meta_arr('elevation')
-            elev = np.repeat(elev[:, np.newaxis],
-                             self.hr_shape[-1] * self._t_agg_factor,
-                             axis=-1)
+            elev = np.repeat(elev[:, np.newaxis], self.hr_shape[-1], axis=-1)
         return elev
 
     @property
@@ -375,15 +400,31 @@ class TopoExtractH5(ExoExtract):
         return source_lat_lon
 
     @property
-    def hr_time_index(self):
-        """Time index of the high-resolution exo data"""
-        if self._hr_time_index is None:
+    def source_time_index(self):
+        """Time index of the source exo data"""
+        if self._src_time_index is None:
             with Resource(self._exo_source) as res:
-                self._hr_time_index = res.time_index
-        return self._hr_time_index
+                self._src_time_index = res.time_index
+        return self._src_time_index
+
+    @property
+    def data(self):
+        """Get a raster of source values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, temporal, 1)
+        """
+        nn = self.nn
+        hr_data = []
+        for j in range(self._s_agg_factor):
+            out = self.source_data[nn[:, j]]
+            out = out.reshape(self.hr_shape)
+            hr_data.append(out[..., np.newaxis])
+        hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
+        logger.info('Finished mapping raster from {}'.format(self._exo_source))
+        return hr_data[..., np.newaxis]
 
 
-class TopoExtractNC(ExoExtract):
+class TopoExtractNC(TopoExtractH5):
     """TopoExtract for netCDF files"""
 
     def __init__(self, *args, **kwargs):
@@ -409,7 +450,7 @@ class TopoExtractNC(ExoExtract):
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
-        elev = self.source_handler.data.reshape(-1)
+        elev = self.source_handler.data.reshape((-1, self.lr_shape[-1]))
         return elev
 
     @property
@@ -419,56 +460,21 @@ class TopoExtractNC(ExoExtract):
         return source_lat_lon
 
 
-class SzaExtractH5(ExoExtract):
+class SzaExtract(ExoExtract):
     """SzaExtract for H5 files"""
 
     @property
     def source_data(self):
         """Get the 1D array of sza data from the exo_source_h5"""
-        with Resource(self._exo_source) as res:
-            elev = res.get_meta_arr('elevation')
-            elev = np.repeat(elev[:, np.newaxis], self.hr_shape[-1], axis=-1)
-        return elev
+        return SolarPosition(self.hr_time_index,
+                             self.hr_lat_lon.reshape((-1, 2))).zenith.T
 
     @property
-    def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the exo_source_h5"""
-        with Resource(self._exo_source) as res:
-            source_lat_lon = res.lat_lon
-        return source_lat_lon
-
-
-class SzaExtractNC(ExoExtract):
-    """TopoExtract for netCDF files"""
-
-    def __init__(self, *args, **kwargs):
+    def data(self):
+        """Get a raster of source values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, temporal, 1)
         """
-        Parameters
-        ----------
-        args : list
-            Same positional arguments as TopoExtract
-        kwargs : dict
-            Same keyword arguments as TopoExtract
-        """
-
-        super().__init__(*args, **kwargs)
-        logger.info('Getting topography for full domain from '
-                    f'{self._exo_source}')
-        self.source_handler = DataHandlerNC(
-            self._exo_source,
-            features=['topography'],
-            worker_kwargs=dict(ti_workers=self.ti_workers),
-            val_split=0.0,
-        )
-
-    @property
-    def source_data(self):
-        """Get the 1D array of elevation data from the exo_source_h5"""
-        elev = self.source_handler.data.reshape(-1)
-        return elev
-
-    @property
-    def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the exo_source_h5"""
-        source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
-        return source_lat_lon
+        hr_data = self.source_data.reshape(self.hr_shape)
+        logger.info('Finished computing SZA data')
+        return hr_data[..., np.newaxis]

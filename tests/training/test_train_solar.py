@@ -2,19 +2,19 @@
 """Test the basic training of super resolution GAN for solar climate change
 applications"""
 import os
-import numpy as np
 import tempfile
+
+import numpy as np
+from rex import init_logger
 from tensorflow.keras.losses import MeanAbsoluteError
 
-from rex import init_logger
-
-from sup3r import TEST_DATA_DIR
-from sup3r import CONFIG_DIR
-from sup3r.models import Sup3rGan, SolarCC
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.models import SolarCC, Sup3rGan
+from sup3r.preprocessing.batch_handling import (
+    BatchHandlerCC,
+    SpatialBatchHandlerCC,
+)
 from sup3r.preprocessing.data_handling import DataHandlerH5SolarCC
-from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
-                                                SpatialBatchHandlerCC)
-
 
 SHAPE = (20, 20)
 
@@ -54,7 +54,9 @@ def test_solar_cc_model(log=False):
                      loss='MeanAbsoluteError')
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '4km', 'temporal': '40min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -108,7 +110,9 @@ def test_solar_cc_model_spatial(log=False):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '25km', 'temporal': '15min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -149,7 +153,9 @@ def test_solar_custom_loss(log=False):
                     loss='MeanAbsoluteError')
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '4km', 'temporal': '40min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,

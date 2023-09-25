@@ -1,33 +1,32 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
 import os
+import tempfile
+
 # import json
 import numpy as np
 import pytest
-import tempfile
 import tensorflow as tf
+from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
-from rex import init_logger
-
-from sup3r import TEST_DATA_DIR
-from sup3r import CONFIG_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rCondMom
-from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.conditional_moment_batch_handling import (
-    SpatialBatchHandlerMom1,
-    SpatialBatchHandlerMom1SF,
-    SpatialBatchHandlerMom2,
-    SpatialBatchHandlerMom2Sep,
-    SpatialBatchHandlerMom2SF,
-    SpatialBatchHandlerMom2SepSF,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,
     BatchHandlerMom2Sep,
+    BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    BatchHandlerMom2SepSF)
-
+    SpatialBatchHandlerMom1,
+    SpatialBatchHandlerMom1SF,
+    SpatialBatchHandlerMom2,
+    SpatialBatchHandlerMom2Sep,
+    SpatialBatchHandlerMom2SepSF,
+    SpatialBatchHandlerMom2SF,
+)
+from sup3r.preprocessing.data_handling import DataHandlerH5
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -79,7 +78,9 @@ def test_train_s_mom1(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     checkpoint_int=2,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -167,7 +168,9 @@ def test_train_s_mom1_sf(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     checkpoint_int=2,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -227,7 +230,10 @@ def test_train_s_mom2(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '8km',
+                                           'temporal': '30min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -288,7 +294,10 @@ def test_train_s_mom2_sf(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '8km',
+                                           'temporal': '30min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -340,7 +349,10 @@ def test_train_s_mom2_sep(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '8km',
+                                           'temporal': '30min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -392,7 +404,10 @@ def test_train_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '8km',
+                                           'temporal': '30min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -436,7 +451,9 @@ def test_train_st_mom1(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '12km', 'temporal': '60min'},
+                    n_epoch=n_epoch,
                     checkpoint_int=2,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -485,7 +502,9 @@ def test_train_st_mom1_sf(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '12km', 'temporal': '60min'},
+                    n_epoch=n_epoch,
                     checkpoint_int=2,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -541,7 +560,10 @@ def test_train_st_mom2(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -599,7 +621,10 @@ def test_train_st_mom2_sf(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -645,7 +670,10 @@ def test_train_st_mom2_sep(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality
@@ -691,7 +719,10 @@ def test_train_st_mom2_sep_sf(FEATURES,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batch_handler, n_epoch=n_epoch,
+        model_mom2.train(batch_handler,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=2,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         # test save/load functionality

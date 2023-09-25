@@ -2,30 +2,29 @@
 """Test the basic training of super resolution GAN for solar climate change
 applications"""
 import os
-import pytest
-import numpy as np
 import tempfile
 
+import numpy as np
+import pytest
 from rex import init_logger
 
-from sup3r import CONFIG_DIR
-from sup3r import TEST_DATA_DIR
-from sup3r.models import WindCondMom
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing.data_handling import DataHandlerH5
 from sup3r.preprocessing.wind_conditional_moment_batch_handling import (
-    WindSpatialBatchHandlerMom1,
-    WindSpatialBatchHandlerMom1SF,
-    WindSpatialBatchHandlerMom2,
-    WindSpatialBatchHandlerMom2SF,
-    WindSpatialBatchHandlerMom2Sep,
-    WindSpatialBatchHandlerMom2SepSF,
     WindBatchHandlerMom1,
     WindBatchHandlerMom1SF,
     WindBatchHandlerMom2,
-    WindBatchHandlerMom2SF,
     WindBatchHandlerMom2Sep,
-    WindBatchHandlerMom2SepSF)
-
+    WindBatchHandlerMom2SepSF,
+    WindBatchHandlerMom2SF,
+    WindSpatialBatchHandlerMom1,
+    WindSpatialBatchHandlerMom1SF,
+    WindSpatialBatchHandlerMom2,
+    WindSpatialBatchHandlerMom2Sep,
+    WindSpatialBatchHandlerMom2SepSF,
+    WindSpatialBatchHandlerMom2SF,
+)
 
 SHAPE = (20, 20)
 
@@ -67,7 +66,7 @@ def make_s_gen_model(custom_layer):
             {"class": "SpatialExpansion", "spatial_mult": 2},
             {"class": "Activation", "activation": "relu"},
 
-            {"class": custom_layer},
+            {"class": custom_layer, "name": "topography"},
 
             {"class": "FlexiblePadding",
              "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -108,24 +107,30 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
 
     gen_model = make_s_gen_model(custom_layer)
 
-    WindCondMom.seed()
-    model = WindCondMom(gen_model, learning_rate=1e-4)
+    Sup3rCondMom.seed()
+    model = Sup3rCondMom(gen_model, learning_rate=1e-4)
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model.train(batcher, n_epoch=n_epoch,
+        model.train(batcher,
+                    input_resolution={'spatial': '8km', 'temporal': '60min'},
+                    n_epoch=n_epoch,
                     checkpoint_int=None,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         assert f'test_{n_epoch-1}' in os.listdir(out_dir_root)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'WindCondMom'
+        assert model.meta['class'] == 'Sup3rCondMom'
         assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
-    hi_res_topo = np.random.uniform(0, 1, (60, 60))
+    hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
 
-    y = model.generate(x, exogenous_data=(None, hi_res_topo))
+    y = model.generate(x, exogenous_data=exo_tmp)
 
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
@@ -159,8 +164,8 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                           'sup3rcc',
                           'gen_wind_3x_4x_2f.json')
 
-    WindCondMom.seed()
-    model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
+    Sup3rCondMom.seed()
+    model_mom1 = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     batcher = batch_class([handler],
                           batch_size=batch_size,
@@ -171,7 +176,10 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom1.train(batcher, n_epoch=n_epoch,
+        model_mom1.train(batcher,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=None,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -204,9 +212,9 @@ def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
 
     gen_model = make_s_gen_model(custom_layer)
 
-    WindCondMom.seed()
-    model_mom1 = WindCondMom(gen_model, learning_rate=1e-4)
-    model_mom2 = WindCondMom(gen_model, learning_rate=1e-4)
+    Sup3rCondMom.seed()
+    model_mom1 = Sup3rCondMom(gen_model, learning_rate=1e-4)
+    model_mom2 = Sup3rCondMom(gen_model, learning_rate=1e-4)
 
     batcher = batch_class([handler],
                           batch_size=batch_size,
@@ -217,7 +225,10 @@ def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batcher, n_epoch=n_epoch,
+        model_mom2.train(batcher,
+                         input_resolution={'spatial': '8km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=None,
                          out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
 
@@ -251,9 +262,9 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
                           'sup3rcc',
                           'gen_wind_3x_4x_2f.json')
 
-    WindCondMom.seed()
-    model_mom1 = WindCondMom(fp_gen, learning_rate=1e-4)
-    model_mom2 = WindCondMom(fp_gen, learning_rate=1e-4)
+    Sup3rCondMom.seed()
+    model_mom1 = Sup3rCondMom(fp_gen, learning_rate=1e-4)
+    model_mom2 = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     batcher = batch_class([handler],
                           batch_size=batch_size,
@@ -264,7 +275,10 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
     with tempfile.TemporaryDirectory() as td:
         if out_dir_root is None:
             out_dir_root = td
-        model_mom2.train(batcher, n_epoch=n_epoch,
+        model_mom2.train(batcher,
+                         input_resolution={'spatial': '12km',
+                                           'temporal': '60min'},
+                         n_epoch=n_epoch,
                          checkpoint_int=None,
                          out_dir=os.path.join(out_dir_root,
                                               'test_{epoch}'))

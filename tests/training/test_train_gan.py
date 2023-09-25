@@ -52,8 +52,13 @@ def test_train_spatial(log=False, full_shape=(20, 20),
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
-        model.train(batch_handler, n_epoch=n_epoch, weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False, checkpoint_int=1,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
+                    weight_gen_advers=0.0,
+                    train_gen=True,
+                    train_disc=False,
+                    checkpoint_int=1,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert len(model.history) == n_epoch
@@ -122,7 +127,9 @@ def test_train_st_weight_update(n_epoch=2, log=False):
 
     adaptive_update_bounds = (0.9, 0.99)
     with tempfile.TemporaryDirectory() as td:
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     weight_gen_advers=1e-6,
                     train_gen=True, train_disc=True,
                     checkpoint_int=10,
@@ -178,7 +185,9 @@ def test_train_spatial_dc(log=False, full_shape=(20, 20),
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
         # to the weight for that bin
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=2,
@@ -226,7 +235,9 @@ def test_train_st_dc(n_epoch=2, log=False):
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
         # to the weight for that bin
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=2,
@@ -274,7 +285,9 @@ def test_train_st(n_epoch=2, log=False):
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss
-        model.train(batch_handler, n_epoch=n_epoch,
+        model.train(batch_handler,
+                    input_resolution={'spatial': '8km', 'temporal': '30min'},
+                    n_epoch=n_epoch,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=1,

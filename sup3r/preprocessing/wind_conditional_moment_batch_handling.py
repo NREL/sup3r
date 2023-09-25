@@ -3,17 +3,21 @@
 Sup3r wind conditional moment batch_handling module.
 """
 import logging
-import tensorflow as tf
-import numpy as np
 
-from sup3r.utilities.utilities import (spatial_simple_enhancing,
-                                       temporal_simple_enhancing)
+import numpy as np
+import tensorflow as tf
+
 from sup3r.preprocessing.batch_handling import Batch
 from sup3r.preprocessing.conditional_moment_batch_handling import (
-    SpatialBatchHandlerMom1,
+    BatchHandlerMom1,
     BatchMom1,
+    SpatialBatchHandlerMom1,
     ValidationDataMom1,
-    BatchHandlerMom1)
+)
+from sup3r.utilities.utilities import (
+    spatial_simple_enhancing,
+    temporal_simple_enhancing,
+)
 
 np.random.seed(42)
 
@@ -122,7 +126,8 @@ class WindBatchMom2(WindBatchMom1):
             HR is high-res and LR is low-res
         """
         # Remove first moment from HR and square it
-        out = model_mom1._tf_generate(low_res, high_res[..., -1:]).numpy()
+        out = model_mom1._tf_generate(
+            low_res, {'topography': high_res[..., -1:]}).numpy()
         out = tf.concat((out, high_res[..., -1:]), axis=-1)
         return (high_res - out)**2
 
@@ -176,7 +181,8 @@ class WindBatchMom2SF(WindBatchMom1):
             SF = HR - LR
         """
         # Remove LR and first moment from HR and square it
-        out = model_mom1._tf_generate(low_res, high_res[..., -1:]).numpy()
+        out = model_mom1._tf_generate(
+            low_res, {'topography': high_res[..., -1:]}).numpy()
         out = tf.concat((out, high_res[..., -1:]), axis=-1)
         enhanced_lr = spatial_simple_enhancing(low_res,
                                                s_enhance=s_enhance)
@@ -251,6 +257,7 @@ class WindBatchHandlerMom1(BatchHandlerMom1):
 
 class WindSpatialBatchHandlerMom1(SpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class"""
+
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationDataMom1
     BATCH_CLASS = WindBatchMom1
@@ -260,36 +267,42 @@ class WindSpatialBatchHandlerMom1(SpatialBatchHandlerMom1):
 class ValidationDataWindMom1SF(ValidationDataMom1):
     """Iterator for validation wind data for first conditional moment of
     subfilter velocity"""
+
     BATCH_CLASS = WindBatchMom1SF
 
 
 class ValidationDataWindMom2(ValidationDataMom1):
     """Iterator for subfilter validation wind data for second conditional
     moment"""
+
     BATCH_CLASS = WindBatchMom2
 
 
 class ValidationDataWindMom2Sep(ValidationDataMom1):
     """Iterator for subfilter validation wind data for second conditional
     moment separate from first moment"""
+
     BATCH_CLASS = WindBatchMom2Sep
 
 
 class ValidationDataWindMom2SF(ValidationDataMom1):
     """Iterator for validation wind data for second conditional moment of
     subfilter velocity"""
+
     BATCH_CLASS = WindBatchMom2SF
 
 
 class ValidationDataWindMom2SepSF(ValidationDataMom1):
     """Iterator for validation wind data for second conditional moment of
     subfilter velocity separate from first moment"""
+
     BATCH_CLASS = WindBatchMom2SepSF
 
 
 class WindBatchHandlerMom1SF(WindBatchHandlerMom1):
     """Sup3r batch handling class for first conditional moment of subfilter
     velocity using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom1SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -297,6 +310,7 @@ class WindBatchHandlerMom1SF(WindBatchHandlerMom1):
 class WindSpatialBatchHandlerMom1SF(WindSpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for first conditional moment of
     subfilter velocity using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom1SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -304,6 +318,7 @@ class WindSpatialBatchHandlerMom1SF(WindSpatialBatchHandlerMom1):
 class WindBatchHandlerMom2(WindBatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment using
     topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -311,6 +326,7 @@ class WindBatchHandlerMom2(WindBatchHandlerMom1):
 class WindBatchHandlerMom2Sep(WindBatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment separate from
     first moment using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2Sep
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -318,6 +334,7 @@ class WindBatchHandlerMom2Sep(WindBatchHandlerMom1):
 class WindSpatialBatchHandlerMom2(WindSpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment using
     topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -325,6 +342,7 @@ class WindSpatialBatchHandlerMom2(WindSpatialBatchHandlerMom1):
 class WindSpatialBatchHandlerMom2Sep(WindSpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment
     separate from first moment using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2Sep
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -332,6 +350,7 @@ class WindSpatialBatchHandlerMom2Sep(WindSpatialBatchHandlerMom1):
 class WindBatchHandlerMom2SF(WindBatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment of subfilter
     velocity"""
+
     VAL_CLASS = ValidationDataWindMom2SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -339,6 +358,7 @@ class WindBatchHandlerMom2SF(WindBatchHandlerMom1):
 class WindBatchHandlerMom2SepSF(WindBatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment of subfilter
     velocity separate from first moment using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2SepSF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -346,6 +366,7 @@ class WindBatchHandlerMom2SepSF(WindBatchHandlerMom1):
 class WindSpatialBatchHandlerMom2SF(WindSpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment of
     subfilter velocity using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2SF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
@@ -353,5 +374,6 @@ class WindSpatialBatchHandlerMom2SF(WindSpatialBatchHandlerMom1):
 class WindSpatialBatchHandlerMom2SepSF(WindSpatialBatchHandlerMom1):
     """Sup3r spatial batch handling class for second conditional moment of
     subfilter velocity separate from first moment using topography as input"""
+
     VAL_CLASS = ValidationDataWindMom2SepSF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS

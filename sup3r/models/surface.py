@@ -107,6 +107,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
         self._fix_bias = fix_bias
+        self._input_resolution = None
         self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
@@ -561,6 +562,7 @@ class SurfaceSpatialMetModel(LinearInterp):
                 's_enhance': self._s_enhance,
                 't_enhance': 1,
                 'noise_adders': self._noise_adders,
+                'input_resolution': self._input_resolution,
                 'weight_for_delta_temp': self._w_delta_temp,
                 'weight_for_delta_topo': self._w_delta_topo,
                 'pressure_divisor': self._pres_div,
@@ -572,10 +574,10 @@ class SurfaceSpatialMetModel(LinearInterp):
                 'class': self.__class__.__name__,
                 }
 
-    def train(self, true_hr_temp, true_hr_rh, true_hr_topo):
-        """This method trains the relative humidity linear model. The
-        temperature and surface lapse rate models are parameterizations taken
-        from the NSRDB and are not trained.
+    def train(self, true_hr_temp, true_hr_rh, true_hr_topo, input_resolution):
+        """Trains the relative humidity linear model. The temperature and
+        surface lapse rate models are parameterizations taken from the NSRDB
+        and are not trained.
 
         Parameters
         ----------
@@ -588,6 +590,9 @@ class SurfaceSpatialMetModel(LinearInterp):
         true_hr_topo : np.ndarray
             High-resolution surface elevation data in meters with shape
             (lat, lon)
+        input_resolution : dict
+            Dictionary of spatial and temporal input resolution. e.g.
+            {'spatial': '20km': 'temporal': '60min'}
 
         Returns
         -------
@@ -598,7 +603,7 @@ class SurfaceSpatialMetModel(LinearInterp):
             Weight for the delta-topography feature for the relative humidity
             linear regression model.
         """
-
+        self._input_resolution = input_resolution
         assert len(true_hr_temp.shape) == 3, 'Bad true_hr_temp shape'
         assert len(true_hr_rh.shape) == 3, 'Bad true_hr_rh shape'
         assert len(true_hr_topo.shape) == 2, 'Bad true_hr_topo shape'

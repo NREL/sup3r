@@ -148,11 +148,14 @@ class AbstractInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
+        low_res_shape = low_res.shape
         check = (exogenous_data is not None
                  and low_res.shape[-1] < len(self.training_features))
+        exo_data = {k: v for k, v in exogenous_data.items()
+                    if k in self.training_features}
         if check:
-            for i, (feature, entry) in enumerate(exogenous_data.items()):
-                f_idx = low_res.shape[-1] + i
+            for i, (feature, entry) in enumerate(exo_data.items()):
+                f_idx = low_res_shape[-1] + i
                 training_feature = self.training_features[f_idx]
                 msg = ('The ordering of features in exogenous_data conflicts '
                        'with the ordering of training features. Received '
@@ -194,9 +197,14 @@ class AbstractInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        if exogenous_data is not None:
-            for i, (feature, entry) in enumerate(exogenous_data.items()):
-                f_idx = hi_res.shape[-1] + i
+        hi_res_shape = hi_res.shape[-1]
+        check = (exogenous_data is not None
+                 and hi_res.shape[-1] < len(self.output_features))
+        exo_data = {k: v for k, v in exogenous_data.items()
+                    if k in self.training_features}
+        if check:
+            for i, (feature, entry) in enumerate(exo_data.items()):
+                f_idx = hi_res_shape[-1] + i
                 training_feature = self.training_features[f_idx]
                 msg = ('The ordering of features in exogenous_data conflicts '
                        'with the ordering of training features. Received '
@@ -228,10 +236,11 @@ class AbstractInterface(ABC):
         high_res_gen : tf.Tensor
             Same as input with exogenous data combined with high_res input
         """
-        for feature in self.exogenous_features:
-            f_idx = self.training_features.index(feature)
-            exo_data = high_res_true[..., f_idx: f_idx + 1]
-            high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
+        if high_res_true.shape[-1] > high_res_gen.shape[-1]:
+            for feature in self.exogenous_features:
+                f_idx = self.training_features.index(feature)
+                exo_data = high_res_true[..., f_idx: f_idx + 1]
+                high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
 
     def _get_exo_val_loss_input(self, high_res):
@@ -344,9 +353,9 @@ class AbstractInterface(ABC):
                f'data handler must be {self.exogenous_features} '
                'to train the Exo model, but received output features: {}'.
                format(output_features))
-        check = (output_features[-len(self.exogenous_features)]
-                 == self.exogenous_features)
-        assert check, msg
+        exo_features = ([] if len(self.exogenous_features) == 0
+                        else output_features[-len(self.exogenous_features):])
+        assert exo_features == self.exogenous_features, msg
         for f in self.exogenous_features:
             output_features.remove(f)
         kwargs['output_features'] = output_features
@@ -1166,6 +1175,7 @@ class AbstractSingleModel(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
+
         low_res = self._combine_fwp_input(low_res, exogenous_data)
 
         if norm_in and self._means is not None:

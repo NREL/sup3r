@@ -309,7 +309,7 @@ def test_fwp_multi_step_model_topo_noskip():
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '15min'},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [{'model': 0, 'combine_type': 'input'},
                           {'model': 1, 'combine_type': 'input'},
                           {'model': 2, 'combine_type': 'input'}]
@@ -466,7 +466,7 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '15min'},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'layer'}
@@ -633,7 +633,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '15min'},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
             }
         }
 
@@ -800,7 +800,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '15min'},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [{'model': 0, 'combine_type': 'input'},
                           {'model': 0, 'combine_type': 'layer'}]
             }
@@ -900,17 +900,17 @@ def test_fwp_multi_step_model_multi_exo():
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': None},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [{'model': 0, 'combine_type': 'input'},
                           {'model': 1, 'combine_type': 'input'}]
             },
             'sza': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': None},
+                'exo_handler': 'SzaExtract',
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [{'model': 2, 'combine_type': 'input'}]
             }
         }
@@ -974,10 +974,11 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     high-resolution topography and sza input from the exogenous_data
     feature."""
     Sup3rGan.seed()
-    gen_model = [{
+    gen_s_model = [{
         "class": "FlexiblePadding",
         "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
-        "mode": "REFLECT"}, {
+        "mode": "REFLECT"
+    }, {
         "class": "Conv2DTranspose",
         "filters": 64,
         "kernel_size": 3,
@@ -1039,8 +1040,53 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
         "cropping": 4
     }]
 
+    gen_t_model = [{
+        "class": "FlexiblePadding",
+        "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+        "mode": "REFLECT"
+    }, {
+        "class": "Conv3D", "filters": 1, "kernel_size": 3, "strides": 1
+    }, {
+        "class": "Cropping3D", "cropping": 2
+    }, {
+        "alpha": 0.2, "class": "LeakyReLU"
+    }, {
+        "class": "SpatioTemporalExpansion", "temporal_mult": 2,
+        "temporal_method": "nearest"
+    }, {
+        "class": "FlexiblePadding",
+        "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+        "mode": "REFLECT"
+    }, {
+        "class": "Conv3D", "filters": 1, "kernel_size": 3, "strides": 1
+    }, {
+        "class": "Cropping3D", "cropping": 2
+    }, {
+        "class": "FlexiblePadding",
+        "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+        "mode": "REFLECT"
+    }, {
+        "class": "Conv3D", "filters": 36, "kernel_size": 3, "strides": 1
+    }, {
+        "class": "Cropping3D", "cropping": 2
+    }, {
+        "class": "SpatioTemporalExpansion", "spatial_mult": 3
+    }, {
+        "alpha": 0.2, "class": "LeakyReLU"
+    }, {
+        "class": "Sup3rConcat", "name": "sza"
+    }, {
+        "class": "FlexiblePadding",
+        "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
+        "mode": "REFLECT"
+    }, {
+        "class": "Conv3D", "filters": 2, "kernel_size": 3, "strides": 1
+    }, {
+        "class": "Cropping3D", "cropping": 2
+    }]
+
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
     s1_model.meta['training_features'] = [
         'U_100m', 'V_100m', 'topography', 'sza'
     ]
@@ -1049,10 +1095,17 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {'spatial': '48km',
                                          'temporal': '60min'}
-    _ = s1_model.generate(np.ones((4, 10, 10, 3)),
-                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+    exo_tmp = {
+        'topography': {
+            'steps': [{'model': 0, 'combine_type': 'layer',
+                       'data': np.ones((4, 20, 20, 1))}]},
+        'sza': {
+            'steps': [{'model': 0, 'combine_type': 'layer',
+                       'data': np.ones((4, 20, 20, 1))}]}
+    }
+    _ = s1_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
 
-    s2_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = [
         'U_100m', 'V_100m', 'topography', 'sza'
     ]
@@ -1061,21 +1114,24 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {'spatial': '24km',
                                          'temporal': '60min'}
-    _ = s2_model.generate(np.ones((4, 10, 10, 3)),
-                          exogenous_data=(None, np.ones((4, 20, 20, 1))))
+    _ = s2_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    st_model = Sup3rGan(gen_t_model, fp_disc, learning_rate=1e-4)
     st_model.meta['training_features'] = [
-        'U_100m', 'V_100m', 'topography', 'sza'
+        'U_100m', 'V_100m', 'sza'
     ]
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
     st_model.meta['s_enhance'] = 3
-    st_model.meta['t_enhance'] = 4
+    st_model.meta['t_enhance'] = 2
     st_model.meta['input_resolution'] = {'spatial': '12km',
                                          'temporal': '60min'}
-    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
+    exo_tmp = {
+        'sza': {
+            'steps': [{'model': 0, 'combine_type': 'layer',
+                       'data': np.ones((4, 30, 30, 12, 1))}]}
+    }
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)), exogenous_data=exo_tmp)
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -1094,18 +1150,25 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '15min'},
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [{'model': 0, 'combine_type': 'input'},
-                          {'model': 1, 'combine_type': 'input'}]
+                          {'model': 0, 'combine_type': 'layer'},
+                          {'model': 1, 'combine_type': 'input'},
+                          {'model': 1, 'combine_type': 'layer'}]
             },
             'sza': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'exo_handler': 'SzaExtract',
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': None},
-                'steps': [{'model': 2, 'combine_type': 'input'}]
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
+                'steps': [{'model': 0, 'combine_type': 'input'},
+                          {'model': 0, 'combine_type': 'layer'},
+                          {'model': 1, 'combine_type': 'input'},
+                          {'model': 1, 'combine_type': 'layer'},
+                          {'model': 2, 'combine_type': 'input'},
+                          {'model': 2, 'combine_type': 'layer'}]
             }
         }
 
@@ -1119,24 +1182,6 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
                                     temporal_slice=temporal_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
-
-        # should get an error on a bad tensorflow concatenation
-        with pytest.raises(RuntimeError):
-            exo_kwargs['s_enhancements'] = [1, 1, 1]
-            handler = ForwardPassStrategy(
-                input_files,
-                model_kwargs=model_kwargs,
-                model_class='SpatialThenTemporalGan',
-                fwp_chunk_shape=(4, 4, 8),
-                spatial_pad=1,
-                temporal_pad=1,
-                input_handler_kwargs=input_handler_kwargs,
-                out_pattern=out_files,
-                worker_kwargs=dict(max_workers=1),
-                exo_kwargs=exo_kwargs,
-                max_nodes=1)
-            forward_pass = ForwardPass(handler)
-            forward_pass.run(handler, node_index=0)
 
         handler = ForwardPassStrategy(
             input_files,
@@ -1155,4 +1200,3 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
 
         for fp in handler.out_files:
             assert os.path.exists(fp)
-

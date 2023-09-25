@@ -31,7 +31,7 @@
       {"class": "SpatialExpansion", "spatial_mult": 5},
       {"alpha": 0.2, "class": "LeakyReLU"},
 
-      {"class": "Sup3rConcat"},
+      {"class": "Sup3rConcat", "name": "topography"},
       {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
       {"class": "Conv2D", "filters": 64, "kernel_size": 3, "strides": 1},
       {"class": "Cropping2D", "cropping": 2},

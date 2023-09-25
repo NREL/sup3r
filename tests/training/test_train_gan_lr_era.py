@@ -73,6 +73,7 @@ def test_train_spatial(
         # test that training works and reduces loss
         model.train(
             batch_handler,
+            input_resolution={'spatial': '30km', 'temporal': '60min'},
             n_epoch=n_epoch,
             weight_gen_advers=0.0,
             train_gen=True,
@@ -173,6 +174,7 @@ def test_train_st(n_epoch=3, log=True):
         # test that training works and reduces loss
         model.train(
             batch_handler,
+            input_resolution={'spatial': '30km', 'temporal': '60min'},
             n_epoch=n_epoch,
             weight_gen_advers=0.0,
             train_gen=True,

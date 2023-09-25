@@ -4,11 +4,10 @@ import os
 import pickle
 import shutil
 from typing import ClassVar
-from warnings import warn
 
+from sup3r.preprocessing.data_handling import exo_extraction
 from sup3r.preprocessing.data_handling.exo_extraction import (
-    SzaExtractH5,
-    SzaExtractNC,
+    SzaExtract,
     TopoExtractH5,
     TopoExtractNC,
 )
@@ -28,19 +27,19 @@ class ExogenousDataHandler:
             'nc': TopoExtractNC
         },
         'sza': {
-            'h5': SzaExtractH5,
-            'nc': SzaExtractNC
+            'h5': SzaExtract,
+            'nc': SzaExtract
         }
     }
 
     def __init__(self,
                  file_paths,
                  feature,
-                 source_file,
                  s_enhancements,
                  t_enhancements,
                  s_agg_factors,
                  t_agg_factors,
+                 source_file=None,
                  target=None,
                  shape=None,
                  temporal_slice=None,
@@ -61,10 +60,6 @@ class ExogenousDataHandler:
             sup3r resolved.
         feature : str
             Exogenous feature to extract from source_h5
-        source_file : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
         s_enhancements : list
             List of factors by which the Sup3rGan model will enhance the
             spatial dimensions of low resolution data from file_paths input
@@ -93,6 +88,10 @@ class ExogenousDataHandler:
             data to the temporal resolution of the file_paths input enhanced by
             t_enhance. The length of this list should be equal to the number of
             t_enhancements
+        source_file : str
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
+            4km) data from which will be mapped to the enhanced grid of the
+            file_paths input
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -145,21 +144,6 @@ class ExogenousDataHandler:
         self.cache_data = cache_data
         self.cache_dir = cache_dir
         self.data = []
-
-        if self.s_enhancements[0] != 1:
-            msg = ('s_enhancements typically starts with 1 so the first '
-                   'exogenous data input matches the spatial resolution of '
-                   'the source low-res input data, but received '
-                   's_enhancements: {}'.format(self.s_enhancements))
-            logger.warning(msg)
-            warn(msg)
-        if self.t_enhancements[0] != 1:
-            msg = ('t_enhancements typically starts with 1 so the first '
-                   'exogenous data input matches the temporal resolution of '
-                   'the source low-res input data, but received '
-                   't_enhancements: {}'.format(self.t_enhancements))
-            logger.warning(msg)
-            warn(msg)
 
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={self.s_enhancements}, '
@@ -325,4 +309,6 @@ class ExogenousDataHandler:
                        f'feature={feature} and input_type={in_type}.')
                 logger.error(msg)
                 raise KeyError(msg)
+        elif isinstance(exo_handler, str):
+            exo_handler = getattr(exo_extraction, exo_handler, None)
         return exo_handler

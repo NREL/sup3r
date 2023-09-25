@@ -48,15 +48,12 @@ def test_wind_cc_model(log=False):
                                   time_roll=-7,
                                   sample_shape=(20, 20, 96),
                                   worker_kwargs=dict(max_workers=1),
-                                  train_only_features=tuple())
-
+                                  train_only_features=['topography'])
     batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2,
                              s_enhance=4, sub_daily_shape=None)
-
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_4x_24x_3f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
@@ -64,7 +61,10 @@ def test_wind_cc_model(log=False):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -72,7 +72,6 @@ def test_wind_cc_model(log=False):
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
         assert len(model.output_features) == len(FEATURES_W) - 1
 
@@ -97,7 +96,7 @@ def test_wind_cc_model_spatial(log=False):
                                   val_split=0.1,
                                   sample_shape=(20, 20),
                                   worker_kwargs=dict(max_workers=1),
-                                  train_only_features=tuple())
+                                  train_only_features=['topography'])
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
@@ -112,7 +111,10 @@ def test_wind_cc_model_spatial(log=False):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -121,7 +123,6 @@ def test_wind_cc_model_spatial(log=False):
         assert 'test_0' in os.listdir(td)
         assert model.meta['output_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' in batcher.output_features
         assert 'topography' not in model.output_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
@@ -146,7 +147,7 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                                   val_split=0.1,
                                   sample_shape=(20, 20),
                                   worker_kwargs=dict(max_workers=1),
-                                  train_only_features=tuple())
+                                  train_only_features=())
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
@@ -177,7 +178,7 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer},
+                 {"class": custom_layer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -192,7 +193,10 @@ def test_wind_hi_res_topo(custom_layer, log=False):
     model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -205,12 +209,16 @@ def test_wind_hi_res_topo(custom_layer, log=False):
         assert 'topography' not in model.output_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
-    hi_res_topo = np.random.uniform(0, 1, (60, 60))
+    hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
 
     with pytest.raises(RuntimeError):
         y = model.generate(x, exogenous_data=None)
 
-    y = model.generate(x, exogenous_data=(None, hi_res_topo))
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
+    y = model.generate(x, exogenous_data=exo_tmp)
 
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
@@ -262,7 +270,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer},
+                 {"class": custom_layer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -277,7 +285,10 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
     model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -290,12 +301,16 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
         assert 'topography' not in model.output_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
-    hi_res_topo = np.random.uniform(0, 1, (60, 60))
+    hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
 
     with pytest.raises(RuntimeError):
         y = model.generate(x, exogenous_data=None)
 
-    y = model.generate(x, exogenous_data=(None, hi_res_topo))
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
+    y = model.generate(x, exogenous_data=exo_tmp)
 
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
@@ -347,7 +362,7 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer},
+                 {"class": custom_layer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
@@ -362,7 +377,10 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
     model = Sup3rGanDC(gen_model, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher, n_epoch=1,
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
                     weight_gen_advers=0.0,
                     train_gen=True, train_disc=False,
                     checkpoint_int=None,
@@ -380,7 +398,11 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
     with pytest.raises(RuntimeError):
         y = model.generate(x, exogenous_data=None)
 
-    y = model.generate(x, exogenous_data=(None, hi_res_topo))
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
+    y = model.generate(x, exogenous_data=exo_tmp)
 
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2

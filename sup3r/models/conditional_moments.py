@@ -339,7 +339,9 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
 
         return loss_details
 
-    def train(self, batch_handler, n_epoch,
+    def train(self, batch_handler,
+              input_resolution,
+              n_epoch,
               checkpoint_int=None,
               out_dir='./condMom_{epoch}',
               early_stop_on=None,
@@ -352,6 +354,9 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         ----------
         batch_handler : sup3r.data_handling.preprocessing.BatchHandler
             BatchHandler object to iterate through
+        input_resolution : dict
+            Dictionary specifying spatiotemporal input resolution. e.g.
+            {'temporal': '60min', 'spatial': '30km'}
         n_epoch : int
             Number of epochs to train on
         checkpoint_int : int | None
@@ -386,6 +391,7 @@ class Sup3rCondMom(AbstractInterface, AbstractSingleModel):
         """
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
+            input_resolution=input_resolution,
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,

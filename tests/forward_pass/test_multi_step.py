@@ -243,4 +243,3 @@ def test_solar_multistep():
         x = np.ones((3, 10, 10, len(features1 + features2)))
         out = ms_model.generate(x)
         assert out.shape == (1, 20, 20, 24, 1)
-

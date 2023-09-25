@@ -4,15 +4,15 @@ SurfaceSpatialMetModel"""
 import json
 import os
 import tempfile
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from rex import Resource
 
-from sup3r.models import Sup3rGan
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.models.surface import SurfaceSpatialMetModel
+from sup3r.models import Sup3rGan
 from sup3r.models.multi_step import MultiStepSurfaceMetGan
+from sup3r.models.surface import SurfaceSpatialMetModel
 from sup3r.utilities.utilities import spatial_coarsening
 
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
@@ -61,8 +61,8 @@ def test_surface_model(s_enhance=5):
             json.dump(kwargs, f)
 
         model = SurfaceSpatialMetModel.load(model_dir=td)
-
-    hi_res = model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
+    exo_tmp = {'topography': {'steps': [{'data': topo_lr}, {'data': topo_hr}]}}
+    hi_res = model.generate(low_res, exogenous_data=exo_tmp)
 
     diff = true_hi_res - hi_res
 
@@ -86,7 +86,9 @@ def test_train_rh_model(s_enhance=10):
     true_hr_rh = np.transpose(true_hi_res[..., 1], axes=(1, 2, 0))
 
     model = SurfaceSpatialMetModel(FEATURES, s_enhance=s_enhance)
-    w_delta_temp, w_delta_topo = model.train(true_hr_temp, true_hr_rh, topo_hr)
+    w_delta_temp, w_delta_topo = model.train(
+        true_hr_temp, true_hr_rh, topo_hr,
+        input_resolution={'spatial': '3km', 'temporal': '60min'})
 
     # pretty generous tolerances because the training dataset is so small
     assert np.allclose(w_delta_temp, SurfaceSpatialMetModel.W_DELTA_TEMP,
@@ -120,6 +122,8 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
     model.set_norm_stats([0.3, 0.9, 0.1], [0.02, 0.07, 0.03])
     model.set_model_params(training_features=FEATURES,
                            output_features=FEATURES,
+                           input_resolution={'spatial': '30km',
+                                             'temporal': '60min'},
                            s_enhance=1,
                            t_enhance=t_enhance)
 
@@ -155,7 +159,10 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
         topo_lr = topo_lr[:4, :4]
         topo_hr = topo_hr[:8, :8]
 
-        hi_res = ms_model.generate(low_res, exogenous_data=[topo_lr, topo_hr])
+        exo_tmp = {
+            'topography': {
+                'steps': [{'data': topo_lr}, {'data': topo_hr}]}}
+        hi_res = ms_model.generate(low_res, exogenous_data=exo_tmp)
 
         target_shape = (1,
                         low_res.shape[1] * s_enhance,
