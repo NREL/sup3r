@@ -151,9 +151,9 @@ class AbstractInterface(ABC):
         low_res_shape = low_res.shape
         check = (exogenous_data is not None
                  and low_res.shape[-1] < len(self.training_features))
-        exo_data = {k: v for k, v in exogenous_data.items()
-                    if k in self.training_features}
         if check:
+            exo_data = {k: v for k, v in exogenous_data.items()
+                        if k in self.training_features}
             for i, (feature, entry) in enumerate(exo_data.items()):
                 f_idx = low_res_shape[-1] + i
                 training_feature = self.training_features[f_idx]
@@ -200,9 +200,9 @@ class AbstractInterface(ABC):
         hi_res_shape = hi_res.shape[-1]
         check = (exogenous_data is not None
                  and hi_res.shape[-1] < len(self.output_features))
-        exo_data = {k: v for k, v in exogenous_data.items()
-                    if k in self.training_features}
         if check:
+            exo_data = {k: v for k, v in exogenous_data.items()
+                        if k in self.training_features}
             for i, (feature, entry) in enumerate(exo_data.items()):
                 f_idx = hi_res_shape[-1] + i
                 training_feature = self.training_features[f_idx]
@@ -798,7 +798,7 @@ class AbstractSingleModel(ABC):
             Namespace of the breakdown of loss components for a single new
             batch.
         batch_len : int
-            Length of the incomming batch.
+            Length of the incoming batch.
         prefix : None | str
             Option to prefix the names of the loss data when saving to the
             loss_details dictionary.
@@ -1136,6 +1136,39 @@ class AbstractSingleModel(ABC):
 
         return hi_res_exo
 
+    def _get_layer_exo_input(self, layer_name, exogenous_data):
+        """Get the high-resolution exo data for the given layer name from the
+        full exogenous_data dictionary.
+
+        Parameters
+        ----------
+        layer_name : str
+            Name of Sup3rAdder or Sup3rConcat layer. This should match a
+            feature key in exogenous_data
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        """
+        msg = (f'layer.name = {layer_name} does not match any '
+               'features in exogenous_data '
+               f'({list(exogenous_data)})')
+        assert layer_name in exogenous_data, msg
+        steps = exogenous_data[layer_name]['steps']
+        combine_types = [step['combine_type'] for step in steps]
+        msg = ('Received exogenous_data without any combine_type '
+               '= "layer" steps, for a model with an Adder/Concat '
+               'layer.')
+        assert 'layer' in combine_types, msg
+        idx = combine_types.index('layer')
+        hi_res_exo = steps[idx]['data']
+        return hi_res_exo
+
     def generate(self,
                  low_res,
                  norm_in=True,
@@ -1185,14 +1218,11 @@ class AbstractSingleModel(ABC):
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    exo_name = layer.name
-                    steps = exogenous_data[exo_name]['steps']
-                    combine_types = [step['combine_type'] for step in steps]
-                    idx = combine_types.index('layer')
-                    hi_res_exo = steps[idx]['data']
+                    hi_res_exo = self._get_layer_exo_input(layer.name,
+                                                           exogenous_data)
                     hi_res_exo = self._reshape_norm_exo(hi_res,
                                                         hi_res_exo,
-                                                        exo_name,
+                                                        layer.name,
                                                         norm_in=norm_in)
                     hi_res = layer(hi_res, hi_res_exo)
                 else:
@@ -1242,6 +1272,9 @@ class AbstractSingleModel(ABC):
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    msg = (f'layer.name = {layer.name} does not match any '
+                           f'features in exogenous_data ({list(hi_res_exo)})')
+                    assert layer.name in hi_res_exo, msg
                     hr_exo = hi_res_exo[layer.name]
                     hi_res = layer(hi_res, hr_exo)
                 else:

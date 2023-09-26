@@ -12,6 +12,7 @@ import warnings
 from concurrent.futures import as_completed
 from datetime import datetime as dt
 from inspect import signature
+from typing import ClassVar
 
 import numpy as np
 import psutil
@@ -1040,6 +1041,9 @@ class ForwardPass:
     through the GAN generator to produce high resolution output.
     """
 
+    OUTPUT_HANDLER_CLASS: ClassVar = {'nc': OutputHandlerNC,
+                                      'h5': OutputHandlerH5}
+
     def __init__(self, strategy, chunk_index=0, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The stragegy
         provides the data chunks to run forward passes on
@@ -1089,16 +1093,15 @@ class ForwardPass:
         self.max_workers = strategy.max_workers
         self.pass_workers = strategy.pass_workers
         self.output_workers = strategy.output_workers
-        self.exo_kwargs = self._prep_exo_extract_kwargs(strategy.exo_kwargs)
+        self.exo_kwargs = self.update_exo_extract_kwargs(strategy.exo_kwargs)
         self.exo_features = ([]
                              if not self.exo_kwargs else list(self.exo_kwargs))
         self.exogenous_data = self.load_exo_data()
         self.input_handler_class = strategy.input_handler_class
-
-        if strategy.output_type == 'nc':
-            self.output_handler_class = OutputHandlerNC
-        elif strategy.output_type == 'h5':
-            self.output_handler_class = OutputHandlerH5
+        msg = f'Received bad output type {strategy.output_type}'
+        if strategy.output_type in list(self.OUTPUT_HANDLER_CLASS):
+            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
+                strategy.output_type]
 
         input_handler_kwargs = self.update_input_handler_kwargs(strategy)
 
@@ -1177,7 +1180,7 @@ class ForwardPass:
         t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
         return s_agg_factor, t_agg_factor
 
-    def _prep_exo_extract_single_step(self, step_dict, exo_resolution):
+    def _get_single_step_agg_and_enhancement(self, step_dict, exo_resolution):
         """Compute agg and enhancement factors for exogenous data extraction
         using exo_kwargs single model step. These factors are computed using
         exo_resolution and the input/output resolution of each model step.
@@ -1244,7 +1247,7 @@ class ForwardPass:
                              'resolution': resolution})
         return updated_dict
 
-    def _prep_exo_extract_kwargs(self, exo_kwargs):
+    def update_exo_extract_kwargs(self, exo_kwargs):
         """Compute agg and enhancement factors for all model steps for all
         features.
 
@@ -1265,10 +1268,19 @@ class ForwardPass:
         if exo_kwargs is not None:
             for feature in exo_kwargs:
                 exo_resolution = exo_kwargs[feature]['exo_resolution']
-                for i, step in enumerate(exo_kwargs[feature]['steps']):
-                    out = self._prep_exo_extract_single_step(
+                steps = exo_kwargs[feature]['steps']
+                for i, step in enumerate(steps):
+                    out = self._get_single_step_agg_and_enhancement(
                         step, exo_resolution)
                     exo_kwargs[feature]['steps'][i] = out
+                exo_kwargs[feature]['s_agg_factors'] = [step['s_agg_factor']
+                                                        for step in steps]
+                exo_kwargs[feature]['t_agg_factors'] = [step['t_agg_factor']
+                                                        for step in steps]
+                exo_kwargs[feature]['s_enhancements'] = [step['s_enhance']
+                                                         for step in steps]
+                exo_kwargs[feature]['t_enhancements'] = [step['t_enhance']
+                                                         for step in steps]
         return exo_kwargs
 
     def load_exo_data(self):
@@ -1291,16 +1303,8 @@ class ForwardPass:
                 exo_kwargs['feature'] = feature
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
-                steps = exo_kwargs['steps']
                 exo_kwargs['temporal_slice'] = self.ti_pad_slice
-                exo_kwargs['s_agg_factors'] = [step['s_agg_factor']
-                                               for step in steps]
-                exo_kwargs['t_agg_factors'] = [step['t_agg_factor']
-                                               for step in steps]
-                exo_kwargs['s_enhancements'] = [step['s_enhance']
-                                                for step in steps]
-                exo_kwargs['t_enhancements'] = [step['t_enhance']
-                                                for step in steps]
+                steps = exo_kwargs['steps']
                 sig = signature(ExogenousDataHandler)
                 exo_kwargs = {k: v for k, v in exo_kwargs.items()
                               if k in sig.parameters}

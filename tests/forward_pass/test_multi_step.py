@@ -13,7 +13,6 @@ from sup3r.models import (
     SolarMultiStepGan,
     SpatialThenTemporalGan,
     Sup3rGan,
-    TemporalThenSpatialGan,
 )
 
 FEATURES = ['U_100m', 'V_100m']
@@ -162,11 +161,11 @@ def test_temporal_then_spatial_gan():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = TemporalThenSpatialGan.load(fp1, fp2)
+        ms_model = MultiStepGan.load([fp2, fp1])
 
         x = np.ones((1, 10, 10, 4, len(FEATURES)))
         out = ms_model.generate(x)
-        assert out.shape == (1, 60, 60, 16, 2)
+        assert out.shape == (16, 60, 60, 2)
 
 
 def test_spatial_gan_then_linear_interp():

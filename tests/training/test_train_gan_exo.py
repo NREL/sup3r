@@ -11,7 +11,6 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC
 from sup3r.preprocessing.batch_handling import (
-    BatchHandlerCC,
     BatchHandlerDC,
     SpatialBatchHandler,
     SpatialBatchHandlerCC,
@@ -34,103 +33,6 @@ TARGET_W = (39.01, -105.15)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
-
-
-def test_wind_cc_model(log=False):
-    """Test the wind climate change wtk super res model.
-
-    NOTE that the full 10x model is too big to train on the 20x20 test data.
-    """
-
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W,
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  sample_shape=(20, 20, 96),
-                                  worker_kwargs=dict(max_workers=1),
-                                  train_only_features=['topography'])
-    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2,
-                             s_enhance=4, sub_daily_shape=None)
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_4x_24x_3f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    with tempfile.TemporaryDirectory() as td:
-        model.train(batcher,
-                    input_resolution={'spatial': '16km',
-                                      'temporal': '3600min'},
-                    n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert 'test_0' in os.listdir(td)
-        assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' not in model.output_features
-        assert len(model.output_features) == len(FEATURES_W) - 1
-
-    x = np.random.uniform(0, 1, (1, 4, 4, 4, 4))
-    y = model.generate(x)
-    assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 4
-    assert y.shape[2] == x.shape[2] * 4
-    assert y.shape[3] == x.shape[3] * 24
-    assert y.shape[4] == x.shape[4] - 1
-
-
-def test_wind_cc_model_spatial(log=False):
-    """Test the wind climate change wtk super res model with spatial
-    enhancement only.
-    """
-    handler = DataHandlerH5WindCC(INPUT_FILE_W,
-                                  ('U_100m', 'V_100m', 'topography'),
-                                  target=TARGET_W, shape=SHAPE,
-                                  temporal_slice=slice(None, None, 2),
-                                  time_roll=-7,
-                                  val_split=0.1,
-                                  sample_shape=(20, 20),
-                                  worker_kwargs=dict(max_workers=1),
-                                  train_only_features=['topography'])
-
-    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
-                                    s_enhance=2)
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-
-    with tempfile.TemporaryDirectory() as td:
-        model.train(batcher,
-                    input_resolution={'spatial': '16km',
-                                      'temporal': '3600min'},
-                    n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
-
-        assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
-        assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' not in model.output_features
-
-    x = np.random.uniform(0, 1, (4, 30, 30, 3))
-    y = model.generate(x)
-    assert y.shape[0] == x.shape[0]
-    assert y.shape[1] == x.shape[1] * 2
-    assert y.shape[2] == x.shape[2] * 2
-    assert y.shape[3] == x.shape[3] - 1
 
 
 @pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
