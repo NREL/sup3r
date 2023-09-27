@@ -161,7 +161,10 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
 
         exo_tmp = {
             'topography': {
-                'steps': [{'data': topo_lr}, {'data': topo_hr}]}}
+                'steps': [{'model': 0, 'combine_type': 'input',
+                           'data': topo_lr},
+                          {'model': 0, 'combine_type': 'output',
+                           'data': topo_hr}]}}
         hi_res = ms_model.generate(low_res, exogenous_data=exo_tmp)
 
         target_shape = (1,

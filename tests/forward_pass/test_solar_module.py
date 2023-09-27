@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
-import pytest
-from click.testing import CliRunner
 import glob
 import json
 import os
-import numpy as np
 import tempfile
-import matplotlib.pyplot as plt
-from rex import Resource
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from click.testing import CliRunner
+from rex import Resource
 
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
-from sup3r.utilities.utilities import pd_date_range
-from sup3r.utilities.pytest import make_fake_cs_ratio_files
 from sup3r.solar.solar_cli import from_config as solar_main
-
+from sup3r.utilities.pytest import make_fake_cs_ratio_files
+from sup3r.utilities.utilities import pd_date_range
 
 NSRDB_FP = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
 GAN_META = {'s_enhance': 4, 't_enhance': 24}
@@ -169,13 +169,14 @@ def test_solar_cli(runner):
 
             log_file = os.path.join(td, 'logs/sup3r_solar.log')
             if os.path.exists(log_file):
-                with open(log_file, 'r') as f:
+                with open(log_file) as f:
                     logs = ''.join(list(f.readlines()))
                 msg += '\nlogs:\n{}'.format(logs)
 
             raise RuntimeError(msg)
 
-        status_files = glob.glob(os.path.join(td, 'jobstatus_*.json'))
+        status_files = glob.glob(os.path.join(f'{td}/.gaps/',
+                                              '*jobstatus*.json'))
         assert len(status_files) == len(fps)
 
         out_files = glob.glob(os.path.join(td, 'chunks/*_irradiance.h5'))

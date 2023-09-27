@@ -9,12 +9,14 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling.dual_data_handling import (
-    DualDataHandler, )
+    DualDataHandler,
+)
 from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
 from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
-from sup3r.preprocessing.dual_batch_handling import (DualBatchHandler,
-                                                     SpatialDualBatchHandler,
-                                                     )
+from sup3r.preprocessing.dual_batch_handling import (
+    DualBatchHandler,
+    SpatialDualBatchHandler,
+)
 from sup3r.utilities.utilities import spatial_coarsening
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -23,7 +25,7 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
 
-def test_dual_data_handler(log=True,
+def test_dual_data_handler(log=False,
                            full_shape=(20, 20),
                            sample_shape=(10, 10, 1),
                            plot=True):
@@ -71,7 +73,7 @@ def test_dual_data_handler(log=True,
                         bbox_inches='tight')
 
 
-def test_regrid_caching(log=True,
+def test_regrid_caching(log=False,
                         full_shape=(20, 20),
                         sample_shape=(10, 10, 1)):
     """Test caching and loading of regridded data"""

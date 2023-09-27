@@ -86,17 +86,31 @@ class AbstractInterface(ABC):
         else:
             return 5
 
+    # pylint: disable=E1101
     @property
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""
-        return self.meta.get('s_enhance', None)
+        s_enhance = self.meta.get('s_enhance', None)
+        if s_enhance is None and hasattr(self, '_gen'):
+            s_enhancements = [getattr(layer, '_spatial_mult', 1)
+                              for layer in self._gen.layers]
+            s_enhance = np.product(s_enhancements)
+            self.meta['s_enhance'] = int(s_enhance)
+        return s_enhance
 
+    # pylint: disable=E1101
     @property
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
         model training during high res coarsening"""
-        return self.meta.get('t_enhance', None)
+        t_enhance = self.meta.get('t_enhance', None)
+        if t_enhance is None and hasattr(self, '_gen'):
+            t_enhancements = [getattr(layer, '_temporal_mult', 1)
+                              for layer in self._gen.layers]
+            t_enhance = np.product(t_enhancements)
+            self.meta['t_enhance'] = int(t_enhance)
+        return t_enhance
 
     @property
     def input_resolution(self):

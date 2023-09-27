@@ -34,13 +34,13 @@ def make_fake_nc_files(td, input_file, n_files):
     ]
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
-        input_dset = xr.open_dataset(input_file)
-        with xr.Dataset(input_dset) as dset:
-            dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19'
-            )
-            dset['XTIME'][:] = i
-            dset.to_netcdf(fake_files[i])
+        with xr.open_dataset(input_file) as input_dset:
+            with xr.Dataset(input_dset) as dset:
+                dset['Times'][:] = np.array(
+                    [fake_times[i].encode('ASCII')], dtype='|S19'
+                )
+                dset['XTIME'][:] = i
+                dset.to_netcdf(fake_files[i])
     return fake_files
 
 

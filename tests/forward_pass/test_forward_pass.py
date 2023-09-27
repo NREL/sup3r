@@ -571,8 +571,8 @@ def test_fwp_multi_step_model():
     s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     s_model.meta['training_features'] = ['U_100m', 'V_100m']
     s_model.meta['output_features'] = ['U_100m', 'V_100m']
-    s_model.meta['s_enhance'] = 2
-    s_model.meta['t_enhance'] = 1
+    assert s_model.s_enhance == 2
+    assert s_model.t_enhance == 1
     _ = s_model.generate(np.ones((4, 10, 10, 2)))
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -580,8 +580,8 @@ def test_fwp_multi_step_model():
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     st_model.meta['training_features'] = ['U_100m', 'V_100m']
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
-    st_model.meta['s_enhance'] = 3
-    st_model.meta['t_enhance'] = 4
+    assert st_model.s_enhance == 3
+    assert st_model.t_enhance == 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:

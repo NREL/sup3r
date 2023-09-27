@@ -123,7 +123,7 @@ def test_train_spatial(
             assert loss_og.numpy() < loss_dummy.numpy()
 
 
-def test_train_st(n_epoch=3, log=True):
+def test_train_st(n_epoch=3, log=False):
     """Test basic spatiotemporal model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
