@@ -9,12 +9,13 @@ from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 from fnmatch import fnmatch
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
+from rex import Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
-from scipy.spatial import KDTree
 
 from sup3r.bias.bias_transforms import get_spatial_bc_factors
 from sup3r.preprocessing.data_handling.mixin import (
@@ -70,12 +71,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     # model but are not part of the synthetic output and are not sent to the
     # discriminator. These are case-insensitive and follow the Unix shell-style
     # wildcard format.
-    TRAIN_ONLY_FEATURES = (
-        'BVF*',
-        'inversemoninobukhovlength_*',
-        'RMOL',
-        'topography',
-    )
+    TRAIN_ONLY_FEATURES = ('BVF*',
+                           'inversemoninobukhovlength_*',
+                           'RMOL',
+                           'topography',
+                           )
 
     def __init__(self,
                  file_paths,
@@ -230,9 +230,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                             temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
-        self.features = (
-            features if isinstance(features, (list, tuple)) else [features]
-        )
+        self.features = (features if isinstance(features,
+                                                (list, tuple)) else [features])
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split
@@ -265,35 +264,33 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._norm_workers = self.worker_kwargs.get('norm_workers', None)
         self._load_workers = self.worker_kwargs.get('load_workers', None)
         self._compute_workers = self.worker_kwargs.get('compute_workers', None)
-        self._worker_attrs = ['_ti_workers',
-                              '_norm_workers',
-                              '_compute_workers',
-                              '_extract_workers',
-                              '_load_workers']
+        self._worker_attrs = [
+            '_ti_workers',
+            '_norm_workers',
+            '_compute_workers',
+            '_extract_workers',
+            '_load_workers'
+        ]
 
         self.preflight()
 
-        overwrite = (self.overwrite_cache
-                     and self.cache_files is not None
+        overwrite = (self.overwrite_cache and self.cache_files is not None
                      and all(os.path.exists(fp) for fp in self.cache_files))
 
         if self.try_load and self.load_cached:
-            logger.info(
-                f'All {self.cache_files} exist. Loading from cache '
-                f'instead of extracting from source files.')
+            logger.info(f'All {self.cache_files} exist. Loading from cache '
+                        f'instead of extracting from source files.')
             self.load_cached_data()
 
         elif self.try_load and not self.load_cached:
             self.clear_data()
-            logger.info(
-                f'All {self.cache_files} exist. Call '
-                'load_cached_data() or use load_cache=True to load '
-                'this data from cache files.')
+            logger.info(f'All {self.cache_files} exist. Call '
+                        'load_cached_data() or use load_cache=True to load '
+                        'this data from cache files.')
         else:
             if overwrite:
-                logger.info(
-                    f'{self.cache_files} exists but overwrite_cache '
-                    'is set to True. Proceeding with extraction.')
+                logger.info(f'{self.cache_files} exists but overwrite_cache '
+                            'is set to True. Proceeding with extraction.')
 
             self._raster_size_check()
             self._run_data_init_if_needed()
@@ -306,12 +303,16 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         if mask_nan and self.data is not None:
             nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
-            logger.info(
-                'Removing {} out of {} timesteps due to NaNs'.format(
-                    nan_mask.sum(), self.data.shape[2]
-                )
-            )
+            logger.info('Removing {} out of {} timesteps due to NaNs'.format(
+                nan_mask.sum(), self.data.shape[2]))
             self.data = self.data[:, :, ~nan_mask, :]
+
+        if (self.hr_spatial_coarsen > 1
+                and self.lat_lon.shape == self.raw_lat_lon.shape):
+            self.lat_lon = spatial_coarsening(
+                self.lat_lon,
+                s_enhance=self.hr_spatial_coarsen,
+                obs_axis=False)
 
         logger.info('Finished intializing DataHandler.')
         log_mem(logger, log_level='INFO')
@@ -319,8 +320,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     @property
     def try_load(self):
         """Check if we should try to load cache"""
-        return self._should_load_cache(
-            self._cache_pattern, self.cache_files, self.overwrite_cache)
+        return self._should_load_cache(self._cache_pattern,
+                                       self.cache_files,
+                                       self.overwrite_cache)
 
     def check_clear_data(self):
         """Check if data is cached and clear data if not load_cached"""
@@ -335,20 +337,18 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             self.data = self.run_all_data_init()
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
-                msg = 'Data has {:.2f}% NaN values!'.format(nan_perc)
+                msg = 'Data has {:.3f}% NaN values!'.format(nan_perc)
                 logger.warning(msg)
                 warnings.warn(msg)
 
     def _raster_size_check(self):
         """Check if the sample_shape is larger than the requested raster
         size"""
-        bad_shape = (
-            self.sample_shape[0] > self.grid_shape[0]
-            and self.sample_shape[1] > self.grid_shape[1])
+        bad_shape = (self.sample_shape[0] > self.grid_shape[0]
+                     and self.sample_shape[1] > self.grid_shape[1])
         if bad_shape:
-            msg = (
-                f'spatial_sample_shape {self.sample_shape[:2]} is '
-                f'larger than the raster size {self.grid_shape}')
+            msg = (f'spatial_sample_shape {self.sample_shape[:2]} is '
+                   f'larger than the raster size {self.grid_shape}')
             logger.warning(msg)
             warnings.warn(msg)
 
@@ -358,16 +358,13 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         if self.data is not None and self.val_split > 0.0:
             self.data, self.val_data = self.split_data(
-                val_split=self.val_split, shuffle_time=self.shuffle_time
-            )
-            msg = (
-                f'Validation data has shape={self.val_data.shape} '
-                f'and sample_shape={self.sample_shape}. Use a smaller '
-                'sample_shape and/or larger val_split.')
+                val_split=self.val_split, shuffle_time=self.shuffle_time)
+            msg = (f'Validation data has shape={self.val_data.shape} '
+                   f'and sample_shape={self.sample_shape}. Use a smaller '
+                   'sample_shape and/or larger val_split.')
             check = any(
-                val_size < samp_size
-                for val_size, samp_size in zip(
-                    self.val_data.shape, self.sample_shape))
+                val_size < samp_size for val_size,
+                samp_size in zip(self.val_data.shape, self.sample_shape))
             if check:
                 logger.warning(msg)
                 warnings.warn(msg)
@@ -421,8 +418,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.extract_features)
         n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(
-            self._extract_workers, proc_mem, n_procs)
+        extract_workers = estimate_max_workers(self._extract_workers,
+                                               proc_mem,
+                                               n_procs)
         return extract_workers
 
     @property
@@ -437,8 +435,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         proc_mem /= len(self.time_chunks)
         n_procs = len(self.time_chunks) * len(self.derive_features)
         n_procs = int(np.ceil(n_procs))
-        compute_workers = estimate_max_workers(
-            self._compute_workers, proc_mem, n_procs)
+        compute_workers = estimate_max_workers(self._compute_workers,
+                                               proc_mem,
+                                               n_procs)
         return compute_workers
 
     @property
@@ -449,7 +448,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         n_procs = 1
         if self.cache_files is not None:
             n_procs = len(self.cache_files)
-        load_workers = estimate_max_workers(self._load_workers, proc_mem,
+        load_workers = estimate_max_workers(self._load_workers,
+                                            proc_mem,
                                             n_procs)
         return load_workers
 
@@ -457,8 +457,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     def norm_workers(self):
         """Get upper bound on workers used for normalization."""
         if self.data is not None:
-            norm_workers = estimate_max_workers(
-                self._norm_workers, 2 * self.feature_mem, self.shape[-1])
+            norm_workers = estimate_max_workers(self._norm_workers,
+                                                2 * self.feature_mem,
+                                                self.shape[-1])
         else:
             norm_workers = self._norm_workers
         return norm_workers
@@ -477,11 +478,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             if self.is_time_independent:
                 self._time_chunks = [slice(None)]
             else:
-                self._time_chunks = get_chunk_slices(
-                    len(self.raw_time_index),
-                    self.time_chunk_size,
-                    self.temporal_slice,
-                )
+                self._time_chunks = get_chunk_slices(len(self.raw_time_index),
+                                                     self.time_chunk_size,
+                                                     self.temporal_slice)
         return self._time_chunks
 
     @property
@@ -508,9 +507,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             else:
                 self._time_chunk_size = np.min(
                     [int(1e9 / step_mem), self.n_tsteps])
-            logger.info(
-                'time_chunk_size arg not specified. Using '
-                f'{self._time_chunk_size}.')
+            logger.info('time_chunk_size arg not specified. Using '
+                        f'{self._time_chunk_size}.')
         return self._time_chunk_size
 
     @property
@@ -576,9 +574,10 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     def extract_features(self):
         """Features to extract directly from the source handler"""
         lower_features = [f.lower() for f in self.handle_features]
-        return [f for f in self.raw_features
-                if self.lookup(f, 'compute') is None
-                or Feature.get_basename(f.lower()) in lower_features]
+        return [
+            f for f in self.raw_features if self.lookup(f, 'compute') is None
+            or Feature.get_basename(f.lower()) in lower_features
+        ]
 
     @property
     def derive_features(self):
@@ -586,7 +585,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         derive_features = [
             f for f in set(
                 list(self.noncached_features) + list(self.extract_features))
-            if f not in self.extract_features]
+            if f not in self.extract_features
+        ]
         return derive_features
 
     @property
@@ -656,51 +656,101 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         start = self.temporal_slice.start
         stop = self.temporal_slice.stop
         n_steps = self.n_tsteps
-        msg = (
-            f'Temporal slice step ({self.temporal_slice.step}) does not '
-            f'evenly divide the number of time steps ({n_steps})')
+        msg = (f'Temporal slice step ({self.temporal_slice.step}) does not '
+               f'evenly divide the number of time steps ({n_steps})')
         check = self.temporal_slice.step is None
         check = check or n_steps % self.temporal_slice.step == 0
         if not check:
             logger.warning(msg)
             warnings.warn(msg)
 
-        msg = (
-            f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
-            'than the number of time steps in the raw data '
-            f'({len(self.raw_time_index)}).')
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({len(self.raw_time_index)}).')
         if len(self.raw_time_index) < self.sample_shape[2]:
             logger.warning(msg)
             warnings.warn(msg)
 
-        msg = (
-            f'The requested time slice {self.temporal_slice} conflicts '
-            f'with the number of time steps ({len(self.raw_time_index)}) '
-            'in the raw data')
+        msg = (f'The requested time slice {self.temporal_slice} conflicts '
+               f'with the number of time steps ({len(self.raw_time_index)}) '
+               'in the raw data')
         t_slice_is_subset = start is not None and stop is not None
-        good_subset = (
-            t_slice_is_subset
-            and (stop - start <= len(self.raw_time_index))
-            and stop <= len(self.raw_time_index)
-            and start <= len(self.raw_time_index))
+        good_subset = (t_slice_is_subset
+                       and (stop - start <= len(self.raw_time_index))
+                       and stop <= len(self.raw_time_index)
+                       and start <= len(self.raw_time_index))
         if t_slice_is_subset and not good_subset:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        msg = (
-            f'Initializing DataHandler {self.input_file_info}. '
-            f'Getting temporal range {self.time_index[0]!s} to '
-            f'{self.time_index[-1]!s} (inclusive) '
-            f'based on temporal_slice {self.temporal_slice}')
+        msg = (f'Initializing DataHandler {self.input_file_info}. '
+               f'Getting temporal range {self.time_index[0]!s} to '
+               f'{self.time_index[-1]!s} (inclusive) '
+               f'based on temporal_slice {self.temporal_slice}')
         logger.info(msg)
 
-        logger.info(
-            f'Using max_workers={self.max_workers}, '
-            f'norm_workers={self.norm_workers}, '
-            f'extract_workers={self.extract_workers}, '
-            f'compute_workers={self.compute_workers}, '
-            f'load_workers={self.load_workers}, '
-            f'ti_workers={self.ti_workers}')
+        logger.info(f'Using max_workers={self.max_workers}, '
+                    f'norm_workers={self.norm_workers}, '
+                    f'extract_workers={self.extract_workers}, '
+                    f'compute_workers={self.compute_workers}, '
+                    f'load_workers={self.load_workers}, '
+                    f'ti_workers={self.ti_workers}')
+
+    @staticmethod
+    def get_closest_lat_lon(lat_lon, target):
+        """Get closest indices to target lat lon
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon
+            (spatial_1, spatial_2, 2)
+            Last dimension in order of (lat, lon)
+        target : tuple
+            (lat, lon) for target coordinate
+
+        Returns
+        -------
+        row : int
+            row index for closest lat/lon to target lat/lon
+        col : int
+            col index for closest lat/lon to target lat/lon
+        """
+        dist = np.hypot(lat_lon[..., 0] - target[0],
+                        lat_lon[..., 1] - target[1])
+        row, col = np.where(dist == np.min(dist))
+        row = row[0]
+        col = col[0]
+        return row, col
+
+    def get_lat_lon_df(self, target, features=None):
+        """Get timeseries for given target
+
+        Parameters
+        ----------
+        target : tuple
+            (lat, lon) for target coordinate
+        features : list | None
+            Optional list of features to include in returned data. If None then
+            all available features are returned.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            Pandas dataframe with columns for each feature and timeindex for
+            the given target
+        """
+        row, col = self.get_closest_lat_lon(self.lat_lon, target)
+        df = pd.DataFrame()
+        df['time'] = self.time_index
+        if self.data is None:
+            self.load_cached_data()
+        data = self.data[row, col]
+        features = features if features is not None else self.features
+        for f in features:
+            i = self.features.index(f)
+            df[f] = data[:, i]
+        return df
 
     @classmethod
     def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
@@ -740,14 +790,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             sup3r data handler config with all necessary args and kwargs to
             initialize DataHandler and run data extraction.
         """
-
-        import_str = (
-            'from sup3r.preprocessing.data_handling '
-            f'import {cls.__name__};\n'
-            'import time;\n'
-            'from gaps import Status;\n'
-            'from rex import init_logger;\n')
-
+        import_str = ('from sup3r.preprocessing.data_handling '
+                      f'import {cls.__name__};\n'
+                      'import time;\n'
+                      'from gaps import Status;\n'
+                      'from rex import init_logger;\n')
         dh_init_str = get_fun_call_str(cls, config)
 
         log_file = config.get('log_file', None)
@@ -763,12 +810,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             logger.warning(msg)
             warnings.warn(msg)
 
-        cmd = (
-            f"python -c \'{import_str}\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"data_handler = {dh_init_str};\n"
-            "t_elap = time.time() - t0;\n")
+        cmd = (f"python -c \'{import_str}\n"
+               "t0 = time.time();\n"
+               f"logger = init_logger({log_arg_str});\n"
+               f"data_handler = {dh_init_str};\n"
+               "t_elap = time.time() - t0;\n")
 
         cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_EXTRACT, cmd)
 
@@ -806,8 +852,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         target = target if target is not None else self.target
         features = features if features is not None else self.features
 
-        return self._get_cache_file_names(
-            cache_pattern, grid_shape, time_index, target, features)
+        return self._get_cache_file_names(cache_pattern,
+                                          grid_shape,
+                                          time_index,
+                                          target,
+                                          features)
 
     def unnormalize(self, means, stds):
         """Remove normalization from stored means and stds"""
@@ -826,8 +875,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             array of means for all features with same ordering as data features
         """
         max_workers = self.norm_workers
-        self._normalize(
-            self.data, self.val_data, means, stds, max_workers=max_workers)
+        self._normalize(self.data,
+                        self.val_data,
+                        means,
+                        stds,
+                        max_workers=max_workers)
 
     def get_next(self):
         """Get data for observation using random observation index. Loops
@@ -894,6 +946,17 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         """
         return self.data.shape
 
+    @property
+    def size(self):
+        """Size of data array
+
+        Returns
+        -------
+        size : int
+            Number of total elements contained in data array
+        """
+        return np.product(self.requested_shape)
+
     def cache_data(self, cache_file_paths):
         """Cache feature data to file and delete from memory
 
@@ -902,19 +965,19 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         cache_file_paths : str | None
             Path to file for saving feature data
         """
-        self._cache_data(
-            self.data, self.features, cache_file_paths, self.overwrite_cache
-        )
+        self._cache_data(self.data,
+                         self.features,
+                         cache_file_paths,
+                         self.overwrite_cache)
 
     @property
     def requested_shape(self):
         """Get requested shape for cached data"""
         shape = get_raster_shape(self.raster_index)
-        requested_shape = (
-            shape[0] // self.hr_spatial_coarsen,
-            shape[1] // self.hr_spatial_coarsen,
-            len(self.raw_time_index[self.temporal_slice]),
-            len(self.features))
+        requested_shape = (shape[0] // self.hr_spatial_coarsen,
+                           shape[1] // self.hr_spatial_coarsen,
+                           len(self.raw_time_index[self.temporal_slice]),
+                           len(self.features))
         return requested_shape
 
     def load_cached_data(self, with_split=True):
@@ -929,16 +992,16 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             logger.info('Called load_cached_data() but self.data is not None')
 
         elif self.data is None:
-            msg = (
-                'Found {} cache files but need {} for features {}! '
-                'These are the cache files that were found: {}'.format(
-                    len(self.cache_files),
-                    len(self.features),
-                    self.features,
-                    self.cache_files))
+            msg = ('Found {} cache files but need {} for features {}! '
+                   'These are the cache files that were found: {}'.format(
+                       len(self.cache_files),
+                       len(self.features),
+                       self.features,
+                       self.cache_files))
             assert len(self.cache_files) == len(self.features), msg
 
-            self.data = np.full(shape=self.requested_shape, fill_value=np.nan,
+            self.data = np.full(shape=self.requested_shape,
+                                fill_value=np.nan,
                                 dtype=np.float32)
 
             logger.info(f'Loading cached data from: {self.cache_files}')
@@ -952,14 +1015,13 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
-                msg = 'Data has {:.2f}% NaN values!'.format(nan_perc)
+                msg = 'Data has {:.3f}% NaN values!'.format(nan_perc)
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            logger.debug(
-                'Splitting data into training / validation sets '
-                f'({1 - self.val_split}, {self.val_split}) '
-                f'for {self.input_file_info}')
+            logger.debug('Splitting data into training / validation sets '
+                         f'({1 - self.val_split}, {self.val_split}) '
+                         f'for {self.input_file_info}')
 
             if with_split:
                 self.data, self.val_data = self.split_data(
@@ -984,8 +1046,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             shifted_time_chunks = [slice(None)]
         else:
             n_steps = len(self.raw_time_index[self.temporal_slice])
-            shifted_time_chunks = get_chunk_slices(
-                n_steps, self.time_chunk_size)
+            shifted_time_chunks = get_chunk_slices(n_steps,
+                                                   self.time_chunk_size)
 
         self.run_data_extraction()
         self.run_data_compute()
@@ -1002,11 +1064,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         if self.hr_spatial_coarsen > 1:
             logger.debug('Applying hr spatial coarsening to data array')
-            self.data = spatial_coarsening(
-                self.data, s_enhance=self.hr_spatial_coarsen, obs_axis=False)
-            self.lat_lon = spatial_coarsening(
-                self.lat_lon, s_enhance=self.hr_spatial_coarsen,
-                obs_axis=False)
+            self.data = spatial_coarsening(self.data,
+                                           s_enhance=self.hr_spatial_coarsen,
+                                           obs_axis=False)
         if self.load_cached:
             for f in self.cached_features:
                 f_index = self.features.index(f)
@@ -1023,9 +1083,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         un-manipulated datasets.
         """
         if self.extract_features:
-            logger.info(
-                f'Starting extraction of {self.extract_features} '
-                f'using {len(self.time_chunks)} time_chunks.')
+            logger.info(f'Starting extraction of {self.extract_features} '
+                        f'using {len(self.time_chunks)} time_chunks.')
             if self.extract_workers == 1:
                 self._raw_data = self.serial_extract(self.file_paths,
                                                      self.raster_index,
@@ -1041,10 +1100,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                                        self.extract_workers,
                                                        **self.res_kwargs)
 
-            logger.info(
-                f'Finished extracting {self.extract_features} for '
-                f'{self.input_file_info}'
-            )
+            logger.info(f'Finished extracting {self.extract_features} for '
+                        f'{self.input_file_info}')
 
     def run_data_compute(self):
         """Run the data computation / derivation from raw features to desired
@@ -1072,9 +1129,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                                        self.handle_features,
                                                        self.compute_workers)
 
-            logger.info(
-                f'Finished computing {self.derive_features} for '
-                f'{self.input_file_info}')
+            logger.info(f'Finished computing {self.derive_features} for '
+                        f'{self.input_file_info}')
 
     def data_fill(self, t, t_slice, f_index, f):
         """Place single extracted / computed chunk in final data array
@@ -1110,9 +1166,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 self.data_fill(t, ts, f_index, f)
             interval = int(np.ceil(len(shifted_time_chunks) / 10))
             if t % interval == 0:
-                logger.info(
-                    f'Added {t + 1} of {len(shifted_time_chunks)} '
-                    'chunks to final data array')
+                logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
+                            'chunks to final data array')
             self._raw_data.pop(t)
 
     def parallel_data_fill(self, shifted_time_chunks, max_workers=None):
@@ -1146,25 +1201,22 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                         future = exe.submit(self.data_fill, t, ts, f_index, f)
                         futures[future] = {'t': t, 'fidx': f_index}
 
-                logger.info(
-                    f'Started adding {len(futures)} chunks '
-                    f'to data array in {dt.now() - now}.')
+                logger.info(f'Started adding {len(futures)} chunks '
+                            f'to data array in {dt.now() - now}.')
 
                 interval = int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     try:
                         future.result()
                     except Exception as e:
-                        msg = (
-                            f'Error adding ({futures[future]["t"]}, '
-                            f'{futures[future]["fidx"]}) chunk to '
-                            'final data array.')
+                        msg = (f'Error adding ({futures[future]["t"]}, '
+                               f'{futures[future]["fidx"]}) chunk to '
+                               'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
                     if i % interval == 0:
-                        logger.debug(
-                            f'Added {i+1} out of {len(futures)} '
-                            'chunks to final data array')
+                        logger.debug(f'Added {i+1} out of {len(futures)} '
+                                     'chunks to final data array')
         logger.info('Finished building data array')
 
     @abstractmethod
@@ -1206,7 +1258,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         completed = []
         for idf, feature in enumerate(self.features):
             for fp in bc_files:
-                if feature not in completed:
+                dset_scalar = f'{feature}_scalar'
+                dset_adder = f'{feature}_adder'
+                with Resource(fp) as res:
+                    check = (dset_scalar in res.dsets
+                             and dset_adder in res.dsets)
+                if feature not in completed and check:
                     scalar, adder = get_spatial_bc_factors(
                         lat_lon=self.lat_lon,
                         feature_name=feature,
@@ -1221,18 +1278,16 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                         scalar = scalar[..., idm]
                         adder = adder[..., idm]
                     else:
-                        msg = (
-                            'Can only accept bias correction factors '
-                            'with last dim equal to 1 or 12 but '
-                            'received bias correction factors with '
-                            'shape {}'.format(scalar.shape))
+                        msg = ('Can only accept bias correction factors '
+                               'with last dim equal to 1 or 12 but '
+                               'received bias correction factors with '
+                               'shape {}'.format(scalar.shape))
                         logger.error(msg)
                         raise RuntimeError(msg)
 
-                    logger.info(
-                        'Bias correcting "{}" with linear '
-                        'correction from "{}"'.format(
-                            feature, os.path.basename(fp)))
+                    logger.info('Bias correcting "{}" with linear '
+                                'correction from "{}"'.format(
+                                    feature, os.path.basename(fp)))
                     self.data[..., idf] *= scalar
                     self.data[..., idf] += adder
                     completed.append(feature)
@@ -1242,7 +1297,26 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
-    def get_observation_index(self, temporal_weights=None,
+    FEATURE_REGISTRY: ClassVar[dict] = {
+        'BVF2_(.*)m': BVFreqSquaredNC,
+        'BVF_MO_(.*)m': BVFreqMon,
+        'RMOL': InverseMonNC,
+        'U_(.*)': UWind,
+        'V_(.*)': VWind,
+        'Windspeed_(.*)m': WindspeedNC,
+        'Winddirection_(.*)m': WinddirectionNC,
+        'lat_lon': LatLonNC,
+        'Shear_(.*)m': Shear,
+        'REWS_(.*)m': Rews,
+        'Temperature_(.*)m': TempNC,
+        'Pressure_(.*)m': PressureNC,
+        'PotentialTemp_(.*)m': PotentialTempNC,
+        'PT_(.*)m': PotentialTempNC,
+        'topography': ['HGT', 'orog']
+    }
+
+    def get_observation_index(self,
+                              temporal_weights=None,
                               spatial_weights=None):
         """Randomly gets weighted spatial sample and time sample
 
@@ -1262,17 +1336,19 @@ class DataHandlerDC(DataHandler):
             Used to get single observation like self.data[observation_index]
         """
         if spatial_weights is not None:
-            spatial_slice = weighted_box_sampler(
-                self.data, self.sample_shape[:2], weights=spatial_weights)
+            spatial_slice = weighted_box_sampler(self.data,
+                                                 self.sample_shape[:2],
+                                                 weights=spatial_weights)
         else:
-            spatial_slice = uniform_box_sampler(
-                self.data, self.sample_shape[:2])
+            spatial_slice = uniform_box_sampler(self.data,
+                                                self.sample_shape[:2])
         if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(
-                self.data, self.sample_shape[2], weights=temporal_weights)
+            temporal_slice = weighted_time_sampler(self.data,
+                                                   self.sample_shape[2],
+                                                   weights=temporal_weights)
         else:
-            temporal_slice = uniform_time_sampler(
-                self.data, self.sample_shape[2])
+            temporal_slice = uniform_time_sampler(self.data,
+                                                  self.sample_shape[2])
 
         return tuple(
             [*spatial_slice, temporal_slice, np.arange(len(self.features))])
@@ -1331,9 +1407,8 @@ class DataHandlerDC(DataHandler):
         elif hasattr(handle, 'times'):
             time_index = np_to_pd_times(handle.times.values)
         else:
-            msg = (
-                f'Could not get time_index for {file_paths}. '
-                'Assuming time independence.')
+            msg = (f'Could not get time_index for {file_paths}. '
+                   'Assuming time independence.')
             time_index = None
             logger.warning(msg)
             warnings.warn(msg)
@@ -1361,9 +1436,8 @@ class DataHandlerDC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        max_workers = (len(file_paths)
-                       if max_workers is None
-                       else np.min((max_workers, len(file_paths))))
+        max_workers = (len(file_paths) if max_workers is None else np.min(
+            (max_workers, len(file_paths))))
         if max_workers == 1:
             return cls.get_file_times(file_paths, **kwargs)
         ti = {}
@@ -1374,9 +1448,8 @@ class DataHandlerDC(DataHandler):
                 future = exe.submit(cls.get_file_times, [f], **kwargs)
                 futures[future] = {'idx': i, 'file': f}
 
-            logger.info(
-                f'Started building time index from {len(file_paths)} '
-                f'files in {dt.now() - now}.')
+            logger.info(f'Started building time index from {len(file_paths)} '
+                        f'files in {dt.now() - now}.')
 
             for i, future in enumerate(as_completed(futures)):
                 try:
@@ -1391,32 +1464,6 @@ class DataHandlerDC(DataHandler):
                 logger.debug(f'Stored {i+1} out of {len(futures)} file times')
         times = np.concatenate(list(ti.values()))
         return pd.DatetimeIndex(sorted(set(times)))
-
-    @classmethod
-    def feature_registry(cls):
-        """Registry of methods for computing features
-
-        Returns
-        -------
-        dict
-            Method registry
-        """
-        registry = {'BVF2_(.*)m': BVFreqSquaredNC,
-                    'BVF_MO_(.*)m': BVFreqMon,
-                    'RMOL': InverseMonNC,
-                    'U_(.*)': UWind,
-                    'V_(.*)': VWind,
-                    'Windspeed_(.*)m': WindspeedNC,
-                    'Winddirection_(.*)m': WinddirectionNC,
-                    'lat_lon': LatLonNC,
-                    'Shear_(.*)m': Shear,
-                    'REWS_(.*)m': Rews,
-                    'Temperature_(.*)m': TempNC,
-                    'Pressure_(.*)m': PressureNC,
-                    'PotentialTemp_(.*)m': PotentialTempNC,
-                    'PT_(.*)m': PotentialTempNC,
-                    'topography': ['HGT', 'orog']}
-        return registry
 
     @classmethod
     def extract_feature(cls,
@@ -1453,10 +1500,8 @@ class DataHandlerDC(DataHandler):
             Data array for extracted feature
             (spatial_1, spatial_2, temporal)
         """
-        logger.debug(
-            f'Extracting {feature} with time_slice={time_slice}, '
-            f'raster_index={raster_index}, kwargs={kwargs}.'
-        )
+        logger.debug(f'Extracting {feature} with time_slice={time_slice}, '
+                     f'raster_index={raster_index}, kwargs={kwargs}.')
         handle = cls.source_handler(file_paths, **kwargs)
         f_info = Feature(feature, handle)
         interp_height = f_info.height
@@ -1465,8 +1510,10 @@ class DataHandlerDC(DataHandler):
 
         if feature in handle or feature.lower() in handle:
             feat_key = feature if feature in handle else feature.lower()
-            fdata = cls.direct_extract(
-                handle, feat_key, raster_index, time_slice)
+            fdata = cls.direct_extract(handle,
+                                       feat_key,
+                                       raster_index,
+                                       time_slice)
 
         elif basename in handle or basename.lower() in handle:
             feat_key = basename if basename in handle else basename.lower()
@@ -1546,38 +1593,6 @@ class DataHandlerDC(DataHandler):
         """
         return cls.get_lat_lon(file_paths, [slice(None), slice(None)])
 
-    @staticmethod
-    def get_closest_lat_lon(lat_lon, target):
-        """Get closest indices to target lat lon to use for lower left corner
-        of raster index
-
-        Parameters
-        ----------
-        lat_lon : ndarray
-            Array of lat/lon
-            (spatial_1, spatial_2, 2)
-            Last dimension in order of (lat, lon)
-        target : tuple
-            (lat, lon) for lower left corner
-
-        Returns
-        -------
-        row : int
-            row index for closest lat/lon to target lat/lon
-        col : int
-            col index for closest lat/lon to target lat/lon
-        """
-        # shape of ll2 is (n, 2) where axis=1 is (lat, lon)
-        ll2 = np.vstack(
-            (lat_lon[..., 0].flatten(), lat_lon[..., 1].flatten())).T
-        tree = KDTree(ll2)
-        _, i = tree.query(np.array(target))
-        row, col = np.where(
-            (lat_lon[..., 0] == ll2[i, 0]) & (lat_lon[..., 1] == ll2[i, 1]))
-        row = row[0]
-        col = col[0]
-        return row, col
-
     @classmethod
     def compute_raster_index(cls, file_paths, target, grid_shape):
         """Get raster index for a given target and shape
@@ -1596,9 +1611,8 @@ class DataHandlerDC(DataHandler):
         list
             List of slices corresponding to extracted data region
         """
-        lat_lon = cls.get_lat_lon(
-            file_paths[:1], [slice(None), slice(None)], invert_lat=False
-        )
+        lat_lon = cls.get_lat_lon(file_paths[:1], [slice(None), slice(None)],
+                                  invert_lat=False)
         cls._check_grid_extent(target, grid_shape, lat_lon)
 
         row, col = cls.get_closest_lat_lon(lat_lon, target)
@@ -1616,8 +1630,9 @@ class DataHandlerDC(DataHandler):
         else:
             row_end = row + grid_shape[0]
             row_start = row
-        raster_index = [slice(row_start, row_end),
-                        slice(col, col + grid_shape[1])]
+        raster_index = [
+            slice(row_start, row_end), slice(col, col + grid_shape[1])
+        ]
         cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
         return raster_index
 
@@ -1641,15 +1656,12 @@ class DataHandlerDC(DataHandler):
         min_lon = np.min(lat_lon[..., 1])
         max_lat = np.max(lat_lon[..., 0])
         max_lon = np.max(lat_lon[..., 1])
-        logger.debug(
-            'Calculating raster index from WRF file '
-            f'for shape {grid_shape} and target {target}')
-        logger.debug(
-            f'lat/lon (min, max): {min_lat}/{min_lon}, '
-            f'{max_lat}/{max_lon}')
-        msg = (
-            f'target {target} out of bounds with min lat/lon '
-            f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
+        logger.debug('Calculating raster index from WRF file '
+                     f'for shape {grid_shape} and target {target}')
+        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon}, '
+                     f'{max_lat}/{max_lon}')
+        msg = (f'target {target} out of bounds with min lat/lon '
+               f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
         assert (min_lat <= target[0] <= max_lat
                 and min_lon <= target[1] <= max_lon), msg
 
@@ -1673,16 +1685,14 @@ class DataHandlerDC(DataHandler):
         """
         check = (raster_index[0].stop > lat_lon.shape[0]
                  or raster_index[1].stop > lat_lon.shape[1]
-                 or raster_index[0].start < 0
-                 or raster_index[1].start < 0)
+                 or raster_index[0].start < 0 or raster_index[1].start < 0)
         if check:
-            msg = (
-                f'Invalid target {target}, shape {grid_shape}, and raster '
-                f'{raster_index} for data domain of size '
-                f'{lat_lon.shape[:-1]} with lower left corner '
-                f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
-                f' and upper right corner ({np.max(lat_lon[..., 0])}, '
-                f'{np.max(lat_lon[..., 1])}).')
+            msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
+                   f'{raster_index} for data domain of size '
+                   f'{lat_lon.shape[:-1]} with lower left corner '
+                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
+                   f' and upper right corner ({np.max(lat_lon[..., 0])}, '
+                   f'{np.max(lat_lon[..., 1])}).')
             raise ValueError(msg)
 
     def get_raster_index(self):
@@ -1695,27 +1705,23 @@ class DataHandlerDC(DataHandler):
         raster_index : np.ndarray
             2D array of grid indices
         """
-        self.raster_file = (
-            self.raster_file
-            if self.raster_file is None
-            else self.raster_file.replace('.txt', '.npy'))
+        self.raster_file = (self.raster_file if self.raster_file is None else
+                            self.raster_file.replace('.txt', '.npy'))
         if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(
-                f'Loading raster index: {self.raster_file} '
-                f'for {self.input_file_info}')
+            logger.debug(f'Loading raster index: {self.raster_file} '
+                         f'for {self.input_file_info}')
             raster_index = np.load(self.raster_file, allow_pickle=True)
             raster_index = list(raster_index)
         else:
             check = self.grid_shape is not None and self.target is not None
-            msg = (
-                'Must provide raster file or shape + target to get '
-                'raster index')
+            msg = ('Must provide raster file or shape + target to get '
+                   'raster index')
             assert check, msg
-            raster_index = self.compute_raster_index(
-                self.file_paths, self.target, self.grid_shape)
-            logger.debug(
-                'Found raster index with row, col slices: {}'.format(
-                    raster_index))
+            raster_index = self.compute_raster_index(self.file_paths,
+                                                     self.target,
+                                                     self.grid_shape)
+            logger.debug('Found raster index with row, col slices: {}'.format(
+                raster_index))
 
             if self.raster_file is not None:
                 basedir = os.path.dirname(self.raster_file)

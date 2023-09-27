@@ -1,5 +1,6 @@
 """Dual data handler class for using separate low_res and high_res datasets"""
 import logging
+import pickle
 from warnings import warn
 
 import numpy as np
@@ -10,7 +11,7 @@ from sup3r.preprocessing.data_handling.mixin import (
     TrainingPrepMixIn,
 )
 from sup3r.utilities.regridder import Regridder
-from sup3r.utilities.utilities import spatial_coarsening
+from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.t_enhance = t_enhance
         self.lr_dh = lr_handler
         self.hr_dh = hr_handler
-        self.regrid_cache_pattern = regrid_cache_pattern
-        self.overwrite_regrid_cache = overwrite_regrid_cache
+        self._cache_pattern = regrid_cache_pattern
+        self._cached_features = None
+        self._noncached_features = None
+        self.overwrite_cache = overwrite_regrid_cache
         self.val_split = val_split
         self.current_obs_index = None
         self.load_cached = load_cached
@@ -71,7 +74,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.shuffle_time = shuffle_time
         self._lr_lat_lon = None
         self._hr_lat_lon = None
-        self.lr_data = None
+        self._lr_input_data = None
         self.hr_data = None
         self.lr_val_data = None
         self.hr_val_data = None
@@ -79,6 +82,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_time_index = None
         self.lr_val_time_index = None
         self.hr_val_time_index = None
+        self.lr_data = np.zeros(self.shape, dtype=np.float32)
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -147,7 +151,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                     warn(msg)
 
     def normalize(self, means, stdevs):
-        """Normalize low_res data
+        """Normalize low_res and high_res data
 
         Parameters
         ----------
@@ -158,11 +162,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
+        logger.info('Normalizing low resolution data.')
         self._normalize(data=self.lr_data,
                         val_data=self.lr_val_data,
                         means=means,
                         stds=stdevs,
                         max_workers=self.lr_dh.norm_workers)
+        logger.info('Normalizing high resolution data.')
+        self._normalize(data=self.hr_data,
+                        val_data=self.hr_val_data,
+                        means=means,
+                        stds=stdevs,
+                        max_workers=self.hr_dh.norm_workers)
 
     @property
     def output_features(self):
@@ -178,15 +189,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.info("Loading high resolution cache.")
             self.hr_dh.load_cached_data(with_split=False)
 
-        msg = ('hr_handler.shape is not divisible by s_enhance. Using '
-               f'shape = {self.hr_required_shape} instead.')
+        msg = (f'hr_handler.shape {self.hr_dh.shape[:-1]} is not divisible '
+               f'by s_enhance. Using shape = {self.hr_required_shape} '
+               'instead.')
         if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)
 
-        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
-                                       :self.hr_required_shape[1],
-                                       :self.hr_required_shape[2]]
+        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0], :self.
+                                       hr_required_shape[1], :self.
+                                       hr_required_shape[2]]
         self.hr_time_index = self.hr_dh.time_index[:self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[:self.lr_required_shape[2]]
 
@@ -255,7 +267,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         int
             Number of bytes for a single feature array
         """
-        feature_mem = self.grid_mem * len(self.lr_time_index)
+        feature_mem = self.grid_mem * self.lr_data.shape[-2]
         return feature_mem
 
     @property
@@ -276,25 +288,23 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def features(self):
         """Get list of features in each data handler"""
-        return self.hr_dh.features
+        return self.lr_dh.features
 
     @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
-        used by batch handler"""
+        used by batch handler for computing means and stdevs"""
         return self.lr_data
 
     @property
     def lr_input_data(self):
         """Get low res data used as input to regridding routine"""
-        if self.lr_dh.data is None:
-            self.lr_dh.load_cached_data()
-        return self.lr_dh.data[..., :self.lr_required_shape[2], :]
-
-    @property
-    def shape(self):
-        """Get low_res shape"""
-        return self.lr_dh.shape
+        if self._lr_input_data is None:
+            if self.lr_dh.data is None:
+                self.lr_dh.load_cached_data()
+            self._lr_input_data = self.lr_dh.data[
+                ..., :self.lr_required_shape[2], :]
+        return self._lr_input_data
 
     @property
     def lr_required_shape(self):
@@ -302,6 +312,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return (self.hr_dh.requested_shape[0] // self.s_enhance,
                 self.hr_dh.requested_shape[1] // self.s_enhance,
                 self.hr_dh.requested_shape[2] // self.t_enhance)
+
+    @property
+    def shape(self):
+        """Get low_res shape"""
+        return (*self.lr_required_shape, len(self.features))
+
+    @property
+    def size(self):
+        """Get low_res size"""
+        return np.product(self.shape)
 
     @property
     def hr_required_shape(self):
@@ -348,9 +368,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._hr_lat_lon = lat_lon
 
     @property
-    def regrid_cache_files(self):
+    def cache_files(self):
         """Get file names of regridded cache data"""
-        cache_files = self._get_cache_file_names(self.regrid_cache_pattern,
+        cache_files = self._get_cache_file_names(self.cache_pattern,
                                                  grid_shape=self.lr_grid_shape,
                                                  time_index=self.lr_time_index,
                                                  target=self.hr_dh.target,
@@ -360,26 +380,20 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def try_load(self):
         """Check if we should try to load cached data"""
-        try_load = self._should_load_cache(self.regrid_cache_pattern,
-                                           self.regrid_cache_files,
-                                           self.overwrite_regrid_cache)
+        try_load = self._should_load_cache(self.cache_pattern,
+                                           self.cache_files,
+                                           self.overwrite_cache)
         return try_load
 
     def load_lr_cached_data(self):
         """Load low_res cache data"""
 
-        regridded_data = np.full(shape=self.lr_requested_shape,
-                                 fill_value=np.nan,
-                                 dtype=np.float32)
-
         logger.info(
             f'Loading cache with requested_shape={self.lr_requested_shape}.')
-        self._load_cached_data(regridded_data,
-                               self.regrid_cache_files,
+        self._load_cached_data(self.lr_data,
+                               self.cache_files,
                                self.features,
                                max_workers=self.hr_dh.load_workers)
-
-        self.lr_data = regridded_data
 
     def load_cached_data(self):
         """Load regridded low_res and high_res cache data"""
@@ -389,7 +403,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
     def check_clear_data(self):
         """Check if data was cached and free memory if load_cached is False"""
-        if self.regrid_cache_pattern is not None and not self.load_cached:
+        if self.cache_pattern is not None and not self.load_cached:
             self.lr_data = None
             self.lr_val_data = None
             self.hr_dh.check_clear_data()
@@ -401,16 +415,15 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         if self.try_load:
             self.load_lr_cached_data()
         else:
-            regridded_data = self.regrid_lr_data()
+            self.get_lr_regridded_data()
 
-            if self.regrid_cache_pattern is not None:
+            if self.cache_pattern is not None:
                 logger.info('Caching low resolution data with '
-                            f'shape={regridded_data.shape}.')
-                self._cache_data(regridded_data,
+                            f'shape={self.lr_data.shape}.')
+                self._cache_data(self.lr_data,
                                  features=self.features,
-                                 cache_file_paths=self.regrid_cache_files,
-                                 overwrite=self.overwrite_regrid_cache)
-        self.lr_data = regridded_data
+                                 cache_file_paths=self.cache_files,
+                                 overwrite=self.overwrite_cache)
 
     def get_regridder(self):
         """Get regridder object"""
@@ -424,24 +437,39 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                          target_meta,
                          max_workers=self.regrid_workers)
 
-    def regrid_lr_data(self):
-        """Regrid low_res data for all requested features
+    def get_lr_regridded_data(self):
+        """Regrid low_res data for all requested noncached features. Load
+        cached features if available and overwrite=False"""
 
-        Returns
-        -------
-        out : ndarray
-            Array of regridded low_res data with all features
-            (spatial_1, spatial_2, temporal, n_features)
-        """
         logger.info('Regridding low resolution feature data.')
         regridder = self.get_regridder()
 
-        out = []
-        for i in range(len(self.features)):
-            tmp = regridder(self.lr_input_data[..., i])
-            tmp = tmp.reshape(self.lr_required_shape)[..., np.newaxis]
-            out.append(tmp)
-        return np.concatenate(out, axis=-1)
+        for f in self.noncached_features:
+            fidx = self.features.index(f)
+            tmp = regridder(self.lr_input_data[..., fidx])
+            tmp = tmp.reshape(self.lr_required_shape)
+            self.lr_data[..., fidx] = tmp
+
+        if self.load_cached:
+            for f in self.cached_features:
+                f_index = self.features.index(f)
+                logger.info(f'Loading {f} from {self.cache_files[f_index]}')
+                with open(self.cache_files[f_index], 'rb') as fh:
+                    self.lr_data[..., f_index] = pickle.load(fh)
+
+        for fidx in range(self.lr_data.shape[-1]):
+            nan_perc = (100 * np.isnan(self.lr_data[..., fidx]).sum()
+                        / self.lr_data[..., fidx].size)
+            if nan_perc > 0:
+                msg = (f'{self.features[fidx]} data has {nan_perc:.3f}% NaN '
+                       'values!')
+                logger.warning(msg)
+                warn(msg)
+                msg = (f'Doing nn nan fill on low res {self.features[fidx]} '
+                       'data.')
+                logger.info(msg)
+                self.lr_data[..., fidx] = nn_fill_array(
+                    self.lr_data[..., fidx])
 
     def get_next(self):
         """Get next high_res + low_res. Gets random spatiotemporal sample for

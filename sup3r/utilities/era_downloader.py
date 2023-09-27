@@ -8,11 +8,9 @@ https://cds.climate.copernicus.eu/api-how-to
 import logging
 import os
 from calendar import monthrange
-from concurrent.futures import (
-    ProcessPoolExecutor,
-    ThreadPoolExecutor,
-    as_completed,
-)
+from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
+                                as_completed,
+                                )
 from glob import glob
 from typing import ClassVar
 from warnings import warn
@@ -46,66 +44,34 @@ class EraDownloader:
     assert os.path.exists(req_file), msg
 
     VALID_VARIABLES: ClassVar[list] = [
-        'u',
-        'v',
-        'pressure',
-        'temperature',
-        'relative_humidity',
-        'specific_humidity',
-        'total_precipitation',
+        'u', 'v', 'pressure', 'temperature', 'relative_humidity',
+        'specific_humidity', 'total_precipitation',
     ]
 
-    KEEP_VARIABLES: ClassVar[list] = [
-        'orog',
-        'time',
-        'latitude',
-        'longitude',
-    ]
+    KEEP_VARIABLES: ClassVar[list] = ['orog']
     KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
 
     DEFAULT_RENAMED_VARS: ClassVar[list] = [
-        'zg',
-        'orog',
-        'u',
-        'v',
-        'u_10m',
-        'v_10m',
-        'u_100m',
-        'v_100m',
-        'temperature',
-        'pressure',
+        'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
+        'temperature', 'pressure',
     ]
     DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
-        '10m_u_component_of_wind',
-        '10m_v_component_of_wind',
-        '100m_u_component_of_wind',
-        '100m_v_component_of_wind',
-        'u_component_of_wind',
-        'v_component_of_wind',
-        '2m_temperature',
-        'temperature',
-        'surface_pressure',
-        'relative_humidity',
+        '10m_u_component_of_wind', '10m_v_component_of_wind',
+        '100m_u_component_of_wind', '100m_v_component_of_wind',
+        'u_component_of_wind', 'v_component_of_wind', '2m_temperature',
+        'temperature', 'surface_pressure', 'relative_humidity',
         'total_precipitation',
     ]
 
     SFC_VARS: ClassVar[list] = [
-        '10m_u_component_of_wind',
-        '10m_v_component_of_wind',
-        '100m_u_component_of_wind',
-        '100m_v_component_of_wind',
-        'surface_pressure',
-        '2m_temperature',
-        'geopotential',
+        '10m_u_component_of_wind', '10m_v_component_of_wind',
+        '100m_u_component_of_wind', '100m_v_component_of_wind',
+        'surface_pressure', '2m_temperature', 'geopotential',
         'total_precipitation',
     ]
     LEVEL_VARS: ClassVar[list] = [
-        'u_component_of_wind',
-        'v_component_of_wind',
-        'geopotential',
-        'temperature',
-        'relative_humidity',
-        'specific_humidity',
+        'u_component_of_wind', 'v_component_of_wind', 'geopotential',
+        'temperature', 'relative_humidity', 'specific_humidity',
     ]
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
@@ -119,7 +85,7 @@ class EraDownloader:
         'sp': 'pressure_0m',
         'r': 'relative_humidity',
         'q': 'specific_humidity',
-        'tp': 'total_precip',
+        'tp': 'total_precipitation',
     }
 
     def __init__(self,
@@ -418,11 +384,10 @@ class EraDownloader:
         """
         for old_name, new_name in self.NAME_MAP.items():
             if old_name in old_ds.variables:
-                _ = ds.createVariable(
-                    new_name,
-                    np.float32,
-                    dimensions=old_ds[old_name].dimensions,
-                )
+                _ = ds.createVariable(new_name,
+                                      np.float32,
+                                      dimensions=old_ds[old_name].dimensions,
+                                      )
                 vals = old_ds.variables[old_name][:]
                 if 'temperature' in new_name:
                     vals -= 273.15
@@ -528,6 +493,7 @@ class EraDownloader:
             Whether or not data has required shape and variables.
         """
         out = self.check_single_file(file,
+                                     var_list=self.variables,
                                      check_nans=False,
                                      check_heights=False,
                                      required_shape=required_shape)
@@ -896,11 +862,9 @@ class EraDownloader:
             Percent of data which consists of NaNs across all given variables.
         """
         good_vars = all(var in res for var in var_list)
-        res_shape = (
-            *res['level'].shape,
-            *res['latitude'].shape,
-            *res['longitude'].shape,
-        )
+        res_shape = (*res['level'].shape, *res['latitude'].shape,
+                     *res['longitude'].shape,
+                     )
         good_shape = ('NA' if required_shape is None else
                       (res_shape == required_shape))
         good_hgts = ('NA' if not check_heights else cls.check_heights(
@@ -912,8 +876,8 @@ class EraDownloader:
             res, var_list=var_list))
 
         if not good_vars:
-            mask = np.array([var not in res for var in var_list])
-            missing_vars = var_list[mask]
+            mask = [var not in res for var in var_list]
+            missing_vars = np.array(var_list)[mask]
             logger.error(f'Missing variables: {missing_vars}.')
         if good_shape != 'NA' and not good_shape:
             logger.error(f'Bad shape: {res_shape} != {required_shape}.')
@@ -961,11 +925,10 @@ class EraDownloader:
             futures = []
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 for idt in range(heights.shape[0]):
-                    future = exe.submit(
-                        cls._check_heights_single_ts,
-                        heights[idt],
-                        max_interp_height=max_interp_height,
-                    )
+                    future = exe.submit(cls._check_heights_single_ts,
+                                        heights[idt],
+                                        max_interp_height=max_interp_height,
+                                        )
                     futures.append(future)
                     msg = (f'Submitted height check for {idt + 1} of '
                            f'{heights.shape[0]}')
