@@ -87,29 +87,45 @@ class AbstractInterface(ABC):
             return 5
 
     # pylint: disable=E1101
+    def get_s_enhance_from_layers(self):
+        """Compute factor by which model will enhance spatial resolution from
+        layer attributes. Used in model training during high res coarsening"""
+        s_enhance = None
+        if hasattr(self, '_gen'):
+            s_enhancements = [getattr(layer, '_spatial_mult', 1)
+                              for layer in self._gen.layers]
+            s_enhance = int(np.product(s_enhancements))
+        return s_enhance
+
+    # pylint: disable=E1101
+    def get_t_enhance_from_layers(self):
+        """Compute factor by which model will enhance temporal resolution from
+        layer attributes. Used in model training during high res coarsening"""
+        t_enhance = None
+        if hasattr(self, '_gen'):
+            t_enhancements = [getattr(layer, '_temporal_mult', 1)
+                              for layer in self._gen.layers]
+            t_enhance = int(np.product(t_enhancements))
+        return t_enhance
+
     @property
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""
         s_enhance = self.meta.get('s_enhance', None)
-        if s_enhance is None and hasattr(self, '_gen'):
-            s_enhancements = [getattr(layer, '_spatial_mult', 1)
-                              for layer in self._gen.layers]
-            s_enhance = np.product(s_enhancements)
-            self.meta['s_enhance'] = int(s_enhance)
+        if s_enhance is None:
+            s_enhance = self.get_s_enhance_from_layers()
+            self.meta['s_enhance'] = s_enhance
         return s_enhance
 
-    # pylint: disable=E1101
     @property
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
         model training during high res coarsening"""
         t_enhance = self.meta.get('t_enhance', None)
-        if t_enhance is None and hasattr(self, '_gen'):
-            t_enhancements = [getattr(layer, '_temporal_mult', 1)
-                              for layer in self._gen.layers]
-            t_enhance = np.product(t_enhancements)
-            self.meta['t_enhance'] = int(t_enhance)
+        if t_enhance is None:
+            t_enhance = self.get_t_enhance_from_layers()
+            self.meta['t_enhance'] = t_enhance
         return t_enhance
 
     @property
@@ -118,21 +134,66 @@ class AbstractInterface(ABC):
         'temporal':...}"""
         return self.meta.get('input_resolution', None)
 
+    def _get_numerical_resolutions(self):
+        """Get the input and output resolutions without units"""
+        ires_num = {k: int(re.search(r'\d+', v).group(0))
+                    for k, v in self.input_resolution.items()}
+        enhancements = {'spatial': self.s_enhance,
+                        'temporal': self.t_enhance}
+        ores_num = {k: v // enhancements[k] for k, v in ires_num.items()}
+        return ires_num, ores_num
+
+    def _ensure_valid_input_resolution(self):
+        """Ensure ehancement factors evenly divide input_resolution"""
+
+        if self.input_resolution is None:
+            return
+
+        ires_num, ores_num = self._get_numerical_resolutions()
+        s_enhance = self.meta['s_enhance']
+        t_enhance = self.meta['t_enhance']
+        check = (
+            ires_num['temporal'] / ores_num['temporal'] == t_enhance
+            and ires_num['spatial'] / ores_num['spatial'] == s_enhance)
+        msg = (f'Enhancement factors (s_enhance={s_enhance}, '
+               f't_enhance={t_enhance}) do not evenly divide '
+               f'input resolution ({self.input_resolution})')
+        if not check:
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+    def _ensure_valid_enhancement_factors(self):
+        """Ensure user provided enhancement factors are the same as those
+        computed from layer attributes"""
+        t_enhance = self.meta.get('t_enhance', None)
+        s_enhance = self.meta.get('s_enhance', None)
+        if s_enhance is None or t_enhance is None:
+            return
+
+        layer_se = self.get_s_enhance_from_layers()
+        layer_te = self.get_t_enhance_from_layers()
+        layer_se = layer_se if layer_se is not None else self.meta['s_enhance']
+        layer_te = layer_te if layer_te is not None else self.meta['t_enhance']
+        msg = (f'Enhancement factors computed from layer attributes '
+               f'(s_enhance={layer_se}, t_enhance={layer_te}) '
+               f'conflict with user provided values (s_enhance={s_enhance}, '
+               f't_enhance={t_enhance})')
+        check = layer_se == s_enhance or layer_te == t_enhance
+        if not check:
+            logger.error(msg)
+            raise RuntimeError(msg)
+
     @property
     def output_resolution(self):
         """Resolution of output data. Given as a dictionary {'spatial':...,
         'temporal':...}"""
-        input_res = self.input_resolution
-        output_res = {} if input_res is None else input_res.copy()
-        if input_res is not None:
-            input_temporal = re.search(r'\d+', input_res['temporal']).group(0)
-            input_spatial = re.search(r'\d+', input_res['spatial']).group(0)
-            output_temporal = int(self.t_enhance * input_temporal)
-            output_spatial = int(self.s_enhance * input_spatial)
-            output_res['temporal'].replace(input_temporal,
-                                           str(output_temporal))
-            output_res['spatial'].replace(input_spatial,
-                                          str(output_spatial))
+        output_res = self.meta.get('output_resolution', None)
+        if self.input_resolution is not None and output_res is None:
+            output_res = self.input_resolution.copy()
+            ires_num, ores_num = self._get_numerical_resolutions()
+            output_res = {k: v.replace(str(ires_num[k]), str(ores_num[k]))
+                          for k, v in self.input_resolution.items()}
+            self.meta['output_resolution'] = output_res
         return output_res
 
     def _combine_fwp_input(self, low_res, exogenous_data=None):
@@ -362,6 +423,9 @@ class AbstractInterface(ABC):
             Same as input but with exogenous_features removed from output
             features
         """
+        if 'output_features' not in kwargs:
+            return kwargs
+
         output_features = kwargs['output_features']
         msg = (f'Last {len(self.exogenous_features)} output features from the '
                f'data handler must be {self.exogenous_features} '
@@ -381,8 +445,9 @@ class AbstractInterface(ABC):
         Parameters
         ----------
         kwargs : dict
-            Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
+            Keyword arguments including 'input_resolution',
+            'training_features', 'output_features', 'smoothed_features',
+            's_enhance', 't_enhance', 'smoothing'
         """
         kwargs = self._check_exo_features(**kwargs)
 
@@ -391,7 +456,7 @@ class AbstractInterface(ABC):
         keys = [k for k in keys if k in kwargs]
 
         for var in keys:
-            val = getattr(self, var, None)
+            val = self.meta.get(var, None)
             if val is None:
                 self.meta[var] = kwargs[var]
             elif val != kwargs[var]:
@@ -401,6 +466,9 @@ class AbstractInterface(ABC):
                                                       var=var))
                 logger.warning(msg)
                 warn(msg)
+
+        self._ensure_valid_enhancement_factors()
+        self._ensure_valid_input_resolution()
 
     def save_params(self, out_dir):
         """

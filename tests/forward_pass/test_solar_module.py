@@ -119,7 +119,7 @@ def test_chunk_file_parser():
     with tempfile.TemporaryDirectory() as td:
         for idt in id_temporal:
             for ids in id_spatial:
-                fn = ('sup3r_chunk_out_{}_{}.h5'.format(idt, ids))
+                fn = 'sup3r_chunk_out_{}_{}.h5'.format(idt, ids)
                 fp = os.path.join(td, fn)
                 Path(fp).touch()
                 all_st_ids.append('{}_{}'.format(idt, ids))

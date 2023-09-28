@@ -103,7 +103,7 @@ def test_fwp_pipeline():
         with ResourceX(fp_out) as f:
             assert len(f.time_index) == t_enhance * n_tsteps
 
-        status_files = glob.glob(os.path.join(f'{td}/.gaps/', '*status.json'))
+        status_files = glob.glob(os.path.join(td, '.gaps', '*status.json'))
         assert len(status_files) == 1
         status_file = status_files[0]
         with open(status_file) as fh:
