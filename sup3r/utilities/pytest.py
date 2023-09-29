@@ -34,6 +34,8 @@ def make_fake_nc_files(td, input_file, n_files):
     ]
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
+        if os.path.exists(fake_files[i]):
+            os.remove(fake_files[i])
         input_dset = xr.open_dataset(input_file)
         with xr.Dataset(input_dset) as dset:
             dset['Times'][:] = np.array(
@@ -70,6 +72,8 @@ def make_fake_multi_time_nc_files(td, input_file, n_steps, n_files):
         dummy_file = os.path.join(
             td, f'multi_timestep_file_{str(i).zfill(3)}.nc'
         )
+        if os.path.exists(dummy_file):
+            os.remove(dummy_file)
         dummy_files.append(dummy_file)
         with xr.open_mfdataset(
             files, combine='nested', concat_dim='Time'
@@ -104,6 +108,8 @@ def make_fake_era_files(td, input_file, n_files):
     ]
     fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
     for i in range(n_files):
+        if os.path.exists(fake_files[i]):
+            os.remove(fake_files[i])
         input_dset = xr.open_dataset(input_file)
         with xr.Dataset(input_dset) as dset:
             dset['Times'][:] = np.array(
