@@ -60,7 +60,7 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
+    st_model.meta['training_features'] = ['U_100m', 'V_100m']
     st_model.meta['output_features'] = ['U_100m', 'V_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
@@ -99,8 +99,7 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
         }
 
         model_kwargs = {
-            'spatial_model_dirs': [s1_out_dir, s2_out_dir],
-            'temporal_model_dirs': st_out_dir
+            'model_dirs': [s1_out_dir, s2_out_dir, st_out_dir]
         }
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
@@ -113,7 +112,7 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
             input_handler_kwargs=input_handler_kwargs,
             spatial_pad=0,
@@ -317,8 +316,7 @@ def test_fwp_multi_step_model_topo_noskip():
         }
 
         model_kwargs = {
-            'spatial_model_dirs': [s1_out_dir, s2_out_dir],
-            'temporal_model_dirs': st_out_dir
+            'model_dirs': [s1_out_dir, s2_out_dir, st_out_dir]
         }
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
@@ -331,7 +329,7 @@ def test_fwp_multi_step_model_topo_noskip():
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
@@ -638,10 +636,6 @@ def test_fwp_multi_step_wind_hi_res_topo():
         }
 
         model_kwargs = {
-            'spatial_model_dirs': [s1_out_dir, s2_out_dir],
-            'temporal_model_dirs': st_out_dir
-        }
-        model_kwargs = {
             'model_dirs': [s1_out_dir, s2_out_dir, st_out_dir]
         }
         out_files = os.path.join(td, 'out_{file_id}.h5')
@@ -807,8 +801,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
         }
 
         model_kwargs = {
-            'spatial_model_dirs': s_out_dir,
-            'temporal_model_dirs': t_out_dir
+            'model_dirs': [s_out_dir, t_out_dir]
         }
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
@@ -820,7 +813,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=(4, 4, 8),
             spatial_pad=1,
             temporal_pad=1,
@@ -916,8 +909,7 @@ def test_fwp_multi_step_model_multi_exo():
         }
 
         model_kwargs = {
-            'spatial_model_dirs': [s1_out_dir, s2_out_dir],
-            'temporal_model_dirs': st_out_dir
+            'model_dirs': [s1_out_dir, s2_out_dir, st_out_dir]
         }
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
@@ -930,7 +922,7 @@ def test_fwp_multi_step_model_multi_exo():
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
@@ -1173,8 +1165,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
         }
 
         model_kwargs = {
-            'spatial_model_dirs': [s1_out_dir, s2_out_dir],
-            'temporal_model_dirs': st_out_dir
+            'model_dirs': [s1_out_dir, s2_out_dir, st_out_dir]
         }
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
@@ -1186,7 +1177,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=(4, 4, 8),
             spatial_pad=1,
             temporal_pad=1,

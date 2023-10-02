@@ -27,13 +27,17 @@ T_AGG_FACTORS = [1, 1]
 def test_exo_cache(feature):
     """Test exogenous data caching and re-load"""
     # no cached data
+    steps = []
+    for s_en, t_en, s_agg, t_agg in zip(S_ENHANCE, T_ENHANCE, S_AGG_FACTORS,
+                                        T_AGG_FACTORS):
+        steps.append({'s_enhance': s_en,
+                      't_enhance': t_en,
+                      's_agg_factor': s_agg,
+                      't_agg_factor': t_agg})
     try:
         base = ExogenousDataHandler(FILE_PATHS, feature,
                                     source_file=FP_WTK,
-                                    s_enhancements=S_ENHANCE,
-                                    t_enhancements=T_ENHANCE,
-                                    s_agg_factors=S_AGG_FACTORS,
-                                    t_agg_factors=T_AGG_FACTORS,
+                                    steps=steps,
                                     target=TARGET, shape=SHAPE,
                                     input_handler='DataHandlerNCforCC')
         for i, arr in enumerate(base.data):
@@ -51,10 +55,7 @@ def test_exo_cache(feature):
     try:
         cache = ExogenousDataHandler(FILE_PATHS, feature,
                                      source_file=FP_WTK,
-                                     s_enhancements=S_ENHANCE,
-                                     t_enhancements=T_ENHANCE,
-                                     s_agg_factors=S_AGG_FACTORS,
-                                     t_agg_factors=T_AGG_FACTORS,
+                                     steps=steps,
                                      target=TARGET, shape=SHAPE,
                                      input_handler='DataHandlerNCforCC')
     except Exception as e:

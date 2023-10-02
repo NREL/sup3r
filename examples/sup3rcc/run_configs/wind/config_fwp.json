@@ -1,13 +1,12 @@
 {
     "file_paths": "PLACEHOLDER",
     "model_kwargs": {
-        "spatial_model_dirs": [
+        "model_dirs": [
             "./sup3rcc_models_202303/sup3rcc_wind_step1_5x_1x_6f/",
-            "./sup3rcc_models_202303/sup3rcc_wind_step2_5x_1x_6f/"
-        ],
-        "temporal_model_dirs": "./sup3rcc_models_202303/sup3rcc_wind_step3_1x_24x_6f/"
+            "./sup3rcc_models_202303/sup3rcc_wind_step2_5x_1x_6f/",
+            "./sup3rcc_models_202303/sup3rcc_wind_step3_1x_24x_6f/"]
     },
-    "model_class": "SpatialThenTemporalGan",
+    "model_class": "MultiStepGan",
     "out_pattern": "./chunks/sup3r_chunk_{file_id}.h5",
     "log_pattern": "./logs/sup3r_fwp_log_{node_index}.log",
     "bias_correct_method": "monthly_local_linear_bc",

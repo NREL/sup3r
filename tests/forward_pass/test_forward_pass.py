@@ -600,8 +600,7 @@ def test_fwp_multi_step_model():
         t_enhance = 4
 
         model_kwargs = {
-            'spatial_model_dirs': s_out_dir,
-            'temporal_model_dirs': st_out_dir
+            'model_dirs': [s_out_dir, st_out_dir]
         }
 
         input_handler_kwargs = dict(
@@ -613,7 +612,7 @@ def test_fwp_multi_step_model():
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
-            model_class='SpatialThenTemporalGan',
+            model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0,
             temporal_pad=0,

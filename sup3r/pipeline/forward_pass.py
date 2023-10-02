@@ -7,7 +7,6 @@ Sup3r forward pass handling module.
 import copy
 import logging
 import os
-import re
 import warnings
 from concurrent.futures import as_completed
 from datetime import datetime as dt
@@ -53,8 +52,7 @@ class ForwardPassSlicer:
                  s_enhancements,
                  t_enhancements,
                  spatial_pad,
-                 temporal_pad,
-                 ):
+                 temporal_pad):
         """
         Parameters
         ----------
@@ -610,8 +608,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                  exo_kwargs=None,
                  bias_correct_method=None,
                  bias_correct_kwargs=None,
-                 max_nodes=None,
-                 ):
+                 max_nodes=None):
         """Use these inputs to initialize data handlers on different nodes and
         to define the size of the data chunks that will be passed through the
         generator.
@@ -700,7 +697,11 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             be used in the model. e.g. {'topography': {'file_paths': 'path to
             input files', 'source_file': 'path to exo data', 'exo_resolution':
             {'spatial': '1km', 'temporal': None}, 'steps': [{'model': 0,
-            'combine_type': 'input'}, {'model': 0, 'combine_type': 'layer'}]}
+            'combine_type': 'input'}, {'model': 0, 'combine_type': 'layer'}]}.
+            Each step can also include s_agg_factor/t_agg_factor to manually
+            set aggregation of exogenous_data. If they are not specified they
+            will be computed based on the model resolution and the exogenous
+            data resolution.
         bias_correct_method : str | None
             Optional bias correction function name that can be imported from
             the :mod:`sup3r.bias.bias_transforms` module. This will transform
@@ -848,8 +849,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             out = self.input_handler_class(self.file_paths[0], [],
                                            target=self.target,
                                            shape=self.grid_shape,
-                                           worker_kwargs=dict(ti_workers=1),
-                                           )
+                                           worker_kwargs=dict(ti_workers=1))
             self._init_handler = out
         return self._init_handler
 
@@ -1093,7 +1093,7 @@ class ForwardPass:
         self.max_workers = strategy.max_workers
         self.pass_workers = strategy.pass_workers
         self.output_workers = strategy.output_workers
-        self.exo_kwargs = self.update_exo_extract_kwargs(strategy.exo_kwargs)
+        self.exo_kwargs = strategy.exo_kwargs
         self.exo_features = ([]
                              if not self.exo_kwargs else list(self.exo_kwargs))
         self.exogenous_data = self.load_exo_data()
@@ -1120,169 +1120,6 @@ class ForwardPass:
         self.unpadded_input_data = self.data_handler.data[self.lr_slice[0],
                                                           self.lr_slice[1]]
 
-    def _get_res_ratio(self, input_res, exo_res):
-        """Compute resolution ratio given input and output resolution
-
-        Parameters
-        ----------
-        input_res : str | None
-            Input resolution. e.g. '30km' or '60min'
-        exo_res : str | None
-            Exo resolution. e.g. '1km' or '5min'
-
-        Returns
-        -------
-        res_ratio : int | None
-            Ratio of input / exo resolution
-        """
-        ires_num = (None if input_res is None
-                    else int(re.search(r'\d+', input_res).group(0)))
-        eres_num = (None if exo_res is None
-                    else int(re.search(r'\d+', exo_res).group(0)))
-        i_units = (None if input_res is None
-                   else input_res.replace(str(ires_num), ''))
-        e_units = (None if exo_res is None
-                   else exo_res.replace(str(eres_num), ''))
-        msg = 'Received conflicting units for input and exo resolution'
-        if e_units is not None:
-            assert i_units == e_units, msg
-        if ires_num is not None and eres_num is not None:
-            res_ratio = int(ires_num / eres_num)
-        else:
-            res_ratio = None
-        return res_ratio
-
-    def get_agg_factors(self, input_res, exo_res):
-        """Compute aggregation ratio for exo data given input and output
-        resolution
-
-        Parameters
-        ----------
-        input_res : dict | None
-            Input resolution. e.g. {'spatial': '30km', 'temporal': '60min'}
-        exo_res : dict | None
-            Exogenous data resolution. e.g.
-            {'spatial': '1km', 'temporal': '5min'}
-
-        Returns
-        -------
-        s_agg_factor : int
-            Spatial aggregation factor for exogenous data extraction.
-        t_agg_factor : int
-            Temporal aggregation factor for exogenous data extraction.
-        """
-        input_s_res = None if input_res is None else input_res['spatial']
-        exo_s_res = None if exo_res is None else exo_res['spatial']
-        s_res_ratio = self._get_res_ratio(input_s_res, exo_s_res)
-        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio)**2
-        input_t_res = None if input_res is None else input_res['temporal']
-        exo_t_res = None if exo_res is None else exo_res['temporal']
-        t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
-        return s_agg_factor, t_agg_factor
-
-    def _get_single_step_agg_and_enhancement(self, step_dict, exo_resolution):
-        """Compute agg and enhancement factors for exogenous data extraction
-        using exo_kwargs single model step. These factors are computed using
-        exo_resolution and the input/output resolution of each model step.
-
-        Parameters
-        ----------
-        step_dict : dict
-            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
-        exo_resolution : dict
-            Resolution of exogenous data. e.g. {'temporal': 15min, 'spatial':
-            '1km'}
-
-        Returns
-        -------
-        updated_step_dict : dict
-            Same as input dictionary with s_agg_factor, t_agg_factor,
-            s_enhance, t_enhance added
-        """
-        model_step = step_dict['model']
-        s_enhance = None
-        t_enhance = None
-        s_agg_factor = None
-        t_agg_factor = None
-        models = getattr(self.model, 'models', [self.model])
-        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
-               f'of model steps ({len(models)})')
-        assert len(models) > model_step, msg
-        model = models[model_step]
-        input_res = model.input_resolution
-        output_res = model.output_resolution
-        combine_type = step_dict.get('combine_type', None)
-
-        if combine_type.lower() == 'input':
-            if model_step == 0:
-                s_enhance = 1
-                t_enhance = 1
-            else:
-                s_enhance = np.product(
-                    self.strategy.s_enhancements[:model_step])
-                t_enhance = np.product(
-                    self.strategy.t_enhancements[:model_step])
-            s_agg_factor, t_agg_factor = self.get_agg_factors(
-                input_res, exo_resolution)
-            resolution = input_res
-
-        elif combine_type.lower() in ('output', 'layer'):
-            s_enhance = np.product(
-                self.strategy.s_enhancements[:model_step + 1])
-            t_enhance = np.product(
-                self.strategy.t_enhancements[:model_step + 1])
-            s_agg_factor, t_agg_factor = self.get_agg_factors(
-                output_res, exo_resolution)
-            resolution = output_res
-
-        else:
-            msg = ('Received exo_kwargs entry without valid combine_type '
-                   '(input/layer/output)')
-            raise OSError(msg)
-
-        updated_dict = step_dict.copy()
-        updated_dict.update({'s_enhance': s_enhance, 't_enhance': t_enhance,
-                             's_agg_factor': s_agg_factor,
-                             't_agg_factor': t_agg_factor,
-                             'resolution': resolution})
-        return updated_dict
-
-    def update_exo_extract_kwargs(self, exo_kwargs):
-        """Compute agg and enhancement factors for all model steps for all
-        features.
-
-        Parameters
-        ----------
-        exo_kwargs: dict
-            Full exo_kwargs dictionary with all feature entries.
-            e.g. {'topography': {'exo_resolution': {'spatial': '1km',
-            'temporal': None}, 'steps': [{'model': 0, 'combine_type': 'input'},
-            {'model': 0, 'combine_type': 'layer'}]}}
-
-        Returns
-        -------
-        updated_dict : dict
-            Same as input dictionary with s_agg_factor, t_agg_factor,
-            s_enhance, t_enhance added to each step entry for all features
-        """
-        if exo_kwargs is not None:
-            for feature in exo_kwargs:
-                exo_resolution = exo_kwargs[feature]['exo_resolution']
-                steps = exo_kwargs[feature]['steps']
-                for i, step in enumerate(steps):
-                    out = self._get_single_step_agg_and_enhancement(
-                        step, exo_resolution)
-                    exo_kwargs[feature]['steps'][i] = out
-                exo_kwargs[feature]['s_agg_factors'] = [step['s_agg_factor']
-                                                        for step in steps]
-                exo_kwargs[feature]['t_agg_factors'] = [step['t_agg_factor']
-                                                        for step in steps]
-                exo_kwargs[feature]['s_enhancements'] = [step['s_enhance']
-                                                         for step in steps]
-                exo_kwargs[feature]['t_enhancements'] = [step['t_enhance']
-                                                         for step in steps]
-        return exo_kwargs
-
     def load_exo_data(self):
         """Extract exogenous data for each exo feature and store data in
         dictionary with key for each exo feature
@@ -1304,12 +1141,13 @@ class ForwardPass:
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
                 exo_kwargs['temporal_slice'] = self.ti_pad_slice
-                steps = exo_kwargs['steps']
+                exo_kwargs['models'] = getattr(self.model, 'models',
+                                               [self.model])
                 sig = signature(ExogenousDataHandler)
                 exo_kwargs = {k: v for k, v in exo_kwargs.items()
                               if k in sig.parameters}
                 data = ExogenousDataHandler(**exo_kwargs).data
-                for i, _ in enumerate(steps):
+                for i, _ in enumerate(exo_kwargs['steps']):
                     exo_data[feature]['steps'][i]['data'] = data[i]
                 shapes = [None if d is None else d.shape for d in data]
                 logger.info(
@@ -1602,11 +1440,41 @@ class ForwardPass:
         return ((pad_s1_start, pad_s1_end), (pad_s2_start, pad_s2_end),
                 (pad_t_start, pad_t_end))
 
-    @staticmethod
-    def pad_source_data(input_data,
-                        pad_width,
-                        exo_data,
-                        mode='reflect'):
+    def _get_step_enhance(self, step):
+        """Get enhancement factors for a given step and combine type.
+
+        Parameters
+        ----------
+        step : dict
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+
+        Returns
+        -------
+        s_enhance : int
+            Spatial enhancement factor for given step and combine type
+        t_enhance : int
+            Temporal enhancement factor for given step and combine type
+        """
+        combine_type = step['combine_type']
+        model_step = step['model']
+        if combine_type.lower() == 'input':
+            if model_step == 0:
+                s_enhance = 1
+                t_enhance = 1
+            else:
+                s_enhance = np.product(
+                    self.strategy.s_enhancements[:model_step])
+                t_enhance = np.product(
+                    self.strategy.t_enhancements[:model_step])
+
+        elif combine_type.lower() in ('output', 'layer'):
+            s_enhance = np.product(
+                self.strategy.s_enhancements[:model_step + 1])
+            t_enhance = np.product(
+                self.strategy.t_enhancements[:model_step + 1])
+        return s_enhance, t_enhance
+
+    def pad_source_data(self, input_data, pad_width, exo_data, mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
         Parameters
@@ -1647,12 +1515,13 @@ class ForwardPass:
         if exo_data is not None:
             for feature in exo_data:
                 for i, step in enumerate(exo_data[feature]['steps']):
-                    exo_pad_width = ((step['s_enhance'] * pad_width[0][0],
-                                      step['s_enhance'] * pad_width[0][1]),
-                                     (step['s_enhance'] * pad_width[1][0],
-                                      step['s_enhance'] * pad_width[1][1]),
-                                     (step['t_enhance'] * pad_width[2][0],
-                                      step['t_enhance'] * pad_width[2][1]),
+                    s_enhance, t_enhance = self._get_step_enhance(step)
+                    exo_pad_width = ((s_enhance * pad_width[0][0],
+                                      s_enhance * pad_width[0][1]),
+                                     (s_enhance * pad_width[1][0],
+                                      s_enhance * pad_width[1][1]),
+                                     (t_enhance * pad_width[2][0],
+                                      t_enhance * pad_width[2][1]),
                                      (0, 0))
                     new_exo = np.pad(step['data'], exo_pad_width, mode=mode)
                     exo_data[feature]['steps'][i]['data'] = new_exo

@@ -11,7 +11,6 @@ from sup3r.models import (
     LinearInterp,
     MultiStepGan,
     SolarMultiStepGan,
-    SpatialThenTemporalGan,
     Sup3rGan,
 )
 
@@ -70,6 +69,9 @@ def test_multi_step_norm(norm_option):
         model2.set_norm_stats([0.1, 0.8], [0.04, 0.02])
         model3.set_norm_stats([0.1, 0.8], [0.04, 0.02])
 
+    model1.meta['input_resolution'] = {'spatial': '27km', 'temporal': '64min'}
+    model2.meta['input_resolution'] = {'spatial': '9km', 'temporal': '16min'}
+    model3.meta['input_resolution'] = {'spatial': '3km', 'temporal': '4min'}
     model1.set_model_params(training_features=FEATURES,
                             output_features=FEATURES)
     model2.set_model_params(training_features=FEATURES,
@@ -118,6 +120,8 @@ def test_spatial_then_temporal_gan():
 
     model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
     model2.set_norm_stats([0.3, 0.9], [0.02, 0.07])
+    model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '40min'}
+    model2.meta['input_resolution'] = {'spatial': '6km', 'temporal': '40min'}
     model1.set_model_params(training_features=FEATURES,
                             output_features=FEATURES)
     model2.set_model_params(training_features=FEATURES,
@@ -129,7 +133,7 @@ def test_spatial_then_temporal_gan():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialThenTemporalGan.load(fp1, fp2)
+        ms_model = MultiStepGan.load([fp1, fp2])
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)
@@ -150,6 +154,8 @@ def test_temporal_then_spatial_gan():
 
     model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
     model2.set_norm_stats([0.3, 0.9], [0.02, 0.07])
+    model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '40min'}
+    model2.meta['input_resolution'] = {'spatial': '6km', 'temporal': '40min'}
     model1.set_model_params(training_features=FEATURES,
                             output_features=FEATURES)
     model2.set_model_params(training_features=FEATURES,
@@ -178,6 +184,7 @@ def test_spatial_gan_then_linear_interp():
     model2 = LinearInterp(features=FEATURES, s_enhance=3, t_enhance=4)
 
     model1.set_norm_stats([0.1, 0.2], [0.04, 0.02])
+    model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '60min'}
     model1.set_model_params(training_features=FEATURES,
                             output_features=FEATURES)
 
@@ -187,7 +194,7 @@ def test_spatial_gan_then_linear_interp():
         model1.save(fp1)
         model2.save(fp2)
 
-        ms_model = SpatialThenTemporalGan.load(fp1, fp2)
+        ms_model = MultiStepGan.load([fp1, fp2])
 
         x = np.ones((4, 10, 10, len(FEATURES)))
         out = ms_model.generate(x)
@@ -204,6 +211,7 @@ def test_solar_multistep():
     model1 = Sup3rGan(fp_gen, fp_disc)
     _ = model1.generate(np.ones((4, 10, 10, len(features1))))
     model1.set_norm_stats([0.7], [0.04])
+    model1.meta['input_resolution'] = {'spatial': '8km', 'temporal': '40min'}
     model1.set_model_params(training_features=features1,
                             output_features=features1)
 
@@ -213,6 +221,7 @@ def test_solar_multistep():
     model2 = Sup3rGan(fp_gen, fp_disc)
     _ = model2.generate(np.ones((4, 10, 10, len(features2))))
     model2.set_norm_stats([4.2, 5.6], [1.1, 1.3])
+    model2.meta['input_resolution'] = {'spatial': '4km', 'temporal': '40min'}
     model2.set_model_params(training_features=features2,
                             output_features=features2)
 
@@ -223,6 +232,7 @@ def test_solar_multistep():
     model3 = Sup3rGan(fp_gen, fp_disc)
     _ = model3.generate(np.ones((4, 10, 10, 3, len(features_in_3))))
     model3.set_norm_stats([0.7, 4.2, 5.6], [0.04, 1.1, 1.3])
+    model3.meta['input_resolution'] = {'spatial': '2km', 'temporal': '40min'}
     model3.set_model_params(training_features=features_in_3,
                             output_features=features_out_3)
 

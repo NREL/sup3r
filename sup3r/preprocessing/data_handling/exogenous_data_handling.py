@@ -2,8 +2,11 @@
 import logging
 import os
 import pickle
+import re
 import shutil
 from typing import ClassVar
+
+import numpy as np
 
 from sup3r.preprocessing.data_handling import exo_extraction
 from sup3r.preprocessing.data_handling.exo_extraction import (
@@ -35,10 +38,9 @@ class ExogenousDataHandler:
     def __init__(self,
                  file_paths,
                  feature,
-                 s_enhancements,
-                 t_enhancements,
-                 s_agg_factors,
-                 t_agg_factors,
+                 steps,
+                 models=None,
+                 exo_resolution=None,
                  source_file=None,
                  target=None,
                  shape=None,
@@ -60,34 +62,19 @@ class ExogenousDataHandler:
             sup3r resolved.
         feature : str
             Exogenous feature to extract from source_h5
-        s_enhancements : list
-            List of factors by which the Sup3rGan model will enhance the
-            spatial dimensions of low resolution data from file_paths input
-            where the total spatial enhancement is the product of these
-            factors. For example, if file_paths has 100km data and there are 2
-            spatial enhancement steps of 4x and 5x to a nominal resolution of
-            5km, s_enhancements should be [1, 4, 5] and exo_steps should be
-            [0, 1, 2] so that the input to the 4x model gets exogenous data
-            at 100km (s_enhance=1, exo_step=0), the input to the 5x model gets
-            exogenous data at 25km (s_enhance=4, exo_step=1), and there is a
-            20x (1*4*5) exogeneous data layer available if the second model can
-            receive a high-res input feature. The length of this list should be
-            equal to the number of s_agg_factors
-        t_enhancements : list
-            List of factors by which the Sup3rGan model will enhance the
-            temporal dimension of low resolution data from file_paths input
-            where the total temporal enhancement is the product of these
-            factors.
-        s_agg_factors : list
-            List of factors by which to aggregate the exo_source
-            data to the spatial resolution of the file_paths input enhanced by
-            s_enhance. The length of this list should be equal to the number of
-            s_enhancements
-        t_agg_factors : list
-            List of factors by which to aggregate the exo_source
-            data to the temporal resolution of the file_paths input enhanced by
-            t_enhance. The length of this list should be equal to the number of
-            t_enhancements
+        models : list
+            List of models used with the given steps list
+        steps : list
+            List of dictionaries containing info on which models to use for a
+            given step index and what type of exo data the step requires. e.g.
+            [{'model': 0, 'combine_type': 'input'},
+             {'model': 0, 'combine_type': 'layer'}]
+            Each step entry can also contain s_enhance, t_enhance,
+            s_agg_factor, t_agg_factor. If they are not included they will be
+            computed using exo_resolution and model attributes
+        exo_resolution : dict
+            Dictionary of spatiotemporal resolution for the given exo data
+            source. e.g. {'spatial': '4km', 'temporal': '60min'}
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the
@@ -128,10 +115,9 @@ class ExogenousDataHandler:
         """
 
         self.feature = feature
-        self.s_enhancements = s_enhancements
-        self.t_enhancements = t_enhancements
-        self.s_agg_factors = s_agg_factors
-        self.t_agg_factors = t_agg_factors
+        self.steps = steps
+        self.models = models
+        self.exo_res = exo_resolution
         self.source_file = source_file
         self.file_paths = file_paths
         self.exo_handler = exo_handler
@@ -144,6 +130,13 @@ class ExogenousDataHandler:
         self.cache_data = cache_data
         self.cache_dir = cache_dir
         self.data = []
+
+        self.input_check()
+        agg_enhance = self._get_all_agg_and_enhancement()
+        self.s_enhancements = agg_enhance['s_enhancements']
+        self.t_enhancements = agg_enhance['t_enhancements']
+        self.s_agg_factors = agg_enhance['s_agg_factors']
+        self.t_agg_factors = agg_enhance['t_agg_factors']
 
         msg = ('Need to provide the same number of enhancement factors and '
                f'agg factors. Received s_enhancements={self.s_enhancements}, '
@@ -174,6 +167,202 @@ class ExogenousDataHandler:
                 msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
                        f" Received {feature}.")
                 raise NotImplementedError(msg)
+
+    def input_check(self):
+        """Make sure agg factors are provided or exo_resolution and models are
+        provided. Make sure enhancement factors are provided or models are
+        provided"""
+        agg_check = all('s_agg_factor' in v for v in self.steps)
+        agg_check = agg_check and all('t_agg_factor' in v for v in self.steps)
+        agg_check = (agg_check
+                     or self.models is not None and self.exo_res is not None)
+        msg = ("ExogenousDataHandler needs s_agg_factor and t_agg_factor "
+               "provided in each step in steps list or models and "
+               "exo_resolution")
+        assert agg_check, msg
+        en_check = all('s_enhance' in v for v in self.steps)
+        en_check = en_check and all('t_enhance' in v for v in self.steps)
+        en_check = en_check or self.models is not None
+        msg = ("ExogenousDataHandler needs s_enhance and t_enhance "
+               "provided in each step in steps list or models")
+        assert en_check, msg
+
+    def _get_res_ratio(self, input_res, exo_res):
+        """Compute resolution ratio given input and output resolution
+
+        Parameters
+        ----------
+        input_res : str | None
+            Input resolution. e.g. '30km' or '60min'
+        exo_res : str | None
+            Exo resolution. e.g. '1km' or '5min'
+
+        Returns
+        -------
+        res_ratio : int | None
+            Ratio of input / exo resolution
+        """
+        ires_num = (None if input_res is None
+                    else int(re.search(r'\d+', input_res).group(0)))
+        eres_num = (None if exo_res is None
+                    else int(re.search(r'\d+', exo_res).group(0)))
+        i_units = (None if input_res is None
+                   else input_res.replace(str(ires_num), ''))
+        e_units = (None if exo_res is None
+                   else exo_res.replace(str(eres_num), ''))
+        msg = 'Received conflicting units for input and exo resolution'
+        if e_units is not None:
+            assert i_units == e_units, msg
+        if ires_num is not None and eres_num is not None:
+            res_ratio = int(ires_num / eres_num)
+        else:
+            res_ratio = None
+        return res_ratio
+
+    def get_agg_factors(self, input_res, exo_res):
+        """Compute aggregation ratio for exo data given input and output
+        resolution
+
+        Parameters
+        ----------
+        input_res : dict | None
+            Input resolution. e.g. {'spatial': '30km', 'temporal': '60min'}
+        exo_res : dict | None
+            Exogenous data resolution. e.g.
+            {'spatial': '1km', 'temporal': '5min'}
+
+        Returns
+        -------
+        s_agg_factor : int
+            Spatial aggregation factor for exogenous data extraction.
+        t_agg_factor : int
+            Temporal aggregation factor for exogenous data extraction.
+        """
+        input_s_res = None if input_res is None else input_res['spatial']
+        exo_s_res = None if exo_res is None else exo_res['spatial']
+        s_res_ratio = self._get_res_ratio(input_s_res, exo_s_res)
+        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio)**2
+        input_t_res = None if input_res is None else input_res['temporal']
+        exo_t_res = None if exo_res is None else exo_res['temporal']
+        t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
+        return s_agg_factor, t_agg_factor
+
+    def _get_single_step_agg(self, step):
+        """Compute agg factors for exogenous data extraction
+        using exo_kwargs single model step. These factors are computed using
+        exo_resolution and the input/output resolution of each model step. If
+        agg factors are already provided in step they are not overwritten.
+
+        Parameters
+        ----------
+        step : dict
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+
+        Returns
+        -------
+        updated_step : dict
+            Same as input dictionary with s_agg_factor, t_agg_factor added
+        """
+        if all(key in step for key in ['s_agg_factor', 't_agg_factor']):
+            return step
+
+        model_step = step['model']
+        combine_type = step.get('combine_type', None)
+        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
+               f'of model steps ({len(self.models)})')
+        assert len(self.models) > model_step, msg
+        model = self.models[model_step]
+        input_res = model.input_resolution
+        output_res = model.output_resolution
+        if combine_type.lower() == 'input':
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                input_res, self.exo_res)
+
+        elif combine_type.lower() in ('output', 'layer'):
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                output_res, self.exo_res)
+
+        else:
+            msg = ('Received exo_kwargs entry without valid combine_type '
+                   '(input/layer/output)')
+            raise OSError(msg)
+
+        step.update({'s_agg_factor': s_agg_factor,
+                     't_agg_factor': t_agg_factor})
+        return step
+
+    def _get_single_step_enhance(self, step):
+        """Get enhancement factors for exogenous data extraction
+        using exo_kwargs single model step. These factors are computed using
+        stored enhance attributes of each model and the model step provided.
+        If enhancement factors are already provided in step they are not
+        overwritten.
+
+        Parameters
+        ----------
+        step : dict
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+
+        Returns
+        -------
+        updated_step : dict
+            Same as input dictionary with s_enhance, t_enhance added
+        """
+        if all(key in step for key in ['s_enhance', 't_enhance']):
+            return step
+
+        model_step = step['model']
+        combine_type = step.get('combine_type', None)
+        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
+               f'of model steps ({len(self.models)})')
+        assert len(self.models) > model_step, msg
+
+        s_enhancements = [model.s_enhance for model in self.models]
+        t_enhancements = [model.t_enhance for model in self.models]
+        if combine_type.lower() == 'input':
+            if model_step == 0:
+                s_enhance = 1
+                t_enhance = 1
+            else:
+                s_enhance = np.product(s_enhancements[:model_step])
+                t_enhance = np.product(t_enhancements[:model_step])
+
+        elif combine_type.lower() in ('output', 'layer'):
+            s_enhance = np.product(s_enhancements[:model_step + 1])
+            t_enhance = np.product(t_enhancements[:model_step + 1])
+
+        else:
+            msg = ('Received exo_kwargs entry without valid combine_type '
+                   '(input/layer/output)')
+            raise OSError(msg)
+
+        step.update({'s_enhance': s_enhance, 't_enhance': t_enhance})
+        return step
+
+    def _get_all_agg_and_enhancement(self):
+        """Compute agg and enhancement factors for all model steps for all
+        features.
+
+        Returns
+        -------
+        agg_enhance_dict : dict
+            Dictionary with list of agg and enhancement factors for each model
+            step
+        """
+        agg_enhance_dict = {}
+        for i, step in enumerate(self.steps):
+            out = self._get_single_step_agg(step)
+            out = self._get_single_step_enhance(out)
+            self.steps[i] = out
+        agg_enhance_dict['s_agg_factors'] = [step['s_agg_factor']
+                                             for step in self.steps]
+        agg_enhance_dict['t_agg_factors'] = [step['t_agg_factor']
+                                             for step in self.steps]
+        agg_enhance_dict['s_enhancements'] = [step['s_enhance']
+                                              for step in self.steps]
+        agg_enhance_dict['t_enhancements'] = [step['t_enhance']
+                                              for step in self.steps]
+        return agg_enhance_dict
 
     def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
                        t_agg_factor):

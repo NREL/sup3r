@@ -130,9 +130,15 @@ class AbstractInterface(ABC):
 
     @property
     def input_resolution(self):
-        """Resolution of input data. Given as a dictionary {'spatial':...,
-        'temporal':...}"""
-        return self.meta.get('input_resolution', None)
+        """Resolution of input data. Given as a dictionary {'spatial': '...km',
+        'temporal': '...min'}. The numbers are required to be integers in the
+        units specified. The units are not strict as long as the resolution
+        of the exogenous data, when extracting exogenous data, is specified
+        in the same units."""
+        input_resolution = self.meta.get('input_resolution', None)
+        msg = 'model.input_resolution is None. This needs to be set.'
+        assert input_resolution is not None, msg
+        return input_resolution
 
     def _get_numerical_resolutions(self):
         """Get the input and output resolutions without units"""
@@ -185,11 +191,11 @@ class AbstractInterface(ABC):
 
     @property
     def output_resolution(self):
-        """Resolution of output data. Given as a dictionary {'spatial':...,
-        'temporal':...}"""
+        """Resolution of output data. Given as a dictionary
+        {'spatial': '...km', 'temporal': '...min'}. This is computed from the
+        input resolution and the enhancement factors."""
         output_res = self.meta.get('output_resolution', None)
         if self.input_resolution is not None and output_res is None:
-            output_res = self.input_resolution.copy()
             ires_num, ores_num = self._get_numerical_resolutions()
             output_res = {k: v.replace(str(ires_num[k]), str(ores_num[k]))
                           for k, v in self.input_resolution.items()}
@@ -223,19 +229,20 @@ class AbstractInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res_shape = low_res.shape
-        check = (exogenous_data is not None
-                 and low_res.shape[-1] < len(self.training_features))
-        if check:
-            exo_data = {k: v for k, v in exogenous_data.items()
-                        if k in self.training_features}
-            for i, (feature, entry) in enumerate(exo_data.items()):
-                f_idx = low_res_shape[-1] + i
-                training_feature = self.training_features[f_idx]
-                msg = ('The ordering of features in exogenous_data conflicts '
-                       'with the ordering of training features. Received '
-                       f'{feature} instead of {training_feature}.')
-                assert feature == training_feature, msg
+        if exogenous_data is None:
+            return low_res
+
+        training_features = ([] if self.training_features is None
+                             else self.training_features)
+        fnum_diff = len(training_features) - low_res.shape[-1]
+        exo_feats = ([] if fnum_diff <= 0
+                     else self.training_features[-fnum_diff:])
+        msg = ('Provided exogenous_data is missing some required features '
+               f'({exo_feats})')
+        assert all(feature in exogenous_data for feature in exo_feats), msg
+        if exogenous_data is not None and fnum_diff > 0:
+            for feature in exo_feats:
+                entry = exogenous_data[feature]
                 combine_types = [step['combine_type']
                                  for step in entry['steps']]
                 if 'input' in combine_types:
@@ -272,19 +279,20 @@ class AbstractInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        hi_res_shape = hi_res.shape[-1]
-        check = (exogenous_data is not None
-                 and hi_res.shape[-1] < len(self.output_features))
-        if check:
-            exo_data = {k: v for k, v in exogenous_data.items()
-                        if k in self.training_features}
-            for i, (feature, entry) in enumerate(exo_data.items()):
-                f_idx = hi_res_shape[-1] + i
-                training_feature = self.training_features[f_idx]
-                msg = ('The ordering of features in exogenous_data conflicts '
-                       'with the ordering of training features. Received '
-                       f'{feature} instead of {training_feature}.')
-                assert feature == training_feature, msg
+        if exogenous_data is None:
+            return hi_res
+
+        output_features = ([] if self.output_features is None
+                           else self.output_features)
+        fnum_diff = len(output_features) - hi_res.shape[-1]
+        exo_feats = ([] if fnum_diff <= 0
+                     else self.output_features[-fnum_diff:])
+        msg = ('Provided exogenous_data is missing some required features '
+               f'({exo_feats})')
+        assert all(feature in exogenous_data for feature in exo_feats), msg
+        if exogenous_data is not None and fnum_diff > 0:
+            for feature in exo_feats:
+                entry = exogenous_data[feature]
                 combine_types = [step['combine_type']
                                  for step in entry['steps']]
                 if 'output' in combine_types:
@@ -317,27 +325,6 @@ class AbstractInterface(ABC):
                 exo_data = high_res_true[..., f_idx: f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
-
-    def _get_exo_val_loss_input(self, high_res):
-        """Get exogenous feature data from high_res
-
-        Parameters
-        ----------
-        high_res : tf.Tensor
-            Ground truth high resolution spatiotemporal data.
-
-        Returns
-        -------
-        exo_data : dict
-            Dictionary of exogenous feature data used as input to tf_generate.
-            e.g. {'topography': np.ndarray(...)}
-        """
-        exo_data = {}
-        for feature in self.exogenous_features:
-            f_idx = self.training_features.index(feature)
-            exo_fdata = high_res[..., f_idx: f_idx + 1]
-            exo_data[feature] = exo_fdata
-        return exo_data
 
     @property
     def exogenous_features(self):
@@ -809,6 +796,27 @@ class AbstractSingleModel(ABC):
                                 pprint.pformat(version_record, indent=2)))
 
         return params
+
+    def get_exo_loss_input(self, high_res):
+        """Get exogenous feature data from high_res
+
+        Parameters
+        ----------
+        high_res : tf.Tensor
+            Ground truth high resolution spatiotemporal data.
+
+        Returns
+        -------
+        exo_data : dict
+            Dictionary of exogenous feature data used as input to tf_generate.
+            e.g. {'topography': tf.Tensor(...)}
+        """
+        exo_data = {}
+        for feature in self.exogenous_features:
+            f_idx = self.training_features.index(feature)
+            exo_fdata = high_res[..., f_idx: f_idx + 1]
+            exo_data[feature] = exo_fdata
+        return exo_data
 
     @staticmethod
     def get_loss_fun(loss):
@@ -1290,9 +1298,7 @@ class AbstractSingleModel(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-
         low_res = self._combine_fwp_input(low_res, exogenous_data)
-
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
 
@@ -1408,15 +1414,11 @@ class AbstractSingleModel(ABC):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        hi_res_exo = {}
-        for feature in self.exogenous_features:
-            f_idx = self.training_features.index(feature)
-            hi_res_exo[feature] = hi_res_true[..., f_idx: f_idx + 1]
-
         with tf.device(device_name):
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(training_weights)
 
+                hi_res_exo = self.get_exo_loss_input(hi_res_true)
                 hi_res_gen = self._tf_generate(low_res, hi_res_exo)
                 loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                           **calc_loss_kwargs)
