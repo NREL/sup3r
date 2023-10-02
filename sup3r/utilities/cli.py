@@ -204,7 +204,7 @@ class BaseCLI:
 
         status = Status.retrieve_job_status(
             out_dir,
-            command=module_name,
+            pipeline_step=module_name,
             job_name=name,
             subprocess_manager=slurm_manager,
         )
@@ -245,7 +245,7 @@ class BaseCLI:
             # add job to sup3r status file.
             Status.mark_job_as_submitted(
                 out_dir,
-                command=module_name,
+                pipeline_step=module_name,
                 job_name=name,
                 replace=True,
                 job_attrs={'job_id': out, 'hardware': 'kestrel'},
@@ -275,7 +275,7 @@ class BaseCLI:
         subprocess_manager = SubprocessManager
 
         status = Status.retrieve_job_status(
-            out_dir, command=module_name, job_name=name
+            out_dir, pipeline_step=module_name, job_name=name
         )
         job_failed = 'fail' in str(status).lower()
         job_submitted = status != 'not submitted'
@@ -297,7 +297,7 @@ class BaseCLI:
                 f'name "{name}".'
             )
             Status.mark_job_as_submitted(
-                out_dir, command=module_name, job_name=name, replace=True
+                out_dir, pipeline_step=module_name, job_name=name, replace=True
             )
             subprocess_manager.submit(cmd)
             msg = f'Completed sup3r {module_name} job "{name}".'
@@ -329,7 +329,7 @@ class BaseCLI:
         status_dir = config.get('status_dir', None)
         if job_name is not None and status_dir is not None:
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'command="{module_name}", '
+            status_file_arg_str += f'pipeline_step="{module_name}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
