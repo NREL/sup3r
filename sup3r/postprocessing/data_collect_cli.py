@@ -33,7 +33,7 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose=False):
+def from_config(ctx, config_file, verbose=False, **__):
     """Run sup3r data collection from a config file. If dset_split is True this
     each feature will be collected into a separate file."""
     config = BaseCLI.from_config_preflight(ModuleName.DATA_COLLECT, ctx,
