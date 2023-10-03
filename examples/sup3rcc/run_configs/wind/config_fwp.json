@@ -38,15 +38,15 @@
     },
     "max_nodes": 50,
     "exo_kwargs": {
-        "file_paths": ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20150101-20151231.nc"],
-        "features": ["topography"],
-        "source_file": "/scratch/gbuster/sup3r/source_gcm_data/nsrdb_clearsky.h5",
-        "target": [23.2, -129],
-        "shape": [26, 59],
-        "s_enhancements": [1, 5, 5],
-        "agg_factors": [625, 25, 1],
-        "input_handler": "DataHandlerNCforCC",
-        "exo_steps": [0, 1, 2]
+        "topography": {
+            "file_paths": ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20150101-20151231.nc"],
+            "source_file": "/scratch/gbuster/sup3r/source_gcm_data/nsrdb_clearsky.h5",
+            "target": [23.2, -129],
+            "shape": [26, 59],
+            "steps": [{"model": 0, "combine_type": "input"},
+                      {"model": 0, "combine_type": "layer"},
+                      {"model": 1, "combine_type": "input"}],
+            "input_handler": "DataHandlerNCforCC"}
     },
     "execution_control": {
         "option": "eagle",

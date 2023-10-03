@@ -688,20 +688,15 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             used to get the full time index. Doing this is parallel can be
             helpful when there are a large number of input files.
         exo_kwargs : dict | None
-            Dictionary of args to pass to ExogenousDataHandler for extracting
-            exogenous features such as topography for future multistep foward
-            pass. This should be a nested dictionary with keys for each
-            exogeneous feature. The dictionaries corresponding to the feature
-            names should include the path to exogenous data source, the
-            resolution of the exogenous data, and how the exogenous data should
-            be used in the model. e.g. {'topography': {'file_paths': 'path to
-            input files', 'source_file': 'path to exo data', 'exo_resolution':
-            {'spatial': '1km', 'temporal': None}, 'steps': [{'model': 0,
-            'combine_type': 'input'}, {'model': 0, 'combine_type': 'layer'}]}.
-            Each step can also include s_agg_factor/t_agg_factor to manually
-            set aggregation of exogenous_data. If they are not specified they
-            will be computed based on the model resolution and the exogenous
-            data resolution.
+            Dictionary of args to pass to :class:`ExogenousDataHandler` for
+            extracting exogenous features for multistep foward pass. This
+            should be a nested dictionary with keys for each exogeneous
+            feature. The dictionaries corresponding to the feature names
+            should include the path to exogenous data source, the resolution
+            of the exogenous data, and how the exogenous data should be used
+            in the model. e.g. {'topography': {'file_paths': 'path to input
+            files', 'source_file': 'path to exo data', 'exo_resolution':
+            {'spatial': '1km', 'temporal': None}, 'steps': [..]}.
         bias_correct_method : str | None
             Optional bias correction function name that can be imported from
             the :mod:`sup3r.bias.bias_transforms` module. This will transform
