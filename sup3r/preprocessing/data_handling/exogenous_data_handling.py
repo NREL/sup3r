@@ -63,18 +63,29 @@ class ExogenousDataHandler:
         feature : str
             Exogenous feature to extract from source_h5
         models : list
-            List of models used with the given steps list
+            List of models used with the given steps list. This list of models
+            is used to determine the input and output resolution and
+            enhancement factors for each model step which is then used to
+            determine aggregation factors. If agg factors and enhancement
+            factors are provided in the steps list the model list is not
+            needed.
         steps : list
             List of dictionaries containing info on which models to use for a
             given step index and what type of exo data the step requires. e.g.
             [{'model': 0, 'combine_type': 'input'},
              {'model': 0, 'combine_type': 'layer'}]
             Each step entry can also contain s_enhance, t_enhance,
-            s_agg_factor, t_agg_factor. If they are not included they will be
-            computed using exo_resolution and model attributes
+            s_agg_factor, t_agg_factor. e.g.
+            [{'model': 0, 'combine_type': 'input', 's_agg_factor': 900,
+              's_enhance': 1, 't_agg_factor': 5, 't_enhance': 1},
+             {'model': 0, 'combine_type': 'layer', 's_agg_factor', 100,
+              's_enhance': 3, 't_agg_factor': 5, 't_enhance': 1}]
+            If they are not included they will be computed using exo_resolution
+            and model attributes.
         exo_resolution : dict
             Dictionary of spatiotemporal resolution for the given exo data
-            source. e.g. {'spatial': '4km', 'temporal': '60min'}
+            source. e.g. {'spatial': '4km', 'temporal': '60min'}. This is used
+            only if agg factors are not provided in the steps list.
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the

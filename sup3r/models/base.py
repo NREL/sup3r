@@ -18,7 +18,7 @@ from sup3r.utilities import VERSION_RECORD
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGan(AbstractInterface, AbstractSingleModel):
+class Sup3rGan(AbstractSingleModel, AbstractInterface):
     """Basic sup3r GAN model."""
 
     def __init__(self,
@@ -602,7 +602,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            val_exo_data = self.get_exo_loss_input(val_batch.high_res)
+            val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
             high_res_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res, high_res_gen,

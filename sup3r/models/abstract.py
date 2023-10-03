@@ -55,6 +55,15 @@ class AbstractInterface(ABC):
             model_dir
         """
 
+    @abstractmethod
+    def generate(self,
+                 low_res,
+                 norm_in=True,
+                 un_norm_out=True,
+                 exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function."""
+
     @staticmethod
     def seed(s=0):
         """
@@ -141,7 +150,9 @@ class AbstractInterface(ABC):
         return input_resolution
 
     def _get_numerical_resolutions(self):
-        """Get the input and output resolutions without units"""
+        """Get the input and output resolutions without units. e.g. for
+        {"spatial": "30km", "temporal": "60min"} this returns
+        {"spatial": 30, "temporal": 60}"""
         ires_num = {k: int(re.search(r'\d+', v).group(0))
                     for k, v in self.input_resolution.items()}
         enhancements = {'spatial': self.s_enhance,
@@ -797,7 +808,7 @@ class AbstractSingleModel(ABC):
 
         return params
 
-    def get_exo_loss_input(self, high_res):
+    def get_high_res_exo_input(self, high_res):
         """Get exogenous feature data from high_res
 
         Parameters
@@ -1418,7 +1429,7 @@ class AbstractSingleModel(ABC):
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(training_weights)
 
-                hi_res_exo = self.get_exo_loss_input(hi_res_true)
+                hi_res_exo = self.get_high_res_exo_input(hi_res_true)
                 hi_res_gen = self._tf_generate(low_res, hi_res_exo)
                 loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                           **calc_loss_kwargs)

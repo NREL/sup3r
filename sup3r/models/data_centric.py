@@ -38,7 +38,7 @@ class Sup3rGanDC(Sup3rGan):
         """
         losses = []
         for obs in batch_handler.val_data:
-            exo_data = self.get_exo_loss_input(obs.high_res)
+            exo_data = self.get_high_res_exo_input(obs.high_res)
             gen = self._tf_generate(obs.low_res, exo_data)
             loss, _ = self.calc_loss(obs.high_res, gen,
                                      weight_gen_advers=weight_gen_advers,
@@ -66,7 +66,7 @@ class Sup3rGanDC(Sup3rGan):
         """
         losses = []
         for obs in batch_handler.val_data:
-            exo_data = self.get_exo_loss_input(obs.high_res)
+            exo_data = self.get_high_res_exo_input(obs.high_res)
             gen = self._tf_generate(obs.low_res, exo_data)
             loss = self.calc_loss_gen_content(obs.high_res, gen)
             losses.append(float(loss))
