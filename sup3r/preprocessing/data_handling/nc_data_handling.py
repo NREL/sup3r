@@ -19,34 +19,13 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
-    BVFreqMon,
-    BVFreqSquaredNC,
-    ClearSkyRatioCC,
-    Feature,
-    InverseMonNC,
-    LatLonNC,
-    PotentialTempNC,
-    PressureNC,
-    Rews,
-    Shear,
-    Tas,
-    TasMax,
-    TasMin,
-    TempNC,
-    TempNCforCC,
-    UWind,
-    UWindPowerLaw,
-    VWind,
-    VWindPowerLaw,
-    WinddirectionNC,
-    WindspeedNC,
-)
+    BVFreqMon, BVFreqSquaredNC, ClearSkyRatioCC, Feature, InverseMonNC,
+    LatLonNC, PotentialTempNC, PressureNC, Rews, Shear, Tas, TasMax, TasMin,
+    TempNC, TempNCforCC, UWind, UWindPowerLaw, VWind, VWindPowerLaw,
+    WinddirectionNC, WindspeedNC)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (
-    estimate_max_workers,
-    get_time_dim_name,
-    np_to_pd_times,
-)
+from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
+                                       np_to_pd_times)
 
 np.random.seed(42)
 
@@ -85,26 +64,6 @@ class DataHandlerNC(DataHandler):
     """CHUNKS sets the chunk sizes to extract from the data in each dimension.
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
-
-    def __init__(self, *args, xr_chunks=None, **kwargs):
-        """Initialize NETCDF data handler.
-
-        Parameters
-        ----------
-        *args : list
-            Same ordered required arguments as DataHandler parent class.
-        xr_chunks : int | "auto" | tuple | dict | None
-            kwarg that goes to xr.DataArray.chunk(chunks=xr_chunks). Chunk
-            sizes that approximately match the data volume being extracted
-            typically results in the most efficient IO. If not provided, this
-            defaults to the class CHUNKS attribute.
-        **kwargs : list
-            Same optional keyword arguments as DataHandler parent class.
-        """
-        if xr_chunks is not None:
-            self.CHUNKS = xr_chunks
-
-        super().__init__(*args, **kwargs)
 
     @property
     def extract_workers(self):
@@ -288,9 +247,9 @@ class DataHandlerNC(DataHandler):
             fdata = cls.direct_extract(handle, feat_key, raster_index,
                                        time_slice)
 
-        elif interp_height is not None and (cls.has_multilevel_feature(
-                feature, handle) or cls.has_surrounding_features(
-                    feature, handle)):
+        elif interp_height is not None and (
+                cls.has_multilevel_feature(feature, handle)
+                or cls.has_surrounding_features(feature, handle)):
             fdata = Interpolator.interp_var_to_height(
                 handle, feature, raster_index, np.float32(interp_height),
                 time_slice)

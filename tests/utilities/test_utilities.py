@@ -15,19 +15,22 @@ from sup3r.postprocessing.collection import Collector
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
 from sup3r.utilities.regridder import RegridOutput
-from sup3r.utilities.utilities import (get_chunk_slices, spatial_coarsening,
-                                       st_interp, transform_rotate_wind,
-                                       uniform_box_sampler,
-                                       uniform_time_sampler,
-                                       weighted_box_sampler,
-                                       weighted_time_sampler,
-                                       )
+from sup3r.utilities.utilities import (
+    get_chunk_slices,
+    spatial_coarsening,
+    st_interp,
+    transform_rotate_wind,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
+)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 
 
-def test_log_interp(log=True):
+def test_log_interp(log=False):
     """Make sure log interp generates reasonable output (e.g. between input
     levels)"""
     if log:

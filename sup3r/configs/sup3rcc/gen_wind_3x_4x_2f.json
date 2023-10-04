@@ -34,7 +34,7 @@
     {"class": "SpatioTemporalExpansion", "spatial_mult": 3},
     {"alpha": 0.2, "class": "LeakyReLU"},
 
-    {"class": "Sup3rConcat"},
+    {"class": "Sup3rConcat", "name": "topography"},
 
     {"class": "FlexiblePadding", "paddings": [[0,0], [3,3], [3,3], [3,3], [0,0]], "mode": "REFLECT"},
     {"class": "Conv3D", "filters": 2, "kernel_size": 3, "strides": 1},

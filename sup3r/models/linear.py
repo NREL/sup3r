@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """Simple models for super resolution such as linear interp models."""
-import numpy as np
-import logging
-from inspect import signature
-import os
 import json
-from sup3r.utilities.utilities import st_interp
+import logging
+import os
+from inspect import signature
+
+import numpy as np
+
 from sup3r.models.abstract import AbstractInterface
+from sup3r.utilities.utilities import st_interp
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ class LinearInterp(AbstractInterface):
         """
         fp_params = os.path.join(model_dir, 'model_params.json')
         assert os.path.exists(fp_params), f'Could not find: {fp_params}'
-        with open(fp_params, 'r') as f:
+        with open(fp_params) as f:
             params = json.load(f)
 
         meta = params['meta']

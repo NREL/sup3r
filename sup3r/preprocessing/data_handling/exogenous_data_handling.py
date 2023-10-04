@@ -1,14 +1,19 @@
 """Sup3r exogenous data handling"""
-import os
-import shutil
 import logging
-import numpy as np
+import os
 import pickle
-from warnings import warn
+import re
+import shutil
+from typing import ClassVar
 
-from sup3r.utilities.topo import TopoExtractH5, TopoExtractNC
-import sup3r.preprocessing.data_handling
-import sup3r.utilities.topo
+import numpy as np
+
+from sup3r.preprocessing.data_handling import exo_extraction
+from sup3r.preprocessing.data_handling.exo_extraction import (
+    SzaExtract,
+    TopoExtractH5,
+    TopoExtractNC,
+)
 from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
@@ -19,10 +24,33 @@ class ExogenousDataHandler:
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps."""
 
-    def __init__(self, file_paths, features, source_file, s_enhancements,
-                 agg_factors, target=None, shape=None, raster_file=None,
-                 max_delta=20, input_handler=None, topo_handler=None,
-                 exo_steps=None, cache_data=True):
+    AVAILABLE_HANDLERS: ClassVar[dict] = {
+        'topography': {
+            'h5': TopoExtractH5,
+            'nc': TopoExtractNC
+        },
+        'sza': {
+            'h5': SzaExtract,
+            'nc': SzaExtract
+        }
+    }
+
+    def __init__(self,
+                 file_paths,
+                 feature,
+                 steps,
+                 models=None,
+                 exo_resolution=None,
+                 source_file=None,
+                 target=None,
+                 shape=None,
+                 temporal_slice=None,
+                 raster_file=None,
+                 max_delta=20,
+                 input_handler=None,
+                 exo_handler=None,
+                 cache_data=True,
+                 cache_dir='./exo_cache'):
         """
         Parameters
         ----------
@@ -32,195 +60,455 @@ class ExogenousDataHandler:
             through glob.glob. This is typically low-res WRF output or GCM
             netcdf data that is source low-resolution data intended to be
             sup3r resolved.
-        features : list
-            List of exogenous features to extract from source_h5
+        feature : str
+            Exogenous feature to extract from source_h5
+        models : list
+            List of models used with the given steps list. This list of models
+            is used to determine the input and output resolution and
+            enhancement factors for each model step which is then used to
+            determine aggregation factors. If agg factors and enhancement
+            factors are provided in the steps list the model list is not
+            needed.
+        steps : list
+            List of dictionaries containing info on which models to use for a
+            given step index and what type of exo data the step requires. e.g.
+            [{'model': 0, 'combine_type': 'input'},
+             {'model': 0, 'combine_type': 'layer'}]
+            Each step entry can also contain s_enhance, t_enhance,
+            s_agg_factor, t_agg_factor. e.g.
+            [{'model': 0, 'combine_type': 'input', 's_agg_factor': 900,
+              's_enhance': 1, 't_agg_factor': 5, 't_enhance': 1},
+             {'model': 0, 'combine_type': 'layer', 's_agg_factor', 100,
+              's_enhance': 3, 't_agg_factor': 5, 't_enhance': 1}]
+            If they are not included they will be computed using exo_resolution
+            and model attributes.
+        exo_resolution : dict
+            Dictionary of spatiotemporal resolution for the given exo data
+            source. e.g. {'spatial': '4km', 'temporal': '60min'}. This is used
+            only if agg factors are not provided in the steps list.
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the
             file_paths input
-        s_enhancements : list
-            List of factors by which the Sup3rGan model will enhance the
-            spatial dimensions of low resolution data from file_paths input
-            where the total spatial enhancement is the product of these
-            factors. For example, if file_paths has 100km data and there are 2
-            spatial enhancement steps of 4x and 5x to a nominal resolution of
-            5km, s_enhancements should be [1, 4, 5] and exo_steps should be
-            [0, 1, 2] so that the input to the 4x model gets exogenous data
-            at 100km (s_enhance=1, exo_step=0), the input to the 5x model gets
-            exogenous data at 25km (s_enhance=4, exo_step=1), and there is a
-            20x (1*4*5) exogeneous data layer available if the second model can
-            receive a high-res input feature (e.g. WindGan). The length of this
-            list should be equal to the number of agg_factors and the number of
-            exo_steps
-        agg_factors : list
-            List of factors by which to aggregate the topo_source_h5 elevation
-            data to the resolution of the file_paths input enhanced by
-            s_enhance. The length of this list should be equal to the number of
-            s_enhancements and the number of exo_steps
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
+        temporal_slice : slice | None
+            slice used to extract interval from temporal dimension for input
+            data and source data
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
             exists or written to the file if it does not yet exist.  If None
             raster_index will be calculated directly. Either need target+shape
             or raster_file.
+        max_delta : int, optional
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances, by default 20
         input_handler : str
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        topo_handler : str
-            topo extract class to use for source data. Provide a string name to
-            match a class in topo.py. If None the correct handler will
-            be guessed based on file type and time series properties.
-        exo_steps : list
-            List of model step indices for which exogenous data is required.
-            e.g. If we have two model steps which take exo data and one which
-            does not exo_steps = [0, 1]. The length of this list should be
-            equal to the number of s_enhancements and the number of agg_factors
+        exo_handler : str
+            Feature extract class to use for source data. For example, if
+            feature='topography' this should be either TopoExtractH5 or
+            TopoExtractNC. If None the correct handler will be guessed based on
+            file type and time series properties.
         cache_data : bool
-            Flag to cache exogeneous data in ./exo_cache/ this can speed up
-            forward passes with large temporal extents
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
         """
 
-        self.features = features
-        self.s_enhancements = s_enhancements
-        self.agg_factors = agg_factors
+        self.feature = feature
+        self.steps = steps
+        self.models = models
+        self.exo_res = exo_resolution
         self.source_file = source_file
         self.file_paths = file_paths
-        self.topo_handler = topo_handler
+        self.exo_handler = exo_handler
+        self.temporal_slice = temporal_slice
         self.target = target
         self.shape = shape
         self.raster_file = raster_file
         self.max_delta = max_delta
         self.input_handler = input_handler
         self.cache_data = cache_data
+        self.cache_dir = cache_dir
         self.data = []
-        exo_steps = exo_steps or np.arange(len(self.s_enhancements))
 
-        if self.s_enhancements[0] != 1:
-            msg = ('s_enhancements typically starts with 1 so the first '
-                   'exogenous data input matches the spatial resolution of '
-                   'the source low-res input data, but received '
-                   's_enhancements: {}'.format(self.s_enhancements))
-            logger.warning(msg)
-            warn(msg)
+        self.input_check()
+        agg_enhance = self._get_all_agg_and_enhancement()
+        self.s_enhancements = agg_enhance['s_enhancements']
+        self.t_enhancements = agg_enhance['t_enhancements']
+        self.s_agg_factors = agg_enhance['s_agg_factors']
+        self.t_agg_factors = agg_enhance['t_agg_factors']
 
         msg = ('Need to provide the same number of enhancement factors and '
-               f'agg factors. Received s_enhancements={s_enhancements} and '
-               f'agg_factors={agg_factors}.')
-        assert len(self.s_enhancements) == len(self.agg_factors), msg
+               f'agg factors. Received s_enhancements={self.s_enhancements}, '
+               f'and s_agg_factors={self.s_agg_factors}.')
+        assert len(self.s_enhancements) == len(self.s_agg_factors), msg
+        msg = ('Need to provide the same number of enhancement factors and '
+               f'agg factors. Received t_enhancements={self.t_enhancements}, '
+               f'and t_agg_factors={self.t_agg_factors}.')
+        assert len(self.t_enhancements) == len(self.t_agg_factors), msg
 
         msg = ('Need to provide an integer enhancement factor for each model'
                'step. If the step is temporal enhancement then s_enhance=1')
         assert not any(s is None for s in self.s_enhancements), msg
 
-        for i in range(len(self.s_enhancements)):
-            s_enhance = np.product(self.s_enhancements[:i + 1])
-            agg_factor = self.agg_factors[i]
-            fdata = []
-            if i in exo_steps:
-                for f in features:
-                    if f == 'topography':
-                        data = self.get_topo_data(s_enhance, agg_factor)
-                        fdata.append(data)
-                    else:
-                        msg = (f"Can only extract topography. Recived {f}.")
-                        raise NotImplementedError(msg)
-                self.data.append(np.stack(fdata, axis=-1))
+        for i, _ in enumerate(self.s_enhancements):
+            s_enhance = self.s_enhancements[i]
+            t_enhance = self.t_enhancements[i]
+            s_agg_factor = self.s_agg_factors[i]
+            t_agg_factor = self.t_agg_factors[i]
+            if feature in list(self.AVAILABLE_HANDLERS):
+                data = self.get_exo_data(feature=feature,
+                                         s_enhance=s_enhance,
+                                         t_enhance=t_enhance,
+                                         s_agg_factor=s_agg_factor,
+                                         t_agg_factor=t_agg_factor)
+                self.data.append(data)
             else:
-                self.data.append(None)
+                msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
+                       f" Received {feature}.")
+                raise NotImplementedError(msg)
 
-    def get_topo_data(self, s_enhance, agg_factor):
+    def input_check(self):
+        """Make sure agg factors are provided or exo_resolution and models are
+        provided. Make sure enhancement factors are provided or models are
+        provided"""
+        agg_check = all('s_agg_factor' in v for v in self.steps)
+        agg_check = agg_check and all('t_agg_factor' in v for v in self.steps)
+        agg_check = (agg_check
+                     or self.models is not None and self.exo_res is not None)
+        msg = ("ExogenousDataHandler needs s_agg_factor and t_agg_factor "
+               "provided in each step in steps list or models and "
+               "exo_resolution")
+        assert agg_check, msg
+        en_check = all('s_enhance' in v for v in self.steps)
+        en_check = en_check and all('t_enhance' in v for v in self.steps)
+        en_check = en_check or self.models is not None
+        msg = ("ExogenousDataHandler needs s_enhance and t_enhance "
+               "provided in each step in steps list or models")
+        assert en_check, msg
+
+    def _get_res_ratio(self, input_res, exo_res):
+        """Compute resolution ratio given input and output resolution
+
+        Parameters
+        ----------
+        input_res : str | None
+            Input resolution. e.g. '30km' or '60min'
+        exo_res : str | None
+            Exo resolution. e.g. '1km' or '5min'
+
+        Returns
+        -------
+        res_ratio : int | None
+            Ratio of input / exo resolution
+        """
+        ires_num = (None if input_res is None
+                    else int(re.search(r'\d+', input_res).group(0)))
+        eres_num = (None if exo_res is None
+                    else int(re.search(r'\d+', exo_res).group(0)))
+        i_units = (None if input_res is None
+                   else input_res.replace(str(ires_num), ''))
+        e_units = (None if exo_res is None
+                   else exo_res.replace(str(eres_num), ''))
+        msg = 'Received conflicting units for input and exo resolution'
+        if e_units is not None:
+            assert i_units == e_units, msg
+        if ires_num is not None and eres_num is not None:
+            res_ratio = int(ires_num / eres_num)
+        else:
+            res_ratio = None
+        return res_ratio
+
+    def get_agg_factors(self, input_res, exo_res):
+        """Compute aggregation ratio for exo data given input and output
+        resolution
+
+        Parameters
+        ----------
+        input_res : dict | None
+            Input resolution. e.g. {'spatial': '30km', 'temporal': '60min'}
+        exo_res : dict | None
+            Exogenous data resolution. e.g.
+            {'spatial': '1km', 'temporal': '5min'}
+
+        Returns
+        -------
+        s_agg_factor : int
+            Spatial aggregation factor for exogenous data extraction.
+        t_agg_factor : int
+            Temporal aggregation factor for exogenous data extraction.
+        """
+        input_s_res = None if input_res is None else input_res['spatial']
+        exo_s_res = None if exo_res is None else exo_res['spatial']
+        s_res_ratio = self._get_res_ratio(input_s_res, exo_s_res)
+        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio)**2
+        input_t_res = None if input_res is None else input_res['temporal']
+        exo_t_res = None if exo_res is None else exo_res['temporal']
+        t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
+        return s_agg_factor, t_agg_factor
+
+    def _get_single_step_agg(self, step):
+        """Compute agg factors for exogenous data extraction
+        using exo_kwargs single model step. These factors are computed using
+        exo_resolution and the input/output resolution of each model step. If
+        agg factors are already provided in step they are not overwritten.
+
+        Parameters
+        ----------
+        step : dict
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+
+        Returns
+        -------
+        updated_step : dict
+            Same as input dictionary with s_agg_factor, t_agg_factor added
+        """
+        if all(key in step for key in ['s_agg_factor', 't_agg_factor']):
+            return step
+
+        model_step = step['model']
+        combine_type = step.get('combine_type', None)
+        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
+               f'of model steps ({len(self.models)})')
+        assert len(self.models) > model_step, msg
+        model = self.models[model_step]
+        input_res = model.input_resolution
+        output_res = model.output_resolution
+        if combine_type.lower() == 'input':
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                input_res, self.exo_res)
+
+        elif combine_type.lower() in ('output', 'layer'):
+            s_agg_factor, t_agg_factor = self.get_agg_factors(
+                output_res, self.exo_res)
+
+        else:
+            msg = ('Received exo_kwargs entry without valid combine_type '
+                   '(input/layer/output)')
+            raise OSError(msg)
+
+        step.update({'s_agg_factor': s_agg_factor,
+                     't_agg_factor': t_agg_factor})
+        return step
+
+    def _get_single_step_enhance(self, step):
+        """Get enhancement factors for exogenous data extraction
+        using exo_kwargs single model step. These factors are computed using
+        stored enhance attributes of each model and the model step provided.
+        If enhancement factors are already provided in step they are not
+        overwritten.
+
+        Parameters
+        ----------
+        step : dict
+            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+
+        Returns
+        -------
+        updated_step : dict
+            Same as input dictionary with s_enhance, t_enhance added
+        """
+        if all(key in step for key in ['s_enhance', 't_enhance']):
+            return step
+
+        model_step = step['model']
+        combine_type = step.get('combine_type', None)
+        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
+               f'of model steps ({len(self.models)})')
+        assert len(self.models) > model_step, msg
+
+        s_enhancements = [model.s_enhance for model in self.models]
+        t_enhancements = [model.t_enhance for model in self.models]
+        if combine_type.lower() == 'input':
+            if model_step == 0:
+                s_enhance = 1
+                t_enhance = 1
+            else:
+                s_enhance = np.product(s_enhancements[:model_step])
+                t_enhance = np.product(t_enhancements[:model_step])
+
+        elif combine_type.lower() in ('output', 'layer'):
+            s_enhance = np.product(s_enhancements[:model_step + 1])
+            t_enhance = np.product(t_enhancements[:model_step + 1])
+
+        else:
+            msg = ('Received exo_kwargs entry without valid combine_type '
+                   '(input/layer/output)')
+            raise OSError(msg)
+
+        step.update({'s_enhance': s_enhance, 't_enhance': t_enhance})
+        return step
+
+    def _get_all_agg_and_enhancement(self):
+        """Compute agg and enhancement factors for all model steps for all
+        features.
+
+        Returns
+        -------
+        agg_enhance_dict : dict
+            Dictionary with list of agg and enhancement factors for each model
+            step
+        """
+        agg_enhance_dict = {}
+        for i, step in enumerate(self.steps):
+            out = self._get_single_step_agg(step)
+            out = self._get_single_step_enhance(out)
+            self.steps[i] = out
+        agg_enhance_dict['s_agg_factors'] = [step['s_agg_factor']
+                                             for step in self.steps]
+        agg_enhance_dict['t_agg_factors'] = [step['t_agg_factor']
+                                             for step in self.steps]
+        agg_enhance_dict['s_enhancements'] = [step['s_enhance']
+                                              for step in self.steps]
+        agg_enhance_dict['t_enhancements'] = [step['t_enhance']
+                                              for step in self.steps]
+        return agg_enhance_dict
+
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
+        """Get cache file name
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        fn = f'exo_{feature}_{self.target}_{self.shape}_sagg{s_agg_factor}_'
+        fn += f'tagg{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(self.cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(self.cache_dir, exist_ok=True)
+        return cache_fp
+
+    def get_exo_data(self, feature, s_enhance, t_enhance, s_agg_factor,
+                     t_agg_factor):
         """Get the exogenous topography data
 
         Parameters
         ----------
+        feature : str
+            Name of feature to get exo data for
         s_enhance : int
             Spatial enhancement for this exogeneous data step (cumulative for
             all model steps up to the current step).
-        agg_factor : int
-            Factor by which to aggregate the topo_source_h5 elevation
-            data to the resolution of the file_paths input enhanced by
-            s_enhance.
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
 
         Returns
         -------
         data : np.ndarray
-            2D array of elevation data with shape (lat, lon)
+            2D or 3D array of exo data with shape (lat, lon) or (lat,
+            lon, temporal)
         """
 
-        cache_dir = './exo_cache/'
-        fn = f'exo_{self.target}_{self.shape}_agg{agg_factor}_{s_enhance}x.pkl'
-        fn = fn.replace('(', '').replace(')', '')
-        fn = fn.replace('[', '').replace(']', '')
-        fn = fn.replace(',', 'x').replace(' ', '')
-        cache_fp = os.path.join(cache_dir, fn)
-        temp_fp = cache_fp + '.tmp'
-
+        cache_fp = self.get_cache_file(feature=feature,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       s_agg_factor=s_agg_factor,
+                                       t_agg_factor=t_agg_factor)
+        tmp_fp = cache_fp + '.tmp'
         if os.path.exists(cache_fp):
             with open(cache_fp, 'rb') as f:
                 data = pickle.load(f)
 
         else:
-            topo_handler = self.get_topo_handler(self.source_file,
-                                                 self.topo_handler)
-            data = topo_handler(self.file_paths, self.source_file, s_enhance,
-                                agg_factor, target=self.target,
-                                shape=self.shape,
-                                raster_file=self.raster_file,
-                                max_delta=self.max_delta,
-                                input_handler=self.input_handler)
-            data = data.hr_elev
+            exo_handler = self.get_exo_handler(feature, self.source_file,
+                                               self.exo_handler)
+            data = exo_handler(self.file_paths,
+                               self.source_file,
+                               s_enhance=s_enhance,
+                               t_enhance=t_enhance,
+                               s_agg_factor=s_agg_factor,
+                               t_agg_factor=t_agg_factor,
+                               target=self.target,
+                               shape=self.shape,
+                               temporal_slice=self.temporal_slice,
+                               raster_file=self.raster_file,
+                               max_delta=self.max_delta,
+                               input_handler=self.input_handler).data
             if self.cache_data:
-                os.makedirs(cache_dir, exist_ok=True)
-                with open(temp_fp, 'wb') as f:
+                with open(tmp_fp, 'wb') as f:
                     pickle.dump(data, f)
-                shutil.move(temp_fp, cache_fp)
-
+                shutil.move(tmp_fp, cache_fp)
         return data
 
-    @staticmethod
-    def get_topo_handler(source_file, topo_handler):
-        """Get topo extraction class for source file
+    @classmethod
+    def get_exo_handler(cls, feature, source_file, exo_handler):
+        """Get exogenous feature extraction class for source file
 
         Parameters
         ----------
+        feature : str
+            Name of feature to get exo handler for
         source_file : str
             Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
             4km) data from which will be mapped to the enhanced grid of the
             file_paths input
-        topo_handler : str
-            topo extract class to use for source data. Provide a string name to
-            match a class in topo.py. If None the correct handler will
-            be guessed based on file type and time series properties.
+        exo_handler : str
+            Feature extract class to use for source data. For example, if
+            feature='topography' this should be either TopoExtractH5 or
+            TopoExtractNC. If None the correct handler will be guessed based on
+            file type and time series properties.
 
         Returns
         -------
-        topo_handler : str
-            topo extract class to use for source data.
+        exo_handler : str
+            Exogenous feature extraction class to use for source data.
         """
-        if topo_handler is None:
+        if exo_handler is None:
             in_type = get_source_type(source_file)
-            if in_type == 'nc':
-                topo_handler = TopoExtractNC
-            elif in_type == 'h5':
-                topo_handler = TopoExtractH5
-            else:
-                msg = ('Did not recognize input type "{}" for file paths: {}'
-                       .format(in_type, source_file))
+            if in_type not in ('h5', 'nc'):
+                msg = ('Did not recognize input type "{}" for file paths: {}'.
+                       format(in_type, source_file))
                 logger.error(msg)
                 raise RuntimeError(msg)
-        elif isinstance(topo_handler, str):
-            topo_handler = getattr(sup3r.utilities.topo, topo_handler, None)
-            if topo_handler is None:
-                msg = ('Could not find requested topo handler class '
-                       f'"{topo_handler}" in '
-                       'sup3r.utilities.topo.')
+            check = (feature in cls.AVAILABLE_HANDLERS
+                     and in_type in cls.AVAILABLE_HANDLERS[feature])
+            if check:
+                exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
+            else:
+                msg = ('Could not find exo handler class for '
+                       f'feature={feature} and input_type={in_type}.')
                 logger.error(msg)
                 raise KeyError(msg)
-
-        return topo_handler
+        elif isinstance(exo_handler, str):
+            exo_handler = getattr(exo_extraction, exo_handler, None)
+        return exo_handler

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """Sup3r multi step model frameworks"""
-import os
+import copy
 import json
 import logging
+import os
+
 import numpy as np
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 
 # pylint: disable=cyclic-import
 import sup3r.models
 from sup3r.models.abstract import AbstractInterface
 from sup3r.models.base import Sup3rGan
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,25 +32,6 @@ class MultiStepGan(AbstractInterface):
     def __len__(self):
         """Get number of model steps"""
         return len(self._models)
-
-    @staticmethod
-    def _needs_hr_exo(model):
-        """Determine whether or not the sup3r model needs hi-res exogenous data
-
-        Parameters
-        ----------
-        model : Sup3rGan | WindGan
-            Sup3r GAN model based on Sup3rGan with a .generator attribute
-
-        Returns
-        -------
-        needs_hr_exo : bool
-            True if the model requires high-resolution exogenous data,
-            typically because of the use of Sup3rAdder or Sup3rConcat layers.
-        """
-        return (hasattr(model, 'generator')
-                and any(isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                for layer in model.generator.layers))
 
     @classmethod
     def load(cls, model_dirs, verbose=True):
@@ -80,7 +61,7 @@ class MultiStepGan(AbstractInterface):
         for model_dir in model_dirs:
             fp_params = os.path.join(model_dir, 'model_params.json')
             assert os.path.exists(fp_params), f'Could not find: {fp_params}'
-            with open(fp_params, 'r') as f:
+            with open(fp_params) as f:
                 params = json.load(f)
 
             meta = params.get('meta', {'class': 'Sup3rGan'})
@@ -131,6 +112,82 @@ class MultiStepGan(AbstractInterface):
         """
         Sup3rGan.seed(s=s)
 
+    def _get_model_step_exo(self, model_step, exogenous_data=None):
+        """Get the exogenous data for the given model_step from the full
+        exogenous data dictionary
+
+        Parameters
+        ----------
+        model_step : int
+            Index of the model to get exogenous data for.
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
+
+        Returns
+        -------
+        exogenous_data : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step
+        """
+        model_step_exo = None
+        if exogenous_data is not None:
+            model_step_exo = {}
+            for feature in exogenous_data:
+                steps = [step for step in exogenous_data[feature]['steps']
+                         if step['model'] == model_step]
+                if steps:
+                    model_step_exo[feature] = {'steps': steps}
+        return model_step_exo
+
+    def _transpose_model_input(self, model, hi_res):
+        """Transpose input data according to mdel input dimensions.
+
+        NOTE: If hi_res.shape == 4, it is assumed that the dimensions have the
+              ordering (n_obs, spatial_1, spatial_2, features)
+
+              If hi_res.shape == 5, it is assumed that the dimensions have the
+              ordering (1, spatial_1, spatial_2, temporal, features)
+
+        Parameters
+        ----------
+        model : Sup3rGan
+            A single step model with the attribute model.input_dims
+        hi_res : ndarray
+            Synthetically generated high-resolution data, usually a 4D or 5D
+            array with shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data transposed according
+            to the number of model input dimensions
+        """
+        if model.input_dims == 5 and len(hi_res.shape) == 4:
+            hi_res = np.transpose(
+                hi_res, axes=(1, 2, 0, 3))[np.newaxis]
+        elif model.input_dims == 4 and len(hi_res.shape) == 5:
+            msg = ('Recieved 5D input data with shape '
+                   f'({hi_res.shape}) to a 4D model.')
+            assert hi_res.shape[0] == 1, msg
+            hi_res = np.transpose(hi_res[0], axes=(2, 0, 1, 3))
+        else:
+            msg = ('Recieved input data with shape '
+                   f'{hi_res.shape} to a {model.input_dims}D model.')
+            assert model.input_dims == len(hi_res.shape), msg
+        return hi_res
+
     def generate(self, low_res, norm_in=True, un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
@@ -149,16 +206,18 @@ class MultiStepGan(AbstractInterface):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : list
-            List of arrays of exogenous_data with length equal to the
-            number of model steps. e.g. If we want to include topography as
-            an exogenous feature in a spatial + temporal multistep model then
-            we need to provide a list of length=2 with topography at the low
-            spatial resolution and at the high resolution. If we include more
-            than one exogenous feature the ordering must be consistent.
-            Each array in the list has 3D or 4D shape:
-            (spatial_1, spatial_2, n_features)
-            (spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
 
         Returns
         -------
@@ -168,10 +227,6 @@ class MultiStepGan(AbstractInterface):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-
-        exo_data = ([None] * len(self.models) if not exogenous_data
-                    else exogenous_data)
-
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
 
@@ -181,11 +236,10 @@ class MultiStepGan(AbstractInterface):
                              if (i + 1 == len(self.models) and not un_norm_out)
                              else True)
 
-            i_exo_data = exo_data[i]
-            if self._needs_hr_exo(model):
-                i_exo_data = [exo_data[i], exo_data[i + 1]]
+            i_exo_data = self._get_model_step_exo(i, exogenous_data)
 
             try:
+                hi_res = self._transpose_model_input(model, hi_res)
                 logger.debug('Data input to model #{} of {} has shape {}'
                              .format(i + 1, len(self.models), hi_res.shape))
                 hi_res = model.generate(hi_res, norm_in=i_norm_in,
@@ -320,273 +374,59 @@ class SpatialThenTemporalBase(MultiStepGan):
 
         return cls(s_models, t_models)
 
-
-class SpatialThenTemporalGan(SpatialThenTemporalBase):
-    """A two-step GAN where the first step is a spatial-only enhancement on a
-    4D tensor and the second step is a (spatio)temporal enhancement on a 5D
-    tensor.
-
-    NOTE: The low res input to the spatial enhancement should be a 4D tensor of
-    the shape (temporal, spatial_1, spatial_2, features) where temporal
-    (usually the observation index) is a series of sequential timesteps that
-    will be transposed to a 5D tensor of shape
-    (1, spatial_1, spatial_2, temporal, features) tensor and then fed to the
-    2nd-step (spatio)temporal GAN.
-    """
-
-    @property
-    def models(self):
-        """Get an ordered tuple of the Sup3rGan models that are part of this
-        MultiStepGan
-        """
-        if isinstance(self.spatial_models, MultiStepGan):
-            spatial_models = self.spatial_models.models
-        else:
-            spatial_models = [self.spatial_models]
-        if isinstance(self.temporal_models, MultiStepGan):
-            temporal_models = self.temporal_models.models
-        else:
-            temporal_models = [self.temporal_models]
-
-        return (*spatial_models, *temporal_models)
-
-    @property
-    def meta(self):
-        """Get a tuple of meta data dictionaries for all models
-
-        Returns
-        -------
-        tuple
-        """
-        if isinstance(self.spatial_models, MultiStepGan):
-            spatial_models = self.spatial_models.meta
-        else:
-            spatial_models = [self.spatial_models.meta]
-        if isinstance(self.temporal_models, MultiStepGan):
-            temporal_models = self.temporal_models.meta
-        else:
-            temporal_models = [self.temporal_models.meta]
-        return (*spatial_models, *temporal_models)
-
-    @property
-    def training_features(self):
-        """Get the list of input feature names that the first spatial
-        generative model in this SpatialThenTemporalGan model requires as
-        input."""
-        return self.spatial_models.training_features
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the last spatiotemporal
-        interpolation model in this SpatialThenTemporalGan model outputs."""
-        return self.temporal_models.output_features
-
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
+    def _split_exo_dict(self, split_step, exogenous_data=None):
+        """Split exogenous_data into two dicts based on split_step. The first
+        dict has only model steps less than split_step. The second dict has
+        only model steps greater than or equal to split_step.
 
         Parameters
         ----------
-        low_res : np.ndarray
-            Low-resolution input data to the 1st step spatial GAN, which is a
-            4D array of shape: (temporal, spatial_1, spatial_2, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self.means,
-            self.stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : list
-            List of arrays of exogenous_data with length equal to the
-            number of model steps. e.g. If we want to include topography as
-            an exogenous feature in a spatial + temporal multistep model then
-            we need to provide a list of length=2 with topography at the low
-            spatial resolution and at the high resolution. If we include more
-            than one exogenous feature the ordering must be consistent.
-            Each array in the list has 3D or 4D shape:
-            (spatial_1, spatial_2, n_features)
-            (temporal, spatial_1, spatial_2, n_features)
+        split_step : int
+            Step index to use for splitting. If this is for a
+            SpatialThenTemporal model split_step should be len(spatial_models).
+            If this is for a TemporalThenSpatial model split_step should be
+            len(temporal_models).
+        exogenous_data : dict
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
 
         Returns
         -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data output from the 2nd
-            step (spatio)temporal GAN with a 5D array shape:
-            (1, spatial_1, spatial_2, n_temporal, n_features)
+        split_exo_1 : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step is less than split_step
+        split_exo_2 : dict
+            Same as input dictionary but with only entries with 'model':
+            model_step where model_step is greater than or equal to split_step
         """
-        logger.debug('Data input to the 1st step spatial-only '
-                     'enhancement has shape {}'.format(low_res.shape))
-        t_exogenous = None
+        split_exo_1 = {}
+        split_exo_2 = {}
         if exogenous_data is not None:
-            t_exogenous = exogenous_data[len(self.spatial_models):]
-
-        try:
-            hi_res = self.spatial_models.generate(
-                low_res, norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
-        except Exception as e:
-            msg = ('Could not run the 1st step spatial-only GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        logger.debug('Data output from the 1st step spatial-only '
-                     'enhancement has shape {}'.format(hi_res.shape))
-        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
-        hi_res = np.expand_dims(hi_res, axis=0)
-        logger.debug('Data from the 1st step spatial-only enhancement has '
-                     'been reshaped to {}'.format(hi_res.shape))
-
-        try:
-            hi_res = self.temporal_models.generate(
-                hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=t_exogenous)
-        except Exception as e:
-            msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        logger.debug('Final multistep GAN output has shape: {}'
-                     .format(hi_res.shape))
-
-        return hi_res
+            exo_data = copy.deepcopy(exogenous_data)
+            for feature in exo_data:
+                steps = [step for step in exo_data[feature]['steps']
+                         if step['model'] < split_step]
+                if steps:
+                    split_exo_1[feature] = {'steps': steps}
+                steps = [step for step in exo_data[feature]['steps']
+                         if step['model'] >= split_step]
+                for step in steps:
+                    step.update({'model': step['model'] - split_step})
+                if steps:
+                    split_exo_2[feature] = {'steps': steps}
+        return split_exo_1, split_exo_2
 
 
-class TemporalThenSpatialGan(SpatialThenTemporalBase):
-    """A two-step GAN where the first step is a spatiotemporal enhancement on a
-    5D tensor and the second step is a spatial enhancement on a 4D tensor.
-    """
-
-    @property
-    def models(self):
-        """Get an ordered tuple of the Sup3rGan models that are part of this
-        MultiStepGan
-        """
-        if isinstance(self.spatial_models, MultiStepGan):
-            spatial_models = self.spatial_models.models
-        else:
-            spatial_models = [self.spatial_models]
-        if isinstance(self.temporal_models, MultiStepGan):
-            temporal_models = self.temporal_models.models
-        else:
-            temporal_models = [self.temporal_models]
-
-        return (*temporal_models, *spatial_models)
-
-    @property
-    def meta(self):
-        """Get a tuple of meta data dictionaries for all models
-
-        Returns
-        -------
-        tuple
-        """
-        if isinstance(self.spatial_models, MultiStepGan):
-            spatial_models = self.spatial_models.meta
-        else:
-            spatial_models = [self.spatial_models.meta]
-        if isinstance(self.temporal_models, MultiStepGan):
-            temporal_models = self.temporal_models.meta
-        else:
-            temporal_models = [self.temporal_models.meta]
-
-        return (*temporal_models, *spatial_models)
-
-    @property
-    def training_features(self):
-        """Get the list of input feature names that the first temporal
-        generative model in this TemporalThenSpatialGan model requires as
-        input."""
-        return self.temporal_models.training_features
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the last spatial
-        interpolation model in this TemporalThenSpatialGan model outputs."""
-        return self.spatial_models.output_features
-
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, a 5D array of shape:
-            (1, spatial_1, spatial_2, n_temporal, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self.means,
-            self.stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : list
-            List of arrays of exogenous_data with length equal to the
-            number of model steps. e.g. If we want to include topography as
-            an exogenous feature in a temporal + spatial multistep model then
-            we need to provide a list of length=2 with topography at the low
-            spatial resolution and at the high resolution. If we include more
-            than one exogenous feature the ordering must be consistent.
-            Each array in the list has 3D or 4D shape:
-            (spatial_1, spatial_2, n_features)
-            (temporal, spatial_1, spatial_2, n_features)
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data output from the 2nd
-            step (spatio)temporal GAN with a 5D array shape:
-            (1, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        logger.debug('Data input to the 1st step (spatio)temporal '
-                     'enhancement has shape {}'.format(low_res.shape))
-        s_exogenous = None
-        if exogenous_data is not None:
-            s_exogenous = exogenous_data[len(self.temporal_models):]
-
-        assert low_res.shape[0] == 1, 'Low res input can only have 1 obs!'
-
-        try:
-            hi_res = self.temporal_models.generate(
-                low_res, norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
-        except Exception as e:
-            msg = ('Could not run the 1st step (spatio)temporal GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        logger.debug('Data output from the 1st step (spatio)temporal '
-                     'enhancement has shape {}'.format(hi_res.shape))
-        hi_res = np.transpose(hi_res[0], axes=(2, 0, 1, 3))
-        logger.debug('Data from the 1st step (spatio)temporal enhancement has '
-                     'been reshaped to {}'.format(hi_res.shape))
-
-        try:
-            hi_res = self.spatial_models.generate(
-                hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=s_exogenous)
-        except Exception as e:
-            msg = ('Could not run the 2nd step spatial GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
-        hi_res = np.expand_dims(hi_res, axis=0)
-
-        logger.debug('Final multistep GAN output has shape: {}'
-                     .format(hi_res.shape))
-
-        return hi_res
-
-
-class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
+class MultiStepSurfaceMetGan(MultiStepGan):
     """A two-step GAN where the first step is a spatial-only enhancement on a
     4D tensor of near-surface temperature and relative humidity data, and the
     second step is a (spatio)temporal enhancement on a 5D tensor.
@@ -623,12 +463,18 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : list
-            For the MultiStepSurfaceMetGan model, this must be a 2-entry list
-            where the first entry is a 2D (lat, lon) array of low-resolution
-            surface elevation data in meters (must match spatial_1, spatial_2
-            from low_res), and the second entry is a 2D (lat, lon) array of
-            high-resolution surface elevation data in meters.
+        exogenous_data : dict
+            For the MultiStepSurfaceMetGan, this must be a nested dictionary
+            with a main 'topography' key and two entries for
+            exogenous_data['topography']['steps']. The first entry includes a
+            2D (lat, lon) array of low-resolution surface elevation data in
+            meters (must match spatial_1, spatial_2 from low_res), and the
+            second entry includes a 2D (lat, lon) array of high-resolution
+            surface elevation data in meters. e.g.
+            {'topography': {
+                'steps': [
+                    {'model': 0, 'combine_type': 'input', 'data': lr_topo},
+                    {'model': 0, 'combine_type': 'output', 'data': hr_topo'}]}}
 
         Returns
         -------
@@ -642,51 +488,13 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         logger.debug('Data input to the 1st step spatial-only '
                      'enhancement has shape {}'.format(low_res.shape))
 
-        msg = ('MultiStepSurfaceMetGan needs exogenous_data  with two '
-               'entries for low and high res topography inputs.')
-        assert exogenous_data is not None, msg
-        assert isinstance(exogenous_data, (list, tuple)), msg
-        exogenous_data = [d for d in exogenous_data if d is not None]
-        assert len(exogenous_data) == 2, msg
+        msg = ('MultiStepSurfaceMetGan needs exogenous_data with two '
+               'topography steps, for low and high res topography inputs.')
+        exo_check = (exogenous_data is not None
+                     and len(exogenous_data['topography']['steps']) == 2)
+        assert exo_check, msg
 
-        # SurfaceSpatialMetModel needs a 2D array for exo topography input
-        for i, i_exo in enumerate(exogenous_data):
-            if len(i_exo.shape) == 3:
-                exogenous_data[i] = i_exo[:, :, 0]
-            elif len(i_exo.shape) == 4:
-                exogenous_data[i] = i_exo[0, :, :, 0]
-            elif len(i_exo.shape) == 5:
-                exogenous_data[i] = i_exo[0, :, :, 0, 0]
-
-        try:
-            hi_res = self.spatial_models.generate(
-                low_res, exogenous_data=exogenous_data)
-        except Exception as e:
-            msg = ('Could not run the 1st step spatial-only GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        logger.debug('Data output from the 1st step spatial-only '
-                     'enhancement has shape {}'.format(hi_res.shape))
-        hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
-        hi_res = np.expand_dims(hi_res, axis=0)
-        logger.debug('Data from the 1st step spatial-only enhancement has '
-                     'been reshaped to {}'.format(hi_res.shape))
-
-        try:
-            hi_res = self.temporal_models.generate(
-                hi_res, norm_in=True, un_norm_out=un_norm_out)
-        except Exception as e:
-            msg = ('Could not run the 2nd step (spatio)temporal GAN on input '
-                   'shape {}'.format(low_res.shape))
-            logger.exception(msg)
-            raise RuntimeError(msg) from e
-
-        logger.debug('Final multistep GAN output has shape: {}'
-                     .format(hi_res.shape))
-
-        return hi_res
+        return super().generate(low_res, norm_in, un_norm_out, exogenous_data)
 
     @classmethod
     def load(cls, surface_model_class='SurfaceSpatialMetModel',
@@ -732,10 +540,12 @@ class MultiStepSurfaceMetGan(SpatialThenTemporalGan):
         t_models = TemporalModelClass.load(verbose=verbose,
                                            **temporal_model_kwargs)
 
-        return cls(s_models, t_models)
+        s_models = getattr(s_models, 'models', [s_models])
+        t_models = getattr(t_models, 'models', [t_models])
+        return cls([*s_models, *t_models])
 
 
-class SolarMultiStepGan(SpatialThenTemporalGan):
+class SolarMultiStepGan(SpatialThenTemporalBase):
     """Special multi step model for solar clearsky ratio super resolution.
 
     This model takes in two parallel models for wind-only and solar-only
@@ -751,11 +561,11 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
         ----------
         spatial_solar_models : MultiStepGan
             A loaded MultiStepGan object representing the one or more spatial
-            super resolution steps in this composite SpatialThenTemporalGan
+            super resolution steps in this composite MultiStepGan
             model that inputs and outputs clearsky_ratio
         spatial_wind_models : MultiStepGan
             A loaded MultiStepGan object representing the one or more spatial
-            super resolution steps in this composite SpatialThenTemporalGan
+            super resolution steps in this composite MultiStepGan
             model that inputs and outputs wind u/v features and must include
             U_200m + V_200m as output features.
         temporal_solar_models : MultiStepGan
@@ -824,13 +634,13 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
 
     @property
     def spatial_models(self):
-        """Alias for spatial_solar_models to preserve SpatialThenTemporalGan
+        """Alias for spatial_solar_models to preserve MultiStepGan
         interface."""
         return self.spatial_solar_models
 
     @property
     def temporal_models(self):
-        """Alias for temporal_solar_models to preserve SpatialThenTemporalGan
+        """Alias for temporal_solar_models to preserve MultiStepGan
         interface."""
         return self.temporal_solar_models
 
@@ -962,15 +772,14 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
         logger.debug('Data input to the SolarMultiStepGan has shape {} which '
                      'will be split up for solar- and wind-only features.'
                      .format(low_res.shape))
-        t_exogenous = None
-        if exogenous_data is not None:
-            t_exogenous = exogenous_data[len(self.spatial_wind_models):]
-
+        s_exo, t_exo = self._split_exo_dict(
+            split_step=len(self.spatial_models),
+            exogenous_data=exogenous_data)
         try:
             hi_res_wind = self.spatial_wind_models.generate(
                 low_res[..., self.idf_wind],
                 norm_in=norm_in, un_norm_out=True,
-                exogenous_data=exogenous_data)
+                exogenous_data=s_exo)
         except Exception as e:
             msg = ('Could not run the 1st step spatial-wind-only GAN on '
                    'input shape {}'.format(low_res.shape))
@@ -1006,7 +815,7 @@ class SolarMultiStepGan(SpatialThenTemporalGan):
         try:
             hi_res = self.temporal_solar_models.generate(
                 hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=t_exogenous)
+                exogenous_data=t_exo)
         except Exception as e:
             msg = ('Could not run the 2nd step (spatio)temporal solar GAN on '
                    'input shape {}'.format(low_res.shape))

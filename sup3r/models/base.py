@@ -18,7 +18,7 @@ from sup3r.utilities import VERSION_RECORD
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGan(AbstractInterface, AbstractSingleModel):
+class Sup3rGan(AbstractSingleModel, AbstractInterface):
     """Basic sup3r GAN model."""
 
     def __init__(self,
@@ -178,91 +178,6 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         params = cls.load_saved_params(model_dir, verbose=verbose)
 
         return cls(fp_gen, fp_disc, **params)
-
-    def generate(self,
-                 low_res,
-                 norm_in=True,
-                 un_norm_out=True,
-                 exogenous_data=None):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        norm_in : bool
-            Flag to normalize low_res input data if the self._means,
-            self._stdevs attributes are available. The generator should always
-            received normalized data with mean=0 stdev=1.
-        un_norm_out : bool
-           Flag to un-normalize synthetically generated output data to physical
-           units
-        exogenous_data : ndarray | None
-            Exogenous data array, usually a 4D or 5D array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        exo_check = (exogenous_data is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check else np.concatenate(
-            (low_res, exogenous_data), axis=-1))
-
-        if norm_in and self._means is not None:
-            low_res = self.norm_input(low_res)
-
-        hi_res = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                hi_res = layer(hi_res)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, hi_res.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        hi_res = hi_res.numpy()
-
-        if un_norm_out and self._means is not None:
-            hi_res = self.un_norm_output(hi_res)
-
-        return hi_res
-
-    @tf.function
-    def _tf_generate(self, low_res):
-        """Use the generator model to generate high res data from los res input
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data. The generator should always
-            received normalized data with mean=0 stdev=1.
-
-        Returns
-        -------
-        hi_res : tf.Tensor
-            Synthetically generated high-resolution data
-        """
-        hi_res = self.generator.layers[0](low_res)
-        for i, layer in enumerate(self.generator.layers[1:]):
-            try:
-                hi_res = layer(hi_res)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, hi_res.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-
-        return hi_res
 
     @property
     def discriminator(self):
@@ -462,8 +377,15 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.info('Initializing model weights on device "{}"'.format(device))
         low_res = np.ones(lr_shape).astype(np.float32)
         hi_res = np.ones(hr_shape).astype(np.float32)
+
+        hr_exo_shape = hr_shape[:-1] + (1,)
+        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+
         with tf.device(device):
-            _ = self._tf_generate(low_res)
+            hr_exo_data = {}
+            for feature in self.exogenous_features:
+                hr_exo_data[feature] = hr_exo
+            _ = self._tf_generate(low_res, hr_exo_data)
             _ = self._tf_discriminate(hi_res)
 
     @staticmethod
@@ -525,7 +447,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
             0D tensor generator model loss for the content loss comparing the
             hi res ground truth to the hi res synthetically generated output.
         """
-
+        hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
         loss_gen_content = self.loss_fun(hi_res_true, hi_res_gen)
 
         return loss_gen_content
@@ -624,6 +546,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+        hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
 
         if hi_res_gen.shape != hi_res_true.shape:
             msg = ('The tensor shapes of the synthetic output {} and '
@@ -639,7 +562,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
-        loss_gen = (loss_gen_content + weight_gen_advers * loss_gen_advers)
+        loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
@@ -679,19 +602,17 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         logger.debug('Starting end-of-epoch validation loss calculation...')
         loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
-            output_gen = self._tf_generate(val_batch.low_res)
+            val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
+            high_res_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
-                val_batch.high_res,
-                output_gen,
+                val_batch.high_res, high_res_gen,
                 weight_gen_advers=weight_gen_advers,
-                train_gen=False,
-                train_disc=False)
+                train_gen=False, train_disc=False)
 
             loss_details = self.update_loss_details(loss_details,
                                                     v_loss_details,
                                                     len(val_batch),
                                                     prefix='val_')
-
         return loss_details
 
     def train_epoch(self,
@@ -851,6 +772,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
     def train(self,
               batch_handler,
+              input_resolution,
               n_epoch,
               weight_gen_advers=0.001,
               train_gen=True,
@@ -870,6 +792,9 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
         ----------
         batch_handler : sup3r.data_handling.preprocessing.BatchHandler
             BatchHandler object to iterate through
+        input_resolution : dict
+            Dictionary specifying spatiotemporal input resolution. e.g.
+            {'temporal': '60min', 'spatial': '30km'}
         n_epoch : int
             Number of epochs to train on
         weight_gen_advers : float
@@ -925,6 +850,7 @@ class Sup3rGan(AbstractInterface, AbstractSingleModel):
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
+            input_resolution=input_resolution,
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
