@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Sup3r multi step model frameworks"""
-import copy
 import json
 import logging
 import os
@@ -11,6 +10,7 @@ import numpy as np
 import sup3r.models
 from sup3r.models.abstract import AbstractInterface
 from sup3r.models.base import Sup3rGan
+from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
 
 logger = logging.getLogger(__name__)
 
@@ -112,43 +112,6 @@ class MultiStepGan(AbstractInterface):
         """
         Sup3rGan.seed(s=s)
 
-    def _get_model_step_exo(self, model_step, exogenous_data=None):
-        """Get the exogenous data for the given model_step from the full
-        exogenous data dictionary
-
-        Parameters
-        ----------
-        model_step : int
-            Index of the model to get exogenous data for.
-        exogenous_data : dict
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
-            Each array in in 'data' key has 3D or 4D shape:
-            (spatial_1, spatial_2, 1)
-            (spatial_1, spatial_2, n_temporal, 1)
-
-        Returns
-        -------
-        exogenous_data : dict
-            Same as input dictionary but with only entries with 'model':
-            model_step
-        """
-        model_step_exo = None
-        if exogenous_data is not None:
-            model_step_exo = {}
-            for feature in exogenous_data:
-                steps = [step for step in exogenous_data[feature]['steps']
-                         if step['model'] == model_step]
-                if steps:
-                    model_step_exo[feature] = {'steps': steps}
-        return model_step_exo
-
     def _transpose_model_input(self, model, hi_res):
         """Transpose input data according to mdel input dimensions.
 
@@ -206,18 +169,10 @@ class MultiStepGan(AbstractInterface):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : dict
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
-            Each array in in 'data' key has 3D or 4D shape:
-            (spatial_1, spatial_2, 1)
-            (spatial_1, spatial_2, n_temporal, 1)
+        exogenous_data : ExoData
+            class:`ExoData` object, which is a special dictionary containing
+            exogenous data for each model step and info about how to use the
+            data at each step.
 
         Returns
         -------
@@ -227,16 +182,20 @@ class MultiStepGan(AbstractInterface):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
+        if (isinstance(exogenous_data, dict)
+                and not isinstance(exogenous_data, ExoData)):
+            exogenous_data = ExoData(exogenous_data)
+
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
-
             # pylint: disable=R1719
             i_norm_in = False if (i == 0 and not norm_in) else True
             i_un_norm_out = (False
                              if (i + 1 == len(self.models) and not un_norm_out)
                              else True)
 
-            i_exo_data = self._get_model_step_exo(i, exogenous_data)
+            i_exo_data = (None if exogenous_data is None
+                          else exogenous_data.get_model_step_exo(i))
 
             try:
                 hi_res = self._transpose_model_input(model, hi_res)
@@ -297,133 +256,6 @@ class MultiStepGan(AbstractInterface):
         tuple
         """
         return tuple(model.model_params for model in self.models)
-
-
-class SpatialThenTemporalBase(MultiStepGan):
-    """A base class for spatial-then-temporal or temporal-then-spatial multi
-    step GANs
-    """
-
-    def __init__(self, spatial_models, temporal_models):
-        """
-        Parameters
-        ----------
-        spatial_models : MultiStepGan
-            A loaded MultiStepGan object representing the one or more spatial
-            super resolution steps in this composite SpatialThenTemporal model
-        temporal_models : MultiStepGan
-            A loaded MultiStepGan object representing the single temporal
-            enhancement model in this composite SpatialThenTemporal model
-        """
-        self._spatial_models = spatial_models
-        self._temporal_models = temporal_models
-
-    @property
-    def spatial_models(self):
-        """Get the MultiStepGan object for the spatial-only model(s)
-
-        Returns
-        -------
-        MultiStepGan
-        """
-        return self._spatial_models
-
-    @property
-    def temporal_models(self):
-        """Get the MultiStepGan object for the (spatio)temporal model(s)
-
-        Returns
-        -------
-        MultiStepGan
-        """
-        return self._temporal_models
-
-    @classmethod
-    def load(cls, spatial_model_dirs, temporal_model_dirs, verbose=True):
-        """Load the GANs with its sub-networks from a previously saved-to
-        output directory.
-
-        Parameters
-        ----------
-        spatial_model_dirs : str | list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
-            This must contain only spatial models that input/output 4D
-            tensors.
-        temporal_model_dirs : str | list | tuple
-            An ordered list/tuple of one or more directories containing trained
-            + saved Sup3rGan models created using the Sup3rGan.save() method.
-            This must contain only (spatio)temporal models that input/output 5D
-            tensors.
-        verbose : bool
-            Flag to log information about the loaded model.
-
-        Returns
-        -------
-        out : MultiStepGan
-            Returns a pretrained gan model that was previously saved to
-            model_dirs
-        """
-        if isinstance(spatial_model_dirs, str):
-            spatial_model_dirs = [spatial_model_dirs]
-        if isinstance(temporal_model_dirs, str):
-            temporal_model_dirs = [temporal_model_dirs]
-
-        s_models = MultiStepGan.load(spatial_model_dirs, verbose=verbose)
-        t_models = MultiStepGan.load(temporal_model_dirs, verbose=verbose)
-
-        return cls(s_models, t_models)
-
-    def _split_exo_dict(self, split_step, exogenous_data=None):
-        """Split exogenous_data into two dicts based on split_step. The first
-        dict has only model steps less than split_step. The second dict has
-        only model steps greater than or equal to split_step.
-
-        Parameters
-        ----------
-        split_step : int
-            Step index to use for splitting. If this is for a
-            SpatialThenTemporal model split_step should be len(spatial_models).
-            If this is for a TemporalThenSpatial model split_step should be
-            len(temporal_models).
-        exogenous_data : dict
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
-            Each array in in 'data' key has 3D or 4D shape:
-            (spatial_1, spatial_2, 1)
-            (spatial_1, spatial_2, n_temporal, 1)
-
-        Returns
-        -------
-        split_exo_1 : dict
-            Same as input dictionary but with only entries with 'model':
-            model_step where model_step is less than split_step
-        split_exo_2 : dict
-            Same as input dictionary but with only entries with 'model':
-            model_step where model_step is greater than or equal to split_step
-        """
-        split_exo_1 = {}
-        split_exo_2 = {}
-        if exogenous_data is not None:
-            exo_data = copy.deepcopy(exogenous_data)
-            for feature in exo_data:
-                steps = [step for step in exo_data[feature]['steps']
-                         if step['model'] < split_step]
-                if steps:
-                    split_exo_1[feature] = {'steps': steps}
-                steps = [step for step in exo_data[feature]['steps']
-                         if step['model'] >= split_step]
-                for step in steps:
-                    step.update({'model': step['model'] - split_step})
-                if steps:
-                    split_exo_2[feature] = {'steps': steps}
-        return split_exo_1, split_exo_2
 
 
 class MultiStepSurfaceMetGan(MultiStepGan):
@@ -545,7 +377,7 @@ class MultiStepSurfaceMetGan(MultiStepGan):
         return cls([*s_models, *t_models])
 
 
-class SolarMultiStepGan(SpatialThenTemporalBase):
+class SolarMultiStepGan(MultiStepGan):
     """Special multi step model for solar clearsky ratio super resolution.
 
     This model takes in two parallel models for wind-only and solar-only
@@ -631,18 +463,6 @@ class SolarMultiStepGan(SpatialThenTemporalBase):
                'found in the solar + wind model output feature list {}'
                .format(missing, spatial_out_features))
         assert not any(missing), msg
-
-    @property
-    def spatial_models(self):
-        """Alias for spatial_solar_models to preserve MultiStepGan
-        interface."""
-        return self.spatial_solar_models
-
-    @property
-    def temporal_models(self):
-        """Alias for temporal_solar_models to preserve MultiStepGan
-        interface."""
-        return self.temporal_solar_models
 
     @property
     def spatial_solar_models(self):
@@ -748,14 +568,9 @@ class SolarMultiStepGan(SpatialThenTemporalBase):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : list
-            List of arrays of exogenous_data with length equal to the
-            number of model steps. e.g. If we want to include topography as
-            an exogenous feature in a spatial + temporal multistep model then
-            we need to provide a list of length=2 with topography at the low
-            spatial resolution and at the high resolution. If we include more
-            than one exogenous feature the ordering must be consistent.
-            Each array in the list has 3D or 4D shape:
+        exogenous_data : ExoData
+            class:`ExoData` object with data arrays for each exogenous data
+            step. Each array has 3D or 4D shape:
             (spatial_1, spatial_2, n_features)
             (temporal, spatial_1, spatial_2, n_features)
             It's assumed that the spatial_solar_models do not require
@@ -772,9 +587,12 @@ class SolarMultiStepGan(SpatialThenTemporalBase):
         logger.debug('Data input to the SolarMultiStepGan has shape {} which '
                      'will be split up for solar- and wind-only features.'
                      .format(low_res.shape))
-        s_exo, t_exo = self._split_exo_dict(
-            split_step=len(self.spatial_models),
-            exogenous_data=exogenous_data)
+        if exogenous_data is not None:
+            s_exo, t_exo = exogenous_data.split_exo_dict(
+                split_step=len(self.spatial_solar_models))
+        else:
+            s_exo = t_exo = None
+
         try:
             hi_res_wind = self.spatial_wind_models.generate(
                 low_res[..., self.idf_wind],

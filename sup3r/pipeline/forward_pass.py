@@ -25,8 +25,11 @@ from sup3r.postprocessing.file_handling import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.data_handling import ExogenousDataHandler
 from sup3r.preprocessing.data_handling.base import InputMixIn
+from sup3r.preprocessing.data_handling.exogenous_data_handling import (
+    ExoData,
+    ExogenousDataHandler,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
@@ -1121,13 +1124,13 @@ class ForwardPass:
 
         Returns
         -------
-        exo_data : dict
-            Same as exo_kwargs dictionary with data arrays added to a 'data'
-            key for each feature
+        exo_data : ExoData
+            class:`ExoData` object composed of multiple
+            class:`SingleExoDataStep` objects.
         """
+        data = []
         exo_data = None
         if self.exo_kwargs:
-            exo_data = self.exo_kwargs.copy()
             self.features = [f for f in self.features
                              if f not in self.exo_features]
             for feature in self.exo_features:
@@ -1141,13 +1144,8 @@ class ForwardPass:
                 sig = signature(ExogenousDataHandler)
                 exo_kwargs = {k: v for k, v in exo_kwargs.items()
                               if k in sig.parameters}
-                data = ExogenousDataHandler(**exo_kwargs).data
-                for i, _ in enumerate(exo_kwargs['steps']):
-                    exo_data[feature]['steps'][i]['data'] = data[i]
-                shapes = [None if d is None else d.shape for d in data]
-                logger.info(
-                    'Got exogenous_data of length {} with shapes: {}'.format(
-                        len(data), shapes))
+                data += ExogenousDataHandler(**exo_kwargs).data
+            exo_data = ExoData(data)
         return exo_data
 
     def update_input_handler_kwargs(self, strategy):

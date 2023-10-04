@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """pytests for exogenous data handling"""
 import os
-import shutil
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
@@ -33,38 +33,30 @@ def test_exo_cache(feature):
         steps.append({'s_enhance': s_en,
                       't_enhance': t_en,
                       's_agg_factor': s_agg,
-                      't_agg_factor': t_agg})
-    try:
+                      't_agg_factor': t_agg,
+                      'combine_type': 'input',
+                      'model': 0})
+    with TemporaryDirectory() as td:
         base = ExogenousDataHandler(FILE_PATHS, feature,
                                     source_file=FP_WTK,
                                     steps=steps,
                                     target=TARGET, shape=SHAPE,
-                                    input_handler='DataHandlerNCforCC')
+                                    input_handler='DataHandlerNCforCC',
+                                    cache_dir=os.path.join(td, 'exo_cache'))
         for i, arr in enumerate(base.data):
             assert arr.shape[0] == SHAPE[0] * S_ENHANCE[i]
             assert arr.shape[1] == SHAPE[1] * S_ENHANCE[i]
-    except Exception as e:
-        if os.path.exists('./exo_cache/'):
-            shutil.rmtree('./exo_cache/')
-        raise e
-    else:
-        assert os.path.exists('./exo_cache/')
-        assert len(os.listdir('./exo_cache')) == 2
 
-    # load cached data
-    try:
+        assert len(os.listdir(f'{td}/exo_cache')) == 2
+
+        # load cached data
         cache = ExogenousDataHandler(FILE_PATHS, feature,
                                      source_file=FP_WTK,
                                      steps=steps,
                                      target=TARGET, shape=SHAPE,
-                                     input_handler='DataHandlerNCforCC')
-    except Exception as e:
-        if os.path.exists('./exo_cache/'):
-            shutil.rmtree('./exo_cache/')
-        raise e
-    else:
-        assert os.path.exists('./exo_cache/')
-        assert len(os.listdir('./exo_cache')) == 2
+                                     input_handler='DataHandlerNCforCC',
+                                     cache_dir=os.path.join(td, 'exo_cache'))
+        assert len(os.listdir(f'{td}/exo_cache')) == 2
+
         for arr1, arr2 in zip(base.data, cache.data):
-            assert np.allclose(arr1, arr2)
-        shutil.rmtree('./exo_cache/')
+            assert np.allclose(arr1['data'], arr2['data'])

@@ -449,7 +449,8 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
             'steps': [
                 {'model': 0, 'combine_type': 'layer',
                  'data': np.random.rand(4, 20, 20, 12, 1)}]}}
-    _ = model.generate(np.random.rand(4, 10, 10, 6, 3), exogenous_data=exo_tmp)
+    _ = model.generate(np.random.rand(4, 10, 10, 6, 3),
+                       exogenous_data=exo_tmp)
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -592,7 +593,8 @@ def test_fwp_multi_step_wind_hi_res_topo():
             'steps': [
                 {'model': 0, 'combine_type': 'layer',
                  'data': np.random.rand(4, 20, 20, 1)}]}}
-    _ = s1_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
+    _ = s1_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=exo_tmp)
 
     s2_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = ['U_100m', 'V_100m', 'topography']
@@ -601,7 +603,8 @@ def test_fwp_multi_step_wind_hi_res_topo():
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {'spatial': '24km',
                                          'temporal': '60min'}
-    _ = s2_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
+    _ = s2_model.generate(np.ones((4, 10, 10, 3)),
+                          exogenous_data=exo_tmp)
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -1095,7 +1098,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
             'steps': [{'model': 0, 'combine_type': 'layer',
                        'data': np.ones((4, 20, 20, 1))}]}
     }
-    _ = s1_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
+    _ = s1_model.generate(np.ones((4, 10, 10, 4)),
+                          exogenous_data=exo_tmp)
 
     s2_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
     s2_model.meta['training_features'] = [
@@ -1106,7 +1110,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {'spatial': '24km',
                                          'temporal': '60min'}
-    _ = s2_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
+    _ = s2_model.generate(np.ones((4, 10, 10, 4)),
+                          exogenous_data=exo_tmp)
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(gen_t_model, fp_disc, learning_rate=1e-4)
@@ -1123,7 +1128,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
             'steps': [{'model': 0, 'combine_type': 'layer',
                        'data': np.ones((4, 30, 30, 12, 1))}]}
     }
-    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)), exogenous_data=exo_tmp)
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 3)),
+                          exogenous_data=exo_tmp)
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
