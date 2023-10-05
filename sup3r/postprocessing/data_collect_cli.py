@@ -9,7 +9,7 @@ import copy
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.postprocessing.collection import Collector
-from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def from_config(ctx, config_file, verbose=False, **__):
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
 
-        if hardware_option.lower() in ('kestrel', 'eagle', 'slurm'):
+        if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, **exec_kwargs)
         else:
             kickoff_local_job(ctx, cmd)

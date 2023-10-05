@@ -116,18 +116,15 @@ def forward_pass(ctx, verbose):
                 },
             },
             "execution_control": {
-                "option": "local"
-            },
-            "execution_control_kestrel": {
                 "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally,
-    while the ``execution_control_kestrel`` block are kwargs that would
+    Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
+    To run the job locally, use ``execution_control: {"option": "local"}``.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -165,18 +162,15 @@ def solar(ctx, verbose):
             "fp_pattern": "./chunks/sup3r*.h5",
             "nsrdb_fp": "/datasets/NSRDB/current/nsrdb_2015.h5",
             "execution_control": {
-                "option": "local"
-            },
-            "execution_control_kestrel": {
                 "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally,
-    while the ``execution_control_kestrel`` block are kwargs that would
+   Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
+    To run the job locally, use ``execution_control: {"option": "local"}``.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
@@ -229,18 +223,15 @@ def bias_calc(ctx, verbose):
                  }
             ],
             "execution_control": {
-                "option": "local"
-            },
-            "execution_control_kestrel": {
                 "option": "kestrel",
                 "walltime": 4,
                 "alloc": "sup3r"
             }
         }
 
-    Note that the ``execution_control`` block will run the job locally,
-    while the ``execution_control_kestrel`` block are kwargs that would
+    Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
+    To run the job locally, use ``execution_control: {"option": "local"}``.
     """
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])

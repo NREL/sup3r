@@ -16,7 +16,9 @@ from rex.utilities.loggers import init_mult
 
 from sup3r.utilities import ModuleName
 
+
 logger = logging.getLogger(__name__)
+AVAILABLE_HARDWARE_OPTIONS = ('kestrel', 'eagle', 'slurm')
 
 
 class SlurmManager(SLURM):
@@ -72,7 +74,7 @@ class BaseCLI:
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
 
-        if hardware_option.lower() in ('kestrel', 'eagle', 'slurm'):
+        if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
         else:
             cls.kickoff_local_job(module_name, ctx, cmd)
