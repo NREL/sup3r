@@ -14,7 +14,6 @@ from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 
-from sup3r.version import __version__
 from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
