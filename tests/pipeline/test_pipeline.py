@@ -12,7 +12,6 @@ from gaps import Pipeline
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
-from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.utilities.pytest import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
