@@ -1,18 +1,19 @@
 """Sup3r pipeline tests"""
-import click
-import tempfile
 import os
+import glob
 import json
 import shutil
-import numpy as np
-import glob
+import tempfile
 
+import click
+import numpy as np
 from rex import ResourceX
 from gaps import Pipeline
 
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
+from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.utilities.pytest import make_fake_nc_files
-from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
@@ -27,10 +28,15 @@ def test_fwp_pipeline():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
+    input_resolution = {'spatial': '12km', 'temporal': '60min'}
+    model.meta['input_resolution'] = input_resolution
+    assert model.input_resolution == input_resolution
+    assert model.output_resolution == {'spatial': '4km', 'temporal': '15min'}
+    _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
+    assert model.s_enhance == 3
+    assert model.t_enhance == 4
 
     test_context = click.Context(click.Command("pipeline"), obj={})
     with tempfile.TemporaryDirectory() as td, test_context as ctx:

@@ -36,13 +36,12 @@ def make_fake_nc_files(td, input_file, n_files):
     for i in range(n_files):
         if os.path.exists(fake_files[i]):
             os.remove(fake_files[i])
-        input_dset = xr.open_dataset(input_file)
-        with xr.Dataset(input_dset) as dset:
-            dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19'
-            )
-            dset['XTIME'][:] = i
-            dset.to_netcdf(fake_files[i])
+        with xr.open_dataset(input_file) as input_dset:
+            with xr.Dataset(input_dset) as dset:
+                dset['Times'][:] = np.array(
+                    [fake_times[i].encode('ASCII')], dtype='|S19')
+                dset['XTIME'][:] = i
+                dset.to_netcdf(fake_files[i])
     return fake_files
 
 
@@ -70,14 +69,12 @@ def make_fake_multi_time_nc_files(td, input_file, n_steps, n_files):
     dummy_files = []
     for i, files in enumerate(fake_files):
         dummy_file = os.path.join(
-            td, f'multi_timestep_file_{str(i).zfill(3)}.nc'
-        )
+            td, f'multi_timestep_file_{str(i).zfill(3)}.nc')
         if os.path.exists(dummy_file):
             os.remove(dummy_file)
         dummy_files.append(dummy_file)
         with xr.open_mfdataset(
-            files, combine='nested', concat_dim='Time'
-        ) as dset:
+                files, combine='nested', concat_dim='Time') as dset:
             dset.to_netcdf(dummy_file)
     return dummy_files
 
@@ -110,14 +107,13 @@ def make_fake_era_files(td, input_file, n_files):
     for i in range(n_files):
         if os.path.exists(fake_files[i]):
             os.remove(fake_files[i])
-        input_dset = xr.open_dataset(input_file)
-        with xr.Dataset(input_dset) as dset:
-            dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19'
-            )
-            dset['XTIME'][:] = i
-            dset = dset.rename({'U': 'u', 'V': 'v'})
-            dset.to_netcdf(fake_files[i])
+        with xr.open_dataset(input_file) as input_dset:
+            with xr.Dataset(input_dset) as dset:
+                dset['Times'][:] = np.array(
+                    [fake_times[i].encode('ASCII')], dtype='|S19')
+                dset['XTIME'][:] = i
+                dset = dset.rename({'U': 'u', 'V': 'v'})
+                dset.to_netcdf(fake_files[i])
     return fake_files
 
 

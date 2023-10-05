@@ -3,15 +3,15 @@
 sup3r bias correction calculation CLI entry points.
 """
 import copy
-import click
 import logging
 import os
 
+import click
+
 import sup3r.bias.bias_calc
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
 from sup3r.utilities.cli import BaseCLI
-
+from sup3r.version import __version__
 
 logger = logging.getLogger(__name__)
 

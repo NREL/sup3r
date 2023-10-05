@@ -4,6 +4,7 @@ import os
 import shutil
 
 import numpy as np
+import pytest
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling import ExogenousDataHandler
@@ -14,19 +15,30 @@ FILE_PATHS = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
               os.path.join(TEST_DATA_DIR, 'va_test.nc'),
               os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
               os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
-FEATURES = ['topography']
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
 S_ENHANCE = [1, 4]
-AGG_FACTORS = [4, 1]
+T_ENHANCE = [1, 1]
+S_AGG_FACTORS = [4, 1]
+T_AGG_FACTORS = [1, 1]
 
 
-def test_exo_cache():
+@pytest.mark.parametrize('feature', ['topography', 'sza'])
+def test_exo_cache(feature):
     """Test exogenous data caching and re-load"""
     # no cached data
+    steps = []
+    for s_en, t_en, s_agg, t_agg in zip(S_ENHANCE, T_ENHANCE, S_AGG_FACTORS,
+                                        T_AGG_FACTORS):
+        steps.append({'s_enhance': s_en,
+                      't_enhance': t_en,
+                      's_agg_factor': s_agg,
+                      't_agg_factor': t_agg})
     try:
-        base = ExogenousDataHandler(FILE_PATHS, FEATURES, FP_WTK, S_ENHANCE,
-                                    AGG_FACTORS, target=TARGET, shape=SHAPE,
+        base = ExogenousDataHandler(FILE_PATHS, feature,
+                                    source_file=FP_WTK,
+                                    steps=steps,
+                                    target=TARGET, shape=SHAPE,
                                     input_handler='DataHandlerNCforCC')
         for i, arr in enumerate(base.data):
             assert arr.shape[0] == SHAPE[0] * S_ENHANCE[i]
@@ -41,8 +53,10 @@ def test_exo_cache():
 
     # load cached data
     try:
-        cache = ExogenousDataHandler(FILE_PATHS, FEATURES, FP_WTK, S_ENHANCE,
-                                     AGG_FACTORS, target=TARGET, shape=SHAPE,
+        cache = ExogenousDataHandler(FILE_PATHS, feature,
+                                     source_file=FP_WTK,
+                                     steps=steps,
+                                     target=TARGET, shape=SHAPE,
                                      input_handler='DataHandlerNCforCC')
     except Exception as e:
         if os.path.exists('./exo_cache/'):

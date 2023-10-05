@@ -1,25 +1,24 @@
 # -*- coding: utf-8 -*-
 """pytests for sup3r cli"""
+import glob
 import json
 import os
 import tempfile
-import pytest
-import glob
+
 import numpy as np
-from rex import ResourceX
-from rex import init_logger
-
+import pytest
 from click.testing import CliRunner
+from rex import ResourceX, init_logger
 
-from sup3r.pipeline.pipeline_cli import from_config as pipe_main
-from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
-from sup3r.preprocessing.data_extract_cli import from_config as dh_main
-from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.qa.visual_qa_cli import from_config as vqa_main
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
-from sup3r.utilities.pytest import make_fake_nc_files, make_fake_h5_chunks
+from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
+from sup3r.pipeline.pipeline_cli import from_config as pipe_main
+from sup3r.postprocessing.data_collect_cli import from_config as dc_main
+from sup3r.preprocessing.data_extract_cli import from_config as dh_main
+from sup3r.qa.visual_qa_cli import from_config as vqa_main
+from sup3r.utilities.pytest import make_fake_h5_chunks, make_fake_nc_files
 from sup3r.utilities.utilities import correct_path
-from sup3r import TEST_DATA_DIR, CONFIG_DIR
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
@@ -34,7 +33,7 @@ def runner():
     return CliRunner()
 
 
-def test_pipeline_fwp_collect(runner, log=True):
+def test_pipeline_fwp_collect(runner, log=False):
     """Test pipeline with forward pass and data collection"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -97,8 +96,8 @@ def test_pipeline_fwp_collect(runner, log=True):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
-                                           '-v', '--monitor'])
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
+                                           '--monitor'])
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
@@ -197,7 +196,7 @@ def test_data_collection_cli(runner):
             assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
 
 
-def test_fwd_pass_cli(runner, log=True):
+def test_fwd_pass_cli(runner, log=False):
     """Test cli call to run forward pass"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -210,8 +209,8 @@ def test_fwd_pass_cli(runner, log=True):
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
+    assert model.s_enhance == 3
+    assert model.t_enhance == 4
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -289,20 +288,27 @@ def test_data_extract_cli(runner):
         assert len(glob.glob(f'{log_file}')) == 1
 
 
-def test_pipeline_fwp_qa(runner):
+def test_pipeline_fwp_qa(runner, log=True):
     """Test the sup3r pipeline with Forward Pass and QA modules
     via pipeline cli"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    input_resolution = {'spatial': '12km', 'temporal': '60min'}
+    model.meta['input_resolution'] = input_resolution
+    assert model.input_resolution == input_resolution
+    assert model.output_resolution == {'spatial': '4km', 'temporal': '15min'}
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
     model.meta['training_features'] = FEATURES
     model.meta['output_features'] = FEATURES[:2]
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
+    assert model.s_enhance == 3
+    assert model.t_enhance == 4
 
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
@@ -354,8 +360,8 @@ def test_pipeline_fwp_qa(runner):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path,
-                                           '-v', '--monitor'])
+        result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
+                                           '--monitor'])
         if result.exit_code != 0:
             import traceback
             msg = ('Failed with error {}'
@@ -365,28 +371,31 @@ def test_pipeline_fwp_qa(runner):
         assert len(glob.glob(f'{td}/fwp_log*.log')) == 1
         assert len(glob.glob(f'{td}/out*.h5')) == 1
         assert len(glob.glob(f'{td}/qa.h5')) == 1
-        assert len(glob.glob(f'{td}/.gaps/*_status.json')) == 1
-
-        status_fp = glob.glob(f'{td}/.gaps/*_status.json')[0]
-        with open(status_fp, 'r') as f:
+        status_fps = glob.glob(f'{td}/.gaps/*status*.json')
+        assert len(status_fps) == 1
+        status_fp = status_fps[0]
+        with open(status_fp) as f:
             status = json.load(f)
 
         fwp_status = status['forward-pass']
         del fwp_status['pipeline_index']
-        fwp_status = list(fwp_status.values())[0]
+        fwp_status = next(iter(fwp_status.values()))
         assert fwp_status['job_status'] == 'successful'
         assert fwp_status['time'] > 0
 
         assert len(status['qa']) == 2
         qa_status = status['qa']
         del qa_status['pipeline_index']
-        qa_status = list(qa_status.values())[0]
+        qa_status = next(iter(qa_status.values()))
         assert qa_status['job_status'] == 'successful'
         assert qa_status['time'] > 0
 
 
-def test_visual_qa(runner):
+def test_visual_qa(runner, log=False):
     """Make sure visual qa module creates the right number of plots"""
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
 
     time_step = 500
     plot_features = ['windspeed_100m', 'winddirection_100m']

@@ -1,14 +1,9 @@
 {
     "file_paths": "PLACEHOLDER",
     "model_kwargs": {
-        "surface_model_kwargs": {
-            "model_dir": "./sup3rcc_models_202303/sup3rcc_trh_step1_25x_1x_2f/"
-        },
-        "temporal_model_kwargs": {
-            "model_dirs": [
-                "./sup3rcc_models_202303/sup3rcc_trh_step2_1x_24x_2f/"
-            ]
-        }
+        "model_dirs": [
+            "./sup3rcc_models_202303/sup3rcc_trh_step1_25x_1x_2f/",
+            "./sup3rcc_models_202303/sup3rcc_trh_step2_1x_24x_2f/"]
     },
     "model_class": "MultiStepSurfaceMetGan",
     "out_pattern": "./chunks/sup3r_chunk_{file_id}.h5",
@@ -42,15 +37,14 @@
     },
     "max_nodes": 10,
     "exo_kwargs": {
-        "file_paths": ["/datasets/sup3rcc/source/temp_humi_day_MRI-ESM2-0_ssp245_r1i1p1f1_gn_20500101-20501231.nc"],
-        "features": ["topography"],
-        "source_file": "/datasets/sup3rcc/source/nsrdb_clearsky.h5",
-        "target": [23.2, -129],
-        "shape": [26, 59],
-        "s_enhancements": [1, 25],
-        "agg_factors": [625, 1],
-        "input_handler": "DataHandlerNCforCC",
-        "exo_steps": [0, 1]
+        "topography": {
+            "steps": [{"model": 0, "combine_type": "input"},
+                      {"model": 0, "combine_type": "output"}],
+            "file_paths": ["/datasets/sup3rcc/source/temp_humi_day_MRI-ESM2-0_ssp245_r1i1p1f1_gn_20500101-20501231.nc"],
+            "source_file": "/datasets/sup3rcc/source/nsrdb_clearsky.h5",
+            "target": [23.2, -129],
+            "shape": [26, 59],
+            "input_handler": "DataHandlerNCforCC"}
     },
     "execution_control": {
         "option": "eagle",

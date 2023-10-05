@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pprint
+import re
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -14,10 +15,10 @@ from warnings import warn
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import optimizers
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
+from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
 from sup3r.utilities import VERSION_RECORD
@@ -54,6 +55,15 @@ class AbstractInterface(ABC):
             model_dir
         """
 
+    @abstractmethod
+    def generate(self,
+                 low_res,
+                 norm_in=True,
+                 un_norm_out=True,
+                 exogenous_data=None):
+        """Use the generator model to generate high res data from low res
+        input. This is the public generate function."""
+
     @staticmethod
     def seed(s=0):
         """
@@ -65,27 +75,6 @@ class AbstractInterface(ABC):
             Random seed
         """
         CustomNetwork.seed(s=s)
-
-    @abstractmethod
-    def generate(self, low_res):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        hi_res : ndarray
-            Synthetically generated high-resolution data, usually a 4D or 5D
-            array with shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
 
     @property
     def input_dims(self):
@@ -106,17 +95,264 @@ class AbstractInterface(ABC):
         else:
             return 5
 
+    # pylint: disable=E1101
+    def get_s_enhance_from_layers(self):
+        """Compute factor by which model will enhance spatial resolution from
+        layer attributes. Used in model training during high res coarsening"""
+        s_enhance = None
+        if hasattr(self, '_gen'):
+            s_enhancements = [getattr(layer, '_spatial_mult', 1)
+                              for layer in self._gen.layers]
+            s_enhance = int(np.product(s_enhancements))
+        return s_enhance
+
+    # pylint: disable=E1101
+    def get_t_enhance_from_layers(self):
+        """Compute factor by which model will enhance temporal resolution from
+        layer attributes. Used in model training during high res coarsening"""
+        t_enhance = None
+        if hasattr(self, '_gen'):
+            t_enhancements = [getattr(layer, '_temporal_mult', 1)
+                              for layer in self._gen.layers]
+            t_enhance = int(np.product(t_enhancements))
+        return t_enhance
+
     @property
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""
-        return self.meta.get('s_enhance', None)
+        s_enhance = self.meta.get('s_enhance', None)
+        if s_enhance is None:
+            s_enhance = self.get_s_enhance_from_layers()
+            self.meta['s_enhance'] = s_enhance
+        return s_enhance
 
     @property
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
         model training during high res coarsening"""
-        return self.meta.get('t_enhance', None)
+        t_enhance = self.meta.get('t_enhance', None)
+        if t_enhance is None:
+            t_enhance = self.get_t_enhance_from_layers()
+            self.meta['t_enhance'] = t_enhance
+        return t_enhance
+
+    @property
+    def input_resolution(self):
+        """Resolution of input data. Given as a dictionary {'spatial': '...km',
+        'temporal': '...min'}. The numbers are required to be integers in the
+        units specified. The units are not strict as long as the resolution
+        of the exogenous data, when extracting exogenous data, is specified
+        in the same units."""
+        input_resolution = self.meta.get('input_resolution', None)
+        msg = 'model.input_resolution is None. This needs to be set.'
+        assert input_resolution is not None, msg
+        return input_resolution
+
+    def _get_numerical_resolutions(self):
+        """Get the input and output resolutions without units. e.g. for
+        {"spatial": "30km", "temporal": "60min"} this returns
+        {"spatial": 30, "temporal": 60}"""
+        ires_num = {k: int(re.search(r'\d+', v).group(0))
+                    for k, v in self.input_resolution.items()}
+        enhancements = {'spatial': self.s_enhance,
+                        'temporal': self.t_enhance}
+        ores_num = {k: v // enhancements[k] for k, v in ires_num.items()}
+        return ires_num, ores_num
+
+    def _ensure_valid_input_resolution(self):
+        """Ensure ehancement factors evenly divide input_resolution"""
+
+        if self.input_resolution is None:
+            return
+
+        ires_num, ores_num = self._get_numerical_resolutions()
+        s_enhance = self.meta['s_enhance']
+        t_enhance = self.meta['t_enhance']
+        check = (
+            ires_num['temporal'] / ores_num['temporal'] == t_enhance
+            and ires_num['spatial'] / ores_num['spatial'] == s_enhance)
+        msg = (f'Enhancement factors (s_enhance={s_enhance}, '
+               f't_enhance={t_enhance}) do not evenly divide '
+               f'input resolution ({self.input_resolution})')
+        if not check:
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+    def _ensure_valid_enhancement_factors(self):
+        """Ensure user provided enhancement factors are the same as those
+        computed from layer attributes"""
+        t_enhance = self.meta.get('t_enhance', None)
+        s_enhance = self.meta.get('s_enhance', None)
+        if s_enhance is None or t_enhance is None:
+            return
+
+        layer_se = self.get_s_enhance_from_layers()
+        layer_te = self.get_t_enhance_from_layers()
+        layer_se = layer_se if layer_se is not None else self.meta['s_enhance']
+        layer_te = layer_te if layer_te is not None else self.meta['t_enhance']
+        msg = (f'Enhancement factors computed from layer attributes '
+               f'(s_enhance={layer_se}, t_enhance={layer_te}) '
+               f'conflict with user provided values (s_enhance={s_enhance}, '
+               f't_enhance={t_enhance})')
+        check = layer_se == s_enhance or layer_te == t_enhance
+        if not check:
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+    @property
+    def output_resolution(self):
+        """Resolution of output data. Given as a dictionary
+        {'spatial': '...km', 'temporal': '...min'}. This is computed from the
+        input resolution and the enhancement factors."""
+        output_res = self.meta.get('output_resolution', None)
+        if self.input_resolution is not None and output_res is None:
+            ires_num, ores_num = self._get_numerical_resolutions()
+            output_res = {k: v.replace(str(ires_num[k]), str(ores_num[k]))
+                          for k, v in self.input_resolution.items()}
+            self.meta['output_resolution'] = output_res
+        return output_res
+
+    def _combine_fwp_input(self, low_res, exogenous_data=None):
+        """Combine exogenous_data at input resolution with low_res data prior
+        to forward pass through generator
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        Returns
+        -------
+        low_res : np.ndarray
+            Low-resolution input data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        if exogenous_data is None:
+            return low_res
+
+        training_features = ([] if self.training_features is None
+                             else self.training_features)
+        fnum_diff = len(training_features) - low_res.shape[-1]
+        exo_feats = ([] if fnum_diff <= 0
+                     else self.training_features[-fnum_diff:])
+        msg = ('Provided exogenous_data is missing some required features '
+               f'({exo_feats})')
+        assert all(feature in exogenous_data for feature in exo_feats), msg
+        if exogenous_data is not None and fnum_diff > 0:
+            for feature in exo_feats:
+                entry = exogenous_data[feature]
+                combine_types = [step['combine_type']
+                                 for step in entry['steps']]
+                if 'input' in combine_types:
+                    idx = combine_types.index('input')
+                    low_res = np.concatenate((low_res,
+                                              entry['steps'][idx]['data']),
+                                             axis=-1)
+        return low_res
+
+    def _combine_fwp_output(self, hi_res, exogenous_data=None):
+        """Combine exogenous_data at output resolution with generated hi_res
+        data following forward pass output.
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            High-resolution output data, usually a 4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        Returns
+        -------
+        hi_res : np.ndarray
+            High-resolution output data combined with exogenous_data, usually a
+            4D or 5D array of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        if exogenous_data is None:
+            return hi_res
+
+        output_features = ([] if self.output_features is None
+                           else self.output_features)
+        fnum_diff = len(output_features) - hi_res.shape[-1]
+        exo_feats = ([] if fnum_diff <= 0
+                     else self.output_features[-fnum_diff:])
+        msg = ('Provided exogenous_data is missing some required features '
+               f'({exo_feats})')
+        assert all(feature in exogenous_data for feature in exo_feats), msg
+        if exogenous_data is not None and fnum_diff > 0:
+            for feature in exo_feats:
+                entry = exogenous_data[feature]
+                combine_types = [step['combine_type']
+                                 for step in entry['steps']]
+                if 'output' in combine_types:
+                    idx = combine_types.index('output')
+                    hi_res = np.concatenate((hi_res,
+                                             entry['steps'][idx]['data']),
+                                            axis=-1)
+        return hi_res
+
+    def _combine_loss_input(self, high_res_true, high_res_gen):
+        """Combine exogenous feature data from high_res_true with high_res_gen
+        for loss calculation
+
+        Parameters
+        ----------
+        high_res_true : tf.Tensor
+            Ground truth high resolution spatiotemporal data.
+        high_res_gen : tf.Tensor
+            Superresolved high resolution spatiotemporal data generated by the
+            generative model.
+
+        Returns
+        -------
+        high_res_gen : tf.Tensor
+            Same as input with exogenous data combined with high_res input
+        """
+        if high_res_true.shape[-1] > high_res_gen.shape[-1]:
+            for feature in self.exogenous_features:
+                f_idx = self.training_features.index(feature)
+                exo_data = high_res_true[..., f_idx: f_idx + 1]
+                high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
+        return high_res_gen
+
+    @property
+    def exogenous_features(self):
+        """Get list of exogenous filter names the model uses. If the model has
+        N concat or add layers this list will be the last N features in the
+        training features list. The ordering is assumed to be the same as the
+        order of concat or add layers. If training features is [..., topo,
+        sza], and the model has 2 concat or add layers, exo features will be
+        [topo, sza]. Topo will then be used in the first concat layer and sza
+        will be used in the second"""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            for layer in self._gen.layers:
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    features.append(layer.name)
+        return features
 
     @property
     @abstractmethod
@@ -169,30 +405,68 @@ class AbstractInterface(ABC):
         """
         return VERSION_RECORD
 
-    def set_model_params(self, **kwargs):
-        """Set parameters used for training the model
+    def _check_exo_features(self, **kwargs):
+        """Make sure exogenous features have the correct ordering and are
+        included in training_features
 
         Parameters
         ----------
         kwargs : dict
             Keyword arguments including 'training_features', 'output_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
-        """
 
-        keys = ('training_features', 'output_features', 'smoothed_features',
-                's_enhance', 't_enhance', 'smoothing')
+        Returns
+        -------
+        kwargs : dict
+            Same as input but with exogenous_features removed from output
+            features
+        """
+        if 'output_features' not in kwargs:
+            return kwargs
+
+        output_features = kwargs['output_features']
+        msg = (f'Last {len(self.exogenous_features)} output features from the '
+               f'data handler must be {self.exogenous_features} '
+               'to train the Exo model, but received output features: {}'.
+               format(output_features))
+        exo_features = ([] if len(self.exogenous_features) == 0
+                        else output_features[-len(self.exogenous_features):])
+        assert exo_features == self.exogenous_features, msg
+        for f in self.exogenous_features:
+            output_features.remove(f)
+        kwargs['output_features'] = output_features
+        return kwargs
+
+    def set_model_params(self, **kwargs):
+        """Set parameters used for training the model
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments including 'input_resolution',
+            'training_features', 'output_features', 'smoothed_features',
+            's_enhance', 't_enhance', 'smoothing'
+        """
+        kwargs = self._check_exo_features(**kwargs)
+
+        keys = ('input_resolution', 'training_features', 'output_features',
+                'smoothed_features', 's_enhance', 't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
         for var in keys:
-            val = getattr(self, var, None)
+            val = self.meta.get(var, None)
             if val is None:
                 self.meta[var] = kwargs[var]
             elif val != kwargs[var]:
                 msg = ('Model was previously trained with {var}={} but '
-                       'received new {var}={}'
-                       .format(val, kwargs[var], var=var))
+                       'received new {var}={}'.format(val,
+                                                      kwargs[var],
+                                                      var=var))
                 logger.warning(msg)
                 warn(msg)
+
+        self._ensure_valid_enhancement_factors()
+        self._ensure_valid_input_resolution()
 
     def save_params(self, out_dir):
         """
@@ -255,16 +529,14 @@ class AbstractSingleModel(ABC):
             self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
-            elif ('meta' in model
-                  and f'config_{name}' in model['meta']
+            elif ('meta' in model and f'config_{name}' in model['meta']
                   and 'hidden_layers' in model['meta'][f'config_{name}']):
                 model = model['meta'][f'config_{name}']['hidden_layers']
             else:
                 msg = ('Could not load model from json config, need '
                        '"hidden_layers" key or '
                        f'"meta/config_{name}/hidden_layers" '
-                       ' at top level but only found: {}'
-                       .format(model.keys()))
+                       ' at top level but only found: {}'.format(model.keys()))
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -277,8 +549,8 @@ class AbstractSingleModel(ABC):
 
         if not isinstance(model, CustomNetwork):
             msg = ('Something went wrong. Tried to load a custom network '
-                   'but ended up with a model of type "{}"'
-                   .format(type(model)))
+                   'but ended up with a model of type "{}"'.format(
+                       type(model)))
             logger.error(msg)
             raise TypeError(msg)
 
@@ -308,23 +580,27 @@ class AbstractSingleModel(ABC):
     def output_stdevs(self):
         """Get the data normalization standard deviation values for only the
         output features
+
         Returns
         -------
         np.ndarray
         """
-        indices = [self.training_features.index(f)
-                   for f in self.output_features]
+        indices = [
+            self.training_features.index(f) for f in self.output_features
+        ]
         return self._stdevs[indices]
 
     @property
     def output_means(self):
         """Get the data normalization mean values for only the output features
+
         Returns
         -------
         np.ndarray
         """
-        indices = [self.training_features.index(f)
-                   for f in self.output_features]
+        indices = [
+            self.training_features.index(f) for f in self.output_features
+        ]
         return self._means[indices]
 
     def set_norm_stats(self, new_means, new_stdevs):
@@ -341,10 +617,10 @@ class AbstractSingleModel(ABC):
 
         if self._means is not None:
             logger.info('Setting new normalization statistics...')
-            logger.info("Model's previous data mean values: {}"
-                        .format(self._means))
-            logger.info("Model's previous data stdev values: {}"
-                        .format(self._stdevs))
+            logger.info("Model's previous data mean values: {}".format(
+                self._means))
+            logger.info("Model's previous data stdev values: {}".format(
+                self._stdevs))
 
         self._means = new_means
         self._stdevs = new_stdevs
@@ -354,10 +630,10 @@ class AbstractSingleModel(ABC):
         if not isinstance(self._stdevs, np.ndarray):
             self._stdevs = np.array(self._stdevs)
 
-        logger.info('Set data normalization mean values: {}'
-                    .format(self._means))
-        logger.info('Set data normalization stdev values: {}'
-                    .format(self._stdevs))
+        logger.info('Set data normalization mean values: {}'.format(
+            self._means))
+        logger.info('Set data normalization stdev values: {}'.format(
+            self._stdevs))
 
     def norm_input(self, low_res):
         """Normalize low resolution data being input to the generator.
@@ -384,7 +660,7 @@ class AbstractSingleModel(ABC):
 
             if any(self._stdevs == 0):
                 stdevs = np.where(self._stdevs == 0, 1, self._stdevs)
-                msg = ('Some standard deviations are zero.')
+                msg = 'Some standard deviations are zero.'
                 logger.warning(msg)
                 warn(msg)
             else:
@@ -459,25 +735,6 @@ class AbstractSingleModel(ABC):
         """
         return self.generator.weights
 
-    def _needs_lr_exo(self, low_res):
-        """Determine whether or not the sup3r model needs low-res exogenous
-        data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-
-        Returns
-        -------
-        needs_lr_exo : bool
-            True if the model requires low-resolution exogenous data.
-        """
-
-        return low_res.shape[-1] < len(self.training_features)
-
     @staticmethod
     def init_optimizer(optimizer, learning_rate):
         """Initialize keras optimizer object.
@@ -500,8 +757,10 @@ class AbstractSingleModel(ABC):
             class_name = optimizer['name']
             OptimizerClass = getattr(optimizers, class_name)
             sig = signature(OptimizerClass)
-            optimizer_kwargs = {k: v for k, v in optimizer.items()
-                                if k in sig.parameters}
+            optimizer_kwargs = {
+                k: v
+                for k, v in optimizer.items() if k in sig.parameters
+            }
             optimizer = OptimizerClass.from_config(optimizer_kwargs)
         elif optimizer is None:
             optimizer = optimizers.Adam(learning_rate=learning_rate)
@@ -544,10 +803,31 @@ class AbstractSingleModel(ABC):
             if verbose:
                 logger.info('Loading model from disk '
                             'that was created with the '
-                            'following package versions: \n{}'
-                            .format(pprint.pformat(version_record, indent=2)))
+                            'following package versions: \n{}'.format(
+                                pprint.pformat(version_record, indent=2)))
 
         return params
+
+    def get_high_res_exo_input(self, high_res):
+        """Get exogenous feature data from high_res
+
+        Parameters
+        ----------
+        high_res : tf.Tensor
+            Ground truth high resolution spatiotemporal data.
+
+        Returns
+        -------
+        exo_data : dict
+            Dictionary of exogenous feature data used as input to tf_generate.
+            e.g. {'topography': tf.Tensor(...)}
+        """
+        exo_data = {}
+        for feature in self.exogenous_features:
+            f_idx = self.training_features.index(feature)
+            exo_fdata = high_res[..., f_idx: f_idx + 1]
+            exo_data[feature] = exo_fdata
+        return exo_data
 
     @staticmethod
     def get_loss_fun(loss):
@@ -575,8 +855,8 @@ class AbstractSingleModel(ABC):
 
         if out is None:
             msg = ('Could not find requested loss function "{}" in '
-                   'sup3r.utilities.loss_metrics or tf.keras.losses.'
-                   .format(loss))
+                   'sup3r.utilities.loss_metrics or tf.keras.losses.'.format(
+                       loss))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -619,7 +899,7 @@ class AbstractSingleModel(ABC):
             Namespace of the breakdown of loss components for a single new
             batch.
         batch_len : int
-            Length of the incomming batch.
+            Length of the incoming batch.
         prefix : None | str
             Option to prefix the names of the loss data when saving to the
             loss_details dictionary.
@@ -635,8 +915,8 @@ class AbstractSingleModel(ABC):
 
         for key, new_value in new_data.items():
             key = key if prefix is None else prefix + key
-            new_value = (new_value if not isinstance(new_value, tf.Tensor)
-                         else new_value.numpy())
+            new_value = (new_value if not isinstance(new_value, tf.Tensor) else
+                         new_value.numpy())
 
             if key in loss_details:
                 saved_value = loss_details[key]
@@ -710,8 +990,8 @@ class AbstractSingleModel(ABC):
                 stop = True
                 logger.info('Found early stop condition, loss values "{}" '
                             'have absolute relative differences less than '
-                            'threshold {}: {}'
-                            .format(column, threshold, diffs[-n_epoch:]))
+                            'threshold {}: {}'.format(column, threshold,
+                                                      diffs[-n_epoch:]))
 
         return stop
 
@@ -726,10 +1006,17 @@ class AbstractSingleModel(ABC):
             if it does not already exist.
         """
 
-    def finish_epoch(self, epoch, epochs, t0, loss_details,
-                     checkpoint_int, out_dir,
-                     early_stop_on, early_stop_threshold,
-                     early_stop_n_epoch, extras=None):
+    def finish_epoch(self,
+                     epoch,
+                     epochs,
+                     t0,
+                     loss_details,
+                     checkpoint_int,
+                     out_dir,
+                     early_stop_on,
+                     early_stop_threshold,
+                     early_stop_n_epoch,
+                     extras=None):
         """Perform finishing checks after an epoch is done training
 
         Parameters
@@ -790,7 +1077,8 @@ class AbstractSingleModel(ABC):
 
         stop = False
         if early_stop_on is not None and early_stop_on in self._history:
-            stop = self.early_stop(self._history, early_stop_on,
+            stop = self.early_stop(self._history,
+                                   early_stop_on,
                                    threshold=early_stop_threshold,
                                    n_epoch=early_stop_n_epoch)
             if stop:
@@ -802,57 +1090,12 @@ class AbstractSingleModel(ABC):
 
         return stop
 
-    @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
-        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
-        do not update weights, just return gradient details.
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Real low-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        hi_res_true : np.ndarray
-            Real high-resolution data in a 4D or 5D array:
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        training_weights : list
-            A list of layer weights that are to-be-trained based on the
-            current loss weight values.
-        device_name : None | str
-            Optional tensorflow device name for GPU placement. Note that if a
-            GPU is available, variables will be placed on that GPU even if
-            device_name=None.
-        calc_loss_kwargs : dict
-            Kwargs to pass to the self.calc_loss() method
-
-        Returns
-        -------
-        grad : list
-            a list or nested structure of Tensors (or IndexedSlices, or None,
-            or CompositeTensor) representing the gradients for the
-            training_weights
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        with tf.device(device_name):
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(training_weights)
-
-                hi_res_gen = self._tf_generate(low_res)
-                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                          **calc_loss_kwargs)
-                loss, loss_details = loss_out
-
-                grad = tape.gradient(loss, training_weights)
-
-        return grad, loss_details
-
-    def run_gradient_descent(self, low_res, hi_res_true, training_weights,
-                             optimizer=None, multi_gpu=False,
+    def run_gradient_descent(self,
+                             low_res,
+                             hi_res_true,
+                             training_weights,
+                             optimizer=None,
+                             multi_gpu=False,
                              **calc_loss_kwargs):
         # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
@@ -909,6 +1152,7 @@ class AbstractSingleModel(ABC):
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
             split_mask = False
+            mask_chunks = None
             if 'mask' in calc_loss_kwargs:
                 split_mask = True
                 mask_chunks = np.array_split(calc_loss_kwargs['mask'],
@@ -918,13 +1162,14 @@ class AbstractSingleModel(ABC):
                 for i in range(len(self.gpu_list)):
                     if split_mask:
                         calc_loss_kwargs['mask'] = mask_chunks[i]
-                    futures.append(exe.submit(self.get_single_grad,
-                                              lr_chunks[i],
-                                              hr_true_chunks[i],
-                                              training_weights,
-                                              device_name=f'/gpu:{i}',
-                                              **calc_loss_kwargs))
-            for i, future in enumerate(futures):
+                    futures.append(
+                        exe.submit(self.get_single_grad,
+                                   lr_chunks[i],
+                                   hr_true_chunks[i],
+                                   training_weights,
+                                   device_name=f'/gpu:{i}',
+                                   **calc_loss_kwargs))
+            for _, future in enumerate(futures):
                 grad, loss_details = future.result()
                 optimizer.apply_gradients(zip(grad, training_weights))
 
@@ -934,45 +1179,7 @@ class AbstractSingleModel(ABC):
 
         return loss_details
 
-
-# pylint: disable=E1101,W0201,E0203
-class AbstractWindInterface(ABC):
-    """
-    Abstract class to define the required training interface
-    for Sup3r wind model subclasses
-    """
-
-    # pylint: disable=E0211
-    @staticmethod
-    def set_model_params(**kwargs):
-        """Set parameters used for training the model
-
-        Parameters
-        ----------
-        kwargs : dict
-            Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'. For the
-            Wind classes, the last entry in "output_features" must be
-            "topography"
-
-        Returns
-        -------
-        kwargs : dict
-            Same as input but with topography removed from "output_features",
-            this is because topography is concatenated mid-network in the
-            WindGan generators and is not an output feature but is required in
-            the hi-res training set.
-        """
-        output_features = kwargs['output_features']
-        msg = ('Last output feature from the data handler must be topography '
-               'to train the WindCC model, but received output features: {}'
-               .format(output_features))
-        assert output_features[-1] == 'topography', msg
-        output_features.remove('topography')
-        kwargs['output_features'] = output_features
-        return kwargs
-
-    def _reshape_norm_topo(self, hi_res, hi_res_topo, norm_in=True):
+    def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
         """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
         and normalize (if requested).
 
@@ -983,16 +1190,18 @@ class AbstractWindInterface(ABC):
             array with shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        hi_res_topo : np.ndarray
+        hi_res_exo : np.ndarray
             This should be a 4D array for spatial enhancement model or 5D array
             for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
             (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input. For this function,
-            hi_res_topo can also be a 2D array (spatial_1, spatial_2). Note
-            that this input gets normalized if norm_in=True.
+            spatial_1, spatial_2, temporal. This data will be input to the
+            custom phygnn Sup3rAdder or Sup3rConcat layer if found in the
+            generative network. This differs from the exogenous_data input in
+            that exogenous_data always matches the low-res input. For this
+            function, hi_res_exo can also be a 3D array (spatial_1, spatial_2,
+            1). Note that this input gets normalized if norm_in=True.
+        exo_name : str
+            Name of feature corresponding to hi_res_exo data.
         norm_in : bool
             Flag to normalize low_res input data if the self._means,
             self._stdevs attributes are available. The generator should always
@@ -1005,37 +1214,66 @@ class AbstractWindInterface(ABC):
             Same as input but reshaped to match hi_res (if necessary) and
             normalized (if requested)
         """
-        if hi_res_topo is None:
-            return hi_res_topo
+        if hi_res_exo is None:
+            return hi_res_exo
 
         if norm_in and self._means is not None:
-            idf = self.training_features.index('topography')
-            hi_res_topo = ((hi_res_topo.copy() - self._means[idf])
-                           / self._stdevs[idf])
+            idf = self.training_features.index(exo_name)
+            hi_res_exo = ((hi_res_exo.copy() - self._means[idf])
+                          / self._stdevs[idf])
 
-        if len(hi_res_topo.shape) > 2:
-            slicer = [0] * len(hi_res_topo.shape)
-            slicer[1] = slice(None)
-            slicer[2] = slice(None)
-            hi_res_topo = hi_res_topo[tuple(slicer)]
+        if len(hi_res_exo.shape) == 3:
+            hi_res_exo = np.expand_dims(hi_res_exo, axis=0)
+            hi_res_exo = np.repeat(hi_res_exo, hi_res.shape[0], axis=0)
+        if len(hi_res_exo.shape) == 4 and len(hi_res.shape) == 5:
+            hi_res_exo = np.expand_dims(hi_res_exo, axis=3)
+            hi_res_exo = np.repeat(hi_res_exo, hi_res.shape[3], axis=3)
 
-        if len(hi_res.shape) == 4:
-            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3))
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
-        elif len(hi_res.shape) == 5:
-            hi_res_topo = np.expand_dims(hi_res_topo, axis=(0, 3, 4))
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[0], axis=0)
-            hi_res_topo = np.repeat(hi_res_topo, hi_res.shape[3], axis=3)
-
-        if len(hi_res_topo.shape) != len(hi_res.shape):
-            msg = ('hi_res and hi_res_topo arrays are not of the same rank: '
-                   '{} and {}'.format(hi_res.shape, hi_res_topo.shape))
+        if len(hi_res_exo.shape) != len(hi_res.shape):
+            msg = ('hi_res and hi_res_exo arrays are not of the same rank: '
+                   '{} and {}'.format(hi_res.shape, hi_res_exo.shape))
             logger.error(msg)
             raise RuntimeError(msg)
 
-        return hi_res_topo
+        return hi_res_exo
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
+    def _get_layer_exo_input(self, layer_name, exogenous_data):
+        """Get the high-resolution exo data for the given layer name from the
+        full exogenous_data dictionary.
+
+        Parameters
+        ----------
+        layer_name : str
+            Name of Sup3rAdder or Sup3rConcat layer. This should match a
+            feature key in exogenous_data
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+
+        """
+        msg = (f'layer.name = {layer_name} does not match any '
+               'features in exogenous_data '
+               f'({list(exogenous_data)})')
+        assert layer_name in exogenous_data, msg
+        steps = exogenous_data[layer_name]['steps']
+        combine_types = [step['combine_type'] for step in steps]
+        msg = ('Received exogenous_data without any combine_type '
+               '= "layer" steps, for a model with an Adder/Concat '
+               'layer.')
+        assert 'layer' in combine_types, msg
+        idx = combine_types.index('layer')
+        hi_res_exo = steps[idx]['data']
+        return hi_res_exo
+
+    def generate(self,
+                 low_res,
+                 norm_in=True,
+                 un_norm_out=True,
                  exogenous_data=None):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
@@ -1054,12 +1292,14 @@ class AbstractWindInterface(ABC):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : ndarray | list | None
-            Exogenous data for topography inputs. The first entry in this list
-            (or only entry) is a low-resolution topography array that can be
-            concatenated to the low_res input array. The second entry is
-            high-resolution topography (either 2D or 4D/5D depending on if
-            spatial or spatiotemporal super res).
+        exogenous_data : dict | None
+            Dictionary of exogenous feature data with entries describing
+            whether features should be combined at input, a mid network layer,
+            or with output. This doesn't have to include the 'model' key since
+            this data is for a single step model. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'data': ..., 'resolution': ...},
+                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
 
         Returns
         -------
@@ -1069,35 +1309,26 @@ class AbstractWindInterface(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        low_res_topo = None
-        hi_res_topo = None
-        if isinstance(exogenous_data, np.ndarray):
-            low_res_topo = exogenous_data
-        elif isinstance(exogenous_data, (list, tuple)):
-            low_res_topo = exogenous_data[0]
-            if len(exogenous_data) > 1:
-                hi_res_topo = exogenous_data[1]
-
-        exo_check = (low_res is None or not self._needs_lr_exo(low_res))
-        low_res = (low_res if exo_check
-                   else np.concatenate((low_res, low_res_topo), axis=-1))
-
+        low_res = self._combine_fwp_input(low_res, exogenous_data)
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
 
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                        and hi_res_topo is not None):
-                    hi_res_topo = self._reshape_norm_topo(hi_res, hi_res_topo,
-                                                          norm_in=norm_in)
-                    hi_res = layer(hi_res, hi_res_topo)
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    hi_res_exo = self._get_layer_exo_input(layer.name,
+                                                           exogenous_data)
+                    hi_res_exo = self._reshape_norm_exo(hi_res,
+                                                        hi_res_exo,
+                                                        layer.name,
+                                                        norm_in=norm_in)
+                    hi_res = layer(hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
@@ -1106,25 +1337,30 @@ class AbstractWindInterface(ABC):
         if un_norm_out and self._means is not None:
             hi_res = self.un_norm_output(hi_res)
 
+        hi_res = self._combine_fwp_output(hi_res, exogenous_data)
+
         return hi_res
 
     @tf.function
-    def _tf_generate(self, low_res, hi_res_topo):
-        """Use the generator model to generate high res data from los res input
+    def _tf_generate(self, low_res, hi_res_exo=None):
+        """Use the generator model to generate high res data from low res input
 
         Parameters
         ----------
         low_res : np.ndarray
             Real low-resolution data. The generator should always
             received normalized data with mean=0 stdev=1.
-        hi_res_topo : np.ndarray
-            This should be a 4D array for spatial enhancement model or 5D array
-            for a spatiotemporal enhancement model (obs, spatial_1, spatial_2,
-            (temporal), features) corresponding to the high-resolution
-            spatial_1 and spatial_2. This data will be input to the custom
-            phygnn Sup3rAdder or Sup3rConcat layer if found in the generative
-            network. This differs from the exogenous_data input in that
-            exogenous_data always matches the low-res input.
+        hi_res_exo : dict
+            Dictionary of exogenous_data with same resolution as high_res data
+            e.g. {'topography': np.array}
+            The arrays in this dictionary should be a 4D array for spatial
+            enhancement model or 5D array for a spatiotemporal enhancement
+            model (obs, spatial_1, spatial_2, (temporal), features)
+            corresponding to the high-resolution spatial_1 and spatial_2. This
+            data will be input to the custom phygnn Sup3rAdder or Sup3rConcat
+            layer if found in the generative network. This differs from the
+            exogenous_data input in that exogenous_data always matches the
+            low-res input.
 
         Returns
         -------
@@ -1134,23 +1370,29 @@ class AbstractWindInterface(ABC):
         hi_res = self.generator.layers[0](low_res)
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
-                if (isinstance(layer, (Sup3rAdder, Sup3rConcat))
-                        and hi_res_topo is not None):
-                    hi_res = layer(hi_res, hi_res_topo)
-
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    msg = (f'layer.name = {layer.name} does not match any '
+                           f'features in exogenous_data ({list(hi_res_exo)})')
+                    assert layer.name in hi_res_exo, msg
+                    hr_exo = hi_res_exo[layer.name]
+                    hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
             except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'
-                       .format(i + 1, layer, hi_res.shape))
+                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                       format(i + 1, layer, hi_res.shape))
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 
         return hi_res
 
     @tf.function()
-    def get_single_grad(self, low_res, hi_res_true, training_weights,
-                        device_name=None, **calc_loss_kwargs):
+    def get_single_grad(self,
+                        low_res,
+                        hi_res_true,
+                        training_weights,
+                        device_name=None,
+                        **calc_loss_kwargs):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 
@@ -1183,14 +1425,12 @@ class AbstractWindInterface(ABC):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        hi_res_topo = hi_res_true[..., -1:]
-
         with tf.device(device_name):
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(training_weights)
 
-                hi_res_gen = self._tf_generate(low_res, hi_res_topo)
+                hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+                hi_res_gen = self._tf_generate(low_res, hi_res_exo)
                 loss_out = self.calc_loss(hi_res_true, hi_res_gen,
                                           **calc_loss_kwargs)
                 loss, loss_details = loss_out
