@@ -288,7 +288,7 @@ def test_data_extract_cli(runner):
         assert len(glob.glob(f'{log_file}')) == 1
 
 
-def test_pipeline_fwp_qa(runner, log=True):
+def test_pipeline_fwp_qa(runner, log=False):
     """Test the sup3r pipeline with Forward Pass and QA modules
     via pipeline cli"""
 

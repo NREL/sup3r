@@ -132,7 +132,7 @@ def test_regrid_caching(log=False,
         assert np.array_equal(old_dh.hr_data, new_dh.hr_data)
 
 
-def test_regrid_caching_in_steps(log=True,
+def test_regrid_caching_in_steps(log=False,
                                  full_shape=(20, 20),
                                  sample_shape=(10, 10, 1)):
     """Test caching and loading of regridded data"""
