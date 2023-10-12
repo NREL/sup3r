@@ -10,11 +10,11 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import psutil
+from gaps import Status
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.pipeline import Status
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -57,7 +57,7 @@ class Collector(OutputMixIn):
             'import Collector;\n'
             'from rex import init_logger;\n'
             'import time;\n'
-            'from sup3r.pipeline import Status;\n'
+            'from gaps import Status;\n'
         )
 
         dc_fun_str = get_fun_call_str(cls.collect, config)
@@ -909,7 +909,7 @@ class Collector(OutputMixIn):
                 'job_status': 'successful',
                 'runtime': (time.time() - t0) / 60,
             }
-            Status.make_job_file(
+            Status.make_single_job_file(
                 os.path.dirname(out_file), 'collect', job_name, status
             )
 

@@ -253,7 +253,7 @@ class Sup3rVisualQa:
             initialize Sup3rVisualQa and execute Sup3rVisualQa.run()
         """
         import_str = 'import time;\n'
-        import_str += 'from sup3r.pipeline import Status;\n'
+        import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += 'from sup3r.qa.visual_qa import Sup3rVisualQa;\n'
 

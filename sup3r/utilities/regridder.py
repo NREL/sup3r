@@ -646,12 +646,10 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             sup3r collection config with all necessary args and kwargs to
             run regridding.
         """
-
         import_str = ('from sup3r.utilities.regridder import RegridOutput;\n'
                       'from rex import init_logger;\n'
                       'import time;\n'
-                      'from sup3r.pipeline import Status;\n')
-
+                      'from gaps import Status;\n')
         regrid_fun_str = get_fun_call_str(cls, config)
 
         node_index = config['node_index']

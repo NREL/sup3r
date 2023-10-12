@@ -790,13 +790,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             sup3r data handler config with all necessary args and kwargs to
             initialize DataHandler and run data extraction.
         """
-
         import_str = ('from sup3r.preprocessing.data_handling '
                       f'import {cls.__name__};\n'
                       'import time;\n'
-                      'from sup3r.pipeline import Status;\n'
+                      'from gaps import Status;\n'
                       'from rex import init_logger;\n')
-
         dh_init_str = get_fun_call_str(cls, config)
 
         log_file = config.get('log_file', None)

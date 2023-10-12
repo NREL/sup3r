@@ -503,7 +503,7 @@ class Solar:
             run Solar.run_temporal_chunk() on a single node.
         """
         import_str = 'import time;\n'
-        import_str += 'from sup3r.pipeline import Status;\n'
+        import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += f'from sup3r.solar import {cls.__name__};\n'
 
@@ -527,7 +527,7 @@ class Solar:
         if job_name is not None:
             status_dir = config.get('status_dir', None)
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'module="{ModuleName.SOLAR}", '
+            status_file_arg_str += f'pipeline_step="{ModuleName.SOLAR}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
@@ -539,7 +539,7 @@ class Solar:
             )
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_job_file({status_file_arg_str})'
+            cmd += f'Status.make_single_job_file({status_file_arg_str})'
 
         cmd += ";\'\n"
 

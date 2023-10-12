@@ -11,7 +11,7 @@ import os
 from sup3r.utilities import ModuleName
 from sup3r.version import __version__
 from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
-from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose):
+def from_config(ctx, config_file, verbose=False, **__):
     """Run sup3r forward pass from a config file."""
 
     config = BaseCLI.from_config_preflight(ModuleName.FORWARD_PASS, ctx,
@@ -71,7 +71,7 @@ def from_config(ctx, config_file, verbose):
         cmd_log = '\n\t'.join(cmd.split('\n'))
         logger.debug(f'Running command:\n\t{cmd_log}')
 
-        if hardware_option.lower() in ('eagle', 'slurm'):
+        if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, **exec_kwargs)
         else:
             kickoff_local_job(ctx, cmd)

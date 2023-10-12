@@ -1,16 +1,17 @@
 """Sup3r pipeline tests"""
+import os
 import glob
 import json
-import os
 import shutil
 import tempfile
 
+import click
 import numpy as np
 from rex import ResourceX
+from gaps import Pipeline
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
-from sup3r.pipeline.pipeline import Sup3rPipeline as Pipeline
 from sup3r.utilities.pytest import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
@@ -36,7 +37,11 @@ def test_fwp_pipeline():
     assert model.s_enhance == 3
     assert model.t_enhance == 4
 
-    with tempfile.TemporaryDirectory() as td:
+    test_context = click.Context(click.Command("pipeline"), obj={})
+    with tempfile.TemporaryDirectory() as td, test_context as ctx:
+        ctx.obj["NAME"] = "test"
+        ctx.obj["VERBOSE"] = False
+
         input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
@@ -103,10 +108,10 @@ def test_fwp_pipeline():
         with ResourceX(fp_out) as f:
             assert len(f.time_index) == t_enhance * n_tsteps
 
-        status_files = glob.glob(os.path.join(td, '.gaps', '*status.json'))
-        assert len(status_files) == 1
-        status_file = status_files[0]
-        with open(status_file) as fh:
+        status_fps = glob.glob(f'{td}/.gaps/*status*.json')
+        assert len(status_fps) == 1
+        status_file = status_fps[0]
+        with open(status_file, 'r') as fh:
             status = json.load(fh)
             assert all(s in status for s in ('forward-pass', 'data-collect'))
             assert all(s not in str(status)

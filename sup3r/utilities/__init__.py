@@ -11,7 +11,6 @@ from enum import Enum
 
 import phygnn
 import rex
-import reV
 
 from sup3r.version import __version__
 
@@ -23,7 +22,6 @@ VERSION_RECORD = {'sup3r': __version__,
                   'numpy': np.__version__,
                   'nrel-phygnn': phygnn.__version__,
                   'nrel-rex': rex.__version__,
-                  'nrel-reV': reV.__version__,
                   'python': sys.version,
                   'xarray': xarray.__version__,
                   'netCDF4': netCDF4.__version__,

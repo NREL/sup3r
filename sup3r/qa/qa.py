@@ -548,7 +548,7 @@ class Sup3rQa:
             initialize Sup3rQa and execute Sup3rQa.run()
         """
         import_str = 'import time;\n'
-        import_str += 'from sup3r.pipeline import Status;\n'
+        import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
         import_str += 'from sup3r.qa.qa import Sup3rQa;\n'
 
