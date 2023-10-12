@@ -60,19 +60,24 @@ class ExoData(dict):
 
         Parameters
         ----------
-        steps : list | dict
-            List of SingleExoDataStep objects or a feature dictionary with list
-            of steps for each feature
+        steps : dict
+            Dictionary with feature keys each with entries describing whether
+            features should be combined at input, a mid network layer, or with
+            output. e.g.
+            {'topography': {'steps': [
+                {'combine_type': 'input', 'model': 0, 'data': ...,
+                 'resolution': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...,
+                 'resolution': ...}]}}
+            Each array in in 'data' key has 3D or 4D shape:
+            (spatial_1, spatial_2, 1)
+            (spatial_1, spatial_2, n_temporal, 1)
         """
-        if isinstance(steps, list):
-            for step in steps:
-                self.append(step.feature, step)
-        elif isinstance(steps, dict):
+        if isinstance(steps, dict):
             for k, v in steps.items():
                 self.__setitem__(k, v)
         else:
-            msg = ('ExoData must be initialized with a dictionary of features '
-                   'or list of SingleExoDataStep objects.')
+            msg = 'ExoData must be initialized with a dictionary of features.'
             logger.error(msg)
             raise ValueError(msg)
 
@@ -117,18 +122,6 @@ class ExoData(dict):
             spatial models and temporal models split_step should be
             len(spatial_models). If this is for a TemporalThenSpatial model
             split_step should be len(temporal_models).
-        exogenous_data : dict
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
-            Each array in in 'data' key has 3D or 4D shape:
-            (spatial_1, spatial_2, 1)
-            (spatial_1, spatial_2, n_temporal, 1)
 
         Returns
         -------
@@ -306,7 +299,7 @@ class ExogenousDataHandler:
         self.input_handler = input_handler
         self.cache_data = cache_data
         self.cache_dir = cache_dir
-        self.data = []
+        self.data = {feature: {'steps': []}}
 
         self.input_check()
         agg_enhance = self._get_all_agg_and_enhancement()
@@ -341,16 +334,16 @@ class ExogenousDataHandler:
                                          t_agg_factor=t_agg_factor)
                 step = SingleExoDataStep(feature, steps[i]['combine_type'],
                                          steps[i]['model'], data)
-                self.data.append(step)
+                self.data[feature]['steps'].append(step)
             else:
                 msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
                        f" Received {feature}.")
                 raise NotImplementedError(msg)
-        shapes = [None if d is None else d['data'].shape
-                  for d in self.data]
+        shapes = [None if step is None else step.shape
+                  for step in self.data[feature]['steps']]
         logger.info(
             'Got exogenous_data of length {} with shapes: {}'.format(
-                len(self.data), shapes))
+                len(self.data[feature]['steps']), shapes))
 
     def input_check(self):
         """Make sure agg factors are provided or exo_resolution and models are

@@ -1128,7 +1128,7 @@ class ForwardPass:
             class:`ExoData` object composed of multiple
             class:`SingleExoDataStep` objects.
         """
-        data = []
+        data = {}
         exo_data = None
         if self.exo_kwargs:
             self.features = [f for f in self.features
@@ -1144,7 +1144,7 @@ class ForwardPass:
                 sig = signature(ExogenousDataHandler)
                 exo_kwargs = {k: v for k, v in exo_kwargs.items()
                               if k in sig.parameters}
-                data += ExogenousDataHandler(**exo_kwargs).data
+                data.update(ExogenousDataHandler(**exo_kwargs).data)
             exo_data = ExoData(data)
         return exo_data
 

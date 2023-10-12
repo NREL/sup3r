@@ -224,7 +224,7 @@ class AbstractInterface(ABC):
             Low-resolution input data, usually a 4D or 5D array of shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : ExoData | None
+        exogenous_data : dict | ExoData | None
             Special dictionary (class:`ExoData`) of exogenous feature data with
             entries describing whether features should be combined at input, a
             mid network layer, or with output. This doesn't have to include
@@ -240,6 +240,10 @@ class AbstractInterface(ABC):
         """
         if exogenous_data is None:
             return low_res
+
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
+            exogenous_data = ExoData(exogenous_data)
 
         training_features = ([] if self.training_features is None
                              else self.training_features)
@@ -267,7 +271,7 @@ class AbstractInterface(ABC):
             High-resolution output data, usually a 4D or 5D array of shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | None
+        exogenous_data : dict | ExoData | None
             Special dictionary (class:`ExoData`) of exogenous feature data with
             entries describing whether features should be combined at input, a
             mid network layer, or with output. This doesn't have to include
@@ -283,6 +287,10 @@ class AbstractInterface(ABC):
         """
         if exogenous_data is None:
             return hi_res
+
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
+            exogenous_data = ExoData(exogenous_data)
 
         output_features = ([] if self.output_features is None
                            else self.output_features)
@@ -1260,8 +1268,8 @@ class AbstractSingleModel(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        if (isinstance(exogenous_data, dict)
-                and not isinstance(exogenous_data, ExoData)):
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
             exogenous_data = ExoData(exogenous_data)
 
         low_res = self._combine_fwp_input(low_res, exogenous_data)

@@ -43,7 +43,7 @@ def test_exo_cache(feature):
                                     target=TARGET, shape=SHAPE,
                                     input_handler='DataHandlerNCforCC',
                                     cache_dir=os.path.join(td, 'exo_cache'))
-        for i, arr in enumerate(base.data):
+        for i, arr in enumerate(base.data[feature]['steps']):
             assert arr.shape[0] == SHAPE[0] * S_ENHANCE[i]
             assert arr.shape[1] == SHAPE[1] * S_ENHANCE[i]
 
@@ -58,5 +58,6 @@ def test_exo_cache(feature):
                                      cache_dir=os.path.join(td, 'exo_cache'))
         assert len(os.listdir(f'{td}/exo_cache')) == 2
 
-        for arr1, arr2 in zip(base.data, cache.data):
+        for arr1, arr2 in zip(base.data[feature]['steps'],
+                              cache.data[feature]['steps']):
             assert np.allclose(arr1['data'], arr2['data'])
