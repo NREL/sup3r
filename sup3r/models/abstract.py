@@ -21,6 +21,7 @@ from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
+from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
 from sup3r.utilities import VERSION_RECORD
 
 logger = logging.getLogger(__name__)
@@ -223,14 +224,11 @@ class AbstractInterface(ABC):
             Low-resolution input data, usually a 4D or 5D array of shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+        exogenous_data : dict | ExoData | None
+            Special dictionary (class:`ExoData`) of exogenous feature data with
+            entries describing whether features should be combined at input, a
+            mid network layer, or with output. This doesn't have to include
+            the 'model' key since this data is for a single step model.
 
         Returns
         -------
@@ -243,6 +241,10 @@ class AbstractInterface(ABC):
         if exogenous_data is None:
             return low_res
 
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
+            exogenous_data = ExoData(exogenous_data)
+
         training_features = ([] if self.training_features is None
                              else self.training_features)
         fnum_diff = len(training_features) - low_res.shape[-1]
@@ -253,14 +255,10 @@ class AbstractInterface(ABC):
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
-                entry = exogenous_data[feature]
-                combine_types = [step['combine_type']
-                                 for step in entry['steps']]
-                if 'input' in combine_types:
-                    idx = combine_types.index('input')
-                    low_res = np.concatenate((low_res,
-                                              entry['steps'][idx]['data']),
-                                             axis=-1)
+                exo_input = exogenous_data.get_combine_type_data(
+                    feature, 'input')
+                if exo_input is not None:
+                    low_res = np.concatenate((low_res, exo_input), axis=-1)
         return low_res
 
     def _combine_fwp_output(self, hi_res, exogenous_data=None):
@@ -273,14 +271,11 @@ class AbstractInterface(ABC):
             High-resolution output data, usually a 4D or 5D array of shape:
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+        exogenous_data : dict | ExoData | None
+            Special dictionary (class:`ExoData`) of exogenous feature data with
+            entries describing whether features should be combined at input, a
+            mid network layer, or with output. This doesn't have to include
+            the 'model' key since this data is for a single step model.
 
         Returns
         -------
@@ -293,6 +288,10 @@ class AbstractInterface(ABC):
         if exogenous_data is None:
             return hi_res
 
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
+            exogenous_data = ExoData(exogenous_data)
+
         output_features = ([] if self.output_features is None
                            else self.output_features)
         fnum_diff = len(output_features) - hi_res.shape[-1]
@@ -303,14 +302,10 @@ class AbstractInterface(ABC):
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
-                entry = exogenous_data[feature]
-                combine_types = [step['combine_type']
-                                 for step in entry['steps']]
-                if 'output' in combine_types:
-                    idx = combine_types.index('output')
-                    hi_res = np.concatenate((hi_res,
-                                             entry['steps'][idx]['data']),
-                                            axis=-1)
+                exo_output = exogenous_data.get_combine_type_data(
+                    feature, 'output')
+                if exo_output is not None:
+                    hi_res = np.concatenate((hi_res, exo_output), axis=-1)
         return hi_res
 
     def _combine_loss_input(self, high_res_true, high_res_gen):
@@ -1237,39 +1232,6 @@ class AbstractSingleModel(ABC):
 
         return hi_res_exo
 
-    def _get_layer_exo_input(self, layer_name, exogenous_data):
-        """Get the high-resolution exo data for the given layer name from the
-        full exogenous_data dictionary.
-
-        Parameters
-        ----------
-        layer_name : str
-            Name of Sup3rAdder or Sup3rConcat layer. This should match a
-            feature key in exogenous_data
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
-
-        """
-        msg = (f'layer.name = {layer_name} does not match any '
-               'features in exogenous_data '
-               f'({list(exogenous_data)})')
-        assert layer_name in exogenous_data, msg
-        steps = exogenous_data[layer_name]['steps']
-        combine_types = [step['combine_type'] for step in steps]
-        msg = ('Received exogenous_data without any combine_type '
-               '= "layer" steps, for a model with an Adder/Concat '
-               'layer.')
-        assert 'layer' in combine_types, msg
-        idx = combine_types.index('layer')
-        hi_res_exo = steps[idx]['data']
-        return hi_res_exo
-
     def generate(self,
                  low_res,
                  norm_in=True,
@@ -1292,14 +1254,11 @@ class AbstractSingleModel(ABC):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. This doesn't have to include the 'model' key since
-            this data is for a single step model. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'data': ..., 'resolution': ...},
-                {'combine_type': 'layer', 'data': ..., 'resolution': ...}]}}
+        exogenous_data : dict | ExoData | None
+            Special dictionary (class:`ExoData`) of exogenous feature data with
+            entries describing whether features should be combined at input, a
+            mid network layer, or with output. This doesn't have to include
+            the 'model' key since this data is for a single step model.
 
         Returns
         -------
@@ -1309,6 +1268,10 @@ class AbstractSingleModel(ABC):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
+        if (not isinstance(exogenous_data, ExoData)
+                and exogenous_data is not None):
+            exogenous_data = ExoData(exogenous_data)
+
         low_res = self._combine_fwp_input(low_res, exogenous_data)
         if norm_in and self._means is not None:
             low_res = self.norm_input(low_res)
@@ -1317,8 +1280,12 @@ class AbstractSingleModel(ABC):
         for i, layer in enumerate(self.generator.layers[1:]):
             try:
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    hi_res_exo = self._get_layer_exo_input(layer.name,
-                                                           exogenous_data)
+                    msg = (f'layer.name = {layer.name} does not match any '
+                           'features in exogenous_data '
+                           f'({list(exogenous_data)})')
+                    assert layer.name in exogenous_data, msg
+                    hi_res_exo = exogenous_data.get_combine_type_data(
+                        layer.name, 'layer')
                     hi_res_exo = self._reshape_norm_exo(hi_res,
                                                         hi_res_exo,
                                                         layer.name,
