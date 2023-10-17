@@ -361,6 +361,12 @@ class AbstractInterface(ABC):
         return self.meta.get('training_features', None)
 
     @property
+    def train_only_features(self):
+        """Get the list of feature names used only for training (expected as
+        input but not included in output)."""
+        return self.meta.get('train_only_features', None)
+
+    @property
     def output_features(self):
         """Get the list of output feature names that the generative model
         outputs and that the discriminator predicts on."""
@@ -445,7 +451,8 @@ class AbstractInterface(ABC):
         kwargs = self._check_exo_features(**kwargs)
 
         keys = ('input_resolution', 'training_features', 'output_features',
-                'smoothed_features', 's_enhance', 't_enhance', 'smoothing')
+                'train_only_features', 'smoothed_features', 's_enhance',
+                't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
         for var in keys:
@@ -818,8 +825,13 @@ class AbstractSingleModel(ABC):
             e.g. {'topography': tf.Tensor(...)}
         """
         exo_data = {}
+        hi_res_features = self.training_features
+        if self.train_only_features is not None:
+            hi_res_features = [f for f in self.training_features
+                               if f not in self.train_only_features]
+
         for feature in self.exogenous_features:
-            f_idx = self.training_features.index(feature)
+            f_idx = hi_res_features.index(feature)
             exo_fdata = high_res[..., f_idx: f_idx + 1]
             exo_data[feature] = exo_fdata
         return exo_data

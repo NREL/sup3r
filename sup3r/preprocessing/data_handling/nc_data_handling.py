@@ -19,13 +19,34 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
-    BVFreqMon, BVFreqSquaredNC, ClearSkyRatioCC, Feature, InverseMonNC,
-    LatLonNC, PotentialTempNC, PressureNC, Rews, Shear, Tas, TasMax, TasMin,
-    TempNC, TempNCforCC, UWind, UWindPowerLaw, VWind, VWindPowerLaw,
-    WinddirectionNC, WindspeedNC)
+    BVFreqMon,
+    BVFreqSquaredNC,
+    ClearSkyRatioCC,
+    Feature,
+    InverseMonNC,
+    LatLonNC,
+    PotentialTempNC,
+    PressureNC,
+    Rews,
+    Shear,
+    Tas,
+    TasMax,
+    TasMin,
+    TempNC,
+    TempNCforCC,
+    UWind,
+    UWindPowerLaw,
+    VWind,
+    VWindPowerLaw,
+    WinddirectionNC,
+    WindspeedNC,
+)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import (estimate_max_workers, get_time_dim_name,
-                                       np_to_pd_times)
+from sup3r.utilities.utilities import (
+    estimate_max_workers,
+    get_time_dim_name,
+    np_to_pd_times,
+)
 
 np.random.seed(42)
 
@@ -385,7 +406,7 @@ class DataHandlerNC(DataHandler):
         min_lon = np.min(lat_lon[..., 1])
         max_lat = np.max(lat_lon[..., 0])
         max_lon = np.max(lat_lon[..., 1])
-        logger.debug('Calculating raster index from WRF file '
+        logger.debug('Calculating raster index from NETCDF file '
                      f'for shape {grid_shape} and target {target}')
         logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon}, '
                      f'{max_lat}/{max_lon}')
