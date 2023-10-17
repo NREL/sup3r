@@ -327,7 +327,7 @@ class AbstractInterface(ABC):
         """
         if high_res_true.shape[-1] > high_res_gen.shape[-1]:
             for feature in self.exogenous_features:
-                f_idx = self.training_features.index(feature)
+                f_idx = self.hr_features.index(feature)
                 exo_data = high_res_true[..., f_idx: f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
@@ -365,6 +365,17 @@ class AbstractInterface(ABC):
         """Get the list of feature names used only for training (expected as
         input but not included in output)."""
         return self.meta.get('train_only_features', None)
+
+    @property
+    def hr_features(self):
+        """Get the list of features stored in batch.high_res. This is the same
+        as training_features but without train_only_features. This is used to
+        select the correct high res exogenous data."""
+        hr_features = self.training_features
+        if self.train_only_features is not None:
+            hr_features = [f for f in self.training_features
+                           if f not in self.train_only_features]
+        return hr_features
 
     @property
     def output_features(self):
@@ -667,7 +678,6 @@ class AbstractSingleModel(ABC):
                 warn(msg)
             else:
                 stdevs = self._stdevs
-
             low_res = (low_res.copy() - self._means) / stdevs
 
         return low_res
@@ -825,13 +835,8 @@ class AbstractSingleModel(ABC):
             e.g. {'topography': tf.Tensor(...)}
         """
         exo_data = {}
-        hi_res_features = self.training_features
-        if self.train_only_features is not None:
-            hi_res_features = [f for f in self.training_features
-                               if f not in self.train_only_features]
-
         for feature in self.exogenous_features:
-            f_idx = hi_res_features.index(feature)
+            f_idx = self.hr_features.index(feature)
             exo_fdata = high_res[..., f_idx: f_idx + 1]
             exo_data[feature] = exo_fdata
         return exo_data
