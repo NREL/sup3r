@@ -181,6 +181,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         GAN"""
         return self.hr_dh.output_features
 
+    @property
+    def train_only_features(self):
+        """Features to use for training only and not output"""
+        return self.lr_dh.train_only_features
+
     def _shape_check(self):
         """Check if hr_handler.shape is divisible by s_enhance. If not take
         the largest shape that can be."""

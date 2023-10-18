@@ -395,6 +395,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
+            train_only_features=batch_handler.train_only_features,
             training_features=batch_handler.training_features,
             output_features=batch_handler.output_features,
             smoothed_features=batch_handler.smoothed_features)

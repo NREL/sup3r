@@ -13,11 +13,19 @@ from rex.utilities import log_mem
 from scipy.ndimage.filters import gaussian_filter
 
 from sup3r.preprocessing.data_handling.h5_data_handling import (
-    DataHandlerDCforH5, )
+    DataHandlerDCforH5,
+)
 from sup3r.utilities.utilities import (
-    estimate_max_workers, nn_fill_array, nsrdb_reduce_daily_data, smooth_data,
-    spatial_coarsening, temporal_coarsening, uniform_box_sampler,
-    uniform_time_sampler, weighted_box_sampler, weighted_time_sampler,
+    estimate_max_workers,
+    nn_fill_array,
+    nsrdb_reduce_daily_data,
+    smooth_data,
+    spatial_coarsening,
+    temporal_coarsening,
+    uniform_box_sampler,
+    uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
 )
 
 np.random.seed(42)
@@ -576,6 +584,12 @@ class BatchHandler:
         """Get the ordered list of feature names held in this object's
         data handlers"""
         return self.data_handlers[0].features
+
+    @property
+    def train_only_features(self):
+        """Get the ordered list of feature names used only for training which
+        will not be stored in batch.high_res"""
+        return self.data_handlers[0].train_only_features
 
     @property
     def output_features(self):

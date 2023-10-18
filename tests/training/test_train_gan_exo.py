@@ -28,11 +28,105 @@ FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
 
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m', 'topography']
+FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
+
+
+@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
+    """Test a special wind cc model with the custom Sup3rAdder or Sup3rConcat
+    layer that adds/concatenates hi-res topography in the middle of the
+    network. This also includes a train only feature"""
+
+    handler = DataHandlerH5WindCC(INPUT_FILE_W,
+                                  FEATURES_W,
+                                  target=TARGET_W, shape=SHAPE,
+                                  temporal_slice=slice(None, None, 2),
+                                  time_roll=-7,
+                                  val_split=0.1,
+                                  sample_shape=(20, 20),
+                                  worker_kwargs=dict(max_workers=1),
+                                  train_only_features=['temperature_100m'])
+    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
+                                    s_enhance=2)
+
+    if log:
+        init_logger('sup3r', log_level='DEBUG')
+
+    gen_model = [{"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64, "kernel_size": 3,
+                  "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 64,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4},
+                 {"class": "SpatialExpansion", "spatial_mult": 2},
+                 {"class": "Activation", "activation": "relu"},
+
+                 {"class": custom_layer, "name": "topography"},
+
+                 {"class": "FlexiblePadding",
+                  "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
+                  "mode": "REFLECT"},
+                 {"class": "Conv2DTranspose", "filters": 2,
+                  "kernel_size": 3, "strides": 1, "activation": "relu"},
+                 {"class": "Cropping2D", "cropping": 4}]
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+
+    with tempfile.TemporaryDirectory() as td:
+        model.train(batcher,
+                    input_resolution={'spatial': '16km',
+                                      'temporal': '3600min'},
+                    n_epoch=1,
+                    weight_gen_advers=0.0,
+                    train_gen=True, train_disc=False,
+                    checkpoint_int=None,
+                    out_dir=os.path.join(td, 'test_{epoch}'))
+
+        assert model.train_only_features == ['temperature_100m']
+        assert model.hr_features == ['U_100m', 'V_100m', 'topography']
+        assert 'test_0' in os.listdir(td)
+        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['class'] == 'Sup3rGan'
+        assert 'topography' in batcher.output_features
+        assert 'topography' not in model.output_features
+
+    x = np.random.uniform(0, 1, (4, 30, 30, 4))
+    hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
+
+    with pytest.raises(RuntimeError):
+        y = model.generate(x, exogenous_data=None)
+
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
+    y = model.generate(x, exogenous_data=exo_tmp)
+
+    assert y.shape[0] == x.shape[0]
+    assert y.shape[1] == x.shape[1] * 2
+    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[3] == x.shape[3] - 2
 
 
 @pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])

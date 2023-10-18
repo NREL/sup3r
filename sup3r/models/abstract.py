@@ -327,7 +327,7 @@ class AbstractInterface(ABC):
         """
         if high_res_true.shape[-1] > high_res_gen.shape[-1]:
             for feature in self.exogenous_features:
-                f_idx = self.training_features.index(feature)
+                f_idx = self.hr_features.index(feature)
                 exo_data = high_res_true[..., f_idx: f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
@@ -359,6 +359,23 @@ class AbstractInterface(ABC):
         """Get the list of input feature names that the generative model was
         trained on."""
         return self.meta.get('training_features', None)
+
+    @property
+    def train_only_features(self):
+        """Get the list of feature names used only for training (expected as
+        input but not included in output)."""
+        return self.meta.get('train_only_features', None)
+
+    @property
+    def hr_features(self):
+        """Get the list of features stored in batch.high_res. This is the same
+        as training_features but without train_only_features. This is used to
+        select the correct high res exogenous data."""
+        hr_features = self.training_features
+        if self.train_only_features is not None:
+            hr_features = [f for f in self.training_features
+                           if f not in self.train_only_features]
+        return hr_features
 
     @property
     def output_features(self):
@@ -445,7 +462,8 @@ class AbstractInterface(ABC):
         kwargs = self._check_exo_features(**kwargs)
 
         keys = ('input_resolution', 'training_features', 'output_features',
-                'smoothed_features', 's_enhance', 't_enhance', 'smoothing')
+                'train_only_features', 'smoothed_features', 's_enhance',
+                't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
         for var in keys:
@@ -660,7 +678,6 @@ class AbstractSingleModel(ABC):
                 warn(msg)
             else:
                 stdevs = self._stdevs
-
             low_res = (low_res.copy() - self._means) / stdevs
 
         return low_res
@@ -819,7 +836,7 @@ class AbstractSingleModel(ABC):
         """
         exo_data = {}
         for feature in self.exogenous_features:
-            f_idx = self.training_features.index(feature)
+            f_idx = self.hr_features.index(feature)
             exo_fdata = high_res[..., f_idx: f_idx + 1]
             exo_data[feature] = exo_fdata
         return exo_data
