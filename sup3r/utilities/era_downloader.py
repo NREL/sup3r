@@ -8,9 +8,11 @@ https://cds.climate.copernicus.eu/api-how-to
 import logging
 import os
 from calendar import monthrange
-from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
-                                as_completed,
-                                )
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from glob import glob
 from typing import ClassVar
 from warnings import warn
@@ -52,7 +54,7 @@ class EraDownloader:
     KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
 
     DEFAULT_RENAMED_VARS: ClassVar[list] = [
-        'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
+        'z', 'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
         'temperature', 'pressure',
     ]
     DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
