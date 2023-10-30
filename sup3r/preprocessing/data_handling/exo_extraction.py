@@ -450,7 +450,8 @@ class TopoExtractNC(TopoExtractH5):
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
-        elev = self.source_handler.data.reshape((-1, self.lr_shape[-1]))
+        elev = self.source_handler.data[..., 0, 0].flatten()
+        elev = np.repeat(elev[..., np.newaxis], self.hr_shape[-1], axis=-1)
         return elev
 
     @property

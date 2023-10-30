@@ -345,7 +345,7 @@ class Regridder:
             (spatial, temporal)
         """
         vals = [
-            data[:, :, i].flatten()[self.indices][np.newaxis]
+            data[:, :, i].flatten()[np.array(self.indices)][np.newaxis]
             for i in range(data.shape[-1])
         ]
         vals = np.concatenate(vals, axis=0)
