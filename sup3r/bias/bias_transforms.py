@@ -58,7 +58,11 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
             raise RuntimeError(msg)
 
         msg = (f'Either {dset_scalar} or {dset_adder} not found in {bias_fp}.')
-        assert dset_scalar in res.dsets and dset_adder in res.dsets, msg
+        dsets = [dset.lower() for dset in res.dsets]
+        check = dset_scalar.lower() in dsets and dset_adder.lower() in dsets
+        assert check, msg
+        dset_scalar = res.dsets[dsets.index(dset_scalar.lower())]
+        dset_adder = res.dsets[dsets.index(dset_adder.lower())]
         scalar = res[dset_scalar, slice_y, slice_x]
         adder = res[dset_adder, slice_y, slice_x]
         return scalar, adder
