@@ -567,8 +567,12 @@ class ExogenousDataHandler:
         cache_fp : str
             Name of cache file
         """
-        fn = f'exo_{feature}_{self.target}_{self.shape}_sagg{s_agg_factor}_'
-        fn += f'tagg{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
+        tsteps = (None if self.temporal_slice.start is None
+                  or self.temporal_slice.end is None
+                  else self.temporal_slice.end - self.temporal_slice.start)
+        fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
+        fn += f'_sagg{s_agg_factor}_tagg{t_agg_factor}_{s_enhance}x_'
+        fn += f'{t_enhance}x.pkl'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
