@@ -282,10 +282,10 @@ class CacheHandlingMixIn:
             Error raised if shape conflicts with requested shape
         """
         idx = cache_files.index(fp)
-        assert features[idx].lower() in fp.lower()
+        msg = f'{features[idx].lower()} not found in {fp.lower()}.'
+        assert features[idx].lower() in fp.lower(), msg
         fp = ignore_case_path_fetch(fp)
-        logger.info(f'Loading {features[idx]} from '
-                    f'{fp}.')
+        logger.info(f'Loading {features[idx]} from {fp}.')
 
         out = None
         with open(fp, 'rb') as fh:

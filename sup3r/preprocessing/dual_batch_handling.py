@@ -3,9 +3,11 @@ import logging
 
 import numpy as np
 
-from sup3r.preprocessing.batch_handling import (Batch, BatchHandler,
-                                                ValidationData,
-                                                )
+from sup3r.preprocessing.batch_handling import (
+    Batch,
+    BatchHandler,
+    ValidationData,
+)
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
@@ -144,6 +146,16 @@ class DualBatchHandler(BatchHandler):
     VAL_CLASS = DualValidationData
 
     @property
+    def lr_features(self):
+        """Features in low res batch."""
+        return self.data_handlers[0].lr_dh.features
+
+    @property
+    def hr_features(self):
+        """Features in high res batch."""
+        return self.data_handlers[0].lr_dh.output_features
+
+    @property
     def hr_sample_shape(self):
         """Get sample shape for high_res data"""
         return self.data_handlers[0].hr_dh.sample_shape
@@ -173,19 +185,19 @@ class DualBatchHandler(BatchHandler):
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
                                  self.hr_sample_shape[1],
-                                 self.hr_sample_shape[2], self.shape[-1]),
+                                 self.hr_sample_shape[2],
+                                 len(self.hr_features)),
                                 dtype=np.float32)
             low_res = np.zeros((self.batch_size, self.lr_sample_shape[0],
                                 self.lr_sample_shape[1],
-                                self.lr_sample_shape[2], self.shape[-1]),
+                                self.lr_sample_shape[2],
+                                len(self.lr_features)),
                                dtype=np.float32)
 
             for i in range(self.batch_size):
                 high_res[i, ...], low_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind)
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
@@ -220,10 +232,12 @@ class SpatialDualBatchHandler(DualBatchHandler):
             self.current_handler_index = handler_index
             handler = self.data_handlers[handler_index]
             high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
-                                 self.hr_sample_shape[1], self.shape[-1]),
+                                 self.hr_sample_shape[1],
+                                 len(self.hr_features)),
                                 dtype=np.float32)
             low_res = np.zeros((self.batch_size, self.lr_sample_shape[0],
-                                self.lr_sample_shape[1], self.shape[-1]),
+                                self.lr_sample_shape[1],
+                                len(self.lr_features)),
                                dtype=np.float32)
 
             for i in range(self.batch_size):
@@ -232,8 +246,6 @@ class SpatialDualBatchHandler(DualBatchHandler):
                 low_res[i, ...] = lr[..., 0, :]
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind)
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
