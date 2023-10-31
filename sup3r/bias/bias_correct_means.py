@@ -13,12 +13,12 @@ import pandas as pd
 import rioxarray
 import xarray as xr
 from rex import Resource
+from scipy.interpolate import interp1d
 from sklearn.neighbors import BallTree
+
 from sup3r.postprocessing.file_handling import OutputHandler, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.interpolation import Interpolator
-from scipy.interpolate import interp1d
 
 logger = logging.getLogger(__name__)
 
@@ -133,11 +133,12 @@ class VortexMeanPrepper:
     def mask(self):
         """Mask coordinates without data"""
         if self._mask is None:
-            with xr.open_mfdataset(self.get_height_files('January')) as res:
-                mask = ((res[self.in_features[0]] != -999)
-                        & (~np.isnan(res[self.in_features[0]])))
+            with xr.open_mfdataset(self.get_height_files("January")) as res:
+                mask = (res[self.in_features[0]] != -999) & (
+                    ~np.isnan(res[self.in_features[0]])
+                )
                 for feat in self.in_features[1:]:
-                    tmp = ((res[feat] != -999) & (~np.isnan(res[feat])))
+                    tmp = (res[feat] != -999) & (~np.isnan(res[feat]))
                     mask = mask & tmp
                 self._mask = np.array(mask).flatten()
         return self._mask
@@ -200,19 +201,27 @@ class VortexMeanPrepper:
             (
                 len(data.latitude) * len(data.longitude),
                 len(self.in_heights),
-            ), dtype=np.float32
+            ),
+            dtype=np.float32,
         )
         lev_array = var_array.copy()
         for i, (h, feat) in enumerate(zip(self.in_heights, self.in_features)):
             var_array[..., i] = data[feat].values.flatten()
             lev_array[..., i] = h
 
-        logger.info(f'Interpolating {self.in_features} to {self.out_features} '
-                    f'for {var_array.shape[0]} coordinates.')
-        tmp = [interp1d(h, v, fill_value='extrapolate')(self.out_heights)
-               for h, v in zip(lev_array[self.mask], var_array[self.mask])]
-        out = np.full((len(data.latitude), len(data.longitude),
-                       len(self.out_heights)), np.nan, dtype=np.float32)
+        logger.info(
+            f"Interpolating {self.in_features} to {self.out_features} "
+            f"for {var_array.shape[0]} coordinates."
+        )
+        tmp = [
+            interp1d(h, v, fill_value="extrapolate")(self.out_heights)
+            for h, v in zip(lev_array[self.mask], var_array[self.mask])
+        ]
+        out = np.full(
+            (len(data.latitude), len(data.longitude), len(self.out_heights)),
+            np.nan,
+            dtype=np.float32,
+        )
         out[self.mask.reshape((len(data.latitude), len(data.longitude)))] = tmp
         for i, feat in enumerate(self.out_features):
             if feat not in data:
@@ -578,14 +587,14 @@ class BiasCorrectionFromMeans:
         fp_out,
         global_scalar=1.0,
         knn=1,
-        out_shape=None
+        out_shape=None,
     ):
         """Run bias correction factor computation and write."""
         bc = cls(bias_fp=bias_fp, base_fp=base_fp, dset=dset)
         out = bc.get_corrections(global_scalar=global_scalar, knn=knn)
         if out_shape is not None:
             for k, v in out.items():
-                if k in ('latitude', 'longitude'):
+                if k in ("latitude", "longitude"):
                     out[k] = np.array(v).reshape(out_shape)
                 elif not isinstance(v, float):
                     out[k] = np.array(v).reshape((*out_shape, 12))
@@ -600,7 +609,7 @@ class BiasCorrectionFromMeans:
         fp_pattern,
         global_scalar=1.0,
         knn=1,
-        out_shape=None
+        out_shape=None,
     ):
         """Run bias correction factor computation and write."""
         bc = cls(bias_fp=bias_fp, base_fp=base_fp, dset=dset)
@@ -609,12 +618,12 @@ class BiasCorrectionFromMeans:
         )
         if out_shape is not None:
             for k, v in out_u.items():
-                if k in ('latitude', 'longitude'):
+                if k in ("latitude", "longitude"):
                     out_u[k] = np.array(v).reshape(out_shape)
                 elif not isinstance(v, float):
                     out_u[k] = np.array(v).reshape((*out_shape, 12))
             for k, v in out_v.items():
-                if k in ('latitude', 'longitude'):
+                if k in ("latitude", "longitude"):
                     out_v[k] = np.array(v).reshape(out_shape)
                 elif not isinstance(v, float):
                     out_v[k] = np.array(v).reshape((*out_shape, 12))
