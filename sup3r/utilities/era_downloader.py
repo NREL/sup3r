@@ -48,14 +48,15 @@ class EraDownloader:
     VALID_VARIABLES: ClassVar[list] = [
         'u', 'v', 'pressure', 'temperature', 'relative_humidity',
         'specific_humidity', 'total_precipitation',
+        'convective_available_potential_energy'
     ]
 
-    KEEP_VARIABLES: ClassVar[list] = ['orog']
+    KEEP_VARIABLES: ClassVar[list] = ['orog', 'cape']
     KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
 
     DEFAULT_RENAMED_VARS: ClassVar[list] = [
         'z', 'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
-        'temperature', 'pressure',
+        'temperature', 'pressure', 'cape'
     ]
     DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
         '10m_u_component_of_wind', '10m_v_component_of_wind',
@@ -69,7 +70,7 @@ class EraDownloader:
         '10m_u_component_of_wind', '10m_v_component_of_wind',
         '100m_u_component_of_wind', '100m_v_component_of_wind',
         'surface_pressure', '2m_temperature', 'geopotential',
-        'total_precipitation',
+        'total_precipitation', "convective_available_potential_energy"
     ]
     LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind', 'v_component_of_wind', 'geopotential',
@@ -88,6 +89,7 @@ class EraDownloader:
         'r': 'relative_humidity',
         'q': 'specific_humidity',
         'tp': 'total_precipitation',
+        'cape': 'cape'
     }
 
     def __init__(self,
@@ -298,7 +300,8 @@ class EraDownloader:
         """Run the download routine."""
         sfc_check = len(self.sfc_file_variables) > 0
         level_check = (len(self.level_file_variables) > 0
-                       and self.levels is not None)
+                       and self.levels is not None
+                       and len(self.levels) > 0)
         if self.level_file_variables:
             msg = (f'{self.level_file_variables} requested but no levels'
                    ' were provided.')
@@ -316,7 +319,7 @@ class EraDownloader:
         """Download file with requested pressure levels"""
         if not os.path.exists(self.level_file) or self.overwrite:
             msg = (f'Downloading {self.level_file_variables} to '
-                   f'{self.level_file}.')
+                   f'{self.level_file} with levels = {self.levels}.')
             logger.info(msg)
             CDS_API_CLIENT.retrieve(
                 'reanalysis-era5-pressure-levels', {
@@ -468,8 +471,7 @@ class EraDownloader:
                 self.process_surface_file()
                 files.append(self.surface_file)
 
-            logger.info(f'Combining {files} and {self.surface_file} '
-                        f'to {self.combined_file}.')
+            logger.info(f'Combining {files} to {self.combined_file}.')
             with xr.open_mfdataset(files) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
