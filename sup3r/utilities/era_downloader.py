@@ -581,8 +581,7 @@ class EraDownloader:
             logger.info('Received keep_variables=None. Skipping pruning.')
             return
         else:
-            logger.info(
-                f'Received keep_variables={keep_variables}. Skipping pruning.')
+            logger.info(f'Received keep_variables={keep_variables}.')
 
         pruned = True
         with Dataset(infile, 'r') as ds:
@@ -600,8 +599,7 @@ class EraDownloader:
             logger.info('Received keep_variables=None. Skipping pruning.')
             return
         else:
-            logger.info(
-                f'Received keep_variables={keep_variables}. Skipping pruning.')
+            logger.info(f'Received keep_variables={keep_variables}.')
 
         logger.info(f'Pruning {infile}.')
         tmp_file = cls.get_tmp_file(infile)
