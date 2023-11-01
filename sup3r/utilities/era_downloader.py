@@ -48,22 +48,7 @@ class EraDownloader:
     VALID_VARIABLES: ClassVar[list] = [
         'u', 'v', 'pressure', 'temperature', 'relative_humidity',
         'specific_humidity', 'total_precipitation',
-        'convective_available_potential_energy'
-    ]
-
-    KEEP_VARIABLES: ClassVar[list] = ['orog', 'cape']
-    KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
-
-    DEFAULT_RENAMED_VARS: ClassVar[list] = [
-        'z', 'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
-        'temperature', 'pressure', 'cape'
-    ]
-    DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
-        '10m_u_component_of_wind', '10m_v_component_of_wind',
-        '100m_u_component_of_wind', '100m_v_component_of_wind',
-        'u_component_of_wind', 'v_component_of_wind', '2m_temperature',
-        'temperature', 'surface_pressure', 'relative_humidity',
-        'total_precipitation',
+        'convective_available_potential_energy', 'divergence'
     ]
 
     SFC_VARS: ClassVar[list] = [
@@ -74,7 +59,7 @@ class EraDownloader:
     ]
     LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind', 'v_component_of_wind', 'geopotential',
-        'temperature', 'relative_humidity', 'specific_humidity',
+        'temperature', 'relative_humidity', 'specific_humidity', 'divergence'
     ]
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
@@ -89,7 +74,8 @@ class EraDownloader:
         'r': 'relative_humidity',
         'q': 'specific_humidity',
         'tp': 'total_precipitation',
-        'cape': 'cape'
+        'cape': 'cape',
+        'd': 'divergence'
     }
 
     def __init__(self,
@@ -387,16 +373,16 @@ class EraDownloader:
         ds : Dataset
             Dataset() object for new file with new variables written.
         """
-        for old_name, new_name in self.NAME_MAP.items():
-            if old_name in old_ds.variables:
-                _ = ds.createVariable(new_name,
-                                      np.float32,
-                                      dimensions=old_ds[old_name].dimensions,
-                                      )
-                vals = old_ds.variables[old_name][:]
-                if 'temperature' in new_name:
-                    vals -= 273.15
-                ds.variables[new_name][:] = vals
+        for old_name in old_ds.variables:
+            new_name = self.NAME_MAP.get(old_name, old_name)
+            _ = ds.createVariable(new_name,
+                                  np.float32,
+                                  dimensions=old_ds[old_name].dimensions,
+                                  )
+            vals = old_ds.variables[old_name][:]
+            if 'temperature' in new_name:
+                vals -= 273.15
+            ds.variables[new_name][:] = vals
         return ds
 
     def convert_z(self, standard_name, long_name, old_ds, ds):
@@ -542,7 +528,8 @@ class EraDownloader:
                                overwrite=self.overwrite,
                                **kwargs)
 
-    def get_monthly_file(self, interp_workers=None, **interp_kwargs):
+    def get_monthly_file(self, interp_workers=None, keep_variables=None,
+                         **interp_kwargs):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
         interpolate."""
@@ -559,10 +546,10 @@ class EraDownloader:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
         if self.interp_file is not None and os.path.exists(self.interp_file):
-            if self.already_pruned(self.interp_file):
+            if self.already_pruned(self.interp_file, keep_variables):
                 logger.info(f'{self.interp_file} pruned already.')
             else:
-                self.prune_output(self.interp_file)
+                self.prune_output(self.interp_file, keep_variables)
 
     @classmethod
     def all_months_exist(cls, year, file_pattern):
@@ -587,20 +574,34 @@ class EraDownloader:
             for month in range(1, 13))
 
     @classmethod
-    def already_pruned(cls, infile):
+    def already_pruned(cls, infile, keep_variables):
         """Check if file has been pruned already."""
+
+        if keep_variables is None:
+            logger.info('Received keep_variables=None. Skipping pruning.')
+            return
+        else:
+            logger.info(
+                f'Received keep_variables={keep_variables}. Skipping pruning.')
 
         pruned = True
         with Dataset(infile, 'r') as ds:
             for var in ds.variables:
-                if not any(name in var for name in cls.KEEP_VARIABLES):
+                if not any(name in var for name in keep_variables):
                     logger.info(f'Pruning {var} in {infile}.')
                     pruned = False
         return pruned
 
     @classmethod
-    def prune_output(cls, infile):
+    def prune_output(cls, infile, keep_variables=None):
         """Prune output file to keep just single level variables"""
+
+        if keep_variables is None:
+            logger.info('Received keep_variables=None. Skipping pruning.')
+            return
+        else:
+            logger.info(
+                f'Received keep_variables={keep_variables}. Skipping pruning.')
 
         logger.info(f'Pruning {infile}.')
         tmp_file = cls.get_tmp_file(infile)
@@ -609,7 +610,7 @@ class EraDownloader:
                 new_ds = cls.init_dims(old_ds, new_ds,
                                        ('time', 'latitude', 'longitude'))
                 for var in old_ds.variables:
-                    if any(name in var for name in cls.KEEP_VARIABLES):
+                    if any(name in var for name in keep_variables):
                         old_var = old_ds[var]
                         vals = old_var[:]
                         _ = new_ds.createVariable(
@@ -639,6 +640,7 @@ class EraDownloader:
                   required_shape=None,
                   interp_workers=None,
                   variables=None,
+                  keep_variables=None,
                   **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -672,6 +674,9 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
+        keep_variables : list | None
+            Variables to keep in final files. All other variables will be
+            pruned.
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -686,6 +691,7 @@ class EraDownloader:
                          required_shape=required_shape,
                          variables=variables)
         downloader.get_monthly_file(interp_workers=interp_workers,
+                                    keep_variables=keep_variables,
                                     **interp_kwargs)
 
     @classmethod
@@ -703,6 +709,7 @@ class EraDownloader:
                  max_workers=None,
                  interp_workers=None,
                  variables=None,
+                 keep_variables=None,
                  **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -741,6 +748,9 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
+        keep_variables : list | None
+            Variables to keep in final files. All other variables will be
+            pruned.
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -757,6 +767,7 @@ class EraDownloader:
                               required_shape=required_shape,
                               interp_workers=interp_workers,
                               variables=variables,
+                              keep_variables=keep_variables,
                               **interp_kwargs)
         else:
             futures = {}
@@ -774,6 +785,7 @@ class EraDownloader:
                         overwrite=overwrite,
                         required_shape=required_shape,
                         interp_workers=interp_workers,
+                        keep_variables=keep_variables,
                         variables=variables,
                         **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
