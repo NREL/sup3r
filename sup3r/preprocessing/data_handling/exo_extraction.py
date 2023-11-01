@@ -1,6 +1,9 @@
 """Sup3r topography utilities"""
 
 import logging
+import os
+import pickle
+import shutil
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -37,6 +40,8 @@ class ExoExtract(ABC):
                  raster_file=None,
                  max_delta=20,
                  input_handler=None,
+                 cache_data=True,
+                 cache_dir='./exo_cache/',
                  ti_workers=1):
         """
         Parameters
@@ -100,6 +105,12 @@ class ExoExtract(ABC):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        cache_data : bool
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents when the exo
+            data is time independent.
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
         ti_workers : int | None
             max number of workers to use to get full time index. Useful when
             there are many input files each with a single time step. If this is
@@ -122,6 +133,11 @@ class ExoExtract(ABC):
         self._source_lat_lon = None
         self._hr_time_index = None
         self._src_time_index = None
+        self.cache_data = cache_data
+        self.cache_dir = cache_dir
+        self.temporal_slice = temporal_slice
+        self.target = target
+        self.shape = shape
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -158,6 +174,46 @@ class ExoExtract(ABC):
     @abstractmethod
     def source_data(self):
         """Get the 1D array of source data from the exo_source_h5"""
+
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
+        """Get cache file name
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        tsteps = (None if self.temporal_slice.start is None
+                  or self.temporal_slice.stop is None
+                  else self.temporal_slice.stop - self.temporal_slice.start)
+        fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
+        fn += f'_sagg{s_agg_factor}_tagg{t_agg_factor}_{s_enhance}x_'
+        fn += f'{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(self.cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(self.cache_dir, exist_ok=True)
+        return cache_fp
 
     @property
     def source_temporal_slice(self):
@@ -270,6 +326,30 @@ class ExoExtract(ABC):
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
         """
+        cache_fp = self.get_cache_file(feature=self.__class__.__name__,
+                                       s_enhance=self._s_enhance,
+                                       t_enhance=self._t_enhance,
+                                       s_agg_factor=self._s_agg_factor,
+                                       t_agg_factor=self._t_agg_factor)
+        tmp_fp = cache_fp + '.tmp'
+        if os.path.exists(cache_fp):
+            with open(cache_fp, 'rb') as f:
+                data = pickle.load(f)
+
+        else:
+            data = self.get_data()
+
+            if self.cache_data:
+                with open(tmp_fp, 'wb') as f:
+                    pickle.dump(data, f)
+                shutil.move(tmp_fp, cache_fp)
+        return data
+
+    def get_data(self):
+        """Get a raster of source values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, temporal, 1)
+        """
         nn = self.nn
         hr_data = []
         for j in range(self._s_agg_factor):
@@ -293,7 +373,9 @@ class ExoExtract(ABC):
                        temporal_slice=None,
                        raster_file=None,
                        max_delta=20,
-                       input_handler=None):
+                       input_handler=None,
+                       cache_data=True,
+                       cache_dir='./exo_cache/'):
         """Get the exo feature raster corresponding to the spatially enhanced
         grid from the file_paths input
 
@@ -356,6 +438,12 @@ class ExoExtract(ABC):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        cache_data : bool
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents when the exo
+            data is time independent.
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
 
         Returns
         -------
@@ -377,7 +465,9 @@ class ExoExtract(ABC):
                   temporal_slice=temporal_slice,
                   raster_file=raster_file,
                   max_delta=max_delta,
-                  input_handler=input_handler)
+                  input_handler=input_handler,
+                  cache_data=cache_data,
+                  cache_dir=cache_dir)
         return exo.data
 
 
@@ -407,8 +497,7 @@ class TopoExtractH5(ExoExtract):
                 self._src_time_index = res.time_index
         return self._src_time_index
 
-    @property
-    def data(self):
+    def get_data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
@@ -421,7 +510,44 @@ class TopoExtractH5(ExoExtract):
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data[..., np.newaxis]
+        out = hr_data[..., np.newaxis]
+
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
+        """Get cache file name. This uses a time independent naming convention.
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        fn = f'exo_{feature}_{self.target}_{self.shape}'
+        fn += f'_sagg{s_agg_factor}_tagg{t_agg_factor}_{s_enhance}x_'
+        fn += f'{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(self.cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(self.cache_dir, exist_ok=True)
+        return cache_fp
 
 
 class TopoExtractNC(TopoExtractH5):
@@ -470,8 +596,7 @@ class SzaExtract(ExoExtract):
         return SolarPosition(self.hr_time_index,
                              self.hr_lat_lon.reshape((-1, 2))).zenith.T
 
-    @property
-    def data(self):
+    def get_data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
