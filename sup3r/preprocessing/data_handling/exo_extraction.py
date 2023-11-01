@@ -201,7 +201,8 @@ class ExoExtract(ABC):
         cache_fp : str
             Name of cache file
         """
-        tsteps = (None if self.temporal_slice.start is None
+        tsteps = (None if self.temporal_slice is None
+                  or self.temporal_slice.start is None
                   or self.temporal_slice.stop is None
                   else self.temporal_slice.stop - self.temporal_slice.start)
         fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
@@ -343,6 +344,10 @@ class ExoExtract(ABC):
                 with open(tmp_fp, 'wb') as f:
                     pickle.dump(data, f)
                 shutil.move(tmp_fp, cache_fp)
+
+        if data.shape[-2] == 1 and self.hr_shape[-1] > 1:
+            data = np.repeat(data[..., np.newaxis, :], self.hr_shape[-1],
+                             axis=-2)
         return data
 
     def get_data(self):
@@ -479,8 +484,7 @@ class TopoExtractH5(ExoExtract):
         """Get the 1D array of elevation data from the exo_source_h5"""
         with Resource(self._exo_source) as res:
             elev = res.get_meta_arr('elevation')
-            elev = np.repeat(elev[:, np.newaxis], self.hr_shape[-1], axis=-1)
-        return elev
+        return elev[:, np.newaxis]
 
     @property
     def source_lat_lon(self):
@@ -506,11 +510,11 @@ class TopoExtractH5(ExoExtract):
         hr_data = []
         for j in range(self._s_agg_factor):
             out = self.source_data[nn[:, j]]
-            out = out.reshape(self.hr_shape)
+            out = out.reshape((*self.hr_shape[:-1], -1))
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        out = hr_data[..., np.newaxis]
+        return hr_data[..., np.newaxis]
 
     def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
                        t_agg_factor):
@@ -577,8 +581,7 @@ class TopoExtractNC(TopoExtractH5):
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
         elev = self.source_handler.data[..., 0, 0].flatten()
-        elev = np.repeat(elev[..., np.newaxis], self.hr_shape[-1], axis=-1)
-        return elev
+        return elev[..., np.newaxis]
 
     @property
     def source_lat_lon(self):
