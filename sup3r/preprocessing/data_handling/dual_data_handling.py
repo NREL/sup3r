@@ -162,17 +162,20 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        logger.info('Normalizing low resolution data.')
+        logger.info('Normalizing low resolution data features='
+                    f'{self.features}')
         self._normalize(data=self.lr_data,
                         val_data=self.lr_val_data,
                         means=means,
                         stds=stdevs,
                         max_workers=self.lr_dh.norm_workers)
-        logger.info('Normalizing high resolution data.')
+        logger.info('Normalizing high resolution data features='
+                    f'{self.output_features}')
+        indices = [self.features.index(f) for f in self.output_features]
         self._normalize(data=self.hr_data,
                         val_data=self.hr_val_data,
-                        means=means,
-                        stds=stdevs,
+                        means=means[indices],
+                        stds=stdevs[indices],
                         max_workers=self.hr_dh.norm_workers)
 
     @property
@@ -219,7 +222,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         assert hr_handler.val_split == 0 and lr_handler.val_split == 0, msg
         msg = ('Handlers have incompatible number of features. '
                f'({hr_handler.features} vs {lr_handler.features})')
-        assert hr_handler.features == lr_handler.output_features, msg
+        assert hr_handler.features == self.output_features, msg
         hr_shape = hr_handler.sample_shape
         lr_shape = (hr_shape[0] // self.s_enhance,
                     hr_shape[1] // self.s_enhance,
