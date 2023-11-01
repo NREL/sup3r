@@ -345,10 +345,9 @@ class ExoExtract(ABC):
                     pickle.dump(data, f)
                 shutil.move(tmp_fp, cache_fp)
 
-        if data.shape[-2] == 1 and self.hr_shape[-1] > 1:
-            data = np.repeat(data[..., np.newaxis, :], self.hr_shape[-1],
-                             axis=-2)
-        return data
+        if data.shape[-1] == 1 and self.hr_shape[-1] > 1:
+            data = np.repeat(data, self.hr_shape[-1], axis=-1)
+        return data[..., np.newaxis]
 
     def get_data(self):
         """Get a raster of source values corresponding to the
@@ -363,7 +362,7 @@ class ExoExtract(ABC):
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data[..., np.newaxis]
+        return hr_data
 
     @classmethod
     def get_exo_raster(cls,
@@ -514,7 +513,7 @@ class TopoExtractH5(ExoExtract):
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data[..., np.newaxis]
+        return hr_data
 
     def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
                        t_agg_factor):

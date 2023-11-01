@@ -1054,6 +1054,10 @@ class TrainingPrepMixIn:
         max_workers : int | None
             Number of workers to use in thread pool for nomalization.
         """
+        msg = f'Received {len(means)} means for {data.shape[-1]} features'
+        assert len(means) == data.shape[-1], msg
+        msg = f'Received {len(stds)} stds for {data.shape[-1]} features'
+        assert len(stds) == data.shape[-1], msg
         logger.info(f'Normalizing {data.shape[-1]} features.')
         if max_workers == 1:
             for i in range(data.shape[-1]):
