@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 class LogLinInterpolator:
     """Open ERA5 file, log interpolate wind components between 0 -
     max_log_height, linearly interpolate components above max_log_height
-    meters, and save to file"""
+    meters, and save to file
+    """
 
     DEFAULT_OUTPUT_HEIGHTS: ClassVar[dict] = {
         'u': [40, 80, 120, 160, 200],
@@ -154,7 +155,8 @@ class LogLinInterpolator:
 
     def interpolate_vars(self, max_workers=None):
         """Interpolate u/v wind components below 100m using log profile.
-        Interpolate non wind data linearly."""
+        Interpolate non wind data linearly.
+        """
         for var, arrs in self.data_dict.items():
             max_log_height = self.max_log_height
             if var not in ('u', 'v'):
@@ -233,7 +235,8 @@ class LogLinInterpolator:
     @classmethod
     def get_tmp_file(cls, file):
         """Get temp file for given file. Then only needed variables will be
-        written to the given file."""
+        written to the given file.
+        """
         tmp_file = file.replace('.nc', '_tmp.nc')
         return tmp_file
 
@@ -582,7 +585,6 @@ class LogLinInterpolator:
         out_array : ndarray
             Array of interpolated values.
         """
-
         # Interp each vertical column of height and var to requested levels
         zip_iter = zip(hgt_t, var_t, mask)
         out_array = []
