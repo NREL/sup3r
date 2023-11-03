@@ -206,7 +206,8 @@ class ExogenousDataHandler:
                  input_handler=None,
                  exo_handler=None,
                  cache_data=True,
-                 cache_dir='./exo_cache'):
+                 cache_dir='./exo_cache',
+                 res_kwargs=None):
         """
         Parameters
         ----------
@@ -279,6 +280,9 @@ class ExogenousDataHandler:
             speed up forward passes with large temporal extents
         cache_dir : str
             Directory for storing cache data. Default is './exo_cache'
+        res_kwargs : dict | None
+            Dictionary of kwargs passed to lowest level resource handler. e.g.
+            xr.open_dataset(file_paths, **res_kwargs)
         """
 
         self.feature = feature
@@ -297,6 +301,7 @@ class ExogenousDataHandler:
         self.cache_data = cache_data
         self.cache_dir = cache_dir
         self.data = {feature: {'steps': []}}
+        self.res_kwargs = res_kwargs
 
         self.input_check()
         agg_enhance = self._get_all_agg_and_enhancement()
@@ -581,7 +586,8 @@ class ExogenousDataHandler:
                            max_delta=self.max_delta,
                            input_handler=self.input_handler,
                            cache_data=self.cache_data,
-                           cache_dir=self.cache_dir).data
+                           cache_dir=self.cache_dir,
+                           res_kwargs=self.res_kwargs).data
         return data
 
     @classmethod

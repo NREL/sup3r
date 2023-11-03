@@ -560,7 +560,7 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        coords = {'Times': (['Time'], times),
+        coords = {'Times': (['Time'], [str(t).encode('utf-8') for t in times]),
                   'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
                   'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
 
