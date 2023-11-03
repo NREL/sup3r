@@ -44,8 +44,7 @@ class ExoExtract(ABC):
                  cache_dir='./exo_cache/',
                  ti_workers=1,
                  res_kwargs=None):
-        """
-        Parameters
+        """Parameters
         ----------
         file_paths : str | list
             A single source h5 file to extract raster data from or a list
@@ -123,7 +122,6 @@ class ExoExtract(ABC):
             Dictionary of kwargs passed to lowest level resource handler. e.g.
             xr.open_dataset(file_paths, **res_kwargs)
         """
-
         logger.info(f'Initializing {self.__class__.__name__} utility.')
 
         self.ti_workers = ti_workers
@@ -225,7 +223,8 @@ class ExoExtract(ABC):
     @property
     def source_temporal_slice(self):
         """Get the temporal slice for the exo_source data corresponding to the
-        input file temporal slice"""
+        input file temporal slice
+        """
         start_index = self.source_time_index.get_indexer(
             [self.input_handler.hr_time_index[0]], method='nearest')[0]
         end_index = self.source_time_index.get_indexer(
@@ -353,6 +352,7 @@ class ExoExtract(ABC):
 
         if data.shape[-1] == 1 and self.hr_shape[-1] > 1:
             data = np.repeat(data, self.hr_shape[-1], axis=-1)
+
         return data[..., np.newaxis]
 
     def get_data(self):
@@ -563,15 +563,13 @@ class TopoExtractNC(TopoExtractH5):
     """TopoExtract for netCDF files"""
 
     def __init__(self, *args, **kwargs):
-        """
-        Parameters
+        """Parameters
         ----------
         args : list
             Same positional arguments as TopoExtract
         kwargs : dict
             Same keyword arguments as TopoExtract
         """
-
         super().__init__(*args, **kwargs)
         logger.info('Getting topography for full domain from '
                     f'{self._exo_source}')
@@ -611,4 +609,4 @@ class SzaExtract(ExoExtract):
         """
         hr_data = self.source_data.reshape(self.hr_shape)
         logger.info('Finished computing SZA data')
-        return hr_data[..., np.newaxis]
+        return hr_data
