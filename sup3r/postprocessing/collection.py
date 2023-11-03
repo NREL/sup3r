@@ -26,8 +26,7 @@ class Collector(OutputMixIn):
     """Sup3r H5 file collection framework"""
 
     def __init__(self, file_paths):
-        """
-        Parameters
+        """Parameters
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
@@ -51,7 +50,6 @@ class Collector(OutputMixIn):
             sup3r collection config with all necessary args and kwargs to
             run data collection.
         """
-
         import_str = (
             'from sup3r.postprocessing.collection '
             'import Collector;\n'
@@ -107,7 +105,6 @@ class Collector(OutputMixIn):
         col_slice : slice
             final_meta[col_slice] = new_meta
         """
-
         final_index = final_meta.index
         new_index = new_meta.index
         row_loc = np.where(final_time_index.isin(new_time_index))[0]
@@ -205,7 +202,6 @@ class Collector(OutputMixIn):
         col_slice : slice
             final_meta[col_slice] = new_meta
         """
-
         with RexOutputs(file_path, unscale=False, mode='r') as f:
             f_ti = f.time_index
             f_meta = f.meta
@@ -698,7 +694,7 @@ class Collector(OutputMixIn):
                 f'n_writes ({n_writes}) must be less than or equal '
                 f'to the number of temporal chunks ({len(file_chunks)}).'
             )
-            assert n_writes < len(file_chunks), msg
+            assert n_writes <= len(file_chunks), msg
         return file_chunks
 
     def get_flist_chunks(self, file_paths, n_writes=None, join_times=False):
