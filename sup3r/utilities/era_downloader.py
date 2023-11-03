@@ -375,14 +375,15 @@ class EraDownloader:
         """
         for old_name in old_ds.variables:
             new_name = self.NAME_MAP.get(old_name, old_name)
-            _ = ds.createVariable(new_name,
-                                  np.float32,
-                                  dimensions=old_ds[old_name].dimensions,
-                                  )
-            vals = old_ds.variables[old_name][:]
-            if 'temperature' in new_name:
-                vals -= 273.15
-            ds.variables[new_name][:] = vals
+            if new_name not in ds.variables:
+                _ = ds.createVariable(new_name,
+                                      np.float32,
+                                      dimensions=old_ds[old_name].dimensions,
+                                      )
+                vals = old_ds.variables[old_name][:]
+                if 'temperature' in new_name:
+                    vals -= 273.15
+                ds.variables[new_name][:] = vals
         return ds
 
     def convert_z(self, standard_name, long_name, old_ds, ds):

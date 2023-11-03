@@ -42,7 +42,8 @@ class ExoExtract(ABC):
                  input_handler=None,
                  cache_data=True,
                  cache_dir='./exo_cache/',
-                 ti_workers=1):
+                 ti_workers=1,
+                 res_kwargs=None):
         """
         Parameters
         ----------
@@ -118,6 +119,9 @@ class ExoExtract(ABC):
             parallel and then concatenated to get the full time index. If input
             files do not all have time indices or if there are few input files
             this should be set to one.
+        res_kwargs : dict | None
+            Dictionary of kwargs passed to lowest level resource handler. e.g.
+            xr.open_dataset(file_paths, **res_kwargs)
         """
 
         logger.info(f'Initializing {self.__class__.__name__} utility.')
@@ -138,6 +142,7 @@ class ExoExtract(ABC):
         self.temporal_slice = temporal_slice
         self.target = target
         self.shape = shape
+        self.res_kwargs = res_kwargs
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -168,6 +173,7 @@ class ExoExtract(ABC):
             raster_file=raster_file,
             max_delta=max_delta,
             worker_kwargs=dict(ti_workers=ti_workers),
+            res_kwargs=self.res_kwargs
         )
 
     @property
