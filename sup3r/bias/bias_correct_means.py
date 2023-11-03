@@ -1,11 +1,13 @@
 """Classes to compute means from vortex and era data and compute bias
-correction factors."""
+correction factors.
+"""
 
 
 import calendar
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import h5py
 import numpy as np
@@ -15,7 +17,6 @@ import xarray as xr
 from rex import Resource
 from scipy.interpolate import interp1d
 from sklearn.neighbors import BallTree
-
 from sup3r.postprocessing.file_handling import OutputHandler, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import VERSION_RECORD
@@ -26,11 +27,11 @@ logger = logging.getLogger(__name__)
 class VortexMeanPrepper:
     """Class for converting monthly vortex tif files for each height to a
     single h5 files containing all monthly means for all requested output
-    heights"""
+    heights.
+    """
 
     def __init__(self, path_pattern, in_heights, out_heights, overwrite=False):
-        """
-        Parameters
+        """Parameters
         ----------
         path_pattern : str
             Pattern for input tif files. Needs to include {month} and {height}
@@ -52,7 +53,7 @@ class VortexMeanPrepper:
 
     @property
     def in_features(self):
-        """List of features corresponding to input heights"""
+        """List of features corresponding to input heights."""
         return [f"windspeed_{h}m" for h in self.in_heights]
 
     @property
@@ -92,7 +93,8 @@ class VortexMeanPrepper:
     @property
     def output_files(self):
         """List of output monthly output files each with windspeed for all
-        input heights"""
+        input heights
+        """
         files = []
         for i in range(1, 13):
             month = calendar.month_name[i]
@@ -101,7 +103,8 @@ class VortexMeanPrepper:
 
     def convert_month_height_tif(self, month, height):
         """Get windspeed mean for the given month and hub height from the
-        corresponding input file and write this to a netcdf file."""
+        corresponding input file and write this to a netcdf file.
+        """
         infile = self.get_input_file(month, height)
         logger.info(f"Getting mean windspeed_{height}m for {month}.")
         outfile = infile.replace(".tif", ".nc")
@@ -118,12 +121,12 @@ class VortexMeanPrepper:
         return outfile
 
     def convert_month_tif(self, month):
-        """Write netcdf files for all heights for the given month"""
+        """Write netcdf files for all heights for the given month."""
         for height in self.in_heights:
             self.convert_month_height_tif(month, height)
 
     def convert_all_tifs(self):
-        """Write netcdf files for all heights for all months"""
+        """Write netcdf files for all heights for all months."""
         for i in range(1, 13):
             month = calendar.month_name[i]
             logger.info(f"Converting tif files to netcdf files for {month}")
@@ -299,7 +302,23 @@ class VortexMeanPrepper:
     ):
         """Read vortex tif files, convert these to monthly netcdf files for all
         input heights, interpolate this data to requested output heights, mask
-        fill values, and write all data to h5 file."""
+        fill values, and write all data to h5 file.
+
+        Parameters
+        ----------
+        path_pattern : str
+            Pattern for input tif files. Needs to include {month} and {height}
+            format keys.
+        in_heights : list
+            List of heights for input files.
+        out_heights : list
+            List of output heights used for interpolation
+        fp_out : str
+            Name of final h5 output file to write with means.
+        overwrite : bool
+            Whether to overwrite intermediate netcdf files containing the
+            interpolated masked monthly means.
+        """
         vprep = cls(path_pattern, in_heights, out_heights, overwrite=overwrite)
         vprep.convert_all_tifs()
         out = vprep.get_all_data()
@@ -310,8 +329,7 @@ class EraMeanPrepper:
     """Class to compute monthly windspeed means from ERA data."""
 
     def __init__(self, era_pattern, years, features):
-        """
-        Parameters
+        """Parameters
         ----------
         era_pattern : str
             Pattern pointing to era files with u/v wind components at the given
@@ -438,7 +456,21 @@ class EraMeanPrepper:
     def run(cls, era_pattern, years, features, out_pattern):
         """Compute monthly windspeed means for the given heights, using the
         given years of ERA data, and write the means to csv files for each
-        height."""
+        height.
+
+        Parameters
+        ----------
+        era_pattern : str
+            Pattern pointing to era files with u/v wind components at the given
+            heights. Must have a {year} format key.
+        years : list
+            List of ERA years to use for calculating means.
+        features : list
+            List of features to compute means for. e.g. ['windspeed_10m']
+        out_pattern : str
+            Pattern pointing to csv files to write means to. Must have a
+            {feature} format key.
+        """
         em = cls(era_pattern=era_pattern, years=years, features=features)
         for height, feature in zip(em.heights, em.features):
             means = em.get_all_means(height)
@@ -452,11 +484,23 @@ class EraMeanPrepper:
 
 class BiasCorrectionFromMeans:
     """Class for getting bias correction factors from bias and base data files
-    with precomputed monthly means."""
+    with precomputed monthly means.
+    """
 
     MIN_DISTANCE = 1e-12
 
     def __init__(self, bias_fp, base_fp, dset, leaf_size=4):
+        """Parameters
+        ----------
+        bias_fp : str
+            Path to csv file containing means for biased data
+        base_fp : str
+            Path to csv file containing means for unbiased data
+        dset : str
+            Name of dataset to compute bias correction factor for
+        leaf_size : int
+            Leaf size for ball tree used to match bias and base grids
+        """
         self.dset = dset
         self.bias_fp = bias_fp
         self.base_fp = base_fp
@@ -488,7 +532,8 @@ class BiasCorrectionFromMeans:
     @property
     def meta(self):
         """Get a meta data dictionary on how these bias factors were
-        calculated"""
+        calculated
+        """
         meta = {
             "base_fp": self.base_fp,
             "bias_fp": self.bias_fp,
@@ -585,12 +630,44 @@ class BiasCorrectionFromMeans:
         base_fp,
         dset,
         fp_out,
+        leaf_size=4,
         global_scalar=1.0,
         knn=1,
         out_shape=None,
     ):
-        """Run bias correction factor computation and write."""
-        bc = cls(bias_fp=bias_fp, base_fp=base_fp, dset=dset)
+        """Run bias correction factor computation and write.
+
+        Parameters
+        ----------
+        bias_fp : str
+            Path to csv file containing means for biased data
+        base_fp : str
+            Path to csv file containing means for unbiased data
+        dset : str
+            Name of dataset to compute bias correction factor for
+        fp_out : str
+            Name of output file containing bias correction factors
+        leaf_size : int
+            Leaf size for ball tree used to match bias and base grids
+        global_scalar : float
+            Optional global scalar to use for multiplying all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data. This is just written to output files, not
+            included in the stored bias correction factor values.
+        knn : int
+            Number of nearest neighbors to use when matching bias and base
+            grids. This should be based on difference in resolution. e.g. if
+            bias grid is 30km and base grid is 3km then knn should be 100 to
+            aggregate 3km to 30km.
+        out_shape : tuple | None
+            Optional 2D shape for output. If this is provided then the bias
+            correction arrays will be reshaped to this shape. If not provided
+            the arrays will stay flattened. When using this to write bc files
+            that will be used in a forward-pass routine this shape should be
+            the same as the spatial shape of the forward-pass input data.
+        """
+        bc = cls(bias_fp=bias_fp, base_fp=base_fp, dset=dset,
+                 leaf_size=leaf_size)
         out = bc.get_corrections(global_scalar=global_scalar, knn=knn)
         if out_shape is not None:
             for k, v in out.items():
@@ -611,7 +688,37 @@ class BiasCorrectionFromMeans:
         knn=1,
         out_shape=None,
     ):
-        """Run bias correction factor computation and write."""
+        """Run bias correction factor computation and write.
+
+        Parameters
+        ----------
+        bias_fp : str
+            Path to csv file containing means for biased data
+        base_fp : str
+            Path to csv file containing means for unbiased data
+        dset : str
+            Name of dataset to compute bias correction factor for
+        fp_pattern : str
+            Pattern for output file. Should contain {feature} format key.
+        leaf_size : int
+            Leaf size for ball tree used to match bias and base grids
+        global_scalar : float
+            Optional global scalar to use for multiplying all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data. This is just written to output files, not
+            included in the stored bias correction factor values.
+        knn : int
+            Number of nearest neighbors to use when matching bias and base
+            grids. This should be based on difference in resolution. e.g. if
+            bias grid is 30km and base grid is 3km then knn should be 100 to
+            aggregate 3km to 30km.
+        out_shape : tuple | None
+            Optional 2D shape for output. If this is provided then the bias
+            correction arrays will be reshaped to this shape. If not provided
+            the arrays will stay flattened. When using this to write bc files
+            that will be used in a forward-pass routine this shape should be
+            the same as the spatial shape of the forward-pass input data.
+        """
         bc = cls(bias_fp=bias_fp, base_fp=base_fp, dset=dset)
         out_u, out_v = bc.get_uv_corrections(
             global_scalar=global_scalar, knn=knn
@@ -636,7 +743,26 @@ class BiasCorrectUpdate:
 
     @classmethod
     def get_bc_factors(cls, bc_file, dset, month, global_scalar=1):
-        """Get bias correction factors for the given dset and month"""
+        """Get bias correction factors for the given dset and month
+
+        Parameters
+        ----------
+        bc_file : str
+            Name of h5 file containing bias correction factors
+        dset : str
+            Name of dataset to apply bias correction factors for
+        month : int
+            Index of month to bias correct
+        global_scalar : float
+            Optional global scalar to multiply all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data.
+
+        Returns
+        -------
+        factors : ndarray
+            Array of bias correction factors for the given dset and month.
+        """
         with Resource(bc_file) as res:
             logger.info(
                 f"Getting {dset} bias correction factors for month {month}."
@@ -650,9 +776,71 @@ class BiasCorrectUpdate:
         return factors
 
     @classmethod
-    def update_file(cls, in_file, out_file, dset, bc_file, global_scalar=1):
+    def _correct_month(
+        cls, fh_in, month, out_file, dset, bc_file, global_scalar
+    ):
+        """Bias correct data for a given month.
+
+        Parameters
+        ----------
+        fh_in : Resource()
+            Resource handler for input file being corrected
+        month : int
+            Index of month to be corrected
+        out_file : str
+            Name of h5 file containing bias corrected data
+        dset : str
+            Name of dataset to bias correct
+        bc_file : str
+            Name of file containing bias correction factors for the given dset
+        global_scalar : float
+            Optional global scalar to multiply all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data.
+        """
+        with RexOutputs(out_file, "a") as fh:
+            mask = fh.time_index.month == month
+            mask = np.arange(len(fh.time_index))[mask]
+            mask = slice(mask[0], mask[-1] + 1)
+            bc_factors = cls.get_bc_factors(
+                bc_file=bc_file,
+                dset=dset,
+                month=month,
+                global_scalar=global_scalar,
+            )
+            logger.info(f"Applying bias correction factors for month {month}")
+            fh[dset, mask, :] = bc_factors * fh_in[dset, mask, :]
+
+    @classmethod
+    def update_file(
+        cls,
+        in_file,
+        out_file,
+        dset,
+        bc_file,
+        global_scalar=1,
+        max_workers=None,
+    ):
         """Update the in_file with bias corrected values for the given dset
-        and write to out_file."""
+        and write to out_file.
+
+        Parameters
+        ----------
+        in_file : str
+            Name of h5 file containing data to bias correct
+        out_file : str
+            Name of h5 file containing bias corrected data
+        dset : str
+            Name of dataset to bias correct
+        bc_file : str
+            Name of file containing bias correction factors for the given dset
+        global_scalar : float
+            Optional global scalar to multiply all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data.
+        max_workers : int | None
+            Number of workers to use for parallel processing.
+        """
         tmp_file = out_file.replace(".h5", ".h5.tmp")
         logger.info(f"Bias correcting {dset} in {in_file} with {bc_file}.")
         with Resource(in_file) as fh_in:
@@ -660,30 +848,54 @@ class BiasCorrectUpdate:
                 tmp_file, fh_in.time_index, fh_in.meta, fh_in.global_attrs
             )
             OutputHandler._ensure_dset_in_output(tmp_file, dset)
-            for i in range(1, 13):
-                try:
-                    with RexOutputs(tmp_file, "a") as fh:
-                        mask = fh.time_index.month == i
-                        mask = np.arange(len(fh.time_index))[mask]
-                        mask = slice(mask[0], mask[-1] + 1)
-                        bc_factors = cls.get_bc_factors(
-                            bc_file=bc_file,
-                            dset=dset,
+
+            if max_workers == 1:
+                for i in range(1, 13):
+                    try:
+                        cls._correct_month(
+                            fh_in,
                             month=i,
+                            out_file=tmp_file,
+                            dset=dset,
+                            bc_file=bc_file,
                             global_scalar=global_scalar,
                         )
-                        logger.info(
-                            f"Applying bias correction factors for month {i}"
-                        )
-                        fh[dset, mask, :] = bc_factors * fh_in[dset, mask, :]
-                except Exception as e:
-                    raise RuntimeError(
-                        f"Bias correction failed for month {i}."
-                    ) from e
+                    except Exception as e:
+                        raise RuntimeError(
+                            f"Bias correction failed for month {i}."
+                        ) from e
 
-                logger.info(
-                    f"Added {dset} for month {i} to output file {tmp_file}."
-                )
+                    logger.info(
+                        f"Added {dset} for month {i} to output file "
+                        f"{tmp_file}."
+                    )
+            else:
+                futures = {}
+                with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                    for i in range(1, 13):
+                        future = exe.submit(
+                            cls._correct_month,
+                            fh_in=fh_in,
+                            month=i,
+                            out_file=tmp_file,
+                            dset=dset,
+                            bc_file=bc_file,
+                            global_scalar=global_scalar,
+                        )
+                        futures[future] = i
+
+                        logger.info(
+                            f"Submitted bias correction for month {i} "
+                            f"to {tmp_file}."
+                        )
+
+                    for future in as_completed(futures):
+                        _ = future.result()
+                        i = futures[future]
+                        logger.info(
+                            f"Completed bias correction for month {i} "
+                            f"to {tmp_file}."
+                        )
 
         os.replace(tmp_file, out_file)
         msg = f"Saved bias corrected {dset} to: {out_file}"
@@ -698,11 +910,32 @@ class BiasCorrectUpdate:
         bc_file,
         overwrite=False,
         global_scalar=1,
+        max_workers=None
     ):
-        """Run bias correction update."""
+        """Run bias correction update.
+
+        Parameters
+        ----------
+        in_file : str
+            Name of h5 file containing data to bias correct
+        out_file : str
+            Name of h5 file containing bias corrected data
+        dset : str
+            Name of dataset to bias correct
+        bc_file : str
+            Name of file containing bias correction factors for the given dset
+        overwrite : bool
+            Whether to overwrite the output file if it already exists.
+        global_scalar : float
+            Optional global scalar to multiply all bias correction
+            factors. This can be used to improve systemic bias against
+            observation data.
+        max_workers : int | None
+            Number of workers to use for parallel processing.
+        """
         if os.path.exists(out_file) and not overwrite:
             logger.info(
-                f"{out_file} already exists and overwrite=False. " "Skipping."
+                f"{out_file} already exists and overwrite=False. Skipping."
             )
         else:
             if os.path.exists(out_file) and overwrite:
@@ -712,5 +945,6 @@ class BiasCorrectUpdate:
                 )
                 os.remove(out_file)
             cls.update_file(
-                in_file, out_file, dset, bc_file, global_scalar=global_scalar
+                in_file, out_file, dset, bc_file, global_scalar=global_scalar,
+                max_workers=max_workers
             )

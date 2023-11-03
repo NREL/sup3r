@@ -102,7 +102,7 @@ def test_regrid_caching(log=False,
                                  s_enhance=2,
                                  t_enhance=1,
                                  val_split=0.1,
-                                 regrid_cache_pattern=f'{td}/cache.pkl',
+                                 cache_pattern=f'{td}/cache.pkl',
                                  )
 
         # Load handlers again
@@ -126,7 +126,7 @@ def test_regrid_caching(log=False,
                                  s_enhance=2,
                                  t_enhance=1,
                                  val_split=0.1,
-                                 regrid_cache_pattern=f'{td}/cache.pkl',
+                                 cache_pattern=f'{td}/cache.pkl',
                                  )
         assert np.array_equal(old_dh.lr_data, new_dh.lr_data)
         assert np.array_equal(old_dh.hr_data, new_dh.hr_data)
@@ -161,7 +161,7 @@ def test_regrid_caching_in_steps(log=False,
                                    s_enhance=2,
                                    t_enhance=1,
                                    val_split=0.1,
-                                   regrid_cache_pattern=f'{td}/cache.pkl',
+                                   cache_pattern=f'{td}/cache.pkl',
                                    )
 
         # Load handlers again with one cached feature and one noncached feature
@@ -185,7 +185,7 @@ def test_regrid_caching_in_steps(log=False,
                                    s_enhance=2,
                                    t_enhance=1,
                                    val_split=0.1,
-                                   regrid_cache_pattern=f'{td}/cache.pkl')
+                                   cache_pattern=f'{td}/cache.pkl')
 
         assert np.array_equal(dh_step2.lr_data[..., 0:1], dh_step1.lr_data)
         assert np.array_equal(dh_step2.noncached_features, FEATURES[1:])
