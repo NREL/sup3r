@@ -1,5 +1,4 @@
-"""
-Sup3r feature handling module.
+"""Sup3r feature handling module.
 
 @author: bbenton
 """
@@ -35,7 +34,8 @@ logger = logging.getLogger(__name__)
 
 class DerivedFeature(ABC):
     """Abstract class for special features which need to be derived from raw
-    features"""
+    features
+    """
 
     @classmethod
     @abstractmethod
@@ -86,7 +86,6 @@ class ClearSkyRatioH5(DerivedFeature):
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. NaN where
             nighttime.
         """
-
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
@@ -104,7 +103,8 @@ class ClearSkyRatioH5(DerivedFeature):
 
 class ClearSkyRatioCC(DerivedFeature):
     """Clear Sky Ratio feature class for computing from climate change netcdf
-    data"""
+    data
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -142,7 +142,6 @@ class ClearSkyRatioCC(DerivedFeature):
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. This is
             assumed to be daily average data for climate change source data.
         """
-
         cs_ratio = data['rsds'] / data['clearsky_ghi']
         cs_ratio = np.minimum(cs_ratio, 1)
         cs_ratio = np.maximum(cs_ratio, 0)
@@ -189,7 +188,6 @@ class CloudMaskH5(DerivedFeature):
             nighttime. Data is float32 so it can be normalized without any
             integer weirdness.
         """
-
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
@@ -208,7 +206,8 @@ class CloudMaskH5(DerivedFeature):
 
 class PotentialTempNC(DerivedFeature):
     """Potential Temperature feature class for NETCDF data. Needed since T is
-    perturbation potential temperature."""
+    perturbation potential temperature.
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -239,7 +238,8 @@ class PotentialTempNC(DerivedFeature):
 
 class TempNC(DerivedFeature):
     """Temperature feature class for NETCDF data. Needed since T is potential
-    temperature not standard temp."""
+    temperature not standard temp.
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -271,7 +271,8 @@ class TempNC(DerivedFeature):
 
 class PressureNC(DerivedFeature):
     """Pressure feature class for NETCDF data. Needed since P is perturbation
-    pressure."""
+    pressure.
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -302,7 +303,8 @@ class PressureNC(DerivedFeature):
 
 class BVFreqSquaredNC(DerivedFeature):
     """BVF Squared feature class with needed inputs method and compute
-    method"""
+    method
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -355,7 +357,6 @@ class InverseMonNC(DerivedFeature):
         list
             List of required features for computing RMOL
         """
-
         assert feature == 'RMOL'
         features = ['UST', 'HFX']
         return features
@@ -431,7 +432,8 @@ class BVFreqMon(DerivedFeature):
 
 class BVFreqSquaredH5(DerivedFeature):
     """BVF Squared feature class with needed inputs method and compute
-    method"""
+    method
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -495,7 +497,6 @@ class WindspeedNC(DerivedFeature):
         list
             List of required features for computing windspeed
         """
-
         height = Feature.get_height(feature)
         features = [f'U_{height}m', f'V_{height}m', 'lat_lon']
         return features
@@ -516,7 +517,6 @@ class WindspeedNC(DerivedFeature):
         ndarray
             Derived feature array
         """
-
         ws, _ = invert_uv(data[f'U_{height}m'], data[f'V_{height}m'],
                           data['lat_lon'])
         return ws
@@ -539,7 +539,6 @@ class WinddirectionNC(DerivedFeature):
         list
             List of required features for computing windspeed
         """
-
         height = Feature.get_height(feature)
         features = [f'U_{height}m', f'V_{height}m', 'lat_lon']
         return features
@@ -560,7 +559,6 @@ class WinddirectionNC(DerivedFeature):
         ndarray
             Derived feature array
         """
-
         _, wd = invert_uv(data[f'U_{height}m'], data[f'V_{height}m'],
                           data['lat_lon'])
         return wd
@@ -585,7 +583,6 @@ class Veer(DerivedFeature):
         list
             List of required features for computing REWS
         """
-
         rotor_center = Feature.get_height(feature)
         if rotor_center is None:
             heights = cls.HEIGHTS
@@ -612,7 +609,6 @@ class Veer(DerivedFeature):
         ndarray
             Derived feature array
         """
-
         if height is None:
             heights = cls.HEIGHTS
         else:
@@ -643,7 +639,6 @@ class Shear(DerivedFeature):
         list
             List of required features for computing Veer
         """
-
         height = Feature.get_height(feature)
         heights = [int(height), int(height) + 20]
         features = []
@@ -667,7 +662,6 @@ class Shear(DerivedFeature):
         ndarray
             Derived feature array
         """
-
         heights = [int(height), int(height) + 20]
         shear = np.cos(np.radians(data[f'winddirection_{int(height) + 20}m']))
         shear -= np.cos(np.radians(data[f'winddirection_{int(height)}m']))
@@ -694,7 +688,6 @@ class Rews(DerivedFeature):
         list
             List of required features for computing REWS
         """
-
         rotor_center = Feature.get_height(feature)
         if rotor_center is None:
             heights = cls.HEIGHTS
@@ -722,7 +715,6 @@ class Rews(DerivedFeature):
         ndarray
             Derived feature array
         """
-
         if height is None:
             heights = cls.HEIGHTS
         else:
@@ -829,7 +821,8 @@ class VWindPowerLaw(DerivedFeature):
 
 class UWind(DerivedFeature):
     """U wind component feature class with needed inputs method and compute
-    method"""
+    method
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -876,7 +869,8 @@ class UWind(DerivedFeature):
 
 class Vorticity(DerivedFeature):
     """Vorticity feature class with needed inputs method and compute
-    method"""
+    method
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -919,7 +913,8 @@ class Vorticity(DerivedFeature):
 
 class VWind(DerivedFeature):
     """V wind component feature class with needed inputs method and compute
-    method"""
+    method
+    """
 
     @classmethod
     def inputs(cls, feature):
@@ -1047,14 +1042,16 @@ class Tas(DerivedFeature):
 
 class TasMin(Tas):
     """Daily min air temperature near surface variable from climate change nc
-    files"""
+    files
+    """
 
     CC_FEATURE_NAME = 'tasmin'
 
 
 class TasMax(Tas):
     """Daily max air temperature near surface variable from climate change nc
-    files"""
+    files
+    """
 
     CC_FEATURE_NAME = 'tasmax'
 
@@ -1079,7 +1076,6 @@ class LatLonNC:
             lat lon array
             (spatial_1, spatial_2, 2)
         """
-
         fp = file_paths if isinstance(file_paths, str) else file_paths[0]
         handle = xr.open_dataset(fp)
         valid_vars = set(handle.variables)
@@ -1166,7 +1162,8 @@ class LatLonH5:
 
 class Feature:
     """Class to simplify feature computations. Stores feature height, feature
-    basename, name of feature in handle"""
+    basename, name of feature in handle
+    """
 
     def __init__(self, feature, handle):
         """Takes a feature (e.g. U_100m) and gets the height (100), basename
@@ -1204,7 +1201,6 @@ class Feature:
         str
             feature basename
         """
-
         height = Feature.get_height(feature)
         pressure = Feature.get_pressure(feature)
         if height is not None or pressure is not None:
@@ -1260,7 +1256,8 @@ class Feature:
 
 class FeatureHandler:
     """Feature Handler with cache for previously loaded features used in other
-    calculations """
+    calculations
+    """
 
     FEATURE_REGISTRY: ClassVar[dict] = {}
 
@@ -1280,7 +1277,6 @@ class FeatureHandler:
         bool
             Whether feature basename is in handle
         """
-
         if features is None:
             return False
 
@@ -1304,7 +1300,6 @@ class FeatureHandler:
         bool
             Whether feature basename is in handle
         """
-
         if features is None:
             return False
 
@@ -1440,16 +1435,13 @@ class FeatureHandler:
             keys for features.  e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
         data = defaultdict(dict)
         for t, t_slice in enumerate(time_chunks):
             for f in input_features:
                 data[t][f] = cls.extract_feature(file_paths, raster_index, f,
                                                  t_slice, **kwargs)
-            interval = int(np.ceil(len(time_chunks) / 10))
-            if t % interval == 0:
-                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
-                             'chunks extracted.')
+            logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                         'chunks extracted.')
         return data
 
     @classmethod
@@ -1511,7 +1503,6 @@ class FeatureHandler:
                         f' time chunks of shape ({shape[0]}, {shape[1]}, '
                         f'{time_shape}) for {len(input_features)} features')
 
-            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 v = futures[future]
                 try:
@@ -1521,12 +1512,11 @@ class FeatureHandler:
                            f' {v["feature"]}')
                     logger.error(msg)
                     raise RuntimeError(msg) from e
-                if i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    logger.info(f'{i+1} out of {len(futures)} feature '
-                                'chunks extracted. Current memory usage is '
-                                f'{mem.used / 1e9:.3f} GB out of '
-                                f'{mem.total / 1e9:.3f} GB total.')
+                mem = psutil.virtual_memory()
+                logger.info(f'{i+1} out of {len(futures)} feature '
+                            'chunks extracted. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 
@@ -1613,7 +1603,6 @@ class FeatureHandler:
             e.g. data[chunk_number][feature] = array.
             (spatial_1, spatial_2, temporal)
         """
-
         if len(derived_features) == 0:
             return data
 
@@ -1768,7 +1757,6 @@ class FeatureHandler:
         out : str
             Matching feature registry entry.
         """
-
         out = None
         for k, v in cls.FEATURE_REGISTRY.items():
             if k.lower() == feature.lower():
@@ -1791,7 +1779,6 @@ class FeatureHandler:
         out : str
             Matching feature registry entry.
         """
-
         out = None
         for k, v in cls.FEATURE_REGISTRY.items():
             if re.match(k.lower(), feature.lower()):
