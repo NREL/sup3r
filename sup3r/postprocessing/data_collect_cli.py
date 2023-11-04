@@ -56,13 +56,13 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
             f_config.update({'features': [feature],
                              'out_file': f_out_file,
                              'job_name': f_job_name,
-                             'log_file': f_log_file,
-                             'pipeline_step': pipeline_step})
+                             'log_file': f_log_file})
 
             configs.append(f_config)
 
     for config in configs:
         ctx.obj['NAME'] = config['job_name']
+        config['pipeline_step'] = pipeline_step
         cmd = Collector.get_node_cmd(config)
 
         cmd_log = '\n\t'.join(cmd.split('\n'))
