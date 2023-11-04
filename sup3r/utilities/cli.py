@@ -240,7 +240,7 @@ class BaseCLI:
         else:
             job_info = f"{module_name}"
             if pipeline_step != module_name:
-                job_info = f"{job_info} (Pipeline Step {pipeline_step!r})"
+                job_info = f"{job_info} (pipeline step {pipeline_step!r})"
             logger.info(
                 f'Running sup3r {job_info} on SLURM with node '
                 f'name "{name}".'
@@ -318,7 +318,7 @@ class BaseCLI:
         else:
             job_info = f"{module_name}"
             if pipeline_step != module_name:
-                job_info = f"{job_info} (Pipeline Step {pipeline_step!r})"
+                job_info = f"{job_info} (pipeline step {pipeline_step!r})"
             logger.info(
                 f'Running sup3r {job_info} locally with job '
                 f'name "{name}".'
