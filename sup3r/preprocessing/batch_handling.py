@@ -499,14 +499,14 @@ class BatchHandler:
         ]
 
         logger.info(f'Initializing BatchHandler with '
-                    f'{len(self.data_handlers)} data handlers with handler'
+                    f'{len(self.data_handlers)} data handlers with handler '
                     f'weights={self.handler_weights}, smoothing={smoothing}. '
                     f'Using stats_workers={self.stats_workers}, '
                     f'norm_workers={self.norm_workers}, '
                     f'load_workers={self.load_workers}.')
 
         now = dt.now()
-        self.parallel_load()
+        self.load_handler_data()
         logger.debug(f'Finished loading data of shape {self.shape} '
                      f'for BatchHandler in {dt.now() - now}.')
         log_mem(logger, log_level='INFO')
@@ -655,8 +655,8 @@ class BatchHandler:
                     logger.debug(f'{i+1} out of {len(futures)} data handlers'
                                  ' normalized.')
 
-    def parallel_load(self):
-        """Load data handler data in parallel"""
+    def load_handler_data(self):
+        """Load data handler data in parallel or serial"""
         logger.info(f'Loading {len(self.data_handlers)} data handlers')
         max_workers = self.load_workers
         if max_workers == 1:
@@ -686,7 +686,7 @@ class BatchHandler:
                     logger.debug(f'{i+1} out of {len(futures)} handlers '
                                  'loaded.')
 
-    def parallel_stats(self):
+    def _get_stats(self):
         """Get standard deviations and means for training features in
         parallel."""
         logger.info(f'Calculating stats for {len(self.training_features)} '
@@ -788,7 +788,7 @@ class BatchHandler:
 
         now = dt.now()
         logger.info('Calculating stdevs/means.')
-        self.parallel_stats()
+        self._get_stats()
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
         self.cache_stats()
 

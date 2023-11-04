@@ -2,18 +2,21 @@
 """pytests for data handling"""
 
 import os
+import tempfile
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import matplotlib.pyplot as plt
-import tempfile
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR
+from sup3r.preprocessing.batch_handling import (
+    BatchHandler,
+    SpatialBatchHandler,
+)
 from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
-from sup3r.preprocessing.batch_handling import (BatchHandler,
-                                                SpatialBatchHandler)
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.pytest import make_fake_nc_files, make_fake_era_files
+from sup3r.utilities.pytest import make_fake_era_files, make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']
@@ -166,7 +169,8 @@ def test_data_caching():
         if os.path.exists(cache_pattern):
             os.system(f'rm {cache_pattern}')
         handler = DataHandler(INPUT_FILE, features,
-                              cache_pattern=cache_pattern, **dh_kwargs)
+                              cache_pattern=cache_pattern, **dh_kwargs,
+                              val_split=0.1)
         assert handler.data is None
         handler.load_cached_data()
         assert handler.data.shape == (shape[0], shape[1],

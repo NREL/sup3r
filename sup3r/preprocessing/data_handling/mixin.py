@@ -13,6 +13,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pandas as pd
+import psutil
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
@@ -31,6 +32,7 @@ class CacheHandlingMixIn:
     """Collection of methods for handling data caching and loading"""
 
     def __init__(self):
+        """Initialize common attributes"""
         self._noncached_features = None
         self._cache_pattern = None
         self._cache_files = None
@@ -285,7 +287,10 @@ class CacheHandlingMixIn:
         msg = f'{features[idx].lower()} not found in {fp.lower()}.'
         assert features[idx].lower() in fp.lower(), msg
         fp = ignore_case_path_fetch(fp)
-        logger.info(f'Loading {features[idx]} from {fp}.')
+        mem = psutil.virtual_memory()
+        logger.info(f'Loading {features[idx]} from {fp}. Current memory '
+                    f'usage is {mem.used / 1e9:.3f} GB out of '
+                    f'{mem.total / 1e9:.3f} GB total.')
 
         out = None
         with open(fp, 'rb') as fh:

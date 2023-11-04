@@ -1617,10 +1617,8 @@ class FeatureHandler:
                     file_paths=file_paths,
                     raster_index=raster_index)
             cls.pop_old_data(data, t, all_features)
-            interval = int(np.ceil(len(time_chunks) / 10))
-            if t % interval == 0:
-                logger.debug(f'{t+1} out of {len(time_chunks)} feature '
-                             'chunks computed.')
+            logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+                         'chunks computed.')
 
         return data
 
@@ -1698,18 +1696,16 @@ class FeatureHandler:
                         f' time chunks of shape ({shape[0]}, {shape[1]}, '
                         f'{time_shape}) for {len(derived_features)} features')
 
-            interval = int(np.ceil(len(futures) / 10))
             for i, future in enumerate(as_completed(futures)):
                 v = futures[future]
                 chunk_idx = v['chunk']
                 data[chunk_idx] = data.get(chunk_idx, {})
                 data[chunk_idx][v['feature']] = future.result()
-                if i % interval == 0:
-                    mem = psutil.virtual_memory()
-                    logger.info(f'{i+1} out of {len(futures)} feature '
-                                'chunks computed. Current memory usage is '
-                                f'{mem.used / 1e9:.3f} GB out of '
-                                f'{mem.total / 1e9:.3f} GB total.')
+                mem = psutil.virtual_memory()
+                logger.info(f'{i+1} out of {len(futures)} feature '
+                            'chunks computed. Current memory usage is '
+                            f'{mem.used / 1e9:.3f} GB out of '
+                            f'{mem.total / 1e9:.3f} GB total.')
 
         return data
 
