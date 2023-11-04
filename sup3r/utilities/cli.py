@@ -324,7 +324,10 @@ class BaseCLI:
                 f'name "{name}".'
             )
             Status.mark_job_as_submitted(
-                out_dir, pipeline_step=pipeline_step, job_name=name, replace=True
+                out_dir,
+                pipeline_step=pipeline_step,
+                job_name=name,
+                replace=True
             )
             subprocess_manager.submit(cmd)
             msg = f'Completed sup3r {job_info} job "{name}".'
