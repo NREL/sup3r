@@ -1019,11 +1019,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            logger.debug('Splitting data into training / validation sets '
-                         f'({1 - self.val_split}, {self.val_split}) '
-                         f'for {self.input_file_info}')
+            if with_split and self.val_split > 0:
+                logger.debug('Splitting data into training / validation sets '
+                             f'({1 - self.val_split}, {self.val_split}) '
+                             f'for {self.input_file_info}')
 
-            if with_split:
                 self.data, self.val_data = self.split_data(
                     val_split=self.val_split, shuffle_time=self.shuffle_time)
 

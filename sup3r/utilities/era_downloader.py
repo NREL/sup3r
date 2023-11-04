@@ -37,7 +37,8 @@ except ImportError as e:
 
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, file combination,
-    and interpolation."""
+    and interpolation.
+    """
 
     msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
            'with a valid url and api key. Follow the instructions here: '
@@ -223,7 +224,8 @@ class EraDownloader:
     @classmethod
     def get_tmp_file(cls, file):
         """Get temp file for given file. Then only needed variables will be
-        written to the given file."""
+        written to the given file.
+        """
         tmp_file = file.replace(".nc", "_tmp.nc")
         return tmp_file
 
@@ -255,7 +257,8 @@ class EraDownloader:
 
     def _prep_var_lists(self, variables):
         """Add all downloadable variables for the generic requested variables.
-        e.g. if variable = 'u' add all downloadable u variables to list."""
+        e.g. if variable = 'u' add all downloadable u variables to list.
+        """
         d_vars = []
         vars = variables.copy()
         for i, v in enumerate(vars):
@@ -269,7 +272,8 @@ class EraDownloader:
 
     def prep_var_lists(self, variables):
         """Create surface and level variable lists based on requested
-        variables."""
+        variables.
+        """
         variables = self._prep_var_lists(variables)
         for var in variables:
             if var in self.SFC_VARS and var not in self.sfc_file_variables:
@@ -344,7 +348,6 @@ class EraDownloader:
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
-
         dims = ('time', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.surface_file)
         with Dataset(self.surface_file, "r") as old_ds:
@@ -406,7 +409,6 @@ class EraDownloader:
         ds : Dataset
             Dataset() object for new file with new height variable written.
         """
-
         _ = ds.createVariable(standard_name,
                               np.float32,
                               dimensions=old_ds['z'].dimensions)
@@ -418,7 +420,6 @@ class EraDownloader:
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
-
         dims = ('time', 'level', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.level_file)
         with Dataset(self.level_file, "r") as old_ds:
@@ -429,10 +430,12 @@ class EraDownloader:
 
                 ds = self.map_vars(old_ds, ds)
 
-                if 'pressure' in self.variables:
+                if ('pressure' in self.variables
+                        and 'pressure' not in ds.variables):
                     tmp = np.zeros(ds.variables['zg'].shape)
                     for i in range(tmp.shape[1]):
                         tmp[:, i, :, :] = ds.variables['level'][i] * 100
+
                     _ = ds.createVariable('pressure',
                                           np.float32,
                                           dimensions=dims)
@@ -446,7 +449,6 @@ class EraDownloader:
 
     def process_and_combine(self):
         """Process variables and combine."""
-
         if not os.path.exists(self.combined_file) or self.overwrite:
             files = []
             if os.path.exists(self.level_file):
@@ -459,7 +461,7 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             logger.info(f'Combining {files} to {self.combined_file}.')
-            with xr.open_mfdataset(files) as ds:
+            with xr.open_mfdataset(files, compat='override') as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
 
@@ -495,7 +497,8 @@ class EraDownloader:
     def check_existing_files(self):
         """If files exist already check them for good shape and required
         variables. Remove them if there was a problem so we can continue with
-        routine from scratch."""
+        routine from scratch.
+        """
         if os.path.exists(self.combined_file):
             try:
                 check = self.good_file(self.combined_file, self.required_shape)
@@ -521,7 +524,8 @@ class EraDownloader:
 
     def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
-        max_log_height (usually 100m) and linear interpolation above this."""
+        max_log_height (usually 100m) and linear interpolation above this.
+        """
         LogLinInterpolator.run(infile=self.combined_file,
                                outfile=self.interp_file,
                                max_workers=max_workers,
@@ -533,8 +537,8 @@ class EraDownloader:
                          **interp_kwargs):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
-        interpolate."""
-
+        interpolate.
+        """
         if os.path.exists(self.combined_file) and self.overwrite:
             os.remove(self.combined_file)
 
@@ -577,7 +581,6 @@ class EraDownloader:
     @classmethod
     def already_pruned(cls, infile, keep_variables):
         """Check if file has been pruned already."""
-
         if keep_variables is None:
             logger.info('Received keep_variables=None. Skipping pruning.')
             return
@@ -586,7 +589,9 @@ class EraDownloader:
 
         pruned = True
         with Dataset(infile, 'r') as ds:
-            for var in ds.variables:
+            variables = [var for var in ds.variables
+                         if var not in ('time', 'latitude', 'longitude')]
+            for var in variables:
                 if not any(name in var for name in keep_variables):
                     logger.info(f'Pruning {var} in {infile}.')
                     pruned = False
@@ -595,7 +600,6 @@ class EraDownloader:
     @classmethod
     def prune_output(cls, infile, keep_variables=None):
         """Prune output file to keep just single level variables"""
-
         if keep_variables is None:
             logger.info('Received keep_variables=None. Skipping pruning.')
             return
