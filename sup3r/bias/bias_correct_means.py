@@ -17,6 +17,7 @@ import xarray as xr
 from rex import Resource
 from scipy.interpolate import interp1d
 from sklearn.neighbors import BallTree
+
 from sup3r.postprocessing.file_handling import OutputHandler, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import VERSION_RECORD
@@ -589,7 +590,7 @@ class BiasCorrectionFromMeans:
         base_data = self.get_base_data(knn=knn)
         bias_data = self.get_bias_data()
         scaler = global_scalar * base_data / bias_data
-        adder = 0
+        adder = np.zeros(scaler.shape)
 
         out = {
             "latitude": self.bias_meta["latitude"],
@@ -670,12 +671,18 @@ class BiasCorrectionFromMeans:
                  leaf_size=leaf_size)
         out = bc.get_corrections(global_scalar=global_scalar, knn=knn)
         if out_shape is not None:
-            for k, v in out.items():
-                if k in ("latitude", "longitude"):
-                    out[k] = np.array(v).reshape(out_shape)
-                elif not isinstance(v, float):
-                    out[k] = np.array(v).reshape((*out_shape, 12))
+            out = cls._reshape_output(out, out_shape)
         bc.write_output(fp_out, out)
+
+    @classmethod
+    def _reshape_output(cls, out, out_shape):
+        """Reshape output according to given output shape"""
+        for k, v in out.items():
+            if k in ("latitude", "longitude"):
+                out[k] = np.array(v).reshape(out_shape)
+            elif not isinstance(v, (int, float)):
+                out[k] = np.array(v).reshape((*out_shape, 12))
+        return out
 
     @classmethod
     def run_uv(
@@ -724,16 +731,8 @@ class BiasCorrectionFromMeans:
             global_scalar=global_scalar, knn=knn
         )
         if out_shape is not None:
-            for k, v in out_u.items():
-                if k in ("latitude", "longitude"):
-                    out_u[k] = np.array(v).reshape(out_shape)
-                elif not isinstance(v, float):
-                    out_u[k] = np.array(v).reshape((*out_shape, 12))
-            for k, v in out_v.items():
-                if k in ("latitude", "longitude"):
-                    out_v[k] = np.array(v).reshape(out_shape)
-                elif not isinstance(v, float):
-                    out_v[k] = np.array(v).reshape((*out_shape, 12))
+            out_u = cls._reshape_output(out_u, out_shape)
+            out_v = cls._reshape_output(out_v, out_shape)
         bc.write_output(fp_pattern.format(feature=bc.u_name), out_u)
         bc.write_output(fp_pattern.format(feature=bc.v_name), out_v)
 
