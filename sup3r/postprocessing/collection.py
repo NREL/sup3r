@@ -76,8 +76,8 @@ class Collector(OutputMixIn):
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_COLLECT, cmd)
-
+        pipeline_step = config.get('pipeline_step') or ModuleName.DATA_COLLECT
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
@@ -755,6 +755,7 @@ class Collector(OutputMixIn):
         log_file=None,
         write_status=False,
         job_name=None,
+        pipeline_step=None,
         join_times=False,
         target_final_meta_file=None,
         n_writes=None,
@@ -786,6 +787,10 @@ class Collector(OutputMixIn):
             Flag to write status file once complete if running from pipeline.
         job_name : str
             Job name for status file if running from pipeline.
+        pipeline_step : str, optional
+            Name of the pipeline step being run. If ``None``, the
+            ``pipeline_step`` will be set to the ``"collect``,
+            mimicking old reV behavior. By default, ``None``.
         join_times : bool
             Option to split full file list into chunks with each chunk having
             the same temporal_chunk_index. The number of writes will then be
@@ -909,8 +914,9 @@ class Collector(OutputMixIn):
                 'job_status': 'successful',
                 'runtime': (time.time() - t0) / 60,
             }
+            pipeline_step = pipeline_step or 'collect'
             Status.make_single_job_file(
-                os.path.dirname(out_file), 'collect', job_name, status
+                os.path.dirname(out_file), pipeline_step, job_name, status
             )
 
         logger.info('Finished file collection.')

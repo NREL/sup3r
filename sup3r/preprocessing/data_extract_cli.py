@@ -32,7 +32,7 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose=False, **__):
+def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     """Run sup3r data extraction from a config file.
 
     Parameters
@@ -46,6 +46,7 @@ def from_config(ctx, config_file, verbose=False, **__):
     """
     config = BaseCLI.from_config_preflight(ModuleName.DATA_EXTRACT, ctx,
                                            config_file, verbose)
+    config["pipeline_step"] = pipeline_step
 
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
@@ -63,7 +64,7 @@ def from_config(ctx, config_file, verbose=False, **__):
         kickoff_local_job(ctx, cmd)
 
 
-def kickoff_local_job(ctx, cmd):
+def kickoff_local_job(ctx, cmd, pipeline_step=None):
     """Run sup3r data extraction locally.
 
     Parameters
@@ -73,12 +74,17 @@ def kickoff_local_job(ctx, cmd):
     cmd : str
         Command to be submitted in shell script. Example:
             'python -m sup3r.cli data_extract -c <config_file>'
+    pipeline_step : str, optional
+        Name of the pipeline step being run. If ``None``, the
+        ``pipeline_step`` will be set to the ``module_name``,
+        mimicking old reV behavior. By default, ``None``.
     """
-    BaseCLI.kickoff_local_job(ModuleName.DATA_EXTRACT, ctx, cmd)
+    BaseCLI.kickoff_local_job(ModuleName.DATA_EXTRACT, ctx, cmd, pipeline_step)
 
 
-def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
-                      feature=None, stdout_path='./stdout/'):
+def kickoff_slurm_job(ctx, cmd, pipeline_step=None, alloc='sup3r',
+                      memory=None, walltime=4, feature=None,
+                      stdout_path='./stdout/'):
     """Run sup3r on HPC via SLURM job submission.
 
     Parameters
@@ -88,6 +94,10 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
     cmd : str
         Command to be submitted in SLURM shell script. Example:
             'python -m sup3r.cli data_extract -c <config_file>'
+    pipeline_step : str, optional
+        Name of the pipeline step being run. If ``None``, the
+        ``pipeline_step`` will be set to the ``module_name``,
+        mimicking old reV behavior. By default, ``None``.
     alloc : str
         HPC project (allocation) handle. Example: 'sup3r'.
     memory : int
@@ -101,7 +111,7 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         Path to print .stdout and .stderr files.
     """
     BaseCLI.kickoff_slurm_job(ModuleName.DATA_EXTRACT, ctx, cmd, alloc, memory,
-                              walltime, feature, stdout_path)
+                              walltime, feature, stdout_path, pipeline_step)
 
 
 if __name__ == '__main__':

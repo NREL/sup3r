@@ -44,7 +44,8 @@ class BaseCLI:
     """Base CLI class used to create CLI for modules in ModuleName"""
 
     @classmethod
-    def from_config(cls, module_name, module_class, ctx, config_file, verbose):
+    def from_config(cls, module_name, module_class, ctx, config_file, verbose,
+                    pipeline_step=None):
         """Run sup3r module from a config file.
 
 
@@ -61,10 +62,15 @@ class BaseCLI:
             Path to config file provided all needed inputs to module_class
         verbose : bool
             Whether to run in verbose mode.
+        pipeline_step : str, optional
+            Name of the pipeline step being run. If ``None``, the
+            ``pipeline_step`` will be set to the ``module_name``,
+            mimicking old reV behavior. By default, ``None``.
         """
         config = cls.from_config_preflight(
             module_name, ctx, config_file, verbose
         )
+        config['pipeline_step'] = pipeline_step
 
         exec_kwargs = config.get('execution_control', {})
         hardware_option = exec_kwargs.pop('option', 'local')
@@ -75,9 +81,10 @@ class BaseCLI:
         logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
-            cls.kickoff_slurm_job(module_name, ctx, cmd, **exec_kwargs)
+            cls.kickoff_slurm_job(module_name, ctx, pipeline_step, cmd,
+                                  **exec_kwargs)
         else:
-            cls.kickoff_local_job(module_name, ctx, cmd)
+            cls.kickoff_local_job(module_name, ctx, cmd, pipeline_step)
 
     @classmethod
     def from_config_preflight(cls, module_name, ctx, config_file, verbose):
@@ -170,6 +177,7 @@ class BaseCLI:
         walltime=4,
         feature=None,
         stdout_path='./stdout/',
+        pipeline_step=None,
     ):
         """Run sup3r module on HPC via SLURM job submission.
 
@@ -193,8 +201,14 @@ class BaseCLI:
             or "--depend=[state:job_id]". Default is None.
         stdout_path : str
             Path to print .stdout and .stderr files.
+        pipeline_step : str, optional
+            Name of the pipeline step being run. If ``None``, the
+            ``pipeline_step`` will be set to the ``module_name``,
+            mimicking old reV behavior. By default, ``None``.
         """
         cls.check_module_name(module_name)
+        if pipeline_step is None:
+            pipeline_step = module_name
 
         name = ctx.obj['NAME']
         out_dir = ctx.obj['OUT_DIR']
@@ -205,7 +219,7 @@ class BaseCLI:
 
         status = Status.retrieve_job_status(
             out_dir,
-            pipeline_step=module_name,
+            pipeline_step=pipeline_step,
             job_name=name,
             subprocess_manager=slurm_manager,
         )
@@ -224,8 +238,11 @@ class BaseCLI:
                 'resubmitting'
             )
         else:
+            job_info = f"{module_name}"
+            if pipeline_step != module_name:
+                job_info = f"{job_info} (Pipeline Step {pipeline_step!r})"
             logger.info(
-                f'Running sup3r {module_name} on SLURM with node '
+                f'Running sup3r {job_info} on SLURM with node '
                 f'name "{name}".'
             )
             out = slurm_manager.sbatch(
@@ -239,14 +256,14 @@ class BaseCLI:
             )[0]
             if out:
                 msg = (
-                    f'Kicked off sup3r {module_name} job "{name}" '
+                    f'Kicked off sup3r {job_info} job "{name}" '
                     f'(SLURM jobid #{out}).'
                 )
 
             # add job to sup3r status file.
             Status.mark_job_as_submitted(
                 out_dir,
-                pipeline_step=module_name,
+                pipeline_step=pipeline_step,
                 job_name=name,
                 replace=True,
                 job_attrs={'job_id': out, 'hardware': 'kestrel'},
@@ -256,7 +273,7 @@ class BaseCLI:
         logger.info(msg)
 
     @classmethod
-    def kickoff_local_job(cls, module_name, ctx, cmd):
+    def kickoff_local_job(cls, module_name, ctx, cmd, pipeline_step=None):
         """Run sup3r module locally.
 
         Parameters
@@ -268,15 +285,21 @@ class BaseCLI:
         cmd : str
             Command to be submitted in shell script. Example:
                 'python -m sup3r.cli <module_name> -c <config_file>'
+        pipeline_step : str, optional
+            Name of the pipeline step being run. If ``None``, the
+            ``pipeline_step`` will be set to the ``module_name``,
+            mimicking old reV behavior. By default, ``None``.
         """
         cls.check_module_name(module_name)
+        if pipeline_step is None:
+            pipeline_step = module_name
 
         name = ctx.obj['NAME']
         out_dir = ctx.obj['OUT_DIR']
         subprocess_manager = SubprocessManager
 
         status = Status.retrieve_job_status(
-            out_dir, pipeline_step=module_name, job_name=name
+            out_dir, pipeline_step=pipeline_step, job_name=name
         )
         job_failed = 'fail' in str(status).lower()
         job_submitted = status != 'not submitted'
@@ -293,21 +316,24 @@ class BaseCLI:
                 'resubmitting'
             )
         else:
+            job_info = f"{module_name}"
+            if pipeline_step != module_name:
+                job_info = f"{job_info} (Pipeline Step {pipeline_step!r})"
             logger.info(
-                f'Running sup3r {module_name} locally with job '
+                f'Running sup3r {job_info} locally with job '
                 f'name "{name}".'
             )
             Status.mark_job_as_submitted(
-                out_dir, pipeline_step=module_name, job_name=name, replace=True
+                out_dir, pipeline_step=pipeline_step, job_name=name, replace=True
             )
             subprocess_manager.submit(cmd)
-            msg = f'Completed sup3r {module_name} job "{name}".'
+            msg = f'Completed sup3r {job_info} job "{name}".'
 
         click.echo(msg)
         logger.info(msg)
 
     @classmethod
-    def add_status_cmd(cls, config, module_name, cmd):
+    def add_status_cmd(cls, config, pipeline_step, cmd):
         """Append status file command to command for executing given module
 
         Parameters
@@ -315,8 +341,8 @@ class BaseCLI:
         config : dict
             sup3r config with all necessary args and kwargs to run given
             module.
-        module_name : str
-            Module name string from :class:`sup3r.utilities.ModuleName`.
+        pipeline_step : str
+            Name of the pipeline step being run.
         cmd : str
             String including command to execute given module.
 
@@ -330,7 +356,7 @@ class BaseCLI:
         status_dir = config.get('status_dir', None)
         if job_name is not None and status_dir is not None:
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'pipeline_step="{module_name}", '
+            status_file_arg_str += f'pipeline_step="{pipeline_step}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 
