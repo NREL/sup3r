@@ -344,6 +344,8 @@ class Regridder:
             Flattened regridded spatiotemporal data
             (spatial, temporal)
         """
+        msg = 'Input data must be 3D (spatial_1, spatial_2, temporal)'
+        assert len(data.shape) == 3, msg
         vals = [
             data[:, :, i].flatten()[np.array(self.indices)][np.newaxis]
             for i in range(data.shape[-1])
