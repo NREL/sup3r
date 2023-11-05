@@ -4,12 +4,14 @@ import glob
 import logging
 import os
 import time
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import psutil
+import xarray as xr
 from gaps import Status
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
@@ -22,23 +24,27 @@ from sup3r.utilities.cli import BaseCLI
 logger = logging.getLogger(__name__)
 
 
-class Collector(OutputMixIn):
-    """Sup3r H5 file collection framework"""
+class BaseCollector(ABC, OutputMixIn):
+    """Base collector class for H5/NETCDF collection"""
 
     def __init__(self, file_paths):
         """Parameters
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            or a single string with unix-style /search/patt*ern.<ext>. Files
+            should have non-overlapping time_index and spatial domains.
         """
         if not isinstance(file_paths, list):
             file_paths = glob.glob(file_paths)
         self.flist = sorted(file_paths)
         self.data = None
         self.file_attrs = {}
+
+    @classmethod
+    @abstractmethod
+    def collect(cls, *args, **kwargs):
+        """Collect data files from a dir to one output file."""
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -52,7 +58,7 @@ class Collector(OutputMixIn):
         """
         import_str = (
             'from sup3r.postprocessing.collection '
-            'import Collector;\n'
+            f'import {cls.__class__.__name__};\n'
             'from rex import init_logger;\n'
             'import time;\n'
             'from gaps import Status;\n'
@@ -79,6 +85,123 @@ class Collector(OutputMixIn):
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
+
+
+class CollectorNC(BaseCollector):
+    """Sup3r NETCDF file collection framework"""
+
+    @classmethod
+    def collect(
+        cls,
+        file_paths,
+        out_file,
+        features,
+        max_workers=None,
+        log_level=None,
+        log_file=None,
+        write_status=False,
+        job_name=None,
+        join_times=False,
+        target_final_meta_file=None,
+        n_writes=None,
+        overwrite=True,
+        threshold=1e-4,
+    ):
+        """Collect data files from a dir to one output file.
+
+        Filename requirements:
+         - Should end with ".nc"
+
+        Parameters
+        ----------
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.nc.
+        out_file : str
+            File path of final output file.
+        features : list
+            List of dsets to collect
+        max_workers : int | None
+            Number of workers to use in parallel. 1 runs serial,
+            None will use all available workers.
+        log_level : str | None
+            Desired log level, None will not initialize logging.
+        log_file : str | None
+            Target log file. None logs to stdout.
+        write_status : bool
+            Flag to write status file once complete if running from pipeline.
+        job_name : str
+            Job name for status file if running from pipeline.
+        join_times : bool
+            Option to split full file list into chunks with each chunk having
+            the same temporal_chunk_index. The number of writes will then be
+            min(number of temporal chunks, n_writes). This ensures that each
+            write has all the spatial chunks for a given time index. Assumes
+            file_paths have a suffix format
+            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required
+            if there are multiple writes and chunks have different time
+            indices.
+        target_final_meta_file : str
+            Path to target final meta containing coordinates to keep from the
+            full file list collected meta. This can be but is not necessarily a
+            subset of the full list of coordinates for all files in the file
+            list. This is used to remove coordinates from the full file list
+            which are not present in the target_final_meta. Either this full
+            meta or a subset, depending on which coordinates are present in
+            the data to be collected, will be the final meta for the collected
+            output files.
+        n_writes : int | None
+            Number of writes to split full file list into. Must be less than
+            or equal to the number of temporal chunks if chunks have different
+            time indices.
+        overwrite : bool
+            Whether to overwrite existing output file
+        threshold : float
+            Threshold distance for finding target coordinates within full meta
+        """
+        t0 = time.time()
+
+        logger.info(
+            f'Initializing collection for file_paths={file_paths}, '
+            f'with max_workers={max_workers}.'
+        )
+
+        if log_level is not None:
+            init_logger(
+                'sup3r.preprocessing', log_file=log_file, log_level=log_level
+            )
+
+        if not os.path.exists(os.path.dirname(out_file)):
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+        collector = cls(file_paths)
+        logger.info(
+            'Collecting {} files to {}'.format(len(collector.flist), out_file)
+        )
+        if overwrite and os.path.exists(out_file):
+            logger.info(f'overwrite=True, removing {out_file}.')
+            os.remove(out_file)
+
+        out = xr.open_mfdataset(collector.flist)
+        out.to_netcdf(out_file)
+
+        if write_status and job_name is not None:
+            status = {
+                'out_dir': os.path.dirname(out_file),
+                'fout': out_file,
+                'flist': collector.flist,
+                'job_status': 'successful',
+                'runtime': (time.time() - t0) / 60,
+            }
+            Status.make_single_job_file(
+                os.path.dirname(out_file), 'collect', job_name, status
+            )
+
+        logger.info('Finished file collection.')
+
+
+class CollectorH5(BaseCollector):
+    """Sup3r H5 file collection framework"""
 
     @classmethod
     def get_slices(
@@ -230,7 +353,7 @@ class Collector(OutputMixIn):
             warn(msg)
 
         else:
-            row_slice, col_slice = Collector.get_slices(
+            row_slice, col_slice = self.get_slices(
                 time_index, meta, f_ti, f_meta
             )
 
@@ -494,13 +617,13 @@ class Collector(OutputMixIn):
         """
         with RexOutputs(out_file, mode='r') as f:
             target_ti = f.time_index
-            y_write_slice, x_write_slice = Collector.get_slices(
+            y_write_slice, x_write_slice = self.get_slices(
                 target_ti,
                 target_masked_meta,
                 time_index,
                 subset_masked_meta,
             )
-        Collector._ensure_dset_in_output(out_file, feature)
+        self._ensure_dset_in_output(out_file, feature)
 
         with RexOutputs(out_file, mode='a') as f:
             try:
