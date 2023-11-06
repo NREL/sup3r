@@ -405,8 +405,8 @@ class LogLinInterpolator:
 
         good = True
         levels = np.array(levels)
-        lev_mask = (0 < levels) & (levels <= max_log_height)
-        var_mask = (0 < lev_array_samp) & (lev_array_samp <= max_log_height)
+        lev_mask = (levels > 0) & (levels <= max_log_height)
+        var_mask = (lev_array_samp > 0) & (lev_array_samp <= max_log_height)
 
         try:
             popt, _ = curve_fit(ws_log_profile, lev_array_samp[var_mask],
@@ -480,8 +480,8 @@ class LogLinInterpolator:
                 max_log_height=max_log_height)
 
         if any(levels > max_log_height):
-            lev_mask = levels >= max_log_height
-            var_mask = lev_array >= max_log_height
+            lev_mask = levels > max_log_height
+            var_mask = lev_array > max_log_height
             if len(lev_array[var_mask]) > 1:
                 lin_ws = interp1d(lev_array[var_mask],
                                   var_array[var_mask],
