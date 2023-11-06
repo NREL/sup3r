@@ -1761,7 +1761,8 @@ class ForwardPass:
                f"{cls.__name__}.run(strategy, {node_index});\n"
                "t_elap = time.time() - t0;\n")
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.FORWARD_PASS, cmd)
+        pipeline_step = config.get('pipeline_step') or ModuleName.FORWARD_PASS
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

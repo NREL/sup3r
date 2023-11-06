@@ -31,10 +31,10 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose=False, **__):
+def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     """Run the sup3r visual QA module from a config file."""
     BaseCLI.from_config(ModuleName.VISUAL_QA, Sup3rVisualQa, ctx, config_file,
-                        verbose)
+                        verbose, pipeline_step)
 
 
 if __name__ == '__main__':

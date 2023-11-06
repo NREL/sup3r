@@ -34,7 +34,7 @@ def main(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging. Default is not verbose.')
 @click.pass_context
-def from_config(ctx, config_file, verbose=False, **__):
+def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     """Run sup3r bias correction calculation from a config file."""
     config = BaseCLI.from_config_preflight(ModuleName.BIAS_CALC, ctx,
                                            config_file, verbose)
@@ -56,6 +56,7 @@ def from_config(ctx, config_file, verbose=False, **__):
         name = ('{}_{}'.format(basename, str(i_node).zfill(6)))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
+        node_config["pipeline_step"] = pipeline_step
 
         cmd = BiasCalcClass.get_node_cmd(node_config)
 
@@ -63,13 +64,14 @@ def from_config(ctx, config_file, verbose=False, **__):
         logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
-            kickoff_slurm_job(ctx, cmd, **exec_kwargs)
+            kickoff_slurm_job(ctx, cmd, pipeline_step, **exec_kwargs)
         else:
-            kickoff_local_job(ctx, cmd)
+            kickoff_local_job(ctx, cmd, pipeline_step)
 
 
-def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
-                      feature=None, stdout_path='./stdout/'):
+def kickoff_slurm_job(ctx, cmd, pipeline_step=None, alloc='sup3r',
+                      memory=None, walltime=4, feature=None,
+                      stdout_path='./stdout/'):
     """Run sup3r on HPC via SLURM job submission.
 
     Parameters
@@ -79,6 +81,10 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
     cmd : str
         Command to be submitted in SLURM shell script. Example:
             'python -m sup3r.cli forward_pass -c <config_file>'
+    pipeline_step : str, optional
+        Name of the pipeline step being run. If ``None``, the
+        ``pipeline_step`` will be set to the ``module_name``,
+        mimicking old reV behavior. By default, ``None``.
     alloc : str
         HPC project (allocation) handle. Example: 'sup3r'.
     memory : int
@@ -92,10 +98,10 @@ def kickoff_slurm_job(ctx, cmd, alloc='sup3r', memory=None, walltime=4,
         Path to print .stdout and .stderr files.
     """
     BaseCLI.kickoff_slurm_job(ModuleName.BIAS_CALC, ctx, cmd, alloc, memory,
-                              walltime, feature, stdout_path)
+                              walltime, feature, stdout_path, pipeline_step)
 
 
-def kickoff_local_job(ctx, cmd):
+def kickoff_local_job(ctx, cmd, pipeline_step=None):
     """Run sup3r bias calc locally.
 
     Parameters
@@ -105,8 +111,12 @@ def kickoff_local_job(ctx, cmd):
     cmd : str
         Command to be submitted in shell script. Example:
             'python -m sup3r.cli forward_pass -c <config_file>'
+    pipeline_step : str, optional
+        Name of the pipeline step being run. If ``None``, the
+        ``pipeline_step`` will be set to the ``module_name``,
+        mimicking old reV behavior. By default, ``None``.
     """
-    BaseCLI.kickoff_local_job(ModuleName.BIAS_CALC, ctx, cmd)
+    BaseCLI.kickoff_local_job(ModuleName.BIAS_CALC, ctx, cmd, pipeline_step)
 
 
 if __name__ == '__main__':
