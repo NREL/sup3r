@@ -52,7 +52,8 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         configs = []
         for feature in config['features']:
             f_config = copy.deepcopy(config)
-            f_out_file = config['out_file'].replace('.h5', f'_{feature}.h5')
+            f_out_file = config['out_file'].replace(
+                f'.{source_type}', f'_{feature}.{source_type}')
             f_job_name = config['job_name'] + f'_{feature}'
             f_log_file = config.get('log_file', None)
             if f_log_file is not None:

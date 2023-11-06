@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""H5 file collection."""
+"""H5/NETCDF file collection."""
 import glob
 import logging
 import os
@@ -24,7 +24,7 @@ from sup3r.utilities.cli import BaseCLI
 logger = logging.getLogger(__name__)
 
 
-class BaseCollector(ABC, OutputMixIn):
+class BaseCollector(OutputMixIn, ABC):
     """Base collector class for H5/NETCDF collection"""
 
     def __init__(self, file_paths):
@@ -58,7 +58,7 @@ class BaseCollector(ABC, OutputMixIn):
         """
         import_str = (
             'from sup3r.postprocessing.collection '
-            f'import {cls.__class__.__name__};\n'
+            f'import {cls.__name__};\n'
             'from rex import init_logger;\n'
             'import time;\n'
             'from gaps import Status;\n'
@@ -96,16 +96,12 @@ class CollectorNC(BaseCollector):
         file_paths,
         out_file,
         features,
-        max_workers=None,
         log_level=None,
         log_file=None,
         write_status=False,
         job_name=None,
-        join_times=False,
-        target_final_meta_file=None,
-        n_writes=None,
         overwrite=True,
-        threshold=1e-4,
+        res_kwargs=None
     ):
         """Collect data files from a dir to one output file.
 
@@ -121,9 +117,6 @@ class CollectorNC(BaseCollector):
             File path of final output file.
         features : list
             List of dsets to collect
-        max_workers : int | None
-            Number of workers to use in parallel. 1 runs serial,
-            None will use all available workers.
         log_level : str | None
             Desired log level, None will not initialize logging.
         log_file : str | None
@@ -132,38 +125,15 @@ class CollectorNC(BaseCollector):
             Flag to write status file once complete if running from pipeline.
         job_name : str
             Job name for status file if running from pipeline.
-        join_times : bool
-            Option to split full file list into chunks with each chunk having
-            the same temporal_chunk_index. The number of writes will then be
-            min(number of temporal chunks, n_writes). This ensures that each
-            write has all the spatial chunks for a given time index. Assumes
-            file_paths have a suffix format
-            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required
-            if there are multiple writes and chunks have different time
-            indices.
-        target_final_meta_file : str
-            Path to target final meta containing coordinates to keep from the
-            full file list collected meta. This can be but is not necessarily a
-            subset of the full list of coordinates for all files in the file
-            list. This is used to remove coordinates from the full file list
-            which are not present in the target_final_meta. Either this full
-            meta or a subset, depending on which coordinates are present in
-            the data to be collected, will be the final meta for the collected
-            output files.
-        n_writes : int | None
-            Number of writes to split full file list into. Must be less than
-            or equal to the number of temporal chunks if chunks have different
-            time indices.
         overwrite : bool
             Whether to overwrite existing output file
-        threshold : float
-            Threshold distance for finding target coordinates within full meta
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
         t0 = time.time()
 
         logger.info(
-            f'Initializing collection for file_paths={file_paths}, '
-            f'with max_workers={max_workers}.'
+            f'Initializing collection for file_paths={file_paths}'
         )
 
         if log_level is not None:
@@ -182,8 +152,13 @@ class CollectorNC(BaseCollector):
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
-        out = xr.open_mfdataset(collector.flist)
-        out.to_netcdf(out_file)
+        if not os.path.exists(out_file):
+            res_kwargs = (res_kwargs
+                          or {"concat_dim": "Time", "combine": "nested"})
+            out = xr.open_mfdataset(collector.flist, **res_kwargs)
+            features = [feat for feat in out if feat in features
+                        or feat.lower() in features]
+            out[features].to_netcdf(out_file)
 
         if write_status and job_name is not None:
             status = {

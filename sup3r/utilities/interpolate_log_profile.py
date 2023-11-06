@@ -33,8 +33,8 @@ class LogLinInterpolator:
     """
 
     DEFAULT_OUTPUT_HEIGHTS: ClassVar[dict] = {
-        'u': [40, 80, 120, 160, 200],
-        'v': [40, 80, 120, 160, 200],
+        'u': [10, 40, 80, 100, 120, 160, 200],
+        'v': [10, 40, 80, 100, 120, 160, 200],
         'temperature': [10, 40, 80, 100, 120, 160, 200],
         'pressure': [0, 100, 200],
         'relative_humidity': [80, 100, 120],
