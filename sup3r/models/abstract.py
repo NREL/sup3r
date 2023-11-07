@@ -96,6 +96,16 @@ class AbstractInterface(ABC):
         else:
             return 5
 
+    @property
+    def is_5d(self):
+        """Check if model expects spatiotemporal input"""
+        return self.input_dims == 5
+
+    @property
+    def is_4d(self):
+        """Check if model expects spatial only input"""
+        return self.input_dims == 4
+
     # pylint: disable=E1101
     def get_s_enhance_from_layers(self):
         """Compute factor by which model will enhance spatial resolution from

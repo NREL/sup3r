@@ -46,21 +46,20 @@ class EraDownloader:
     req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
     assert os.path.exists(req_file), msg
 
-    VALID_VARIABLES: ClassVar[list] = [
-        'u', 'v', 'pressure', 'temperature', 'relative_humidity',
-        'specific_humidity', 'total_precipitation',
-        'convective_available_potential_energy', 'divergence'
-    ]
+    VALID_VARIABLES: ClassVar[list] = ['u', 'v']
 
     SFC_VARS: ClassVar[list] = [
         '10m_u_component_of_wind', '10m_v_component_of_wind',
         '100m_u_component_of_wind', '100m_v_component_of_wind',
         'surface_pressure', '2m_temperature', 'geopotential',
-        'total_precipitation', "convective_available_potential_energy"
+        'total_precipitation', "convective_available_potential_energy",
+        "2m_dewpoint_temperature", "convective_inhibition",
+        "surface_latent_heat_flux", "instantaneous_moisture_flux"
     ]
     LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind', 'v_component_of_wind', 'geopotential',
-        'temperature', 'relative_humidity', 'specific_humidity', 'divergence'
+        'temperature', 'relative_humidity', 'specific_humidity', 'divergence',
+        'vertical_velocity', 'pressure', 'potential_vorticity'
     ]
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
@@ -69,14 +68,12 @@ class EraDownloader:
         'v100': 'v_100m',
         't': 'temperature',
         't2m': 'temperature_2m',
-        'u': 'u',
-        'v': 'v',
         'sp': 'pressure_0m',
         'r': 'relative_humidity',
         'q': 'specific_humidity',
         'tp': 'total_precipitation',
-        'cape': 'cape',
-        'd': 'divergence'
+        'd': 'divergence',
+        '2d': 'surface_dewpoint',
     }
 
     def __init__(self,
@@ -164,11 +161,11 @@ class EraDownloader:
     @property
     def interp_file(self):
         """Get name of file with interpolated variables"""
-        if self._interp_file is None:
-            if self.interp_out_pattern is not None and self.run_interp:
-                self._interp_file = self.interp_out_pattern.format(
-                    year=self.year, month=str(self.month).zfill(2))
-                os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
+        if (self._interp_file is None and self.interp_out_pattern is not None
+                and self.run_interp):
+            self._interp_file = self.interp_out_pattern.format(
+                year=self.year, month=str(self.month).zfill(2))
+            os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
         return self._interp_file
 
     @property
@@ -248,7 +245,9 @@ class EraDownloader:
         variables : list
             List of variables to download. Can be any of VALID_VARIABLES
         """
-        good = all(var in self.VALID_VARIABLES for var in variables)
+        valid_vars = (self.VALID_VARIABLES + list(self.LEVEL_VARS)
+                      + list(self.SFC_VARS))
+        good = all(var in valid_vars for var in variables)
         if not good:
             msg = (f'Received variables {variables} not in valid variables '
                    f'list {self.VALID_VARIABLES}')
