@@ -340,7 +340,16 @@ class CollectorH5(BaseCollector):
                 f_data = np.round(f_data)
 
             f_data = f_data.astype(dtype)
-            self.data[row_slice, col_slice] = f_data
+
+            try:
+                self.data[row_slice, col_slice] = f_data
+            except Exception as e:
+                msg = (f'Failed to add data to self.data[{row_slice}, '
+                       f'{col_slice}] for feature={feature}, '
+                       f'file_path={file_path}, time_index={time_index}, '
+                       f'meta={meta}. {e}')
+                logger.error(msg)
+                raise OSError(msg) from e
 
     def _get_file_attrs(self, file):
         """Get meta data and time index for a single file"""
@@ -778,9 +787,7 @@ class CollectorH5(BaseCollector):
         for file in file_paths:
             t_chunk = file.split('_')[-2]
             file_split[t_chunk] = [*file_split.get(t_chunk, []), file]
-        file_chunks = []
-        for files in file_split.values():
-            file_chunks.append(files)
+        file_chunks = list(file_split.values())
 
         logger.debug(
             f'Split file list into {len(file_chunks)} chunks '
