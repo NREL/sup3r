@@ -383,9 +383,8 @@ class ForwardPassSlicer:
         if self._hr_crop_slices is None:
             self._hr_crop_slices = []
             for t in self.t_hr_crop_slices:
-                node_slices = []
-                for s in self.s_hr_crop_slices:
-                    node_slices.append((s[0], s[1], t, slice(None)))
+                node_slices = [(s[0], s[1], t, slice(None))
+                               for s in self.s_hr_crop_slices]
                 self._hr_crop_slices.append(node_slices)
         return self._hr_crop_slices
 
@@ -805,7 +804,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                     f'n_spatial_chunks={self.fwp_slicer.n_spatial_chunks}, '
                     f'n_temporal_chunks={self.fwp_slicer.n_temporal_chunks}, '
                     f'and n_total_chunks={self.chunks}. '
-                    f'{self.chunks / self.nodes} chunks per node on average.')
+                    f'{self.chunks / self.nodes:.3f} chunks per node on '
+                    'average.')
         logger.info(f'Using max_workers={self.max_workers}, '
                     f'pass_workers={self.pass_workers}, '
                     f'output_workers={self.output_workers}')
@@ -847,7 +847,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             out = self.input_handler_class(self.file_paths[0], [],
                                            target=self.target,
                                            shape=self.grid_shape,
-                                           worker_kwargs=dict(ti_workers=1))
+                                           worker_kwargs={"ti_workers": 1})
             self._init_handler = out
         return self._init_handler
 
@@ -1165,17 +1165,17 @@ class ForwardPass:
             data handler for the current forward pass chunk
         """
         input_handler_kwargs = copy.deepcopy(strategy._input_handler_kwargs)
-        fwp_input_handler_kwargs = dict(
-            file_paths=self.file_paths,
-            features=self.features,
-            target=self.target,
-            shape=self.shape,
-            temporal_slice=self.temporal_pad_slice,
-            raster_file=self.raster_file,
-            cache_pattern=self.cache_pattern,
-            single_ts_files=self.single_ts_files,
-            handle_features=strategy.handle_features,
-            val_split=0.0)
+        fwp_input_handler_kwargs = {
+            "file_paths": self.file_paths,
+            "features": self.features,
+            "target": self.target,
+            "shape": self.shape,
+            "temporal_slice": self.temporal_pad_slice,
+            "raster_file": self.raster_file,
+            "cache_pattern": self.cache_pattern,
+            "single_ts_files": self.single_ts_files,
+            "handle_features": strategy.handle_features,
+            "val_split": 0.0}
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs
 
@@ -1761,7 +1761,8 @@ class ForwardPass:
                f"{cls.__name__}.run(strategy, {node_index});\n"
                "t_elap = time.time() - t0;\n")
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.FORWARD_PASS, cmd)
+        pipeline_step = config.get('pipeline_step') or ModuleName.FORWARD_PASS
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
@@ -1899,7 +1900,7 @@ class ForwardPass:
 
         futures = {}
         start = dt.now()
-        pool_kws = dict(max_workers=strategy.pass_workers, loggers=['sup3r'])
+        pool_kws = {"max_workers": strategy.pass_workers, "loggers": ['sup3r']}
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):

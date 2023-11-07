@@ -80,8 +80,8 @@ class BaseCollector(OutputMixIn, ABC):
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_COLLECT, cmd)
-
+        pipeline_step = config.get('pipeline_step') or ModuleName.DATA_COLLECT
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
@@ -340,7 +340,16 @@ class CollectorH5(BaseCollector):
                 f_data = np.round(f_data)
 
             f_data = f_data.astype(dtype)
-            self.data[row_slice, col_slice] = f_data
+
+            try:
+                self.data[row_slice, col_slice] = f_data
+            except Exception as e:
+                msg = (f'Failed to add data to self.data[{row_slice}, '
+                       f'{col_slice}] for feature={feature}, '
+                       f'file_path={file_path}, time_index={time_index}, '
+                       f'meta={meta}. {e}')
+                logger.error(msg)
+                raise OSError(msg) from e
 
     def _get_file_attrs(self, file):
         """Get meta data and time index for a single file"""
@@ -778,9 +787,7 @@ class CollectorH5(BaseCollector):
         for file in file_paths:
             t_chunk = file.split('_')[-2]
             file_split[t_chunk] = [*file_split.get(t_chunk, []), file]
-        file_chunks = []
-        for files in file_split.values():
-            file_chunks.append(files)
+        file_chunks = list(file_split.values())
 
         logger.debug(
             f'Split file list into {len(file_chunks)} chunks '
@@ -849,6 +856,7 @@ class CollectorH5(BaseCollector):
         log_file=None,
         write_status=False,
         job_name=None,
+        pipeline_step=None,
         join_times=False,
         target_final_meta_file=None,
         n_writes=None,
@@ -880,6 +888,10 @@ class CollectorH5(BaseCollector):
             Flag to write status file once complete if running from pipeline.
         job_name : str
             Job name for status file if running from pipeline.
+        pipeline_step : str, optional
+            Name of the pipeline step being run. If ``None``, the
+            ``pipeline_step`` will be set to the ``"collect``,
+            mimicking old reV behavior. By default, ``None``.
         join_times : bool
             Option to split full file list into chunks with each chunk having
             the same temporal_chunk_index. The number of writes will then be
@@ -1003,8 +1015,9 @@ class CollectorH5(BaseCollector):
                 'job_status': 'successful',
                 'runtime': (time.time() - t0) / 60,
             }
+            pipeline_step = pipeline_step or 'collect'
             Status.make_single_job_file(
-                os.path.dirname(out_file), 'collect', job_name, status
+                os.path.dirname(out_file), pipeline_step, job_name, status
             )
 
         logger.info('Finished file collection.')

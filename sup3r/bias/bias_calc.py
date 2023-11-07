@@ -211,7 +211,8 @@ class DataRetrievalBase:
                f"{fun_str};\n"
                "t_elap = time.time() - t0;\n")
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.BIAS_CALC, cmd)
+        pipeline_step = config.get('pipeline_step') or ModuleName.BIAS_CALC
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

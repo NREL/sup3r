@@ -154,7 +154,8 @@ class Sup3rStatsBase(ABC):
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.STATS, cmd)
+        pipeline_step = config.get('pipeline_step') or ModuleName.STATS
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')

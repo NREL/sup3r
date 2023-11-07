@@ -524,10 +524,11 @@ class Solar:
         )
 
         job_name = config.get('job_name', None)
+        pipeline_step = config.get('pipeline_step') or ModuleName.SOLAR
         if job_name is not None:
             status_dir = config.get('status_dir', None)
             status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'pipeline_step="{ModuleName.SOLAR}", '
+            status_file_arg_str += f'pipeline_step="{pipeline_step}", '
             status_file_arg_str += f'job_name="{job_name}", '
             status_file_arg_str += 'attrs=job_attrs'
 

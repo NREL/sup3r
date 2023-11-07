@@ -816,8 +816,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                f"data_handler = {dh_init_str};\n"
                "t_elap = time.time() - t0;\n")
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.DATA_EXTRACT, cmd)
-
+        pipeline_step = config.get('pipeline_step') or ModuleName.DATA_EXTRACT
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
         return cmd.replace('\\', '/')
 
