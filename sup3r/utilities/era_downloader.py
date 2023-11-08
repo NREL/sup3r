@@ -544,10 +544,19 @@ class EraDownloader:
         """Run interpolation to get final final. Runs log interpolation up to
         max_log_height (usually 100m) and linear interpolation above this.
         """
+        variables = [var for var in self.variables if var in self.LEVEL_VARS]
+        for var in self.variables:
+            if var in self.NAME_MAP:
+                variables.append(self.NAME_MAP[var])
+            elif (var in self.SHORT_NAME_MAP
+                    and var not in self.NAME_MAP.values()):
+                variables.append(self.SHORT_NAME_MAP[var])
+            else:
+                variables.append(var)
         LogLinInterpolator.run(infile=self.combined_file,
                                outfile=self.interp_file,
                                max_workers=max_workers,
-                               variables=self.variables,
+                               variables=variables,
                                overwrite=self.overwrite,
                                **kwargs)
 

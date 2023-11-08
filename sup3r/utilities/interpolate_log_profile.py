@@ -148,7 +148,8 @@ class LogLinInterpolator:
     def load(self):
         """Load ERA5 data and create data arrays"""
         self.data_dict = {}
-        for var in self.variables:
+        vars = [var for var in self.variables if var in self.new_heights]
+        for var in vars:
             self.data_dict[var] = {}
             out = self._load_single_var(var)
             self.data_dict[var]['heights'] = out[0]
