@@ -275,7 +275,8 @@ class Sup3rVisualQa:
             "t_elap = time.time() - t0;\n"
         )
 
-        cmd = BaseCLI.add_status_cmd(config, ModuleName.VISUAL_QA, cmd)
+        pipeline_step = config.get('pipeline_step') or ModuleName.VISUAL_QA
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
