@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
-"""H5 file collection."""
+"""H5/NETCDF file collection."""
 import glob
 import logging
 import os
 import time
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import psutil
+import xarray as xr
 from gaps import Status
 from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
@@ -22,23 +24,27 @@ from sup3r.utilities.cli import BaseCLI
 logger = logging.getLogger(__name__)
 
 
-class Collector(OutputMixIn):
-    """Sup3r H5 file collection framework"""
+class BaseCollector(OutputMixIn, ABC):
+    """Base collector class for H5/NETCDF collection"""
 
     def __init__(self, file_paths):
         """Parameters
         ----------
         file_paths : list | str
             Explicit list of str file paths that will be sorted and collected
-            or a single string with unix-style /search/patt*ern.h5. Files
-            should have non-overlapping time_index dataset and fully
-            overlapping meta dataset.
+            or a single string with unix-style /search/patt*ern.<ext>. Files
+            should have non-overlapping time_index and spatial domains.
         """
         if not isinstance(file_paths, list):
             file_paths = glob.glob(file_paths)
         self.flist = sorted(file_paths)
         self.data = None
         self.file_attrs = {}
+
+    @classmethod
+    @abstractmethod
+    def collect(cls, *args, **kwargs):
+        """Collect data files from a dir to one output file."""
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -52,7 +58,7 @@ class Collector(OutputMixIn):
         """
         import_str = (
             'from sup3r.postprocessing.collection '
-            'import Collector;\n'
+            f'import {cls.__name__};\n'
             'from rex import init_logger;\n'
             'import time;\n'
             'from gaps import Status;\n'
@@ -79,6 +85,98 @@ class Collector(OutputMixIn):
         cmd += ";\'\n"
 
         return cmd.replace('\\', '/')
+
+
+class CollectorNC(BaseCollector):
+    """Sup3r NETCDF file collection framework"""
+
+    @classmethod
+    def collect(
+        cls,
+        file_paths,
+        out_file,
+        features,
+        log_level=None,
+        log_file=None,
+        write_status=False,
+        job_name=None,
+        overwrite=True,
+        res_kwargs=None
+    ):
+        """Collect data files from a dir to one output file.
+
+        Filename requirements:
+         - Should end with ".nc"
+
+        Parameters
+        ----------
+        file_paths : list | str
+            Explicit list of str file paths that will be sorted and collected
+            or a single string with unix-style /search/patt*ern.nc.
+        out_file : str
+            File path of final output file.
+        features : list
+            List of dsets to collect
+        log_level : str | None
+            Desired log level, None will not initialize logging.
+        log_file : str | None
+            Target log file. None logs to stdout.
+        write_status : bool
+            Flag to write status file once complete if running from pipeline.
+        job_name : str
+            Job name for status file if running from pipeline.
+        overwrite : bool
+            Whether to overwrite existing output file
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
+        """
+        t0 = time.time()
+
+        logger.info(
+            f'Initializing collection for file_paths={file_paths}'
+        )
+
+        if log_level is not None:
+            init_logger(
+                'sup3r.preprocessing', log_file=log_file, log_level=log_level
+            )
+
+        if not os.path.exists(os.path.dirname(out_file)):
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+        collector = cls(file_paths)
+        logger.info(
+            'Collecting {} files to {}'.format(len(collector.flist), out_file)
+        )
+        if overwrite and os.path.exists(out_file):
+            logger.info(f'overwrite=True, removing {out_file}.')
+            os.remove(out_file)
+
+        if not os.path.exists(out_file):
+            res_kwargs = (res_kwargs
+                          or {"concat_dim": "Time", "combine": "nested"})
+            out = xr.open_mfdataset(collector.flist, **res_kwargs)
+            features = [feat for feat in out if feat in features
+                        or feat.lower() in features]
+            out[features].to_netcdf(out_file)
+
+        if write_status and job_name is not None:
+            status = {
+                'out_dir': os.path.dirname(out_file),
+                'fout': out_file,
+                'flist': collector.flist,
+                'job_status': 'successful',
+                'runtime': (time.time() - t0) / 60,
+            }
+            Status.make_single_job_file(
+                os.path.dirname(out_file), 'collect', job_name, status
+            )
+
+        logger.info('Finished file collection.')
+
+
+class CollectorH5(BaseCollector):
+    """Sup3r H5 file collection framework"""
 
     @classmethod
     def get_slices(
@@ -230,7 +328,7 @@ class Collector(OutputMixIn):
             warn(msg)
 
         else:
-            row_slice, col_slice = Collector.get_slices(
+            row_slice, col_slice = self.get_slices(
                 time_index, meta, f_ti, f_meta
             )
 
@@ -242,7 +340,16 @@ class Collector(OutputMixIn):
                 f_data = np.round(f_data)
 
             f_data = f_data.astype(dtype)
-            self.data[row_slice, col_slice] = f_data
+
+            try:
+                self.data[row_slice, col_slice] = f_data
+            except Exception as e:
+                msg = (f'Failed to add data to self.data[{row_slice}, '
+                       f'{col_slice}] for feature={feature}, '
+                       f'file_path={file_path}, time_index={time_index}, '
+                       f'meta={meta}. {e}')
+                logger.error(msg)
+                raise OSError(msg) from e
 
     def _get_file_attrs(self, file):
         """Get meta data and time index for a single file"""
@@ -494,13 +601,13 @@ class Collector(OutputMixIn):
         """
         with RexOutputs(out_file, mode='r') as f:
             target_ti = f.time_index
-            y_write_slice, x_write_slice = Collector.get_slices(
+            y_write_slice, x_write_slice = self.get_slices(
                 target_ti,
                 target_masked_meta,
                 time_index,
                 subset_masked_meta,
             )
-        Collector._ensure_dset_in_output(out_file, feature)
+        self._ensure_dset_in_output(out_file, feature)
 
         with RexOutputs(out_file, mode='a') as f:
             try:
@@ -680,9 +787,7 @@ class Collector(OutputMixIn):
         for file in file_paths:
             t_chunk = file.split('_')[-2]
             file_split[t_chunk] = [*file_split.get(t_chunk, []), file]
-        file_chunks = []
-        for files in file_split.values():
-            file_chunks.append(files)
+        file_chunks = list(file_split.values())
 
         logger.debug(
             f'Split file list into {len(file_chunks)} chunks '

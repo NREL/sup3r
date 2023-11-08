@@ -15,7 +15,7 @@ import sup3r.preprocessing.data_handling
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
 from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
-from sup3r.utilities.utilities import get_source_type
+from sup3r.utilities.utilities import generate_random_string, get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -337,7 +337,7 @@ class ExoExtract(ABC):
                                        t_enhance=self._t_enhance,
                                        s_agg_factor=self._s_agg_factor,
                                        t_agg_factor=self._t_agg_factor)
-        tmp_fp = cache_fp + '.tmp'
+        tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
         if os.path.exists(cache_fp):
             with open(cache_fp, 'rb') as f:
                 data = pickle.load(f)

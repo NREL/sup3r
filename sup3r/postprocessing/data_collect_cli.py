@@ -2,15 +2,16 @@
 """
 sup3r data collection CLI entry points.
 """
-import click
-import logging
 import copy
+import logging
 
+import click
+
+from sup3r.postprocessing.collection import CollectorH5, CollectorNC
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
-from sup3r.postprocessing.collection import Collector
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-
+from sup3r.utilities.utilities import get_source_type
+from sup3r.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,17 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     dset_split = config.get('dset_split', False)
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
+    source_type = get_source_type(config['file_paths'])
+    collector_types = {'h5': CollectorH5, 'nc': CollectorNC}
+    Collector = collector_types[source_type]
 
     configs = [config]
     if dset_split:
         configs = []
         for feature in config['features']:
             f_config = copy.deepcopy(config)
-            f_out_file = config['out_file'].replace('.h5', f'_{feature}.h5')
+            f_out_file = config['out_file'].replace(
+                f'.{source_type}', f'_{feature}.{source_type}')
             f_job_name = config['job_name'] + f'_{feature}'
             f_log_file = config.get('log_file', None)
             if f_log_file is not None:

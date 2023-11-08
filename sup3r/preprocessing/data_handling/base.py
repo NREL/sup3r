@@ -1261,8 +1261,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 dset_scalar = f'{feature}_scalar'
                 dset_adder = f'{feature}_adder'
                 with Resource(fp) as res:
-                    check = (dset_scalar in res.dsets
-                             and dset_adder in res.dsets)
+                    dsets = [dset.lower() for dset in res.dsets]
+                    check = (dset_scalar.lower() in dsets
+                             and dset_adder.lower() in dsets)
                 if feature not in completed and check:
                     scalar, adder = get_spatial_bc_factors(
                         lat_lon=self.lat_lon,

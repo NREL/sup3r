@@ -914,6 +914,10 @@ class TrainingPrepMixIn:
     """Collection of training related methods. e.g. Training + Validation
     splitting, normalization"""
 
+    def __init__(self):
+        """Initialize common attributes"""
+        self.features = None
+
     @classmethod
     def _split_data_indices(cls,
                             data,
@@ -1034,10 +1038,12 @@ class TrainingPrepMixIn:
                 val_data[..., feature_index] /= std
             data[..., feature_index] /= std
         else:
-            msg = (
-                f'Standard Deviation is zero for feature #{feature_index + 1}')
+            msg = ('Standard Deviation is zero for '
+                   f'{self.features[feature_index]}')
             logger.warning(msg)
             warnings.warn(msg)
+
+        logger.info(f'Finished normalizing {self.features[feature_index]}.')
 
     def _normalize(self, data, val_data, means, stds, max_workers=None):
         """Normalize all data features

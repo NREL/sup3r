@@ -7,7 +7,9 @@
 import glob
 import logging
 import os
+import random
 import re
+import string
 from fnmatch import fnmatch
 from warnings import warn
 
@@ -24,6 +26,14 @@ from scipy.ndimage.filters import gaussian_filter
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def generate_random_string(length):
+    """Generate random string with given length. Used for naming temporary
+    files to avoid collisions."""
+    letters = string.ascii_letters
+    random_string = ''.join(random.choice(letters) for i in range(length))
+    return random_string
 
 
 def windspeed_log_law(z, a, b, c):
