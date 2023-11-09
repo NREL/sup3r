@@ -1166,8 +1166,8 @@ class AbstractSingleModel(ABC):
                                                       **calc_loss_kwargs)
             optimizer.apply_gradients(zip(grad, training_weights))
             t1 = time.time()
-            logger.debug(f'Finished single gradient descent steps on '
-                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
+            logger.debug(f'Finished single gradient descent step '
+                         f'in {(t1 - t0):.3f}s')
 
         else:
             futures = []
