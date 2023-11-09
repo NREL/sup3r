@@ -894,7 +894,7 @@ class MonthlyLinearCorrection(LinearCorrection):
         return out
 
 
-class MonthlyLinearCorrectionScalarOnly(MonthlyLinearCorrection):
+class MonthlyScalarCorrection(MonthlyLinearCorrection):
     """Calculate linear correction *scalar factors to bias correct data. This
     typically used when base data is just monthly means and standard deviations
     cannot be computed. This is case for vortex data, for example. Thus, just
