@@ -29,14 +29,18 @@ logger = logging.getLogger(__name__)
 class LogLinInterpolator:
     """Open ERA5 file, log interpolate wind components between 0 -
     max_log_height, linearly interpolate components above max_log_height
-    meters, and save to file"""
+    meters, and save to file
+    """
 
     DEFAULT_OUTPUT_HEIGHTS: ClassVar[dict] = {
-        'u': [40, 80, 120, 160, 200],
-        'v': [40, 80, 120, 160, 200],
+        'u': [10, 40, 80, 100, 120, 160, 200],
+        'v': [10, 40, 80, 100, 120, 160, 200],
+        'w': [10, 40, 80, 100, 120, 160, 200],
+        'pv': [10, 40, 80, 100, 120, 160, 200],
         'temperature': [10, 40, 80, 100, 120, 160, 200],
         'pressure': [0, 100, 200],
         'relative_humidity': [80, 100, 120],
+        'divergence': [80, 100, 120]
     }
 
     def __init__(
@@ -144,7 +148,8 @@ class LogLinInterpolator:
     def load(self):
         """Load ERA5 data and create data arrays"""
         self.data_dict = {}
-        for var in self.variables:
+        vars = [var for var in self.variables if var in self.new_heights]
+        for var in vars:
             self.data_dict[var] = {}
             out = self._load_single_var(var)
             self.data_dict[var]['heights'] = out[0]
@@ -153,7 +158,8 @@ class LogLinInterpolator:
 
     def interpolate_vars(self, max_workers=None):
         """Interpolate u/v wind components below 100m using log profile.
-        Interpolate non wind data linearly."""
+        Interpolate non wind data linearly.
+        """
         for var, arrs in self.data_dict.items():
             max_log_height = self.max_log_height
             if var not in ('u', 'v'):
@@ -232,7 +238,8 @@ class LogLinInterpolator:
     @classmethod
     def get_tmp_file(cls, file):
         """Get temp file for given file. Then only needed variables will be
-        written to the given file."""
+        written to the given file.
+        """
         tmp_file = file.replace('.nc', '_tmp.nc')
         return tmp_file
 
@@ -401,8 +408,8 @@ class LogLinInterpolator:
 
         good = True
         levels = np.array(levels)
-        lev_mask = (0 < levels) & (levels <= max_log_height)
-        var_mask = (0 < lev_array_samp) & (lev_array_samp <= max_log_height)
+        lev_mask = (levels > 0) & (levels <= max_log_height)
+        var_mask = (lev_array_samp > 0) & (lev_array_samp <= max_log_height)
 
         try:
             popt, _ = curve_fit(ws_log_profile, lev_array_samp[var_mask],
@@ -476,8 +483,8 @@ class LogLinInterpolator:
                 max_log_height=max_log_height)
 
         if any(levels > max_log_height):
-            lev_mask = levels >= max_log_height
-            var_mask = lev_array >= max_log_height
+            lev_mask = levels > max_log_height
+            var_mask = lev_array > max_log_height
             if len(lev_array[var_mask]) > 1:
                 lin_ws = interp1d(lev_array[var_mask],
                                   var_array[var_mask],
@@ -581,7 +588,6 @@ class LogLinInterpolator:
         out_array : ndarray
             Array of interpolated values.
         """
-
         # Interp each vertical column of height and var to requested levels
         zip_iter = zip(hgt_t, var_t, mask)
         out_array = []

@@ -13,6 +13,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pandas as pd
+import psutil
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
@@ -31,6 +32,7 @@ class CacheHandlingMixIn:
     """Collection of methods for handling data caching and loading"""
 
     def __init__(self):
+        """Initialize common attributes"""
         self._noncached_features = None
         self._cache_pattern = None
         self._cache_files = None
@@ -282,10 +284,13 @@ class CacheHandlingMixIn:
             Error raised if shape conflicts with requested shape
         """
         idx = cache_files.index(fp)
-        assert features[idx].lower() in fp.lower()
+        msg = f'{features[idx].lower()} not found in {fp.lower()}.'
+        assert features[idx].lower() in fp.lower(), msg
         fp = ignore_case_path_fetch(fp)
-        logger.info(f'Loading {features[idx]} from '
-                    f'{fp}.')
+        mem = psutil.virtual_memory()
+        logger.info(f'Loading {features[idx]} from {fp}. Current memory '
+                    f'usage is {mem.used / 1e9:.3f} GB out of '
+                    f'{mem.total / 1e9:.3f} GB total.')
 
         out = None
         with open(fp, 'rb') as fh:
@@ -909,6 +914,10 @@ class TrainingPrepMixIn:
     """Collection of training related methods. e.g. Training + Validation
     splitting, normalization"""
 
+    def __init__(self):
+        """Initialize common attributes"""
+        self.features = None
+
     @classmethod
     def _split_data_indices(cls,
                             data,
@@ -1029,10 +1038,12 @@ class TrainingPrepMixIn:
                 val_data[..., feature_index] /= std
             data[..., feature_index] /= std
         else:
-            msg = (
-                f'Standard Deviation is zero for feature #{feature_index + 1}')
+            msg = ('Standard Deviation is zero for '
+                   f'{self.features[feature_index]}')
             logger.warning(msg)
             warnings.warn(msg)
+
+        logger.info(f'Finished normalizing {self.features[feature_index]}.')
 
     def _normalize(self, data, val_data, means, stds, max_workers=None):
         """Normalize all data features
@@ -1054,6 +1065,10 @@ class TrainingPrepMixIn:
         max_workers : int | None
             Number of workers to use in thread pool for nomalization.
         """
+        msg = f'Received {len(means)} means for {data.shape[-1]} features'
+        assert len(means) == data.shape[-1], msg
+        msg = f'Received {len(stds)} stds for {data.shape[-1]} features'
+        assert len(stds) == data.shape[-1], msg
         logger.info(f'Normalizing {data.shape[-1]} features.')
         if max_workers == 1:
             for i in range(data.shape[-1]):

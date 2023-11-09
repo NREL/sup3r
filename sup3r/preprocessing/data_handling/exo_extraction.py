@@ -1,6 +1,9 @@
 """Sup3r topography utilities"""
 
 import logging
+import os
+import pickle
+import shutil
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -12,7 +15,7 @@ import sup3r.preprocessing.data_handling
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
 from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
-from sup3r.utilities.utilities import get_source_type
+from sup3r.utilities.utilities import generate_random_string, get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +40,11 @@ class ExoExtract(ABC):
                  raster_file=None,
                  max_delta=20,
                  input_handler=None,
-                 ti_workers=1):
-        """
-        Parameters
+                 cache_data=True,
+                 cache_dir='./exo_cache/',
+                 ti_workers=1,
+                 res_kwargs=None):
+        """Parameters
         ----------
         file_paths : str | list
             A single source h5 file to extract raster data from or a list
@@ -100,6 +105,12 @@ class ExoExtract(ABC):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        cache_data : bool
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents when the exo
+            data is time independent.
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
         ti_workers : int | None
             max number of workers to use to get full time index. Useful when
             there are many input files each with a single time step. If this is
@@ -107,8 +118,10 @@ class ExoExtract(ABC):
             parallel and then concatenated to get the full time index. If input
             files do not all have time indices or if there are few input files
             this should be set to one.
+        res_kwargs : dict | None
+            Dictionary of kwargs passed to lowest level resource handler. e.g.
+            xr.open_dataset(file_paths, **res_kwargs)
         """
-
         logger.info(f'Initializing {self.__class__.__name__} utility.')
 
         self.ti_workers = ti_workers
@@ -122,6 +135,12 @@ class ExoExtract(ABC):
         self._source_lat_lon = None
         self._hr_time_index = None
         self._src_time_index = None
+        self.cache_data = cache_data
+        self.cache_dir = cache_dir
+        self.temporal_slice = temporal_slice
+        self.target = target
+        self.shape = shape
+        self.res_kwargs = res_kwargs
 
         if input_handler is None:
             in_type = get_source_type(file_paths)
@@ -152,6 +171,7 @@ class ExoExtract(ABC):
             raster_file=raster_file,
             max_delta=max_delta,
             worker_kwargs=dict(ti_workers=ti_workers),
+            res_kwargs=self.res_kwargs
         )
 
     @property
@@ -159,10 +179,52 @@ class ExoExtract(ABC):
     def source_data(self):
         """Get the 1D array of source data from the exo_source_h5"""
 
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
+        """Get cache file name
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        tsteps = (None if self.temporal_slice is None
+                  or self.temporal_slice.start is None
+                  or self.temporal_slice.stop is None
+                  else self.temporal_slice.stop - self.temporal_slice.start)
+        fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
+        fn += f'_sagg{s_agg_factor}_tagg{t_agg_factor}_{s_enhance}x_'
+        fn += f'{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(self.cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(self.cache_dir, exist_ok=True)
+        return cache_fp
+
     @property
     def source_temporal_slice(self):
         """Get the temporal slice for the exo_source data corresponding to the
-        input file temporal slice"""
+        input file temporal slice
+        """
         start_index = self.source_time_index.get_indexer(
             [self.input_handler.hr_time_index[0]], method='nearest')[0]
         end_index = self.source_time_index.get_indexer(
@@ -270,6 +332,34 @@ class ExoExtract(ABC):
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
         """
+        cache_fp = self.get_cache_file(feature=self.__class__.__name__,
+                                       s_enhance=self._s_enhance,
+                                       t_enhance=self._t_enhance,
+                                       s_agg_factor=self._s_agg_factor,
+                                       t_agg_factor=self._t_agg_factor)
+        tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
+        if os.path.exists(cache_fp):
+            with open(cache_fp, 'rb') as f:
+                data = pickle.load(f)
+
+        else:
+            data = self.get_data()
+
+            if self.cache_data:
+                with open(tmp_fp, 'wb') as f:
+                    pickle.dump(data, f)
+                shutil.move(tmp_fp, cache_fp)
+
+        if data.shape[-1] == 1 and self.hr_shape[-1] > 1:
+            data = np.repeat(data, self.hr_shape[-1], axis=-1)
+
+        return data[..., np.newaxis]
+
+    def get_data(self):
+        """Get a raster of source values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, temporal, 1)
+        """
         nn = self.nn
         hr_data = []
         for j in range(self._s_agg_factor):
@@ -278,7 +368,7 @@ class ExoExtract(ABC):
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data[..., np.newaxis]
+        return hr_data
 
     @classmethod
     def get_exo_raster(cls,
@@ -293,7 +383,9 @@ class ExoExtract(ABC):
                        temporal_slice=None,
                        raster_file=None,
                        max_delta=20,
-                       input_handler=None):
+                       input_handler=None,
+                       cache_data=True,
+                       cache_dir='./exo_cache/'):
         """Get the exo feature raster corresponding to the spatially enhanced
         grid from the file_paths input
 
@@ -356,6 +448,12 @@ class ExoExtract(ABC):
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
+        cache_data : bool
+            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
+            speed up forward passes with large temporal extents when the exo
+            data is time independent.
+        cache_dir : str
+            Directory for storing cache data. Default is './exo_cache'
 
         Returns
         -------
@@ -377,7 +475,9 @@ class ExoExtract(ABC):
                   temporal_slice=temporal_slice,
                   raster_file=raster_file,
                   max_delta=max_delta,
-                  input_handler=input_handler)
+                  input_handler=input_handler,
+                  cache_data=cache_data,
+                  cache_dir=cache_dir)
         return exo.data
 
 
@@ -389,8 +489,7 @@ class TopoExtractH5(ExoExtract):
         """Get the 1D array of elevation data from the exo_source_h5"""
         with Resource(self._exo_source) as res:
             elev = res.get_meta_arr('elevation')
-            elev = np.repeat(elev[:, np.newaxis], self.hr_shape[-1], axis=-1)
-        return elev
+        return elev[:, np.newaxis]
 
     @property
     def source_lat_lon(self):
@@ -407,8 +506,7 @@ class TopoExtractH5(ExoExtract):
                 self._src_time_index = res.time_index
         return self._src_time_index
 
-    @property
-    def data(self):
+    def get_data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
@@ -417,26 +515,61 @@ class TopoExtractH5(ExoExtract):
         hr_data = []
         for j in range(self._s_agg_factor):
             out = self.source_data[nn[:, j]]
-            out = out.reshape(self.hr_shape)
+            out = out.reshape((*self.hr_shape[:-1], -1))
             hr_data.append(out[..., np.newaxis])
         hr_data = np.concatenate(hr_data, axis=-1).mean(axis=-1)
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
-        return hr_data[..., np.newaxis]
+        return hr_data
+
+    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
+                       t_agg_factor):
+        """Get cache file name. This uses a time independent naming convention.
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature to get cache file for
+        s_enhance : int
+            Spatial enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        t_enhance : int
+            Temporal enhancement for this exogeneous data step (cumulative for
+            all model steps up to the current step).
+        s_agg_factor : int
+            Factor by which to aggregate the exo_source data to the spatial
+            resolution of the file_paths input enhanced by s_enhance.
+        t_agg_factor : int
+            Factor by which to aggregate the exo_source data to the temporal
+            resolution of the file_paths input enhanced by t_enhance.
+
+        Returns
+        -------
+        cache_fp : str
+            Name of cache file
+        """
+        fn = f'exo_{feature}_{self.target}_{self.shape}'
+        fn += f'_sagg{s_agg_factor}_tagg{t_agg_factor}_{s_enhance}x_'
+        fn += f'{t_enhance}x.pkl'
+        fn = fn.replace('(', '').replace(')', '')
+        fn = fn.replace('[', '').replace(']', '')
+        fn = fn.replace(',', 'x').replace(' ', '')
+        cache_fp = os.path.join(self.cache_dir, fn)
+        if self.cache_data:
+            os.makedirs(self.cache_dir, exist_ok=True)
+        return cache_fp
 
 
 class TopoExtractNC(TopoExtractH5):
     """TopoExtract for netCDF files"""
 
     def __init__(self, *args, **kwargs):
-        """
-        Parameters
+        """Parameters
         ----------
         args : list
             Same positional arguments as TopoExtract
         kwargs : dict
             Same keyword arguments as TopoExtract
         """
-
         super().__init__(*args, **kwargs)
         logger.info('Getting topography for full domain from '
                     f'{self._exo_source}')
@@ -450,8 +583,8 @@ class TopoExtractNC(TopoExtractH5):
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
-        elev = self.source_handler.data.reshape((-1, self.lr_shape[-1]))
-        return elev
+        elev = self.source_handler.data[..., 0, 0].flatten()
+        return elev[..., np.newaxis]
 
     @property
     def source_lat_lon(self):
@@ -469,12 +602,11 @@ class SzaExtract(ExoExtract):
         return SolarPosition(self.hr_time_index,
                              self.hr_lat_lon.reshape((-1, 2))).zenith.T
 
-    @property
-    def data(self):
+    def get_data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
         """
         hr_data = self.source_data.reshape(self.hr_shape)
         logger.info('Finished computing SZA data')
-        return hr_data[..., np.newaxis]
+        return hr_data

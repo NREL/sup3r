@@ -8,9 +8,11 @@ https://cds.climate.copernicus.eu/api-how-to
 import logging
 import os
 from calendar import monthrange
-from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
-                                as_completed,
-                                )
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from glob import glob
 from typing import ClassVar
 from warnings import warn
@@ -35,7 +37,8 @@ except ImportError as e:
 
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, file combination,
-    and interpolation."""
+    and interpolation.
+    """
 
     msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
            'with a valid url and api key. Follow the instructions here: '
@@ -43,36 +46,24 @@ class EraDownloader:
     req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
     assert os.path.exists(req_file), msg
 
-    VALID_VARIABLES: ClassVar[list] = [
-        'u', 'v', 'pressure', 'temperature', 'relative_humidity',
-        'specific_humidity', 'total_precipitation',
-    ]
-
-    KEEP_VARIABLES: ClassVar[list] = ['orog']
-    KEEP_VARIABLES += [f'{v}_' for v in VALID_VARIABLES]
-
-    DEFAULT_RENAMED_VARS: ClassVar[list] = [
-        'zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m',
-        'temperature', 'pressure',
-    ]
-    DEFAULT_DOWNLOAD_VARS: ClassVar[list] = [
-        '10m_u_component_of_wind', '10m_v_component_of_wind',
-        '100m_u_component_of_wind', '100m_v_component_of_wind',
-        'u_component_of_wind', 'v_component_of_wind', '2m_temperature',
-        'temperature', 'surface_pressure', 'relative_humidity',
-        'total_precipitation',
-    ]
-
+    # variables available on a single level (e.g. surface)
     SFC_VARS: ClassVar[list] = [
         '10m_u_component_of_wind', '10m_v_component_of_wind',
         '100m_u_component_of_wind', '100m_v_component_of_wind',
         'surface_pressure', '2m_temperature', 'geopotential',
-        'total_precipitation',
+        'total_precipitation', "convective_available_potential_energy",
+        "2m_dewpoint_temperature", "convective_inhibition",
+        "surface_latent_heat_flux", "instantaneous_moisture_flux",
+        "mean_total_precipitation_rate"
     ]
+
+    # variables available on multiple pressure levels
     LEVEL_VARS: ClassVar[list] = [
         'u_component_of_wind', 'v_component_of_wind', 'geopotential',
-        'temperature', 'relative_humidity', 'specific_humidity',
+        'temperature', 'relative_humidity', 'specific_humidity', 'divergence',
+        'vertical_velocity', 'pressure', 'potential_vorticity'
     ]
+
     NAME_MAP: ClassVar[dict] = {
         'u10': 'u_10m',
         'v10': 'v_10m',
@@ -80,12 +71,23 @@ class EraDownloader:
         'v100': 'v_100m',
         't': 'temperature',
         't2m': 'temperature_2m',
-        'u': 'u',
-        'v': 'v',
         'sp': 'pressure_0m',
         'r': 'relative_humidity',
         'q': 'specific_humidity',
-        'tp': 'total_precipitation',
+        'd': 'divergence',
+    }
+
+    SHORT_NAME_MAP: ClassVar[dict] = {
+        'convective_inhibition': 'cin',
+        '2m_dewpoint_temperature': 'd2m',
+        'potential_vorticity': 'pv',
+        'vertical_velocity': 'w',
+        'surface_latent_heat_flux': 'slhf',
+        'instantaneous_moisture_flux': 'ie',
+        'divergence': 'd',
+        'total_precipitation': 'tp',
+        'convective_available_potential_energy': 'cape',
+        'mean_total_precipitation_rate': 'mtpr'
     }
 
     def __init__(self,
@@ -97,8 +99,8 @@ class EraDownloader:
                  interp_out_pattern=None,
                  run_interp=True,
                  overwrite=False,
-                 required_shape=None,
-                 variables=None):
+                 variables=None,
+                 check_files=False):
         """Initialize the class.
 
         Parameters
@@ -122,13 +124,11 @@ class EraDownloader:
             Whether to run interpolation after downloading and combining files.
         overwrite : bool
             Whether to overwrite existing files.
-        required_shape : tuple | None
-            Required shape of data to download. Used to check downloaded data.
-            Should be (n_levels, n_lats, n_lons). If None, no check is
-            performed.
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
+        check_files : bool
+            Check existing files. Remove and redownload if checks fail.
         """
         self.year = year
         self.month = month
@@ -138,15 +138,14 @@ class EraDownloader:
         self.overwrite = overwrite
         self.combined_out_pattern = combined_out_pattern
         self.interp_out_pattern = interp_out_pattern
+        self.check_files = check_files
+        self.required_shape = None
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
         self.hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
-
-        self.shape_check(required_shape, levels)
-        self.check_good_vars(self.variables)
         self.prep_var_lists(self.variables)
 
         msg = ('Initialized EraDownloader with: '
@@ -158,7 +157,7 @@ class EraDownloader:
     def variables(self):
         """Get list of requested variables"""
         if self._variables is None:
-            self._variables = self.VALID_VARIABLES
+            raise OSError('Received empty variable list.')
         return self._variables
 
     @property
@@ -173,11 +172,11 @@ class EraDownloader:
     @property
     def interp_file(self):
         """Get name of file with interpolated variables"""
-        if self._interp_file is None:
-            if self.interp_out_pattern is not None and self.run_interp:
-                self._interp_file = self.interp_out_pattern.format(
-                    year=self.year, month=str(self.month).zfill(2))
-                os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
+        if (self._interp_file is None and self.interp_out_pattern is not None
+                and self.run_interp):
+            self._interp_file = self.interp_out_pattern.format(
+                year=self.year, month=str(self.month).zfill(2))
+            os.makedirs(os.path.dirname(self._interp_file), exist_ok=True)
         return self._interp_file
 
     @property
@@ -233,39 +232,15 @@ class EraDownloader:
     @classmethod
     def get_tmp_file(cls, file):
         """Get temp file for given file. Then only needed variables will be
-        written to the given file."""
+        written to the given file.
+        """
         tmp_file = file.replace(".nc", "_tmp.nc")
         return tmp_file
 
-    def shape_check(self, required_shape, levels):
-        """Check given required shape"""
-        if required_shape is None or len(required_shape) == 3:
-            self.required_shape = required_shape
-        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
-            self.required_shape = (len(levels), *required_shape)
-        else:
-            msg = f'Received weird required_shape: {required_shape}.'
-            logger.error(msg)
-            raise OSError(msg)
-
-    def check_good_vars(self, variables):
-        """Make sure requested variables are valid.
-
-        Parameters
-        ----------
-        variables : list
-            List of variables to download. Can be any of VALID_VARIABLES
-        """
-        good = all(var in self.VALID_VARIABLES for var in variables)
-        if not good:
-            msg = (f'Received variables {variables} not in valid variables '
-                   f'list {self.VALID_VARIABLES}')
-            logger.error(msg)
-            raise OSError(msg)
-
     def _prep_var_lists(self, variables):
         """Add all downloadable variables for the generic requested variables.
-        e.g. if variable = 'u' add all downloadable u variables to list."""
+        e.g. if variable = 'u' add all downloadable u variables to list.
+        """
         d_vars = []
         vars = variables.copy()
         for i, v in enumerate(vars):
@@ -279,7 +254,8 @@ class EraDownloader:
 
     def prep_var_lists(self, variables):
         """Create surface and level variable lists based on requested
-        variables."""
+        variables.
+        """
         variables = self._prep_var_lists(variables)
         for var in variables:
             if var in self.SFC_VARS and var not in self.sfc_file_variables:
@@ -287,7 +263,7 @@ class EraDownloader:
             elif (var in self.LEVEL_VARS
                   and var not in self.level_file_variables):
                 self.level_file_variables.append(var)
-            else:
+            elif var not in self.SFC_VARS and var not in self.LEVEL_VARS:
                 msg = f'Requested {var} is not available for download.'
                 logger.warning(msg)
                 warn(msg)
@@ -296,64 +272,73 @@ class EraDownloader:
         """Run the download routine."""
         sfc_check = len(self.sfc_file_variables) > 0
         level_check = (len(self.level_file_variables) > 0
-                       and self.levels is not None)
+                       and self.levels is not None
+                       and len(self.levels) > 0)
         if self.level_file_variables:
             msg = (f'{self.level_file_variables} requested but no levels'
                    ' were provided.')
             if self.levels is None:
                 logger.warning(msg)
                 warn(msg)
+
+        time_dict = {'year': self.year, 'month': self.month, 'day': self.days,
+                     'time': self.hours}
         if sfc_check:
-            self.download_surface_file()
+            self.download_file(self.sfc_file_variables, time_dict=time_dict,
+                               area=self.area, out_file=self.surface_file,
+                               level_type='single', overwrite=self.overwrite)
         if level_check:
-            self.download_levels_file()
+            self.download_file(self.level_file_variables, time_dict=time_dict,
+                               area=self.area, out_file=self.level_file,
+                               level_type='pressure', levels=self.levels,
+                               overwrite=self.overwrite)
         if sfc_check or level_check:
             self.process_and_combine()
 
-    def download_levels_file(self):
-        """Download file with requested pressure levels"""
-        if not os.path.exists(self.level_file) or self.overwrite:
-            msg = (f'Downloading {self.level_file_variables} to '
-                   f'{self.level_file}.')
-            logger.info(msg)
-            CDS_API_CLIENT.retrieve(
-                'reanalysis-era5-pressure-levels', {
-                    'product_type': 'reanalysis',
-                    'format': 'netcdf',
-                    'variable': self.level_file_variables,
-                    'pressure_level': self.levels,
-                    'year': self.year,
-                    'month': self.month,
-                    'day': self.days,
-                    'time': self.hours,
-                    'area': self.area,
-                }, self.level_file)
-        else:
-            logger.info(f'File already exists: {self.level_file}.')
+    @classmethod
+    def download_file(cls, variables, time_dict, area, out_file, level_type,
+                      levels=None, overwrite=False):
+        """Download either single-level or pressure-level file
 
-    def download_surface_file(self):
-        """Download surface file"""
-        if not os.path.exists(self.surface_file) or self.overwrite:
-            msg = (f'Downloading {self.sfc_file_variables} to '
-                   f'{self.surface_file}.')
+        Parameters
+        ----------
+        variables : list
+            List of variables to download
+        time_dict : dict
+            Dictionary with year, month, day, time entries.
+        area : list
+            List of bounding box coordinates.
+            e.g. [max_lat, min_lon, min_lat, max_lon]
+        out_file : str
+            Name of output file
+        level_type : str
+            Either 'single' or 'pressure'
+        levels : list
+            List of pressure levels to download, if level_type == 'pressure'
+        overwrite : bool
+            Whether to overwrite existing file
+        """
+        if not os.path.exists(out_file) or overwrite:
+            msg = (f'Downloading {variables} to '
+                   f'{out_file} with levels = {levels}.')
             logger.info(msg)
+            entry = {
+                'product_type': 'reanalysis',
+                'format': 'netcdf',
+                'variable': variables,
+                'area': area}
+            entry.update(time_dict)
+            if level_type == 'pressure':
+                entry['pressure_level'] = levels
+            logger.info(f'Calling CDS-API with {entry}.')
             CDS_API_CLIENT.retrieve(
-                'reanalysis-era5-single-levels', {
-                    'product_type': 'reanalysis',
-                    'format': 'netcdf',
-                    'variable': self.sfc_file_variables,
-                    'year': self.year,
-                    'month': self.month,
-                    'day': self.days,
-                    'time': self.hours,
-                    'area': self.area,
-                }, self.surface_file)
+                f'reanalysis-era5-{level_type}-levels',
+                entry, out_file)
         else:
-            logger.info(f'File already exists: {self.surface_file}.')
+            logger.info(f'File already exists: {out_file}.')
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
-
         dims = ('time', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.surface_file)
         with Dataset(self.surface_file, "r") as old_ds:
@@ -382,8 +367,9 @@ class EraDownloader:
         ds : Dataset
             Dataset() object for new file with new variables written.
         """
-        for old_name, new_name in self.NAME_MAP.items():
-            if old_name in old_ds.variables:
+        for old_name in old_ds.variables:
+            new_name = self.NAME_MAP.get(old_name, old_name)
+            if new_name not in ds.variables:
                 _ = ds.createVariable(new_name,
                                       np.float32,
                                       dimensions=old_ds[old_name].dimensions,
@@ -414,7 +400,6 @@ class EraDownloader:
         ds : Dataset
             Dataset() object for new file with new height variable written.
         """
-
         _ = ds.createVariable(standard_name,
                               np.float32,
                               dimensions=old_ds['z'].dimensions)
@@ -426,7 +411,6 @@ class EraDownloader:
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
-
         dims = ('time', 'level', 'latitude', 'longitude')
         tmp_file = self.get_tmp_file(self.level_file)
         with Dataset(self.level_file, "r") as old_ds:
@@ -437,10 +421,12 @@ class EraDownloader:
 
                 ds = self.map_vars(old_ds, ds)
 
-                if 'pressure' in self.variables:
+                if ('pressure' in self.variables
+                        and 'pressure' not in ds.variables):
                     tmp = np.zeros(ds.variables['zg'].shape)
                     for i in range(tmp.shape[1]):
                         tmp[:, i, :, :] = ds.variables['level'][i] * 100
+
                     _ = ds.createVariable('pressure',
                                           np.float32,
                                           dimensions=dims)
@@ -454,7 +440,6 @@ class EraDownloader:
 
     def process_and_combine(self):
         """Process variables and combine."""
-
         if not os.path.exists(self.combined_file) or self.overwrite:
             files = []
             if os.path.exists(self.level_file):
@@ -466,9 +451,8 @@ class EraDownloader:
                 self.process_surface_file()
                 files.append(self.surface_file)
 
-            logger.info(f'Combining {files} and {self.surface_file} '
-                        f'to {self.combined_file}.')
-            with xr.open_mfdataset(files) as ds:
+            logger.info(f'Combining {files} to {self.combined_file}.')
+            with xr.open_mfdataset(files, compat='override') as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
 
@@ -477,15 +461,17 @@ class EraDownloader:
             if os.path.exists(self.surface_file):
                 os.remove(self.surface_file)
 
-    def good_file(self, file, required_shape):
+    def good_file(self, file, required_shape=None):
         """Check if file has the required shape and variables.
 
         Parameters
         ----------
         file : str
             Name of file to check for required variables and shape
-        required_shape : tuple
-            Required shape for data. Should be (n_levels, n_lats, n_lons).
+        required_shape : tuple | None
+            Required shape of data to download. Used to check downloaded data.
+            Should be (n_levels, n_lats, n_lons).  If None, no check is
+            performed.
 
         Returns
         -------
@@ -497,17 +483,44 @@ class EraDownloader:
                                      check_nans=False,
                                      check_heights=False,
                                      required_shape=required_shape)
-        good_vars, good_shape, _, _ = out
-        check = good_vars and good_shape
-        return check
+        good_vars, good_shape, good_hgts, _ = out
+        return bool(good_vars and good_shape and good_hgts)
 
-    def check_existing_files(self):
+    def shape_check(self, required_shape, levels):
+        """Check given required shape"""
+        if required_shape is None or len(required_shape) == 3:
+            self.required_shape = required_shape
+        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
+            self.required_shape = (len(levels), *required_shape)
+        else:
+            msg = f'Received weird required_shape: {required_shape}.'
+            logger.error(msg)
+            raise OSError(msg)
+
+    def check_good_vars(self, variables):
+        """Make sure requested variables are valid.
+
+        Parameters
+        ----------
+        variables : list
+            List of variables to download. Can be any of VALID_VARIABLES
+        """
+        valid_vars = list(self.LEVEL_VARS) + list(self.SFC_VARS)
+        good = all(var in valid_vars for var in variables)
+        if not good:
+            msg = (f'Received variables {variables} not in valid variables '
+                   f'list {valid_vars}')
+            logger.error(msg)
+            raise OSError(msg)
+
+    def check_existing_files(self, required_shape=None):
         """If files exist already check them for good shape and required
         variables. Remove them if there was a problem so we can continue with
-        routine from scratch."""
+        routine from scratch.
+        """
         if os.path.exists(self.combined_file):
             try:
-                check = self.good_file(self.combined_file, self.required_shape)
+                check = self.good_file(self.combined_file, required_shape)
                 if not check:
                     msg = f'Bad file: {self.combined_file}'
                     logger.error(msg)
@@ -530,23 +543,35 @@ class EraDownloader:
 
     def run_interpolation(self, max_workers=None, **kwargs):
         """Run interpolation to get final final. Runs log interpolation up to
-        max_log_height (usually 100m) and linear interpolation above this."""
+        max_log_height (usually 100m) and linear interpolation above this.
+        """
+        variables = [var for var in self.variables if var in self.LEVEL_VARS]
+        for var in self.variables:
+            if var in self.NAME_MAP:
+                variables.append(self.NAME_MAP[var])
+            elif (var in self.SHORT_NAME_MAP
+                    and var not in self.NAME_MAP.values()):
+                variables.append(self.SHORT_NAME_MAP[var])
+            else:
+                variables.append(var)
         LogLinInterpolator.run(infile=self.combined_file,
                                outfile=self.interp_file,
                                max_workers=max_workers,
-                               variables=self.variables,
+                               variables=variables,
                                overwrite=self.overwrite,
                                **kwargs)
 
-    def get_monthly_file(self, interp_workers=None, **interp_kwargs):
+    def get_monthly_file(self, interp_workers=None, keep_variables=None,
+                         **interp_kwargs):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
-        interpolate."""
-
+        interpolate.
+        """
         if os.path.exists(self.combined_file) and self.overwrite:
             os.remove(self.combined_file)
 
-        self.check_existing_files()
+        if self.check_files:
+            self.check_existing_files()
 
         if not os.path.exists(self.combined_file):
             self.download_process_combine()
@@ -555,10 +580,10 @@ class EraDownloader:
             self.run_interpolation(max_workers=interp_workers, **interp_kwargs)
 
         if self.interp_file is not None and os.path.exists(self.interp_file):
-            if self.already_pruned(self.interp_file):
+            if self.already_pruned(self.interp_file, keep_variables):
                 logger.info(f'{self.interp_file} pruned already.')
             else:
-                self.prune_output(self.interp_file)
+                self.prune_output(self.interp_file, keep_variables)
 
     @classmethod
     def all_months_exist(cls, year, file_pattern):
@@ -583,20 +608,32 @@ class EraDownloader:
             for month in range(1, 13))
 
     @classmethod
-    def already_pruned(cls, infile):
+    def already_pruned(cls, infile, keep_variables):
         """Check if file has been pruned already."""
+        if keep_variables is None:
+            logger.info('Received keep_variables=None. Skipping pruning.')
+            return
+        else:
+            logger.info(f'Received keep_variables={keep_variables}.')
 
         pruned = True
         with Dataset(infile, 'r') as ds:
-            for var in ds.variables:
-                if not any(name in var for name in cls.KEEP_VARIABLES):
+            variables = [var for var in ds.variables
+                         if var not in ('time', 'latitude', 'longitude')]
+            for var in variables:
+                if not any(name in var for name in keep_variables):
                     logger.info(f'Pruning {var} in {infile}.')
                     pruned = False
         return pruned
 
     @classmethod
-    def prune_output(cls, infile):
+    def prune_output(cls, infile, keep_variables=None):
         """Prune output file to keep just single level variables"""
+        if keep_variables is None:
+            logger.info('Received keep_variables=None. Skipping pruning.')
+            return
+        else:
+            logger.info(f'Received keep_variables={keep_variables}.')
 
         logger.info(f'Pruning {infile}.')
         tmp_file = cls.get_tmp_file(infile)
@@ -605,7 +642,7 @@ class EraDownloader:
                 new_ds = cls.init_dims(old_ds, new_ds,
                                        ('time', 'latitude', 'longitude'))
                 for var in old_ds.variables:
-                    if any(name in var for name in cls.KEEP_VARIABLES):
+                    if any(name in var for name in keep_variables):
                         old_var = old_ds[var]
                         vals = old_var[:]
                         _ = new_ds.createVariable(
@@ -632,9 +669,10 @@ class EraDownloader:
                   interp_out_pattern=None,
                   run_interp=True,
                   overwrite=False,
-                  required_shape=None,
                   interp_workers=None,
                   variables=None,
+                  keep_variables=None,
+                  check_files=False,
                   **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -659,15 +697,16 @@ class EraDownloader:
             Whether to run interpolation after downloading and combining files.
         overwrite : bool
             Whether to overwrite existing files.
-        required_shape : tuple | None
-            Required shape of data to download. Used to check downloaded data.
-            Should be (n_levels, n_lats, n_lons).  If None, no check is
-            performed.
         interp_workers : int | None
             Max number of workers to use for interpolation.
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
+        keep_variables : list | None
+            Variables to keep in final files. All other variables will be
+            pruned.
+        check_files : bool
+            Check existing files. Remove and redownload if checks fail.
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -679,9 +718,10 @@ class EraDownloader:
                          interp_out_pattern=interp_out_pattern,
                          run_interp=run_interp,
                          overwrite=overwrite,
-                         required_shape=required_shape,
-                         variables=variables)
+                         variables=variables,
+                         check_files=check_files)
         downloader.get_monthly_file(interp_workers=interp_workers,
+                                    keep_variables=keep_variables,
                                     **interp_kwargs)
 
     @classmethod
@@ -695,10 +735,11 @@ class EraDownloader:
                  interp_yearly_file=None,
                  run_interp=True,
                  overwrite=False,
-                 required_shape=None,
                  max_workers=None,
                  interp_workers=None,
                  variables=None,
+                 keep_variables=None,
+                 check_files=False,
                  **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -725,10 +766,6 @@ class EraDownloader:
             Whether to run interpolation after downloading and combining files.
         overwrite : bool
             Whether to overwrite existing files.
-        required_shape : tuple | None
-            Required shape of data to download. Used to check downloaded data.
-            Should be (n_levels, n_lats, n_lons).  If None, no check is
-            performed.
         max_workers : int
             Max number of workers to use for downloading and processing monthly
             files.
@@ -737,6 +774,11 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
+        keep_variables : list | None
+            Variables to keep in final files. All other variables will be
+            pruned.
+        check_files : bool
+            Check existing files. Remove and redownload if checks fail.
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -750,9 +792,10 @@ class EraDownloader:
                               interp_out_pattern=interp_out_pattern,
                               run_interp=run_interp,
                               overwrite=overwrite,
-                              required_shape=required_shape,
                               interp_workers=interp_workers,
                               variables=variables,
+                              keep_variables=keep_variables,
+                              check_files=check_files,
                               **interp_kwargs)
         else:
             futures = {}
@@ -768,9 +811,10 @@ class EraDownloader:
                         interp_out_pattern=interp_out_pattern,
                         run_interp=run_interp,
                         overwrite=overwrite,
-                        required_shape=required_shape,
                         interp_workers=interp_workers,
+                        keep_variables=keep_variables,
                         variables=variables,
+                        check_files=check_files,
                         **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
@@ -1040,7 +1084,6 @@ class EraDownloader:
         good_shape = None
         good_vars = None
         good_hgts = None
-        var_list = (var_list if var_list is not None else cls.VALID_VARIABLES)
         try:
             res = xr.open_dataset(file)
         except Exception as e:
@@ -1064,7 +1107,6 @@ class EraDownloader:
     def run_files_checks(cls,
                          file_pattern,
                          var_list=None,
-                         required_shape=None,
                          check_nans=True,
                          check_heights=True,
                          max_interp_height=200,
@@ -1080,9 +1122,6 @@ class EraDownloader:
         var_list : list | None
             List of variables to check. If None:
             ['zg', 'orog', 'u', 'v', 'u_10m', 'v_10m', 'u_100m', 'v_100m']
-        required_shape : None | tuple
-            Required shape for data. Should include (n_levels, n_lats, n_lons).
-            If None the shape check will be skipped.
         check_nans : bool
             Whether to check data for NaNs.
         check_heights : bool
@@ -1119,8 +1158,7 @@ class EraDownloader:
                     check_nans=check_nans,
                     check_heights=check_heights,
                     max_interp_height=max_interp_height,
-                    max_workers=height_check_workers,
-                    required_shape=required_shape)
+                    max_workers=height_check_workers)
                 df.loc[i, df.columns[1:]] = out
                 logger.info(f'Finished checking {file}.')
         else:
@@ -1133,8 +1171,7 @@ class EraDownloader:
                                         check_nans=check_nans,
                                         check_heights=check_heights,
                                         max_interp_height=max_interp_height,
-                                        max_workers=height_check_workers,
-                                        required_shape=required_shape)
+                                        max_workers=height_check_workers)
                     msg = (f'Submitted file check future for {file}. Future '
                            f'{i + 1} of {len(files)}.')
                     logger.info(msg)

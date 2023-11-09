@@ -11,7 +11,7 @@ from rex import Resource, init_logger
 from scipy.interpolate import interp1d
 
 from sup3r import TEST_DATA_DIR
-from sup3r.postprocessing.collection import Collector
+from sup3r.postprocessing.collection import CollectorH5
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
 from sup3r.utilities.regridder import RegridOutput
@@ -100,13 +100,13 @@ def test_regridding(log=False):
             for node_index in range(regrid_output.nodes):
                 regrid_output.run(node_index=node_index)
 
-            Collector.collect(regrid_output.out_files,
-                              collect_file,
-                              regrid_output.output_features,
-                              target_final_meta_file=meta_path,
-                              join_times=False,
-                              n_writes=2,
-                              max_workers=1)
+            CollectorH5.collect(regrid_output.out_files,
+                                collect_file,
+                                regrid_output.output_features,
+                                target_final_meta_file=meta_path,
+                                join_times=False,
+                                n_writes=2,
+                                max_workers=1)
             with Resource(collect_file) as out_res:
                 for height in heights:
                     ws_name = f'windspeed_{height}m'

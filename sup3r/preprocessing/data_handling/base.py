@@ -335,6 +335,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         extraction"""
         if any(self.features):
             self.data = self.run_all_data_init()
+            mask = np.isinf(self.data)
+            self.data[mask] = np.nan
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
                 msg = 'Data has {:.3f}% NaN values!'.format(nan_perc)
@@ -1019,11 +1021,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 logger.warning(msg)
                 warnings.warn(msg)
 
-            logger.debug('Splitting data into training / validation sets '
-                         f'({1 - self.val_split}, {self.val_split}) '
-                         f'for {self.input_file_info}')
+            if with_split and self.val_split > 0:
+                logger.debug('Splitting data into training / validation sets '
+                             f'({1 - self.val_split}, {self.val_split}) '
+                             f'for {self.input_file_info}')
 
-            if with_split:
                 self.data, self.val_data = self.split_data(
                     val_split=self.val_split, shuffle_time=self.shuffle_time)
 
@@ -1261,8 +1263,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 dset_scalar = f'{feature}_scalar'
                 dset_adder = f'{feature}_adder'
                 with Resource(fp) as res:
-                    check = (dset_scalar in res.dsets
-                             and dset_adder in res.dsets)
+                    dsets = [dset.lower() for dset in res.dsets]
+                    check = (dset_scalar.lower() in dsets
+                             and dset_adder.lower() in dsets)
                 if feature not in completed and check:
                     scalar, adder = get_spatial_bc_factors(
                         lat_lon=self.lat_lon,

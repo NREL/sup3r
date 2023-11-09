@@ -137,10 +137,10 @@ class MultiStepGan(AbstractInterface):
             Synthetically generated high-resolution data transposed according
             to the number of model input dimensions
         """
-        if model.input_dims == 5 and len(hi_res.shape) == 4:
+        if model.is_5d and len(hi_res.shape) == 4:
             hi_res = np.transpose(
                 hi_res, axes=(1, 2, 0, 3))[np.newaxis]
-        elif model.input_dims == 4 and len(hi_res.shape) == 5:
+        elif model.is_4d and len(hi_res.shape) == 5:
             msg = ('Recieved 5D input data with shape '
                    f'({hi_res.shape}) to a 4D model.')
             assert hi_res.shape[0] == 1, msg

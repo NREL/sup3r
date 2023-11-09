@@ -15,6 +15,8 @@ def gaussian_kernel(x1, x2, sigma=1.0):
     x2 : tf.tensor
         high resolution data
         (n_obs, spatial_1, spatial_2, temporal, features)
+    sigma : float
+        Standard deviation for gaussian kernel
 
     Returns
     -------

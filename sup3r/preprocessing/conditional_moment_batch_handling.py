@@ -902,7 +902,7 @@ class BatchHandlerMom1(BatchHandler):
         )
 
         now = dt.now()
-        self.parallel_load()
+        self.load_handler_data()
         logger.debug(
             f'Finished loading data of shape {self.shape} '
             f'for BatchHandler in {dt.now() - now}.'

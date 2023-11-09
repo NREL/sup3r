@@ -24,8 +24,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def __init__(self,
                  hr_handler,
                  lr_handler,
-                 regrid_cache_pattern=None,
-                 overwrite_regrid_cache=False,
+                 cache_pattern=None,
+                 overwrite_cache=False,
                  regrid_workers=1,
                  load_cached=True,
                  shuffle_time=False,
@@ -41,9 +41,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             DataHandler for high_res data
         lr_handler : DataHandler
             DataHandler for low_res data
-        regrid_cache_pattern : str
+        cache_pattern : str
             Pattern for files to use for saving regridded ERA data.
-        overwrite_regrid_cache : bool
+        overwrite_cache : bool
             Whether to overwrite regrid cache
         regrid_workers : int | None
             Number of workers to use for regridding routine.
@@ -63,10 +63,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.t_enhance = t_enhance
         self.lr_dh = lr_handler
         self.hr_dh = hr_handler
-        self._cache_pattern = regrid_cache_pattern
+        self._cache_pattern = cache_pattern
         self._cached_features = None
         self._noncached_features = None
-        self.overwrite_cache = overwrite_regrid_cache
+        self.overwrite_cache = overwrite_cache
         self.val_split = val_split
         self.current_obs_index = None
         self.load_cached = load_cached
@@ -162,24 +162,27 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             dimensions (features)
             array of means for all features with same ordering as data features
         """
-        logger.info('Normalizing low resolution data.')
+        logger.info('Normalizing low resolution data features='
+                    f'{self.features}')
         self._normalize(data=self.lr_data,
                         val_data=self.lr_val_data,
                         means=means,
                         stds=stdevs,
                         max_workers=self.lr_dh.norm_workers)
-        logger.info('Normalizing high resolution data.')
+        logger.info('Normalizing high resolution data features='
+                    f'{self.output_features}')
+        indices = [self.features.index(f) for f in self.output_features]
         self._normalize(data=self.hr_data,
                         val_data=self.hr_val_data,
-                        means=means,
-                        stds=stdevs,
+                        means=means[indices],
+                        stds=stdevs[indices],
                         max_workers=self.hr_dh.norm_workers)
 
     @property
     def output_features(self):
         """Get list of output features. e.g. those that are returned by a
         GAN"""
-        return self.hr_dh.output_features
+        return self.lr_dh.output_features
 
     @property
     def train_only_features(self):
@@ -219,7 +222,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         assert hr_handler.val_split == 0 and lr_handler.val_split == 0, msg
         msg = ('Handlers have incompatible number of features. '
                f'({hr_handler.features} vs {lr_handler.features})')
-        assert hr_handler.features == lr_handler.features, msg
+        assert hr_handler.features == self.output_features, msg
         hr_shape = hr_handler.sample_shape
         lr_shape = (hr_shape[0] // self.s_enhance,
                     hr_shape[1] // self.s_enhance,
@@ -233,21 +236,21 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             hr_shape = self.hr_data.shape
             lr_shape = (hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance, hr_shape[3])
+                        hr_shape[2] // self.t_enhance)
             msg = (f'hr_data.shape {self.hr_data.shape} and '
                    f'lr_data.shape {self.lr_data.shape} are '
                    f'incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert self.lr_data.shape == lr_shape, msg
+            assert self.lr_data.shape[:-1] == lr_shape, msg
 
         if self.lr_val_data is not None and self.hr_val_data is not None:
             hr_shape = self.hr_val_data.shape
             lr_shape = (hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance, hr_shape[3])
+                        hr_shape[2] // self.t_enhance)
             msg = (f'hr_val_data.shape {self.hr_val_data.shape} '
                    f'and lr_val_data.shape {self.lr_val_data.shape}'
                    f' are incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert self.lr_val_data.shape == lr_shape, msg
+            assert self.lr_val_data.shape[:-1] == lr_shape, msg
 
     @property
     def grid_mem(self):
@@ -378,8 +381,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         cache_files = self._get_cache_file_names(self.cache_pattern,
                                                  grid_shape=self.lr_grid_shape,
                                                  time_index=self.lr_time_index,
-                                                 target=self.hr_dh.target,
-                                                 features=self.hr_dh.features)
+                                                 target=self.lr_dh.target,
+                                                 features=self.lr_dh.features)
         return cache_files
 
     @property
@@ -499,7 +502,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         for s in lr_obs_idx[2:-1]:
             hr_obs_idx.append(
                 slice(s.start * self.t_enhance, s.stop * self.t_enhance))
-        hr_obs_idx.append(lr_obs_idx[-1])
+
+        hr_obs_idx.append(np.arange(len(self.output_features)))
         hr_obs_idx = tuple(hr_obs_idx)
         self.current_obs_index = {
             'hr_index': hr_obs_idx,

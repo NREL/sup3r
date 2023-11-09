@@ -1,9 +1,6 @@
 """Sup3r exogenous data handling"""
 import logging
-import os
-import pickle
 import re
-import shutil
 from typing import ClassVar
 
 import numpy as np
@@ -209,7 +206,8 @@ class ExogenousDataHandler:
                  input_handler=None,
                  exo_handler=None,
                  cache_data=True,
-                 cache_dir='./exo_cache'):
+                 cache_dir='./exo_cache',
+                 res_kwargs=None):
         """
         Parameters
         ----------
@@ -282,6 +280,9 @@ class ExogenousDataHandler:
             speed up forward passes with large temporal extents
         cache_dir : str
             Directory for storing cache data. Default is './exo_cache'
+        res_kwargs : dict | None
+            Dictionary of kwargs passed to lowest level resource handler. e.g.
+            xr.open_dataset(file_paths, **res_kwargs)
         """
 
         self.feature = feature
@@ -300,6 +301,7 @@ class ExogenousDataHandler:
         self.cache_data = cache_data
         self.cache_dir = cache_dir
         self.data = {feature: {'steps': []}}
+        self.res_kwargs = res_kwargs
 
         self.input_check()
         agg_enhance = self._get_all_agg_and_enhancement()
@@ -541,42 +543,6 @@ class ExogenousDataHandler:
                                               for step in self.steps]
         return agg_enhance_dict
 
-    def get_cache_file(self, feature, s_enhance, t_enhance, s_agg_factor,
-                       t_agg_factor):
-        """Get cache file name
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature to get cache file for
-        s_enhance : int
-            Spatial enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        t_enhance : int
-            Temporal enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        s_agg_factor : int
-            Factor by which to aggregate the exo_source data to the spatial
-            resolution of the file_paths input enhanced by s_enhance.
-        t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the temporal
-            resolution of the file_paths input enhanced by t_enhance.
-
-        Returns
-        -------
-        cache_fp : str
-            Name of cache file
-        """
-        fn = f'exo_{feature}_{self.target}_{self.shape}_sagg{s_agg_factor}_'
-        fn += f'tagg{t_agg_factor}_{s_enhance}x_{t_enhance}x.pkl'
-        fn = fn.replace('(', '').replace(')', '')
-        fn = fn.replace('[', '').replace(']', '')
-        fn = fn.replace(',', 'x').replace(' ', '')
-        cache_fp = os.path.join(self.cache_dir, fn)
-        if self.cache_data:
-            os.makedirs(self.cache_dir, exist_ok=True)
-        return cache_fp
-
     def get_exo_data(self, feature, s_enhance, t_enhance, s_agg_factor,
                      t_agg_factor):
         """Get the exogenous topography data
@@ -605,35 +571,23 @@ class ExogenousDataHandler:
             lon, temporal)
         """
 
-        cache_fp = self.get_cache_file(feature=feature,
-                                       s_enhance=s_enhance,
-                                       t_enhance=t_enhance,
-                                       s_agg_factor=s_agg_factor,
-                                       t_agg_factor=t_agg_factor)
-        tmp_fp = cache_fp + '.tmp'
-        if os.path.exists(cache_fp):
-            with open(cache_fp, 'rb') as f:
-                data = pickle.load(f)
-
-        else:
-            exo_handler = self.get_exo_handler(feature, self.source_file,
-                                               self.exo_handler)
-            data = exo_handler(self.file_paths,
-                               self.source_file,
-                               s_enhance=s_enhance,
-                               t_enhance=t_enhance,
-                               s_agg_factor=s_agg_factor,
-                               t_agg_factor=t_agg_factor,
-                               target=self.target,
-                               shape=self.shape,
-                               temporal_slice=self.temporal_slice,
-                               raster_file=self.raster_file,
-                               max_delta=self.max_delta,
-                               input_handler=self.input_handler).data
-            if self.cache_data:
-                with open(tmp_fp, 'wb') as f:
-                    pickle.dump(data, f)
-                shutil.move(tmp_fp, cache_fp)
+        exo_handler = self.get_exo_handler(feature, self.source_file,
+                                           self.exo_handler)
+        data = exo_handler(self.file_paths,
+                           self.source_file,
+                           s_enhance=s_enhance,
+                           t_enhance=t_enhance,
+                           s_agg_factor=s_agg_factor,
+                           t_agg_factor=t_agg_factor,
+                           target=self.target,
+                           shape=self.shape,
+                           temporal_slice=self.temporal_slice,
+                           raster_file=self.raster_file,
+                           max_delta=self.max_delta,
+                           input_handler=self.input_handler,
+                           cache_data=self.cache_data,
+                           cache_dir=self.cache_dir,
+                           res_kwargs=self.res_kwargs).data
         return data
 
     @classmethod
