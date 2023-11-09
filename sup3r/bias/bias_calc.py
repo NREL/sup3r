@@ -1,11 +1,11 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
-from abc import abstractmethod
 import copy
 import json
 import logging
 import os
+from abc import abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from glob import glob
 
@@ -875,12 +875,7 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                decimals=decimals)
 
         base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
-        out = {f'bias_{bias_feature}_mean': base_arr.copy(),
-               f'bias_{bias_feature}_std': base_arr.copy(),
-               f'base_{base_dset}_mean': base_arr.copy(),
-               f'base_{base_dset}_std': base_arr.copy(),
-               f'{bias_feature}_scalar': base_arr.copy(),
-               f'{bias_feature}_adder': base_arr.copy()}
+        out = {}
 
         for month in range(1, 13):
             bias_mask = bias_ti.month == month
@@ -892,7 +887,64 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                  bias_feature,
                                                  base_dset)
                 for k, v in mout.items():
+                    if k not in out:
+                        out[k] = base_arr.copy()
                     out[k][month - 1] = v
+
+        return out
+
+
+class MonthlyLinearCorrectionScalarOnly(MonthlyLinearCorrection):
+    """Calculate linear correction *scalar factors to bias correct data. This
+    typically used when base data is just monthly means and standard deviations
+    cannot be computed. This is case for vortex data, for example. Thus, just
+    scalar factors are computed as mean(base_data) / mean(bias_data). Adder
+    factors are still written but are exactly zero.
+
+    This calculation operates on single bias sites on a montly basis
+    """
+
+    @staticmethod
+    def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
+        """Get the linear correction factors based on 1D bias and base datasets
+
+        Parameters
+        ----------
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        base_data : np.ndarray
+            1D array of base data observations.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset
+        base_dset : str
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be U_100m or V_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
+
+        Returns
+        -------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder
+        """
+
+        bias_std = np.nanstd(bias_data)
+        if bias_std == 0:
+            bias_std = np.nanstd(base_data)
+
+        scalar = np.nanmean(base_data) / np.nanmean(bias_data)
+        adder = np.zeros(scalar.shape)
+
+        out = {
+            f'bias_{bias_feature}_mean': np.nanmean(bias_data),
+            f'bias_{bias_feature}_std': bias_std,
+            f'base_{base_dset}_mean': np.nanmean(base_data),
+            f'base_{base_dset}_std': np.nanstd(base_data),
+            f'{bias_feature}_scalar': scalar,
+            f'{bias_feature}_adder': adder,
+        }
 
         return out
 

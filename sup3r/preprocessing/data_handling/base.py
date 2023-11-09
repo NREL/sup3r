@@ -335,6 +335,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         extraction"""
         if any(self.features):
             self.data = self.run_all_data_init()
+            mask = np.isinf(self.data)
+            self.data[mask] = np.nan
             nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
             if nan_perc > 0:
                 msg = 'Data has {:.3f}% NaN values!'.format(nan_perc)

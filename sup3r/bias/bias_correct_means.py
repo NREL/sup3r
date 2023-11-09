@@ -50,13 +50,14 @@ class VortexMeanPrepper:
             interpolated masked monthly means.
         """
         msg = 'path_pattern needs to have {month} and {height} format keys'
-        assert '{month}' in path_pattern and '{year}' in path_pattern, msg
+        assert '{month}' in path_pattern and '{height}' in path_pattern, msg
         self.path_pattern = path_pattern
         self.in_heights = in_heights
         self.out_heights = out_heights
         self.out_dir = os.path.dirname(path_pattern)
         self.overwrite = overwrite
         self._mask = None
+        self._meta = None
 
     @property
     def in_features(self):
@@ -246,6 +247,23 @@ class VortexMeanPrepper:
             )
         return np.array(lats), np.array(lons)
 
+    @property
+    def meta(self):
+        """Get meta with latitude/longitude"""
+        if self._meta is None:
+            lats, lons = self.get_lat_lon()
+            self._meta = pd.DataFrame()
+            self._meta["latitude"] = lats.flatten()[self.mask]
+            self._meta["longitude"] = lons.flatten()[self.mask]
+        return self._meta
+
+    @property
+    def time_index(self):
+        """Get time index so output conforms to standard format"""
+        times = [f'2000-{str(i).zfill(2)}' for i in range(1, 13)]
+        time_index = pd.DatetimeIndex(times)
+        return time_index
+
     def get_all_data(self):
         """Get interpolated monthly means for all out heights as a dictionary
         to use for h5 writing.
@@ -258,10 +276,7 @@ class VortexMeanPrepper:
             flattened
         """
         data_dict = {}
-        lats, lons = self.get_lat_lon()
-        data_dict["latitude"] = lats.flatten()[self.mask]
-        data_dict["longitude"] = lons.flatten()[self.mask]
-        s_num = len(data_dict["longitude"])
+        s_num = len(self.meta)
         for i in range(1, 13):
             month = calendar.month_name[i]
             out = self.get_month(month)
@@ -273,14 +288,14 @@ class VortexMeanPrepper:
         return data_dict
 
     @property
-    def meta(self):
-        """Get a meta data dictionary on how this data is prepared"""
-        meta = {
+    def global_attrs(self):
+        """Get dictionary on how this data is prepared"""
+        attrs = {
             "input_files": self.input_files,
             "class": str(self.__class__),
-            "version_record": VERSION_RECORD,
+            "version_record": str(VERSION_RECORD),
         }
-        return meta
+        return attrs
 
     def write_data(self, fp_out, out):
         """Write monthly means for all heights to h5 file"""
@@ -289,13 +304,16 @@ class VortexMeanPrepper:
                 os.makedirs(os.path.dirname(fp_out), exist_ok=True)
 
             if not os.path.exists(fp_out) or self.overwrite:
-                with h5py.File(fp_out, "w") as f:
-                    for dset, data in out.items():
-                        f.create_dataset(dset, data=data)
-                        logger.info(f"Added {dset} to {fp_out}.")
 
-                    for k, v in self.meta.items():
-                        f.attrs[k] = json.dumps(v)
+                OutputHandler._init_h5(
+                    fp_out, self.time_index, self.meta, self.global_attrs
+                )
+                with RexOutputs(fp_out, "a") as f:
+
+                    for dset, data in out.items():
+                        OutputHandler._ensure_dset_in_output(fp_out, dset)
+                        f[dset] = data.T
+                        logger.info(f"Added {dset} to {fp_out}.")
 
                     logger.info(
                         f"Wrote monthly means for all out heights: {fp_out}"
@@ -330,163 +348,6 @@ class VortexMeanPrepper:
         vprep.convert_all_tifs()
         out = vprep.get_all_data()
         vprep.write_data(fp_out, out)
-
-
-class EraMeanPrepper:
-    """Class to compute monthly windspeed means from ERA data."""
-
-    def __init__(self, era_pattern, years, features):
-        """Parameters
-        ----------
-        era_pattern : str
-            Pattern pointing to era files with u/v wind components at the given
-            heights. Must have a {year} format key.
-        years : list
-            List of ERA years to use for calculating means.
-        features : list
-            List of features to compute means for. e.g. ['windspeed_10m']
-        """
-        self.era_pattern = era_pattern
-        self.years = years
-        self.features = features
-        self.lats, self.lons = self.get_lat_lon()
-
-    @property
-    def shape(self):
-        """Get shape of spatial dimensions (lats, lons)"""
-        return self.lats.shape
-
-    @property
-    def heights(self):
-        """List of feature heights"""
-        heights = [Feature.get_height(feature) for feature in self.features]
-        return heights
-
-    @property
-    def input_files(self):
-        """List of ERA input files to use for calculating means."""
-        return [self.era_pattern.format(year=year) for year in self.years]
-
-    def get_lat_lon(self):
-        """Get arrays of latitude and longitude for ERA domain"""
-        with xr.open_dataset(self.input_files[0]) as res:
-            lons, lats = np.meshgrid(
-                res["longitude"].values, res["latitude"].values
-            )
-        return lats, lons
-
-    def get_windspeed(self, data, height):
-        """Compute windspeed from u/v wind components from given data.
-
-        Parameters
-        ----------
-        data : xarray.Dataset
-            xarray dataset object for a year of ERA data. Must include u/v
-            components for the given height. e.g. u_{height}m, v_{height}m.
-        height : int
-            Height to compute windspeed for.
-        """
-        return np.hypot(
-            data[f"u_{height}m"].values, data[f"v_{height}m"].values
-        )
-
-    def get_month_mean(self, data, height, month):
-        """Get windspeed_{height}m mean for the given month.
-
-        Parameters
-        ----------
-        data : xarray.Dataset
-            xarray dataset object for a year of ERA data. Must include u/v
-            components for the given height. e.g. u_{height}m, v_{height}m.
-        height : int
-            Height to compute windspeed for.
-        month : int
-            Index of month to get mean for. e.g. 1 = Jan, 2 = Feb, etc.
-
-        Returns
-        -------
-        out : np.ndarray
-            Array of time averaged windspeed data for the given month.
-
-        """
-        mask = pd.to_datetime(data["time"]).month == month
-        ws = self.get_windspeed(data, height)[mask]
-        return ws.mean(axis=0)
-
-    def get_all_means(self, height):
-        """Get monthly means for all months across all given years for the
-        given height.
-
-        Parameters
-        ----------
-        height : int
-            Height to compute windspeed for.
-
-        Returns
-        -------
-        means : dict
-            Dictionary of windspeed_{height}m means for each month
-        """
-        feature = self.features[self.heights.index(height)]
-        means = {i: [] for i in range(1, 13)}
-        for i, year in enumerate(self.years):
-            logger.info(f"Getting means for year={year}, feature={feature}.")
-            data = xr.open_dataset(self.input_files[i])
-            for m in range(1, 13):
-                means[m].append(self.get_month_mean(data, height, month=m))
-        means = {m: np.dstack(arr).mean(axis=-1) for m, arr in means.items()}
-        return means
-
-    def write_csv(self, out, out_file):
-        """Write monthly means to a csv file.
-
-        Parameters
-        ----------
-        out : dict
-            Dictionary of windspeed_{height}m means for each month
-        out_file : str
-            Name of csv output file.
-        """
-        logger.info(f"Writing means to {out_file}.")
-        out = {
-            f"{str(calendar.month_name[m])[:3]}_mean": v.flatten()
-            for m, v in out.items()
-        }
-        df = pd.DataFrame.from_dict(out)
-        df["latitude"] = self.lats.flatten()
-        df["longitude"] = self.lons.flatten()
-        df["gid"] = np.arange(len(df["latitude"]))
-        df.to_csv(out_file)
-        logger.info(f"Finished writing means for {out_file}.")
-
-    @classmethod
-    def run(cls, era_pattern, years, features, out_pattern):
-        """Compute monthly windspeed means for the given heights, using the
-        given years of ERA data, and write the means to csv files for each
-        height.
-
-        Parameters
-        ----------
-        era_pattern : str
-            Pattern pointing to era files with u/v wind components at the given
-            heights. Must have a {year} format key.
-        years : list
-            List of ERA years to use for calculating means.
-        features : list
-            List of features to compute means for. e.g. ['windspeed_10m']
-        out_pattern : str
-            Pattern pointing to csv files to write means to. Must have a
-            {feature} format key.
-        """
-        em = cls(era_pattern=era_pattern, years=years, features=features)
-        for height, feature in zip(em.heights, em.features):
-            means = em.get_all_means(height)
-            out_file = out_pattern.format(feature=feature)
-            em.write_csv(means, out_file=out_file)
-        logger.info(
-            f"Finished writing means for years={years} and "
-            f"heights={em.heights}."
-        )
 
 
 class BiasCorrectionFromMeans:
