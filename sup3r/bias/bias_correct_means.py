@@ -1,5 +1,8 @@
 """Classes to compute means from vortex and era data and compute bias
 correction factors.
+
+Vortex mean files can be downloaded from IRENA.
+https://globalatlas.irena.org/workspace
 """
 
 
@@ -32,7 +35,8 @@ class VortexMeanPrepper:
     """
 
     def __init__(self, path_pattern, in_heights, out_heights, overwrite=False):
-        """Parameters
+        """
+        Parameters
         ----------
         path_pattern : str
             Pattern for input tif files. Needs to include {month} and {height}
@@ -45,6 +49,8 @@ class VortexMeanPrepper:
             Whether to overwrite intermediate netcdf files containing the
             interpolated masked monthly means.
         """
+        msg = 'path_pattern needs to have {month} and {height} format keys'
+        assert '{month}' in path_pattern and '{year}' in path_pattern, msg
         self.path_pattern = path_pattern
         self.in_heights = in_heights
         self.out_heights = out_heights

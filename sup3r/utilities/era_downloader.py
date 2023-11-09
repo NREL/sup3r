@@ -139,6 +139,7 @@ class EraDownloader:
         self.combined_out_pattern = combined_out_pattern
         self.interp_out_pattern = interp_out_pattern
         self.check_files = check_files
+        self.required_shape = None
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
@@ -1083,7 +1084,6 @@ class EraDownloader:
         good_shape = None
         good_vars = None
         good_hgts = None
-        var_list = (var_list if var_list is not None else cls.VALID_VARIABLES)
         try:
             res = xr.open_dataset(file)
         except Exception as e:
