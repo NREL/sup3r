@@ -638,11 +638,8 @@ class DataHandlerNCforCC(DataHandlerNC):
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode)
-        t_start = self.temporal_slice.start or 0
-        t_end_target = self.temporal_slice.stop or len(self.raw_time_index)
-        t_start = int(t_start * 24 * (1 / time_freq))
-        t_end = int(t_end_target * 24 * (1 / time_freq))
-        t_end = np.minimum(t_end, len(ti_nsrdb))
+        t_start = np.where((self.time_index[0].month == ti_nsrdb.month) & (self.time_index[0].day == ti_nsrdb.day))[0][0]
+        t_end = np.where((self.time_index[-1].month == ti_nsrdb.month) & (self.time_index[-1].day == ti_nsrdb.day))[0][-1]+1
         t_slice = slice(t_start, t_end)
 
         # pylint: disable=E1136
@@ -685,16 +682,20 @@ class DataHandlerNCforCC(DataHandlerNC):
                                                 self._nsrdb_smoothing,
                                                 mode='nearest')
 
-        if cs_ghi.shape[-1] < t_end_target:
-            n = int(np.ceil(t_end_target / cs_ghi.shape[-1]))
+        if cs_ghi.shape[-1] < len(self.time_index):
+            n = int(np.ceil(len(self.time_index) / cs_ghi.shape[-1]))
             cs_ghi = np.repeat(cs_ghi, n, axis=2)
-            cs_ghi = cs_ghi[..., :t_end_target]
+            cs_ghi = cs_ghi[..., :len(self.time_index)]
 
         logger.info(
             'Reshaped clearsky_ghi data to final shape {} to '
             'correspond with CC daily average data over source '
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
+        
+
+        msg = ('cs_ghi time dimension ({}) does not match input time dimension ({})'.format(cs_ghi.shape[2], len(self.time_index)))
+        assert cs_ghi.shape[2] == len(self.time_index), msg
 
         return cs_ghi
 
