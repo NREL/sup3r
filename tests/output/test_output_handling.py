@@ -9,7 +9,7 @@ import tensorflow as tf
 from rex import ResourceX, init_logger
 
 from sup3r import __version__
-from sup3r.postprocessing.collection import Collector
+from sup3r.postprocessing.collection import CollectorH5
 from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
 from sup3r.utilities.pytest import make_fake_h5_chunks
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
@@ -140,7 +140,7 @@ def test_h5_out_and_collect():
             low_res_times,
         ) = out
 
-        Collector.collect(out_files, fp_out, features=features)
+        CollectorH5.collect(out_files, fp_out, features=features)
         with ResourceX(fp_out) as fh:
             full_ti = fh.time_index
             combined_ti = []
@@ -207,7 +207,7 @@ def test_h5_collect_mask(log=False):
         out = make_fake_h5_chunks(td)
         (out_files, data, _, _, features, _, _, _, _, _, _) = out
 
-        Collector.collect(out_files, fp_out, features=features)
+        CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.product(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
         removed = []
@@ -220,7 +220,7 @@ def test_h5_collect_mask(log=False):
             mask_meta['gid'][:] = np.arange(len(mask_meta))
             mask_meta.to_csv(mask_file, index=False)
 
-        Collector.collect(
+        CollectorH5.collect(
             out_files,
             fp_out_mask,
             features=features,
