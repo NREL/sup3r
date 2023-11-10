@@ -85,7 +85,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             single GPU exists, that GPU will be the default device. If None and
             multiple GPUs exist, the CPU will be the default device (this was
             tested as most efficient given the custom multi-gpu strategy
-            developed in self.run_gradient_descent())
+            developed in self.run_gradient_descent()). Examples: "/gpu:0" or
+            "/cpu:0"
         name : str | None
             Optional name for the GAN.
         """
@@ -514,6 +515,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         return loss_disc
 
+    @tf.function
     def calc_loss(self,
                   hi_res_true,
                   hi_res_gen,
@@ -645,7 +647,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             present, each batch from the batch_handler will be divided up
             between the GPUs and the resulting gradient from each GPU will
             constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with.
+            rate that the model was initialized with. If true and multiple gpus
+            are found, default_device device should be set to /gpu:0
 
         Returns
         -------
@@ -845,7 +848,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             present, each batch from the batch_handler will be divided up
             between the GPUs and the resulting gradient from each GPU will
             constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with.
+            rate that the model was initialized with. If true and multiple gpus
+            are found, default_device device should be set to /gpu:0
         """
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)

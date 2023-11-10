@@ -318,6 +318,7 @@ class AbstractInterface(ABC):
                     hi_res = np.concatenate((hi_res, exo_output), axis=-1)
         return hi_res
 
+    @tf.function
     def _combine_loss_input(self, high_res_true, high_res_gen):
         """Combine exogenous feature data from high_res_true with high_res_gen
         for loss calculation
@@ -1385,7 +1386,7 @@ class AbstractSingleModel(ABC):
 
         return hi_res
 
-    @tf.function()
+    @tf.function
     def get_single_grad(self,
                         low_res,
                         hi_res_true,
