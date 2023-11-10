@@ -693,8 +693,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
         
-
-        msg = ('cs_ghi time dimension ({}) does not match input time dimension ({})'.format(cs_ghi.shape[2], len(self.time_index)))
+        msg = ('nsrdb clearsky GHI time dimension {} does not match the GCM time dimension {}'.format(cs_ghi.shape[2], len(self.time_index)))
         assert cs_ghi.shape[2] == len(self.time_index), msg
 
         return cs_ghi
