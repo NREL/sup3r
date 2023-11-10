@@ -165,7 +165,7 @@ class DataHandlerH5(DataHandler):
             msg = ('Must provide raster file or shape + target to get '
                    'raster index')
             assert check, msg
-            logger.debug('Calculating raster index from WTK file '
+            logger.debug('Calculating raster index from .h5 file '
                          f'for shape {self.grid_shape} and target '
                          f'{self.target}')
             handle = self.source_handler(self.file_paths[0])

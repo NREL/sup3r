@@ -142,12 +142,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Size of spatial and temporal domain used in a single high-res
             observation for batching
         raster_file : str | None
-            File for raster_index array for the corresponding target and shape.
-            If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist. If None and
-            raster_index is not provided raster_index will be calculated
-            directly. Either need target+shape, raster_file, or raster_index
-            input.
+            .txt file for raster_index array for the corresponding target and
+            shape. If specified the raster_index will be loaded from the file
+            if it exists or written to the file if it does not yet exist. If
+            None and raster_index is not provided raster_index will be
+            calculated directly. Either need target+shape, raster_file, or
+            raster_index input.
         raster_index : list
             List of tuples or slices. Used as an alternative to computing the
             raster index from target+shape or loading the raster index from
