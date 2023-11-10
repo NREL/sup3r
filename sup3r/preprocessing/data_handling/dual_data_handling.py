@@ -212,14 +212,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.warning(msg)
             warn(msg)
 
-        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0], :self.
-                                       hr_required_shape[1], :self.
-                                       hr_required_shape[2]]
+        self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
+                                       :self.hr_required_shape[1],
+                                       :self.hr_required_shape[2]]
         self.hr_time_index = self.hr_dh.time_index[:self.hr_required_shape[2]]
         self.lr_time_index = self.lr_dh.time_index[:self.lr_required_shape[2]]
 
         assert np.array_equal(self.hr_time_index[::self.t_enhance].values,
-                              self.lr_time_index)
+                              self.lr_time_index.values)
 
     def _run_pair_checks(self, hr_handler, lr_handler):
         """Run sanity checks on high_res and low_res pairs. The handler data
