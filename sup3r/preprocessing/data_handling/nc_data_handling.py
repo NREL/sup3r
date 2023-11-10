@@ -641,8 +641,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         t_start = np.where((self.time_index[0].month == ti_nsrdb.month)
                            & (self.time_index[0].day == ti_nsrdb.day))[0][0]
         t_end = np.where((self.time_index[-1].month == ti_nsrdb.month)
-                         &
-                         (self.time_index[-1].day == ti_nsrdb.day))[0][-1] + 1
+                         & (self.time_index[-1].day == ti_nsrdb.day))[0][-1]+1
         t_slice = slice(t_start, t_end)
 
         # pylint: disable=E1136
@@ -695,9 +694,8 @@ class DataHandlerNCforCC(DataHandlerNC):
             'correspond with CC daily average data over source '
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
-        
         msg = ('nsrdb clearsky GHI time dimension {}'
-                'does not match the GCM time dimension {}'
+               'does not match the GCM time dimension {}'
                .format(cs_ghi.shape[2], len(self.time_index)))
         assert cs_ghi.shape[2] == len(self.time_index), msg
 
