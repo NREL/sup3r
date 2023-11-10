@@ -640,9 +640,9 @@ class DataHandlerNCforCC(DataHandlerNC):
         time_freq = float(mode(ti_deltas_hours).mode)
         t_start = np.where((self.time_index[0].month == ti_nsrdb.month)
                            & (self.time_index[0].day == ti_nsrdb.day))[0][0]
-        t_end = np.where((self.time_index[-1].month == ti_nsrdb.month)
-                         & (self.time_index[-1].day == ti_nsrdb.day)
-                        )[0][-1] + 1
+        t_end = 1 + np.where(
+            (self.time_index[-1].month == ti_nsrdb.month)
+            & (self.time_index[-1].day == ti_nsrdb.day))[0][-1]
         t_slice = slice(t_start, t_end)
 
         # pylint: disable=E1136
