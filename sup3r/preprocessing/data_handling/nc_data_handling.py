@@ -638,8 +638,10 @@ class DataHandlerNCforCC(DataHandlerNC):
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode)
-        t_start = np.where((self.time_index[0].month == ti_nsrdb.month) & (self.time_index[0].day == ti_nsrdb.day))[0][0]
-        t_end = np.where((self.time_index[-1].month == ti_nsrdb.month) & (self.time_index[-1].day == ti_nsrdb.day))[0][-1]+1
+        t_start = np.where((self.time_index[0].month == ti_nsrdb.month) 
+                           & (self.time_index[0].day == ti_nsrdb.day))[0][0]
+        t_end = np.where((self.time_index[-1].month == ti_nsrdb.month) 
+                         & (self.time_index[-1].day == ti_nsrdb.day))[0][-1] + 1
         t_slice = slice(t_start, t_end)
 
         # pylint: disable=E1136
@@ -693,7 +695,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
         
-        msg = ('nsrdb clearsky GHI time dimension {} does not match the GCM time dimension {}'.format(cs_ghi.shape[2], len(self.time_index)))
+        msg = ('nsrdb clearsky GHI time dimension {}' 
+                'does not match the GCM time dimension {}'.format(cs_ghi.shape[2], 
+                                                                  len(self.time_index)))
         assert cs_ghi.shape[2] == len(self.time_index), msg
 
         return cs_ghi
