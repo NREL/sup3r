@@ -862,7 +862,8 @@ class BatchHandler:
         logger.debug(f'Calculating mean for {feature}')
         if max_workers == 1:
             for didx, _ in enumerate(self.data_handlers):
-                self.means[idx] += self.get_handler_mean(idx, didx)
+                self.means[idx] += (self.handler_weights[didx]
+                                    * self.get_handler_mean(idx, didx))
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
@@ -876,14 +877,18 @@ class BatchHandler:
                             f'{dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
-                    self.means[idx] += future.result()
+                    self.means[idx] += (self.handler_weights[futures[future]]
+                                        * future.result())
                     logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                  'means calculated.')
-        self.means[idx] /= len(self.data_handlers)
         return self.means[idx]
 
     def get_stdevs_for_feature(self, feature, max_workers=None):
         """Get stdev for requested feature
+
+        NOTE: We compute the variance across all handlers as a pooled variance
+        of the variances for each handler. We also assume that the number of
+        samples in each handler is much greater than 1, so N - 1 ~ N.
 
         Parameters
         ----------
@@ -897,8 +902,8 @@ class BatchHandler:
         logger.debug(f'Calculating stdev for {feature}')
         if max_workers == 1:
             for didx, _ in enumerate(self.data_handlers):
-                self.stds[idx] += self.get_handler_variance(
-                    idx, didx, self.means[idx])
+                hstd = self.get_handler_variance(idx, didx, self.means[idx])
+                self.stds[idx] += (hstd * self.handler_weights[didx])
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
@@ -913,10 +918,10 @@ class BatchHandler:
                             f'{dt.now() - now}.')
 
                 for i, future in enumerate(as_completed(futures)):
-                    self.stds[idx] += future.result()
+                    self.stds[idx] += (self.handler_weights[futures[future]]
+                                       * future.result())
                     logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                  'stdevs calculated.')
-        self.stds[idx] /= len(self.data_handlers)
         self.stds[idx] = np.sqrt(self.stds[idx])
         return self.stds[idx]
 

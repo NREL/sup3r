@@ -731,20 +731,26 @@ class InputMixIn(CacheHandlingMixIn):
                 self._lat_lon = self._lat_lon[::-1]
         return self._lat_lon
 
+    @property
+    def latitude(self):
+        """Flattened list of latitudes"""
+        return self.lat_lon[..., 0].flatten()
+
+    @property
+    def longitude(self):
+        """Flattened list of longitudes"""
+        return self.lat_lon[..., 1].flatten()
+
+    @property
+    def meta(self):
+        """Meta dataframe with coordinates."""
+        return pd.DataFrame({'latitude': self.latitude,
+                             'longitude': self.longitude})
+
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update lat lon"""
         self._lat_lon = lat_lon
-
-    @property
-    def latitude(self):
-        """Return latitude array"""
-        return self.lat_lon[..., 0]
-
-    @property
-    def longitude(self):
-        """Return longitude array"""
-        return self.lat_lon[..., 1]
 
     @property
     def invert_lat(self):

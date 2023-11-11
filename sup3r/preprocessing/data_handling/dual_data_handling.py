@@ -19,7 +19,15 @@ logger = logging.getLogger(__name__)
 # pylint: disable=unsubscriptable-object
 class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     """Batch handling class for h5 data as high res (usually WTK) and netcdf
-    data as low res (usually ERA5)"""
+    data as low res (usually ERA5)
+
+    NOTE: When initializing the lr_handler it's important to pick a shape
+    argument that will produce a low res domain that completely overlaps with
+    the high res domain. When the high res data is not on a regular grid
+    (WTK uses lambert) the low res shape is not simply the high res shape
+    divided by s_enhance. It is easiest to not provide a shape argument at all
+    for lr_handler and to get the full domain.
+    """
 
     def __init__(self,
                  hr_handler,
