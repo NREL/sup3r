@@ -503,13 +503,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """
         lr_obs_idx = self._get_observation_index(self.lr_data,
                                                  self.lr_sample_shape)
-        hr_obs_idx = []
-        for s in lr_obs_idx[:2]:
-            hr_obs_idx.append(
-                slice(s.start * self.s_enhance, s.stop * self.s_enhance))
-        for s in lr_obs_idx[2:-1]:
-            hr_obs_idx.append(
-                slice(s.start * self.t_enhance, s.stop * self.t_enhance))
+        hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
+                      for s in lr_obs_idx[:2]]
+        hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
+                       for s in lr_obs_idx[2:-1]]
 
         hr_obs_idx.append(np.arange(len(self.output_features)))
         hr_obs_idx = tuple(hr_obs_idx)

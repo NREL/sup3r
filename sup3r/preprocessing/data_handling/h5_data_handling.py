@@ -135,8 +135,7 @@ class DataHandlerH5(DataHandler):
         logger.info(f'Extracting {feature} with kwargs={kwargs}')
         handle = cls.source_handler(file_paths, **kwargs)
         try:
-            fdata = handle[(feature, time_slice,
-                            *tuple([raster_index.flatten()]))]
+            fdata = handle[(feature, time_slice, *(raster_index.flatten(),))]
         except ValueError as e:
             msg = f'{feature} cannot be extracted from source data'
             logger.exception(msg)
@@ -326,13 +325,11 @@ class DataHandlerH5WindCC(DataHandlerH5):
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
-        obs_ind_hourly = tuple(
-            [*spatial_slice, t_slice_hourly,
-             np.arange(len(self.features))])
+        obs_ind_hourly = (*spatial_slice, t_slice_hourly,
+                          np.arange(len(self.features)))
 
-        obs_ind_daily = tuple(
-            [*spatial_slice, t_slice_daily,
-             np.arange(len(self.features))])
+        obs_ind_daily = (*spatial_slice, t_slice_daily,
+                         np.arange(len(self.features)))
 
         return obs_ind_hourly, obs_ind_daily
 

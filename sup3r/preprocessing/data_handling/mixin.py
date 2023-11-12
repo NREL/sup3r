@@ -158,7 +158,8 @@ class CacheHandlingMixIn:
             cache_files = [
                 cache_pattern.replace('{feature}', f.lower()) for f in features
             ]
-            for i, f in enumerate(cache_files):
+            for i, _ in enumerate(cache_files):
+                f = cache_files[i]
                 if '{shape}' in f:
                     shape = f'{grid_shape[0]}x{grid_shape[1]}'
                     shape += f'x{len(time_index)}'
@@ -988,9 +989,7 @@ class TrainingPrepMixIn:
         """
         spatial_slice = uniform_box_sampler(data, sample_shape[:2])
         temporal_slice = uniform_time_sampler(data, sample_shape[2])
-        return tuple(
-            [*spatial_slice, temporal_slice,
-             np.arange(data.shape[-1])])
+        return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
 
     @classmethod
     def _unnormalize(cls, data, val_data, means, stds):

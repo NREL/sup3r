@@ -588,9 +588,7 @@ class Veer(DerivedFeature):
             heights = cls.HEIGHTS
         else:
             heights = [int(rotor_center) - i * 20 for i in [-2, -1, 0, 1, 2]]
-        features = []
-        for height in heights:
-            features.append(f'winddirection_{height}m')
+        features = [f'winddirection_{height}m' for height in heights]
         return features
 
     @classmethod
@@ -1126,7 +1124,7 @@ class TopoH5:
             (spatial_1, spatial_2)
         """
         with Resource(file_paths[0], hsds=False) as handle:
-            idx = tuple([raster_index.flatten()])
+            idx = (raster_index.flatten(),)
             topo = handle.get_meta_arr('elevation')[idx]
             topo = topo.reshape((raster_index.shape[0], raster_index.shape[1]))
         return topo
@@ -1154,7 +1152,7 @@ class LatLonH5:
             (spatial_1, spatial_2, 2)
         """
         with Resource(file_paths[0], hsds=False) as handle:
-            lat_lon = handle.lat_lon[tuple([raster_index.flatten()])]
+            lat_lon = handle.lat_lon[(raster_index.flatten(),)]
             lat_lon = lat_lon.reshape(
                 (raster_index.shape[0], raster_index.shape[1], 2))
         return lat_lon

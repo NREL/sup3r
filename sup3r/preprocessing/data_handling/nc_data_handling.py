@@ -312,9 +312,9 @@ class DataHandlerNC(DataHandler):
         # Sometimes xarray returns fields with (Times, time, lats, lons)
         # with a single entry in the 'time' dimension so we include this [0]
         if len(handle[feature].dims) == 4:
-            idx = tuple([time_slice, 0, *raster_index])
+            idx = (time_slice, 0, *raster_index)
         elif len(handle[feature].dims) == 3:
-            idx = tuple([time_slice, *raster_index])
+            idx = (time_slice, *raster_index)
         else:
             idx = tuple(raster_index)
         fdata = np.array(handle[feature][idx], dtype=np.float32)

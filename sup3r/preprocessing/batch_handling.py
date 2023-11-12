@@ -254,10 +254,10 @@ class ValidationData:
                         h.val_data, self.sample_shape[:2])
                     temporal_slice = uniform_time_sampler(
                         h.val_data, self.sample_shape[2])
-                    tuple_index = tuple([
+                    tuple_index = (
                         *spatial_slice, temporal_slice,
                         np.arange(h.val_data.shape[-1]),
-                    ])
+                    )
                     val_indices.append({
                         'handler_index': i,
                         'tuple_index': tuple_index
@@ -1249,10 +1249,10 @@ class ValidationDataDC(ValidationData):
                 temporal_slice = weighted_time_sampler(h.data,
                                                        self.sample_shape[2],
                                                        weights)
-                tuple_index = tuple([
+                tuple_index = (
                     *spatial_slice, temporal_slice,
                     np.arange(h.data.shape[-1])
-                ])
+                )
                 val_indices[t].append({
                     'handler_index': h_idx,
                     'tuple_index': tuple_index
@@ -1269,10 +1269,10 @@ class ValidationDataDC(ValidationData):
                                                      weights)
                 temporal_slice = uniform_time_sampler(h.data,
                                                       self.sample_shape[2])
-                tuple_index = tuple([
+                tuple_index = (
                     *spatial_slice, temporal_slice,
                     np.arange(h.data.shape[-1])
-                ])
+                )
                 val_indices[s + self.N_TIME_BINS].append({
                     'handler_index': h_idx,
                     'tuple_index': tuple_index
