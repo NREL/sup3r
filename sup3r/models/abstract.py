@@ -858,10 +858,12 @@ class AbstractSingleModel(ABC):
 
         Parameters
         ----------
-        loss : str
+        loss : str | dict
             Loss function class name from sup3r.utilities.loss_metrics
             (prioritized) or tensorflow.keras.losses. Defaults to
-            tf.keras.losses.MeanSquaredError.
+            tf.keras.losses.MeanSquaredError. This can be provided as a dict
+            with kwargs for loss functions with extra parameters.
+            e.g. {'SpatialExtremesLoss': {'weight': 0.5}}
 
         Returns
         -------
@@ -870,6 +872,9 @@ class AbstractSingleModel(ABC):
             "MeanSquaredError" is requested, this will return
             an instance of tf.keras.losses.MeanSquaredError()
         """
+        kwargs = {}
+        if isinstance(loss, dict):
+            loss, kwargs = next(iter(loss.items()))
 
         out = getattr(sup3r.utilities.loss_metrics, loss, None)
         if out is None:
@@ -882,7 +887,7 @@ class AbstractSingleModel(ABC):
             logger.error(msg)
             raise KeyError(msg)
 
-        return out()
+        return out(**kwargs)
 
     @staticmethod
     def get_optimizer_config(optimizer):
