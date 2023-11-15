@@ -269,3 +269,43 @@ class TemporalExtremesLoss(tf.keras.losses.Loss):
         mae_max = self.MAE_LOSS(x1_max, x2_max)
 
         return mae + self._weight * (mae_min + mae_max)
+
+
+class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values across both
+    space and time"""
+
+    def __init__(self, spatial_weight=1.0, temporal_weight=1.0):
+        """Initialize the loss with given weight
+
+        Parameters
+        ----------
+        spatial_weight : float
+            Weight for spatial min/max loss terms.
+        temporal_weight : float
+            Weight for temporal min/max loss terms.
+        """
+        super().__init__()
+        self.sp_ex_loss = SpatialExtremesLoss(2 * temporal_weight)
+        self.temp_ex_loss = TemporalExtremesLoss(2 * spatial_weight)
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages spatiotemporal min/max accuracy.
+        This is computed as 1/2 times the sum of spatial and temporal extremes
+        loss functions with doubled weights.
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        return 0.5 * (self.sp_ex_loss(x1, x2) + self.temp_ex_loss(x1, x2))
